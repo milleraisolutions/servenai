@@ -109,38 +109,46 @@ export default function RootLayout({ children }) {
               flexWrap: "wrap",
             }}
           >
-            {/* LOGO */}
-            <Link
-              href="/"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "10px",
-                textDecoration: "none",
-                color: "white",
-                minWidth: "fit-content",
-              }}
-            >
-              <Image
-                src="/logo-serven.jpg"
-                alt="SerVen logo"
-                width={42}
-                height={42}
-                style={{ objectFit: "contain", flexShrink: 0 }}
-              />
+          {/* LOGO */}
+<Link
+  href="/"
+  style={{
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    textDecoration: "none",
+    color: "white",
+    flexShrink: 0,
+  }}
+>
+  <Image
+    src="/logo-serven.png"
+    alt="SerVen logo"
+    width={42}
+    height={42}
+    priority
+    style={{
+      width: "42px",
+      height: "42px",
+      objectFit: "contain",
+      borderRadius: "10px",
+      display: "block",
+      flexShrink: 0,
+    }}
+  />
 
-              <span
-                style={{
-                  fontSize: "22px",
-                  fontWeight: "900",
-                  letterSpacing: "-0.5px",
-                  marginLeft: "-6px",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                SerVen
-              </span>
-            </Link>
+  <span
+    style={{
+      fontSize: "22px",
+      fontWeight: "900",
+      letterSpacing: "-0.5px",
+      whiteSpace: "nowrap",
+      lineHeight: "1",
+    }}
+  >
+    SerVen
+  </span>
+</Link>
 
             {/* NAV LINKS */}
             <nav
