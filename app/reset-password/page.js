@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../supabaseClient";
-
+export const dynamic = "force-dynamic";
 function ResetPasswordContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
