@@ -10,20 +10,29 @@ export default function ForgotPasswordPage() {
 
   const handleReset = async (e) => {
     e.preventDefault();
+
+    const cleanEmail = email.trim().toLowerCase();
+
+    if (!cleanEmail) {
+      setMessage("Please enter your email.");
+      return;
+    }
+
     setLoading(true);
     setMessage("");
 
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: "https://serven-57x9gbtgj-milleraisolutions-projects.vercel.app/reset-password",
+    const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
+      redirectTo: "https://servenai.com/reset-password",
     });
+
+    setLoading(false);
 
     if (error) {
       setMessage(error.message);
-    } else {
-      setMessage("Password reset email sent. Check your inbox.");
+      return;
     }
 
-    setLoading(false);
+    setMessage("Password reset email sent. Check your inbox.");
   };
 
   return (
@@ -41,6 +50,7 @@ export default function ForgotPasswordPage() {
       <div
         style={{
           width: "380px",
+          maxWidth: "100%",
           padding: "30px",
           borderRadius: "16px",
           background: "white",
@@ -59,6 +69,7 @@ export default function ForgotPasswordPage() {
         />
 
         <h2 style={{ marginBottom: "5px" }}>Reset Password</h2>
+
         <p
           style={{
             color: "#6b7280",
@@ -74,6 +85,7 @@ export default function ForgotPasswordPage() {
             type="email"
             placeholder="Email"
             value={email}
+            autoComplete="email"
             onChange={(e) => setEmail(e.target.value)}
             required
             style={{
@@ -84,6 +96,7 @@ export default function ForgotPasswordPage() {
               border: "1px solid #d1d5db",
               background: "#f9fafb",
               fontSize: "14px",
+              boxSizing: "border-box",
             }}
           />
 
@@ -95,10 +108,10 @@ export default function ForgotPasswordPage() {
               padding: "12px",
               borderRadius: "10px",
               border: "none",
-              background: "#6D3DF5",
+              background: loading ? "#9ca3af" : "#6D3DF5",
               color: "white",
               fontWeight: "600",
-              cursor: "pointer",
+              cursor: loading ? "not-allowed" : "pointer",
               boxShadow: "0 10px 20px rgba(109,61,245,0.25)",
             }}
           >

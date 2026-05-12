@@ -642,16 +642,23 @@ profit leaks, tracks margins, and surfaces operational opportunities.
         }}
       >
         <input
-          type="file"
-          accept=".csv"
-          style={{ display: "none" }}
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) {
-              console.log("Selected file:", file.name);
-            }
-          }}
-        />
+  type="file"
+  accept=".csv,.xlsx,.xls"
+  style={{ display: "none" }}
+  onChange={(e) => {
+    const file = e.target.files?.[0];
+
+    if (!file) return;
+
+    console.log("Selected file:", file.name);
+
+    alert(
+      "File selected. Create a demo profile first, then upload this inside your dashboard so SerVen can save and analyze it."
+    );
+
+    window.location.href = "/signup?intent=demo";
+  }}
+/>
 
         <div style={{ fontSize: "34px", marginBottom: "10px" }}>📊</div>
 

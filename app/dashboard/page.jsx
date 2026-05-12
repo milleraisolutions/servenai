@@ -2893,50 +2893,19 @@ useEffect(() => {
 }, [revenueLiftTimeline]);
 const loadClientUploads = async () => {
   try {
-    const {
-      data: { session },
-      error: sessionError,
-    } = await supabase.auth.getSession();
+    const { data, error } = await supabase
+      .from("client_data_uploads")
+      .select("*")
+      .order("created_at", { ascending: false });
 
-    if (sessionError) {
-      console.error("Session error:", sessionError);
+    if (error) {
+      console.error("Client uploads direct fetch error:", error);
       setClientUploads([]);
       return;
     }
 
-    if (!session?.access_token) {
-      setClientUploads([]);
-      return;
-    }
-
-    const res = await fetch("/api/get-client-uploads", {
-      headers: {
-        Authorization: `Bearer ${session.access_token}`,
-      },
-    });
-
-    
-
-    let data = [];
-    try {
-      data = await res.json();
-    } catch (error) {
-      console.error("Invalid JSON from client uploads route:", error);
-      setClientUploads([]);
-      return;
-    }
-
-    if (!res.ok) {
-      console.error(
-        "Failed to load client uploads:",
-        data?.error || "Request failed"
-      );
-      setClientUploads([]);
-      return;
-    }
-console.log("CLIENT UPLOADS RETURNED:", data);
-    setClientUploads(Array.isArray(data) ? data : []);
-    console.log("CLIENT UPLOADS STATE:", data);
+    console.log("DIRECT CLIENT UPLOADS:", data);
+    setClientUploads(data || []);
   } catch (err) {
     console.error("Failed to load client uploads:", err);
     setClientUploads([]);
@@ -4651,7 +4620,7 @@ alert(`Sales save failed: ${salesError.message}`);
         }
       }
 
-      setPendingUploadSummary({
+          setPendingUploadSummary({
         fileName: file.name,
         rowCount: safeRows.length,
         uploadType: "pos",
@@ -4661,17 +4630,133 @@ alert(`Sales save failed: ${salesError.message}`);
 
       setShowSourcePicker(true);
     } else if (activeUploadType === "menu_items") {
-      setMenuItemsData(safeRows);
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user?.id) {
+        alert("No logged-in user found.");
+        setMessage("Please log in before uploading menu items.");
+        return;
+      }
+
+      const menuRows = safeRows
+        .map((row) => {
+          const name =
+            row.name ||
+            row.Name ||
+            row.item_name ||
+            row["Item Name"] ||
+            row.menu_item ||
+            row["Menu Item"] ||
+            row["Menu Item Name"] ||
+            row["Item"] ||
+            row.Item ||
+            "";
+
+          const category =
+            row.category ||
+            row.Category ||
+            row.item_category ||
+            row["Item Category"] ||
+            row["Category Name"] ||
+            "Uncategorized";
+
+          const price = Number(
+            String(
+              row.price ||
+                row.Price ||
+                row.selling_price ||
+                row["Selling Price"] ||
+                row.menu_price ||
+                row["Menu Price"] ||
+                row["Sales Price"] ||
+                row["Retail Price"] ||
+                0
+            ).replace(/[$,]/g, "")
+          );
+
+          const cost = Number(
+            String(
+              row.cost ||
+                row.Cost ||
+                row.food_cost ||
+                row["Food Cost"] ||
+                row.item_cost ||
+                row["Item Cost"] ||
+                row["Unit Cost"] ||
+                0
+            ).replace(/[$,]/g, "")
+          );
+
+          const quantity_sold = Number(
+            String(
+              row.quantity_sold ||
+                row["Quantity Sold"] ||
+                row.qty_sold ||
+                row["Qty Sold"] ||
+                row.units_sold ||
+                row["Units Sold"] ||
+                row.quantity ||
+                row.Quantity ||
+                0
+            ).replace(/[,]/g, "")
+          );
+
+          return {
+            user_id: user.id,
+            name: String(name || "").trim(),
+            category: String(category || "Uncategorized").trim(),
+            price,
+            cost,
+            quantity_sold,
+            active: true,
+            status: "active",
+          };
+        })
+        .filter((item) => item.name && item.price > 0);
+
+      console.log("MENU ROWS TO INSERT:", menuRows);
+
+      setMenuItemsData(menuRows);
+
+      const dbMenuRows = menuRows.map((item) => ({
+        user_id: item.user_id,
+        name: item.name,
+        category: item.category,
+        price: item.price,
+        cost: item.cost,
+        quantity_sold: item.quantity_sold,
+      }));
+
+      if (dbMenuRows.length) {
+        alert(`ABOUT TO SAVE MENU ROWS: ${dbMenuRows.length}`);
+
+        const { error: menuError } = await supabase
+          .from("menu_items")
+          .insert(dbMenuRows);
+
+        if (menuError) {
+          console.error("MENU SAVE FAILED:", menuError);
+          alert(`Menu save failed: ${menuError.message}`);
+          setMessage("Menu items loaded but failed to save.");
+        } else {
+          setMessage(
+            `Menu items uploaded and saved: ${dbMenuRows.length} items imported. ${menuRows.length} active, 0 inactive.`
+          );
+        }
+      } else {
+        setMenuItemsData([]);
+        setMessage("Menu file loaded, but no valid menu items were found.");
+      }
 
       setPendingUploadSummary({
         fileName: file.name,
-        rowCount: safeRows.length,
+        rowCount: menuRows.length,
         uploadType: "menu_items",
         uploadedAt: Date.now(),
-        rows: safeRows,
+        rows: menuRows,
       });
-
-      setMessage(`Menu Items file loaded: ${safeRows.length} rows ready to import.`);
     } else if (activeUploadType === "ingredients") {
       setIngredientsData(safeRows);
 
@@ -9179,7 +9264,10 @@ const aiDetectedLossSources = [
     "Inventory exposure may lead to spoilage or stock loss",
 ].filter(Boolean);
 
-
+const activeUploadCount = (clientUploads || []).filter((upload) => {
+  const status = String(upload.status || "active").toLowerCase();
+  return upload.active !== false && status !== "deleted" && status !== "archived";
+}).length;
 
 if (!hasPaidAccess) {
   return (

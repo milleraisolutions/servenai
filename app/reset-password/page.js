@@ -1,19 +1,59 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../supabaseClient";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState("Checking reset link...");
   const [loading, setLoading] = useState(false);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    const setupResetSession = async () => {
+      try {
+        const code = searchParams.get("code");
+
+        if (!code) {
+          setMessage("Missing reset code. Please request a new reset link.");
+          setReady(false);
+          return;
+        }
+
+        const { error } = await supabase.auth.exchangeCodeForSession(code);
+
+        if (error) {
+          setMessage(
+            "Reset link expired or invalid. Please request another reset email."
+          );
+          setReady(false);
+          return;
+        }
+
+        setMessage("");
+        setReady(true);
+      } catch (err) {
+        console.error("Reset setup error:", err);
+        setMessage("Failed to initialize password reset.");
+        setReady(false);
+      }
+    };
+
+    setupResetSession();
+  }, [searchParams]);
 
   const handleUpdatePassword = async (e) => {
     e.preventDefault();
+
+    if (!ready) {
+      setMessage("Reset link is not ready. Please request a new reset link.");
+      return;
+    }
 
     if (!password || !confirmPassword) {
       setMessage("Please fill out both password fields.");
@@ -37,13 +77,15 @@ export default function ResetPasswordPage() {
       password,
     });
 
-    setLoading(false);
-
     if (error) {
+      setLoading(false);
       setMessage(error.message);
       return;
     }
 
+    await supabase.auth.signOut();
+
+    setLoading(false);
     setMessage("Password updated successfully. Redirecting to login...");
 
     setTimeout(() => {
@@ -66,6 +108,7 @@ export default function ResetPasswordPage() {
       <div
         style={{
           width: "400px",
+          maxWidth: "100%",
           padding: "30px",
           borderRadius: "16px",
           background: "white",
@@ -84,6 +127,7 @@ export default function ResetPasswordPage() {
         />
 
         <h2 style={{ marginBottom: "5px" }}>Set New Password</h2>
+
         <p
           style={{
             color: "#6b7280",
@@ -99,6 +143,7 @@ export default function ResetPasswordPage() {
             type="password"
             placeholder="New password"
             value={password}
+            disabled={!ready || loading}
             onChange={(e) => setPassword(e.target.value)}
             style={{
               width: "100%",
@@ -108,6 +153,7 @@ export default function ResetPasswordPage() {
               border: "1px solid #d1d5db",
               background: "#f9fafb",
               fontSize: "14px",
+              boxSizing: "border-box",
             }}
           />
 
@@ -115,6 +161,7 @@ export default function ResetPasswordPage() {
             type="password"
             placeholder="Confirm new password"
             value={confirmPassword}
+            disabled={!ready || loading}
             onChange={(e) => setConfirmPassword(e.target.value)}
             style={{
               width: "100%",
@@ -124,21 +171,22 @@ export default function ResetPasswordPage() {
               border: "1px solid #d1d5db",
               background: "#f9fafb",
               fontSize: "14px",
+              boxSizing: "border-box",
             }}
           />
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={!ready || loading}
             style={{
               width: "100%",
               padding: "12px",
               borderRadius: "10px",
               border: "none",
-              background: "#6D3DF5",
+              background: !ready || loading ? "#9ca3af" : "#6D3DF5",
               color: "white",
               fontWeight: "600",
-              cursor: "pointer",
+              cursor: !ready || loading ? "not-allowed" : "pointer",
               boxShadow: "0 10px 20px rgba(109,61,245,0.25)",
             }}
           >

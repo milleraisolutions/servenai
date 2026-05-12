@@ -68,12 +68,26 @@ export default function RootLayout({ children }) {
         background: "#020617",
       }}
     >
+      <head>
+        <title>SerVen</title>
+        <meta
+          name="description"
+          content="Restaurant intelligence served daily."
+        />
+        <meta name="application-name" content="SerVen" />
+
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+        <link rel="shortcut icon" href="/favicon.ico" />
+        <link rel="apple-touch-icon" href="/apple-icon.png" />
+        <link rel="icon" type="image/png" href="/icon.png" />
+      </head>
+
       <body
         style={{
           margin: 0,
           padding: 0,
           width: "100%",
-         overflowX: "hidden",
+          overflowX: "hidden",
           minHeight: "100vh",
           background: "#020617",
           color: "white",
@@ -108,7 +122,7 @@ export default function RootLayout({ children }) {
               }}
             >
               <Image
-                src="/serven-logo.png"
+                src="/logo-serven.jpg"
                 alt="SerVen logo"
                 width={42}
                 height={42}

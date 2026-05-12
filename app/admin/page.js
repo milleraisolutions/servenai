@@ -20,8 +20,8 @@ export default function AdminPage() {
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
-const [customLeads, setCustomLeads] = useState([]);
 const [customPlanLeads, setCustomPlanLeads] = useState([]);
+const [apolloLeads, setApolloLeads] = useState([]);
 
 const isOwner =
   String(currentUser?.email || "").toLowerCase() === OWNER_EMAIL;
@@ -121,18 +121,19 @@ useEffect(() => {
   }
 
   const { data: leadsData, error: leadsError } = await supabase
-    .from("custom_plan_requests")
-    .select("*")
-    .order("created_at", { ascending: false });
+  .from("leads")
+  .select("*")
+  .order("created_at", { ascending: false });
 
-  if (leadsError) {
-    console.error("LEADS FETCH ERROR:", leadsError);
-    setCustomLeads([]);
-  } else {
-    setCustomLeads(leadsData || []);
-    console.log("CUSTOM LEADS:", leadsData);
-  }
+if (leadsError) {
+  console.error("LEADS FETCH ERROR:", leadsError);
 
+  setApolloLeads([]);
+} else {
+  console.log("LEADS DATA:", leadsData);
+
+  setApolloLeads(leadsData || []);
+}
   setAlerts(alertData || []);
   setAiActions(aiActionData || []);
 
@@ -340,7 +341,33 @@ useEffect(() => {
 
     fetchCustomers();
   };
+const updateLeadStatus = async (leadId, newStatus) => {
+  const { error } = await supabase
+    .from("leads")
+    .update({
+      status: newStatus,
+      last_contacted_at: new Date().toISOString(),
+    })
+    .eq("id", leadId);
 
+  if (error) {
+    console.error("Lead status update failed:", error);
+    alert("Could not update lead");
+    return;
+  }
+
+  setApolloLeads((prev) =>
+    prev.map((lead) =>
+      lead.id === leadId
+        ? {
+            ...lead,
+            status: newStatus,
+            last_contacted_at: new Date().toISOString(),
+          }
+        : lead
+    )
+  );
+};
   const closeAlert = async (alertId) => {
     const { error } = await supabase
       .from("client_alerts")
@@ -702,55 +729,93 @@ const handleLeadUpload = async (event) => {
 
   if (!file) return;
 
+const fileExtension = file.name.split(".").pop()?.toLowerCase();
+
+const processLeadRows = async (rows) => {
+  try {
+    const rawLeads = rows.map((row) => ({
+      business_name: row["Company"] || row["Restaurant Name"] || "",
+      owner_name: row["First Name"] || row["Name"] || "",
+      email: row["Email"] || "",
+      phone: row["Phone"] || "",
+      website: row["Website"] || "",
+      city: row["City"] || "",
+      state: row["State"] || "",
+      employee_count: row["Employees"] || "",
+      source: "apollo",
+      status: "new",
+    }));
+
+    const cleanedLeads = rawLeads.filter(
+      (lead) =>
+        lead.email &&
+        String(lead.email).includes("@") &&
+        String(lead.email).includes(".")
+    );
+
+    if (!cleanedLeads.length) {
+      alert("No valid leads with emails found in this file.");
+      return;
+    }
+
+    const { error } = await supabase.from("leads").insert(cleanedLeads);
+
+    if (error) {
+      console.error(error);
+      alert("Lead upload failed");
+      return;
+    }
+
+    setApolloLeads((prev) => [...cleanedLeads, ...prev]);
+
+    alert(
+      `Imported ${cleanedLeads.length} leads. Skipped ${
+        rawLeads.length - cleanedLeads.length
+      } without valid emails.`
+    );
+  } catch (err) {
+    console.error(err);
+    alert("File parsing failed");
+  }
+};
+
+if (fileExtension === "csv") {
   Papa.parse(file, {
     header: true,
     skipEmptyLines: true,
-
     complete: async (results) => {
-      try {
-        const leads = results.data.map((row) => ({
-          business_name:
-            row["Company"] ||
-            row["Restaurant Name"] ||
-            "",
-
-          owner_name:
-            row["First Name"] ||
-            row["Name"] ||
-            "",
-
-          email: row["Email"] || "",
-          phone: row["Phone"] || "",
-          website: row["Website"] || "",
-
-          city: row["City"] || "",
-          state: row["State"] || "",
-
-          employee_count:
-            row["Employees"] || "",
-
-          source: "apollo",
-          status: "new",
-        }));
-
-        const { error } = await supabase
-          .from("leads")
-          .insert(leads);
-
-        if (error) {
-          console.error(error);
-          alert("Lead upload failed");
-          return;
-        }
-
-        alert(`Imported ${leads.length} leads`);
-      } catch (err) {
-        console.error(err);
-        alert("CSV parsing failed");
-      }
+      await processLeadRows(results.data);
     },
   });
+
+  return;
+}
+
+if (fileExtension === "xlsx" || fileExtension === "xls") {
+  const reader = new FileReader();
+
+  reader.onload = async (e) => {
+    const data = e.target.result;
+    const workbook = XLSX.read(data, { type: "array" });
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(worksheet);
+
+    await processLeadRows(rows);
+  };
+
+  reader.readAsArrayBuffer(file);
+  return;
+}
+
+alert("Unsupported file type. Please upload CSV, XLSX, or XLS.");
+
+  event.target.value = "";
 };
+
+
+
+
 
   if (loading) {
     return (
@@ -765,7 +830,20 @@ const handleLeadUpload = async (event) => {
 
  return (
   <div style={pageStyle}>
-   
+  <div
+  style={{
+    background: "yellow",
+    color: "black",
+    padding: "12px",
+    borderRadius: "10px",
+    marginBottom: "16px",
+    fontWeight: "900",
+  }}
+>
+  Admin Debug — customPlanLeads: {customPlanLeads?.length || 0} |
+  Apollo Leads: {apolloLeads?.length || 0} |
+  isOwner: {String(isOwner)}
+</div>
     <div style={topBar}>
       <div>
         <div style={eyebrow}>SERVEN OWNER PORTAL</div>
@@ -1003,6 +1081,175 @@ const handleLeadUpload = async (event) => {
       color: "white",
     }}
   />
+</div>
+<div
+  style={{
+    marginBottom: "28px",
+    padding: "24px",
+    borderRadius: "24px",
+    background:
+      "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.9))",
+    border: "1px solid rgba(59,130,246,0.22)",
+  }}
+>
+  <div style={eyebrow}>APOLLO SALES PIPELINE</div>
+
+  <h2
+    style={{
+      color: "white",
+      fontSize: "26px",
+      fontWeight: "900",
+      marginBottom: "18px",
+    }}
+  >
+    Prospect Pipeline
+  </h2>
+
+  {!apolloLeads.length ? (
+    <div style={{ color: "#94a3b8" }}>
+      No Apollo leads uploaded yet.
+    </div>
+  ) : (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit,minmax(320px,1fr))",
+        gap: "16px",
+      }}
+    >
+      {apolloLeads.map((lead) => (
+        <div
+          key={lead.id}
+          style={{
+            padding: "18px",
+            borderRadius: "18px",
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(148,163,184,0.14)",
+          }}
+        >
+          <div
+            style={{
+              color: "white",
+              fontWeight: "900",
+              fontSize: "18px",
+            }}
+          >
+            {lead.business_name || "Restaurant"}
+          </div>
+
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "13px",
+              marginTop: "4px",
+            }}
+          >
+            {lead.email}
+          </div>
+
+          <div
+            style={{
+              marginTop: "12px",
+              color: "#cbd5e1",
+              fontSize: "13px",
+              lineHeight: 1.7,
+            }}
+          >
+            <div>Owner: {lead.owner_name || "Unknown"}</div>
+            <div>Phone: {lead.phone || "Unknown"}</div>
+            <div>City: {lead.city || "Unknown"}</div>
+          </div>
+
+          <div
+            style={{
+              marginTop: "14px",
+              padding: "8px 12px",
+              borderRadius: "999px",
+              background: "rgba(59,130,246,0.14)",
+              display: "inline-flex",
+              color: "#93c5fd",
+              fontSize: "11px",
+              fontWeight: "900",
+              textTransform: "uppercase",
+            }}
+          >
+            {lead.status || "new"}
+          </div>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: "8px",
+              marginTop: "16px",
+            }}
+          >
+            <button
+              onClick={() =>
+                updateLeadStatus(lead.id, "contacted")
+              }
+              style={smallActionButton}
+            >
+              Contacted
+            </button>
+
+            <button
+              onClick={() =>
+                updateLeadStatus(lead.id, "follow_up")
+              }
+              style={smallActionButton}
+            >
+              Follow Up
+            </button>
+
+            <button
+              onClick={() =>
+                updateLeadStatus(lead.id, "interested")
+              }
+              style={smallActionButton}
+            >
+              Interested
+            </button>
+
+            <button
+              onClick={() =>
+                updateLeadStatus(lead.id, "demo_scheduled")
+              }
+              style={smallActionButton}
+            >
+              Demo
+            </button>
+
+            <button
+              onClick={() =>
+                updateLeadStatus(lead.id, "closed_won")
+              }
+              style={{
+                ...smallActionButton,
+                background:
+                  "linear-gradient(135deg,#22c55e,#16a34a)",
+              }}
+            >
+              Closed Won
+            </button>
+
+            <button
+              onClick={() =>
+                updateLeadStatus(lead.id, "closed_lost")
+              }
+              style={{
+                ...smallActionButton,
+                background:
+                  "linear-gradient(135deg,#ef4444,#dc2626)",
+              }}
+            >
+              Closed Lost
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  )}
 </div>
 {/* ================================ */}
 {/* OVERAGE RISK CLIENTS */}
@@ -1599,6 +1846,7 @@ const handleLeadUpload = async (event) => {
         </div>
       )}
     </div>
+    
     {/* ================================ */}
 {/* CUSTOMER MANAGEMENT CARDS */}
 {/* ================================ */}
@@ -1745,8 +1993,36 @@ const handleLeadUpload = async (event) => {
   </div>
 </div>
 
-       <div style={adminMiniBox}>
+      <div style={adminMiniBox}>
   <div style={adminMiniLabel}>SMS Limit</div>
+
+  <div style={adminMiniValue}>
+    {customer.smsUsagePercent || 0}%
+  </div>
+
+  <div
+    style={{
+      marginTop: "8px",
+      height: "8px",
+      borderRadius: "999px",
+      background: "rgba(255,255,255,0.06)",
+      overflow: "hidden",
+    }}
+  >
+    <div
+      style={{
+        width: `${customer.smsUsagePercent || 0}%`,
+        height: "100%",
+        background:
+          Number(customer.smsUsagePercent || 0) >= 80
+            ? "#f59e0b"
+            : "#22c55e",
+        borderRadius: "999px",
+      }}
+    />
+  </div>
+</div>
+
 <div style={adminMiniBox}>
   <div style={adminMiniLabel}>Campaign Spend</div>
 
@@ -1761,7 +2037,9 @@ const handleLeadUpload = async (event) => {
   <div style={adminMiniValue}>
     {Number(customer.activeCampaigns || 0)}
   </div>
-  <div
+</div>
+
+<div
   style={{
     gridColumn: "1 / -1",
     padding: "12px 14px",
@@ -1801,33 +2079,6 @@ const handleLeadUpload = async (event) => {
     : Number(customer.activeCampaigns || 0) > 0
     ? "🟢 Marketing active"
     : "⚪ No active marketing campaigns"}
-</div>
-</div>
-  <div style={adminMiniValue}>
-    {customer.smsUsagePercent || 0}%
-  </div>
-
-  <div
-    style={{
-      marginTop: "8px",
-      height: "8px",
-      borderRadius: "999px",
-      background: "rgba(255,255,255,0.06)",
-      overflow: "hidden",
-    }}
-  >
-    <div
-      style={{
-        width: `${customer.smsUsagePercent || 0}%`,
-        height: "100%",
-        background:
-          Number(customer.smsUsagePercent || 0) >= 80
-            ? "#f59e0b"
-            : "#22c55e",
-        borderRadius: "999px",
-      }}
-    />
-  </div>
 </div>
       </div>
 
