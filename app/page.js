@@ -1,9 +1,14 @@
+
 "use client";
 
 import Link from "next/link";
+import * as XLSX from "xlsx";
 import { useEffect, useState } from "react";
+import { supabase } from "./lib/supabaseClient";
 export default function HomePage() {
   const [isMobile, setIsMobile] = useState(false);
+const [currentUser, setCurrentUser] = useState(null);
+const [demoResult, setDemoResult] = useState(null);
 
 useEffect(() => {
   const checkMobile = () => {
@@ -15,6 +20,25 @@ useEffect(() => {
   window.addEventListener("resize", checkMobile);
 
   return () => window.removeEventListener("resize", checkMobile);
+}, []);
+useEffect(() => {
+  const checkUser = async () => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    setCurrentUser(session?.user || null);
+  };
+
+  checkUser();
+
+  const {
+    data: { subscription },
+  } = supabase.auth.onAuthStateChange((_event, session) => {
+    setCurrentUser(session?.user || null);
+  });
+
+  return () => subscription.unsubscribe();
 }, []);
   const pageStyle = {
     minHeight: "100vh",
@@ -645,19 +669,109 @@ profit leaks, tracks margins, and surfaces operational opportunities.
   type="file"
   accept=".csv,.xlsx,.xls"
   style={{ display: "none" }}
-  onChange={(e) => {
-    const file = e.target.files?.[0];
+ onChange={async (e) => {
+  const file = e.target.files?.[0];
 
-    if (!file) return;
+  if (!file) return;
 
-    console.log("Selected file:", file.name);
+const {
+  data: { session },
+} = await supabase.auth.getSession();
 
-    alert(
-      "File selected. Create a demo profile first, then upload this inside your dashboard so SerVen can save and analyze it."
-    );
+if (!session?.user) {
+  alert("Please log in first, then upload your sales file.");
 
-    window.location.href = "/signup?intent=demo";
-  }}
+  window.location.href = "/login?intent=demo";
+
+  return;
+}
+
+setCurrentUser(session.user);
+
+  try {
+    const data = await file.arrayBuffer();
+
+    const workbook = XLSX.read(data);
+
+    const sheetName = workbook.SheetNames[0];
+
+    const worksheet = workbook.Sheets[sheetName];
+
+    const rows = XLSX.utils.sheet_to_json(worksheet);
+
+    const revenue = rows.reduce((sum, row) => {
+      const value =
+        Number(
+          row.total ||
+            row.Total ||
+            row.sales ||
+            row.Sales ||
+            row.amount ||
+            row.Amount ||
+            row.revenue ||
+            row.Revenue ||
+            0
+        ) || 0;
+
+      return sum + value;
+    }, 0);
+
+   const foodCost = rows.reduce((sum, row) => {
+  const value =
+    Number(
+      row.foodCost ||
+        row.FoodCost ||
+        row.food_cost ||
+        row["Food Cost"] ||
+        0
+    ) || 0;
+
+  return sum + value;
+}, 0);
+
+const laborCost = rows.reduce((sum, row) => {
+  const value =
+    Number(
+      row.laborCost ||
+        row.LaborCost ||
+        row.labor_cost ||
+        row["Labor Cost"] ||
+        0
+    ) || 0;
+
+  return sum + value;
+}, 0);
+
+const averageSale = revenue / Math.max(rows.length, 1);
+
+const foodCostPercent = revenue > 0 ? (foodCost / revenue) * 100 : 0;
+
+const laborCostPercent = revenue > 0 ? (laborCost / revenue) * 100 : 0;
+
+const estimatedProfitLeak = Math.max(
+  0,
+  foodCostPercent > 32 ? revenue * 0.08 : revenue * 0.04
+);
+
+setDemoResult({
+  rows: rows.length,
+  revenue,
+  foodCost,
+  laborCost,
+  averageSale,
+  foodCostPercent,
+  laborCostPercent,
+  estimatedProfitLeak,
+});
+alert("Demo result saved");
+    console.log(rows);
+
+  } catch (err) {
+    console.error(err);
+
+    alert("Unable to read file.");
+  }
+}}
 />
 
         <div style={{ fontSize: "34px", marginBottom: "10px" }}>📊</div>
@@ -698,7 +812,126 @@ profit leaks, tracks margins, and surfaces operational opportunities.
           Upload Sales Report
         </div>
       </label>
+{demoResult && (
+  <div
+    style={{
+      marginTop: "18px",
+      padding: "20px",
+      borderRadius: "18px",
+      background:
+        "linear-gradient(135deg, rgba(34,197,94,0.14), rgba(15,23,42,0.92))",
+      border: "1px solid rgba(34,197,94,0.25)",
+      color: "white",
+      textAlign: "left",
+    }}
+  >
+    <div
+      style={{
+        color: "#86efac",
+        fontSize: "13px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "8px",
+      }}
+    >
+      Demo Import Complete
+    </div>
 
+    <h3
+      style={{
+        fontSize: "24px",
+        fontWeight: "950",
+        marginBottom: "14px",
+      }}
+    >
+      SerVen found a profit opportunity in your data.
+    </h3>
+
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
+        gap: "12px",
+        marginBottom: "16px",
+      }}
+    >
+      {[
+        {
+          label: "Rows Analyzed",
+          value: demoResult.rows,
+        },
+        {
+          label: "Revenue Detected",
+          value: `$${demoResult.revenue.toLocaleString()}`,
+        },
+        {
+          label: "Avg Sale",
+          value: `$${demoResult.averageSale.toFixed(2)}`,
+        },
+        {
+          label: "Food Cost %",
+          value: `${demoResult.foodCostPercent.toFixed(1)}%`,
+        },
+        {
+          label: "Labor Cost %",
+          value: `${demoResult.laborCostPercent.toFixed(1)}%`,
+        },
+        {
+          label: "Estimated Opportunity",
+          value: `$${Math.round(
+            demoResult.estimatedProfitLeak
+          ).toLocaleString()}`,
+        },
+      ].map((item) => (
+        <div
+          key={item.label}
+          style={{
+            padding: "14px",
+            borderRadius: "14px",
+            background: "rgba(255,255,255,0.06)",
+            border: "1px solid rgba(255,255,255,0.08)",
+          }}
+        >
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "12px",
+              fontWeight: "800",
+              marginBottom: "6px",
+              textTransform: "uppercase",
+            }}
+          >
+            {item.label}
+          </div>
+
+          <div
+            style={{
+              color: "white",
+              fontSize: "22px",
+              fontWeight: "950",
+            }}
+          >
+            {item.value}
+          </div>
+        </div>
+      ))}
+    </div>
+
+    <p
+      style={{
+        color: "#cbd5e1",
+        lineHeight: 1.7,
+        margin: 0,
+        fontSize: "14px",
+      }}
+    >
+      Based on this sample, SerVen can highlight margin pressure, food cost risk,
+      labor efficiency, and pricing opportunities once the full dashboard import
+      is connected.
+    </p>
+  </div>
+)}
       <button
         style={{
           padding: "13px 20px",
