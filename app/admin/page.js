@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../supabaseClient";
 import { useRouter } from "next/navigation";
 import Papa from "papaparse";
+import * as XLSX from "xlsx";
 const OWNER_EMAIL = "milleraisolutions21@gmail.com";
 
 export default function AdminPage() {
@@ -830,20 +831,7 @@ alert("Unsupported file type. Please upload CSV, XLSX, or XLS.");
 
  return (
   <div style={pageStyle}>
-  <div
-  style={{
-    background: "yellow",
-    color: "black",
-    padding: "12px",
-    borderRadius: "10px",
-    marginBottom: "16px",
-    fontWeight: "900",
-  }}
->
-  Admin Debug — customPlanLeads: {customPlanLeads?.length || 0} |
-  Apollo Leads: {apolloLeads?.length || 0} |
-  isOwner: {String(isOwner)}
-</div>
+  
     <div style={topBar}>
       <div>
         <div style={eyebrow}>SERVEN OWNER PORTAL</div>

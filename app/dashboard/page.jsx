@@ -15,8 +15,8 @@ import {
   Cell,
   XAxis,
   YAxis,
-  Tooltip,
   CartesianGrid,
+  Tooltip,
   Legend,
 } from "recharts";
 
@@ -217,6 +217,7 @@ const [uploadedFileName, setUploadedFileName] = useState("");
 const [uploadType, setUploadType] = useState("pos");
 const [menuItemsData, setMenuItemsData] = useState([]);
 const [ingredientsData, setIngredientsData] = useState([]);
+const [laborData, setLaborData] = useState([]);
 const [pendingUploadRows, setPendingUploadRows] = useState([]);
 const pendingUploadRowsRef = useRef([]);
 const [realProfitEngine, setRealProfitEngine] = useState(null);
@@ -1341,36 +1342,67 @@ offer: data?.body || "Generated campaign content",
     pushActivity(`Saved ${channel} campaign draft`, "save");
     
   };
-  
+  const getSaleRevenue = (sale = {}) => {
+  return Number(
+    sale.value ??
+      sale.revenue ??
+      sale.total ??
+      sale.total_revenue ??
+      sale.total_amount ??
+      sale.sales_amount ??
+      sale.gross_sales ??
+      sale.net_sales ??
+      sale.amount ??
+      sale.sales ??
+      sale.total_sales ??
+      sale.price ??
+      0
+  );
+};
+
+const getSaleDate = (sale = {}) => {
+  const rawDate =
+    sale.sale_date ??
+    sale.date ??
+    sale.order_date ??
+    sale.created_at ??
+    sale.timestamp ??
+    sale.day;
+
+  const parsed = rawDate ? new Date(rawDate) : null;
+
+  return parsed && !isNaN(parsed.getTime()) ? parsed : null;
+};
    /* ===============================
    💰 REVENUE TRACKER
 ================================= */
 const revenueTracker = useMemo(() => {
-  const safeSales = dbSalesRows || []
-    .map((sale) => {
-   const revenue = Number(
-  sale.revenue ??
-  sale.total_revenue ??
-  sale.total_amount ??
-  sale.sales_amount ??
-  sale.gross_sales ??
-  sale.net_sales ??
-  sale.amount ??
-  sale.total ??
-  sale.price ??
-  0
-);
+  const rawSales =
+    dbSalesRows?.length
+      ? dbSalesRows
+      : salesData?.length
+      ? salesData
+      : pendingUploadRows?.length
+      ? pendingUploadRows
+      : [];
 
-const rawDate = sale.sale_date ?? sale.date ?? sale.created_at;
-const date = rawDate ? new Date(rawDate) : null;
+  const safeSales = rawSales
+    .map((sale) => {
+      const revenue = getSaleRevenue(sale);
+      const date = getSaleDate(sale);
 
       return {
         ...sale,
-        revenue,
+        revenue: Number(revenue || 0),
         date,
       };
     })
-    .filter((sale) => sale.date && !isNaN(sale.date));
+    .filter(
+      (sale) =>
+        sale.date &&
+        !Number.isNaN(sale.date.getTime()) &&
+        Number(sale.revenue || 0) > 0
+    );
 
   const now = new Date();
 
@@ -1390,43 +1422,42 @@ const date = rawDate ? new Date(rawDate) : null;
   let monthRevenue = 0;
 
   const revenueByDay = {};
-  
-safeSales.forEach((sale) => {
-  if (!sale.date || isNaN(sale.date.getTime())) return;
 
-  const saleDate = new Date(
-    sale.date.getFullYear(),
-    sale.date.getMonth(),
-    sale.date.getDate()
-  );
+  safeSales.forEach((sale) => {
+    const saleDate = new Date(
+      sale.date.getFullYear(),
+      sale.date.getMonth(),
+      sale.date.getDate()
+    );
 
-  const dayKey = saleDate.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
+    const dayKey = saleDate.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    });
+
+    revenueByDay[dayKey] = (revenueByDay[dayKey] || 0) + sale.revenue;
+
+    if (saleDate.getTime() === todayStart.getTime()) {
+      todayRevenue += sale.revenue;
+    }
+
+    if (saleDate >= weekStart) {
+      weekRevenue += sale.revenue;
+    }
+
+    if (saleDate >= monthStart) {
+      monthRevenue += sale.revenue;
+    }
   });
 
-  revenueByDay[dayKey] = (revenueByDay[dayKey] || 0) + sale.revenue;
-
-  if (saleDate.getTime() === todayStart.getTime()) {
-    todayRevenue += sale.revenue;
-  }
-
-  if (saleDate >= weekStart) {
-    weekRevenue += sale.revenue;
-  }
-
-  if (saleDate >= monthStart) {
-    monthRevenue += sale.revenue;
-  }
-});
   const totalRevenueValue = safeSales.reduce(
-    (sum, sale) => sum + sale.revenue,
+    (sum, sale) => sum + Number(sale.revenue || 0),
     0
   );
 
   const revenueDays = Object.entries(revenueByDay).map(([day, revenue]) => ({
     day,
-    revenue,
+    revenue: Number(revenue || 0),
   }));
 
   const bestDay =
@@ -1440,7 +1471,7 @@ safeSales.forEach((sale) => {
     revenueDays.length > 0 ? totalRevenueValue / revenueDays.length : 0;
 
   const recentSales = [...safeSales]
-    .sort((a, b) => new Date(b.date) - new Date(a.date))
+    .sort((a, b) => b.date.getTime() - a.date.getTime())
     .slice(0, 7);
 
   return {
@@ -1452,84 +1483,86 @@ safeSales.forEach((sale) => {
     bestDay,
     recentSales,
   };
-}, [dbSalesRows]);
+}, [dbSalesRows, salesData, pendingUploadRows]);
+
+
     /* ===============================
    📈 REVENUE TREND + WEEKLY GROWTH
 ================================= */
 
+
 const revenueTrend = useMemo(() => {
-  const safeSales = (dbSalesRows || [])
+  const rawSales =
+    dbSalesRows?.length
+      ? dbSalesRows
+      : salesData?.length
+      ? salesData
+      : pendingUploadRows?.length
+      ? pendingUploadRows
+      : [];
+
+  const safeSales = rawSales
     .map((sale) => {
-      const rawDate = sale.sale_date ?? sale.date ?? sale.created_at;
+      const date = getSaleDate(sale);
+      const revenue = getSaleRevenue(sale);
 
       return {
         ...sale,
-        revenue: Number(
-          sale.revenue ??
-            sale.total_revenue ??
-            sale.total_amount ??
-            sale.sales_amount ??
-            sale.gross_sales ??
-            sale.net_sales ??
-            sale.amount ??
-            sale.total ??
-            sale.price ??
-            0
-        ),
-        date: rawDate ? new Date(rawDate) : null,
+        revenue: Number(revenue || 0),
+        date,
       };
     })
-    .filter((sale) => sale.date && !isNaN(sale.date.getTime()));
+    .filter(
+      (sale) =>
+        sale.date &&
+        !Number.isNaN(sale.date.getTime()) &&
+        sale.revenue > 0
+    )
+    .sort((a, b) => a.date.getTime() - b.date.getTime());
 
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  if (!safeSales.length) {
+    return {
+      chartData: [],
+      currentWeekRevenue: 0,
+      lastWeekRevenue: 0,
+      growthPercent: 0,
+      growthLabel: "flat",
+      strongestDay: null,
+      weakestDay: null,
+    };
+  }
 
-  const currentWeekStart = new Date(today);
-  currentWeekStart.setDate(today.getDate() - today.getDay());
+  const grouped = safeSales.reduce((acc, sale) => {
+    const key = sale.date.toISOString().slice(0, 10);
 
-  const lastWeekStart = new Date(currentWeekStart);
-  lastWeekStart.setDate(currentWeekStart.getDate() - 7);
+    acc[key] = (acc[key] || 0) + Number(sale.revenue || 0);
 
-  const lastWeekEnd = new Date(currentWeekStart);
-  lastWeekEnd.setDate(currentWeekStart.getDate() - 1);
+    return acc;
+  }, {});
 
-  const currentWeekData = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
-    (day, index) => {
-      const dayDate = new Date(currentWeekStart);
-      dayDate.setDate(currentWeekStart.getDate() + index);
+  const chartData = Object.entries(grouped)
+    .map(([date, revenue]) => ({
+      date,
+      day: new Date(date).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+      }),
+      revenue: Number(revenue || 0),
+    }))
+    .sort((a, b) => new Date(a.date) - new Date(b.date));
 
-      const revenue = safeSales
-        .filter((sale) => {
-          const saleDate = new Date(
-            sale.date.getFullYear(),
-            sale.date.getMonth(),
-            sale.date.getDate()
-          );
+  const latestSales = safeSales.slice(-30);
+  const previousSales = safeSales.slice(-60, -30);
 
-          return saleDate.getTime() === dayDate.getTime();
-        })
-        .reduce((sum, sale) => sum + Number(sale.revenue || 0), 0);
-
-      return { day, revenue };
-    }
-  );
-
-  const currentWeekRevenue = currentWeekData.reduce(
-    (sum, item) => sum + Number(item.revenue || 0),
+  const currentWeekRevenue = latestSales.reduce(
+    (sum, sale) => sum + Number(sale.revenue || 0),
     0
   );
 
-  const lastWeekRevenue = safeSales
-    .filter((sale) => {
-      const saleDate = new Date(
-        sale.date.getFullYear(),
-        sale.date.getMonth(),
-        sale.date.getDate()
-      );
-
-      return saleDate >= lastWeekStart && saleDate <= lastWeekEnd;
-    })
-    .reduce((sum, sale) => sum + Number(sale.revenue || 0), 0);
+  const lastWeekRevenue = previousSales.reduce(
+    (sum, sale) => sum + Number(sale.revenue || 0),
+    0
+  );
 
   const growthPercent =
     lastWeekRevenue > 0
@@ -1538,14 +1571,109 @@ const revenueTrend = useMemo(() => {
       ? 100
       : 0;
 
+  const strongestDay =
+    chartData.length > 0
+      ? chartData.reduce((best, current) =>
+          current.revenue > best.revenue ? current : best
+        )
+      : null;
+
+  const weakestDay =
+    chartData.length > 0
+      ? chartData.reduce((worst, current) =>
+          current.revenue < worst.revenue ? current : worst
+        )
+      : null;
+
   return {
-    chartData: currentWeekData,
+    chartData,
     currentWeekRevenue,
     lastWeekRevenue,
     growthPercent,
-    growthLabel: growthPercent > 0 ? "up" : growthPercent < 0 ? "down" : "flat",
+
+    strongestDay,
+    weakestDay,
+
+    growthLabel:
+      growthPercent > 0
+        ? "up"
+        : growthPercent < 0
+        ? "down"
+        : "flat",
   };
-}, [dbSalesRows]);
+}, [dbSalesRows, salesData, pendingUploadRows]);
+
+const liveTotalRevenue =
+  revenueTracker?.totalRevenue || totalRevenue || 0;
+
+const liveMomentumPercent =
+  revenueTrend?.growthPercent || momentumPercent || 0;
+
+const liveTotalOrders =
+  revenueTracker?.recentSales?.length || totalOrders || 0;
+
+const liveAOV =
+  liveTotalOrders > 0
+    ? liveTotalRevenue / liveTotalOrders
+    : aov || 0;
+
+const livePeakHours =
+  peakHours || "N/A";
+
+const liveAvgMargin =
+  avgMargin || 0;
+
+const liveFoodCostPercentage =
+  foodCostPercentage || 0;
+
+const liveScore =
+  score || 0;
+  const liveLaborIntelligence = useMemo(() => {
+ const totalLaborCost = (laborData || []).reduce((sum, row) => {
+  const cost = Number(
+    row.labor_cost ||
+      row["Labor Cost"] ||
+      row.laborCost ||
+      row.cost ||
+      row.Cost ||
+      0
+  );
+
+  const hours = Number(
+    row.hours ||
+      row.Hours ||
+      row.total_hours ||
+      row["Total Hours"] ||
+      0
+  );
+
+  const rate = Number(
+    row.hourly_rate ||
+      row.hourlyRate ||
+      row.rate ||
+      row.Rate ||
+      row["Hourly Rate"] ||
+      0
+  );
+
+  return sum + (cost > 0 ? cost : hours * rate);
+}, 0);
+
+  const laborPercent =
+    liveTotalRevenue > 0 && totalLaborCost > 0
+      ? (totalLaborCost / liveTotalRevenue) * 100
+      : 0;
+
+  return {
+    totalLaborCost,
+    laborPercent,
+    rows: laborData || [],
+  };
+}, [laborData, liveTotalRevenue]);
+console.log("LABOR DATA CHECK:", laborData);
+console.log("LABOR FIRST ROW:", laborData?.[0]);
+console.log("LABOR TOTAL COST:", liveLaborIntelligence?.totalLaborCost);
+console.log("LIVE TOTAL REVENUE:", liveTotalRevenue);
 console.log("SALES DATA CHECK:", salesData);
 console.log("FIRST SALES ROW:", salesData?.[0]);
 console.log("REVENUE TRACKER:", revenueTracker);
@@ -2185,10 +2313,16 @@ const secondaryButtonStyle = {
   cursor: "pointer",
 };
 
-    const revenueChartData = useMemo(() => {
+  const revenueChartData = useMemo(() => {
   let currentWeek = revenueTrend?.chartData || [];
 
-  // 🔥 FILTER BY SELECTED CLIENT
+  currentWeek = currentWeek.map((item, index) => ({
+    ...item,
+    label: item.day || item.label || item.date || `Day ${index + 1}`,
+    day: item.day || item.label || item.date || `Day ${index + 1}`,
+    revenue: Number(item.revenue || 0),
+  }));
+
   if (selectedClient) {
     currentWeek = currentWeek.filter((item) => {
       return (
@@ -2206,7 +2340,6 @@ const secondaryButtonStyle = {
 
   return currentWeek.map((item) => ({
     ...item,
-    revenue: Number(item.revenue || 0),
     isBestDay:
       Number(item.revenue || 0) === bestRevenue && bestRevenue > 0,
   }));
@@ -2214,11 +2347,25 @@ const secondaryButtonStyle = {
 const aiProfitTrendData =
   revenueChartData?.length > 0
     ? revenueChartData.map((row, index) => ({
-        day: row.day || row.label || `Day ${index + 1}`,
+        day:
+          row.day ||
+          row.label ||
+          row.date ||
+          `Day ${index + 1}`,
+
         baseline: Number(row.revenue || 0),
+
         optimized:
           Number(row.revenue || 0) +
           Number(simulatedProfit || 0) / 30,
+
+        revenue: Number(row.revenue || 0),
+
+        projectedRevenue:
+          Number(row.revenue || 0) +
+          Number(simulatedProfit || 0) / 30,
+
+        isBestDay: row.isBestDay || false,
       }))
     : [];
 const projectedWeekRevenue = useMemo(() => {
@@ -2300,47 +2447,39 @@ const laborRevenueChartData = useMemo(() => {
 }, [revenueTrend, laborCostPercentage]);
 
 const profitLeakageChartData = useMemo(() => {
-  if (profitLeaks?.length) {
-    return profitLeaks
-      .map((item, index) => ({
-        name:
-          item.name ||
-          item.item ||
-          item.menuItem ||
-          item.title ||
-          `Item ${index + 1}`,
-        loss: Number(
-          item.loss ||
-            item.estimatedLoss ||
-            item.monthlyLoss ||
-            item.impact ||
-            item.value ||
-            0
-        ),
-      }))
-      .filter((item) => item.loss > 0);
-  }
+  const source = menuItemsData || [];
 
-  if (fixSuggestions?.length) {
-    return fixSuggestions
-      .map((item, index) => ({
-        name: item.name || item.title || `Issue ${index + 1}`,
-        loss: Number(item.estimatedGain || item.impact || 0),
-      }))
-      .filter((item) => item.loss > 0);
-  }
+  return source
+    .map((item) => {
+      const price = Number(item.price || 0);
+      const cost = Number(item.cost || 0);
+      const quantitySold = Number(
+        item.quantity_sold || item.quantitySold || item.quantity || 0
+      );
 
-  if (aiProfitOpportunities?.length) {
-    return aiProfitOpportunities
-      .map((item, index) => ({
-        name: item.title || `Issue ${index + 1}`,
-        loss: Number(item.impact || 0),
-      }))
-      .filter((item) => item.loss > 0);
-  }
+      const revenue = Number(item.revenue || price * quantitySold || 0);
 
-  return [];
-}, [profitLeaks, fixSuggestions, aiProfitOpportunities]);
+      const marginPercent =
+        price > 0 ? ((price - cost) / price) * 100 : 0;
+
+      const targetMargin = 70;
+
+      const estimatedLoss =
+        marginPercent < targetMargin && revenue > 0
+          ? ((targetMargin - marginPercent) / 100) * revenue
+          : 0;
+
+      return {
+        name: item.name || "Menu Item",
+        loss: Math.round(estimatedLoss),
+        margin: marginPercent,
+        revenue,
+      };
+    })
+    .filter((item) => item.loss > 0)
+    .sort((a, b) => b.loss - a.loss)
+    .slice(0, 8);
+}, [menuItemsData]);
 console.log("profitLeaks:", profitLeaks);
 console.log("fixSuggestions:", fixSuggestions);
 console.log("profitLeakageChartData:", profitLeakageChartData);
@@ -4446,13 +4585,13 @@ const detectColumn = (sample, keywords = []) => {
   );
 };
 const handleFileUpload = async (e) => {
-  alert("HANDLE FILE UPLOAD STARTED");
+  
 
   const file = e.target.files?.[0];
   if (!file) return;
 
   try {
-    alert("UPLOAD TYPE: " + (selectedUploadTypeRef.current || uploadType));
+    
     const activeUploadType = selectedUploadTypeRef.current || uploadType;
 
     let dataRows = [];
@@ -4530,7 +4669,7 @@ const handleFileUpload = async (e) => {
     pendingUploadRowsRef.current = safeRows;
     setPendingUploadRows(safeRows);
 
-    alert(`Rows saved for import: ${safeRows.length}`);
+    
 
     if (activeUploadType === "pos") {
       setRows(safeRows);
@@ -4573,24 +4712,33 @@ console.log("AUTH USER:", user);
               null;
 
             const rawRevenue =
-              row.revenue ||
-              row.Revenue ||
-              row.sales ||
-              row.Sales ||
-              row.total_sales ||
-              row["Total Sales"] ||
-              row.amount ||
-              row.Amount ||
-              0;
-
-            const rawOrders =
-              row.orders ||
-              row.Orders ||
-              row.order_count ||
-              row["Order Count"] ||
-              row.transactions ||
-              row.Transactions ||
-              0;
+  row.revenue ||
+  row.Revenue ||
+  row.sales ||
+  row.Sales ||
+  row.total ||
+  row.Total ||
+  row.total_sales ||
+  row["Total Sales"] ||
+  row["Net Sales"] ||
+  row["Gross Sales"] ||
+  row.amount ||
+  row.Amount ||
+  row.price ||
+  row.Price ||
+  0;
+const rawOrders =
+  row.orders ||
+  row.Orders ||
+  row.order_count ||
+  row["Order Count"] ||
+  row.transactions ||
+  row.Transactions ||
+  row.quantity ||
+  row.Quantity ||
+  row.qty ||
+  row.Qty ||
+  1;
 
             return {
               user_id: user.id,
@@ -4619,16 +4767,32 @@ alert(`Sales save failed: ${salesError.message}`);
           }
         }
       }
+setPendingUploadSummary({
+  fileName: file.name,
+  rowCount: safeRows.length,
+  uploadType: "pos",
+  uploadedAt: Date.now(),
+  rows: safeRows,
+});
+setPendingUploadSummary({
+  fileName: file.name,
+  rowCount: safeRows.length,
+  uploadType: "pos",
+  uploadedAt: Date.now(),
+  rows: safeRows,
+});
 
-          setPendingUploadSummary({
-        fileName: file.name,
-        rowCount: safeRows.length,
-        uploadType: "pos",
-        uploadedAt: Date.now(),
-        rows: safeRows,
-      });
+setPendingUploadRows(safeRows);
+setDbSalesRows(safeRows);
+setShowSourcePicker(false);
 
-      setShowSourcePicker(true);
+await loadClientUploads?.();
+await loadUploadComparison?.();
+
+setMessage(
+  `POS data uploaded successfully: ${safeRows.length} rows processed.`
+);
+
     } else if (activeUploadType === "menu_items") {
       const {
         data: { user },
@@ -4730,7 +4894,7 @@ alert(`Sales save failed: ${salesError.message}`);
       }));
 
       if (dbMenuRows.length) {
-        alert(`ABOUT TO SAVE MENU ROWS: ${dbMenuRows.length}`);
+        
 
         const { error: menuError } = await supabase
           .from("menu_items")
@@ -4758,35 +4922,84 @@ alert(`Sales save failed: ${salesError.message}`);
         rows: menuRows,
       });
     } else if (activeUploadType === "ingredients") {
-      setIngredientsData(safeRows);
+  setIngredientsData(safeRows);
 
-      setPendingUploadSummary({
-        fileName: file.name,
-        rowCount: safeRows.length,
-        uploadType: "ingredients",
-        uploadedAt: Date.now(),
-        rows: safeRows,
-      });
+  setPendingUploadSummary({
+    fileName: file.name,
+    rowCount: safeRows.length,
+    uploadType: "ingredients",
+    uploadedAt: Date.now(),
+    rows: safeRows,
+  });
 
-      setMessage(`Ingredients file loaded: ${safeRows.length} rows ready to import.`);
-    } else {
-      setPendingUploadSummary({
-        fileName: file.name,
-        rowCount: safeRows.length,
-        uploadType: "unknown",
-        uploadedAt: Date.now(),
-        rows: safeRows,
-      });
+  setMessage(`Ingredients file loaded: ${safeRows.length} rows ready to import.`);
+} else if (activeUploadType === "labor") {
+  const cleanedLaborRows = safeRows.map((row) => ({
+    ...row,
 
-      setMessage("Upload type was not detected.");
-    }
+    hours:
+      Number(
+        row.hours ||
+          row.Hours ||
+          row.total_hours ||
+          row["Total Hours"] ||
+          0
+      ) || 0,
 
-    e.target.value = "";
-  } catch (error) {
-    console.error("File upload error:", error);
-    setMessage("There was an error reading that file.");
-    alert(error?.message || "There was an error reading that file.");
-  }
+    labor_cost:
+      Number(
+        row.labor_cost ||
+          row.laborCost ||
+          row.cost ||
+          row.payroll ||
+          row["Labor Cost"] ||
+          row["Payroll Cost"] ||
+          0
+      ) || 0,
+  }));
+
+  setLaborData(cleanedLaborRows);
+localStorage.setItem("serven_labor_rows", JSON.stringify(cleanedLaborRows));
+  setPendingUploadSummary({
+    fileName: file.name,
+    rowCount: cleanedLaborRows.length,
+    uploadType: "labor",
+    uploadedAt: Date.now(),
+    rows: cleanedLaborRows,
+  });
+
+  setMessage(
+    `Labor file loaded: ${cleanedLaborRows.length} rows ready to import.`
+  );
+
+} else if (activeUploadType === "invoices") {
+  setPendingUploadSummary({
+    fileName: file.name,
+    rowCount: safeRows.length,
+    uploadType: "invoices",
+    uploadedAt: Date.now(),
+    rows: safeRows,
+  });
+
+  setMessage(`Invoice file loaded: ${safeRows.length} rows ready to import.`);
+} else {
+  setPendingUploadSummary({
+    fileName: file.name,
+    rowCount: safeRows.length,
+    uploadType: "unknown",
+    uploadedAt: Date.now(),
+    rows: safeRows,
+  });
+
+  setMessage("Upload type was not detected.");
+}
+
+e.target.value = "";
+} catch (error) {
+  console.error("File upload error:", error);
+  setMessage("There was an error reading that file.");
+  alert(error?.message || "There was an error reading that file.");
+}
 };
 const handleImportMappedSales = async () => {
   try {
@@ -4868,8 +5081,6 @@ const handleImportMappedSales = async () => {
   }
 };
 const handleImportMenuItems = async () => {
-  alert("MENU FUNCTION STARTED");
-
   try {
     setMessage("Importing menu items...");
 
@@ -4883,18 +5094,30 @@ const handleImportMenuItems = async () => {
       return;
     }
 
-    const rawRowsToImport = pendingUploadSummary?.rows || [];
+    const rawRowsToImport =
+      pendingUploadSummary?.rows?.length
+        ? pendingUploadSummary.rows
+        : menuItemsData || [];
 
     const rowsToImport = rawRowsToImport.filter((row) => {
       if (Array.isArray(row)) {
         const firstCell = String(row[0] || "").trim().toLowerCase();
-        return firstCell !== "name";
+        return firstCell && firstCell !== "name" && firstCell !== "item name";
       }
 
-      const firstValue = String(row.name || row.Name || "")
+      const firstValue = String(
+        row.name ||
+          row.Name ||
+          row.item_name ||
+          row["Item Name"] ||
+          row.menu_item ||
+          row["Menu Item"] ||
+          ""
+      )
         .trim()
         .toLowerCase();
-      return firstValue !== "name";
+
+      return firstValue && firstValue !== "name" && firstValue !== "item name";
     });
 
     if (!rowsToImport.length) {
@@ -4903,16 +5126,143 @@ const handleImportMenuItems = async () => {
       return;
     }
 
+    const getValue = (row, keys, fallback = "") => {
+      for (const key of keys) {
+        if (row?.[key] !== undefined && row?.[key] !== null && row?.[key] !== "") {
+          return row[key];
+        }
+      }
+      return fallback;
+    };
+
+    const toNumber = (value) => {
+      const cleaned = String(value ?? "")
+        .replace("$", "")
+        .replace("%", "")
+        .replaceAll(",", "")
+        .trim();
+
+      const num = Number(cleaned);
+      return Number.isFinite(num) ? num : 0;
+    };
+
     const now = new Date().toISOString();
 
     const cleanedRows = rowsToImport
       .map((row) => {
         const isArrayRow = Array.isArray(row);
 
-        const name = String(isArrayRow ? row[0] : row.name || "").trim();
-        const category = String(
-          isArrayRow ? row[1] : row.category || "Uncategorized"
+        const name = String(
+          isArrayRow
+            ? row[0]
+            : getValue(row, [
+                "name",
+                "Name",
+                "item_name",
+                "Item Name",
+                "menu_item",
+                "Menu Item",
+                "item",
+                "Item",
+                "product",
+                "Product",
+              ])
         ).trim();
+
+        const category = String(
+          isArrayRow
+            ? row[1]
+            : getValue(row, [
+                "category",
+                "Category",
+                "item_category",
+                "Item Category",
+                "menu_category",
+                "Menu Category",
+              ], "Uncategorized")
+        ).trim();
+
+        const price = toNumber(
+          isArrayRow
+            ? row[2]
+            : getValue(row, [
+                "price",
+                "Price",
+                "selling_price",
+                "Selling Price",
+                "menu_price",
+                "Menu Price",
+              ])
+        );
+
+        const cost = toNumber(
+          isArrayRow
+            ? row[3]
+            : getValue(row, [
+                "cost",
+                "Cost",
+                "food_cost",
+                "Food Cost",
+                "item_cost",
+                "Item Cost",
+                "unit_cost",
+                "Unit Cost",
+              ])
+        );
+
+        const quantitySold = toNumber(
+          isArrayRow
+            ? row[4]
+            : getValue(row, [
+                "quantity_sold",
+                "Quantity Sold",
+                "qty_sold",
+                "Qty Sold",
+                "sold",
+                "Sold",
+                "quantity",
+                "Quantity",
+                "units_sold",
+                "Units Sold",
+              ])
+        );
+
+        const uploadedRevenue = toNumber(
+          isArrayRow
+            ? row[5]
+            : getValue(row, [
+                "revenue",
+                "Revenue",
+                "sales",
+                "Sales",
+                "total_sales",
+                "Total Sales",
+                "gross_sales",
+                "Gross Sales",
+              ])
+        );
+
+        const revenue =
+          uploadedRevenue > 0 ? uploadedRevenue : price * quantitySold;
+
+        const uploadedMargin = toNumber(
+          isArrayRow
+            ? row[6]
+            : getValue(row, [
+                "margin",
+                "Margin",
+                "margin_percent",
+                "Margin %",
+                "Margin Percent",
+              ])
+        );
+
+        const margin =
+          uploadedMargin > 0
+            ? uploadedMargin
+            : price > 0
+            ? ((price - cost) / price) * 100
+            : 0;
 
         if (!name || name.toLowerCase() === "unnamed item") return null;
 
@@ -4920,11 +5270,11 @@ const handleImportMenuItems = async () => {
           user_id: user.id,
           name,
           category: category || "Uncategorized",
-          price: Number(isArrayRow ? row[2] : row.price || 0),
-          cost: Number(isArrayRow ? row[3] : row.cost || 0),
-          quantity_sold: Number(isArrayRow ? row[4] : row.quantity_sold || 0),
-          revenue: Number(isArrayRow ? row[5] : row.revenue || 0),
-          margin: Number(isArrayRow ? row[6] : row.margin || 0),
+          price,
+          cost,
+          quantity_sold: quantitySold,
+          revenue,
+          margin,
           is_active: true,
           last_seen_at: now,
           created_at: now,
@@ -4932,11 +5282,17 @@ const handleImportMenuItems = async () => {
       })
       .filter(Boolean);
 
+    if (!cleanedRows.length) {
+      setMessage("No valid menu items found after cleaning.");
+      alert("No valid menu items found after cleaning.");
+      return;
+    }
+
     const uploadedNames = cleanedRows
       .map((item) => item.name.toLowerCase())
       .filter(Boolean);
 
-    const { data: uploadRow } = await supabase
+    const { data: uploadRow, error: uploadError } = await supabase
       .from("uploads")
       .insert([
         {
@@ -4951,10 +5307,14 @@ const handleImportMenuItems = async () => {
       .select()
       .single();
 
-    const { data: existingRows } = await supabase
+    if (uploadError) throw uploadError;
+
+    const { data: existingRows, error: existingError } = await supabase
       .from("menu_items")
       .select("*")
       .eq("user_id", user.id);
+
+    if (existingError) throw existingError;
 
     for (const menuItem of cleanedRows) {
       const existing = (existingRows || []).find(
@@ -4964,57 +5324,54 @@ const handleImportMenuItems = async () => {
       );
 
       if (existing) {
-        await supabase
+        const { error } = await supabase
           .from("menu_items")
-         .update({
-  upload_id: uploadRow?.id || null,
-
-  previous_price: Number(existing.price || 0),
-  previous_cost: Number(existing.cost || 0),
-  previous_margin: Number(existing.margin || 0),
-
-  category: menuItem.category,
-  price: menuItem.price,
-  cost: menuItem.cost,
-  quantity_sold: menuItem.quantity_sold,
-  revenue: menuItem.revenue,
-  margin: menuItem.margin,
-
-  is_active: true,
-  last_seen_at: now,
-})
+          .update({
+            upload_id: uploadRow?.id || null,
+            previous_price: Number(existing.price || 0),
+            previous_cost: Number(existing.cost || 0),
+            previous_margin: Number(existing.margin || 0),
+            category: menuItem.category,
+            price: menuItem.price,
+            cost: menuItem.cost,
+            quantity_sold: menuItem.quantity_sold,
+            revenue: menuItem.revenue,
+            margin: menuItem.margin,
+            is_active: true,
+            last_seen_at: now,
+          })
           .eq("id", existing.id);
+
+        if (error) throw error;
       } else {
-        await supabase.from("menu_items").insert([
+        const { error } = await supabase.from("menu_items").insert([
           {
             ...menuItem,
             upload_id: uploadRow?.id || null,
           },
         ]);
+
+        if (error) throw error;
       }
     }
 
     const menuItemsToDeactivate = (existingRows || []).filter(
       (item) =>
         item.is_active !== false &&
-        !uploadedNames.includes(
-          String(item.name || "").trim().toLowerCase()
-        )
+        !uploadedNames.includes(String(item.name || "").trim().toLowerCase())
     );
 
     for (const oldItem of menuItemsToDeactivate) {
-      await supabase
+      const { error } = await supabase
         .from("menu_items")
         .update({
           is_active: false,
           last_seen_at: now,
         })
         .eq("id", oldItem.id);
-    }
 
-    // ✅ IMPORTANT NEW LINE
-    await loadClientUploads();
-    await loadUploadComparison();
+      if (error) throw error;
+    }
 
     setMessage(
       `Menu items synced: ${cleanedRows.length} active, ${menuItemsToDeactivate.length} marked inactive.`
@@ -5023,19 +5380,28 @@ const handleImportMenuItems = async () => {
     alert(
       `Menu items synced: ${cleanedRows.length} active, ${menuItemsToDeactivate.length} marked inactive.`
     );
+const { data: refreshedMenuItems } = await supabase
+  .from("menu_items")
+  .select("*")
+  .eq("user_id", user.id)
+  .eq("is_active", true);
 
+console.log("REFRESHED MENU ITEMS:", refreshedMenuItems);
+
+setMenuItemsData(refreshedMenuItems || []);
     setPendingUploadSummary(null);
-    setMenuItemsData([]);
+    
     setPendingUploadRows([]);
     pendingUploadRowsRef.current = [];
+    
   } catch (error) {
     console.error("Menu items import failed:", error);
-    setMessage("Menu items import failed.");
+    setMessage(`Menu items import failed: ${error?.message || "Unknown error"}`);
     alert(error?.message || "Menu items import failed.");
   }
 };
 const handleImportIngredients = async () => {
-  alert("INGREDIENT FUNCTION STARTED");
+ 
 
   try {
     setMessage("Importing ingredients...");
@@ -5071,42 +5437,116 @@ const handleImportIngredients = async () => {
     const now = new Date().toISOString();
 
     const cleanedRows = rowsToImport
-      .map((row) => {
-        const isArrayRow = Array.isArray(row);
+  .map((row) => {
+    const isArrayRow = Array.isArray(row);
 
-        const name = String(
-          isArrayRow
-            ? row[0]
-            : row.name || row.ingredient_name || row.ingredient || ""
-        ).trim();
+    const name = String(
+      isArrayRow
+        ? row[0]
+        : row.name ||
+            row.Name ||
+            row.ingredient_name ||
+            row["Ingredient Name"] ||
+            row.ingredient ||
+            row.Ingredient ||
+            row.item ||
+            row.Item ||
+            ""
+    ).trim();
 
-        if (!name || name.toLowerCase() === "unnamed ingredient") return null;
+    if (!name || name.toLowerCase() === "unnamed ingredient") return null;
 
-        const supplier = isArrayRow ? row[1] : row.supplier || "";
-        const category = isArrayRow ? row[2] : row.category || "";
-        const unit = isArrayRow ? row[3] : row.unit || "";
+    const supplier = String(
+      isArrayRow
+        ? row[1]
+        : row.supplier ||
+            row.Supplier ||
+            row.vendor ||
+            row.Vendor ||
+            ""
+    ).trim();
 
-        const quantity = Number(isArrayRow ? row[4] : row.quantity || 0);
-        const costPerUnit = Number(isArrayRow ? row[5] : row.cost_per_unit || 0);
-        const totalCost = Number(
-          isArrayRow ? row[6] : quantity * costPerUnit
-        );
+    const category = String(
+      isArrayRow
+        ? row[2]
+        : row.category ||
+            row.Category ||
+            row.type ||
+            row.Type ||
+            "Uncategorized"
+    ).trim();
 
-        return {
-          user_id: user.id,
-          name,
-          supplier,
-          category,
-          unit,
-          quantity,
-          cost_per_unit: costPerUnit,
-          total_cost: totalCost,
-          is_active: true,
-          last_seen_at: now,
-          created_at: now,
-        };
-      })
-      .filter(Boolean);
+    const unit = String(
+      isArrayRow
+        ? row[3]
+        : row.unit ||
+            row.Unit ||
+            row.uom ||
+            row.UOM ||
+            row["Unit Of Measure"] ||
+            row["Unit of Measure"] ||
+            ""
+    ).trim();
+
+    const quantity = Number(
+      String(
+        isArrayRow
+          ? row[4]
+          : row.quantity ||
+              row.Quantity ||
+              row.qty ||
+              row.Qty ||
+              row["Quantity On Hand"] ||
+              row["Qty On Hand"] ||
+              row.stock ||
+              row.Stock ||
+              0
+      ).replace(/[$,]/g, "")
+    );
+
+    const costPerUnit = Number(
+      String(
+        isArrayRow
+          ? row[5]
+          : row.cost_per_unit ||
+              row["Cost Per Unit"] ||
+              row["Unit Cost"] ||
+              row.unit_cost ||
+              row.cost ||
+              row.Cost ||
+              row.price ||
+              row.Price ||
+              0
+      ).replace(/[$,]/g, "")
+    );
+
+    const totalCost = Number(
+      String(
+        isArrayRow
+          ? row[6]
+          : row.total_cost ||
+              row["Total Cost"] ||
+              row.value ||
+              row.Value ||
+              quantity * costPerUnit
+      ).replace(/[$,]/g, "")
+    );
+
+    return {
+      user_id: user.id,
+      name,
+      supplier,
+      category,
+      unit,
+      quantity: Number.isFinite(quantity) ? quantity : 0,
+      cost_per_unit: Number.isFinite(costPerUnit) ? costPerUnit : 0,
+      total_cost: Number.isFinite(totalCost) ? totalCost : 0,
+      is_active: true,
+      last_seen_at: now,
+      created_at: now,
+    };
+  })
+  .filter(Boolean);
 
     const uploadedNames = cleanedRows.map((i) => i.name.toLowerCase());
 
@@ -5180,9 +5620,9 @@ const handleImportIngredients = async () => {
         .eq("id", oldIngredient.id);
     }
 
-    // ✅ IMPORTANT NEW LINE
-    await loadClientUploads();
-    await loadUploadComparison();
+    console.log("Skipping refresh functions for now");
+// await loadClientUploads();
+// await loadUploadComparison();
 
     setMessage(
       `Ingredients synced: ${cleanedRows.length} active, ${ingredientsToDeactivate.length} marked inactive.`
@@ -5200,6 +5640,140 @@ const handleImportIngredients = async () => {
     console.error("Ingredients import failed:", error);
     setMessage("Ingredients import failed.");
     alert(error?.message || "Ingredients import failed.");
+  }
+};
+const handleImportInvoices = async () => {
+  try {
+    setMessage("Importing invoice items...");
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user?.id) {
+      setMessage("You must be logged in.");
+      return;
+    }
+
+    const rows = (pendingUploadSummary?.rows || []).filter((row) => {
+  const vendor = row?.Vendor || row?.vendor;
+  const ingredient = row?.["Ingredient Name"] || row?.ingredient_name;
+  return vendor || ingredient;
+});
+
+    if (!rows.length) {
+      setMessage("No invoice rows found.");
+      return;
+    }
+
+    const getValue = (row, keys, fallback = "") => {
+      for (const key of keys) {
+        if (
+          row?.[key] !== undefined &&
+          row?.[key] !== null &&
+          row?.[key] !== ""
+        ) {
+          return row[key];
+        }
+      }
+
+      return fallback;
+    };
+
+    const toNumber = (value) => {
+      const cleaned = String(value || "")
+        .replace("$", "")
+        .replaceAll(",", "")
+        .trim();
+
+      const num = Number(cleaned);
+
+      return Number.isFinite(num) ? num : 0;
+    };
+
+    const cleanedRows = rows.map((row) => ({
+      user_id: user.id,
+upload_id: null,
+      vendor: getValue(row, [
+        "Vendor",
+        "vendor",
+      ]),
+
+      invoice_number: getValue(row, [
+        "Invoice Number",
+        "invoice_number",
+      ]),
+
+      invoice_date: getValue(row, [
+        "Invoice Date",
+        "invoice_date",
+      ]),
+
+      ingredient_name: getValue(row, [
+        "Ingredient Name",
+        "ingredient_name",
+        "item",
+        "Item",
+      ]),
+
+      category: getValue(row, [
+        "Category",
+        "category",
+      ]),
+
+      quantity: toNumber(
+        getValue(row, ["Quantity", "quantity"])
+      ),
+
+      unit: getValue(row, [
+        "Unit",
+        "unit",
+      ]),
+
+      unit_cost: toNumber(
+        getValue(row, ["Unit Cost", "unit_cost"])
+      ),
+
+      total_cost: toNumber(
+        getValue(row, ["Total Cost", "total_cost"])
+      ),
+    }));
+
+    console.log("CLEANED INVOICE ROWS BEFORE INSERT:", cleanedRows);
+
+const { data, error } = await supabase
+  .from("invoice_items")
+  .insert(cleanedRows)
+  .select();
+
+console.log("INVOICE INSERT RESPONSE:", { data, error });
+
+if (error) {
+  console.error("Invoice insert error:", error);
+  throw error;
+}
+
+    if (error) throw error;
+
+    console.log("INVOICE IMPORT COMPLETE:", cleanedRows);
+
+    setMessage(
+      `Imported ${cleanedRows.length} invoice rows successfully.`
+    );
+
+    alert(
+      `Imported ${cleanedRows.length} invoice rows successfully.`
+    );
+
+    setPendingUploadSummary(null);
+  } catch (error) {
+    console.error("Invoice import failed:", error);
+
+    setMessage(
+      `Invoice import failed: ${error?.message || "Unknown error"}`
+    );
+
+    alert(error?.message || "Invoice import failed.");
   }
 };
 const selectedUploadTypeRef = useRef("pos");
@@ -5524,7 +6098,13 @@ const salesDistributionSignals = useMemo(() => {
   const safeSales = salesDistributionData || [];
   const safeLeaks = profitLeakageChartData || [];
 
-const totalRevenue = safeSales.reduce((sum, item) => {
+const sortedSales = [...safeSales].sort(
+  (a, b) => Number(b.value || 0) - Number(a.value || 0)
+);
+
+const latestSales = sortedSales.slice(0, 30);
+
+const totalRevenue = latestSales.reduce((sum, item) => {
   const revenueValue =
     item.value ??
     item.revenue ??
@@ -5540,20 +6120,17 @@ const totalRevenue = safeSales.reduce((sum, item) => {
   return sum + Number(revenueValue || 0);
 }, 0);
 
-  const sortedSales = [...safeSales].sort(
-    (a, b) => Number(b.value || 0) - Number(a.value || 0)
-  );
+const topItem = sortedSales[0] || null;
 
-  const topItem = sortedSales[0] || null;
-  const topTwoRevenue = sortedSales
-    .slice(0, 2)
-    .reduce((sum, item) => sum + Number(item.value || 0), 0);
+const topTwoRevenue = sortedSales
+  .slice(0, 2)
+  .reduce((sum, item) => sum + Number(item.value || 0), 0);
 
-  const topItemPercent =
-    totalRevenue > 0 ? (Number(topItem?.value || 0) / totalRevenue) * 100 : 0;
+const topItemPercent =
+  totalRevenue > 0 ? (Number(topItem?.value || 0) / totalRevenue) * 100 : 0;
 
-  const topTwoPercent =
-    totalRevenue > 0 ? (topTwoRevenue / totalRevenue) * 100 : 0;
+const topTwoPercent =
+  totalRevenue > 0 ? (topTwoRevenue / totalRevenue) * 100 : 0;
 
   const biggestLeak = [...safeLeaks].sort(
     (a, b) => Number(b.loss || 0) - Number(a.loss || 0)
@@ -6657,20 +7234,6 @@ const getCampaignWindowDays = (campaign = {}) => {
   return 7;
 };
 
-const getSaleRevenue = (sale = {}) => {
-  return Number(
-    sale.revenue ||
-      sale.total ||
-      sale.total_revenue ||
-      sale.amount ||
-      sale.sales ||
-      0
-  );
-};
-
-const getSaleDate = (sale = {}) => {
-  return new Date(sale.created_at || sale.date || sale.sale_date || sale.timestamp);
-};
 
 const getRealCampaignPerformance = (campaign = {}) => {
   if (!salesData?.length) {
@@ -7289,15 +7852,25 @@ const updateCampaignRevenueAutomatically = async () => {
     console.error("Failed to update campaign revenue:", err);
   }
 };
-
 const revenueTrendData =
   revenueChartData?.length > 0
-    ? revenueChartData
-    : salesData?.map((sale) => ({
-        date: sale.sale_date || sale.date || sale.created_at?.slice(0, 10),
-        revenue: Number(sale.revenue || sale.total || sale.amount || 0),
-      })) || [];
-const [revenueRange, setRevenueRange] = useState("30D");
+    ? revenueChartData.map((item) => ({
+        ...item,
+        day: item.day || item.label || item.date || "Day",
+        date: item.date || item.sale_date || item.created_at || item.day,
+        revenue: Number(item.revenue || 0),
+      }))
+    : (salesData || []).map((sale, index) => {
+        const date = getSaleDate(sale);
+        return {
+          day: date
+            ? date.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+            : `Sale ${index + 1}`,
+          date: date ? date.toISOString().slice(0, 10) : null,
+          revenue: getSaleRevenue(sale),
+        };
+      });
+const [revenueRange, setRevenueRange] = useState("All");
 
 const revenueRangeOptions = ["7D", "30D", "90D", "1Y", "All"];
 
@@ -7313,12 +7886,15 @@ const filteredRevenueTrendData = revenueTrendData.filter((item) => {
       ? 90
       : 365;
 
-  const itemDate = new Date(item.date);
+ const itemDate = item.date ? new Date(item.date) : null;
+
+if (!itemDate || isNaN(itemDate.getTime())) return true;
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - daysBack);
 
   return itemDate >= cutoffDate;
-});const [intelligenceRevenueRange, setIntelligenceRevenueRange] = useState("30D");
+});
+const [intelligenceRevenueRange, setIntelligenceRevenueRange] = useState("All");
 
 const intelligenceRevenueRangeOptions = ["7D", "30D", "90D", "1Y", "All"];
 
@@ -8556,12 +9132,12 @@ SerVen identified approximately $${aiOpportunityValue.toLocaleString()} in poten
 const benchmarkInsights = useMemo(() => {
   const foodCost = Number(foodCostPercentage || 0);
 
-  const laborCost = Number(
+const laborCost = Number(
+  liveLaborIntelligence?.laborPercent ||
     laborCostPercentage ||
-      laborIntelligence?.laborPercent ||
-      laborIntelligence?.laborPercentage ||
-      0
-  );
+    laborIntelligence?.laborPercentage ||
+    0
+);
 
   const margin = Number(avgMargin || 0);
 
@@ -8753,7 +9329,7 @@ const estimatedFoodCostImpact = Math.round(
 
 const laborOveragePercent = Math.max(
   0,
-  Number(laborIntelligence?.laborPercent || 34) -
+  Number(liveLaborIntelligence?.laborPercent || 0) -
     activeBenchmarks.labor.high
 );
 
@@ -9269,6 +9845,44 @@ const activeUploadCount = (clientUploads || []).filter((upload) => {
   return upload.active !== false && status !== "deleted" && status !== "archived";
 }).length;
 
+useEffect(() => {
+  const loadMenuItems = async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user?.id) return;
+
+    const { data, error } = await supabase
+      .from("menu_items")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("is_active", true);
+
+    if (error) {
+      console.error("Failed to load menu items:", error);
+      return;
+    }
+
+    console.log("LOADED MENU ITEMS:", data);
+    setMenuItemsData(data || []);
+  };
+
+  loadMenuItems();
+}, []);
+useEffect(() => {
+  const savedLabor = localStorage.getItem("serven_labor_rows");
+
+  if (savedLabor) {
+    try {
+      setLaborData(JSON.parse(savedLabor));
+    } catch (err) {
+      console.error("Failed to load saved labor rows:", err);
+    }
+  }
+}, []);
+
+
 if (!hasPaidAccess) {
   return (
     <div
@@ -9636,6 +10250,16 @@ return (
   >
     Upload POS Data
   </button>
+<button
+  onClick={() => {
+    selectedUploadTypeRef.current = "labor";
+    setUploadType("labor");
+    document.getElementById("csvUpload")?.click();
+  }}
+  style={setupPrimaryButton}
+>
+  Upload Labor Data
+</button>
 
   <button
     onClick={() => {
@@ -9660,11 +10284,15 @@ return (
   </button>
 
   <button
-    onClick={() => document.getElementById("invoiceUpload")?.click()}
-    style={setupSecondaryButton}
-  >
-    Upload Invoices
-  </button>
+  onClick={() => {
+    selectedUploadTypeRef.current = "invoices";
+    setUploadType("invoices");
+    document.getElementById("csvUpload")?.click();
+  }}
+  style={setupSecondaryButton}
+>
+  Upload Invoices
+</button>
 </div>
     </div>
 
@@ -9794,13 +10422,18 @@ return (
       onClick={() => {
         const currentType = pendingUploadSummary?.uploadType || uploadType;
 
-        if (currentType === "menu_items") {
-          handleImportMenuItems();
-        } else if (currentType === "ingredients") {
-          handleImportIngredients();
-        } else {
-          setMessage("No matched upload type.");
-        }
+       if (currentType === "menu_items") {
+  handleImportMenuItems();
+} else if (currentType === "ingredients") {
+  handleImportIngredients();
+} else if (currentType === "labor") {
+  setMessage(`Imported ${laborData.length} labor rows successfully.`);
+  setPendingUploadSummary(null);
+} else if (currentType === "invoices") {
+  handleImportInvoices();
+} else {
+  setMessage("No matched upload type.");
+}
       }}
       style={{
         marginTop: "12px",
@@ -10314,15 +10947,11 @@ return (
   
  <GlassCard
   title="Revenue Intelligence"
-  value={
-    realSalesMetrics.hasDbSales
-      ? `$${Number(totalRevenue || realSalesMetrics?.totalRevenueFromDb || 0).toLocaleString()}`
-      : `$${Number(totalRevenue || dashboardRevenue || 0).toLocaleString()}`
-  }
+  value={`$${Number(liveTotalRevenue || 0).toLocaleString()}`}
   subtext={
-    Number(revenueTrend?.growthPercent || 0) > 0
+    Number(liveMomentumPercent || 0) > 0
       ? "Revenue trending upward"
-      : Number(revenueTrend?.growthPercent || 0) < 0
+      : Number(liveMomentumPercent || 0) < 0
       ? "Revenue needs attention"
       : "Revenue trend stable"
   }
@@ -10337,6 +10966,7 @@ return (
         }}
       >
         <span>Growth Trend</span>
+
         <span
           style={{
             color: revenueTrendBadge?.color || "#94a3b8",
@@ -10344,7 +10974,7 @@ return (
           }}
         >
           {revenueTrendBadge?.symbol || "→"}{" "}
-          {Number(revenueTrend?.growthPercent || 0).toFixed(1)}%
+          {Number(liveMomentumPercent || 0).toFixed(1)}%
         </span>
       </div>
 
@@ -10356,9 +10986,15 @@ return (
           color: "#94a3b8",
         }}
       >
-        <span>Opportunity Signal</span>
-        <span style={{ color: "#d4af37", fontWeight: "900" }}>
-          Review peak items
+        <span>Best Sales Day</span>
+
+        <span
+          style={{
+            color: "#d4af37",
+            fontWeight: "900",
+          }}
+        >
+          {revenueTracker?.bestDay?.day || "N/A"}
         </span>
       </div>
     </div>
@@ -10367,13 +11003,19 @@ return (
 />
 <GlassCard
   title="Margin Intelligence"
-  value={`${Number(avgMargin || 0).toFixed(1)}%`}
+  value={
+    liveAvgMargin > 0
+      ? `${Number(liveAvgMargin).toFixed(1)}%`
+      : "Needs menu data"
+  }
   subtext={
-    Number(avgMargin || 0) >= 65
-      ? "Strong margin position"
-      : Number(avgMargin || 0) >= 55
-      ? "Stable margin range"
-      : "Margin needs attention"
+    liveAvgMargin > 0
+      ? liveAvgMargin >= 65
+        ? "Strong margin position"
+        : liveAvgMargin >= 55
+        ? "Stable margin range"
+        : "Margin needs attention"
+      : "Upload menu items with costs to calculate margin"
   }
   footer={
     <div
@@ -10392,7 +11034,13 @@ return (
         }}
       >
         <span>Target Margin</span>
-        <span style={{ color: "#e2e8f0", fontWeight: "800" }}>
+
+        <span
+          style={{
+            color: "#e2e8f0",
+            fontWeight: "800",
+          }}
+        >
           {`${activeBenchmarks.margin.low}–${activeBenchmarks.margin.high}%`}
         </span>
       </div>
@@ -10406,19 +11054,24 @@ return (
         }}
       >
         <span>Profit Health</span>
-       <span
-  style={{
-    color:
-      Number(avgMargin || 0) >= activeBenchmarks.margin.low
-        ? "#86efac"
-        : "#fbbf24",
-    fontWeight: "900",
-  }}
->
-  {Number(avgMargin || 0) >= activeBenchmarks.margin.low
-    ? "Healthy"
-    : "Watch margin"}
-</span>
+
+        <span
+          style={{
+            color:
+              liveAvgMargin <= 0
+                ? "#94a3b8"
+                : liveAvgMargin >= activeBenchmarks.margin.low
+                ? "#86efac"
+                : "#fbbf24",
+            fontWeight: "900",
+          }}
+        >
+          {liveAvgMargin <= 0
+            ? "Waiting for menu costs"
+            : liveAvgMargin >= activeBenchmarks.margin.low
+            ? "Healthy"
+            : "Watch margin"}
+        </span>
       </div>
     </div>
   }
@@ -10426,22 +11079,22 @@ return (
 
   <GlassCard
   title="Food Cost Intelligence"
-  value={`${Number(foodCostPercentage || 0).toFixed(1)}%`}
+  value={
+    liveFoodCostPercentage > 0
+      ? `${Number(liveFoodCostPercentage).toFixed(1)}%`
+      : "Needs invoice data"
+  }
   subtext={
-    Number(foodCostPercentage || 0) <= activeBenchmarks.foodCost.high
-      ? "Within benchmark range"
-      : Number(foodCostPercentage || 0) <= 31
-      ? "Slightly above benchmark"
-      : "Margin pressure detected"
+    liveFoodCostPercentage > 0
+      ? liveFoodCostPercentage <= activeBenchmarks.foodCost.high
+        ? "Within benchmark range"
+        : liveFoodCostPercentage <= 31
+        ? "Slightly above benchmark"
+        : "Margin pressure detected"
+      : "Upload invoices or menu costs to calculate food cost"
   }
   footer={
-    <div
-      style={{
-        marginTop: "12px",
-        display: "grid",
-        gap: "8px",
-      }}
-    >
+    <div style={{ marginTop: "12px", display: "grid", gap: "8px" }}>
       <div
         style={{
           display: "flex",
@@ -10452,8 +11105,8 @@ return (
       >
         <span>Benchmark Target</span>
         <span style={{ color: "#e2e8f0", fontWeight: "800" }}>
-  {activeBenchmarks.foodCost.low}–{activeBenchmarks.foodCost.high}%
-</span>
+          {activeBenchmarks.foodCost.low}–{activeBenchmarks.foodCost.high}%
+        </span>
       </div>
 
       <div
@@ -10464,18 +11117,22 @@ return (
           color: "#94a3b8",
         }}
       >
-        <span>Estimated Margin Impact</span>
+        <span>Margin Impact</span>
         <span
           style={{
             color:
-              Number(foodCostPercentage || 0) > 30
+              liveFoodCostPercentage <= 0
+                ? "#94a3b8"
+                : liveFoodCostPercentage > activeBenchmarks.foodCost.high
                 ? "#f87171"
                 : "#86efac",
             fontWeight: "900",
           }}
         >
-          {Number(foodCostPercentage || 0) > 30
-            ? "-$2,140/mo"
+          {liveFoodCostPercentage <= 0
+            ? "Waiting for cost data"
+            : liveFoodCostPercentage > activeBenchmarks.foodCost.high
+            ? "Food cost above target"
             : "Healthy"}
         </span>
       </div>
@@ -10483,24 +11140,20 @@ return (
   }
 />
 
-  <GlassCard
+<GlassCard
   title="Operational Intelligence"
-  value={`${Number(score || 0)}/100`}
+  value={liveScore > 0 ? `${Number(liveScore)}/100` : "Needs more data"}
   subtext={
-    Number(score || 0) >= 80
-      ? "Restaurant operating efficiently"
-      : Number(score || 0) >= 60
-      ? "Operational opportunities detected"
-      : "Multiple operational risks detected"
+    liveScore > 0
+      ? liveScore >= 80
+        ? "Restaurant operating efficiently"
+        : liveScore >= 60
+        ? "Operational opportunities detected"
+        : "Multiple operational risks detected"
+      : "Upload POS, menu, labor, and inventory data to score operations"
   }
   footer={
-    <div
-      style={{
-        marginTop: "12px",
-        display: "grid",
-        gap: "8px",
-      }}
-    >
+    <div style={{ marginTop: "12px", display: "grid", gap: "8px" }}>
       <div
         style={{
           display: "flex",
@@ -10514,17 +11167,21 @@ return (
         <span
           style={{
             color:
-              Number(score || 0) >= 80
+              liveScore <= 0
+                ? "#94a3b8"
+                : liveScore >= 80
                 ? "#86efac"
-                : Number(score || 0) >= 60
+                : liveScore >= 60
                 ? "#fbbf24"
                 : "#f87171",
             fontWeight: "900",
           }}
         >
-          {Number(score || 0) >= 80
+          {liveScore <= 0
+            ? "Waiting for data"
+            : liveScore >= 80
             ? "Above benchmark"
-            : Number(score || 0) >= 60
+            : liveScore >= 60
             ? "Average benchmark"
             : "Below benchmark"}
         </span>
@@ -10540,13 +11197,12 @@ return (
       >
         <span>AI Priority</span>
 
-        <span
-          style={{
-            color: "#d4af37",
-            fontWeight: "900",
-          }}
-        >
-          Improve margins
+        <span style={{ color: "#d4af37", fontWeight: "900" }}>
+          {liveScore <= 0
+            ? "Upload more data"
+            : liveScore >= 80
+            ? "Maintain performance"
+            : "Improve margins"}
         </span>
       </div>
     </div>
@@ -10570,7 +11226,7 @@ return (
 
   <GlassCard
   title="Check Average Intelligence"
-  value={`$${Number(aov || 0).toFixed(2)}`}
+ value={`$${Number(liveAOV || 0).toFixed(2)}`}
   subtext={
     Number(aov || 0) >= 25
       ? "Strong guest spend"
@@ -10613,7 +11269,7 @@ return (
 
   <GlassCard
   title="Order Volume Intelligence"
-  value={`${Number(totalOrders || 0).toLocaleString()}`}
+  value={`${Number(liveTotalOrders || 0).toLocaleString()}`}
   subtext={
     Number(totalOrders || 0) > 0
       ? "Guest traffic captured"
@@ -10652,13 +11308,13 @@ return (
   }
 />
 
-  <GlassCard
+ <GlassCard
   title="Peak Hour Intelligence"
-  value={peakHours?.[0]?.label || "N/A"}
+  value={livePeakHours?.[0]?.label || "Needs time data"}
   subtext={
-    peakHours?.[0]?.revenue
-      ? `$${Number(peakHours[0].revenue || 0).toLocaleString()} top-performing window`
-      : "Waiting for sales pattern data"
+    livePeakHours?.[0]?.revenue
+      ? `$${Number(livePeakHours[0].revenue || 0).toLocaleString()} top-performing window`
+      : "Upload POS data with order times to calculate peak hours"
   }
   footer={
     <div style={{ marginTop: "12px", display: "grid", gap: "8px" }}>
@@ -10672,7 +11328,7 @@ return (
       >
         <span>Traffic Insight</span>
         <span style={{ color: "#e2e8f0", fontWeight: "800" }}>
-          High guest volume
+          {livePeakHours?.[0]?.revenue ? "High guest volume" : "Waiting for timestamps"}
         </span>
       </div>
 
@@ -10686,20 +11342,20 @@ return (
       >
         <span>Recommendation</span>
         <span style={{ color: "#d4af37", fontWeight: "900" }}>
-          Optimize staffing
+          {livePeakHours?.[0]?.revenue ? "Optimize staffing" : "Upload timed sales"}
         </span>
       </div>
     </div>
   }
 />
 
- <GlassCard
+<GlassCard
   title="Revenue Momentum Intelligence"
-  value={`${Number(momentumPercent || 0).toFixed(1)}%`}
+  value={`${Number(liveMomentumPercent || 0).toFixed(1)}%`}
   subtext={
-    Number(momentumPercent || 0) > 0
+    Number(liveMomentumPercent || 0) > 0
       ? "Revenue growth accelerating"
-      : Number(momentumPercent || 0) < 0
+      : Number(liveMomentumPercent || 0) < 0
       ? "Revenue trend slowing"
       : "Revenue trend stable"
   }
@@ -10718,17 +11374,17 @@ return (
         <span
           style={{
             color:
-              Number(momentumPercent || 0) > 0
+              Number(liveMomentumPercent || 0) > 0
                 ? "#86efac"
-                : Number(momentumPercent || 0) < 0
+                : Number(liveMomentumPercent || 0) < 0
                 ? "#f87171"
                 : "#e2e8f0",
             fontWeight: "900",
           }}
         >
-          {Number(momentumPercent || 0) > 0
+          {Number(liveMomentumPercent || 0) > 0
             ? "Positive"
-            : Number(momentumPercent || 0) < 0
+            : Number(liveMomentumPercent || 0) < 0
             ? "Declining"
             : "Stable"}
         </span>
@@ -10750,7 +11406,11 @@ return (
             fontWeight: "900",
           }}
         >
-          Drive repeat traffic
+          {Number(liveMomentumPercent || 0) > 0
+            ? "Scale winning items"
+            : Number(liveMomentumPercent || 0) < 0
+            ? "Drive repeat traffic"
+            : "Monitor sales trends"}
         </span>
       </div>
     </div>
@@ -10816,7 +11476,7 @@ return (
         fontSize: "13px",
       }}
     >
-      AI Comparison Engine
+      Live Data Comparison
     </div>
   </div>
 
@@ -10830,84 +11490,111 @@ return (
     }}
   >
     {[
-   {
-  label: "Food Cost",
+      {
+        label: "Food Cost",
+        your:
+          liveFoodCostPercentage > 0
+            ? `${Number(liveFoodCostPercentage).toFixed(1)}%`
+            : "Needs invoice data",
 
-  your: `${Number(foodCostPercentage || 0).toFixed(1)}%`,
+        benchmark: `${activeBenchmarks.foodCost.low}–${activeBenchmarks.foodCost.high}%`,
 
-  benchmark: `${activeBenchmarks.foodCost.low}–${activeBenchmarks.foodCost.high}%`,
+        status:
+          liveFoodCostPercentage <= 0
+            ? "Waiting for cost data"
+            : liveFoodCostPercentage <= activeBenchmarks.foodCost.high
+            ? "Healthy"
+            : "Above Benchmark",
 
-  status:
-    Number(foodCostPercentage || 0) <= activeBenchmarks.foodCost.high
-      ? "Healthy"
-      : "Above Benchmark",
+        color:
+          liveFoodCostPercentage <= 0
+            ? "#94a3b8"
+            : liveFoodCostPercentage <= activeBenchmarks.foodCost.high
+            ? "#86efac"
+            : "#fbbf24",
+      },
 
-  color:
-    Number(foodCostPercentage || 0) <= activeBenchmarks.foodCost.high
-      ? "#86efac"
-      : "#fbbf24",
-},
+      {
+        label: "Margin",
+        your:
+          liveAvgMargin > 0
+            ? `${Number(liveAvgMargin).toFixed(1)}%`
+            : "Needs menu data",
 
-     {
-  label: "Margin",
-  your: `${Number(avgMargin || 0).toFixed(1)}%`,
+        benchmark: `${activeBenchmarks.margin.low}–${activeBenchmarks.margin.high}%`,
 
-  benchmark: `${activeBenchmarks.margin.low}–${activeBenchmarks.margin.high}%`,
+        status:
+          liveAvgMargin <= 0
+            ? "Waiting for menu costs"
+            : liveAvgMargin >= activeBenchmarks.margin.low
+            ? "Healthy"
+            : "Needs Attention",
 
-  status:
-    Number(avgMargin || 0) >= activeBenchmarks.margin.low
-      ? "Healthy"
-      : "Needs Attention",
+        color:
+          liveAvgMargin <= 0
+            ? "#94a3b8"
+            : liveAvgMargin >= activeBenchmarks.margin.low
+            ? "#86efac"
+            : "#f87171",
+      },
 
-  color:
-    Number(avgMargin || 0) >= activeBenchmarks.margin.low
-      ? "#86efac"
-      : "#f87171",
-},
-
-     {
+    {
   label: "Labor Efficiency",
 
-  your: `${Number(
-    laborIntelligence?.laborPercent || 34
-  ).toFixed(1)}%`,
+  your:
+    liveLaborIntelligence?.laborPercent > 0
+      ? `${Number(
+          liveLaborIntelligence.laborPercent
+        ).toFixed(1)}%`
+      : "Needs labor data",
 
   benchmark: `${activeBenchmarks.labor.low}–${activeBenchmarks.labor.high}%`,
 
   status:
-    Number(laborIntelligence?.laborPercent || 34) <=
-    activeBenchmarks.labor.high
+    Number(liveLaborIntelligence?.laborPercent || 0) <= 0
+      ? "Waiting for labor data"
+      : Number(liveLaborIntelligence?.laborPercent || 0) <=
+        activeBenchmarks.labor.high
       ? "Healthy"
       : "Slightly High",
 
   color:
-    Number(laborIntelligence?.laborPercent || 34) <=
-    activeBenchmarks.labor.high
+    Number(liveLaborIntelligence?.laborPercent || 0) <= 0
+      ? "#94a3b8"
+      : Number(liveLaborIntelligence?.laborPercent || 0) <=
+        activeBenchmarks.labor.high
       ? "#86efac"
       : "#fbbf24",
 },
 
       {
-  label: "Operational Score",
+        label: "Operational Score",
 
-  your: `${Number(score || 0)}/100`,
+        your:
+          liveScore > 0
+            ? `${Number(liveScore)}/100`
+            : "Needs more data",
 
-  benchmark: "80+ Recommended",
+        benchmark: "80+ Recommended",
 
-  status:
-    Number(score || 0) >= 80
-      ? "High Performing"
-      : Number(score || 0) >= 60
-      ? "Optimization Available"
-      : "Needs Attention",
+        status:
+          liveScore <= 0
+            ? "Waiting for data"
+            : liveScore >= 80
+            ? "High Performing"
+            : liveScore >= 60
+            ? "Optimization Available"
+            : "Needs Attention",
 
-  color:
-    Number(score || 0) >= 80
-      ? "#86efac"
-      : Number(score || 0) >= 60
-      ? "#d4af37"
-      : "#f87171",
-},
+        color:
+          liveScore <= 0
+            ? "#94a3b8"
+            : liveScore >= 80
+            ? "#86efac"
+            : liveScore >= 60
+            ? "#d4af37"
+            : "#f87171",
+      },
     ].map((item) => (
       <div
         key={item.label}
@@ -10936,6 +11623,7 @@ return (
             display: "flex",
             justifyContent: "space-between",
             marginBottom: "10px",
+            gap: "14px",
           }}
         >
           <div>
@@ -11931,8 +12619,9 @@ return (
 
   <div style={{ width: "100%", height: "320px" }}>
     {aiProfitTrendData?.length ? (
-      <ResponsiveContainer width="100%" height="100%">
-        <LineChart
+      <LineChart
+  width={700}
+  height={300}
           data={aiProfitTrendData}
           margin={{ top: 10, right: 18, left: 0, bottom: 8 }}
         >
@@ -12005,7 +12694,7 @@ return (
             connectNulls
           />
         </LineChart>
-      </ResponsiveContainer>
+      
     ) : (
       <div
         style={{
@@ -16794,6 +17483,7 @@ if (!res.ok) {
   </div>
 )}
 {activeTab === "analytics" && (
+  
   <div
   style={{
     display: "grid",
@@ -17057,7 +17747,7 @@ if (!res.ok) {
 >
   <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
     <div style={{ color: "#94a3b8", fontSize: "12px", fontWeight: "800" }}>
-      Showing {intelligenceRevenueChartData.length} data points ·{" "}
+      Showing {revenueChartData?.length || 0} data points ·{" "}
       {intelligenceRevenueRange}
     </div>
 
@@ -17105,6 +17795,37 @@ if (!res.ok) {
     })}
   </div>
 </div>
+{/* CHART */}
+<div
+  style={{
+    width: "100%",
+    height: "340px",
+    marginTop: "10px",
+    background: "rgba(255,255,255,0.04)",
+    border: "2px solid yellow",
+    borderRadius: "16px",
+    padding: "12px",
+  }}
+>
+  <LineChart
+    width={700}
+    height={300}
+   data={revenueChartData}
+  >
+    <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.3)" />
+    <XAxis dataKey="day" stroke="#94a3b8" />
+    <YAxis stroke="#94a3b8" />
+    <Tooltip />
+
+    <Line
+      type="monotone"
+      dataKey="revenue"
+      stroke="#8b5cf6"
+      strokeWidth={4}
+      dot
+    />
+  </LineChart>
+</div>
 {/* ========================= */}
 {/* 🤖 AI EXECUTIVE SUMMARY */}
 {/* ========================= */}
@@ -17140,7 +17861,7 @@ if (!res.ok) {
       marginBottom: "14px",
     }}
   >
-    {executiveSummary.headline}
+   {executiveSummary?.headline}
   </h2>
 
   <div
@@ -17151,7 +17872,7 @@ if (!res.ok) {
       whiteSpace: "pre-line",
     }}
   >
-    {executiveSummary.summary}
+    {executiveSummary?.summary}
   </div>
 </div>
 {/* ========================= */}
@@ -17170,90 +17891,178 @@ if (!res.ok) {
     gap: isMobile ? "12px" : "16px",
   }}
 >
-  {benchmarkInsights.map((item, index) => (
+  {(benchmarkInsights || []).map((item, index) => (
+  <div
+    key={index}
+    style={{
+      padding: "18px",
+      borderRadius: "18px",
+      background:
+        "linear-gradient(135deg, rgba(15,23,42,0.92), rgba(30,41,59,0.86))",
+      border: "1px solid rgba(148,163,184,0.14)",
+    }}
+  >
     <div
-      key={index}
       style={{
-        padding: "18px",
-        borderRadius: "18px",
-        background:
-          "linear-gradient(135deg, rgba(15,23,42,0.92), rgba(30,41,59,0.86))",
-        border: "1px solid rgba(148,163,184,0.14)",
+        fontSize: "12px",
+        fontWeight: "800",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        color: "#94a3b8",
+        marginBottom: "8px",
+      }}
+    >
+      {item?.title || "Benchmark"}
+    </div>
+
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: "10px",
       }}
     >
       <div
         style={{
-          fontSize: "12px",
+          fontSize: "28px",
+          fontWeight: "900",
+          color: "white",
+        }}
+      >
+        {item?.current || "N/A"}
+      </div>
+
+      <div
+        style={{
+          padding: "6px 10px",
+          borderRadius: "999px",
+          background:
+            item?.status === "Healthy" || item?.status === "Strong"
+              ? "rgba(34,197,94,0.16)"
+              : "rgba(239,68,68,0.16)",
+          color:
+            item?.status === "Healthy" || item?.status === "Strong"
+              ? "#4ade80"
+              : "#f87171",
+          fontSize: "11px",
           fontWeight: "800",
-          letterSpacing: "0.08em",
-          textTransform: "uppercase",
-          color: "#94a3b8",
-          marginBottom: "8px",
         }}
       >
-        {item.title}
-      </div>
-
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: "10px",
-        }}
-      >
-        <div
-          style={{
-            fontSize: "28px",
-            fontWeight: "900",
-            color: "white",
-          }}
-        >
-          {item.current}
-        </div>
-
-        <div
-          style={{
-            padding: "6px 10px",
-            borderRadius: "999px",
-            background:
-              item.status === "Healthy" || item.status === "Strong"
-                ? "rgba(34,197,94,0.16)"
-                : "rgba(239,68,68,0.16)",
-            color:
-              item.status === "Healthy" || item.status === "Strong"
-                ? "#4ade80"
-                : "#f87171",
-            fontSize: "11px",
-            fontWeight: "800",
-          }}
-        >
-          {item.status}
-        </div>
-      </div>
-
-      <div
-        style={{
-          fontSize: "13px",
-          color: "#94a3b8",
-          marginBottom: "8px",
-        }}
-      >
-        Industry benchmark: {item.benchmark}
-      </div>
-
-      <div
-        style={{
-          fontSize: "13px",
-          color: "#cbd5e1",
-          lineHeight: 1.6,
-        }}
-      >
-        {item.impact}
+        {item?.status || "Needs Data"}
       </div>
     </div>
-  ))}
+
+    <div
+      style={{
+        fontSize: "13px",
+        color: "#94a3b8",
+        marginBottom: "8px",
+      }}
+    >
+      Industry benchmark: {item?.benchmark || "N/A"}
+    </div>
+
+    <div
+      style={{
+        fontSize: "13px",
+        color: "#cbd5e1",
+        lineHeight: 1.6,
+      }}
+    >
+      {item?.impact || "Upload more data to generate benchmark insights."}
+    </div>
+  </div>
+))}
 </div>
+{/* ================= LABOR VS REVENUE CHART ================= */}
+<div style={chartCard}>
+  <div style={{ marginBottom: "18px" }}>
+    <h3 style={{ color: "white", fontSize: "20px", fontWeight: "800", margin: 0 }}>
+      Labor vs Revenue
+    </h3>
+    <p style={{ color: "#94a3b8", fontSize: "13px", marginTop: "4px" }}>
+      Compares labor cost against total revenue.
+    </p>
+  </div>
+
+<div
+  style={{
+    width: "100%",
+    minHeight: 260,
+    padding: "18px",
+    borderRadius: "16px",
+    background: "rgba(15,23,42,0.75)",
+    border: "1px solid rgba(148,163,184,0.2)",
+  }}
+>
+  {[
+    {
+      label: "Revenue",
+      value: Number(liveTotalRevenue || 0),
+      color: "#22c55e",
+    },
+    {
+      label: "Labor Cost",
+      value: Number(liveLaborIntelligence?.totalLaborCost || 0),
+      color: "#f97316",
+    },
+  ].map((item) => {
+    const maxValue = Math.max(
+      Number(liveTotalRevenue || 0),
+      Number(liveLaborIntelligence?.totalLaborCost || 0),
+      1
+    );
+
+    const widthPercent = Math.max(4, (item.value / maxValue) * 100);
+
+    return (
+      <div key={item.label} style={{ marginBottom: "22px" }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            color: "white",
+            fontWeight: "800",
+            marginBottom: "8px",
+          }}
+        >
+          <span>{item.label}</span>
+          <span>${Number(item.value || 0).toLocaleString()}</span>
+        </div>
+
+        <div
+          style={{
+            width: "100%",
+            height: "34px",
+            borderRadius: "999px",
+            background: "rgba(148,163,184,0.16)",
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              width: `${widthPercent}%`,
+              height: "100%",
+              borderRadius: "999px",
+              background: item.color,
+            }}
+          />
+        </div>
+      </div>
+    );
+  })}
+</div>
+
+  <p style={{ color: "#94a3b8", fontSize: "13px", marginTop: "10px" }}>
+    Revenue: ${Number(liveTotalRevenue || 0).toLocaleString()} · Labor cost: $
+    {Number(liveLaborIntelligence?.totalLaborCost || 0).toLocaleString()} · Labor %
+    {liveLaborIntelligence?.laborPercent
+      ? ` ${liveLaborIntelligence.laborPercent.toFixed(1)}%`
+      : " 0%"}
+  </p>
+</div>
+{/* ================= END LABOR VS REVENUE CHART ================= */}
 {/* ========================= */}
 {/* 💰 ROI PROJECTION TIMELINE */}
 {/* ========================= */}
@@ -17299,7 +18108,7 @@ if (!res.ok) {
       gap: "14px",
     }}
   >
-    {revenueLiftTimeline.map((item, index) => (
+    {(revenueLiftTimeline || []).map((item, index) => (
       <div
         key={index}
         style={{
@@ -17483,124 +18292,7 @@ if (!res.ok) {
     ))}
   </div>
 </div>
-{/* CHART */}
-{intelligenceRevenueChartData?.length ? (
-  <ResponsiveContainer width="100%" height={320}>
-    <LineChart
-      data={intelligenceRevenueChartData}
-      margin={{ top: 10, right: 18, left: 0, bottom: 8 }}
-    >
-      <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.12)" />
 
-      <XAxis
-        dataKey="label"
-        tick={{ fill: "#94a3b8", fontSize: 12 }}
-        axisLine={{ stroke: "rgba(148,163,184,0.18)" }}
-        tickLine={false}
-      />
-
-      <YAxis
-        tickFormatter={(value) => `$${Number(value).toLocaleString()}`}
-        tick={{ fill: "#94a3b8", fontSize: 12 }}
-        axisLine={{ stroke: "rgba(148,163,184,0.18)" }}
-        tickLine={false}
-      />
-
-      <Tooltip
-        contentStyle={{
-          background: "rgba(15,23,42,0.97)",
-          border: "1px solid rgba(148,163,184,0.18)",
-          borderRadius: "14px",
-          color: "white",
-          boxShadow: "0 18px 40px rgba(2,6,23,0.35)",
-        }}
-        formatter={(value, name) => [
-          `$${Number(value || 0).toLocaleString()}`,
-          name === "previousRevenue" ? "Previous Period" : "Current Period",
-        ]}
-      />
-
-      <Legend
-        wrapperStyle={{
-          color: "#94a3b8",
-          fontSize: "12px",
-          fontWeight: "800",
-        }}
-      />
-
-      <Line
-        type="monotone"
-        dataKey="previousRevenue"
-        name="Previous Period"
-        stroke="#64748b"
-        strokeWidth={3}
-        strokeDasharray="6 6"
-        dot={false}
-        activeDot={{ r: 6, fill: "#94a3b8", stroke: "white", strokeWidth: 2 }}
-        connectNulls
-      />
-
-      <Line
-        type="monotone"
-        dataKey="revenue"
-        name="Current Period"
-        stroke="#8b5cf6"
-        strokeWidth={4}
-        dot={false}
-        activeDot={{ r: 8, fill: "#fbbf24", stroke: "white", strokeWidth: 2 }}
-        connectNulls
-      />
-    </LineChart>
-  </ResponsiveContainer>
-) : (
-  <div
-    style={{
-      padding: "34px",
-      borderRadius: "20px",
-      background:
-        "linear-gradient(135deg, rgba(15,23,42,0.92), rgba(30,41,59,0.82))",
-      border: "1px dashed rgba(148,163,184,0.22)",
-      textAlign: "center",
-    }}
-  >
-    <div
-      style={{
-        color: "#d4af37",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      Revenue Trends Locked
-    </div>
-
-    <div
-      style={{
-        color: "white",
-        fontSize: "22px",
-        fontWeight: "900",
-        marginBottom: "10px",
-      }}
-    >
-      Upload sales data to unlock AI revenue tracking
-    </div>
-
-    <div
-      style={{
-        color: "#94a3b8",
-        fontSize: "14px",
-        lineHeight: 1.7,
-        maxWidth: "620px",
-        margin: "0 auto",
-      }}
-    >
-      SerVen analyzes your POS data to generate revenue trends, sales momentum,
-      peak hours, and profit opportunities automatically.
-    </div>
-  </div>
-)}
 </div>
 <div
   style={{
@@ -17706,8 +18398,11 @@ if (!res.ok) {
 
   <div style={{ width: "100%", height: "300px" }}>
     {revenueChartData.length > 0 ? (
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={revenueChartData}>
+      <BarChart
+  width={700}
+  height={300}
+  data={revenueChartData}
+>
           <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.16)" />
 
           <XAxis
@@ -17741,7 +18436,7 @@ if (!res.ok) {
             radius={[10, 10, 0, 0]}
           />
         </BarChart>
-      </ResponsiveContainer>) : (
+      ) : (
   <div
     style={{
       height: "100%",
@@ -17876,8 +18571,7 @@ if (!res.ok) {
 
   <div style={{ width: "100%", height: "300px" }}>
     {salesDistributionData && salesDistributionData.length > 0 ? (
-      <ResponsiveContainer width="100%" height="100%">
-        <PieChart>
+      <PieChart width={700} height={300}>
           <Pie
             data={salesDistributionData}
             dataKey="value"
@@ -17889,7 +18583,7 @@ if (!res.ok) {
               `${name} ${(percent * 100).toFixed(0)}%`
             }
           >
-            {salesDistributionData.map((entry, index) => {
+            {(salesDistributionData || []).map((entry, index) => {
               const colors = [
                 "#4f46e5",
                 "#22c55e",
@@ -17921,7 +18615,7 @@ if (!res.ok) {
             }}
           />
         </PieChart>
-      </ResponsiveContainer>
+      
       ) : (
   <div
     style={{
@@ -18088,8 +18782,9 @@ if (!res.ok) {
 
   <div style={{ width: "100%", height: "300px" }}>
     {foodCostTrendData?.length > 0 ? (
-      <ResponsiveContainer width="100%" height="100%">
-        <LineChart
+      <LineChart
+  width={700}
+  height={300}
           data={foodCostTrendData}
           margin={{ top: 10, right: 18, left: 0, bottom: 8 }}
         >
@@ -18171,7 +18866,7 @@ if (!res.ok) {
             connectNulls
           />
         </LineChart>
-      </ResponsiveContainer>
+      
     ) : (
   <div
     style={{
@@ -18287,9 +18982,13 @@ onMouseLeave={(e) => {
   </div>
 
   <div style={{ width: "100%", height: "300px" }}>
+    
     {profitLeakageChartData?.length > 0 ? (
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={profitLeakageChartData}>
+      <BarChart
+  width={700}
+  height={300}
+  data={profitLeakageChartData}
+>
           <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.16)" />
 
           <XAxis
@@ -18319,7 +19018,8 @@ onMouseLeave={(e) => {
 
           <Bar dataKey="loss" fill="#f97316" radius={[10, 10, 0, 0]} />
         </BarChart>
-      </ResponsiveContainer>) : (
+      
+    ) : (
   <div
     style={{
       height: "100%",
@@ -18373,46 +19073,80 @@ onMouseLeave={(e) => {
   </div>
 )}
   </div>
+  {profitLeakageChartData?.length > 0 && (
+  <div
+    style={{
+      marginTop: "14px",
+      padding: "14px 16px",
+      borderRadius: "16px",
+      background: "rgba(249,115,22,0.10)",
+      border: "1px solid rgba(249,115,22,0.22)",
+      color: "#fed7aa",
+      fontSize: "13px",
+      lineHeight: 1.6,
+      fontWeight: "800",
+    }}
+  >
+    Highest profit leak:{" "}
+    <span style={{ color: "white", fontWeight: "950" }}>
+      {profitLeakageChartData?.[0]?.name || "Menu item"}
+    </span>{" "}
+    is estimated to be leaking{" "}
+    <span style={{ color: "#fdba74", fontWeight: "950" }}>
+      ${Number(profitLeakageChartData?.[0]?.loss || 0).toLocaleString()}
+    </span>{" "}
+    in recoverable margin. SerVen recommends reviewing price, cost, or portioning
+    for this item first.
+  </div>
+)}
 </div>
+
 {/* 👥 LABOR INTELLIGENCE */}
 <div
   style={{
-  padding: "20px",
-  borderRadius: "20px",
-
-  // 🔥 subtle glow upgrade
-  background:
-    "radial-gradient(circle at top right, rgba(99,102,241,0.12), transparent 40%), linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.92))",
-
-  border: "1px solid rgba(148,163,184,0.16)",
-
-  marginBottom: "0px", // 🔥 let grid control spacing
-
-  boxShadow: "0 18px 40px rgba(2,6,23,0.22)",
-
-  // 🔥 smooth animation
-  transition: "all 0.25s ease",
-  cursor: "default",
-}}
-onMouseEnter={(e) => {
-  e.currentTarget.style.transform = "translateY(-4px)";
-  e.currentTarget.style.boxShadow = "0 28px 70px rgba(2,6,23,0.45)";
-}}
-onMouseLeave={(e) => {
-  e.currentTarget.style.transform = "translateY(0px)";
-  e.currentTarget.style.boxShadow = "0 18px 40px rgba(2,6,23,0.22)";
-}}
+    padding: "20px",
+    borderRadius: "20px",
+    background:
+      "radial-gradient(circle at top right, rgba(99,102,241,0.12), transparent 40%), linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.92))",
+    border: "1px solid rgba(148,163,184,0.16)",
+    marginBottom: "0px",
+    boxShadow: "0 18px 40px rgba(2,6,23,0.22)",
+    transition: "all 0.25s ease",
+    cursor: "default",
+  }}
+  onMouseEnter={(e) => {
+    e.currentTarget.style.transform = "translateY(-4px)";
+    e.currentTarget.style.boxShadow = "0 28px 70px rgba(2,6,23,0.45)";
+  }}
+  onMouseLeave={(e) => {
+    e.currentTarget.style.transform = "translateY(0px)";
+    e.currentTarget.style.boxShadow = "0 18px 40px rgba(2,6,23,0.22)";
+  }}
 >
   <div style={{ color: "#93c5fd", fontWeight: "900", fontSize: "12px" }}>
     Labor Intelligence
   </div>
 
-  <div style={{ color: "white", fontWeight: "900", fontSize: "20px", marginTop: "6px" }}>
+  <div
+    style={{
+      color: "white",
+      fontWeight: "900",
+      fontSize: "20px",
+      marginTop: "6px",
+    }}
+  >
     Staffing and labor cost risk
   </div>
 
-  <div style={{ color: "#94a3b8", fontSize: "13px", lineHeight: 1.6, marginTop: "6px" }}>
-    Tracks labor cost as a percentage of revenue and flags staffing risk.
+  <div
+    style={{
+      color: "#94a3b8",
+      fontSize: "13px",
+      lineHeight: 1.6,
+      marginTop: "6px",
+    }}
+  >
+    Tracks uploaded labor cost as a percentage of live revenue and flags staffing risk.
   </div>
 
   <div
@@ -18423,35 +19157,72 @@ onMouseLeave={(e) => {
       marginTop: "14px",
     }}
   >
-    <div style={{ padding: "12px", borderRadius: "14px", background: "rgba(255,255,255,0.04)" }}>
+    <div
+      style={{
+        padding: "12px",
+        borderRadius: "14px",
+        background: "rgba(255,255,255,0.04)",
+      }}
+    >
       <div style={{ color: "#94a3b8", fontSize: "11px" }}>Labor Cost</div>
+
       <div style={{ color: "white", fontSize: "22px", fontWeight: "900" }}>
-        ${Number(laborIntelligence.laborCost || 0).toLocaleString()}
+        {liveLaborIntelligence?.totalLaborCost > 0
+          ? `$${Number(
+              liveLaborIntelligence.totalLaborCost
+            ).toLocaleString()}`
+          : "Needs labor data"}
       </div>
     </div>
 
-    <div style={{ padding: "12px", borderRadius: "14px", background: "rgba(255,255,255,0.04)" }}>
+    <div
+      style={{
+        padding: "12px",
+        borderRadius: "14px",
+        background: "rgba(255,255,255,0.04)",
+      }}
+    >
       <div style={{ color: "#94a3b8", fontSize: "11px" }}>Labor %</div>
+
       <div
         style={{
           color:
-            laborIntelligence.status === "overstaffed"
+            liveLaborIntelligence?.laborPercent <= 0
+              ? "#94a3b8"
+              : liveLaborIntelligence.laborPercent >
+                activeBenchmarks.labor.high
               ? "#fca5a5"
-              : laborIntelligence.status === "understaffed"
+              : liveLaborIntelligence.laborPercent <
+                activeBenchmarks.labor.low
               ? "#fde68a"
               : "#86efac",
           fontSize: "22px",
           fontWeight: "900",
         }}
       >
-        {Number(laborIntelligence.laborPercent || 0).toFixed(1)}%
+        {liveLaborIntelligence?.laborPercent > 0
+          ? `${Number(liveLaborIntelligence.laborPercent).toFixed(1)}%`
+          : "Waiting"}
       </div>
     </div>
 
-    <div style={{ padding: "12px", borderRadius: "14px", background: "rgba(255,255,255,0.04)" }}>
+    <div
+      style={{
+        padding: "12px",
+        borderRadius: "14px",
+        background: "rgba(255,255,255,0.04)",
+      }}
+    >
       <div style={{ color: "#94a3b8", fontSize: "11px" }}>Status</div>
+
       <div style={{ color: "white", fontSize: "15px", fontWeight: "900" }}>
-        {laborIntelligence.statusLabel}
+        {liveLaborIntelligence?.laborPercent <= 0
+          ? "Waiting for upload"
+          : liveLaborIntelligence.laborPercent > activeBenchmarks.labor.high
+          ? "Overstaffed risk"
+          : liveLaborIntelligence.laborPercent < activeBenchmarks.labor.low
+          ? "Understaffed risk"
+          : "Healthy labor range"}
       </div>
     </div>
   </div>
@@ -18469,7 +19240,13 @@ onMouseLeave={(e) => {
       fontWeight: "700",
     }}
   >
-    {laborIntelligence.insight}
+    {liveLaborIntelligence?.laborPercent <= 0
+      ? "Upload labor data with hours, rates, or labor cost to calculate real labor efficiency."
+      : liveLaborIntelligence.laborPercent > activeBenchmarks.labor.high
+      ? "Labor cost is above benchmark. Review staffing levels against revenue patterns."
+      : liveLaborIntelligence.laborPercent < activeBenchmarks.labor.low
+      ? "Labor cost is below benchmark. Watch for service pressure during peak hours."
+      : "Labor cost is within benchmark range based on uploaded labor data."}
   </div>
 </div>
 </div>
@@ -18844,7 +19621,7 @@ onMouseLeave={(e) => {
         fontWeight: "800",
       }}
     >
-      {revenueForecastConfidence}% confidence
+      {Number(revenueForecastConfidence || 0)}% confidence
     </div>
   </div>
 
@@ -19084,7 +19861,7 @@ onMouseLeave={(e) => {
         fontWeight: "800",
       }}
     >
-      Top Driver: {revenueDrivers.topDriver}
+      Top Driver: {revenueDrivers?.topDriver || "N/A"}
     </div>
   </div>
 
@@ -19094,7 +19871,7 @@ onMouseLeave={(e) => {
       gap: "14px",
     }}
   >
-    {revenueDrivers.rows.map((driver) => {
+   {(revenueDrivers?.rows || []).map((driver) => {
       const width =
         revenueDrivers.total > 0
           ? (driver.value / revenueDrivers.total) * 100

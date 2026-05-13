@@ -10,16 +10,7 @@ export default function Pricing() {
   const [monthlyRevenue, setMonthlyRevenue] = useState(50000);
   const [estimatedMonthlyPrice, setEstimatedMonthlyPrice] = useState(null);
   const router = useRouter();
-  const [name, setName] = useState("");
-const [restaurant, setRestaurant] = useState("");
-const [email, setEmail] = useState("");
-const [phone, setPhone] = useState("");
 const calculateEstimate = async () => {
-  if (!leadEmail || !leadPhone) {
-    alert("Enter email and phone to get your estimate");
-    return;
-  }
-
   let basePrice = 149;
 
   if (monthlyRevenue > 40000) basePrice += 50;
@@ -36,22 +27,26 @@ const calculateEstimate = async () => {
 
   const low = Math.round(basePrice * 0.9);
   const high = Math.round(basePrice * 1.2);
+
   const priceText = `$${low} – $${high}/month`;
 
   setEstimatedMonthlyPrice(priceText);
 
-  await saveLeadToSupabase({
-    fullName: leadName || "Calculator Lead",
-    email: leadEmail || "",
-    restaurantName: leadRestaurant || "Calculator Estimate",
-    phone: leadPhone || "",
-    businessType: "restaurant",
-    monthlyRevenue,
-    locations,
-    staffCount,
-    recommendedPlan: finalRecommended,
-    estimatedPriceRange: priceText,
-  });
+  // ONLY save lead IF they entered contact info
+  if (leadEmail || leadPhone) {
+    await saveLeadToSupabase({
+      fullName: leadName || "Calculator Lead",
+      email: leadEmail || "",
+      restaurantName: leadRestaurant || "Calculator Estimate",
+      phone: leadPhone || "",
+      businessType: "restaurant",
+      monthlyRevenue,
+      locations,
+      staffCount,
+      recommendedPlan: finalRecommended,
+      estimatedPriceRange: priceText,
+    });
+  }
 };
 // 🔥 PRICING CALCULATOR STATE
 const [staffCount, setStaffCount] = useState(10);
@@ -634,7 +629,7 @@ const submitCustomPlan = async () => {
       marginBottom: "10px",
     }}
   >
-    Get Your Estimate
+   Optional: Save Your Estimate
   </div>
 
  <div
@@ -685,13 +680,16 @@ const submitCustomPlan = async () => {
       lineHeight: 1.5,
     }}
   >
-    Enter your contact info to receive your estimate and recommended Serven plan.
+    Optional: enter your info to save your estimate and receive a custom onboarding recommendation.
   </p>
 </div>
 <button
- onClick={async () => {
+onClick={async () => {
   calculateEstimate();
-  await submitCustomPlan();
+
+  if (leadEmail || leadPhone || leadName || leadRestaurant) {
+    await submitCustomPlan();
+  }
 }}
   style={{
     marginTop: "20px",
@@ -706,7 +704,7 @@ const submitCustomPlan = async () => {
     cursor: "pointer",
   }}
 >
-  Get My Custom Plan
+  Estimate My ROI
 </button>
 {estimatedMonthlyPrice && (
   <div
@@ -729,7 +727,21 @@ const submitCustomPlan = async () => {
     >
       Estimated Monthly Investment
     </div>
-
+<div
+  style={{
+    marginTop: "10px",
+    fontSize: "12px",
+    color: "#86efac",
+    fontWeight: "700",
+  }}
+>
+  Recommended Plan:{" "}
+  {finalRecommended === "starter"
+    ? "Starter"
+    : finalRecommended === "growth"
+    ? "Growth"
+    : "Pro AI"}
+</div>
     <div
       style={{
         fontSize: "30px",
