@@ -79,10 +79,31 @@ export default function RootLayout({ children }) {
         <meta name="application-name" content="SerVen AI" />
         <meta name="theme-color" content="#020617" />
 
-        {/* FAVICON / GOOGLE ICONS */}
-        <link rel="icon" href="/favicon.ico?v=2" sizes="any" />
-<link rel="shortcut icon" href="/favicon.ico?v=2" />
-        <link rel="apple-icon" href="/apple-icon.png" />
+        
+      {/* FAVICON / GOOGLE ICONS */}
+<link
+  rel="apple-touch-icon"
+  sizes="180x180"
+  href="/apple-icon.png?v=3"
+/>
+
+<link
+  rel="icon"
+  type="image/png"
+  sizes="32x32"
+  href="/favicon-32x32.png?v=3"
+/>
+
+<link
+  rel="icon"
+  type="image/png"
+  sizes="16x16"
+  href="/favicon-16x16.png?v=3"
+/>
+
+<link rel="manifest" href="/site.webmanifest" />
+
+<link rel="shortcut icon" href="/favicon.ico?v=3" />
 
         {/* SOCIAL PREVIEW */}
         <meta property="og:title" content="SerVen AI" />
