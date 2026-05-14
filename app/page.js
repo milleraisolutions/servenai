@@ -3,6 +3,15 @@
 
 import Link from "next/link";
 import * as XLSX from "xlsx";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 import { useEffect, useState } from "react";
 import { supabase } from "./lib/supabaseClient";
 export default function HomePage() {
@@ -747,20 +756,149 @@ const averageSale = revenue / Math.max(rows.length, 1);
 const foodCostPercent = revenue > 0 ? (foodCost / revenue) * 100 : 0;
 
 const laborCostPercent = revenue > 0 ? (laborCost / revenue) * 100 : 0;
+const primeCost = foodCost + laborCost;
 
+const primeCostPercent =
+  revenue > 0 ? (primeCost / revenue) * 100 : 0;
+  let primeCostStatus = "Healthy";
+let primeCostMessage = "Prime cost is within healthy operational range.";
+let operationalRecommendations = [];
+
+if (foodCostPercent >= 32) {
+  operationalRecommendations.push(
+    "Review high-cost menu items and ingredient waste."
+  );
+}
+
+if (laborCostPercent >= 30) {
+  operationalRecommendations.push(
+    "Evaluate staffing efficiency during slower operating periods."
+  );
+}
+
+if (primeCostPercent >= 65) {
+  operationalRecommendations.push(
+    "Prime cost is critically elevated and requires immediate operational review."
+  );
+}
+
+if (operationalRecommendations.length === 0) {
+  operationalRecommendations.push(
+    "Operations are performing within healthy benchmark ranges."
+  );
+}
+if (primeCostPercent >= 65) {
+  primeCostStatus = "Critical";
+  primeCostMessage =
+    "Prime cost is significantly above target operational thresholds.";
+} else if (primeCostPercent >= 55) {
+  primeCostStatus = "Warning";
+  primeCostMessage =
+    "Prime cost is approaching unhealthy operational levels.";
+}
 const estimatedProfitLeak = Math.max(
   0,
   foodCostPercent > 32 ? revenue * 0.08 : revenue * 0.04
 );
+const primeCostTrendData = rows.slice(0, 14).map((row, index) => {
+  const rowRevenue =
+    Number(
+      row.total ||
+        row.Total ||
+        row.sales ||
+        row.Sales ||
+        row.amount ||
+        row.Amount ||
+        row.revenue ||
+        row.Revenue ||
+        0
+    ) || 0;
 
+  const rowFoodCost =
+    Number(
+      row.foodCost ||
+        row.FoodCost ||
+        row.food_cost ||
+        row["Food Cost"] ||
+        0
+    ) || 0;
+
+  const rowLaborCost =
+    Number(
+      row.laborCost ||
+        row.LaborCost ||
+        row.labor_cost ||
+        row["Labor Cost"] ||
+        0
+    ) || 0;
+
+  const rowPrimeCostPercent =
+    rowRevenue > 0 ? ((rowFoodCost + rowLaborCost) / rowRevenue) * 100 : 0;
+
+  return {
+    label: row.date || row.Date || row.day || row.Day || `Row ${index + 1}`,
+    primeCostPercent: Number(rowPrimeCostPercent.toFixed(1)),
+  };
+});
+const menuEngineeringData = rows
+  .slice(0, 5)
+  .map((row, index) => {
+    const itemName =
+      row.item ||
+      row.Item ||
+      row.name ||
+      row.Name ||
+      row.menuItem ||
+      row["Menu Item"] ||
+      `Menu Item ${index + 1}`;
+
+    const itemRevenue =
+      Number(
+        row.total ||
+          row.Total ||
+          row.sales ||
+          row.Sales ||
+          row.revenue ||
+          row.Revenue ||
+          0
+      ) || 0;
+
+    const itemFoodCost =
+      Number(
+        row.foodCost ||
+          row.FoodCost ||
+          row.food_cost ||
+          row["Food Cost"] ||
+          0
+      ) || 0;
+
+    const itemMargin =
+      itemRevenue > 0
+        ? ((itemRevenue - itemFoodCost) / itemRevenue) * 100
+        : 0;
+
+    return {
+      itemName,
+      margin: Number(itemMargin.toFixed(1)),
+      revenue: itemRevenue,
+    };
+  })
+  .sort((a, b) => b.margin - a.margin);
 setDemoResult({
   rows: rows.length,
   revenue,
   foodCost,
   laborCost,
+  primeCost,
   averageSale,
   foodCostPercent,
   laborCostPercent,
+  primeCostPercent,
+  primeCostStatus,
+  primeCostMessage,
+  operationalRecommendations,
+  primeCostTrendData,
+  menuEngineeringData,
   estimatedProfitLeak,
 });
 alert("Demo result saved");
@@ -887,6 +1025,10 @@ alert("Demo result saved");
           value: `${demoResult.laborCostPercent.toFixed(1)}%`,
         },
         {
+  label: "Prime Cost %",
+  value: `${demoResult.primeCostPercent.toFixed(1)}%`,
+},
+        {
           label: "Estimated Opportunity",
           value: `$${Math.round(
             demoResult.estimatedProfitLeak
@@ -926,19 +1068,217 @@ alert("Demo result saved");
         </div>
       ))}
     </div>
+<div
+  style={{
+    marginTop: "18px",
+    padding: "18px",
+    borderRadius: "18px",
+    background: "rgba(255,255,255,0.05)",
+    border: "1px solid rgba(255,255,255,0.08)",
+  }}
+>
+  <div
+    style={{
+      color: "#d4af37",
+      fontSize: "13px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "12px",
+    }}
+  >
+    Prime Cost Trend
+  </div>
 
-    <p
-      style={{
-        color: "#cbd5e1",
-        lineHeight: 1.7,
-        margin: 0,
-        fontSize: "14px",
-      }}
-    >
-      Based on this sample, SerVen can highlight margin pressure, food cost risk,
-      labor efficiency, and pricing opportunities once the full dashboard import
-      is connected.
-    </p>
+  <div style={{ width: "100%", height: "240px" }}>
+    <ResponsiveContainer width="100%" height="100%">
+      <LineChart data={demoResult.primeCostTrendData || []}>
+        <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.16)" />
+
+        <XAxis
+          dataKey="label"
+          tick={{ fill: "#94a3b8", fontSize: 12 }}
+          axisLine={{ stroke: "rgba(148,163,184,0.18)" }}
+          tickLine={false}
+        />
+
+        <YAxis
+          tick={{ fill: "#94a3b8", fontSize: 12 }}
+          axisLine={{ stroke: "rgba(148,163,184,0.18)" }}
+          tickLine={false}
+          tickFormatter={(value) => `${value}%`}
+        />
+
+        <Tooltip
+          formatter={(value) => [`${Number(value).toFixed(1)}%`, "Prime Cost"]}
+          contentStyle={{
+            background: "#020617",
+            border: "1px solid rgba(148,163,184,0.24)",
+            borderRadius: "12px",
+            color: "white",
+          }}
+        />
+
+       <>
+  <Line
+    type="monotone"
+    dataKey="primeCostPercent"
+    stroke="#d4af37"
+    strokeWidth={3}
+    dot={{ r: 4 }}
+    activeDot={{ r: 6 }}
+  />
+
+  <Line
+    type="monotone"
+    dataKey={() => 55}
+    stroke="#22c55e"
+    strokeDasharray="6 6"
+    strokeWidth={2}
+    dot={false}
+    name="Healthy Benchmark"
+  />
+
+  <Line
+    type="monotone"
+    dataKey={() => 65}
+    stroke="#ef4444"
+    strokeDasharray="6 6"
+    strokeWidth={2}
+    dot={false}
+    name="Critical Threshold"
+  />
+</>
+      </LineChart>
+    </ResponsiveContainer>
+  </div>
+</div>
+<div
+  style={{
+    marginTop: "12px",
+    padding: "14px 16px",
+    borderRadius: "16px",
+    background: "rgba(79,70,229,0.10)",
+    border: "1px solid rgba(124,58,237,0.22)",
+  }}
+>
+  <div
+    style={{
+      color: "#c4b5fd",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "8px",
+    }}
+  >
+    AI Operational Commentary
+  </div>
+
+  <p
+    style={{
+      color: "#cbd5e1",
+      fontSize: "14px",
+      lineHeight: 1.7,
+      margin: 0,
+    }}
+  >
+    {demoResult.primeCostPercent >= 65
+      ? "Prime cost is above critical operating range. SerVen would prioritize labor control, food cost review, and margin recovery opportunities."
+      : demoResult.primeCostPercent >= 55
+      ? "Prime cost is approaching the warning range. SerVen would monitor labor efficiency, menu margins, and ingredient cost pressure closely."
+      : "Prime cost is currently within a healthy range. SerVen would continue tracking margin trends and watch for early cost pressure signals."}
+  </p>
+</div>
+<div
+  style={{
+    marginTop: "14px",
+    padding: "16px",
+    borderRadius: "16px",
+    background: "rgba(255,255,255,0.05)",
+    border: "1px solid rgba(255,255,255,0.08)",
+  }}
+>
+  <div
+    style={{
+      color: "#d4af37",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "10px",
+    }}
+  >
+    Recommended Operational Actions
+  </div>
+
+  <div style={{ display: "grid", gap: "10px" }}>
+    {demoResult.operationalRecommendations?.map((item, index) => (
+      <div
+        key={index}
+        style={{
+          padding: "12px 14px",
+          borderRadius: "12px",
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(255,255,255,0.06)",
+          color: "#cbd5e1",
+          fontSize: "14px",
+          lineHeight: 1.6,
+        }}
+      >
+        • {item}
+      </div>
+    ))}
+  </div>
+</div>
+    <div
+  style={{
+    marginTop: "14px",
+    padding: "16px",
+    borderRadius: "16px",
+    background:
+      demoResult.primeCostStatus === "Critical"
+        ? "rgba(239,68,68,0.12)"
+        : demoResult.primeCostStatus === "Warning"
+        ? "rgba(245,158,11,0.12)"
+        : "rgba(34,197,94,0.12)",
+    border:
+      demoResult.primeCostStatus === "Critical"
+        ? "1px solid rgba(239,68,68,0.25)"
+        : demoResult.primeCostStatus === "Warning"
+        ? "1px solid rgba(245,158,11,0.25)"
+        : "1px solid rgba(34,197,94,0.25)",
+  }}
+>
+  <div
+    style={{
+      fontSize: "13px",
+      fontWeight: "900",
+      textTransform: "uppercase",
+      letterSpacing: "0.08em",
+      color:
+        demoResult.primeCostStatus === "Critical"
+          ? "#fca5a5"
+          : demoResult.primeCostStatus === "Warning"
+          ? "#fcd34d"
+          : "#86efac",
+      marginBottom: "8px",
+    }}
+  >
+    Prime Cost Status: {demoResult.primeCostStatus}
+  </div>
+
+  <p
+    style={{
+      color: "#cbd5e1",
+      lineHeight: 1.7,
+      margin: 0,
+      fontSize: "14px",
+    }}
+  >
+    {demoResult.primeCostMessage}
+  </p>
+</div>
   </div>
 )}
       <button
@@ -1536,7 +1876,7 @@ width: "100%",
                 text: "Receive practical suggestions on pricing, menu changes, labor adjustments, and opportunities to grow profit.",
               },
               {
-                title: "Growth-Focused Insights",
+                title: "Revenue Recovery Intelligence",
                 text: "Understand what to promote, what to fix, and where your biggest upside lives this week.",
               },
             ].map((item) => (
