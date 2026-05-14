@@ -1126,6 +1126,13 @@ alert("Demo result saved");
   <div style={{ width: "100%", height: "240px" }}>
     <ResponsiveContainer width="100%" height="100%">
       <LineChart data={demoResult.primeCostTrendData || []}>
+        <Legend
+  wrapperStyle={{
+    paddingBottom: "12px",
+    fontSize: "12px",
+    color: "#cbd5e1",
+  }}
+/>
         <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.16)" />
 
         <XAxis
@@ -1154,8 +1161,9 @@ alert("Demo result saved");
 
        <>
   <Line
-    type="monotone"
-    dataKey="primeCostPercent"
+  type="monotone"
+  dataKey="primeCostPercent"
+  name="Prime Cost %"
     stroke="#d4af37"
     strokeWidth={3}
     dot={{ r: 4 }}
@@ -1163,24 +1171,24 @@ alert("Demo result saved");
   />
 
   <Line
-    type="monotone"
-    dataKey={() => 55}
-    stroke="#22c55e"
-    strokeDasharray="6 6"
-    strokeWidth={2}
-    dot={false}
-    name="Healthy Benchmark"
-  />
+  type="monotone"
+  dataKey={() => 55}
+  name="Healthy Benchmark"
+  stroke="#22c55e"
+  strokeDasharray="6 6"
+  strokeWidth={2}
+  dot={false}
+/>
 
   <Line
-    type="monotone"
-    dataKey={() => 65}
-    stroke="#ef4444"
-    strokeDasharray="6 6"
-    strokeWidth={2}
-    dot={false}
-    name="Critical Threshold"
-  />
+  type="monotone"
+  dataKey={() => 65}
+  name="Critical Threshold"
+  stroke="#ef4444"
+  strokeDasharray="6 6"
+  strokeWidth={2}
+  dot={false}
+/>
 </>
       </LineChart>
     </ResponsiveContainer>
@@ -1309,6 +1317,73 @@ alert("Demo result saved");
       </div>
     ))}
   </div>
+</div>
+{/* SHIFT INTELLIGENCE PREVIEW */}
+<div
+  style={{
+    marginTop: "14px",
+    padding: "16px",
+    borderRadius: "16px",
+    background: "rgba(255,255,255,0.05)",
+    border: "1px solid rgba(255,255,255,0.08)",
+  }}
+>
+  <div
+    style={{
+      color: "#d4af37",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "10px",
+    }}
+  >
+    Shift Intelligence Preview
+  </div>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile ? "1fr" : "repeat(2, 1fr)",
+      gap: "12px",
+      marginBottom: "12px",
+    }}
+  >
+    <div style={{ padding: "14px", borderRadius: "14px", background: "rgba(255,255,255,0.04)" }}>
+      <div style={{ color: "#94a3b8", fontSize: "12px", fontWeight: "800" }}>
+        Best Performing Shift
+      </div>
+      <div style={{ color: "white", fontSize: "22px", fontWeight: "950", marginTop: "6px" }}>
+        {demoResult.bestShift?.shift}
+      </div>
+      <div style={{ color: "#86efac", fontSize: "13px", marginTop: "6px", fontWeight: "800" }}>
+        ${Number(demoResult.bestShift?.salesPerLaborHour || 0).toLocaleString()} / labor hour
+      </div>
+    </div>
+
+    <div style={{ padding: "14px", borderRadius: "14px", background: "rgba(255,255,255,0.04)" }}>
+      <div style={{ color: "#94a3b8", fontSize: "12px", fontWeight: "800" }}>
+        Weakest Shift
+      </div>
+      <div style={{ color: "white", fontSize: "22px", fontWeight: "950", marginTop: "6px" }}>
+        {demoResult.weakestShift?.shift}
+      </div>
+      <div style={{ color: "#fcd34d", fontSize: "13px", marginTop: "6px", fontWeight: "800" }}>
+        ${Number(demoResult.weakestShift?.salesPerLaborHour || 0).toLocaleString()} / labor hour
+      </div>
+    </div>
+  </div>
+
+  <p
+    style={{
+      color: "#cbd5e1",
+      fontSize: "14px",
+      lineHeight: 1.7,
+      margin: 0,
+    }}
+  >
+    SerVen compares revenue against labor pressure by shift to identify where staffing efficiency may be helping or hurting profitability.
+  </p>
 </div>
 <div
   style={{
