@@ -14,8 +14,7 @@ import {
   Legend,
 } from "recharts";
 import { useEffect, useState } from "react";
-import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
+
 import { supabase } from "./lib/supabaseClient";
 export default function HomePage() {
   const [isMobile, setIsMobile] = useState(false);
@@ -164,40 +163,7 @@ textAlign: "center",
 };
 
   
-const generateExecutivePDF = async () => {
-  const input = document.getElementById(
-    "executive-report-export"
-  );
 
-  if (!input) return;
-
-  const canvas = await html2canvas(input, {
-    scale: 2,
-    backgroundColor: "#020617",
-  });
-
-  const imgData = canvas.toDataURL("image/png");
-
-  const pdf = new jsPDF("p", "mm", "a4");
-
-  const pdfWidth = pdf.internal.pageSize.getWidth();
-
-  const pdfHeight =
-    (canvas.height * pdfWidth) / canvas.width;
-
-  pdf.addImage(
-    imgData,
-    "PNG",
-    0,
-    0,
-    pdfWidth,
-    pdfHeight
-  );
-
-  pdf.save(
-    `Serven-Executive-Summary-${new Date().toLocaleDateString()}.pdf`
-  );
-};
 
 
 
@@ -1310,7 +1276,7 @@ alert("Demo result saved");
       : "Prime cost is currently within a healthy range. SerVen would continue tracking margin trends and watch for early cost pressure signals."}
   </p>
 </div>
-<div id="executive-report-export">
+
 {/* EXECUTIVE SUMMARY PREVIEW */}
 <div
   style={{
@@ -1363,7 +1329,7 @@ alert("Demo result saved");
 >
   Generate Executive PDF
 </button>
-</div> 
+
 
 <div
   style={{

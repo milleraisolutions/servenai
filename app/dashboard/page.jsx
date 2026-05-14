@@ -2,6 +2,8 @@
 
 import useDashboardData from "../hooks/useDashboardData";
 import { useEffect, useMemo, useRef, useState } from "react";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 import { supabase } from "../lib/supabaseClient";
 import { useRouter } from "next/navigation";
 import {
@@ -9882,6 +9884,40 @@ useEffect(() => {
   }
 }, []);
 
+const generateExecutivePDF = async () => {
+  const input = document.getElementById(
+    "executive-report-export"
+  );
+
+  if (!input) return;
+
+  const canvas = await html2canvas(input, {
+    scale: 2,
+    backgroundColor: "#020617",
+  });
+
+  const imgData = canvas.toDataURL("image/png");
+
+  const pdf = new jsPDF("p", "mm", "a4");
+
+  const pdfWidth = pdf.internal.pageSize.getWidth();
+
+  const pdfHeight =
+    (canvas.height * pdfWidth) / canvas.width;
+
+  pdf.addImage(
+    imgData,
+    "PNG",
+    0,
+    0,
+    pdfWidth,
+    pdfHeight
+  );
+
+  pdf.save(
+    `Serven-Executive-Summary-${new Date().toLocaleDateString()}.pdf`
+  );
+};
 
 if (!hasPaidAccess) {
   return (
