@@ -884,6 +884,36 @@ const menuEngineeringData = rows
     };
   })
   .sort((a, b) => b.margin - a.margin);
+  const shiftIntelligenceData = [
+  {
+    shift: "Lunch",
+    revenue: revenue * 0.32,
+    laborCost: laborCost * 0.28,
+  },
+  {
+    shift: "Dinner",
+    revenue: revenue * 0.68,
+    laborCost: laborCost * 0.72,
+  },
+].map((shift) => {
+  const salesPerLaborHour =
+    shift.laborCost > 0
+      ? shift.revenue / (shift.laborCost / 18)
+      : 0;
+
+  return {
+    ...shift,
+    salesPerLaborHour: Number(salesPerLaborHour.toFixed(1)),
+  };
+});
+
+const bestShift = [...shiftIntelligenceData].sort(
+  (a, b) => b.salesPerLaborHour - a.salesPerLaborHour
+)[0];
+
+const weakestShift = [...shiftIntelligenceData].sort(
+  (a, b) => a.salesPerLaborHour - b.salesPerLaborHour
+)[0];
 setDemoResult({
   rows: rows.length,
   revenue,
@@ -899,6 +929,9 @@ setDemoResult({
   operationalRecommendations,
   primeCostTrendData,
   menuEngineeringData,
+  shiftIntelligenceData,
+  bestShift,
+  weakestShift,
   estimatedProfitLeak,
 });
 alert("Demo result saved");
