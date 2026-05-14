@@ -929,7 +929,28 @@ const menuEngineeringData = rows
 const bestShift = [...shiftIntelligenceData].sort(
   (a, b) => b.salesPerLaborHour - a.salesPerLaborHour
 )[0];
+const executiveSummary = `
+Prime Cost is currently ${primeCostPercent.toFixed(1)}%, with ${
+  primeCostStatus === "Critical"
+    ? "significant operational pressure detected."
+    : primeCostStatus === "Warning"
+    ? "moderate operational pressure detected."
+    : "operations currently performing within healthy benchmarks."
+}
 
+Top operational opportunity:
+${operationalRecommendations[0]}
+
+Strongest shift:
+${bestShift?.shift || "Dinner"} generating approximately $${Number(
+  bestShift?.salesPerLaborHour || 0
+).toLocaleString()} per labor hour.
+
+Menu highlight:
+${
+  menuEngineeringData?.[0]?.itemName || "Top menu item"
+} is currently one of the strongest margin performers.
+`;
 const weakestShift = [...shiftIntelligenceData].sort(
   (a, b) => a.salesPerLaborHour - b.salesPerLaborHour
 )[0];
@@ -951,6 +972,7 @@ setDemoResult({
   shiftIntelligenceData,
   bestShift,
   weakestShift,
+  executiveSummary,
   estimatedProfitLeak,
 });
 alert("Demo result saved");
@@ -1234,7 +1256,6 @@ alert("Demo result saved");
   >
     AI Operational Commentary
   </div>
-
   <p
     style={{
       color: "#cbd5e1",
@@ -1248,6 +1269,42 @@ alert("Demo result saved");
       : demoResult.primeCostPercent >= 55
       ? "Prime cost is approaching the warning range. SerVen would monitor labor efficiency, menu margins, and ingredient cost pressure closely."
       : "Prime cost is currently within a healthy range. SerVen would continue tracking margin trends and watch for early cost pressure signals."}
+  </p>
+</div>
+{/* EXECUTIVE SUMMARY PREVIEW */}
+<div
+  style={{
+    marginTop: "14px",
+    padding: "16px",
+    borderRadius: "16px",
+    background:
+      "linear-gradient(135deg, rgba(212,175,55,0.12), rgba(15,23,42,0.92))",
+    border: "1px solid rgba(212,175,55,0.22)",
+  }}
+>
+  <div
+    style={{
+      color: "#d4af37",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "10px",
+    }}
+  >
+    Executive Summary Preview
+  </div>
+
+  <p
+    style={{
+      color: "#e2e8f0",
+      fontSize: "14px",
+      lineHeight: 1.8,
+      margin: 0,
+      whiteSpace: "pre-line",
+    }}
+  >
+    {demoResult.executiveSummary}
   </p>
 </div>
 <div
