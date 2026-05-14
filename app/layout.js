@@ -69,17 +69,38 @@ export default function RootLayout({ children }) {
       }}
     >
       <head>
-        <title>SerVen</title>
+        <title>SerVen AI</title>
+
         <meta
           name="description"
-          content="Restaurant intelligence served daily."
+          content="AI profit intelligence for restaurants."
         />
-        <meta name="application-name" content="SerVen" />
 
-        <link rel="icon" href="/favicon.ico" sizes="any" />
-        <link rel="shortcut icon" href="/favicon.ico" />
-        <link rel="apple-touch-icon" href="/apple-icon.png" />
-        <link rel="icon" type="image/png" href="/icon.png" />
+        <meta name="application-name" content="SerVen AI" />
+        <meta name="theme-color" content="#020617" />
+
+        {/* FAVICON / GOOGLE ICONS */}
+        <link rel="icon" href="/favicon.ico?v=2" sizes="any" />
+<link rel="shortcut icon" href="/favicon.ico?v=2" />
+        <link rel="apple-icon" href="/apple-icon.png" />
+
+        {/* SOCIAL PREVIEW */}
+        <meta property="og:title" content="SerVen AI" />
+        <meta
+          property="og:description"
+          content="AI profit intelligence for restaurants."
+        />
+        <meta property="og:image" content="/og-image.png" />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://servenai.com" />
+
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="SerVen AI" />
+        <meta
+          name="twitter:description"
+          content="AI profit intelligence for restaurants."
+        />
+        <meta name="twitter:image" content="/og-image.png" />
       </head>
 
       <body
@@ -109,46 +130,46 @@ export default function RootLayout({ children }) {
               flexWrap: "wrap",
             }}
           >
-          {/* LOGO */}
-<Link
-  href="/"
-  style={{
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-    textDecoration: "none",
-    color: "white",
-    flexShrink: 0,
-  }}
->
-  <Image
-    src="/logo-serven.png"
-    alt="SerVen logo"
-    width={42}
-    height={42}
-    priority
-    style={{
-      width: "42px",
-      height: "42px",
-      objectFit: "contain",
-      borderRadius: "10px",
-      display: "block",
-      flexShrink: 0,
-    }}
-  />
+            {/* LOGO */}
+            <Link
+              href="/"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                textDecoration: "none",
+                color: "white",
+                flexShrink: 0,
+              }}
+            >
+              <Image
+                src="/logo-serven.png"
+                alt="SerVen AI logo"
+                width={42}
+                height={42}
+                priority
+                style={{
+                  width: "42px",
+                  height: "42px",
+                  objectFit: "contain",
+                  borderRadius: "10px",
+                  display: "block",
+                  flexShrink: 0,
+                }}
+              />
 
-  <span
-    style={{
-      fontSize: "22px",
-      fontWeight: "900",
-      letterSpacing: "-0.5px",
-      whiteSpace: "nowrap",
-      lineHeight: "1",
-    }}
-  >
-    SerVen
-  </span>
-</Link>
+              <span
+                style={{
+                  fontSize: "22px",
+                  fontWeight: "900",
+                  letterSpacing: "-0.5px",
+                  whiteSpace: "nowrap",
+                  lineHeight: "1",
+                }}
+              >
+                SerVen
+              </span>
+            </Link>
 
             {/* NAV LINKS */}
             <nav
