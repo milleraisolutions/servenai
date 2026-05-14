@@ -1209,6 +1209,93 @@ alert("Demo result saved");
       marginBottom: "10px",
     }}
   >
+    Menu Engineering Preview
+  </div>
+
+  <div style={{ display: "grid", gap: "10px" }}>
+    {demoResult.menuEngineeringData?.map((item, index) => (
+      <div
+        key={`${item.itemName}-${index}`}
+        style={{
+          padding: "12px 14px",
+          borderRadius: "12px",
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(255,255,255,0.06)",
+          display: "flex",
+          justifyContent: "space-between",
+          gap: "12px",
+          alignItems: "center",
+          flexWrap: "wrap",
+        }}
+      >
+        <div>
+          <div style={{ color: "white", fontWeight: "900" }}>
+            {item.itemName}
+          </div>
+
+          <div style={{ color: "#94a3b8", fontSize: "13px", marginTop: "4px" }}>
+  Revenue: ${Number(item.revenue || 0).toLocaleString()}
+</div>
+
+<div style={{ color: "#cbd5e1", fontSize: "13px", marginTop: "6px" }}>
+  {item.margin >= 65
+    ? "Strong margin performer. Consider featuring this item more often."
+    : item.margin >= 45
+    ? "Moderate margin item. Monitor ingredient cost and pricing."
+    : "Margin risk detected. Review portioning, pricing, or supplier cost."}
+</div>
+        </div>
+
+        <div
+          style={{
+            padding: "8px 10px",
+            borderRadius: "999px",
+            background:
+              item.margin >= 65
+                ? "rgba(34,197,94,0.14)"
+                : item.margin >= 45
+                ? "rgba(245,158,11,0.14)"
+                : "rgba(239,68,68,0.14)",
+            color:
+              item.margin >= 65
+                ? "#86efac"
+                : item.margin >= 45
+                ? "#fcd34d"
+                : "#fca5a5",
+            fontSize: "12px",
+            fontWeight: "900",
+          }}
+        >
+          {item.margin.toFixed(1)}% Margin •{" "}
+{item.margin >= 65
+  ? "High Profit Item"
+  : item.margin >= 45
+  ? "Moderate Margin"
+  : "Margin Risk"}
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+<div
+  style={{
+    marginTop: "14px",
+    padding: "16px",
+    borderRadius: "16px",
+    background: "rgba(255,255,255,0.05)",
+    border: "1px solid rgba(255,255,255,0.08)",
+  }}
+>
+  <div
+    style={{
+      color: "#d4af37",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "10px",
+    }}
+  >
     Recommended Operational Actions
   </div>
 
