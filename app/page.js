@@ -836,8 +836,26 @@ const primeCostTrendData = rows.slice(0, 14).map((row, index) => {
   const rowPrimeCostPercent =
     rowRevenue > 0 ? ((rowFoodCost + rowLaborCost) / rowRevenue) * 100 : 0;
 
-  return {
-    label: row.date || row.Date || row.day || row.Day || `Row ${index + 1}`,
+ const rawDate =
+  row.date ||
+  row.Date ||
+  row.day ||
+  row.Day;
+
+let formattedLabel;
+
+if (typeof rawDate === "number") {
+  const excelDate = XLSX.SSF.parse_date_code(rawDate);
+
+  formattedLabel = `${excelDate.m}/${excelDate.d}`;
+} else {
+  formattedLabel =
+    rawDate ||
+    ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][index % 7];
+}
+
+return {
+  label: formattedLabel,
     primeCostPercent: Number(rowPrimeCostPercent.toFixed(1)),
   };
 });
