@@ -1,34 +1,47 @@
 export default function sitemap() {
+  const baseUrl = "https://www.servenai.com";
+
   return [
     {
-      url: "https://www.servenai.com",
+      url: `${baseUrl}`,
       lastModified: new Date(),
-      changeFrequency: "weekly",
+      changeFrequency: "daily",
       priority: 1,
     },
+
     {
-      url: "https://www.servenai.com/pricing",
+      url: `${baseUrl}/pricing`,
       lastModified: new Date(),
       changeFrequency: "weekly",
       priority: 0.9,
     },
+
     {
-      url: "https://www.servenai.com/signup",
+      url: `${baseUrl}/profit-reveal`,
       lastModified: new Date(),
       changeFrequency: "weekly",
       priority: 0.9,
     },
+
     {
-      url: "https://www.servenai.com/login",
+      url: `${baseUrl}/signup`,
       lastModified: new Date(),
       changeFrequency: "monthly",
-      priority: 0.7,
-    },
-    {
-      url: "https://www.servenai.com/profit-reveal",
-      lastModified: new Date(),
-      changeFrequency: "weekly",
       priority: 0.8,
+    },
+
+    {
+      url: `${baseUrl}/login`,
+      lastModified: new Date(),
+      changeFrequency: "monthly",
+      priority: 0.5,
+    },
+
+    {
+      url: `${baseUrl}/dashboard`,
+      lastModified: new Date(),
+      changeFrequency: "daily",
+      priority: 0.7,
     },
   ];
 }

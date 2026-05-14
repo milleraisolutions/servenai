@@ -252,34 +252,34 @@ textAlign: "center",
                 }}
               >
                 <span style={{ color: "#d4af37" }}>●</span>
-                AI PROFIT INTELLIGENCE FOR RESTAURANTS
+               OPERATIONAL PROFIT INTELLIGENCE FOR FULL-SERVICE RESTAURANTS
               </div>
 
-              <h1
-                style={{
-                  fontSize: isMobile ? "34px" : "72px",
-                  lineHeight: 1,
-                  letterSpacing: "-0.05em",
-                  fontWeight: "900",
-                  marginBottom: "22px",
-                  maxWidth: "720px",
-                  wordBreak: "break-word",
-                }}
-              >
-                Intelligence
-                <span
-                  style={{
-                    background:
-                      "linear-gradient(90deg, #d4af37, #ffffff, #7c3aed)",
-                    WebkitBackgroundClip: "text",
-                    WebkitTextFillColor: "transparent",
-                  }}
-                >
-                  {" "}
-                  Served{" "}
-                </span>
-                Daily.
-              </h1>
+             <h1
+  style={{
+    fontSize: isMobile ? "34px" : "72px",
+    lineHeight: 1,
+    letterSpacing: "-0.05em",
+    fontWeight: "900",
+    marginBottom: "22px",
+    maxWidth: "820px",
+    wordBreak: "break-word",
+  }}
+>
+  Operational
+  <span
+    style={{
+      background:
+        "linear-gradient(90deg, #d4af37, #ffffff, #7c3aed)",
+      WebkitBackgroundClip: "text",
+      WebkitTextFillColor: "transparent",
+    }}
+  >
+    {" "}
+    Profit Intelligence{" "}
+  </span>
+  for Full-Service Restaurants
+</h1>
 
               <p
                 style={{
@@ -290,8 +290,8 @@ textAlign: "center",
                   marginBottom: "18px",
                 }}
               >
-                SerVen helps restaurant operators turn sales, labor, menu,
-and food cost data into clearer profit decisions in minutes.
+               SerVen helps full-service restaurants uncover hidden margin leakage across labor, food cost, menu performance, and operational trends using AI-powered intelligence.
+
               </p>
 
               <p
@@ -317,11 +317,11 @@ and uncover growth opportunities without spreadsheet chaos.
   }}
 >
                 <Link href="/signup" style={primaryButton}>
-                  Get Control of My Numbers
-                </Link>
+  Request Profit Analysis
+</Link>
                 <a href="#demo" style={secondaryButton}>
-                  See How It Works
-                </a>
+  Explore Operational Intelligence
+</a>
               </div>
 
               <div
@@ -402,10 +402,10 @@ flexWrap: "wrap",
                         marginBottom: "6px",
                       }}
                     >
-                      LIVE AI OVERVIEW
+                     LIVE OPERATIONAL OVERVIEW
                     </div>
                     <div style={{ fontSize: "20px", fontWeight: "800" }}>
-                      Restaurant Intelligence Dashboard
+                      Restaurant Command Center
                     </div>
                   </div>
 
@@ -524,7 +524,7 @@ flexWrap: "wrap",
                       marginBottom: "12px",
                     }}
                   >
-                    PROFIT OPPORTUNITY DETECTED
+                    PROFIT OPPORTUNITY DETECTEDMARGIN RECOVERY OPPORTUNITY
                   </div>
                   <div
                     style={{
@@ -796,7 +796,16 @@ alert("Demo result saved");
         >
           Or click to choose a file from your computer
         </div>
-
+<p
+  style={{
+    color: "#64748b",
+    fontSize: "12px",
+    marginTop: "10px",
+    lineHeight: 1.6,
+  }}
+>
+  Recommended: 30–90 days of sales data for more accurate operational insights.
+</p>
         <div
           style={{
             display: "inline-flex",
@@ -1014,7 +1023,7 @@ alert("Demo result saved");
             marginBottom: "14px",
           }}
         >
-          See how SerVen finds profit in your numbers
+          See how SerVen uncovers hidden operational profit leaks
         </h2>
 
         <p
@@ -1487,7 +1496,7 @@ width: "100%",
 >
         <div style={containerStyle}>
           <h2 style={sectionTitle}>
-            Everything you need to run a sharper restaurant.
+            Operational intelligence built for modern restaurant operators.
           </h2>
           <p style={sectionSubtext}>
             From food cost monitoring to AI recommendations, SerVen gives you the
@@ -1523,7 +1532,7 @@ width: "100%",
                 text: "Forecast inventory needs, reduce waste risk, and stay ahead of ingredient shortages before they hurt service.",
               },
               {
-                title: "AI Profit Recommendations",
+                title: "Operational Profit Recommendations",
                 text: "Receive practical suggestions on pricing, menu changes, labor adjustments, and opportunities to grow profit.",
               },
               {
