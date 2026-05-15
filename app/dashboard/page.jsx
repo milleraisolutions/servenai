@@ -10475,11 +10475,13 @@ return (
     style={{ display: "none" }}
   />
 
-  <WeeklyExecutiveSummary
+ <WeeklyExecutiveSummary
   weeklyExecutiveSummary={weeklyExecutiveSummary}
   revenueTrend={revenueTrend}
   avgMargin={avgMargin}
   foodCostPercentage={foodCostPercentage}
+  restaurantName={userProfile?.restaurant_name}
+  revenueChartData={revenueTrend?.chartData || []}
 />
 
 {/* 🚨 AI RISK ALERTS */}
