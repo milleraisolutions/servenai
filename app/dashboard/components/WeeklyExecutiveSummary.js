@@ -610,9 +610,15 @@ while (heightLeft > 0) {
     Executive Revenue Trend
   </div>
 
-  <div style={{ width: "100%", height: "260px" }}>
+  <div
+  style={{
+    width: "100%",
+    height: "260px",
+    overflow: "hidden",
+  }}
+>
     {revenueChartData?.length > 0 ? (
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width={700} height={240}>
         <LineChart data={revenueChartData}>
           <CartesianGrid
             strokeDasharray="3 3"
