@@ -18,6 +18,12 @@ export default function WeeklyExecutiveSummary({
   foodCostPercentage,
   restaurantName,
   revenueChartData = [],
+
+  alcoholRevenue = 0,
+  alcoholRevenuePercent = 0,
+  topAlcoholItemName = "No alcohol item detected",
+  topBeverageCategory = "No beverage category detected",
+  alcoholMarginStatus = "No beverage margin data",
 }) {
   if (!weeklyExecutiveSummary) return null;
 
@@ -517,15 +523,15 @@ while (heightLeft > 0) {
     />
   </div>
 </div>
-{/* AI FORECASTING */}
+{/* BEVERAGE REVENUE INTELLIGENCE */}
 <div
   style={{
-    marginTop: "20px",
+    marginTop: "28px",
     padding: "24px",
     borderRadius: "22px",
     background:
-      "linear-gradient(135deg, rgba(14,116,144,0.18), rgba(15,23,42,0.92))",
-    border: "1px solid rgba(56,189,248,0.18)",
+      "linear-gradient(135deg, rgba(91,33,182,0.16), rgba(15,23,42,0.92))",
+    border: "1px solid rgba(167,139,250,0.18)",
   }}
 >
   <div
@@ -534,61 +540,57 @@ while (heightLeft > 0) {
       fontWeight: "900",
       letterSpacing: "0.08em",
       textTransform: "uppercase",
-      color: "#67e8f9",
+      color: "#d8b4fe",
       marginBottom: "14px",
     }}
   >
-    AI Forecasting & Projections
+    Beverage Revenue Intelligence
   </div>
 
   <div
     style={{
       display: "grid",
-    gridTemplateColumns:
-  "repeat(2, minmax(0, 1fr))",
-      gap: "12px",
+      gridTemplateColumns:
+        "repeat(auto-fit, minmax(200px, 1fr))",
+      gap: "14px",
     }}
   >
     <ForecastCard
-      label="Projected Revenue"
-      value={`$${Math.round(
-        Number(revenueTrend?.currentWeekRevenue || 0) * 1.08
-      ).toLocaleString()}`}
+      label="Alcohol Revenue"
+      value={`$${Number(alcoholRevenue || 0).toLocaleString()}`}
+      color="#c084fc"
+    />
+
+    <ForecastCard
+      label="Alcohol % of Sales"
+      value={`${Number(alcoholRevenuePercent || 0).toFixed(1)}%`}
       color="#67e8f9"
     />
 
     <ForecastCard
-      label="Growth Outlook"
-      value={
-        Number(revenueTrend?.growthPercent || 0) > 10
-          ? "Strong Growth"
-          : Number(revenueTrend?.growthPercent || 0) < 0
-          ? "Recovery Phase"
-          : "Stable Expansion"
-      }
-      color="#4ade80"
-    />
-
-    <ForecastCard
-      label="AI Trend Prediction"
-      value={
-        Number(avgMargin || 0) < 15
-          ? "Margin optimization needed"
-          : "Positive operational trend"
-      }
+      label="Top Alcohol Item"
+      value={topAlcoholItemName}
       color="#facc15"
     />
 
     <ForecastCard
-      label="Forecast Confidence"
-      value="91%"
-      color="#c084fc"
+      label="Top Beverage Category"
+      value={topBeverageCategory}
+      color="#4ade80"
+    />
+
+    <ForecastCard
+      label="Beverage Margin Status"
+      value={alcoholMarginStatus}
+      color="#fda4af"
     />
   </div>
 </div>
 {/* EXECUTIVE CHARTS */}
 <div
   style={{
+    pageBreakBefore: "always",
+breakBefore: "page",
     marginTop: "24px",
     padding: "24px",
     borderRadius: "22px",
@@ -678,6 +680,77 @@ while (heightLeft > 0) {
         Revenue chart will appear after more sales data is available.
       </div>
     )}
+  </div>
+</div>
+{/* AI FORECASTING */}
+<div
+  style={{
+   pageBreakBefore: "always",
+breakBefore: "page",
+    marginTop: "20px",
+    padding: "24px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(14,116,144,0.18), rgba(15,23,42,0.92))",
+    border: "1px solid rgba(56,189,248,0.18)",
+  }}
+>
+  <div
+    style={{
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      color: "#67e8f9",
+      marginBottom: "14px",
+    }}
+  >
+    AI Forecasting & Projections
+  </div>
+
+  <div
+    style={{
+      display: "grid",
+    gridTemplateColumns:
+  "repeat(2, minmax(0, 1fr))",
+      gap: "12px",
+    }}
+  >
+    <ForecastCard
+      label="Projected Revenue"
+      value={`$${Math.round(
+        Number(revenueTrend?.currentWeekRevenue || 0) * 1.08
+      ).toLocaleString()}`}
+      color="#67e8f9"
+    />
+
+    <ForecastCard
+      label="Growth Outlook"
+      value={
+        Number(revenueTrend?.growthPercent || 0) > 10
+          ? "Strong Growth"
+          : Number(revenueTrend?.growthPercent || 0) < 0
+          ? "Recovery Phase"
+          : "Stable Expansion"
+      }
+      color="#4ade80"
+    />
+
+    <ForecastCard
+      label="AI Trend Prediction"
+      value={
+        Number(avgMargin || 0) < 15
+          ? "Margin optimization needed"
+          : "Positive operational trend"
+      }
+      color="#facc15"
+    />
+
+    <ForecastCard
+      label="Forecast Confidence"
+      value="91%"
+      color="#c084fc"
+    />
   </div>
 </div>
       </div>

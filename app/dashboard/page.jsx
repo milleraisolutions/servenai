@@ -9883,6 +9883,247 @@ useEffect(() => {
   }
 }, []);
 
+const BEVERAGE_CATEGORY_KEYWORDS = [
+  "beer",
+  "wine",
+  "liquor",
+  "cocktail",
+  "vodka",
+  "tequila",
+  "whiskey",
+  "bourbon",
+  "rum",
+  "gin",
+  "margarita",
+  "martini",
+  "mimosa",
+  "bloody mary",
+  "draft",
+  "ipa",
+  "lager",
+  "ale",
+  "stout",
+  "seltzer",
+  "champagne",
+  "prosecco",
+  "rosé",
+  "cabernet",
+  "pinot",
+  "merlot",
+  "chardonnay",
+  "sauvignon",
+  "moscow mule",
+  "old fashioned",
+  "negroni",
+  "spritz",
+];
+
+const getMenuItemName = (item) =>
+  String(
+    item?.name ||
+      item?.item_name ||
+      item?.menu_item ||
+      item?.product_name ||
+      item?.description ||
+      ""
+  ).toLowerCase();
+
+const getMenuItemCategory = (item) =>
+  String(
+    item?.category ||
+      item?.item_category ||
+      item?.department ||
+      item?.sales_category ||
+      ""
+  ).toLowerCase();
+
+const isAlcoholItem = (item) => {
+  const name = getMenuItemName(item);
+  const category = getMenuItemCategory(item);
+
+  const combined = `${name} ${category}`;
+
+  return BEVERAGE_CATEGORY_KEYWORDS.some((word) =>
+    combined.includes(word)
+  );
+};
+const alcoholSalesRows = (salesData || []).filter(isAlcoholItem);
+
+const alcoholRevenue = alcoholSalesRows.reduce((sum, item) => {
+  return sum + Number(getSaleRevenue(item) || 0);
+}, 0);
+
+const totalSalesRevenueForAlcohol =
+  (salesData || []).reduce((sum, item) => {
+    return sum + Number(getSaleRevenue(item) || 0);
+  }, 0) || 0;
+
+const alcoholRevenuePercent =
+  totalSalesRevenueForAlcohol > 0
+    ? (alcoholRevenue / totalSalesRevenueForAlcohol) * 100
+    : 0;
+
+const topAlcoholItem =
+  [...alcoholSalesRows].sort(
+    (a, b) =>
+      Number(getSaleRevenue(b) || 0) -
+      Number(getSaleRevenue(a) || 0)
+  )[0] || null;
+
+const topAlcoholItemName =
+  topAlcoholItem?.name ||
+  topAlcoholItem?.item_name ||
+  topAlcoholItem?.menu_item ||
+  topAlcoholItem?.product_name ||
+  "No alcohol item detected";
+
+const alcoholInsight =
+  alcoholRevenuePercent >= 40
+    ? "Alcohol sales are a major revenue driver for this business. Beverage performance should be a primary optimization focus."
+    : alcoholRevenuePercent >= 20
+    ? "Alcohol sales are contributing healthy supplemental revenue alongside food sales."
+    : alcoholRevenuePercent > 0
+    ? "Alcohol sales are present but may have growth opportunities through menu engineering and promotions."
+    : "No alcohol sales trends detected yet.";
+
+const alcoholPerformanceLevel =
+  alcoholRevenuePercent >= 40
+    ? "High Beverage Dependency"
+    : alcoholRevenuePercent >= 20
+    ? "Balanced Food & Beverage Mix"
+    : alcoholRevenuePercent > 0
+    ? "Low Beverage Penetration"
+    : "No Beverage Data";
+
+const estimatedAlcoholCostPercent =
+  alcoholRevenuePercent > 0
+    ? alcoholRevenuePercent >= 40
+      ? 22
+      : alcoholRevenuePercent >= 20
+      ? 25
+      : 28
+    : 0;
+
+const alcoholMarginPercent =
+  estimatedAlcoholCostPercent > 0
+    ? 100 - estimatedAlcoholCostPercent
+    : 0;
+
+const alcoholMarginStatus =
+  alcoholMarginPercent >= 75
+    ? "Strong Beverage Margin"
+    : alcoholMarginPercent >= 65
+    ? "Healthy Beverage Margin"
+    : alcoholMarginPercent > 0
+    ? "Margin Needs Review"
+    : "No Beverage Margin Data";
+
+const getBeverageType = (item) => {
+  const combined = `${getMenuItemName(item)} ${getMenuItemCategory(item)}`;
+
+  if (
+    combined.includes("cocktail") ||
+    combined.includes("margarita") ||
+    combined.includes("martini") ||
+    combined.includes("mimosa") ||
+    combined.includes("bloody mary") ||
+    combined.includes("moscow mule") ||
+    combined.includes("old fashioned") ||
+    combined.includes("negroni")
+  ) {
+    return "Cocktails";
+  }
+
+  if (
+    combined.includes("beer") ||
+    combined.includes("draft") ||
+    combined.includes("ipa") ||
+    combined.includes("lager") ||
+    combined.includes("ale") ||
+    combined.includes("stout")
+  ) {
+    return "Beer";
+  }
+
+  if (
+    combined.includes("wine") ||
+    combined.includes("cabernet") ||
+    combined.includes("pinot") ||
+    combined.includes("merlot") ||
+    combined.includes("chardonnay") ||
+    combined.includes("sauvignon") ||
+    combined.includes("rosé") ||
+    combined.includes("prosecco") ||
+    combined.includes("champagne")
+  ) {
+    return "Wine";
+  }
+
+  if (
+    combined.includes("liquor") ||
+    combined.includes("vodka") ||
+    combined.includes("tequila") ||
+    combined.includes("whiskey") ||
+    combined.includes("bourbon") ||
+    combined.includes("rum") ||
+    combined.includes("gin")
+  ) {
+    return "Liquor";
+  }
+
+  return "Other Beverage";
+};
+
+const beverageCategoryBreakdown = alcoholSalesRows.reduce((acc, item) => {
+  const type = getBeverageType(item);
+  const revenue = Number(getSaleRevenue(item) || 0);
+
+  acc[type] = (acc[type] || 0) + revenue;
+
+  return acc;
+}, {});
+
+const topBeverageCategory =
+  Object.entries(beverageCategoryBreakdown).sort((a, b) => b[1] - a[1])[0]?.[0] ||
+  "No beverage category detected";
+
+const topAlcoholItems = [...alcoholSalesRows]
+  .sort(
+    (a, b) =>
+      Number(getSaleRevenue(b) || 0) -
+      Number(getSaleRevenue(a) || 0)
+  )
+  .slice(0, 5);
+
+const beverageLeaderboard = topAlcoholItems.map((item) => ({
+  name:
+    item?.name ||
+    item?.item_name ||
+    item?.menu_item ||
+    item?.product_name ||
+    "Unknown Item",
+
+  revenue: Number(getSaleRevenue(item) || 0),
+
+  category: getBeverageType(item),
+}));
+const beverageAIInsight =
+  alcoholRevenuePercent >= 40
+    ? "Alcohol sales are a major operational driver. Beverage profitability and menu engineering should be prioritized to maximize margin performance."
+    : alcoholRevenuePercent >= 20
+    ? "Beverage revenue is contributing meaningful supplemental profit alongside food sales."
+    : alcoholRevenuePercent > 0
+    ? "Alcohol sales are present but may have additional upside through promotions and beverage optimization."
+    : "No strong beverage revenue trends detected yet.";
+
+const beverageRiskInsight =
+  estimatedAlcoholCostPercent >= 28
+    ? "Potential pour cost pressure detected. Beverage pricing or inventory controls may need review."
+    : estimatedAlcoholCostPercent >= 24
+    ? "Beverage margins appear stable with moderate cost pressure."
+    : "Strong beverage margin profile detected.";
+
+
 
 
 if (!hasPaidAccess) {
@@ -10482,6 +10723,12 @@ return (
   foodCostPercentage={foodCostPercentage}
   restaurantName={userProfile?.restaurant_name}
   revenueChartData={revenueTrend?.chartData || []}
+
+  alcoholRevenue={alcoholRevenue}
+  alcoholRevenuePercent={alcoholRevenuePercent}
+  topAlcoholItemName={topAlcoholItemName}
+  topBeverageCategory={topBeverageCategory}
+  alcoholMarginStatus={alcoholMarginStatus}
 />
 
 {/* 🚨 AI RISK ALERTS */}
@@ -11005,6 +11252,7 @@ return (
   }
   featured
 />
+
 <GlassCard
   title="Margin Intelligence"
   value={
@@ -11212,6 +11460,356 @@ return (
     </div>
   }
 />
+
+</div>
+{/* ALCOHOL SALES INTELLIGENCE */}
+<div
+  style={{
+    marginTop: "20px",
+    padding: "22px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(124,58,237,0.16), rgba(15,23,42,0.92))",
+    border: "1px solid rgba(167,139,250,0.18)",
+  }}
+>
+  <div
+    style={{
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      color: "#c4b5fd",
+      marginBottom: "16px",
+    }}
+  >
+    Alcohol Sales Intelligence
+  </div>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+      gap: "14px",
+    }}
+  >
+    <GlassCard
+  title="Alcohol Revenue"
+  value={`$${Number(alcoholRevenue || 0).toLocaleString()}`}
+  subtext="Revenue generated from detected alcohol sales"
+/>
+
+<GlassCard
+  title="Alcohol % of Sales"
+  value={`${Number(alcoholRevenuePercent || 0).toFixed(1)}%`}
+  subtext="Percentage of total revenue from alcohol"
+/>
+
+<GlassCard
+  title="Top Alcohol Item"
+  value={topAlcoholItemName}
+  subtext="Highest revenue beverage item"
+/>
+
+<GlassCard
+  title="Alcohol Items Found"
+  value={alcoholSalesRows.length}
+  subtext="Detected alcohol-related sales items"
+/>
+  </div>
+</div>
+{/* AI ALCOHOL COMMENTARY */}
+<div
+  style={{
+    marginTop: "18px",
+    padding: "20px",
+    borderRadius: "20px",
+    background:
+      "linear-gradient(135deg, rgba(91,33,182,0.16), rgba(15,23,42,0.92))",
+    border: "1px solid rgba(167,139,250,0.18)",
+  }}
+>
+  <div
+    style={{
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      color: "#c4b5fd",
+      marginBottom: "12px",
+    }}
+  >
+    AI Beverage Intelligence
+  </div>
+
+  <div
+    style={{
+      color: "#e2e8f0",
+      fontSize: "14px",
+      lineHeight: 1.8,
+      marginBottom: "14px",
+    }}
+  >
+    {alcoholInsight}
+  </div>
+
+  <div
+    style={{
+      display: "inline-flex",
+      alignItems: "center",
+      padding: "8px 14px",
+      borderRadius: "999px",
+      background: "rgba(255,255,255,0.06)",
+      color: "#d8b4fe",
+      fontSize: "12px",
+      fontWeight: "900",
+      border: "1px solid rgba(167,139,250,0.18)",
+    }}
+  >
+    {alcoholPerformanceLevel}
+  </div>
+</div>
+{/* ALCOHOL POUR COST INTELLIGENCE */}
+<div
+  style={{
+    marginTop: "18px",
+    padding: "20px",
+    borderRadius: "20px",
+    background:
+      "linear-gradient(135deg, rgba(22,101,52,0.16), rgba(15,23,42,0.92))",
+    border: "1px solid rgba(74,222,128,0.16)",
+  }}
+>
+  <div
+    style={{
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      color: "#86efac",
+      marginBottom: "14px",
+    }}
+  >
+    Alcohol Pour Cost Intelligence
+  </div>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+      gap: "14px",
+    }}
+  >
+    <GlassCard
+      title="Estimated Pour Cost"
+      value={
+        estimatedAlcoholCostPercent > 0
+          ? `${estimatedAlcoholCostPercent}%`
+          : "Needs alcohol data"
+      }
+      subtext="Estimated beverage cost percentage"
+    />
+
+    <GlassCard
+      title="Estimated Beverage Margin"
+      value={
+        alcoholMarginPercent > 0
+          ? `${alcoholMarginPercent}%`
+          : "Needs alcohol data"
+      }
+      subtext="Estimated margin after pour cost"
+    />
+
+    <GlassCard
+      title="Margin Status"
+      value={alcoholMarginStatus}
+      subtext="AI beverage margin rating"
+    />
+  </div>
+</div>
+{/* BEVERAGE CATEGORY BREAKDOWN */}
+<div
+  style={{
+    marginTop: "18px",
+    padding: "20px",
+    borderRadius: "20px",
+    background:
+      "linear-gradient(135deg, rgba(14,116,144,0.14), rgba(15,23,42,0.92))",
+    border: "1px solid rgba(56,189,248,0.16)",
+  }}
+>
+  <div
+    style={{
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      color: "#67e8f9",
+      marginBottom: "14px",
+    }}
+  >
+    Beverage Category Breakdown
+  </div>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+      gap: "14px",
+    }}
+  >
+    {Object.entries(beverageCategoryBreakdown).map(([category, revenue]) => (
+      <GlassCard
+        key={category}
+        title={category}
+        value={`$${Number(revenue || 0).toLocaleString()}`}
+        subtext="Detected beverage revenue"
+      />
+    ))}
+
+    <GlassCard
+      title="Top Beverage Category"
+      value={topBeverageCategory}
+      subtext="Highest beverage revenue category"
+    />
+  </div>
+</div>
+{/* TOP BEVERAGE PERFORMERS */}
+<div
+  style={{
+    marginTop: "18px",
+    padding: "20px",
+    borderRadius: "20px",
+    background:
+      "linear-gradient(135deg, rgba(30,64,175,0.14), rgba(15,23,42,0.92))",
+    border: "1px solid rgba(96,165,250,0.16)",
+  }}
+>
+  <div
+    style={{
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      color: "#93c5fd",
+      marginBottom: "14px",
+    }}
+  >
+    Top Beverage Performers
+  </div>
+
+  <div
+    style={{
+      display: "grid",
+      gap: "12px",
+    }}
+  >
+    {beverageLeaderboard.map((item, index) => (
+      <div
+        key={`${item.name}-${index}`}
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          padding: "14px 16px",
+          borderRadius: "16px",
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(148,163,184,0.12)",
+        }}
+      >
+        <div>
+          <div
+            style={{
+              color: "white",
+              fontWeight: "800",
+              marginBottom: "4px",
+            }}
+          >
+            {item.name}
+          </div>
+
+          <div
+            style={{
+              color: "#93c5fd",
+              fontSize: "12px",
+              fontWeight: "700",
+            }}
+          >
+            {item.category}
+          </div>
+        </div>
+
+        <div
+          style={{
+            color: "#86efac",
+            fontWeight: "900",
+            fontSize: "16px",
+          }}
+        >
+          ${Number(item.revenue || 0).toLocaleString()}
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+{/* ALCOHOL-AWARE AI INSIGHTS */}
+<div
+  style={{
+    marginTop: "18px",
+    padding: "20px",
+    borderRadius: "20px",
+    background:
+      "linear-gradient(135deg, rgba(88,28,135,0.18), rgba(15,23,42,0.92))",
+    border: "1px solid rgba(216,180,254,0.18)",
+  }}
+>
+  <div
+    style={{
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      color: "#d8b4fe",
+      marginBottom: "14px",
+    }}
+  >
+    Alcohol-Aware AI Insights
+  </div>
+
+  <div
+    style={{
+      display: "grid",
+      gap: "12px",
+    }}
+  >
+    <div
+      style={{
+        padding: "14px 16px",
+        borderRadius: "16px",
+        background: "rgba(255,255,255,0.04)",
+        border: "1px solid rgba(148,163,184,0.12)",
+        color: "#e2e8f0",
+        fontSize: "14px",
+        lineHeight: 1.7,
+      }}
+    >
+      {beverageAIInsight}
+    </div>
+
+    <div
+      style={{
+        padding: "14px 16px",
+        borderRadius: "16px",
+        background: "rgba(255,255,255,0.04)",
+        border: "1px solid rgba(148,163,184,0.12)",
+        color: "#e2e8f0",
+        fontSize: "14px",
+        lineHeight: 1.7,
+      }}
+    >
+      {beverageRiskInsight}
+    </div>
+  </div>
 </div>
  {/* SECOND KPI STRIP */}
 <div
