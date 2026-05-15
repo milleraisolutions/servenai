@@ -1313,22 +1313,7 @@ alert("Demo result saved");
     {demoResult.executiveSummary}
   </p>
 </div>
-<button
-  onClick={generateExecutivePDF}
-  style={{
-    padding: "12px 18px",
-    borderRadius: "12px",
-    border: "none",
-    cursor: "pointer",
-    fontWeight: "800",
-    background:
-      "linear-gradient(135deg, #d4af37, #facc15)",
-    color: "#020617",
-    marginTop: "14px",
-  }}
->
-  Generate Executive PDF
-</button>
+
 
 
 <div
