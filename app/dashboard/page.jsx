@@ -23503,16 +23503,40 @@ return (
             Before vs After Campaign Performance
           </div>
 
-          <div style={{ height: "260px", minWidth: 0 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data}>
-                <XAxis dataKey="name" stroke="#94a3b8" />
-                <YAxis stroke="#94a3b8" />
-                <Tooltip />
-                <Bar dataKey="revenue" radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          <div
+  style={{
+    width: "100%",
+    maxWidth: "100%",
+    minWidth: 0,
+    height: isMobile ? "220px" : "260px",
+    overflow: "hidden",
+  }}
+>
+  <ResponsiveContainer width="100%" height="100%">
+    <BarChart data={data}>
+      <XAxis
+        dataKey="name"
+        stroke="#94a3b8"
+        tick={{ fontSize: isMobile ? 9 : 11 }}
+        interval={isMobile ? 1 : 0}
+        angle={isMobile ? -20 : 0}
+        textAnchor={isMobile ? "end" : "middle"}
+      />
+
+      <YAxis
+        stroke="#94a3b8"
+        tick={{ fontSize: isMobile ? 9 : 11 }}
+      />
+
+      <Tooltip />
+
+      <Bar
+        dataKey="revenue"
+        radius={[6, 6, 0, 0]}
+      />
+    </BarChart>
+  </ResponsiveContainer>
+</div>
         </div>
       );
     })()}
@@ -33618,26 +33642,46 @@ suffix=" AI-generated upside"
   </p>
 
   {inventoryTrendData.length > 0 ? (
-    <div style={{ height: "320px", marginTop: "18px" }}>
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={inventoryTrendData}>
-          <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.16)" />
-          <XAxis dataKey="name" tick={{ fill: "#94a3b8", fontSize: 11 }} />
-          <YAxis tick={{ fill: "#94a3b8", fontSize: 11 }} />
-          <Tooltip
-            contentStyle={{
-              background: "#020617",
-              border: "1px solid rgba(148,163,184,0.2)",
-              borderRadius: "12px",
-              color: "white",
-            }}
-          />
-          <Legend />
-          <Bar dataKey="quantity" name="Quantity" fill="#22c55e" />
-          <Bar dataKey="usageRate" name="Daily Usage" fill="#3b82f6" />
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
+    <div
+  style={{
+    width: "100%",
+    maxWidth: "100%",
+    minWidth: 0,
+    height: isMobile ? "260px" : "320px",
+    marginTop: "18px",
+    overflow: "hidden",
+  }}
+>
+  <ResponsiveContainer width="100%" height="100%">
+    <BarChart data={inventoryTrendData}>
+      <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.16)" />
+
+      <XAxis
+        dataKey="name"
+        tick={{ fill: "#94a3b8", fontSize: isMobile ? 9 : 11 }}
+        interval={isMobile ? 1 : 0}
+        angle={isMobile ? -20 : 0}
+        textAnchor={isMobile ? "end" : "middle"}
+      />
+
+      <YAxis tick={{ fill: "#94a3b8", fontSize: isMobile ? 9 : 11 }} />
+
+      <Tooltip
+        contentStyle={{
+          background: "#020617",
+          border: "1px solid rgba(148,163,184,0.2)",
+          borderRadius: "12px",
+          color: "white",
+        }}
+      />
+
+      <Legend />
+
+      <Bar dataKey="quantity" name="Quantity" fill="#22c55e" />
+      <Bar dataKey="usageRate" name="Daily Usage" fill="#3b82f6" />
+    </BarChart>
+  </ResponsiveContainer>
+</div>
   ) : (
     <div style={{ color: "#94a3b8", fontSize: "14px", marginTop: "14px" }}>
       Upload ingredient data to unlock inventory trend charts.

@@ -10,7 +10,7 @@ import {
   Tooltip,
 } from "recharts";
 
-export default function RevenueChart({ data }) {
+export default function RevenueChart({ data, isMobile = false }) {
   const chartData = Array.isArray(data)
     ? data
     : Array.isArray(data?.revenueData)
@@ -20,27 +20,42 @@ export default function RevenueChart({ data }) {
   return (
     <div
       style={{
-        marginTop: "40px",
+        marginTop: isMobile ? "20px" : "40px",
         width: "100%",
+        maxWidth: "100%",
         minWidth: 0,
+        overflowX: "hidden",
       }}
     >
-      <h2 style={{ color: "white", marginBottom: "16px" }}>
+      <h2
+        style={{
+          color: "white",
+          marginBottom: "16px",
+          fontSize: isMobile ? "20px" : "26px",
+        }}
+      >
         📈 Weekly Revenue
       </h2>
 
       <div
         style={{
           width: "100%",
-          height: "320px",
+          maxWidth: "100%",
           minWidth: 0,
+          height: isMobile ? "240px" : "320px",
+          overflow: "hidden",
         }}
       >
         {chartData.length > 0 ? (
           <ResponsiveContainer width="100%" height="100%">
             <LineChart
               data={chartData}
-              margin={{ top: 10, right: 18, left: 0, bottom: 8 }}
+              margin={{
+                top: 10,
+                right: isMobile ? 8 : 18,
+                left: isMobile ? -18 : 0,
+                bottom: isMobile ? 18 : 8,
+              }}
             >
               <CartesianGrid
                 strokeDasharray="3 3"
@@ -49,17 +64,29 @@ export default function RevenueChart({ data }) {
 
               <XAxis
                 dataKey="day"
-                tick={{ fill: "#94a3b8", fontSize: 12 }}
+                tick={{
+                  fill: "#94a3b8",
+                  fontSize: isMobile ? 9 : 12,
+                }}
+                interval={isMobile ? 1 : 0}
+                angle={isMobile ? -20 : 0}
+                textAnchor={isMobile ? "end" : "middle"}
                 axisLine={{ stroke: "rgba(148,163,184,0.18)" }}
                 tickLine={false}
               />
 
               <YAxis
-                tick={{ fill: "#94a3b8", fontSize: 12 }}
+                tick={{
+                  fill: "#94a3b8",
+                  fontSize: isMobile ? 9 : 12,
+                }}
+                width={isMobile ? 42 : 60}
                 axisLine={{ stroke: "rgba(148,163,184,0.18)" }}
                 tickLine={false}
                 tickFormatter={(value) =>
-                  `$${Number(value || 0).toLocaleString()}`
+                  isMobile
+                    ? `$${Math.round(Number(value || 0) / 1000)}k`
+                    : `$${Number(value || 0).toLocaleString()}`
                 }
               />
 
@@ -81,10 +108,10 @@ export default function RevenueChart({ data }) {
                 dataKey="revenue"
                 name="Revenue"
                 stroke="#8b5cf6"
-                strokeWidth={4}
+                strokeWidth={isMobile ? 3 : 4}
                 dot={false}
                 activeDot={{
-                  r: 7,
+                  r: isMobile ? 5 : 7,
                   fill: "#fbbf24",
                   stroke: "white",
                   strokeWidth: 2,
