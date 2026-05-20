@@ -7,6 +7,10 @@ import { useRouter } from "next/navigation";
 export default function Signup() {
   const router = useRouter();
 
+  // Step state (1: Business Details, 2: Account Details)
+  const [step, setStep] = useState(1);
+
+  // Form states
   const [restaurantName, setRestaurantName] = useState("");
   const [size, setSize] = useState("");
   const [email, setEmail] = useState("");
@@ -28,6 +32,28 @@ export default function Signup() {
     if (selectedSize === "large") return "$499-$999/mo";
     if (selectedSize === "medium") return "$299-$599/mo";
     return "$149-$249/mo";
+  };
+
+  // Step 1 Validation
+  const handleNextStep = () => {
+    setErrorMessage("");
+    if (!restaurantName.trim()) {
+      setErrorMessage("Please enter your restaurant name.");
+      return;
+    }
+    if (!phone.trim()) {
+      setErrorMessage("Please enter your phone number.");
+      return;
+    }
+    if (!businessType) {
+      setErrorMessage("Please select a business type.");
+      return;
+    }
+    if (!size) {
+      setErrorMessage("Please select your business size.");
+      return;
+    }
+    setStep(2);
   };
 
   const saveLeadToSupabase = async ({ userId, cleanEmail, cleanPhone }) => {
@@ -59,29 +85,9 @@ export default function Signup() {
       setErrorMessage("");
 
       const cleanEmail = String(email || "").trim().toLowerCase();
-      const cleanPhone = String(phone || "").trim();
       const cleanPassword = String(password || "");
       const cleanConfirmPassword = String(confirmPassword || "");
-
-      if (!restaurantName.trim()) {
-        setErrorMessage("Please enter your restaurant name.");
-        return;
-      }
-
-      if (!cleanPhone) {
-        setErrorMessage("Please enter your phone number.");
-        return;
-      }
-
-      if (!businessType) {
-        setErrorMessage("Please select a business type.");
-        return;
-      }
-
-      if (!size) {
-        setErrorMessage("Please select your restaurant size.");
-        return;
-      }
+      const cleanPhone = String(phone || "").trim();
 
       if (!cleanEmail || !cleanPassword) {
         setErrorMessage("Please enter your email and password.");
@@ -157,105 +163,138 @@ export default function Signup() {
       <div style={cardStyle}>
         <div style={accentBar} />
 
-        <h2 style={{ marginBottom: "6px" }}>
-          Start Unlocking Hidden Profit in Your Business
+        {/* Progress Tracker */}
+        <div style={progressContainer}>
+          <span style={{ ...stepBadge, backgroundColor: step >= 1 ? "#6D3DF5" : "#e5e7eb", color: step >= 1 ? "white" : "#6b7280" }}>1</span>
+          <div style={{ ...progressLine, backgroundColor: step === 2 ? "#6D3DF5" : "#e5e7eb" }} />
+          <span style={{ ...stepBadge, backgroundColor: step === 2 ? "#6D3DF5" : "#e5e7eb", color: step === 2 ? "white" : "#6b7280" }}>2</span>
+        </div>
+
+        <h2 style={{ marginBottom: "6px", fontSize: "20px", textAlign: "center" }}>
+          {step === 1 ? "Tell us about your business" : "Create your credentials"}
         </h2>
 
-        <p style={subText}>
-          Connect your data and discover where your business is losing money
+        <p style={{ ...subText, textAlign: "center" }}>
+          {step === 1 
+            ? "We'll customize your dashboard experiences based on your setup." 
+            : "Almost there! Protect your account with a secure login."}
         </p>
 
         {errorMessage && <div style={errorBox}>{errorMessage}</div>}
 
-        <input
-          type="text"
-          placeholder="Restaurant Name"
-          value={restaurantName}
-          onChange={(e) => setRestaurantName(e.target.value)}
-          style={inputStyle}
-        />
+        {/* STEP 1: BUSINESS DETAILS */}
+        {step === 1 && (
+          <div>
+            <label style={labelStyle}>Business Name</label>
+            <input
+              type="text"
+              placeholder="e.g. Mama's Pizzeria"
+              value={restaurantName}
+              onChange={(e) => setRestaurantName(e.target.value)}
+              style={inputStyle}
+            />
 
-        <input
-          type="tel"
-          placeholder="Phone Number"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          style={inputStyle}
-        />
+            <label style={labelStyle}>Phone Number</label>
+            <input
+              type="tel"
+              placeholder="(555) 000-0000"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              style={inputStyle}
+            />
 
-        <div style={{ marginTop: "16px" }}>
-          <label style={labelStyle}>Business Type</label>
+            <label style={labelStyle}>Business Type</label>
+            <select
+              value={businessType}
+              onChange={(e) => setBusinessType(e.target.value)}
+              style={{ ...selectStyle, marginBottom: "14px" }}
+            >
+              <option value="restaurant">Full-Service Restaurant</option>
+              <option value="coffee">Coffee Shop</option>
+              <option value="smoothie">Smoothie / Juice Bar</option>
+            </select>
 
-          <select
-            value={businessType}
-            onChange={(e) => setBusinessType(e.target.value)}
-            style={selectStyle}
-          >
-            <option value="restaurant">Full-Service Restaurant</option>
-            <option value="coffee">Coffee Shop</option>
-            <option value="smoothie">Smoothie / Juice Bar</option>
-          </select>
+            <label style={labelStyle}>Establishment Size</label>
+            <select
+              value={size}
+              onChange={(e) => setSize(e.target.value)}
+              style={selectStyle}
+            >
+              <option value="">Select Capacity</option>
+              <option value="small">Small (0–50 seats)</option>
+              <option value="medium">Medium (50–150 seats)</option>
+              <option value="large">Large (150+ seats)</option>
+            </select>
 
-          <p style={{ fontSize: "11px", color: "#9ca3af", marginTop: "6px" }}>
-            We customize your dashboard based on your business type
-          </p>
-        </div>
+            <button onClick={handleNextStep} style={{ ...buttonStyle, marginTop: "20px" }}>
+              Continue
+            </button>
+          </div>
+        )}
 
-        <select
-          value={size}
-          onChange={(e) => setSize(e.target.value)}
-          style={inputStyle}
-        >
-          <option value="">Select Restaurant Size</option>
-          <option value="small">Small (0–50 seats)</option>
-          <option value="medium">Medium (50–150 seats)</option>
-          <option value="large">Large (150+ seats)</option>
-        </select>
+        {/* STEP 2: CREDENTIALS & SUMMARY */}
+        {step === 2 && (
+          <div>
+            {size && (
+              <div style={summaryBox}>
+                ✨ <strong>Tailored Plan:</strong> {getRecommendedPlan(size).toUpperCase()} ({getEstimatedPriceRange(size)})
+              </div>
+            )}
 
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          style={inputStyle}
-        />
+            <label style={labelStyle}>Email Address</label>
+            <input
+              type="email"
+              placeholder="name@business.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              style={inputStyle}
+            />
 
-        <div style={{ position: "relative" }}>
-          <input
-            type={showPassword ? "text" : "password"}
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            style={inputStyle}
-          />
+            <label style={labelStyle}>Password</label>
+            <div style={{ position: "relative" }}>
+              <input
+                type={showPassword ? "text" : "password"}
+                placeholder="Minimum 6 characters"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                style={inputStyle}
+              />
+              <span onClick={() => setShowPassword(!showPassword)} style={toggleStyle}>
+                {showPassword ? "Hide" : "Show"}
+              </span>
+            </div>
 
-          <span
-            onClick={() => setShowPassword(!showPassword)}
-            style={toggleStyle}
-          >
-            {showPassword ? "Hide" : "Show"}
-          </span>
-        </div>
+            <label style={labelStyle}>Confirm Password</label>
+            <input
+              type={showPassword ? "text" : "password"}
+              placeholder="Re-enter password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              style={inputStyle}
+            />
 
-        <input
-          type={showPassword ? "text" : "password"}
-          placeholder="Confirm Password"
-          value={confirmPassword}
-          onChange={(e) => setConfirmPassword(e.target.value)}
-          style={inputStyle}
-        />
-
-        <button
-          onClick={handleSignup}
-          disabled={loading}
-          style={{
-            ...buttonStyle,
-            opacity: loading ? 0.7 : 1,
-            cursor: loading ? "not-allowed" : "pointer",
-          }}
-        >
-          {loading ? "Creating account..." : "Create My Demo Profile"}
-        </button>
+            <div style={{ display: "flex", gap: "10px", marginTop: "20px" }}>
+              <button 
+                onClick={() => setStep(1)} 
+                style={{ ...buttonStyle, background: "#f3f4f6", color: "#4b5563", boxShadow: "none" }}
+              >
+                Back
+              </button>
+              <button
+                onClick={handleSignup}
+                disabled={loading}
+                style={{
+                  ...buttonStyle,
+                  flex: 2,
+                  opacity: loading ? 0.7 : 1,
+                  cursor: loading ? "not-allowed" : "pointer",
+                }}
+              >
+                {loading ? "Creating profile..." : "Create My Demo Profile"}
+              </button>
+            </div>
+          </div>
+        )}
 
         <p style={footerText}>
           Already have an account?{" "}
@@ -281,7 +320,7 @@ const pageWrapper = {
 };
 
 const cardStyle = {
-  width: "420px",
+  width: "440px",
   padding: "32px",
   borderRadius: "16px",
   background: "white",
@@ -297,10 +336,36 @@ const accentBar = {
   marginBottom: "20px",
 };
 
+const progressContainer = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  marginBottom: "24px",
+};
+
+const stepBadge = {
+  width: "28px",
+  height: "28px",
+  borderRadius: "50%",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  fontSize: "12px",
+  fontWeight: "bold",
+  transition: "all 0.3s ease",
+};
+
+const progressLine = {
+  height: "3px",
+  width: "60px",
+  transition: "all 0.3s ease",
+};
+
 const subText = {
   color: "#6b7280",
   fontSize: "13px",
-  marginBottom: "20px",
+  marginBottom: "24px",
+  lineHeight: "1.4",
 };
 
 const errorBox = {
@@ -315,10 +380,10 @@ const errorBox = {
 
 const labelStyle = {
   display: "block",
-  fontSize: "14px",
+  fontSize: "13px",
   fontWeight: "600",
-  marginBottom: "8px",
-  color: "#0f172a",
+  marginBottom: "6px",
+  color: "#374151",
 };
 
 const inputStyle = {
@@ -337,10 +402,21 @@ const selectStyle = {
   width: "100%",
   padding: "12px",
   borderRadius: "10px",
-  border: "1px solid #d1d5db",
+  border: "1px solid #e5e7eb",
+  background: "#f9fafb",
   fontSize: "14px",
-  background: "white",
   boxSizing: "border-box",
+  outline: "none",
+};
+
+const summaryBox = {
+  background: "#f5f3ff",
+  border: "1px solid #ddd6fe",
+  color: "#5b21b6",
+  padding: "12px",
+  borderRadius: "10px",
+  fontSize: "13px",
+  marginBottom: "18px",
 };
 
 const buttonStyle = {
@@ -353,20 +429,21 @@ const buttonStyle = {
   fontWeight: "600",
   transition: "0.2s",
   background: "#6D3DF5",
-  boxShadow: "0 10px 20px rgba(109,61,245,0.25)",
+  boxShadow: "0 10px 20px rgba(109,61,245,0.15)",
 };
 
 const toggleStyle = {
   position: "absolute",
-  right: "10px",
-  top: "10px",
+  right: "12px",
+  top: "14px",
   cursor: "pointer",
   fontSize: "12px",
   color: "#6D3DF5",
+  fontWeight: "600",
 };
 
 const footerText = {
-  marginTop: "15px",
+  marginTop: "20px",
   fontSize: "12px",
   color: "#9ca3af",
   textAlign: "center",
