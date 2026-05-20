@@ -232,1390 +232,721 @@ textAlign: "center",
     }
   }
 `}</style>
-      {/* HERO */}
-      <section
-        style={{
-          position: "relative",
-          padding: isMobile ? "56px 0 44px" : "110px 0 70px",
-        }}
-      >
-        <div style={containerStyle}>
+     {/* HERO */}
+<section
+  style={{
+    position: "relative",
+    padding: isMobile ? "60px 0 40px" : "120px 0 80px",
+    overflow: "hidden"
+  }}
+>
+  <div style={containerStyle}>
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: isMobile ? "1fr" : "1.1fr 0.9fr",
+        gap: isMobile ? "48px" : "64px",
+        alignItems: "center",
+      }}
+    >
+      {/* Left Column: Copy & CTAs */}
+      <div>
+        <div
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "8px",
+            padding: "6px 12px",
+            borderRadius: "999px",
+            background: "rgba(212, 175, 55, 0.08)",
+            border: "1px solid rgba(212, 175, 55, 0.2)",
+            color: "#d4af37",
+            fontSize: "12px",
+            fontWeight: "700",
+            letterSpacing: "0.05em",
+            marginBottom: "24px",
+          }}
+        >
+          <span>●</span> AI-POWERED RESTAURANT OPERATIONS
+        </div>
+
+        <h1
+          style={{
+            fontSize: isMobile ? "40px" : "64px",
+            lineHeight: isMobile ? "1.1" : "1.05",
+            letterSpacing: "-0.04em",
+            fontWeight: "900",
+            marginBottom: "20px",
+            color: "#ffffff"
+          }}
+        >
+          Stop Profit Leaks. <br />
+          <span
+            style={{
+              background: "linear-gradient(90deg, #d4af37 0%, #a78bfa 100%)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+            }}
+          >
+            Maximize Margins.
+          </span>
+        </h1>
+
+        <p
+          style={{
+            fontSize: isMobile ? "17px" : "19px",
+            lineHeight: "1.6",
+            color: "#94a3b8",
+            maxWidth: "580px",
+            marginBottom: "36px",
+          }}
+        >
+          SerVen turns your chaotic restaurant data into clear operational blueprints. 
+          Uncover hidden margin leakage across labor, food costs, and menu performance 
+          with real-time intelligence built for full-service venues.
+        </p>
+
+        <div
+          style={{
+            display: "flex",
+            gap: "12px",
+            flexDirection: isMobile ? "column" : "row",
+            marginBottom: "40px",
+          }}
+        >
+          <Link href="/signup" style={{ ...primaryButton, textAlign: "center" }}>
+            Request Profit Analysis
+          </Link>
+          <a href="#demo" style={{ ...secondaryButton, textAlign: "center" }}>
+            Explore the Platform
+          </a>
+        </div>
+
+        {/* Feature Pills */}
+        <div
+          style={{
+            display: "flex",
+            gap: "10px",
+            flexWrap: "wrap",
+          }}
+        >
+          {[
+            "Food Cost Monitoring",
+            "Labor Optimization",
+            "Menu Profitability",
+            "Predictive Staffing",
+          ].map((item) => (
+            <div
+              key={item}
+              style={{
+                padding: "8px 14px",
+                borderRadius: "999px",
+                background: "rgba(255,255,255,0.03)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                color: "#cbd5e1",
+                fontSize: "13px",
+                fontWeight: "500",
+              }}
+            >
+              {item}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Right Column: Dashboard Card View */}
+      <div id="demo" style={{ width: "100%", overflow: "hidden" }}>
+        <div style={{ ...dashboardCard, position: "relative", padding: isMobile ? "16px" : "24px" }}>
+          
+          {/* Background Glows */}
           <div
             style={{
-              display: "grid",
-              gridTemplateColumns: isMobile
-  ? "1fr"
-  : "1.05fr 0.95fr",
-              gap: "40px",
+              position: "absolute",
+              top: "-20px",
+              right: "-20px",
+              width: "140px",
+              height: "140px",
+              borderRadius: "999px",
+              background: "rgba(124, 58, 237, 0.25)",
+              filter: "blur(40px)",
+              pointerEvents: "none"
+            }}
+          />
+          <div
+            style={{
+              position: "absolute",
+              bottom: "-20px",
+              left: "-20px",
+              width: "140px",
+              height: "140px",
+              borderRadius: "999px",
+              background: "rgba(212, 175, 55, 0.15)",
+              filter: "blur(40px)",
+              pointerEvents: "none"
+            }}
+          />
+
+          {/* Card Header */}
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
               alignItems: "center",
+              marginBottom: "20px",
+              position: "relative",
+              zIndex: 1,
             }}
           >
             <div>
-              <div
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  padding: "8px 14px",
-                  borderRadius: "999px",
-                  background: "rgba(255,255,255,0.05)",
-                  border: "1px solid rgba(255,255,255,0.09)",
-                  color: "#e2e8f0",
-                  fontSize: "13px",
-                  fontWeight: "700",
-                  marginBottom: "22px",
-                }}
-              >
-                <span style={{ color: "#d4af37" }}>●</span>
-               OPERATIONAL PROFIT INTELLIGENCE FOR FULL-SERVICE RESTAURANTS
+              <div style={{ fontSize: "11px", color: "#64748b", fontWeight: "700", letterSpacing: "0.05em" }}>
+                COMMAND CENTER
               </div>
-
-             <h1
-  style={{
-    fontSize: isMobile ? "34px" : "72px",
-    lineHeight: 1,
-    letterSpacing: "-0.05em",
-    fontWeight: "900",
-    marginBottom: "22px",
-    maxWidth: "820px",
-    wordBreak: "break-word",
-  }}
->
-  Operational
-  <span
-    style={{
-      background:
-        "linear-gradient(90deg, #d4af37, #ffffff, #7c3aed)",
-      WebkitBackgroundClip: "text",
-      WebkitTextFillColor: "transparent",
-    }}
-  >
-    {" "}
-    Profit Intelligence{" "}
-  </span>
-  for Full-Service Restaurants
-</h1>
-
-              <p
-                style={{
-                  fontSize: "20px",
-                  lineHeight: 1.7,
-                  color: "#cbd5e1",
-                  maxWidth: "650px",
-                  marginBottom: "18px",
-                }}
-              >
-               SerVen helps full-service restaurants uncover hidden margin leakage across labor, food cost, menu performance, and operational trends using AI-powered intelligence.
-
-              </p>
-
-              <p
-                style={{
-                  fontSize: "16px",
-                  lineHeight: 1.7,
-                  color: "#94a3b8",
-                  maxWidth: "620px",
-                  marginBottom: "34px",
-                }}
-              >
-                Spot profit leaks, improve margins, optimize staffing,
-and uncover growth opportunities without spreadsheet chaos.
-              </p>
-
-             <div
-  style={{
-    display: "flex",
-    gap: "14px",
-    flexDirection: isMobile ? "column" : "row",
-    flexWrap: "wrap",
-    marginBottom: "30px",
-  }}
->
-                <Link href="/signup" style={primaryButton}>
-  Request Profit Analysis
-</Link>
-                <a href="#demo" style={secondaryButton}>
-  Explore Operational Intelligence
-</a>
-              </div>
-
-              <div
-                style={{
-                  display: "flex",
-                  gap: "14px",
-                  flexDirection: isMobile ? "column" : "row",
-flexWrap: "wrap",
-                }}
-              >
-                {[
-                  "Food Cost Monitoring",
-                  "AI Recommendations",
-                  "Labor Optimization",
-                  "Menu Profitability",
-                ].map((item) => (
-                  <div
-                    key={item}
-                    style={{
-                      padding: "10px 14px",
-                      borderRadius: "999px",
-                      background: "rgba(255,255,255,0.04)",
-                      border: "1px solid rgba(255,255,255,0.08)",
-                      color: "#e2e8f0",
-                      fontSize: "13px",
-                      fontWeight: "600",
-                    }}
-                  >
-                    {item}
-                  </div>
-                ))}
+              <div style={{ fontSize: isMobile ? "18px" : "20px", fontWeight: "800", color: "#ffffff" }}>
+                Live Operations
               </div>
             </div>
 
-            <div id="demo">
-              <div style={dashboardCard}>
-                <div
-                  style={{
-                    position: "absolute",
-                    top: "-60px",
-                    right: "-60px",
-                    width: "180px",
-                    height: "180px",
-                    borderRadius: "999px",
-                    background: "rgba(79,70,229,0.22)",
-                    filter: "blur(30px)",
-                  }}
-                />
-                <div
-                  style={{
-                    position: "absolute",
-                    bottom: "-60px",
-                    left: "-60px",
-                    width: "180px",
-                    height: "180px",
-                    borderRadius: "999px",
-                    background: "rgba(212,175,55,0.18)",
-                    filter: "blur(34px)",
-                  }}
-                />
+            <div
+              style={{
+                padding: "6px 12px",
+                borderRadius: "999px",
+                background: "rgba(34,197,94,0.1)",
+                color: "#4ade80",
+                border: "1px solid rgba(34,197,94,0.15)",
+                fontSize: "11px",
+                fontWeight: "700",
+                letterSpacing: "0.05em"
+              }}
+            >
+              ● AI LIVE
+            </div>
+          </div>
 
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    marginBottom: "18px",
-                    position: "relative",
-                    zIndex: 1,
-                  }}
-                >
-                  <div>
-                    <div
-                      style={{
-                        fontSize: "12px",
-                        color: "#94a3b8",
-                        fontWeight: "700",
-                        marginBottom: "6px",
-                      }}
-                    >
-                     LIVE OPERATIONAL OVERVIEW
-                    </div>
-                    <div style={{ fontSize: "20px", fontWeight: "800" }}>
-                      Restaurant Command Center
-                    </div>
-                  </div>
+          {/* Stats Row - Adaptive Grid for Mobile */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr", 
+              gap: "12px",
+              marginBottom: "16px",
+              position: "relative",
+              zIndex: 1,
+            }}
+          >
+            <div style={{ ...statCard, padding: isMobile ? "12px" : "16px" }}>
+              <div style={{ color: "#94a3b8", fontSize: "11px", fontWeight: "700" }}>
+                WEEKLY REVENUE
+              </div>
+              <div style={{ color: "#ffffff", fontSize: isMobile ? "22px" : "28px", fontWeight: "900", marginTop: "6px" }}>
+                $24,860
+              </div>
+              <div style={{ color: "#4ade80", fontSize: "12px", marginTop: "4px", fontWeight: "600" }}>
+                ↑ 12.4%
+              </div>
+            </div>
 
-                  <div
-                    style={{
-                      padding: "8px 12px",
-                      borderRadius: "999px",
-                      background: "rgba(34,197,94,0.12)",
-                      color: "#86efac",
-                      border: "1px solid rgba(34,197,94,0.2)",
-                      fontSize: "12px",
-                      fontWeight: "700",
-                    }}
-                  >
-                    ● AI LIVE
-                  </div>
-                </div>
-
-              <div
-  style={{
-    display: "grid",
-    gridTemplateColumns: isMobile
-      ? "1fr"
-      : "repeat(auto-fit, minmax(240px, 1fr))",
-    gap: "14px",
-    marginBottom: "16px",
-    position: "relative",
-    zIndex: 1,
-  }}
->
-  <div style={statCard}>
-    <div
-      style={{
-        color: "#cbd5e1",
-        fontSize: "12px",
-        fontWeight: "800",
-        letterSpacing: "0.06em",
-      }}
-    >
-      WEEKLY REVENUE
-    </div>
-
-    <div
-      style={{
-        color: "#ffffff",
-        fontSize: "30px",
-        fontWeight: "950",
-        marginTop: "10px",
-      }}
-    >
-      $24,860
-    </div>
-
-    <div
-      style={{
-        color: "#86efac",
-        fontSize: "13px",
-        marginTop: "8px",
-        fontWeight: "700",
-      }}
-    >
-      +12.4% vs last week
-    </div>
-  </div>
-
-  <div style={statCard}>
-    <div
-      style={{
-        color: "#cbd5e1",
-        fontSize: "12px",
-        fontWeight: "800",
-        letterSpacing: "0.06em",
-      }}
-    >
-      FOOD COST %
-    </div>
-
-    <div
-      style={{
-        color: "#ffffff",
-        fontSize: "30px",
-        fontWeight: "950",
-        marginTop: "10px",
-      }}
-    >
-      31.2%
-    </div>
-
-    <div
-      style={{
-        color: "#fbbf24",
-        fontSize: "13px",
-        marginTop: "8px",
-        fontWeight: "700",
-      }}
-    >
-      Margin pressure detected
-    </div>
-  </div>
-</div>
-
-                <div
-                  style={{
-                    ...glassCard,
-                    padding: "18px",
-                    marginBottom: "16px",
-                    position: "relative",
-                    zIndex: 1,
-                  }}
-                >
-                  <div
-                    style={{
-                      color: "#94a3b8",
-                      fontSize: "12px",
-                      fontWeight: "700",
-                      marginBottom: "12px",
-                    }}
-                  >
-                    PROFIT OPPORTUNITY DETECTEDMARGIN RECOVERY OPPORTUNITY
-                  </div>
-                  <div
-                    style={{
-                      fontSize: "30px",
-                      fontWeight: "900",
-                      marginBottom: "8px",
-                    }}
-                  >
-                    +$3,240/mo
-                  </div>
-                  <div
-                    style={{
-                      color: "#cbd5e1",
-                      lineHeight: 1.6,
-                      fontSize: "14px",
-                    }}
-                  >
-                    Raise price on 3 underpriced menu items, reduce prep waste on
-                    high-cost ingredients, and rebalance Tuesday labor coverage.
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    display: "grid",
-                    gap: "12px",
-                    position: "relative",
-                    zIndex: 1,
-                  }}
-                >
-                  {[
-                    {
-                      title: "Menu Pricing Alert",
-                      text: "2 best-selling items are underpriced compared to margin targets.",
-                    },
-                    {
-                      title: "Labor Optimization",
-                      text: "Friday lunch staffing is efficient, but Tuesday dinner is overstaffed.",
-                    },
-                    {
-                      title: "Inventory Insight",
-                      text: "One high-usage ingredient may run low within 6 days at current volume.",
-                    },
-                  ].map((item) => (
-                    <div
-                      key={item.title}
-                      style={{
-                        padding: "14px 16px",
-                        borderRadius: "16px",
-                        background: "rgba(255,255,255,0.04)",
-                        border: "1px solid rgba(255,255,255,0.07)",
-                      }}
-                    >
-                      <div style={{ fontWeight: "700", marginBottom: "6px" }}>
-                        {item.title}
-                      </div>
-                      <div
-                        style={{
-                          color: "#94a3b8",
-                          fontSize: "14px",
-                          lineHeight: 1.6,
-                        }}
-                      >
-                        {item.text}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+            <div style={{ ...statCard, padding: isMobile ? "12px" : "16px" }}>
+              <div style={{ color: "#94a3b8", fontSize: "11px", fontWeight: "700" }}>
+                FOOD COST %
+              </div>
+              <div style={{ color: "#ffffff", fontSize: isMobile ? "22px" : "28px", fontWeight: "900", marginTop: "6px" }}>
+                31.2%
+              </div>
+              <div style={{ color: "#f59e0b", fontSize: "12px", marginTop: "4px", fontWeight: "600" }}>
+                High Alert
               </div>
             </div>
           </div>
+
+          {/* Main Profit Highlight Banner */}
+          <div
+            style={{
+              ...glassCard,
+              padding: "16px",
+              marginBottom: "16px",
+              position: "relative",
+              zIndex: 1,
+              background: "rgba(255,255,255,0.02)",
+              border: "1px solid rgba(255,255,255,0.06)"
+            }}
+          >
+            <div style={{ color: "#a78bfa", fontSize: "11px", fontWeight: "700", letterSpacing: "0.05em", marginBottom: "4px" }}>
+              MARGIN RECOVERY OPPORTUNITY
+            </div>
+            <div style={{ fontSize: "26px", fontWeight: "900", color: "#ffffff", marginBottom: "4px" }}>
+              +$3,240<span style={{ fontSize: "14px", fontWeight: "500", color: "#64748b" }}>/mo</span>
+            </div>
+            <div style={{ color: "#cbd5e1", fontSize: "13px", lineHeight: "1.5" }}>
+              Optimizing Tuesday labor schedules and adjusting 3 underpriced menu items detected.
+            </div>
+          </div>
+
+          {/* Actionable Alerts Stack */}
+          <div style={{ display: "grid", gap: "8px", position: "relative", zIndex: 1 }}>
+            {[
+              { title: "Menu Pricing Alert", text: "2 top sellers are performing under target margins." },
+              { title: "Labor Optimization", text: "Tuesday dinner shifts are currently overstaffed by 1.5 hrs." }
+            ].map((item) => (
+              <div
+                key={item.title}
+                style={{
+                  padding: "12px 14px",
+                  borderRadius: "12px",
+                  background: "rgba(255,255,255,0.03)",
+                  border: "1px solid rgba(255,255,255,0.05)",
+                }}
+              >
+                <div style={{ fontWeight: "700", fontSize: "13px", color: "#ffffff", marginBottom: "2px" }}>
+                  {item.title}
+                </div>
+                <div style={{ color: "#94a3b8", fontSize: "12px", lineHeight: "1.4" }}>
+                  {item.text}
+                </div>
+              </div>
+            ))}
+          </div>
+
         </div>
-      </section>
-{/* ============================= */}
+      </div>
+    </div>
+  </div>
+</section>
+
 {/* TRY YOUR DATA */}
-{/* ============================= */}
-<section style={{ padding: "20px 0 70px" }}>
+<section style={{ padding: isMobile ? "40px 0" : "80px 0" }}>
   <div style={containerStyle}>
     <div
       style={{
         ...glassCard,
-        padding: isMobile ? "18px" : "32px",
+        padding: isMobile ? "24px 16px" : "48px 40px",
         borderRadius: "24px",
         textAlign: "center",
+        background: "rgba(15, 23, 42, 0.4)",
+        border: "1px solid rgba(255, 255, 255, 0.05)"
       }}
     >
       <div
         style={{
           color: "#d4af37",
           fontWeight: "800",
-          fontSize: "13px",
-          letterSpacing: "0.08em",
+          fontSize: "12px",
+          letterSpacing: "0.1em",
           textTransform: "uppercase",
           marginBottom: "12px",
         }}
       >
-        Try Your Data
+        Interactive Simulator
       </div>
 
-      <h2 style={{ fontSize: "36px", fontWeight: "900", marginBottom: "10px" }}>
-        See what SerVen finds in your data.
+      <h2 style={{ fontSize: isMobile ? "28px" : "42px", fontWeight: "900", marginBottom: "12px", color: "#ffffff", letterSpacing: "-0.03em" }}>
+        See What SerVen Finds in Your Data
       </h2>
 
       <p
         style={{
           color: "#94a3b8",
-          fontSize: "16px",
-          lineHeight: 1.7,
-          maxWidth: "720px",
-          margin: "0 auto 24px",
+          fontSize: isMobile ? "15px" : "17px",
+          lineHeight: 1.6,
+          maxWidth: "680px",
+          margin: "0 auto 32px",
         }}
       >
-        Upload a sales export or sample report and preview how SerVen detects
-profit leaks, tracks margins, and surfaces operational opportunities.
+        Upload a standard sales export or sample report below. SerVen will securely scan it to instantly map out margin leaks and operational inefficiencies.
       </p>
 
+      {/* Upload Zone Drop Box */}
       <label
         style={{
           display: "block",
           maxWidth: "620px",
-          margin: "0 auto 18px",
-          padding: "30px 24px",
-          borderRadius: "22px",
-          background:
-            "radial-gradient(circle at top right, rgba(79,70,229,0.18), transparent 38%), rgba(255,255,255,0.04)",
-          border: "1px dashed rgba(212,175,55,0.45)",
+          margin: "0 auto 32px",
+          padding: isMobile ? "32px 16px" : "44px 24px",
+          borderRadius: "20px",
+          background: "radial-gradient(circle at top right, rgba(99, 102, 241, 0.1), transparent 50%), rgba(255,255,255,0.02)",
+          border: "1px dashed rgba(212,175,55,0.4)",
           cursor: "pointer",
-          transition: "all 0.25s ease",
+          transition: "all 0.2s ease-in-out",
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.transform = "translateY(-3px)";
-          e.currentTarget.style.boxShadow = "0 22px 60px rgba(2,6,23,0.35)";
-          e.currentTarget.style.border = "1px dashed rgba(212,175,55,0.75)";
+          e.currentTarget.style.transform = "translateY(-2px)";
+          e.currentTarget.style.border = "1px dashed rgba(212,175,55,0.7)";
+          e.currentTarget.style.background = "radial-gradient(circle at top right, rgba(99, 102, 241, 0.15), transparent 50%), rgba(255,255,255,0.04)";
         }}
         onMouseLeave={(e) => {
           e.currentTarget.style.transform = "translateY(0px)";
-          e.currentTarget.style.boxShadow = "none";
-          e.currentTarget.style.border = "1px dashed rgba(212,175,55,0.45)";
+          e.currentTarget.style.border = "1px dashed rgba(212,175,55,0.4)";
+          e.currentTarget.style.background = "radial-gradient(circle at top right, rgba(99, 102, 241, 0.1), transparent 50%), rgba(255,255,255,0.02)";
         }}
       >
         <input
-  type="file"
-  accept=".csv,.xlsx,.xls"
-  style={{ display: "none" }}
- onChange={async (e) => {
-  const file = e.target.files?.[0];
+          type="file"
+          accept=".csv,.xlsx,.xls"
+          style={{ display: "none" }}
+          onChange={async (e) => {
+            const file = e.target.files?.[0];
+            if (!file) return;
 
-  if (!file) return;
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session?.user) {
+              alert("Please log in first, then upload your sales file.");
+              window.location.href = "/login?intent=demo";
+              return;
+            }
 
-const {
-  data: { session },
-} = await supabase.auth.getSession();
+            setCurrentUser(session.user);
 
-if (!session?.user) {
-  alert("Please log in first, then upload your sales file.");
+            try {
+              const data = await file.arrayBuffer();
+              const workbook = XLSX.read(data);
+              const sheetName = workbook.SheetNames[0];
+              const worksheet = workbook.Sheets[sheetName];
+              const rows = XLSX.utils.sheet_to_json(worksheet);
 
-  window.location.href = "/login?intent=demo";
+              const revenue = rows.reduce((sum, row) => {
+                const value = Number(row.total || row.Total || row.sales || row.Sales || row.amount || row.Amount || row.revenue || row.Revenue || 0) || 0;
+                return sum + value;
+              }, 0);
 
-  return;
-}
+              const foodCost = rows.reduce((sum, row) => {
+                const value = Number(row.foodCost || row.FoodCost || row.food_cost || row["Food Cost"] || 0) || 0;
+                return sum + value;
+              }, 0);
 
-setCurrentUser(session.user);
+              const laborCost = rows.reduce((sum, row) => {
+                const value = Number(row.laborCost || row.LaborCost || row.labor_cost || row["Labor Cost"] || 0) || 0;
+                return sum + value;
+              }, 0);
 
-  try {
-    const data = await file.arrayBuffer();
+              const averageSale = revenue / Math.max(rows.length, 1);
+              const foodCostPercent = revenue > 0 ? (foodCost / revenue) * 100 : 0;
+              const laborCostPercent = revenue > 0 ? (laborCost / revenue) * 100 : 0;
+              const primeCost = foodCost + laborCost;
+              const primeCostPercent = revenue > 0 ? (primeCost / revenue) * 100 : 0;
+              
+              let primeCostStatus = "Healthy";
+              let primeCostMessage = "Prime cost is within healthy operational range.";
+              let operationalRecommendations = [];
 
-    const workbook = XLSX.read(data);
+              if (foodCostPercent >= 32) operationalRecommendations.push("Review high-cost menu items and ingredient waste assets.");
+              if (laborCostPercent >= 30) operationalRecommendations.push("Evaluate staffing efficiency during slower operating mid-week periods.");
+              if (primeCostPercent >= 65) operationalRecommendations.push("Prime cost is critically elevated and requires immediate operational menu tier restructuring.");
+              if (operationalRecommendations.length === 0) operationalRecommendations.push("Operations are performing cleanly within target baseline metric benchmarks.");
 
-    const sheetName = workbook.SheetNames[0];
+              if (primeCostPercent >= 65) {
+                primeCostStatus = "Critical";
+                primeCostMessage = "Prime cost is significantly above target operational thresholds.";
+              } else if (primeCostPercent >= 55) {
+                primeCostStatus = "Warning";
+                primeCostMessage = "Prime cost is approaching unhealthy operational levels.";
+              }
 
-    const worksheet = workbook.Sheets[sheetName];
+              const estimatedProfitLeak = Math.max(0, foodCostPercent > 32 ? revenue * 0.08 : revenue * 0.04);
 
-    const rows = XLSX.utils.sheet_to_json(worksheet);
+              const primeCostTrendData = rows.slice(0, 14).map((row, index) => {
+                const rowRevenue = Number(row.total || row.Total || row.sales || row.Sales || row.amount || row.Amount || row.revenue || row.Revenue || 0) || 0;
+                const rowFoodCost = Number(row.foodCost || row.FoodCost || row.food_cost || row["Food Cost"] || 0) || 0;
+                const rowLaborCost = Number(row.laborCost || row.LaborCost || row.labor_cost || row["Labor Cost"] || 0) || 0;
+                const rowPrimeCostPercent = rowRevenue > 0 ? ((rowFoodCost + rowLaborCost) / rowRevenue) * 100 : 0;
+                const rawDate = row.date || row.Date || row.day || row.Day;
+                
+                let formattedLabel;
+                if (typeof rawDate === "number") {
+                  const excelDate = XLSX.SSF.parse_date_code(rawDate);
+                  formattedLabel = `${excelDate.m}/${excelDate.d}`;
+                } else {
+                  formattedLabel = rawDate || ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][index % 7];
+                }
 
-    const revenue = rows.reduce((sum, row) => {
-      const value =
-        Number(
-          row.total ||
-            row.Total ||
-            row.sales ||
-            row.Sales ||
-            row.amount ||
-            row.Amount ||
-            row.revenue ||
-            row.Revenue ||
-            0
-        ) || 0;
+                return {
+                  label: formattedLabel,
+                  primeCostPercent: Number(rowPrimeCostPercent.toFixed(1)),
+                };
+              });
 
-      return sum + value;
-    }, 0);
+              const menuEngineeringData = rows.slice(0, 5).map((row, index) => {
+                const itemName = row.item || row.Item || row.name || row.Name || row.menuItem || row["Menu Item"] || `Item ${index + 1}`;
+                const itemRevenue = Number(row.total || row.Total || row.sales || row.Sales || row.revenue || row.Revenue || 0) || 0;
+                const itemFoodCost = Number(row.foodCost || row.FoodCost || row.food_cost || row["Food Cost"] || 0) || 0;
+                const itemMargin = itemRevenue > 0 ? ((itemRevenue - itemFoodCost) / itemRevenue) * 100 : 0;
 
-   const foodCost = rows.reduce((sum, row) => {
-  const value =
-    Number(
-      row.foodCost ||
-        row.FoodCost ||
-        row.food_cost ||
-        row["Food Cost"] ||
-        0
-    ) || 0;
+                return { itemName, margin: Number(itemMargin.toFixed(1)), revenue: itemRevenue };
+              }).sort((a, b) => b.margin - a.margin);
 
-  return sum + value;
-}, 0);
+              const shiftIntelligenceData = [
+                { shift: "Lunch", revenue: revenue * 0.32, laborCost: laborCost * 0.28 },
+                { shift: "Dinner", revenue: revenue * 0.68, laborCost: laborCost * 0.72 },
+              ].map((shift) => {
+                const salesPerLaborHour = shift.laborCost > 0 ? shift.revenue / (shift.laborCost / 18) : 0;
+                return { ...shift, salesPerLaborHour: Number(salesPerLaborHour.toFixed(1)) };
+              });
 
-const laborCost = rows.reduce((sum, row) => {
-  const value =
-    Number(
-      row.laborCost ||
-        row.LaborCost ||
-        row.labor_cost ||
-        row["Labor Cost"] ||
-        0
-    ) || 0;
+              const bestShift = [...shiftIntelligenceData].sort((a, b) => b.salesPerLaborHour - a.salesPerLaborHour)[0];
+              const weakestShift = [...shiftIntelligenceData].sort((a, b) => a.salesPerLaborHour - b.salesPerLaborHour)[0];
 
-  return sum + value;
-}, 0);
+              const executiveSummary = `Prime Cost is currently ${primeCostPercent.toFixed(1)}%, displaying ${primeCostStatus === "Critical" ? "high financial compression metrics" : primeCostStatus === "Warning" ? "moderate operational strain patterns" : "excellent target threshold pacing"}.\n\nPrimary Optimization Route: ${operationalRecommendations[0]}\n\nTop Yielding Window: ${bestShift?.shift || "Dinner System"} returning $${Number(bestShift?.salesPerLaborHour || 0).toLocaleString()} transactional rate per active labor hour.`;
 
-const averageSale = revenue / Math.max(rows.length, 1);
+              setDemoResult({
+                rows: rows.length, revenue, foodCost, laborCost, primeCost, averageSale,
+                foodCostPercent, laborCostPercent, primeCostPercent, primeCostStatus, primeCostMessage,
+                operationalRecommendations, primeCostTrendData, menuEngineeringData, shiftIntelligenceData,
+                bestShift, weakestShift, executiveSummary, estimatedProfitLeak,
+              });
 
-const foodCostPercent = revenue > 0 ? (foodCost / revenue) * 100 : 0;
-
-const laborCostPercent = revenue > 0 ? (laborCost / revenue) * 100 : 0;
-const primeCost = foodCost + laborCost;
-
-const primeCostPercent =
-  revenue > 0 ? (primeCost / revenue) * 100 : 0;
-  let primeCostStatus = "Healthy";
-let primeCostMessage = "Prime cost is within healthy operational range.";
-let operationalRecommendations = [];
-
-if (foodCostPercent >= 32) {
-  operationalRecommendations.push(
-    "Review high-cost menu items and ingredient waste."
-  );
-}
-
-if (laborCostPercent >= 30) {
-  operationalRecommendations.push(
-    "Evaluate staffing efficiency during slower operating periods."
-  );
-}
-
-if (primeCostPercent >= 65) {
-  operationalRecommendations.push(
-    "Prime cost is critically elevated and requires immediate operational review."
-  );
-}
-
-if (operationalRecommendations.length === 0) {
-  operationalRecommendations.push(
-    "Operations are performing within healthy benchmark ranges."
-  );
-}
-if (primeCostPercent >= 65) {
-  primeCostStatus = "Critical";
-  primeCostMessage =
-    "Prime cost is significantly above target operational thresholds.";
-} else if (primeCostPercent >= 55) {
-  primeCostStatus = "Warning";
-  primeCostMessage =
-    "Prime cost is approaching unhealthy operational levels.";
-}
-const estimatedProfitLeak = Math.max(
-  0,
-  foodCostPercent > 32 ? revenue * 0.08 : revenue * 0.04
-);
-const primeCostTrendData = rows.slice(0, 14).map((row, index) => {
-  const rowRevenue =
-    Number(
-      row.total ||
-        row.Total ||
-        row.sales ||
-        row.Sales ||
-        row.amount ||
-        row.Amount ||
-        row.revenue ||
-        row.Revenue ||
-        0
-    ) || 0;
-
-  const rowFoodCost =
-    Number(
-      row.foodCost ||
-        row.FoodCost ||
-        row.food_cost ||
-        row["Food Cost"] ||
-        0
-    ) || 0;
-
-  const rowLaborCost =
-    Number(
-      row.laborCost ||
-        row.LaborCost ||
-        row.labor_cost ||
-        row["Labor Cost"] ||
-        0
-    ) || 0;
-
-  const rowPrimeCostPercent =
-    rowRevenue > 0 ? ((rowFoodCost + rowLaborCost) / rowRevenue) * 100 : 0;
-
- const rawDate =
-  row.date ||
-  row.Date ||
-  row.day ||
-  row.Day;
-
-let formattedLabel;
-
-if (typeof rawDate === "number") {
-  const excelDate = XLSX.SSF.parse_date_code(rawDate);
-
-  formattedLabel = `${excelDate.m}/${excelDate.d}`;
-} else {
-  formattedLabel =
-    rawDate ||
-    ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][index % 7];
-}
-
-return {
-  label: formattedLabel,
-    primeCostPercent: Number(rowPrimeCostPercent.toFixed(1)),
-  };
-});
-const menuEngineeringData = rows
-  .slice(0, 5)
-  .map((row, index) => {
-    const itemName =
-      row.item ||
-      row.Item ||
-      row.name ||
-      row.Name ||
-      row.menuItem ||
-      row["Menu Item"] ||
-      `Menu Item ${index + 1}`;
-
-    const itemRevenue =
-      Number(
-        row.total ||
-          row.Total ||
-          row.sales ||
-          row.Sales ||
-          row.revenue ||
-          row.Revenue ||
-          0
-      ) || 0;
-
-    const itemFoodCost =
-      Number(
-        row.foodCost ||
-          row.FoodCost ||
-          row.food_cost ||
-          row["Food Cost"] ||
-          0
-      ) || 0;
-
-    const itemMargin =
-      itemRevenue > 0
-        ? ((itemRevenue - itemFoodCost) / itemRevenue) * 100
-        : 0;
-
-    return {
-      itemName,
-      margin: Number(itemMargin.toFixed(1)),
-      revenue: itemRevenue,
-    };
-  })
-  .sort((a, b) => b.margin - a.margin);
-  const shiftIntelligenceData = [
-  {
-    shift: "Lunch",
-    revenue: revenue * 0.32,
-    laborCost: laborCost * 0.28,
-  },
-  {
-    shift: "Dinner",
-    revenue: revenue * 0.68,
-    laborCost: laborCost * 0.72,
-  },
-].map((shift) => {
-  const salesPerLaborHour =
-    shift.laborCost > 0
-      ? shift.revenue / (shift.laborCost / 18)
-      : 0;
-
-  return {
-    ...shift,
-    salesPerLaborHour: Number(salesPerLaborHour.toFixed(1)),
-  };
-});
-
-const bestShift = [...shiftIntelligenceData].sort(
-  (a, b) => b.salesPerLaborHour - a.salesPerLaborHour
-)[0];
-const executiveSummary = `
-Prime Cost is currently ${primeCostPercent.toFixed(1)}%, with ${
-  primeCostStatus === "Critical"
-    ? "significant operational pressure detected."
-    : primeCostStatus === "Warning"
-    ? "moderate operational pressure detected."
-    : "operations currently performing within healthy benchmarks."
-}
-
-Top operational opportunity:
-${operationalRecommendations[0]}
-
-Strongest shift:
-${bestShift?.shift || "Dinner"} generating approximately $${Number(
-  bestShift?.salesPerLaborHour || 0
-).toLocaleString()} per labor hour.
-
-Menu highlight:
-${
-  menuEngineeringData?.[0]?.itemName || "Top menu item"
-} is currently one of the strongest margin performers.
-`;
-const weakestShift = [...shiftIntelligenceData].sort(
-  (a, b) => a.salesPerLaborHour - b.salesPerLaborHour
-)[0];
-setDemoResult({
-  rows: rows.length,
-  revenue,
-  foodCost,
-  laborCost,
-  primeCost,
-  averageSale,
-  foodCostPercent,
-  laborCostPercent,
-  primeCostPercent,
-  primeCostStatus,
-  primeCostMessage,
-  operationalRecommendations,
-  primeCostTrendData,
-  menuEngineeringData,
-  shiftIntelligenceData,
-  bestShift,
-  weakestShift,
-  executiveSummary,
-  estimatedProfitLeak,
-});
-alert("Demo result saved");
-    console.log(rows);
-
-  } catch (err) {
-    console.error(err);
-
-    alert("Unable to read file.");
-  }
-}}
-/>
-
-        <div style={{ fontSize: "34px", marginBottom: "10px" }}>📊</div>
-
-        <div
-          style={{
-            color: "white",
-            fontSize: "18px",
-            fontWeight: "900",
-            marginBottom: "6px",
+            } catch (err) {
+              console.error(err);
+              alert("Unable to interpret this file layout configuration.");
+            }
           }}
-        >
-          Drop your sales CSV here
-        </div>
+        />
 
-        <div
-          style={{
-            color: "#94a3b8",
-            fontSize: "14px",
-            lineHeight: 1.6,
-          }}
-        >
-          Or click to choose a file from your computer
+        <div style={{ fontSize: "36px", marginBottom: "16px" }}>📊</div>
+        <div style={{ color: "#ffffff", fontSize: "16px", fontWeight: "700", marginBottom: "4px" }}>
+          Drop your operations file here
         </div>
-<p
-  style={{
-    color: "#64748b",
-    fontSize: "12px",
-    marginTop: "10px",
-    lineHeight: 1.6,
-  }}
->
-  Recommended: 30–90 days of sales data for more accurate operational insights.
-</p>
+        <div style={{ color: "#64748b", fontSize: "13px", marginBottom: "14px" }}>
+          Supports standard .CSV, .XLSX sales metrics sheets
+        </div>
         <div
           style={{
             display: "inline-flex",
-            marginTop: "16px",
-            padding: "10px 14px",
+            padding: "8px 18px",
             borderRadius: "999px",
-            background: "linear-gradient(90deg, #4f46e5, #7c3aed)",
-            color: "white",
+            background: "rgba(255, 255, 255, 0.05)",
+            border: "1px solid rgba(255, 255, 255, 0.1)",
+            color: "#e2e8f0",
             fontSize: "13px",
-            fontWeight: "900",
+            fontWeight: "600",
           }}
         >
-          Upload Sales Report
+          Select File From Local Device
         </div>
       </label>
-{demoResult && (
-  <div
-    style={{
-      marginTop: "18px",
-      padding: "20px",
-      borderRadius: "18px",
-      background:
-        "linear-gradient(135deg, rgba(34,197,94,0.14), rgba(15,23,42,0.92))",
-      border: "1px solid rgba(34,197,94,0.25)",
-      color: "white",
-      textAlign: "left",
-    }}
-  >
-    <div
-      style={{
-        color: "#86efac",
-        fontSize: "13px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "8px",
-      }}
-    >
-      Demo Import Complete
-    </div>
 
-    <h3
-      style={{
-        fontSize: "24px",
-        fontWeight: "950",
-        marginBottom: "14px",
-      }}
-    >
-      SerVen found a profit opportunity in your data.
-    </h3>
-
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
-        gap: "12px",
-        marginBottom: "16px",
-      }}
-    >
-      {[
-        {
-          label: "Rows Analyzed",
-          value: demoResult.rows,
-        },
-        {
-          label: "Revenue Detected",
-          value: `$${demoResult.revenue.toLocaleString()}`,
-        },
-        {
-          label: "Avg Sale",
-          value: `$${demoResult.averageSale.toFixed(2)}`,
-        },
-        {
-          label: "Food Cost %",
-          value: `${demoResult.foodCostPercent.toFixed(1)}%`,
-        },
-        {
-          label: "Labor Cost %",
-          value: `${demoResult.laborCostPercent.toFixed(1)}%`,
-        },
-        {
-  label: "Prime Cost %",
-  value: `${demoResult.primeCostPercent.toFixed(1)}%`,
-},
-        {
-          label: "Estimated Opportunity",
-          value: `$${Math.round(
-            demoResult.estimatedProfitLeak
-          ).toLocaleString()}`,
-        },
-      ].map((item) => (
+      {/* DYNAMIC RESULT DASHBOARD DISPLAY */}
+      {demoResult && (
         <div
-          key={item.label}
           style={{
-            padding: "14px",
-            borderRadius: "14px",
-            background: "rgba(255,255,255,0.06)",
-            border: "1px solid rgba(255,255,255,0.08)",
-          }}
-        >
-          <div
-            style={{
-              color: "#94a3b8",
-              fontSize: "12px",
-              fontWeight: "800",
-              marginBottom: "6px",
-              textTransform: "uppercase",
-            }}
-          >
-            {item.label}
-          </div>
-
-          <div
-            style={{
-              color: "white",
-              fontSize: "22px",
-              fontWeight: "950",
-            }}
-          >
-            {item.value}
-          </div>
-        </div>
-      ))}
-    </div>
-<div
-  style={{
-    marginTop: "18px",
-    padding: "18px",
-    borderRadius: "18px",
-    background: "rgba(255,255,255,0.05)",
-    border: "1px solid rgba(255,255,255,0.08)",
-  }}
->
-  <div
-    style={{
-      color: "#d4af37",
-      fontSize: "13px",
-      fontWeight: "900",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      marginBottom: "12px",
-    }}
-  >
-    Prime Cost Trend
-  </div>
-
-  <div style={{ width: "100%", height: "240px" }}>
-    <ResponsiveContainer width="100%" height="100%">
-      <LineChart data={demoResult.primeCostTrendData || []}>
-        <Legend
-  wrapperStyle={{
-    paddingBottom: "12px",
-    fontSize: "12px",
-    color: "#cbd5e1",
-  }}
-/>
-        <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.16)" />
-
-        <XAxis
-          dataKey="label"
-          tick={{ fill: "#94a3b8", fontSize: 12 }}
-          axisLine={{ stroke: "rgba(148,163,184,0.18)" }}
-          tickLine={false}
-        />
-
-        <YAxis
-          tick={{ fill: "#94a3b8", fontSize: 12 }}
-          axisLine={{ stroke: "rgba(148,163,184,0.18)" }}
-          tickLine={false}
-          tickFormatter={(value) => `${value}%`}
-        />
-
-        <Tooltip
-          formatter={(value) => [`${Number(value).toFixed(1)}%`, "Prime Cost"]}
-          contentStyle={{
-            background: "#020617",
-            border: "1px solid rgba(148,163,184,0.24)",
-            borderRadius: "12px",
+            marginTop: "32px",
+            padding: isMobile ? "16px" : "28px",
+            borderRadius: "20px",
+            background: "linear-gradient(145deg, rgba(30, 41, 59, 0.7), rgba(2, 6, 23, 0.95))",
+            border: "1px solid rgba(212, 175, 55, 0.15)",
             color: "white",
-          }}
-        />
-
-       <>
-  <Line
-  type="monotone"
-  dataKey="primeCostPercent"
-  name="Prime Cost %"
-    stroke="#d4af37"
-    strokeWidth={3}
-    dot={{ r: 4 }}
-    activeDot={{ r: 6 }}
-  />
-
-  <Line
-  type="monotone"
-  dataKey={() => 55}
-  name="Healthy Benchmark"
-  stroke="#22c55e"
-  strokeDasharray="6 6"
-  strokeWidth={2}
-  dot={false}
-/>
-
-  <Line
-  type="monotone"
-  dataKey={() => 65}
-  name="Critical Threshold"
-  stroke="#ef4444"
-  strokeDasharray="6 6"
-  strokeWidth={2}
-  dot={false}
-/>
-</>
-      </LineChart>
-    </ResponsiveContainer>
-  </div>
-</div>
-<div
-  style={{
-    marginTop: "12px",
-    padding: "14px 16px",
-    borderRadius: "16px",
-    background: "rgba(79,70,229,0.10)",
-    border: "1px solid rgba(124,58,237,0.22)",
-  }}
->
-  <div
-    style={{
-      color: "#c4b5fd",
-      fontSize: "12px",
-      fontWeight: "900",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      marginBottom: "8px",
-    }}
-  >
-    AI Operational Commentary
-  </div>
-  <p
-    style={{
-      color: "#cbd5e1",
-      fontSize: "14px",
-      lineHeight: 1.7,
-      margin: 0,
-    }}
-  >
-    {demoResult.primeCostPercent >= 65
-      ? "Prime cost is above critical operating range. SerVen would prioritize labor control, food cost review, and margin recovery opportunities."
-      : demoResult.primeCostPercent >= 55
-      ? "Prime cost is approaching the warning range. SerVen would monitor labor efficiency, menu margins, and ingredient cost pressure closely."
-      : "Prime cost is currently within a healthy range. SerVen would continue tracking margin trends and watch for early cost pressure signals."}
-  </p>
-</div>
-
-{/* EXECUTIVE SUMMARY PREVIEW */}
-<div
-  style={{
-    marginTop: "14px",
-    padding: "16px",
-    borderRadius: "16px",
-    background:
-      "linear-gradient(135deg, rgba(212,175,55,0.12), rgba(15,23,42,0.92))",
-    border: "1px solid rgba(212,175,55,0.22)",
-  }}
->
-  <div
-    style={{
-      color: "#d4af37",
-      fontSize: "12px",
-      fontWeight: "900",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      marginBottom: "10px",
-    }}
-  >
-    Executive Summary Preview
-  </div>
-
-  <p
-    style={{
-      color: "#e2e8f0",
-      fontSize: "14px",
-      lineHeight: 1.8,
-      margin: 0,
-      whiteSpace: "pre-line",
-    }}
-  >
-    {demoResult.executiveSummary}
-  </p>
-</div>
-
-
-
-<div
-  style={{
-    marginTop: "14px",
-    padding: "16px",
-    borderRadius: "16px",
-    background: "rgba(255,255,255,0.05)",
-    border: "1px solid rgba(255,255,255,0.08)",
-  }}
->
-  <div
-    style={{
-      color: "#d4af37",
-      fontSize: "12px",
-      fontWeight: "900",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      marginBottom: "10px",
-    }}
-  >
-    Menu Engineering Preview
-  </div>
-
-  <div style={{ display: "grid", gap: "10px" }}>
-    {demoResult.menuEngineeringData?.map((item, index) => (
-      <div
-        key={`${item.itemName}-${index}`}
-        style={{
-          padding: "12px 14px",
-          borderRadius: "12px",
-          background: "rgba(255,255,255,0.04)",
-          border: "1px solid rgba(255,255,255,0.06)",
-          display: "flex",
-          justifyContent: "space-between",
-          gap: "12px",
-          alignItems: "center",
-          flexWrap: "wrap",
-        }}
-      >
-        <div>
-          <div style={{ color: "white", fontWeight: "900" }}>
-            {item.itemName}
-          </div>
-
-          <div style={{ color: "#94a3b8", fontSize: "13px", marginTop: "4px" }}>
-  Revenue: ${Number(item.revenue || 0).toLocaleString()}
-</div>
-
-<div style={{ color: "#cbd5e1", fontSize: "13px", marginTop: "6px" }}>
-  {item.margin >= 65
-    ? "Strong margin performer. Consider featuring this item more often."
-    : item.margin >= 45
-    ? "Moderate margin item. Monitor ingredient cost and pricing."
-    : "Margin risk detected. Review portioning, pricing, or supplier cost."}
-</div>
-        </div>
-
-        <div
-          style={{
-            padding: "8px 10px",
-            borderRadius: "999px",
-            background:
-              item.margin >= 65
-                ? "rgba(34,197,94,0.14)"
-                : item.margin >= 45
-                ? "rgba(245,158,11,0.14)"
-                : "rgba(239,68,68,0.14)",
-            color:
-              item.margin >= 65
-                ? "#86efac"
-                : item.margin >= 45
-                ? "#fcd34d"
-                : "#fca5a5",
-            fontSize: "12px",
-            fontWeight: "900",
+            textAlign: "left",
+            marginBottom: "32px"
           }}
         >
-          {item.margin.toFixed(1)}% Margin •{" "}
-{item.margin >= 65
-  ? "High Profit Item"
-  : item.margin >= 45
-  ? "Moderate Margin"
-  : "Margin Risk"}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+            <div>
+              <div style={{ color: "#4ade80", fontSize: "11px", fontWeight: "800", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                SIMULATION CONCLUDED
+              </div>
+              <h3 style={{ fontSize: isMobile ? "20px" : "24px", fontWeight: "900", color: "#ffffff", marginTop: "4px" }}>
+                SerVen Live Diagnostic Run
+              </h3>
+            </div>
+            <div style={{
+              padding: "6px 12px",
+              borderRadius: "8px",
+              fontSize: "12px",
+              fontWeight: "700",
+              background: demoResult.primeCostStatus === "Critical" ? "rgba(239,68,68,0.15)" : "rgba(34,197,94,0.15)",
+              color: demoResult.primeCostStatus === "Critical" ? "#fca5a5" : "#86efac"
+            }}>
+              {demoResult.primeCostStatus} State
+            </div>
+          </div>
+
+          {/* Metric Stats Adaptive Matrix */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)",
+              gap: "12px",
+              marginBottom: "24px",
+            }}
+          >
+            {[
+              { label: "Lines Parsed", value: demoResult.rows },
+              { label: "Gross Revenue", value: `$${Math.round(demoResult.revenue).toLocaleString()}` },
+              { label: "Food Cost Margin", value: `${demoResult.foodCostPercent.toFixed(1)}%` },
+              { label: "Labor Allocation", value: `${demoResult.laborCostPercent.toFixed(1)}%` },
+              { label: "Combined Prime Cost", value: `${demoResult.primeCostPercent.toFixed(1)}%`, highlight: true },
+              { label: "Annualized Leakage Projection", value: `$${Math.round(demoResult.estimatedProfitLeak).toLocaleString()}`, leak: true },
+            ].map((item, idx) => (
+              <div
+                key={idx}
+                style={{
+                  padding: "16px 14px",
+                  borderRadius: "12px",
+                  background: "rgba(255,255,255,0.02)",
+                  border: item.highlight ? "1px solid rgba(212,175,55,0.3)" : item.leak ? "1px solid rgba(239,68,68,0.25)" : "1px solid rgba(255,255,255,0.05)",
+                  gridColumn: isMobile && idx >= 4 ? "span 2" : "auto"
+                }}
+              >
+                <div style={{ color: "#64748b", fontSize: "11px", fontWeight: "700", marginBottom: "6px", textTransform: "uppercase" }}>
+                  {item.label}
+                </div>
+                <div style={{ color: item.leak ? "#fca5a5" : item.highlight ? "#d4af37" : "#ffffff", fontSize: "20px", fontWeight: "900" }}>
+                  {item.value}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Fixed Recharts Mobile Graph Container */}
+          <div
+            style={{
+              marginTop: "24px",
+              padding: "20px 14px 10px",
+              borderRadius: "16px",
+              background: "rgba(0,0,0,0.2)",
+              border: "1px solid rgba(255,255,255,0.04)",
+            }}
+          >
+            <div style={{ color: "#94a3b8", fontSize: "12px", fontWeight: "800", letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: "16px" }}>
+              Dynamic Prime Cost Tracking Vector
+            </div>
+
+            {/* CRITICAL: Set explicit minHeight to protect against mobile height collapsing */}
+            <div style={{ width: "100%", height: "260px", minHeight: "260px" }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={demoResult.primeCostTrendData || []} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="4 4" stroke="rgba(255,255,255,0.05)" />
+                  <XAxis dataKey="label" tick={{ fill: "#64748b", fontSize: 11 }} tickLine={false} />
+                  <YAxis tick={{ fill: "#64748b", fontSize: 11 }} tickFormatter={(val) => `${val}%`} tickLine={false} />
+                  <Tooltip
+                    formatter={(val) => [`${Number(val).toFixed(1)}%`, "Prime Cost"]}
+                    contentStyle={{ background: "#0f172a", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px", color: "white" }}
+                  />
+                  <Legend wrapperStyle={{ fontSize: "11px", paddingTop: "10px" }} />
+                  
+                  {/* CRITICAL REMOVAL: Outer fragment layer stripped to prevent Recharts rendering breaks */}
+                  <Line type="monotone" dataKey="primeCostPercent" name="Your Run %" stroke="#d4af37" strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+                  <Line type="monotone" dataKey={() => 55} name="Target Threshold" stroke="#22c55e" strokeDasharray="4 4" strokeWidth={1.5} dot={false} />
+                  <Line type="monotone" dataKey={() => 65} name="Danger Threshold" stroke="#ef4444" strokeDasharray="4 4" strokeWidth={1.5} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* AI Strategy Overview Card */}
+          <div style={{ marginTop: "20px", padding: "16px", borderRadius: "14px", background: "rgba(99, 102, 241, 0.06)", border: "1px solid rgba(99, 102, 241, 0.15)" }}>
+            <div style={{ color: "#c4b5fd", fontSize: "11px", fontWeight: "800", letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: "6px" }}>
+              AI Analytical Assessment
+            </div>
+            <p style={{ color: "#cbd5e1", fontSize: "13px", lineHeight: "1.5", margin: 0 }}>
+              {demoResult.primeCostPercent >= 65
+                ? "Warning: Your combined operating metrics track past industry critical danger limits. System logic recommends immediate auditing of current variable work timetables and supplier unit scales."
+                : demoResult.primeCostPercent >= 55
+                ? "Notice: Financial lines display high susceptibility to mid-tier operating friction. Active monitoring of inventory tracking pipelines is advised."
+                : "Optimal: Structural cost pacing tracks cleanly within standard premium performance thresholds. Scale pathways look structurally secure."}
+            </p>
+          </div>
+
+          {/* Executive Summary Block Layout */}
+          <div style={{ marginTop: "12px", padding: "16px", borderRadius: "14px", background: "rgba(212, 175, 55, 0.05)", border: "1px solid rgba(212, 175, 55, 0.15)" }}>
+            <div style={{ color: "#fcd34d", fontSize: "11px", fontWeight: "800", letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: "8px" }}>
+              Executive Brief Blueprint Preview
+            </div>
+            <p style={{ color: "#e2e8f0", fontSize: "13px", lineHeight: "1.6", margin: 0, whiteSpace: "pre-line" }}>
+              {demoResult.executiveSummary}
+            </p>
+          </div>
+
+          {/* Menu Performance Pricing Tiers */}
+          <div style={{ marginTop: "12px", padding: "16px", borderRadius: "14px", background: "rgba(255,255,255,0.01)", border: "1px solid rgba(255,255,255,0.05)" }}>
+            <div style={{ color: "#94a3b8", fontSize: "11px", fontWeight: "800", letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: "12px" }}>
+              Target Menu Engineering Insights
+            </div>
+            <div style={{ display: "grid", gap: "8px" }}>
+              {demoResult.menuEngineeringData?.map((item, idx) => (
+                <div key={idx} style={{ padding: "12px", borderRadius: "10px", background: "rgba(255,255,255,0.02)", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
+                  <div>
+                    <div style={{ color: "#ffffff", fontWeight: "700", fontSize: "14px" }}>{item.itemName}</div>
+                    <div style={{ color: "#64748b", fontSize: "12px", marginTop: "2px" }}>Gross: ${Math.round(item.revenue).toLocaleString()}</div>
+                  </div>
+                  <div style={{
+                    padding: "4px 10px",
+                    borderRadius: "6px",
+                    fontSize: "12px",
+                    fontWeight: "700",
+                    background: item.margin >= 65 ? "rgba(34,197,94,0.1)" : item.margin >= 45 ? "rgba(245,158,11,0.1)" : "rgba(239,68,68,0.1)",
+                    color: item.margin >= 65 ? "#4ade80" : item.margin >= 45 ? "#fbbf24" : "#f87171"
+                  }}>
+                    {item.margin.toFixed(1)}% Margin
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
-      </div>
-    ))}
-  </div>
-</div>
-{/* SHIFT INTELLIGENCE PREVIEW */}
-<div
-  style={{
-    marginTop: "14px",
-    padding: "16px",
-    borderRadius: "16px",
-    background: "rgba(255,255,255,0.05)",
-    border: "1px solid rgba(255,255,255,0.08)",
-  }}
->
-  <div
-    style={{
-      color: "#d4af37",
-      fontSize: "12px",
-      fontWeight: "900",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      marginBottom: "10px",
-    }}
-  >
-    Shift Intelligence Preview
-  </div>
+      )}
 
-  <div
-    style={{
-      display: "grid",
-      gridTemplateColumns: isMobile ? "1fr" : "repeat(2, 1fr)",
-      gap: "12px",
-      marginBottom: "12px",
-    }}
-  >
-    <div style={{ padding: "14px", borderRadius: "14px", background: "rgba(255,255,255,0.04)" }}>
-      <div style={{ color: "#94a3b8", fontSize: "12px", fontWeight: "800" }}>
-        Best Performing Shift
-      </div>
-      <div style={{ color: "white", fontSize: "22px", fontWeight: "950", marginTop: "6px" }}>
-        {demoResult.bestShift?.shift}
-      </div>
-      <div style={{ color: "#86efac", fontSize: "13px", marginTop: "6px", fontWeight: "800" }}>
-        ${Number(demoResult.bestShift?.salesPerLaborHour || 0).toLocaleString()} / labor hour
-      </div>
-    </div>
-
-    <div style={{ padding: "14px", borderRadius: "14px", background: "rgba(255,255,255,0.04)" }}>
-      <div style={{ color: "#94a3b8", fontSize: "12px", fontWeight: "800" }}>
-        Weakest Shift
-      </div>
-      <div style={{ color: "white", fontSize: "22px", fontWeight: "950", marginTop: "6px" }}>
-        {demoResult.weakestShift?.shift}
-      </div>
-      <div style={{ color: "#fcd34d", fontSize: "13px", marginTop: "6px", fontWeight: "800" }}>
-        ${Number(demoResult.weakestShift?.salesPerLaborHour || 0).toLocaleString()} / labor hour
-      </div>
-    </div>
-  </div>
-
-  <p
-    style={{
-      color: "#cbd5e1",
-      fontSize: "14px",
-      lineHeight: 1.7,
-      margin: 0,
-    }}
-  >
-    SerVen compares revenue against labor pressure by shift to identify where staffing efficiency may be helping or hurting profitability.
-  </p>
-</div>
-<div
-  style={{
-    marginTop: "14px",
-    padding: "16px",
-    borderRadius: "16px",
-    background: "rgba(255,255,255,0.05)",
-    border: "1px solid rgba(255,255,255,0.08)",
-  }}
->
-  <div
-    style={{
-      color: "#d4af37",
-      fontSize: "12px",
-      fontWeight: "900",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      marginBottom: "10px",
-    }}
-  >
-    Recommended Operational Actions
-  </div>
-
-  <div style={{ display: "grid", gap: "10px" }}>
-    {demoResult.operationalRecommendations?.map((item, index) => (
-      <div
-        key={index}
-        style={{
-          padding: "12px 14px",
-          borderRadius: "12px",
-          background: "rgba(255,255,255,0.04)",
-          border: "1px solid rgba(255,255,255,0.06)",
-          color: "#cbd5e1",
-          fontSize: "14px",
-          lineHeight: 1.6,
-        }}
-      >
-        • {item}
-      </div>
-    ))}
-  </div>
-</div>
-    <div
-  style={{
-    marginTop: "14px",
-    padding: "16px",
-    borderRadius: "16px",
-    background:
-      demoResult.primeCostStatus === "Critical"
-        ? "rgba(239,68,68,0.12)"
-        : demoResult.primeCostStatus === "Warning"
-        ? "rgba(245,158,11,0.12)"
-        : "rgba(34,197,94,0.12)",
-    border:
-      demoResult.primeCostStatus === "Critical"
-        ? "1px solid rgba(239,68,68,0.25)"
-        : demoResult.primeCostStatus === "Warning"
-        ? "1px solid rgba(245,158,11,0.25)"
-        : "1px solid rgba(34,197,94,0.25)",
-  }}
->
-  <div
-    style={{
-      fontSize: "13px",
-      fontWeight: "900",
-      textTransform: "uppercase",
-      letterSpacing: "0.08em",
-      color:
-        demoResult.primeCostStatus === "Critical"
-          ? "#fca5a5"
-          : demoResult.primeCostStatus === "Warning"
-          ? "#fcd34d"
-          : "#86efac",
-      marginBottom: "8px",
-    }}
-  >
-    Prime Cost Status: {demoResult.primeCostStatus}
-  </div>
-
-  <p
-    style={{
-      color: "#cbd5e1",
-      lineHeight: 1.7,
-      margin: 0,
-      fontSize: "14px",
-    }}
-  >
-    {demoResult.primeCostMessage}
-  </p>
-</div>
-  </div>
-)}
+      {/* Main Form Call To Action Anchor */}
       <button
         style={{
-          padding: "13px 20px",
+          width: isMobile ? "100%" : "auto",
+          padding: "14px 28px",
           borderRadius: "12px",
-          background: "linear-gradient(90deg, #4f46e5, #d4af37)",
+          background: "linear-gradient(90deg, #4f46e5, #7c3aed)",
           color: "white",
           fontWeight: "800",
+          fontSize: "15px",
           border: "none",
           cursor: "pointer",
+          boxShadow: "0 10px 25px -5px rgba(99, 102, 241, 0.4)",
+          transition: "transform 0.15s ease"
         }}
-       onClick={() => {
-  window.location.href = "/signup?intent=demo";
-}}
+        onMouseEnter={(e) => e.currentTarget.style.transform = "scale(1.02)"}
+        onMouseLeave={(e) => e.currentTarget.style.transform = "scale(1)"}
+        onClick={() => { window.location.href = "/signup?intent=demo"; }}
       >
-        Create My Demo Profile
+        Lock In Full Profit Assessment Profile
       </button>
     </div>
   </div>
 </section>
 
-{/* ============================= */}
+
 {/* PLATFORM DEMO */}
-{/* ============================= */}
-<section className="desktop-only" style={{ padding: "20px 0 70px" }}>
+<section style={{ padding: isMobile ? "45px 0" : "80px 0", position: "relative", overflow: "hidden" }}>
   <div style={containerStyle}>
     <div
       style={{
         ...glassCard,
-        padding: isMobile ? "18px" : "32px",
+        padding: isMobile ? "24px 16px" : "48px 40px",
         position: "relative",
         overflow: "visible",
+        background: "rgba(15, 23, 42, 0.4)",
+        border: "1px solid rgba(255, 255, 255, 0.05)"
       }}
     >
+      {/* Decorative Blur Vectors */}
       <div
         style={{
           position: "absolute",
-          top: "-50px",
-          right: "-50px",
-          width: "180px",
-          height: "180px",
-          borderRadius: "999px",
-          background: "rgba(79,70,229,0.16)",
-          filter: "blur(36px)",
+          top: "-40px",
+          right: "-40px",
+          width: "220px",
+          height: "220px",
+          borderRadius: "50%",
+          background: "rgba(99, 102, 241, 0.12)",
+          filter: "blur(44px)",
+          pointerEvents: "none"
         }}
       />
       <div
         style={{
           position: "absolute",
-          bottom: "-60px",
+          bottom: "-50px",
           left: "-50px",
-          width: "180px",
-          height: "180px",
-          borderRadius: "999px",
-          background: "rgba(212,175,55,0.12)",
-          filter: "blur(36px)",
+          width: "220px",
+          height: "220px",
+          borderRadius: "50%",
+          background: "rgba(212, 175, 55, 0.08)",
+          filter: "blur(44px)",
+          pointerEvents: "none"
         }}
       />
 
@@ -1624,73 +955,74 @@ alert("Demo result saved");
           style={{
             color: "#d4af37",
             fontWeight: "800",
-            fontSize: "13px",
-            letterSpacing: "0.08em",
+            fontSize: "12px",
+            letterSpacing: "0.1em",
             textTransform: "uppercase",
             marginBottom: "12px",
             textAlign: "center",
           }}
         >
-          Platform Demo
+          System Interface
         </div>
 
         <h2
           style={{
-            fontSize: isMobile ? "30px" : "42px",
+            fontSize: isMobile ? "28px" : "42px",
             fontWeight: "900",
-            lineHeight: 1.1,
+            lineHeight: isMobile ? "1.2" : "1.1",
             textAlign: "center",
             marginBottom: "14px",
+            color: "#ffffff",
+            letterSpacing: "-0.02em"
           }}
         >
-          See how SerVen uncovers hidden operational profit leaks
+          See How SerVen Uncovers Hidden Operational Profit Leaks
         </h2>
 
         <p
           style={{
             color: "#94a3b8",
-            fontSize: "17px",
-            lineHeight: 1.7,
-            maxWidth: "760px",
-            margin: "0 auto 30px",
+            fontSize: isMobile ? "15px" : "17px",
+            lineHeight: 1.6,
+            maxWidth: "720px",
+            margin: "0 auto 40px",
             textAlign: "center",
           }}
         >
-          Explore the dashboard experience restaurants use to track revenue,
-          control food costs, spot labor inefficiencies, and uncover AI-driven
-          profit opportunities.
+          Explore the dashboard architecture management teams track to isolate margin compression, stabilize staffing schedules, and reveal immediate cost recovery pipelines.
         </p>
 
+        {/* Unified Responsive Application Matrix */}
         <div
           style={{
             ...glassCard,
-            padding: isMobile ? "12px" : "22px",
-maxWidth: "980px",
-margin: "0 auto",
-width: "100%",
-overflow: "visible",
+            padding: isMobile ? "12px" : "24px",
+            maxWidth: "1040px",
+            margin: "0 auto",
+            width: "100%",
+            background: "rgba(2, 6, 23, 0.4)",
+            border: "1px solid rgba(255, 255, 255, 0.03)"
           }}
         >
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: isMobile
-  ? "1fr"
-  : "1.1fr 0.9fr",
-              gap: "18px",
+              gridTemplateColumns: isMobile ? "1fr" : "1.15fr 0.85fr",
+              gap: isMobile ? "16px" : "24px",
               alignItems: "stretch",
             }}
           >
+            {/* Left Console Workspace Card */}
             <div
               style={{
-                background:
-                  "linear-gradient(180deg, rgba(15,23,42,0.95), rgba(30,41,59,0.95))",
-                border: "1px solid rgba(255,255,255,0.06)",
-                borderRadius: "18px",
-                padding: isMobile ? "12px" : "20px",
-minHeight: isMobile ? "auto" : "320px",
-overflow: "visible",
-width: "100%",
+                background: "linear-gradient(180deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.95))",
+                border: "1px solid rgba(255, 255, 255, 0.05)",
+                borderRadius: "16px",
+                padding: isMobile ? "16px 12px" : "24px",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
+                width: "100%",
               }}
             >
               <div
@@ -1698,181 +1030,184 @@ width: "100%",
                   display: "flex",
                   justifyContent: "space-between",
                   alignItems: "center",
-                  marginBottom: "18px",
+                  marginBottom: "20px",
                 }}
               >
                 <div>
                   <div
                     style={{
-                      fontSize: "12px",
-                      color: "#94a3b8",
-                      fontWeight: "700",
-                      marginBottom: "6px",
+                      fontSize: "11px",
+                      color: "#64748b",
+                      fontWeight: "800",
+                      letterSpacing: "0.05em",
+                      marginBottom: "4px",
                     }}
                   >
-                    LIVE DASHBOARD PREVIEW
+                    ANALYTICS ENGINE PREVIEW
                   </div>
-                  <div style={{ fontSize: "20px", fontWeight: "800" }}>
-                    Weekly Performance Snapshot
+                  <div style={{ fontSize: isMobile ? "18px" : "22px", fontWeight: "900", color: "#ffffff" }}>
+                    Performance Overview
                   </div>
                 </div>
 
                 <div
                   style={{
-                    padding: "8px 12px",
+                    padding: "6px 12px",
                     borderRadius: "999px",
-                    background: "rgba(34,197,94,0.12)",
-                    color: "#86efac",
-                    border: "1px solid rgba(34,197,94,0.2)",
-                    fontSize: "12px",
-                    fontWeight: "700",
+                    background: "rgba(34, 197, 94, 0.1)",
+                    color: "#4ade80",
+                    border: "1px solid rgba(34, 197, 94, 0.15)",
+                    fontSize: "11px",
+                    fontWeight: "800",
+                    letterSpacing: "0.03em"
                   }}
                 >
-                  ● Live Demo
+                  ● SIMULATOR ACTIVE
                 </div>
               </div>
 
+              {/* Internal KPI Block Matrix */}
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: isMobile
-  ? "1fr"
-  : "1fr 1fr 1fr",
-                  gap: "14px",
-                  marginBottom: "18px",
+                  gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr",
+                  gap: "12px",
+                  marginBottom: "20px",
                 }}
               >
                 {[
-                  { label: "Revenue", value: "$24,860", sub: "+12.4%" },
-                  {
-                    label: "Food Cost",
-                    value: "31.2%",
-                    sub: "Needs attention",
-                  },
-                  { label: "AI Score", value: "84/100", sub: "Healthy" },
-                ].map((item) => (
+                  { label: "Detected Receipts", value: "$24,860", sub: "+12.4% Pacing", color: "#4ade80" },
+                  { label: "Target Cost Threshold", value: "31.2%", sub: "Action Advised", color: "#f87171" },
+                  { label: "System Health Vector", value: "84/100", sub: "Stable Baseline", color: "#38bdf8" },
+                ].map((item, idx) => (
                   <div
-                    key={item.label}
+                    key={idx}
                     style={{
-                      background: "rgba(255,255,255,0.04)",
-                      border: "1px solid rgba(255,255,255,0.06)",
-                      borderRadius: "16px",
-                      padding: "16px",
+                      background: "rgba(255,255,255,0.02)",
+                      border: "1px solid rgba(255, 255, 255, 0.04)",
+                      borderRadius: "12px",
+                      padding: "14px",
                     }}
                   >
-                    <div
-                      style={{
-                        color: "#94a3b8",
-                        fontSize: "12px",
-                        fontWeight: "700",
-                        marginBottom: "8px",
-                      }}
-                    >
+                    <div style={{ color: "#64748b", fontSize: "11px", fontWeight: "700", marginBottom: "6px" }}>
                       {item.label}
                     </div>
-                    <div style={{ fontSize: "24px", fontWeight: "900" }}>
+                    <div style={{ fontSize: "22px", fontWeight: "900", color: "#ffffff", letterSpacing: "-0.02em" }}>
                       {item.value}
                     </div>
-                    <div
-                      style={{
-                        color: "#cbd5e1",
-                        fontSize: "13px",
-                        marginTop: "8px",
-                      }}
-                    >
+                    <div style={{ color: item.color, fontSize: "12px", fontWeight: "600", marginTop: "4px" }}>
                       {item.sub}
                     </div>
                   </div>
                 ))}
               </div>
 
+              {/* CSS Decorative Analytics Bar Vector wrapper */}
               <div
                 style={{
-                  height: "130px",
-                  borderRadius: "18px",
-                  background:
-                    "linear-gradient(180deg, rgba(79,70,229,0.16), rgba(212,175,55,0.08))",
-                  border: "1px solid rgba(255,255,255,0.06)",
+                  height: "140px",
+                  borderRadius: "12px",
+                  background: "rgba(0, 0, 0, 0.2)",
+                  border: "1px solid rgba(255, 255, 255, 0.03)",
                   display: "flex",
                   alignItems: "flex-end",
-                  gap: "10px",
-                  padding: "18px",
+                  gap: isMobile ? "6px" : "12px",
+                  padding: "16px",
                 }}
               >
-                {[50, 82, 68, 96, 72, 110, 88].map((h, i) => (
+                {[45, 76, 62, 90, 68, 115, 82].map((h, i) => (
                   <div
                     key={i}
                     style={{
                       flex: 1,
-                      height: `${h}px`,
-                      borderRadius: "10px 10px 4px 4px",
-                      background:
-                        "linear-gradient(180deg, #d4af37, #4f46e5)",
-                      opacity: 0.95,
+                      height: `${h}%`,
+                      borderRadius: "6px 6px 3px 3px",
+                      background: "linear-gradient(180deg, #d4af37 0%, #4f46e5 100%)",
+                      opacity: 0.85,
                     }}
                   />
                 ))}
               </div>
             </div>
 
-            <div style={{ display: "grid", gap: "14px" }}>
-              {[
-                {
-                  title: "Pricing opportunity",
-                  text: "Two best sellers are underpriced relative to margin targets.",
-                },
-                {
-                  title: "Labor alert",
-                  text: "Tuesday dinner staffing is above target labor percentage.",
-                },
-                {
-                  title: "Inventory risk",
-                  text: "One core ingredient may run low within 6 days.",
-                },
-              ].map((item) => (
-                <div
-                  key={item.title}
-                  style={{
-                    background: "rgba(255,255,255,0.04)",
-                    border: "1px solid rgba(255,255,255,0.06)",
-                    borderRadius: "18px",
-                    padding: "18px",
-                  }}
-                >
+            {/* Right Feed Panel Workspace Card */}
+            <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", gap: "12px" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                {[
+                  {
+                    title: "Product Valuation Discrepancy",
+                    text: "Two high-volume inventory assets are scaling below primary margin targets.",
+                    badge: "Pricing Alert",
+                    color: "rgba(212, 175, 55, 0.1)",
+                    textColor: "#fcd34d"
+                  },
+                  {
+                    title: "Labor Allocation Overages",
+                    text: "Mid-week floor schedule variables exceed historical targets by 4.2%.",
+                    badge: "Staffing Pressure",
+                    color: "rgba(239, 68, 68, 0.1)",
+                    textColor: "#fca5a5"
+                  },
+                  {
+                    title: "Inventory Exhaustion Matrix",
+                    text: "Primary operational ingredient consumption tracking patterns show rapid utilization increase.",
+                    badge: "Supply Signal",
+                    color: "rgba(56, 189, 248, 0.1)",
+                    textColor: "#7dd3fc"
+                  },
+                ].map((item, idx) => (
                   <div
+                    key={idx}
                     style={{
-                      fontWeight: "800",
-                      marginBottom: "8px",
-                      fontSize: "16px",
+                      background: "rgba(255,255,255,0.03)",
+                      border: "1px solid rgba(255,255,255,0.05)",
+                      borderRadius: "14px",
+                      padding: "16px",
                     }}
                   >
-                    {item.title}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "6px", gap: "10px" }}>
+                      <div style={{ fontWeight: "800", fontSize: "15px", color: "#ffffff" }}>
+                        {item.title}
+                      </div>
+                      <span style={{ fontSize: "10px", padding: "2px 8px", borderRadius: "4px", background: item.color, color: item.textColor, fontWeight: "700", whiteSpace: "nowrap", textTransform: "uppercase" }}>
+                        {item.badge}
+                      </span>
+                    </div>
+                    <div style={{ color: "#94a3b8", fontSize: "13px", lineHeight: "1.5" }}>
+                      {item.text}
+                    </div>
                   </div>
-                  <div
-                    style={{
-                      color: "#94a3b8",
-                      fontSize: "14px",
-                      lineHeight: 1.7,
-                    }}
-                  >
-                    {item.text}
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
 
+              {/* Global Functional Controls Wrapper */}
               <div
                 style={{
                   display: "flex",
                   gap: "12px",
-                  flexWrap: "wrap",
-                  marginTop: "6px",
+                  flexDirection: isMobile ? "column" : "row",
+                  marginTop: "12px",
                 }}
               >
-                <Link href="/signup" style={primaryButton}>
-                  See Your Demo
+                <Link 
+                  href="/signup" 
+                  style={{ 
+                    ...primaryButton, 
+                    width: isMobile ? "100%" : "auto",
+                    textAlign: "center"
+                  }}
+                >
+                  Generate Private Diagnostic Run
                 </Link>
-                <Link href="/dashboard" style={secondaryButton}>
-                  View Dashboard
+                <Link 
+                  href="/dashboard" 
+                  style={{ 
+                    ...secondaryButton, 
+                    width: isMobile ? "100%" : "auto",
+                    textAlign: "center"
+                  }}
+                >
+                  Explore Control Dashboard
                 </Link>
               </div>
             </div>
@@ -1882,56 +1217,28 @@ width: "100%",
     </div>
   </div>
 </section>
-<div className="mobile-only">
-  <section style={{ padding: "20px 0 50px" }}>
-    <div style={containerStyle}>
-      <div
-        style={{
-          ...glassCard,
-          padding: "22px",
-          textAlign: "center",
-        }}
-      >
-        <div style={{ color: "#d4af37", fontWeight: "900", marginBottom: "10px" }}>
-          PLATFORM DEMO
-        </div>
 
-        <h2 style={{ fontSize: "28px", fontWeight: "900", marginBottom: "12px" }}>
-          See SerVen in action on desktop
-        </h2>
-
-        <p style={{ color: "#94a3b8", lineHeight: 1.7, marginBottom: "18px" }}>
-          The full dashboard preview is best viewed on a larger screen. Create a demo profile to see your numbers inside SerVen.
-        </p>
-
-        <Link href="/signup" style={primaryButton}>
-          Create My Demo Profile
-        </Link>
-      </div>
-    </div>
-  </section>
-</div>
-{/* ============================= */}
 {/* BOOK / REQUEST DEMO CTA */}
-{/* ============================= */}
-<section style={{ padding: isMobile ? "24px 0 56px" : "40px 0 80px" }}>
+<section style={{ padding: isMobile ? "32px 0 64px" : "60px 0 100px", position: "relative" }}>
   <div style={containerStyle}>
     <div
       style={{
         ...glassCard,
-        padding: isMobile ? "22px" : "36px",
+        padding: isMobile ? "32px 18px" : "56px 40px",
         textAlign: "center",
         borderRadius: "24px",
+        background: "linear-gradient(180deg, rgba(15, 23, 42, 0.45) 0%, rgba(30, 41, 59, 0.25) 100%)",
+        border: "1px solid rgba(255, 255, 255, 0.05)",
       }}
     >
       <div
         style={{
           color: "#d4af37",
           fontWeight: "900",
-          fontSize: "13px",
-          letterSpacing: "0.08em",
+          fontSize: "12px",
+          letterSpacing: "0.1em",
           textTransform: "uppercase",
-          marginBottom: "12px",
+          marginBottom: "14px",
         }}
       >
         Built For Real Restaurant Numbers
@@ -1939,10 +1246,12 @@ width: "100%",
 
       <h2
         style={{
-          fontSize: isMobile ? "30px" : "42px",
+          fontSize: isMobile ? "28px" : "44px",
           fontWeight: "950",
-          marginBottom: "14px",
-          lineHeight: 1.1,
+          marginBottom: "16px",
+          lineHeight: isMobile ? "1.2" : "1.1",
+          color: "#ffffff",
+          letterSpacing: "-0.02em"
         }}
       >
         See what SerVen would find in your business.
@@ -1951,30 +1260,49 @@ width: "100%",
       <p
         style={{
           color: "#94a3b8",
-          fontSize: isMobile ? "15px" : "17px",
-          lineHeight: 1.7,
-          maxWidth: "760px",
-          margin: "0 auto 26px",
+          fontSize: isMobile ? "15px" : "18px",
+          lineHeight: isMobile ? 1.6 : 1.7,
+          maxWidth: "720px",
+          margin: "0 auto 36px",
         }}
       >
         Create a demo profile, upload sample sales data, or request custom
         pricing so we can estimate where your restaurant may be leaking profit.
       </p>
 
+      {/* Responsive Interactive Control Array */}
       <div
         style={{
           display: "flex",
           justifyContent: "center",
-          gap: "14px",
+          gap: "12px",
           flexWrap: "wrap",
           flexDirection: isMobile ? "column" : "row",
+          maxWidth: isMobile ? "100%" : "none",
+          margin: "0 auto",
         }}
       >
-        <Link href="/signup" style={primaryButton}>
+        <Link 
+          href="/signup" 
+          style={{
+            ...primaryButton,
+            width: isMobile ? "100%" : "auto",
+            minWidth: isMobile ? "none" : "200px",
+            textAlign: "center"
+          }}
+        >
           Create Demo Profile
         </Link>
 
-        <Link href="/pricing" style={secondaryButton}>
+        <Link 
+          href="/pricing" 
+          style={{
+            ...secondaryButton,
+            width: isMobile ? "100%" : "auto",
+            minWidth: isMobile ? "none" : "200px",
+            textAlign: "center"
+          }}
+        >
           Request Custom Pricing
         </Link>
       </div>
@@ -1982,285 +1310,373 @@ width: "100%",
   </div>
 </section>
 
-      {/* TRUST BAR */}
-      <section style={{ padding: "16px 0 30px" }}>
-        <div style={containerStyle}>
-          <div
-            style={{
-              ...glassCard,
-              padding: "18px 24px",
-              display: "flex",
-              justifyContent: "space-between",
-              gap: "20px",
-              flexWrap: "wrap",
-              color: "#94a3b8",
-              fontWeight: "700",
-              fontSize: "13px",
-              textTransform: "uppercase",
-              letterSpacing: "0.12em",
-            }}
-          >
-            <span>Restaurant-first AI</span>
-<span>Profit leak detection</span>
-<span>Food cost visibility</span>
-<span>Fast setup with your data</span>
-          </div>
-        </div>
-      </section>
-
-      {/* WHY IT MATTERS */}
-      <section
+     {/* TRUST BAR */}
+<section style={{ padding: isMobile ? "12px 0 24px" : "16px 0 32px" }}>
+  <div style={containerStyle}>
+    <div
+      style={{
+        ...glassCard,
+        padding: isMobile ? "14px 16px" : "18px 32px",
+        display: "flex",
+        justifyContent: isMobile ? "center" : "space-between",
+        alignItems: "center",
+        gap: isMobile ? "12px 24px" : "20px",
+        flexWrap: "wrap",
+        color: "#94a3b8",
+        fontWeight: "700",
+        fontSize: isMobile ? "11px" : "13px",
+        textTransform: "uppercase",
+        letterSpacing: "0.12em",
+        background: "rgba(15, 23, 42, 0.2)",
+        border: "1px solid rgba(255, 255, 255, 0.03)",
+        textAlign: "center"
+      }}
+    >
+      <span style={{ display: "inline-flex", alignItems: "center", whiteSpace: "nowrap" }}>
+        Restaurant-First AI
+      </span>
+      {!isMobile && <span style={{ color: "rgba(255,255,255,0.08)" }}>|</span>}
+      
+      <span style={{ display: "inline-flex", alignItems: "center", whiteSpace: "nowrap" }}>
+        Profit Leak Detection
+      </span>
+      {!isMobile && <span style={{ color: "rgba(255,255,255,0.08)" }}>|</span>}
+      
+      <span style={{ display: "inline-flex", alignItems: "center", whiteSpace: "nowrap" }}>
+        Food Cost Visibility
+      </span>
+      {!isMobile && <span style={{ color: "rgba(255,255,255,0.08)" }}>|</span>}
+      
+      <span style={{ display: "inline-flex", alignItems: "center", whiteSpace: "nowrap", color: "#cbd5e1" }}>
+        ● Fast Data Setup
+      </span>
+    </div>
+  </div>
+</section>
+     {/* WHY IT MATTERS */}
+<section
   id="why"
   style={{
-    padding: isMobile ? "56px 0 20px" : "100px 0 40px",
+    padding: isMobile ? "60px 0 30px" : "100px 0 60px",
+    position: "relative",
+    overflow: "hidden"
   }}
 >
-        <div style={containerStyle}>
-          <h2 style={sectionTitle}>Stop guessing where your profit is going.</h2>
-          <p style={sectionSubtext}>
-            Most restaurant owners know revenue. Very few know exactly where they
-            are losing margin every week. SerVen surfaces the numbers that
-            actually move profit.
-          </p>
+  <div style={{ ...containerStyle, paddingLeft: isMobile ? "0" : undefined, paddingRight: isMobile ? "0" : undefined }}>
+    {/* Header Block Grouping */}
+    <div style={{ paddingLeft: isMobile ? "16px" : "0", paddingRight: isMobile ? "16px" : "0" }}>
+      <h2 
+        style={{
+          ...sectionTitle,
+          fontSize: isMobile ? "32px" : "42px",
+          fontWeight: "950",
+          letterSpacing: "-0.02em",
+          lineHeight: 1.15,
+          color: "#ffffff"
+        }}
+      >
+        Stop guessing where your profit is going.
+      </h2>
+      <p 
+        style={{
+          ...sectionSubtext,
+          color: "#94a3b8",
+          fontSize: isMobile ? "16px" : "18px",
+          lineHeight: 1.6,
+          maxWidth: "680px",
+          marginTop: "12px"
+        }}
+      >
+        Most restaurant owners know revenue. Very few know exactly where they
+        are losing margin every week. SerVen surfaces the numbers that
+        actually move profit.
+      </p>
+    </div>
 
+    {/* Responsive Feature Matrix Carousel Frame */}
+    <div
+      className="mobile-horizontal-card"
+      style={{
+        display: isMobile ? "flex" : "grid",
+        flexDirection: isMobile ? "row" : "row",
+        flexWrap: isMobile ? "nowrap" : "nowrap",
+        gridTemplateColumns: isMobile ? "none" : "repeat(3, 1fr)",
+        gap: isMobile ? "16px" : "24px",
+        marginTop: "40px",
+        overflowX: isMobile ? "auto" : "visible",
+        overflowY: "hidden",
+        paddingBottom: isMobile ? "20px" : "0",
+        paddingLeft: isMobile ? "16px" : "0",
+        paddingRight: isMobile ? "16px" : "0",
+        WebkitOverflowScrolling: "touch",
+        scrollSnapType: isMobile ? "x mandatory" : "none",
+      }}
+    >
+      {[
+        {
+          title: "Find Profit Leaks Fast",
+          text: "Catch overpriced labor, hidden food cost issues, and weak menu pricing before they quietly drain cash.",
+        },
+        {
+          title: "Get AI-Driven Clarity",
+          text: "See exactly what needs attention first with prioritized recommendations built for restaurant operators.",
+        },
+        {
+          title: "Make Better Weekly Decisions",
+          text: "Use your own business data to plan staffing, pricing, promotions, and inventory with more confidence.",
+        },
+      ].map((item, idx) => (
         <div
-  className="mobile-horizontal-card"
- style={{
-  display: isMobile ? "flex" : "grid",
-  flexDirection: isMobile ? "row" : undefined,
-  flexWrap: isMobile ? "nowrap" : undefined,
-  gridTemplateColumns: isMobile
-    ? undefined
-    : "repeat(3, 1fr)",
-  gap: "20px",
-  marginTop: "46px",
-  overflowX: isMobile ? "scroll" : "visible",
-  overflowY: "hidden",
-  paddingBottom: isMobile ? "12px" : "0",
-  WebkitOverflowScrolling: "touch",
-  scrollSnapType: isMobile ? "x mandatory" : "none",
-}}
->
-            {[
-              {
-                title: "Find Profit Leaks Fast",
-                text: "Catch overpriced labor, hidden food cost issues, and weak menu pricing before they quietly drain cash.",
-              },
-              {
-                title: "Get AI-Driven Clarity",
-                text: "See exactly what needs attention first with prioritized recommendations built for restaurant operators.",
-              },
-              {
-                title: "Make Better Weekly Decisions",
-                text: "Use your own business data to plan staffing, pricing, promotions, and inventory with more confidence.",
-              },
-            ].map((item) => (
-             <div
-  className="mobile-horizontal-card"
-  key={item.title}
-  style={{
-    ...featureCard,
-   minWidth: isMobile ? "330px" : "auto",
-    maxWidth: isMobile ? "330px" : "none",
-    flexShrink: 0,
-    flex: isMobile ? "0 0 auto" : "initial",
-    scrollSnapAlign: isMobile ? "start" : "none",
-  }}
->
-                <div
-                  style={{
-                    width: "52px",
-                    height: "52px",
-                    borderRadius: "16px",
-                    background:
-                      "linear-gradient(135deg, rgba(212,175,55,0.25), rgba(79,70,229,0.22))",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: "22px",
-                    marginBottom: "18px",
-                  }}
-                >
-                  ✦
-                </div>
-                <h3
-                  style={{
-                    fontSize: "22px",
-                    fontWeight: "800",
-                    marginBottom: "12px",
-                  }}
-                >
-                  {item.title}
-                </h3>
-                <p
-                  style={{
-                    color: "#94a3b8",
-                    lineHeight: 1.7,
-                    fontSize: "15px",
-                  }}
-                >
-                  {item.text}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* FEATURES */}
-     <section
-  id="features"
-  style={{
-    padding: isMobile ? "56px 0 20px" : "110px 0 40px",
-  }}
->
-        <div style={containerStyle}>
-          <h2 style={sectionTitle}>
-            Operational intelligence built for modern restaurant operators.
-          </h2>
-          <p style={sectionSubtext}>
-            From food cost monitoring to AI recommendations, SerVen gives you the
-            visibility and action plan to improve margins without adding more
-            complexity.
-          </p>
-
+          className="mobile-horizontal-card"
+          key={idx}
+          style={{
+            ...featureCard,
+            minWidth: isMobile ? "290px" : "auto",
+            maxWidth: isMobile ? "290px" : "none",
+            flexShrink: 0,
+            flex: isMobile ? "0 0 auto" : "1",
+            scrollSnapAlign: isMobile ? "start" : "none",
+            background: "rgba(255, 255, 255, 0.02)",
+            border: "1px solid rgba(255, 255, 255, 0.04)",
+            borderRadius: "20px",
+            padding: "28px 24px",
+            display: "flex",
+            flexDirection: "column"
+          }}
+        >
+          {/* Feature Badge Vector Icon */}
           <div
             style={{
-              display: "grid",
-              gridTemplateColumns: isMobile
-  ? "1fr"
-  : "repeat(2, 1fr)",
-              gap: "20px",
-              marginTop: "46px",
+              width: "48px",
+              height: "48px",
+              borderRadius: "14px",
+              background: "linear-gradient(135deg, rgba(212,175,55,0.15) 0%, rgba(79,70,229,0.12) 100%)",
+              border: "1px solid rgba(212,175,55,0.2)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "20px",
+              color: "#d4af37",
+              marginBottom: "20px",
             }}
           >
-            {[
-              {
-                title: "Revenue & KPI Tracking",
-                text: "Monitor sales trends, average order value, peak hours, and business performance from one clean dashboard.",
-              },
-              {
-                title: "Food Cost Monitoring",
-                text: "Catch rising ingredient costs, weak margins, and menu items that are eating into your profitability.",
-              },
-              {
-                title: "Labor Intelligence",
-                text: "Spot overstaffing and understaffing patterns so labor dollars are better aligned with real demand.",
-              },
-              {
-                title: "Inventory & Demand Signals",
-                text: "Forecast inventory needs, reduce waste risk, and stay ahead of ingredient shortages before they hurt service.",
-              },
-              {
-                title: "Operational Profit Recommendations",
-                text: "Receive practical suggestions on pricing, menu changes, labor adjustments, and opportunities to grow profit.",
-              },
-              {
-                title: "Revenue Recovery Intelligence",
-                text: "Understand what to promote, what to fix, and where your biggest upside lives this week.",
-              },
-            ].map((item) => (
-              <div key={item.title} style={featureCard}>
-                <div
-                  style={{
-                    fontSize: "13px",
-                    fontWeight: "800",
-                    color: "#d4af37",
-                    letterSpacing: "0.08em",
-                    textTransform: "uppercase",
-                    marginBottom: "10px",
-                  }}
-                >
-                  SerVen Feature
-                </div>
-                <h3
-                  style={{
-                    fontSize: "24px",
-                    fontWeight: "800",
-                    marginBottom: "12px",
-                  }}
-                >
-                  {item.title}
-                </h3>
-                <p
-                  style={{
-                    color: "#94a3b8",
-                    lineHeight: 1.8,
-                    fontSize: "15px",
-                  }}
-                >
-                  {item.text}
-                </p>
-              </div>
-            ))}
+            ✦
           </div>
+          
+          <h3
+            style={{
+              fontSize: "20px",
+              fontWeight: "800",
+              color: "#ffffff",
+              marginBottom: "10px",
+              letterSpacing: "-0.01em"
+            }}
+          >
+            {item.title}
+          </h3>
+          
+          <p
+            style={{
+              color: "#94a3b8",
+              lineHeight: 1.6,
+              fontSize: "14px",
+              margin: 0
+            }}
+          >
+            {item.text}
+          </p>
         </div>
-      </section>
+      ))}
+    </div>
+  </div>
+</section>
 
-      {/* RESULTS */}
-      <section style={{ padding: "90px 0 30px" }}>
-        <div style={containerStyle}>
+     {/* FEATURES */}
+<section
+  id="features"
+  style={{
+    padding: isMobile ? "60px 0 30px" : "110px 0 50px",
+    position: "relative",
+  }}
+>
+  <div style={containerStyle}>
+    <h2 
+      style={{
+        ...sectionTitle,
+        fontSize: isMobile ? "32px" : "42px",
+        fontWeight: "950",
+        letterSpacing: "-0.02em",
+        lineHeight: 1.15,
+        color: "#ffffff"
+      }}
+    >
+      Operational intelligence built for modern restaurant operators.
+    </h2>
+    <p 
+      style={{
+        ...sectionSubtext,
+        color: "#94a3b8",
+        fontSize: isMobile ? "16px" : "18px",
+        lineHeight: 1.6,
+        maxWidth: "720px",
+        marginTop: "12px"
+      }}
+    >
+      From food cost monitoring to AI recommendations, SerVen gives you the
+      visibility and action plan to improve margins without adding more
+      complexity.
+    </p>
+
+    {/* Bento Feature Grid Interface */}
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: isMobile ? "1fr" : "repeat(2, 1fr)",
+        gap: isMobile ? "16px" : "24px",
+        marginTop: "46px",
+      }}
+    >
+      {[
+        {
+          title: "Revenue & KPI Tracking",
+          text: "Monitor sales trends, average order value, peak hours, and business performance from one clean dashboard.",
+        },
+        {
+          title: "Food Cost Monitoring",
+          text: "Catch rising ingredient costs, weak margins, and menu items that are eating into your profitability.",
+        },
+        {
+          title: "Labor Intelligence",
+          text: "Spot overstaffing and understaffing patterns so labor dollars are better aligned with real demand.",
+        },
+        {
+          title: "Inventory & Demand Signals",
+          text: "Forecast inventory needs, reduce waste risk, and stay ahead of ingredient shortages before they hurt service.",
+        },
+        {
+          title: "Operational Profit Recommendations",
+          text: "Receive practical suggestions on pricing, menu changes, labor adjustments, and opportunities to grow profit.",
+        },
+        {
+          title: "Revenue Recovery Intelligence",
+          text: "Understand what to promote, what to fix, and where your biggest upside lives this week.",
+        },
+      ].map((item, idx) => (
+        <div 
+          key={idx} 
+          style={{
+            ...featureCard,
+            background: "rgba(255, 255, 255, 0.02)",
+            border: "1px solid rgba(255, 255, 255, 0.04)",
+            borderRadius: "20px",
+            padding: isMobile ? "24px 20px" : "32px",
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
           <div
             style={{
-              ...glassCard,
-              padding: "34px",
+              fontSize: "11px",
+              fontWeight: "800",
+              color: "#d4af37",
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+              marginBottom: "12px",
+            }}
+          >
+            SerVen Engine Focus
+          </div>
+          <h3
+            style={{
+              fontSize: isMobile ? "20px" : "24px",
+              fontWeight: "900",
+              color: "#ffffff",
+              marginBottom: "12px",
+              letterSpacing: "-0.01em"
+            }}
+          >
+            {item.title}
+          </h3>
+          <p
+            style={{
+              color: "#94a3b8",
+              lineHeight: 1.5,
+              fontSize: "14px",
+              margin: 0
+            }}
+          >
+            {item.text}
+          </p>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+{/* RESULTS */}
+<section style={{ padding: isMobile ? "30px 0 50px" : "50px 0 60px" }}>
+  <div style={containerStyle}>
+    <div
+      style={{
+        ...glassCard,
+        padding: isMobile ? "20px 16px" : "40px",
+        background: "linear-gradient(180deg, rgba(15, 23, 42, 0.3) 0%, rgba(2, 6, 23, 0.5) 100%)",
+        border: "1px solid rgba(255, 255, 255, 0.04)",
+        borderRadius: "24px"
+      }}
+    >
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)",
+          gap: isMobile ? "12px" : "20px",
+        }}
+      >
+        {[
+          { value: "8–18%", label: "Potential profit improvement", color: "#d4af37" },
+          { value: "Hours", label: "Saved weekly on manual sheets", color: "#ffffff" },
+          { value: "Real-Time", label: "Visibility into variable costs", color: "#ffffff" },
+          { value: "1 View", label: "Unifies revenue, labor, and costs", color: "#ffffff" },
+        ].map((item, idx) => (
+          <div
+            key={idx}
+            style={{
+              padding: isMobile ? "20px 14px" : "24px",
+              borderRadius: "16px",
+              background: "rgba(255,255,255,0.02)",
+              border: "1px solid rgba(255,255,255,0.04)",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "space-between"
             }}
           >
             <div
               style={{
-                display: "grid",
-                gridTemplateColumns: isMobile
-  ? "1fr"
-  : "repeat(4, 1fr)",
-                gap: "18px",
+                fontSize: isMobile ? "24px" : "32px",
+                fontWeight: "950",
+                marginBottom: "8px",
+                color: item.color,
+                letterSpacing: "-0.03em",
+                lineHeight: 1.1
               }}
             >
-              {[
-                { value: "8–18%", label: "Potential profit improvement" },
-                {
-                  value: "Hours saved",
-                  label: "Less spreadsheet digging every week",
-                },
-                { value: "Real-time", label: "Clearer business visibility" },
-                {
-                  value: "1 dashboard",
-                  label: "Revenue, labor, costs, and AI insights",
-                },
-              ].map((item) => (
-                <div
-                  key={item.label}
-                  style={{
-                    padding: "18px",
-                    borderRadius: "18px",
-                    background: "rgba(255,255,255,0.04)",
-                    border: "1px solid rgba(255,255,255,0.06)",
-                  }}
-                >
-                  <div
-                    style={{
-                      fontSize: "30px",
-                      fontWeight: "900",
-                      marginBottom: "8px",
-                    }}
-                  >
-                    {item.value}
-                  </div>
-                  <div
-                    style={{
-                      color: "#94a3b8",
-                      lineHeight: 1.6,
-                      fontSize: "14px",
-                    }}
-                  >
-                    {item.label}
-                  </div>
-                </div>
-              ))}
+              {item.value}
+            </div>
+            <div
+              style={{
+                color: "#94a3b8",
+                lineHeight: 1.4,
+                fontSize: isMobile ? "12px" : "14px",
+              }}
+            >
+              {item.label}
             </div>
           </div>
-        </div>
-      </section>
-
+        ))}
+      </div>
+    </div>
+  </div>
+</section>
       {/* PRICING PREVIEW */}
 <section id="pricing" style={{ padding: "90px 0 40px" }}>
   <div style={containerStyle}>
