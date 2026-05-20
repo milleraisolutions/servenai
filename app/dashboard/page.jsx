@@ -19073,117 +19073,140 @@ return (
       autopilot actions, and profit recovery opportunities.
     </p>
 
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-        gap: "12px",
-        marginBottom: "18px",
-      }}
-    >
-      {[
-        {
-          label: "Projected Revenue",
-          value: weeklyExecutiveReport?.projectedRevenue || "$0",
-        },
-        {
-          label: "Risk Level",
-          value: weeklyExecutiveReport?.operationalRisk || "Controlled",
-        },
-        {
-          label: "AI Alerts",
-          value:
-            Number(weeklyExecutiveReport?.criticalAlerts || 0) +
-            Number(weeklyExecutiveReport?.warningAlerts || 0),
-        },
-        {
-          label: "Profit Opportunity",
-          value: `$${Number(
-            weeklyExecutiveReport?.totalOpportunity || 0
-          ).toLocaleString()}`,
-        },
-      ].map((metric) => (
-        <div
-          key={metric.label}
-          style={{
-            padding: "14px",
-            borderRadius: "16px",
-            background: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(255,255,255,0.08)",
-          }}
-        >
-          <div
-            style={{
-              color: "#94a3b8",
-              fontSize: "11px",
-              fontWeight: "900",
-              textTransform: "uppercase",
-              marginBottom: "6px",
-            }}
-          >
-            {metric.label}
-          </div>
+   <div
+  style={{
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+    gap: "12px",
+    marginBottom: "18px",
+  }}
+>
+  {[
+    {
+      label: "Projected Revenue",
+      value: weeklyExecutiveSummary?.projectedRevenue || "$0",
+    },
 
-          <div
-            style={{
-              color: "white",
-              fontSize: "22px",
-              fontWeight: "950",
-            }}
-          >
-            {metric.value}
-          </div>
-        </div>
-      ))}
-    </div>
+    {
+      label: "Risk Level",
+      value:
+        weeklyExecutiveSummary?.operationalRisk ||
+        "Controlled",
+    },
 
+    {
+      label: "AI Alerts",
+
+      value:
+        Number(
+          weeklyExecutiveSummary?.criticalAlerts || 0
+        ) +
+        Number(
+          weeklyExecutiveSummary?.warningAlerts || 0
+        ),
+    },
+
+    {
+      label: "Profit Opportunity",
+
+      value: `$${Number(
+        weeklyExecutiveSummary?.totalOpportunity || 0
+      ).toLocaleString()}`,
+    },
+  ].map((metric) => (
     <div
+      key={metric.label}
       style={{
-        padding: "16px",
-        borderRadius: "18px",
+        padding: "14px",
+        borderRadius: "16px",
         background: "rgba(255,255,255,0.04)",
         border: "1px solid rgba(255,255,255,0.08)",
-        color: "#cbd5e1",
-        fontSize: "13px",
-        lineHeight: 1.7,
-        marginBottom: "18px",
       }}
     >
-      {weeklyExecutiveReport?.summary}
+      <div
+        style={{
+          color: "#94a3b8",
+          fontSize: "11px",
+          fontWeight: "900",
+          textTransform: "uppercase",
+          marginBottom: "6px",
+        }}
+      >
+        {metric.label}
+      </div>
+
+      <div
+        style={{
+          color: "white",
+          fontSize: "22px",
+          fontWeight: "950",
+        }}
+      >
+        {metric.value}
+      </div>
     </div>
+  ))}
+</div>
+
+    <div
+  style={{
+    padding: "16px",
+    borderRadius: "18px",
+    background: "rgba(255,255,255,0.04)",
+    border: "1px solid rgba(255,255,255,0.08)",
+    color: "#cbd5e1",
+    fontSize: "13px",
+    lineHeight: 1.7,
+    marginBottom: "18px",
+  }}
+>
+  {weeklyExecutiveSummary?.summary}
+</div>
 
     <button
-      type="button"
-      onClick={() => {
-        setGeneratedCampaignPreview({
-          title: "Weekly Executive Report",
-          sms:
-            weeklyExecutiveReport?.summary ||
-            "Weekly executive report unavailable.",
-          emailBody:
-            weeklyExecutiveReport?.summary ||
-            "Weekly executive report unavailable.",
-          audience: "Restaurant Operators",
-          issue: "Weekly Executive Report",
-          reason: weeklyExecutiveReport?.operationalRisk || "Monitoring",
-        });
+  type="button"
+  onClick={() => {
+    setGeneratedCampaignPreview({
+      title: "Weekly Executive Report",
 
-        pushActivity("Generated weekly executive report draft", "report");
-        setSavedMessage("Weekly report draft generated");
-        setTimeout(() => setSavedMessage(""), 2000);
-      }}
-      style={{
-        padding: "12px 16px",
-        borderRadius: "14px",
-        border: "none",
-        background: "linear-gradient(135deg, #d4af37, #f97316)",
-        color: "#020617",
-        fontWeight: "950",
-        cursor: "pointer",
-      }}
-    >
-      Generate Weekly Report Draft
-    </button>
+      sms:
+        weeklyExecutiveSummary?.summary ||
+        "Weekly executive report unavailable.",
+
+      emailBody:
+        weeklyExecutiveSummary?.summary ||
+        "Weekly executive report unavailable.",
+
+      audience: "Restaurant Operators",
+
+      issue: "Weekly Executive Report",
+
+      reason:
+        weeklyExecutiveSummary?.operationalRisk ||
+        "Monitoring",
+    });
+
+    pushActivity(
+      "Generated weekly executive report draft",
+      "report"
+    );
+
+    setSavedMessage("Weekly report draft generated");
+
+    setTimeout(() => setSavedMessage(""), 2000);
+  }}
+  style={{
+    padding: "12px 16px",
+    borderRadius: "14px",
+    border: "none",
+    background: "linear-gradient(135deg, #d4af37, #f97316)",
+    color: "#020617",
+    fontWeight: "950",
+    cursor: "pointer",
+  }}
+>
+  Generate Weekly Report Draft
+</button>
   </div>
 )}
 {/* 🚨 AI OPERATIONAL ALERT FEED */}
