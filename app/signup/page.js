@@ -89,6 +89,21 @@ export default function Signup() {
       const cleanConfirmPassword = String(confirmPassword || "");
       const cleanPhone = String(phone || "").trim();
 
+      // 👇 ADD THE OPTION 2 CODE RIGHT HERE 👇
+      const personalProviders = ["gmail.com", "yahoo.com", "hotmail.com", "outlook.com", "icloud.com", "aol.com"];
+      const emailDomain = cleanEmail.split("@")[1];
+
+      if (personalProviders.includes(emailDomain)) {
+        setErrorMessage("Please use your official company email address (e.g., name@yourbusiness.com) instead of a personal email.");
+        return;
+      }
+      // 👆 ADD THE OPTION 2 CODE RIGHT HERE 👆
+
+      if (!cleanEmail || !cleanPassword) {
+        setErrorMessage("Please enter your email and password.");
+        return;
+      }
+
       if (!cleanEmail || !cleanPassword) {
         setErrorMessage("Please enter your email and password.");
         return;
