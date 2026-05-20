@@ -20300,7 +20300,9 @@ return (
 <div
   style={{
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+    gridTemplateColumns: isMobile
+  ? "1fr"
+  : "repeat(auto-fit, minmax(180px, 1fr))",
     gap: "12px",
     marginBottom: "18px",
   }}
@@ -20521,7 +20523,9 @@ return (
 <div
   style={{
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+    gridTemplateColumns: isMobile
+  ? "1fr"
+  : "repeat(auto-fit, minmax(180px, 1fr))",
     gap: "12px",
     marginBottom: "18px",
   }}
@@ -20741,7 +20745,9 @@ return (
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+        gridTemplateColumns: isMobile
+  ? "1fr"
+  : "repeat(auto-fit, minmax(180px, 1fr))",
         gap: "12px",
       }}
     >
@@ -20914,7 +20920,9 @@ return (
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+        gridTemplateColumns: isMobile
+  ? "1fr"
+  : "repeat(auto-fit, minmax(180px, 1fr))",
         gap: "12px",
         marginTop: "18px",
       }}
@@ -22657,7 +22665,9 @@ return (
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+       gridTemplateColumns: isMobile
+  ? "1fr"
+  : "repeat(auto-fit, minmax(180px, 1fr))",
         gap: "16px",
       }}
     >
@@ -23443,7 +23453,9 @@ return (
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+          gridTemplateColumns: isMobile
+  ? "1fr"
+  : "repeat(auto-fit, minmax(180px, 1fr))",
           gap: "12px",
           marginTop: "14px",
         }}
@@ -24828,13 +24840,18 @@ if (!res.ok) {
   </div>
 )}
 {activeTab === "analytics" && (
-  
   <div
-  style={{
-    display: "grid",
-    gap: "20px",
-  }}
->
+    style={{
+      width: "100%",
+      maxWidth: "100%",
+      minWidth: 0,
+      overflowX: "hidden",
+
+      display: "grid",
+
+      gap: isMobile ? "14px" : "20px",
+    }}
+  >
      {/* PRIMARY CHART */}
     <div
       style={{
@@ -25651,7 +25668,9 @@ if (!res.ok) {
   <div
     style={{
       display: "grid",
-      gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+      gridTemplateColumns: isMobile
+  ? "1fr"
+  : "repeat(auto-fit, minmax(180px, 1fr))",
       gap: "12px",
     }}
   >
@@ -25997,7 +26016,9 @@ if (!res.ok) {
   <div
     style={{
       display: "grid",
-      gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+     gridTemplateColumns: isMobile
+  ? "1fr"
+  : "repeat(auto-fit, minmax(180px, 1fr))",
       gap: "14px",
     }}
   >
@@ -26177,7 +26198,9 @@ if (!res.ok) {
   <div
     style={{
       display: "grid",
-      gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+      gridTemplateColumns: isMobile
+  ? "1fr"
+  : "repeat(auto-fit, minmax(180px, 1fr))",
       gap: "14px",
       marginTop: "16px",
     }}
@@ -28039,7 +28062,9 @@ onMouseLeave={(e) => {
   <div
     style={{
       display: "grid",
-      gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+      gridTemplateColumns: isMobile
+  ? "1fr"
+  : "repeat(auto-fit, minmax(180px, 1fr))",
       gap: "14px",
     }}
   >
@@ -28734,7 +28759,9 @@ suffix=" AI-generated upside"
   <div
     style={{
       display: "grid",
-      gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+      gridTemplateColumns: isMobile
+  ? "1fr"
+  : "repeat(auto-fit, minmax(180px, 1fr))",
       gap: "14px",
     }}
   >
@@ -28822,7 +28849,18 @@ suffix=" AI-generated upside"
 
   
 {activeTab === "financial" && (
-  <div>
+  <div
+  style={{
+    width: "100%",
+    maxWidth: "100%",
+    minWidth: 0,
+    overflowX: "hidden",
+
+    display: "grid",
+
+    gap: isMobile ? "14px" : "20px",
+  }}
+>
     {/* FINANCIAL INTELLIGENCE HERO */}
 <div
   style={{
@@ -29150,10 +29188,14 @@ suffix=" AI-generated upside"
   <>
   <div
   style={{
-    display: "flex",
-    gap: "10px",
-    flexWrap: "wrap",
-    marginBottom: "18px",
+    width: "100%",
+    maxWidth: "100%",
+    minWidth: 0,
+    overflowX: "hidden",
+
+    display: "grid",
+
+    gap: isMobile ? "14px" : "20px",
   }}
 >
   {[
@@ -29811,7 +29853,18 @@ suffix=" AI-generated upside"
   </>
 )}
 {activeTab === "operations" && (
-  <div style={{ display: "grid", gap: "20px" }}>
+  <div
+  style={{
+    width: "100%",
+    maxWidth: "100%",
+    minWidth: 0,
+    overflowX: "hidden",
+
+    display: "grid",
+
+    gap: isMobile ? "14px" : "20px",
+  }}
+>
     
     {/* EXPECTED VS ACTUAL USAGE */}
 <div
@@ -30737,7 +30790,18 @@ suffix=" AI-generated upside"
 )}
 {activeTab === "labor" && (
   
-  <div>
+  <div
+  style={{
+    width: "100%",
+    maxWidth: "100%",
+    minWidth: 0,
+    overflowX: "hidden",
+
+    display: "grid",
+
+    gap: isMobile ? "14px" : "20px",
+  }}
+>
     {/* LABOR INTELLIGENCE HERO */}
 <div
   style={{
@@ -30944,7 +31008,9 @@ suffix=" AI-generated upside"
 <div
   style={{
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+   gridTemplateColumns: isMobile
+  ? "1fr"
+  : "repeat(auto-fit, minmax(180px, 1fr))",
     gap: "12px",
     marginTop: "18px",
     marginBottom: "18px",
@@ -31225,7 +31291,18 @@ suffix=" AI-generated upside"
   
 
 {activeTab === "menu" && (
-  <div>
+ <div
+  style={{
+    width: "100%",
+    maxWidth: "100%",
+    minWidth: 0,
+    overflowX: "hidden",
+
+    display: "grid",
+
+    gap: isMobile ? "14px" : "20px",
+  }}
+>
     {/* MENU INTELLIGENCE HERO */}
 <div
   style={{
@@ -31917,7 +31994,9 @@ suffix=" AI-generated upside"
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+        gridTemplateColumns: isMobile
+  ? "1fr"
+  : "repeat(auto-fit, minmax(180px, 1fr))",
         gap: "12px",
         marginTop: "18px",
         marginBottom: "18px",
@@ -32188,7 +32267,9 @@ suffix=" AI-generated upside"
 <div
   style={{
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+    gridTemplateColumns: isMobile
+  ? "1fr"
+  : "repeat(auto-fit, minmax(180px, 1fr))",
     gap: "12px",
     marginBottom: "18px",
   }}
@@ -32462,7 +32543,9 @@ suffix=" AI-generated upside"
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+        gridTemplateColumns: isMobile
+  ? "1fr"
+  : "repeat(auto-fit, minmax(180px, 1fr))",
         gap: "12px",
         marginTop: "20px",
       }}
@@ -32784,7 +32867,9 @@ suffix=" AI-generated upside"
   <div
     style={{
       display: "grid",
-      gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+      gridTemplateColumns: isMobile
+  ? "1fr"
+  : "repeat(auto-fit, minmax(180px, 1fr))",
       gap: "12px",
       marginBottom: "16px",
     }}
@@ -34622,7 +34707,9 @@ suffix=" AI-generated upside"
   <div
     style={{
       display: "grid",
-      gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+      gridTemplateColumns: isMobile
+  ? "1fr"
+  : "repeat(auto-fit, minmax(180px, 1fr))",
       gap: "14px",
     }}
   >
@@ -34729,7 +34816,9 @@ suffix=" AI-generated upside"
   <div
     style={{
       display: "grid",
-      gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+      gridTemplateColumns: isMobile
+  ? "1fr"
+  : "repeat(auto-fit, minmax(180px, 1fr))",
       gap: "14px",
     }}
   >
@@ -34787,7 +34876,9 @@ suffix=" AI-generated upside"
   <div
     style={{
       display: "grid",
-      gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+      gridTemplateColumns: isMobile
+  ? "1fr"
+  : "repeat(auto-fit, minmax(180px, 1fr))",
       gap: "14px",
     }}
   >
@@ -34975,7 +35066,9 @@ suffix=" AI-generated upside"
   <div
     style={{
       display: "grid",
-      gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+      gridTemplateColumns: isMobile
+  ? "1fr"
+  : "repeat(auto-fit, minmax(180px, 1fr))",
       gap: "12px",
       marginTop: "16px",
     }}
