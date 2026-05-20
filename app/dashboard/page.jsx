@@ -2280,19 +2280,13 @@ const topAIActions = (fixSuggestions || [])
 
 
 const dashboardShellStyle = {
-  display: "grid",
-  gridTemplateColumns:
-    typeof window !== "undefined" && window.innerWidth < 768
-      ? "1fr"
-      : "minmax(220px, 260px) minmax(0, 1fr)",
-  gap:
-    typeof window !== "undefined" && window.innerWidth < 768
-      ? "14px"
-      : "24px",
-  alignItems: "start",
   width: "100%",
-  maxWidth: "100%",
-  minWidth: 0,
+  maxWidth: "100vw",
+  overflowX: "hidden",
+  display: "grid",
+  gridTemplateColumns: isMobile ? "1fr" : "260px minmax(0, 1fr)",
+  gap: isMobile ? "14px" : "22px",
+  alignItems: "start",
 };
 const sidebarTitleStyle = {
   fontSize: "12px",
@@ -2302,10 +2296,10 @@ const sidebarTitleStyle = {
   marginBottom: "10px",
 };
 const contentAreaStyle = {
-  display: "flex",
-  flexDirection: "column",
-  gap: "24px",
   width: "100%",
+  minWidth: 0,
+  maxWidth: "100%",
+  overflowX: "hidden",
 };
 const upgradePillStyle = {
   padding: "10px 12px",
@@ -2318,24 +2312,17 @@ const upgradePillStyle = {
   boxShadow: "0 6px 18px rgba(79,70,229,0.35)",
 };
 const sidebarStyle = {
-  position: isMobile ? "relative" : "sticky",
-  top: isMobile ? "0" : "20px",
-  alignSelf: "flex-start",
-  height: "fit-content",
-
-  display: "flex",
-  flexDirection: "column",
-
-  gap: "10px",
-  padding: "14px",
-  borderRadius: "18px",
-
-  background: "rgba(255,255,255,0.04)",
-  border: "1px solid rgba(255,255,255,0.08)",
-
   width: "100%",
+  minWidth: 0,
   maxWidth: "100%",
-  overflowX: "hidden",
+  position: isMobile ? "relative" : "sticky",
+  top: isMobile ? "auto" : "20px",
+  padding: "18px",
+  borderRadius: "22px",
+  background:
+    "linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.94))",
+  border: "1px solid rgba(148,163,184,0.14)",
+  boxShadow: "0 18px 50px rgba(2,6,23,0.22)",
 };
 const sidebarFooterStyle = {
   marginTop: "auto",
