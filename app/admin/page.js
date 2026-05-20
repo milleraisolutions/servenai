@@ -5,7 +5,7 @@ import { supabase } from "../supabaseClient";
 import { useRouter } from "next/navigation";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
-const OWNER_EMAIL = "milleraisolutions21@gmail.com";
+const OWNER_EMAIL = "antoinemiller@servenai.com";
 
 export default function AdminPage() {
   const router = useRouter();

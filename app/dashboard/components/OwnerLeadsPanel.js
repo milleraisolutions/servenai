@@ -16,6 +16,7 @@ export default function OwnerLeadsPanel({
   leadButtonGold,
   leadButtonGreen,
   updateLeadStatus,
+  deleteLead,
 }) {
   return (
     <div
@@ -278,6 +279,21 @@ export default function OwnerLeadsPanel({
                   >
                     Closed
                   </button>
+                  <button
+  type="button"
+  onClick={() => deleteLead?.(lead.id)}
+  style={{
+    padding: "8px 10px",
+    borderRadius: "10px",
+    border: "1px solid rgba(239,68,68,0.22)",
+    background: "rgba(239,68,68,0.12)",
+    color: "#fca5a5",
+    cursor: "pointer",
+    fontWeight: "900",
+  }}
+>
+  ✕
+</button>
                 </div>
 
                 <div

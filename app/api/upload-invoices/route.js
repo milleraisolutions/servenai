@@ -114,19 +114,22 @@ export async function POST(req) {
         .getPublicUrl(filePath);
 
       const { data: invoiceRow, error: invoiceError } = await supabase
-        .from("invoice_uploads")
-        .insert({
-          user_id: user.id,
-          supplier_name: parsedInvoice.supplierName,
-          invoice_date: parsedInvoice.invoiceDate,
-          file_name: file.name,
-          file_url: publicUrlData.publicUrl,
-        })
-        .select()
-        .single();
+  .from("invoice_uploads")
+  .insert({
+    user_id: user.id,
+    supplier_name: parsedInvoice.supplierName,
+    invoice_date: cleanDate(parsedInvoice.invoiceDate),
+    file_name: file.name,
+    file_url: publicUrlData.publicUrl,
+  })
+  .select()
+  .single();
 
-      if (invoiceError) throw invoiceError;
+if (invoiceError) throw invoiceError;
 
+if (invoiceRow) {
+  setInvoiceUploads((prev) => [invoiceRow, ...(prev || [])]);
+}
       for (const item of parsedInvoice.items) {
         const { data: previousItem } = await supabase
           .from("invoice_line_items")

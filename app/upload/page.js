@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Papa from "papaparse";
 import { supabase } from "../lib/supabaseClient";
 
@@ -8,19 +9,29 @@ import { supabase } from "../lib/supabaseClient";
    DETECT COLUMN
 =============================== */
 const detectColumn = (row, possibleNames) => {
-  const keys = Object.keys(row);
+  const keys = Object.keys(row || {});
 
   for (let name of possibleNames) {
     const found = keys.find(
       (k) => k.toLowerCase().trim() === name.toLowerCase()
     );
+
     if (found) return found;
   }
 
   return "";
 };
 
+const makeLocationId = (name) =>
+  String(name || "Main Location")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "main";
+
 export default function UploadPage() {
+  const router = useRouter();
+
   const [rows, setRows] = useState([]);
   const [headers, setHeaders] = useState([]);
   const [mapping, setMapping] = useState({});
@@ -28,17 +39,27 @@ export default function UploadPage() {
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState("");
 
+  const [selectedLocationName, setSelectedLocationName] =
+    useState("Main Location");
+
+  const selectedLocationId = makeLocationId(selectedLocationName);
+
   /* ===============================
      STEP 1: PARSE + PREVIEW
   =============================== */
   const handleFileUpload = (event) => {
-    const file = event.target.files[0];
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      setMessage("No file selected");
+      return;
+    }
 
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
       complete: (results) => {
-        const data = results.data;
+        const data = results.data || [];
 
         if (!data.length) {
           setMessage("Empty file");
@@ -46,98 +67,71 @@ export default function UploadPage() {
         }
 
         const sample = data[0];
-        const cols = Object.keys(sample);
+        const cols = Object.keys(sample || {});
 
         setRows(data);
         setHeaders(cols);
 
-        // 🔥 AUTO MAP
         setMapping({
-          name: detectColumn(sample, ["name", "item", "product"]),
-          category: detectColumn(sample, ["category", "type"]),
-          quantity: detectColumn(sample, ["quantity", "qty", "units"]),
-          revenue: detectColumn(sample, ["revenue", "sales", "total"]),
-          date: detectColumn(sample, ["date", "time"]),
-          price: detectColumn(sample, ["price"]),
-          cost: detectColumn(sample, ["ingredient_cost", "cost"]),
-          labor: detectColumn(sample, ["labor"]),
+          name: detectColumn(sample, [
+            "name",
+            "item",
+            "product",
+            "item name",
+            "menu item",
+          ]),
+          category: detectColumn(sample, [
+            "category",
+            "type",
+            "item category",
+          ]),
+          quantity: detectColumn(sample, [
+            "quantity",
+            "qty",
+            "units",
+            "quantity sold",
+            "sold",
+          ]),
+          revenue: detectColumn(sample, [
+            "revenue",
+            "sales",
+            "total",
+            "amount",
+            "net sales",
+            "gross sales",
+          ]),
+          date: detectColumn(sample, [
+            "date",
+            "sale_date",
+            "time",
+            "created at",
+          ]),
+          price: detectColumn(sample, [
+            "price",
+            "menu price",
+            "selling price",
+          ]),
+          cost: detectColumn(sample, [
+            "ingredient_cost",
+            "cost",
+            "item cost",
+            "food cost",
+          ]),
+          labor: detectColumn(sample, [
+            "labor",
+            "labor cost",
+            "labor_cost",
+          ]),
         });
 
-        setMessage("Preview loaded 👇 confirm mapping");
+        setMessage("Preview loaded. Confirm mapping, then upload.");
+      },
+      error: (error) => {
+        console.error("CSV parse failed:", error);
+        setMessage("Failed to parse CSV file");
       },
     });
   };
-const handleImportMappedSales = async () => {
-  try {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user?.id) {
-      setMessage("You must be logged in");
-      return;
-    }
-
-    if (!rows?.length) {
-      setMessage("No rows to import");
-      return;
-    }
-
-    if (!mapping?.name || !mapping?.quantity || !mapping?.revenue) {
-      setMessage("Please confirm your column mapping first");
-      return;
-    }
-
-    const { data: uploadedFileRow, error: uploadInsertError } = await supabase
-      .from("uploads")
-      .insert([
-        {
-          user_id: user.id,
-          file_name: "POS Upload",
-          source_name: selectedDataSource || "Manual Upload",
-          row_count: Number(rows.length || 0),
-          upload_type: "pos",
-          status: "completed",
-        },
-      ])
-      .select()
-      .single();
-
-    if (uploadInsertError) {
-      console.error("Uploads table insert failed:", uploadInsertError);
-      setMessage("Failed to create upload record");
-      return;
-    }
-
-    const salesRows = rows.map((row) => ({
-      user_id: user.id,
-      upload_id: uploadedFileRow?.id || null,
-      name: row[mapping.name] || "Unknown",
-      category: mapping.category
-        ? row[mapping.category] || "Uncategorized"
-        : "Uncategorized",
-      quantity: Number(row[mapping.quantity] || 0),
-      revenue: Number(row[mapping.revenue] || 0),
-      date: mapping.date ? row[mapping.date] || null : null,
-      labor: mapping.labor ? Number(row[mapping.labor] || 0) : 0,
-    }));
-
-    const { error: salesInsertError } = await supabase
-      .from("sales")
-      .insert(salesRows);
-
-    if (salesInsertError) {
-      console.error("Sales insert failed:", salesInsertError);
-      setMessage("Failed to import sales rows");
-      return;
-    }
-
-    setMessage("Imported completed successfully");
-  } catch (error) {
-    console.error("Import mapped sales failed:", error);
-    setMessage("Import failed");
-  }
-};
 
   /* ===============================
      STEP 2: CONFIRM + UPLOAD
@@ -145,113 +139,257 @@ const handleImportMappedSales = async () => {
   const handleUpload = async () => {
     try {
       setUploading(true);
+      setMessage("");
 
-      const { data: userData } = await supabase.auth.getUser();
-const userPlan = userData?.plan;
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
 
-const allowedPlans = ["starter", "growth", "pro"];
+      if (userError || !user?.id) {
+        setMessage("You must be logged in");
+        setUploading(false);
+        return;
+      }
 
-if (!allowedPlans.includes(userPlan)) {
-  router.push("/pricing");
-  return;
-}
+      const { data: profile } = await supabase
+        .from("users")
+        .select("plan, customer_status, status, subscription_status, email")
+        .eq("id", user.id)
+        .maybeSingle();
 
-      const userId = userData?.user?.id;
+      const plan = String(profile?.plan || "").toLowerCase();
+      const status = String(
+        profile?.customer_status ||
+          profile?.status ||
+          profile?.subscription_status ||
+          ""
+      ).toLowerCase();
 
-      let formattedRows = [];
+      const allowedPlans = ["starter", "growth", "pro"];
+      const allowedStatuses = ["active", "paid", "trialing"];
+
+      const hasUploadAccess =
+        allowedPlans.includes(plan) && allowedStatuses.includes(status);
+
+      if (!hasUploadAccess) {
+        router.push("/pricing");
+        setUploading(false);
+        return;
+      }
+
+      if (!rows.length) {
+        setMessage("No rows to upload");
+        setUploading(false);
+        return;
+      }
+
+      const uploadLabel =
+        uploadType === "menu" ? "Menu Upload" : "Sales Upload";
+
+      const { data: uploadedFileRow, error: uploadInsertError } =
+        await supabase
+          .from("uploads")
+          .insert([
+            {
+              user_id: user.id,
+              file_name: uploadLabel,
+              source_name: selectedLocationName || "Main Location",
+              row_count: Number(rows.length || 0),
+              upload_type: uploadType === "menu" ? "menu_items" : "pos",
+              status: "completed",
+              location_id: selectedLocationId || "main",
+              location_name: selectedLocationName || "Main Location",
+            },
+          ])
+          .select()
+          .single();
+
+      if (uploadInsertError) {
+        console.error("Upload record failed:", uploadInsertError);
+        setMessage("Failed to create upload record");
+        setUploading(false);
+        return;
+      }
 
       if (uploadType === "menu") {
-        formattedRows = rows.map((row) => ({
-          user_id: userId,
-          name: row[mapping.name],
-          category: row[mapping.category],
+        if (!mapping?.name) {
+          setMessage("Please map the menu item name column");
+          setUploading(false);
+          return;
+        }
+
+        const formattedRows = rows.map((row) => ({
+          user_id: user.id,
+          upload_id: uploadedFileRow?.id || null,
+
+          location_id: selectedLocationId || "main",
+          location_name: selectedLocationName || "Main Location",
+
+          name: row[mapping.name] || "Unknown Item",
+          category: mapping.category
+            ? row[mapping.category] || "Uncategorized"
+            : "Uncategorized",
+
           price: Number(row[mapping.price] || 0),
           ingredient_cost: Number(row[mapping.cost] || 0),
           weekly_sales: Number(row[mapping.quantity] || 0),
+
+          is_active: true,
         }));
 
-        await supabase.from("menu_items").insert(formattedRows);
+        const { error } = await supabase
+          .from("menu_items")
+          .insert(formattedRows);
+
+        if (error) {
+          console.error("Menu upload failed:", error);
+          setMessage(`Menu upload failed: ${error.message}`);
+          setUploading(false);
+          return;
+        }
       }
 
       if (uploadType === "sales") {
-        formattedRows = rows.map((row) => ({
-          user_id: userId,
-          name: row[mapping.name],
-          category: row[mapping.category],
-          quantity: Number(row[mapping.quantity] || 0),
+        if (!mapping?.name || !mapping?.revenue) {
+          setMessage("Please map at least item name and revenue columns");
+          setUploading(false);
+          return;
+        }
+
+        const formattedRows = rows.map((row) => ({
+          user_id: user.id,
+          upload_id: uploadedFileRow?.id || null,
+
+          location_id: selectedLocationId || "main",
+          location_name: selectedLocationName || "Main Location",
+
+          name: row[mapping.name] || "Unknown Sale",
+          category: mapping.category
+            ? row[mapping.category] || "Uncategorized"
+            : "Uncategorized",
+
+          quantity: Number(row[mapping.quantity] || 1),
           revenue: Number(row[mapping.revenue] || 0),
-          date: row[mapping.date],
-          labor: Number(row[mapping.labor] || 0),
+          sale_date: mapping.date ? row[mapping.date] || null : null,
+          labor: mapping.labor ? Number(row[mapping.labor] || 0) : 0,
         }));
 
-        await supabase.from("sales").insert(formattedRows);
+        const { error } = await supabase
+          .from("sales")
+          .insert(formattedRows);
+
+        if (error) {
+          console.error("Sales upload failed:", error);
+          setMessage(`Sales upload failed: ${error.message}`);
+          setUploading(false);
+          return;
+        }
       }
 
-      setMessage("Upload complete 🚀");
+      setMessage(
+        `Upload complete: ${rows.length} rows saved for ${
+          selectedLocationName || "Main Location"
+        }.`
+      );
 
+      setRows([]);
+      setHeaders([]);
+      setMapping({});
     } catch (err) {
-      console.error(err);
+      console.error("Upload failed:", err);
       setMessage("Upload failed");
     }
 
     setUploading(false);
   };
 
-  /* ===============================
-     UI
-  =============================== */
   return (
-    <div style={{ padding: 40, maxWidth: 800 }}>
+    <div style={{ padding: 40, maxWidth: 900 }}>
       <h1>Upload CSV</h1>
 
-      {/* TYPE */}
-      <select
-        value={uploadType}
-        onChange={(e) => setUploadType(e.target.value)}
-      >
-        <option value="menu">Menu</option>
-        <option value="sales">Sales</option>
-      </select>
+      <div style={{ marginBottom: 16 }}>
+        <label style={{ display: "block", marginBottom: 8, fontWeight: 800 }}>
+          Upload Type
+        </label>
 
-      {/* FILE */}
+        <select
+          value={uploadType}
+          onChange={(e) => setUploadType(e.target.value)}
+          style={{
+            padding: "10px",
+            borderRadius: "10px",
+            border: "1px solid #cbd5e1",
+            width: "100%",
+          }}
+        >
+          <option value="menu">Menu Items</option>
+          <option value="sales">POS Sales</option>
+        </select>
+      </div>
+
+      <div style={{ marginBottom: 16 }}>
+        <label style={{ display: "block", marginBottom: 8, fontWeight: 800 }}>
+          Restaurant Location
+        </label>
+
+        <input
+          type="text"
+          value={selectedLocationName}
+          onChange={(e) => setSelectedLocationName(e.target.value)}
+          placeholder="Main Location"
+          style={{
+            padding: "10px",
+            width: "100%",
+            borderRadius: "10px",
+            border: "1px solid #cbd5e1",
+          }}
+        />
+
+        <div style={{ marginTop: 6, color: "#64748b", fontSize: 12 }}>
+          Location ID: {selectedLocationId}
+        </div>
+      </div>
+
       <input type="file" accept=".csv" onChange={handleFileUpload} />
 
-      <p>{message}</p>
+      {message && (
+        <p style={{ marginTop: 16, fontWeight: 800 }}>
+          {message}
+        </p>
+      )}
 
-      {/* ===============================
-         PREVIEW TABLE
-      =============================== */}
       {rows.length > 0 && (
         <>
-          <h3>Preview</h3>
+          <h3 style={{ marginTop: 24 }}>Preview</h3>
 
-          <table border="1" cellPadding="5">
-            <thead>
-              <tr>
-                {headers.map((h, i) => (
-                  <th key={i}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.slice(0, 5).map((row, i) => (
-                <tr key={i}>
-                  {headers.map((h, j) => (
-                    <td key={j}>{row[h]}</td>
+          <div style={{ overflowX: "auto" }}>
+            <table border="1" cellPadding="5">
+              <thead>
+                <tr>
+                  {headers.map((h, i) => (
+                    <th key={i}>{h}</th>
                   ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
 
-          {/* ===============================
-             MAPPING UI
-          =============================== */}
+              <tbody>
+                {rows.slice(0, 5).map((row, i) => (
+                  <tr key={i}>
+                    {headers.map((h, j) => (
+                      <td key={j}>{row[h]}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
           <h3 style={{ marginTop: 20 }}>Map Columns</h3>
 
           {Object.keys(mapping).map((field) => (
             <div key={field} style={{ marginBottom: 10 }}>
-              <label>{field} → </label>
+              <label style={{ fontWeight: 700 }}>{field} → </label>
 
               <select
                 value={mapping[field]}
@@ -263,6 +401,7 @@ if (!allowedPlans.includes(userPlan)) {
                 }
               >
                 <option value="">-- Select Column --</option>
+
                 {headers.map((h) => (
                   <option key={h} value={h}>
                     {h}
@@ -272,24 +411,24 @@ if (!allowedPlans.includes(userPlan)) {
             </div>
           ))}
 
-          {/* UPLOAD BUTTON */}
           <button
             onClick={handleUpload}
+            disabled={uploading}
             style={{
               marginTop: 20,
               padding: "10px 20px",
-              background: "#4f46e5",
+              background: uploading ? "#94a3b8" : "#4f46e5",
               color: "white",
               border: "none",
               borderRadius: 8,
+              cursor: uploading ? "default" : "pointer",
+              fontWeight: 800,
             }}
           >
-            Confirm & Upload
+            {uploading ? "Uploading..." : "Confirm & Upload"}
           </button>
         </>
       )}
-
-      {uploading && <p>Uploading...</p>}
     </div>
   );
 }

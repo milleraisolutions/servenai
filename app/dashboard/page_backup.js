@@ -1422,138 +1422,288 @@ const Section = ({ title, id, children }) => {
 </LineChart>
 </> 
 {activeTab === "labor" && (
-  <>
-  <h3>📅 Smart Schedule Suggestions</h3>
+  <div>
+    {/* LABOR INTELLIGENCE HERO */}
+    <div
+      style={{
+        marginBottom: "24px",
+        padding: "24px",
+        borderRadius: "24px",
+        background:
+          "radial-gradient(circle at top right, rgba(59,130,246,0.18), transparent 30%), linear-gradient(135deg, #111827, #1e293b)",
+        border: "1px solid rgba(96,165,250,0.18)",
+        boxShadow: "0 20px 50px rgba(2,6,23,0.22)",
+      }}
+    >
+      <div
+        style={{
+          fontSize: "12px",
+          fontWeight: "900",
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          color: "#93c5fd",
+          marginBottom: "8px",
+        }}
+      >
+        Labor Intelligence
+      </div>
 
-{laborRecommendations.map((rec, i) => (
-  <div key={i} style={{
-    padding: "10px",
-    marginBottom: "8px",
-    borderRadius: "10px",
-    background: "#eef2ff"
-  }}>
-    {rec}
-  </div>
-))}
-    <h2 style={{ marginTop: "30px" }}>👨‍🍳 Labor Optimization</h2>
+      <h2
+        style={{
+          margin: 0,
+          color: "white",
+          fontSize: isMobile ? "26px" : "32px",
+          fontWeight: "950",
+        }}
+      >
+        Workforce Performance & Labor Optimization
+      </h2>
+
+      <p
+        style={{
+          marginTop: "10px",
+          color: "#94a3b8",
+          fontSize: "14px",
+          lineHeight: 1.7,
+          maxWidth: "760px",
+        }}
+      >
+        Monitor labor cost, staffing efficiency, shift performance, overstaffing risk,
+        and AI-powered schedule recommendations.
+      </p>
+    </div>
+
+    {/* LABOR KPI STRIP */}
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: isMobile
+          ? "1fr"
+          : "repeat(auto-fit, minmax(180px, 1fr))",
+        gap: "14px",
+        marginBottom: "26px",
+      }}
+    >
+      <GlassCard
+        title="Monthly Labor Loss"
+        value={`$${Number(monthlyLaborLoss || 0).toLocaleString()}`}
+        subtext="Estimated profit lost from overstaffing"
+      />
+
+      <GlassCard
+        title="Worst Labor Day"
+        value={worstDay?.day || "Needs data"}
+        subtext={
+          worstDay?.percent
+            ? `${Number(worstDay.percent).toFixed(1)}% labor cost`
+            : "Upload labor data"
+        }
+      />
+
+      <GlassCard
+        title="Labor Cost Risk"
+        value={
+          worstDay?.percent > 30
+            ? "High"
+            : worstDay?.percent > 25
+            ? "Watch"
+            : "Stable"
+        }
+        subtext="AI staffing risk rating"
+      />
+
+      <GlassCard
+        title="Schedule Suggestions"
+        value={laborRecommendations?.length || 0}
+        subtext="AI labor recommendations detected"
+      />
+    </div>
 
     {plan === "pro" ? (
       <>
-        {/* 💰 LOSS CARD */}
-        <div style={{
-          background: "#111",
-          color: "white",
-          padding: "20px",
-          borderRadius: "16px",
-          marginBottom: "20px"
-        }}>
-          <h3>🚨 Monthly Labor Loss</h3>
-          <p style={{ fontSize: "28px", fontWeight: "700" }}>
-            ${monthlyLaborLoss.toLocaleString()}
-          </p>
-          <p style={{ color: "#9ca3af" }}>
-            Overstaffing is reducing your profit
-          </p>
-        </div>
-
-        {/* 📈 LABOR CHART */}
-        <h3>Labor Cost % by Day</h3>
-
-        <LineChart width={700} height={300} data={laborChartData}>
-          <XAxis dataKey="day" />
-          <YAxis domain={[0, 50]} />
-          <Tooltip />
-
-          <Line
-            type="monotone"
-            dataKey="percent"
-            stroke="#ef4444"
-            strokeWidth={3}
-          />
-        </LineChart>
-<h3>Worst Day</h3>
-<p>Worst Day: {worstDay.day} ({worstDay.percent}%)</p>
-        {/* 📊 DAY BREAKDOWN */}
-        <h3 style={{ marginTop: "20px" }}>Daily Staffing Status</h3>
-
-        {laborByDay.map((d, idx) => (
+        {/* LABOR COST TREND */}
+        <div
+          style={{
+            marginBottom: "26px",
+            padding: "22px",
+            borderRadius: "22px",
+            background:
+              "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.92))",
+            border: "1px solid rgba(96,165,250,0.16)",
+          }}
+        >
           <div
-            key={idx}
             style={{
-              padding: "10px",
-              marginBottom: "8px",
-              borderRadius: "10px",
-              background:
-                d.percent > 30
-                  ? "#fee2e2"
-                  : d.percent < 20
-                  ? "#fef9c3"
-                  : "#dcfce7",
+              fontSize: "12px",
+              fontWeight: "900",
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+              color: "#93c5fd",
+              marginBottom: "14px",
             }}
           >
-            <strong>{d.day}</strong> — {d.percent}% — {d.status}
+            Labor Cost % by Day
           </div>
-          
-        ))}
 
-        <h3 style={{ marginTop: "20px" }}>📅 Smart Schedule Suggestions</h3>
+          <LineChart width={700} height={300} data={laborChartData}>
+            <XAxis dataKey="day" />
+            <YAxis domain={[0, 50]} />
+            <Tooltip />
+            <Line
+              type="monotone"
+              dataKey="percent"
+              stroke="#ef4444"
+              strokeWidth={3}
+            />
+          </LineChart>
+        </div>
 
-<div>
-  {laborRecommendations.map((rec, i) => (
-    <div key={i} style={{
-      padding: "10px",
-      marginBottom: "8px",
-      borderRadius: "10px",
-      background: "#eef2ff"
-    }}>
-      {rec}
-    </div>
-  ))}
-</div>
+        {/* DAILY STAFFING STATUS */}
+        <div
+          style={{
+            marginBottom: "26px",
+            padding: "22px",
+            borderRadius: "22px",
+            background:
+              "linear-gradient(135deg, rgba(30,64,175,0.14), rgba(15,23,42,0.92))",
+            border: "1px solid rgba(96,165,250,0.16)",
+          }}
+        >
+          <div
+            style={{
+              fontSize: "12px",
+              fontWeight: "900",
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+              color: "#93c5fd",
+              marginBottom: "14px",
+            }}
+          >
+            Daily Staffing Status
+          </div>
+
+          <div style={{ display: "grid", gap: "12px" }}>
+            {laborByDay.map((d, idx) => (
+              <div
+                key={idx}
+                style={{
+                  padding: "14px 16px",
+                  borderRadius: "16px",
+                  background: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(148,163,184,0.12)",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: "14px",
+                  alignItems: "center",
+                }}
+              >
+                <div style={{ color: "white", fontWeight: "900" }}>
+                  {d.day}
+                </div>
+
+                <div
+                  style={{
+                    color:
+                      d.percent > 30
+                        ? "#f87171"
+                        : d.percent < 20
+                        ? "#fbbf24"
+                        : "#86efac",
+                    fontWeight: "900",
+                  }}
+                >
+                  {d.percent}% — {d.status}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* SMART SCHEDULE SUGGESTIONS */}
+        <div
+          style={{
+            marginBottom: "26px",
+            padding: "22px",
+            borderRadius: "22px",
+            background:
+              "linear-gradient(135deg, rgba(14,165,233,0.12), rgba(15,23,42,0.92))",
+            border: "1px solid rgba(56,189,248,0.16)",
+          }}
+        >
+          <div
+            style={{
+              fontSize: "12px",
+              fontWeight: "900",
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+              color: "#67e8f9",
+              marginBottom: "14px",
+            }}
+          >
+            Smart Schedule Suggestions
+          </div>
+
+          <div style={{ display: "grid", gap: "12px" }}>
+            {laborRecommendations.map((rec, i) => (
+              <div
+                key={i}
+                style={{
+                  padding: "14px 16px",
+                  borderRadius: "16px",
+                  background: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(148,163,184,0.12)",
+                  color: "#e2e8f0",
+                  fontSize: "14px",
+                  lineHeight: 1.6,
+                }}
+              >
+                {rec}
+              </div>
+            ))}
+          </div>
+        </div>
       </>
     ) : (
-      <div style={{
-        marginTop: "20px",
-        padding: "25px",
-        background: "#111",
-        color: "white",
-        borderRadius: "16px"
-      }}>
-        <h3>🚨 You're Losing Money on Labor</h3>
+      <div
+        style={{
+          marginTop: "20px",
+          padding: "25px",
+          background:
+            "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.92))",
+          color: "white",
+          borderRadius: "22px",
+          border: "1px solid rgba(96,165,250,0.16)",
+        }}
+      >
+        <h3 style={{ marginTop: 0 }}>🚨 You're Losing Money on Labor</h3>
 
-        <p style={{ fontSize: "28px", fontWeight: "700" }}>
-          ${monthlyLaborLoss.toLocaleString()}/month
+        <p style={{ fontSize: "28px", fontWeight: "900" }}>
+          ${Number(monthlyLaborLoss || 0).toLocaleString()}/month
         </p>
 
         <p style={{ color: "#9ca3af" }}>
           Most restaurants overspend 15–30% on labor without realizing it.
         </p>
 
-        <div style={{ marginTop: "15px" }}>
-          <p>• Know exactly which days to cut staff</p>
-          <p>• Prevent overstaffing automatically</p>
-          <p>• Optimize labor cost % in real-time</p>
-        </div>
-
         <button
-          onClick={() => window.location.href = "/pricing"}
+          onClick={() => (window.location.href = "/pricing")}
           style={{
             marginTop: "15px",
             width: "100%",
             background: "#d4af37",
             color: "black",
             padding: "12px",
-            borderRadius: "10px",
+            borderRadius: "12px",
             border: "none",
-            fontWeight: "600",
-            cursor: "pointer"
+            fontWeight: "900",
+            cursor: "pointer",
           }}
         >
           Unlock Labor AI →
         </button>
       </div>
     )}
-  </>
+  </div>
 )}
 {/* ================= STARTER (VISIBLE TO ALL USERS) ================= */}
   <div style={{ marginTop: "40px" }}>

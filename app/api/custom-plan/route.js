@@ -49,7 +49,7 @@ export async function POST(req) {
         process.env.RESEND_FROM_EMAIL || "Serven <hello@servenai.com>";
 
       const toEmail =
-        process.env.ALERT_TO_EMAIL || "milleraisolutions21@gmail.com";
+  process.env.ALERT_TO_EMAIL || "antoinemiller@servenai.com";
 
       const emailRes = await fetch("https://api.resend.com/emails", {
         method: "POST",

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../supabaseClient";
 import { useRouter } from "next/navigation";
 
-const OWNER_EMAIL = "milleraisolutions21@gmail.com";
+const OWNER_EMAIL = "antoinemiller@servenai.com";
 
 export default function OwnerPage() {
   const router = useRouter();
