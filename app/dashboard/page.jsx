@@ -17347,103 +17347,110 @@ return (
     </div>
   </div>
 
-  <div style={{ width: "100%", height: "320px" }}>
-    {aiProfitTrendData?.length ? (
-      <LineChart
-  width={700}
-  height={300}
-          data={aiProfitTrendData}
-          margin={{ top: 10, right: 18, left: 0, bottom: 8 }}
-        >
-          <CartesianGrid
-            strokeDasharray="3 3"
-            stroke="rgba(148,163,184,0.12)"
-          />
+  <div
+  style={{
+    width: "100%",
+    maxWidth: "100%",
+    minWidth: 0,
+    height: isMobile ? "240px" : "300px",
+    overflow: "hidden",
+  }}
+>
+  <ResponsiveContainer width="100%" height="100%">
+    <LineChart
+      data={aiProfitTrendData}
+      margin={{
+        top: 10,
+        right: isMobile ? 8 : 18,
+        left: isMobile ? -18 : 0,
+        bottom: isMobile ? 18 : 8,
+      }}
+    >
+      <CartesianGrid
+        strokeDasharray="3 3"
+        stroke="rgba(148,163,184,0.12)"
+      />
 
-          <XAxis
-            dataKey="day"
-            tick={{ fill: "#94a3b8", fontSize: 12 }}
-            axisLine={{ stroke: "rgba(148,163,184,0.18)" }}
-            tickLine={false}
-          />
-
-          <YAxis
-            tickFormatter={(value) => `$${Number(value).toLocaleString()}`}
-            tick={{ fill: "#94a3b8", fontSize: 12 }}
-            axisLine={{ stroke: "rgba(148,163,184,0.18)" }}
-            tickLine={false}
-          />
-
-          <Tooltip
-            formatter={(value, name) => [
-              `$${Number(value || 0).toLocaleString()}`,
-              name === "optimized"
-                ? "AI Optimized Revenue"
-                : "Baseline Revenue",
-            ]}
-            contentStyle={{
-              background: "rgba(15,23,42,0.97)",
-              border: "1px solid rgba(148,163,184,0.18)",
-              borderRadius: "14px",
-              color: "white",
-            }}
-          />
-
-          <Legend
-            wrapperStyle={{
-              color: "#94a3b8",
-              fontSize: "12px",
-              fontWeight: "800",
-            }}
-          />
-
-          <Line
-            type="monotone"
-            dataKey="baseline"
-            name="Baseline Revenue"
-            stroke="#64748b"
-            strokeWidth={3}
-            strokeDasharray="6 6"
-            dot={false}
-            connectNulls
-          />
-
-          <Line
-            type="monotone"
-            dataKey="optimized"
-            name="AI Optimized Revenue"
-            stroke="#8b5cf6"
-            strokeWidth={4}
-            dot={false}
-            activeDot={{
-              r: 8,
-              fill: "#c4b5fd",
-              stroke: "white",
-              strokeWidth: 2,
-            }}
-            connectNulls
-          />
-        </LineChart>
-      
-    ) : (
-      <div
-        style={{
-          height: "100%",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          color: "#94a3b8",
-          textAlign: "center",
-          borderRadius: "18px",
-          border: "1px dashed rgba(148,163,184,0.2)",
-          background: "rgba(15,23,42,0.5)",
-          fontSize: "13px",
+      <XAxis
+        dataKey="day"
+        tick={{
+          fill: "#94a3b8",
+          fontSize: isMobile ? 9 : 12,
         }}
-      >
-        Apply AI fixes to generate profit recovery projections.
-      </div>
-    )}
-  </div>
+        interval={isMobile ? 1 : 0}
+        angle={isMobile ? -20 : 0}
+        textAnchor={isMobile ? "end" : "middle"}
+        axisLine={{ stroke: "rgba(148,163,184,0.18)" }}
+        tickLine={false}
+      />
+
+      <YAxis
+        tickFormatter={(value) =>
+          isMobile
+            ? `$${Math.round(Number(value || 0) / 1000)}k`
+            : `$${Number(value).toLocaleString()}`
+        }
+        tick={{
+          fill: "#94a3b8",
+          fontSize: isMobile ? 9 : 12,
+        }}
+        width={isMobile ? 42 : 60}
+        axisLine={{ stroke: "rgba(148,163,184,0.18)" }}
+        tickLine={false}
+      />
+
+      <Tooltip
+        formatter={(value, name) => [
+          `$${Number(value || 0).toLocaleString()}`,
+          name === "optimized"
+            ? "AI Optimized Revenue"
+            : "Baseline Revenue",
+        ]}
+        contentStyle={{
+          background: "rgba(15,23,42,0.97)",
+          border: "1px solid rgba(148,163,184,0.18)",
+          borderRadius: "14px",
+          color: "white",
+        }}
+      />
+
+      <Legend
+        wrapperStyle={{
+          color: "#94a3b8",
+          fontSize: isMobile ? "10px" : "12px",
+          fontWeight: "800",
+        }}
+      />
+
+      <Line
+        type="monotone"
+        dataKey="baseline"
+        name="Baseline Revenue"
+        stroke="#64748b"
+        strokeWidth={isMobile ? 2 : 3}
+        strokeDasharray="6 6"
+        dot={false}
+        connectNulls
+      />
+
+      <Line
+        type="monotone"
+        dataKey="optimized"
+        name="AI Optimized Revenue"
+        stroke="#8b5cf6"
+        strokeWidth={isMobile ? 3 : 4}
+        dot={false}
+        activeDot={{
+          r: isMobile ? 5 : 8,
+          fill: "#c4b5fd",
+          stroke: "white",
+          strokeWidth: 2,
+        }}
+        connectNulls
+      />
+    </LineChart>
+  </ResponsiveContainer>
+</div>
 </div>
 
 {/* EXECUTIVE RISK SCORE */}
@@ -24869,11 +24876,13 @@ if (!res.ok) {
       width: "100%",
       maxWidth: "100%",
       minWidth: 0,
-      overflowX: "hidden",
+      overflowX: "auto",
+      overflowY: "visible",
+      WebkitOverflowScrolling: "touch",
 
       display: "grid",
-
       gap: isMobile ? "14px" : "20px",
+      paddingBottom: "12px",
     }}
   >
      {/* PRIMARY CHART */}
@@ -25186,32 +25195,53 @@ if (!res.ok) {
 <div
   style={{
     width: "100%",
-    height: "340px",
-    marginTop: "10px",
-    background: "rgba(255,255,255,0.04)",
-    border: "2px solid yellow",
-    borderRadius: "16px",
-    padding: "12px",
+    maxWidth: "100%",
+    minWidth: 0,
+    height: isMobile ? "240px" : "300px",
+    overflow: "hidden",
   }}
 >
-  <LineChart
-    width={700}
-    height={300}
-   data={revenueChartData}
-  >
-    <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.3)" />
-    <XAxis dataKey="day" stroke="#94a3b8" />
-    <YAxis stroke="#94a3b8" />
-    <Tooltip />
+  <ResponsiveContainer width="100%" height="100%">
+    <LineChart
+      data={revenueChartData}
+      margin={{
+        top: 10,
+        right: isMobile ? 8 : 18,
+        left: isMobile ? -12 : 0,
+        bottom: isMobile ? 18 : 8,
+      }}
+    >
+      <CartesianGrid
+        strokeDasharray="3 3"
+        stroke="rgba(148,163,184,0.3)"
+      />
 
-    <Line
-      type="monotone"
-      dataKey="revenue"
-      stroke="#8b5cf6"
-      strokeWidth={4}
-      dot
-    />
-  </LineChart>
+      <XAxis
+        dataKey="day"
+        stroke="#94a3b8"
+        tick={{ fontSize: isMobile ? 9 : 12 }}
+        interval={isMobile ? 1 : 0}
+        angle={isMobile ? -20 : 0}
+        textAnchor={isMobile ? "end" : "middle"}
+      />
+
+      <YAxis
+        stroke="#94a3b8"
+        tick={{ fontSize: isMobile ? 9 : 12 }}
+        width={isMobile ? 36 : 60}
+      />
+
+      <Tooltip />
+
+      <Line
+        type="monotone"
+        dataKey="revenue"
+        stroke="#8b5cf6"
+        strokeWidth={isMobile ? 3 : 4}
+        dot={!isMobile}
+      />
+    </LineChart>
+  </ResponsiveContainer>
 </div>
  
 
@@ -26422,101 +26452,122 @@ if (!res.ok) {
       Best: {revenueTracker?.bestDay?.day || "N/A"}
     </div>
   </div>
-
-  <div style={{ width: "100%", height: "300px" }}>
-    {revenueChartData.length > 0 ? (
-      <BarChart
-  width={700}
-  height={300}
-  data={revenueChartData}
+<div
+  style={{
+    width: "100%",
+    maxWidth: "100%",
+    minWidth: 0,
+    height: isMobile ? "240px" : "300px",
+    overflow: "hidden",
+  }}
 >
-          <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.16)" />
+  {revenueChartData.length > 0 ? (
+    <ResponsiveContainer width="100%" height="100%">
+      <BarChart
+        data={revenueChartData}
+        margin={{
+          top: 10,
+          right: isMobile ? 8 : 18,
+          left: isMobile ? -12 : 0,
+          bottom: isMobile ? 18 : 8,
+        }}
+      >
+        <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.16)" />
 
-          <XAxis
-            dataKey="day"
-            stroke="#94a3b8"
-            tick={{ fill: "#94a3b8", fontSize: 12 }}
-          />
+        <XAxis
+          dataKey="day"
+          stroke="#94a3b8"
+          tick={{ fill: "#94a3b8", fontSize: isMobile ? 9 : 12 }}
+          interval={isMobile ? 1 : 0}
+          angle={isMobile ? -20 : 0}
+          textAnchor={isMobile ? "end" : "middle"}
+        />
 
-          <YAxis
-            stroke="#94a3b8"
-            tick={{ fill: "#94a3b8", fontSize: 12 }}
-            tickFormatter={(value) => `$${Number(value).toLocaleString()}`}
-          />
+        <YAxis
+          stroke="#94a3b8"
+          tick={{ fill: "#94a3b8", fontSize: isMobile ? 9 : 12 }}
+          width={isMobile ? 36 : 60}
+          tickFormatter={(value) =>
+            isMobile
+              ? `$${Math.round(Number(value || 0) / 1000)}k`
+              : `$${Number(value).toLocaleString()}`
+          }
+        />
 
-          <Tooltip
-            formatter={(value) => [
-              `$${Number(value || 0).toLocaleString()}`,
-              "Revenue",
-            ]}
-            contentStyle={{
-              background: "#020617",
-              border: "1px solid rgba(148,163,184,0.24)",
-              borderRadius: "14px",
-              color: "white",
-            }}
-          />
+        <Tooltip
+          formatter={(value) => [
+            `$${Number(value || 0).toLocaleString()}`,
+            "Revenue",
+          ]}
+          contentStyle={{
+            background: "#020617",
+            border: "1px solid rgba(148,163,184,0.24)",
+            borderRadius: "14px",
+            color: "white",
+          }}
+        />
 
-          <Bar
-            dataKey="revenue"
-            fill="#8b5cf6"
-            radius={[10, 10, 0, 0]}
-          />
-        </BarChart>
-      ) : (
-  <div
-    style={{
-      height: "100%",
-      padding: "28px",
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      justifyContent: "center",
-      textAlign: "center",
-      borderRadius: "18px",
-      border: "1px dashed rgba(148,163,184,0.24)",
-      background:
-        "linear-gradient(135deg, rgba(15,23,42,0.9), rgba(30,41,59,0.72))",
-    }}
-  >
+        <Bar
+          dataKey="revenue"
+          fill="#8b5cf6"
+          radius={[10, 10, 0, 0]}
+        />
+      </BarChart>
+    </ResponsiveContainer>
+  ) : (
     <div
       style={{
-        color: "#d4af37",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "8px",
+        height: "100%",
+        padding: "28px",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        textAlign: "center",
+        borderRadius: "18px",
+        border: "1px dashed rgba(148,163,184,0.24)",
+        background:
+          "linear-gradient(135deg, rgba(15,23,42,0.9), rgba(30,41,59,0.72))",
       }}
     >
-      Daily Revenue Locked
-    </div>
+      <div
+        style={{
+          color: "#d4af37",
+          fontSize: "12px",
+          fontWeight: "900",
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          marginBottom: "8px",
+        }}
+      >
+        Daily Revenue Locked
+      </div>
 
-    <div
-      style={{
-        color: "white",
-        fontSize: "20px",
-        fontWeight: "900",
-        marginBottom: "8px",
-      }}
-    >
-      Upload POS data to reveal your strongest sales days
-    </div>
+      <div
+        style={{
+          color: "white",
+          fontSize: "20px",
+          fontWeight: "900",
+          marginBottom: "8px",
+        }}
+      >
+        Upload POS data to reveal your strongest sales days
+      </div>
 
-    <div
-      style={{
-        color: "#94a3b8",
-        fontSize: "13px",
-        lineHeight: 1.6,
-        maxWidth: "520px",
-      }}
-    >
-      SerVen will compare daily revenue patterns so restaurants can spot slow
-      days, peak periods, and marketing opportunities.
+      <div
+        style={{
+          color: "#94a3b8",
+          fontSize: "13px",
+          lineHeight: 1.6,
+          maxWidth: "520px",
+        }}
+      >
+        SerVen will compare daily revenue patterns so restaurants can spot slow
+        days, peak periods, and marketing opportunities.
+      </div>
     </div>
-  </div>
-)}
-  </div>
+  )}
+</div>
 </div>
 {/* ============================= */}
 {/* MENU MIX / SALES DISTRIBUTION */}
@@ -26595,108 +26646,119 @@ if (!res.ok) {
       {salesDistributionData?.length || 0} segments
     </div>
   </div>
+<div
+  style={{
+    width: "100%",
+    maxWidth: "100%",
+    minWidth: 0,
+    height: isMobile ? "240px" : "300px",
+    overflow: "hidden",
+  }}
+>
+  {salesDistributionData && salesDistributionData.length > 0 ? (
+    <ResponsiveContainer width="100%" height="100%">
+      <PieChart>
+        <Pie
+          data={salesDistributionData}
+          dataKey="value"
+          nameKey="name"
+          outerRadius={isMobile ? 70 : 95}
+          innerRadius={isMobile ? 34 : 48}
+          paddingAngle={3}
+          label={
+            isMobile
+              ? false
+              : ({ name, percent }) =>
+                  `${name} ${(percent * 100).toFixed(0)}%`
+          }
+        >
+          {(salesDistributionData || []).map((entry, index) => {
+            const colors = [
+              "#4f46e5",
+              "#22c55e",
+              "#f59e0b",
+              "#ef4444",
+              "#06b6d4",
+              "#a855f7",
+            ];
 
-  <div style={{ width: "100%", height: "300px" }}>
-    {salesDistributionData && salesDistributionData.length > 0 ? (
-      <PieChart width={700} height={300}>
-          <Pie
-            data={salesDistributionData}
-            dataKey="value"
-            nameKey="name"
-            outerRadius={95}
-            innerRadius={48}
-            paddingAngle={3}
-            label={({ name, percent }) =>
-              `${name} ${(percent * 100).toFixed(0)}%`
-            }
-          >
-            {(salesDistributionData || []).map((entry, index) => {
-              const colors = [
-                "#4f46e5",
-                "#22c55e",
-                "#f59e0b",
-                "#ef4444",
-                "#06b6d4",
-                "#a855f7",
-              ];
+            return (
+              <Cell
+                key={`menu-mix-cell-${index}`}
+                fill={colors[index % colors.length]}
+              />
+            );
+          })}
+        </Pie>
 
-              return (
-                <Cell
-                  key={`menu-mix-cell-${index}`}
-                  fill={colors[index % colors.length]}
-                />
-              );
-            })}
-          </Pie>
-
-          <Tooltip
-            formatter={(value) => [
-              `$${Number(value || 0).toLocaleString()}`,
-              "Revenue",
-            ]}
-            contentStyle={{
-              background: "#020617",
-              border: "1px solid rgba(148,163,184,0.24)",
-              borderRadius: "14px",
-              color: "white",
-            }}
-          />
-        </PieChart>
-      
-      ) : (
-  <div
-    style={{
-      height: "100%",
-      padding: "28px",
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      justifyContent: "center",
-      textAlign: "center",
-      borderRadius: "18px",
-      border: "1px dashed rgba(148,163,184,0.24)",
-      background:
-        "linear-gradient(135deg, rgba(15,23,42,0.9), rgba(30,41,59,0.72))",
-    }}
-  >
+        <Tooltip
+          formatter={(value) => [
+            `$${Number(value || 0).toLocaleString()}`,
+            "Revenue",
+          ]}
+          contentStyle={{
+            background: "#020617",
+            border: "1px solid rgba(148,163,184,0.24)",
+            borderRadius: "14px",
+            color: "white",
+          }}
+        />
+      </PieChart>
+    </ResponsiveContainer>
+  ) : (
     <div
       style={{
-        color: "#22c55e",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "8px",
+        height: "100%",
+        padding: "28px",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        textAlign: "center",
+        borderRadius: "18px",
+        border: "1px dashed rgba(148,163,184,0.24)",
+        background:
+          "linear-gradient(135deg, rgba(15,23,42,0.9), rgba(30,41,59,0.72))",
       }}
     >
-      Menu Mix Locked
-    </div>
+      <div
+        style={{
+          color: "#22c55e",
+          fontSize: "12px",
+          fontWeight: "900",
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          marginBottom: "8px",
+        }}
+      >
+        Menu Mix Locked
+      </div>
 
-    <div
-      style={{
-        color: "white",
-        fontSize: "20px",
-        fontWeight: "900",
-        marginBottom: "8px",
-      }}
-    >
-      Upload menu item data to reveal your best sellers
-    </div>
+      <div
+        style={{
+          color: "white",
+          fontSize: "20px",
+          fontWeight: "900",
+          marginBottom: "8px",
+        }}
+      >
+        Upload menu item data to reveal your best sellers
+      </div>
 
-    <div
-      style={{
-        color: "#94a3b8",
-        fontSize: "13px",
-        lineHeight: 1.6,
-        maxWidth: "520px",
-      }}
-    >
-      SerVen breaks down which menu items and categories drive the most revenue
-      so restaurants can double down on winners and fix weak performers.
+      <div
+        style={{
+          color: "#94a3b8",
+          fontSize: "13px",
+          lineHeight: 1.6,
+          maxWidth: "520px",
+        }}
+      >
+        SerVen breaks down which menu items and categories drive the most revenue
+        so restaurants can double down on winners and fix weak performers.
+      </div>
     </div>
-  </div>
-)}
-  </div>
+  )}
+</div>
 
   {salesDistributionInsight && (
     <div
@@ -26807,30 +26869,46 @@ if (!res.ok) {
     </div>
   </div>
 
-  <div style={{ width: "100%", height: "300px" }}>
-    {foodCostTrendData?.length > 0 ? (
+  <div
+  style={{
+    width: "100%",
+    maxWidth: "100%",
+    minWidth: 0,
+    height: isMobile ? "240px" : "300px",
+    overflow: "hidden",
+  }}
+>
+  {foodCostTrendData?.length > 0 ? (
+    <ResponsiveContainer width="100%" height="100%">
       <LineChart
-  width={700}
-  height={300}
-          data={foodCostTrendData}
-          margin={{ top: 10, right: 18, left: 0, bottom: 8 }}
-        >
+        data={foodCostTrendData}
+        margin={{
+          top: 10,
+          right: isMobile ? 8 : 18,
+          left: isMobile ? -12 : 0,
+          bottom: isMobile ? 18 : 8,
+        }}
+      >
           <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.14)" />
 
-          <XAxis
-            dataKey="day"
-            tick={{ fill: "#94a3b8", fontSize: 12 }}
-            axisLine={{ stroke: "rgba(148,163,184,0.18)" }}
-            tickLine={false}
-          />
+         <XAxis
+  dataKey="day"
+  tick={{ fill: "#94a3b8", fontSize: isMobile ? 9 : 12 }}
+  interval={isMobile ? 1 : 0}
+  angle={isMobile ? -20 : 0}
+  textAnchor={isMobile ? "end" : "middle"}
+  axisLine={{ stroke: "rgba(148,163,184,0.18)" }}
+  tickLine={false}
+/>
 
-          <YAxis
-            tickFormatter={(value) => `${Number(value).toFixed(0)}%`}
-            tick={{ fill: "#94a3b8", fontSize: 12 }}
-            axisLine={{ stroke: "rgba(148,163,184,0.18)" }}
-            tickLine={false}
-            domain={[0, 45]}
-          />
+<YAxis
+  tickFormatter={(value) => `${Number(value).toFixed(0)}%`}
+  tick={{ fill: "#94a3b8", fontSize: isMobile ? 9 : 12 }}
+  width={isMobile ? 36 : 60}
+  axisLine={{ stroke: "rgba(148,163,184,0.18)" }}
+  tickLine={false}
+  domain={[0, 45]}
+/>
 
           <Tooltip
             formatter={(value, name) => [
@@ -26892,9 +26970,9 @@ if (!res.ok) {
             }}
             connectNulls
           />
-        </LineChart>
-      
-    ) : (
+             </LineChart>
+    </ResponsiveContainer>
+  ) : (
   <div
     style={{
       height: "100%",
@@ -27007,99 +27085,118 @@ onMouseLeave={(e) => {
       Flags items that may be selling but leaking profit through weak margins.
     </p>
   </div>
-
-  <div style={{ width: "100%", height: "300px" }}>
-    
-    {profitLeakageChartData?.length > 0 ? (
-      <BarChart
-  width={700}
-  height={300}
-  data={profitLeakageChartData}
+<div
+  style={{
+    width: "100%",
+    maxWidth: "100%",
+    minWidth: 0,
+    height: isMobile ? "240px" : "300px",
+    overflow: "hidden",
+  }}
 >
-          <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.16)" />
+  {profitLeakageChartData?.length > 0 ? (
+    <ResponsiveContainer width="100%" height="100%">
+      <BarChart
+        data={profitLeakageChartData}
+        margin={{
+          top: 10,
+          right: isMobile ? 8 : 18,
+          left: isMobile ? -12 : 0,
+          bottom: isMobile ? 18 : 8,
+        }}
+      >
+        <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.16)" />
 
-          <XAxis
-            dataKey="name"
-            stroke="#94a3b8"
-            tick={{ fill: "#94a3b8", fontSize: 12 }}
-          />
+        <XAxis
+          dataKey="name"
+          stroke="#94a3b8"
+          tick={{ fill: "#94a3b8", fontSize: isMobile ? 9 : 12 }}
+          interval={isMobile ? 1 : 0}
+          angle={isMobile ? -20 : 0}
+          textAnchor={isMobile ? "end" : "middle"}
+        />
 
-          <YAxis
-            stroke="#94a3b8"
-            tick={{ fill: "#94a3b8", fontSize: 12 }}
-            tickFormatter={(value) => `$${Number(value).toLocaleString()}`}
-          />
+        <YAxis
+          stroke="#94a3b8"
+          tick={{ fill: "#94a3b8", fontSize: isMobile ? 9 : 12 }}
+          width={isMobile ? 36 : 60}
+          tickFormatter={(value) =>
+            isMobile
+              ? `$${Math.round(Number(value || 0) / 1000)}k`
+              : `$${Number(value).toLocaleString()}`
+          }
+        />
 
-          <Tooltip
-            formatter={(value) => [
-              `$${Number(value || 0).toLocaleString()}`,
-              "Estimated Loss",
-            ]}
-            contentStyle={{
-              background: "#020617",
-              border: "1px solid rgba(148,163,184,0.24)",
-              borderRadius: "14px",
-              color: "white",
-            }}
-          />
+        <Tooltip
+          formatter={(value) => [
+            `$${Number(value || 0).toLocaleString()}`,
+            "Estimated Loss",
+          ]}
+          contentStyle={{
+            background: "#020617",
+            border: "1px solid rgba(148,163,184,0.24)",
+            borderRadius: "14px",
+            color: "white",
+          }}
+        />
 
-          <Bar dataKey="loss" fill="#f97316" radius={[10, 10, 0, 0]} />
-        </BarChart>
-      
-    ) : (
-  <div
-    style={{
-      height: "100%",
-      padding: "28px",
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      justifyContent: "center",
-      textAlign: "center",
-      borderRadius: "18px",
-      border: "1px dashed rgba(148,163,184,0.24)",
-      background:
-        "linear-gradient(135deg, rgba(15,23,42,0.9), rgba(30,41,59,0.72))",
-    }}
-  >
+        <Bar dataKey="loss" fill="#f97316" radius={[10, 10, 0, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
+  ) : (
     <div
       style={{
-        color: "#f97316",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "8px",
+        height: "100%",
+        padding: "28px",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        textAlign: "center",
+        borderRadius: "18px",
+        border: "1px dashed rgba(148,163,184,0.24)",
+        background:
+          "linear-gradient(135deg, rgba(15,23,42,0.9), rgba(30,41,59,0.72))",
       }}
     >
-      Profit Leakage Locked
-    </div>
+      <div
+        style={{
+          color: "#f97316",
+          fontSize: "12px",
+          fontWeight: "900",
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          marginBottom: "8px",
+        }}
+      >
+        Profit Leakage Locked
+      </div>
 
-    <div
-      style={{
-        color: "white",
-        fontSize: "20px",
-        fontWeight: "900",
-        marginBottom: "8px",
-      }}
-    >
-      Upload item prices and costs to reveal margin leaks
-    </div>
+      <div
+        style={{
+          color: "white",
+          fontSize: "20px",
+          fontWeight: "900",
+          marginBottom: "8px",
+        }}
+      >
+        Upload item prices and costs to reveal margin leaks
+      </div>
 
-    <div
-      style={{
-        color: "#94a3b8",
-        fontSize: "13px",
-        lineHeight: 1.6,
-        maxWidth: "540px",
-      }}
-    >
-      SerVen identifies items that sell but quietly lose profit through weak
-      margins, high costs, or poor pricing.
+      <div
+        style={{
+          color: "#94a3b8",
+          fontSize: "13px",
+          lineHeight: 1.6,
+          maxWidth: "540px",
+        }}
+      >
+        SerVen identifies items that sell but quietly lose profit through weak
+        margins, high costs, or poor pricing.
+      </div>
     </div>
-  </div>
-)}
-  </div>
+  )}
+</div>
   {profitLeakageChartData?.length > 0 && (
   <div
     style={{

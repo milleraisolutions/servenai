@@ -40,13 +40,15 @@ export default function RootLayout({ children }) {
     borderBottom: "1px solid rgba(255,255,255,0.08)",
   };
 
-  const containerStyle = {
-    width: "100%",
-    maxWidth: "1200px",
-    margin: "0 auto",
-    padding: "0 20px",
-    boxSizing: "border-box",
-  };
+ const containerStyle = {
+  width: "100%",
+  maxWidth: isMobile ? "100%" : "1200px",
+  margin: "0 auto",
+  padding: isMobile ? "0" : "0 20px",
+  boxSizing: "border-box",
+  overflowX: "hidden",
+  minWidth: 0,
+};
 
   const navLink = {
     color: "#cbd5e1",

@@ -612,75 +612,97 @@ breakBefore: "page",
     Executive Revenue Trend
   </div>
 
-  <div
+<div
   style={{
     width: "100%",
-    height: "260px",
+    maxWidth: "100%",
+    minWidth: 0,
+    height: isMobile ? "220px" : "260px",
     overflow: "hidden",
   }}
 >
-    {revenueChartData?.length > 0 ? (
-      <ResponsiveContainer width={700} height={240}>
-        <LineChart data={revenueChartData}>
-          <CartesianGrid
-            strokeDasharray="3 3"
-            stroke="rgba(148,163,184,0.14)"
-          />
-
-          <XAxis
-            dataKey="date"
-            tick={{ fill: "#94a3b8", fontSize: 11 }}
-            axisLine={false}
-            tickLine={false}
-          />
-
-          <YAxis
-            tick={{ fill: "#94a3b8", fontSize: 11 }}
-            axisLine={false}
-            tickLine={false}
-            tickFormatter={(value) =>
-              `$${Number(value || 0).toLocaleString()}`
-            }
-          />
-
-          <Tooltip
-            formatter={(value) => [
-              `$${Number(value || 0).toLocaleString()}`,
-              "Revenue",
-            ]}
-            contentStyle={{
-              background: "#020617",
-              border: "1px solid rgba(148,163,184,0.24)",
-              borderRadius: "12px",
-              color: "white",
-            }}
-          />
-
-          <Line
-            type="monotone"
-            dataKey="revenue"
-            stroke="#38bdf8"
-            strokeWidth={3}
-            dot={{ r: 3 }}
-            activeDot={{ r: 5 }}
-          />
-        </LineChart>
-      </ResponsiveContainer>
-    ) : (
-      <div
-        style={{
-          height: "100%",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          color: "#94a3b8",
-          fontWeight: "800",
+  {revenueChartData?.length > 0 ? (
+    <ResponsiveContainer width="100%" height="100%">
+      <LineChart
+        data={revenueChartData}
+        margin={{
+          top: 10,
+          right: isMobile ? 8 : 18,
+          left: isMobile ? -12 : 0,
+          bottom: isMobile ? 18 : 8,
         }}
       >
-        Revenue chart will appear after more sales data is available.
-      </div>
-    )}
-  </div>
+        <CartesianGrid
+          strokeDasharray="3 3"
+          stroke="rgba(148,163,184,0.14)"
+        />
+
+        <XAxis
+          dataKey="date"
+          tick={{
+            fill: "#94a3b8",
+            fontSize: isMobile ? 9 : 11,
+          }}
+          interval={isMobile ? 1 : 0}
+          angle={isMobile ? -20 : 0}
+          textAnchor={isMobile ? "end" : "middle"}
+          axisLine={false}
+          tickLine={false}
+        />
+
+        <YAxis
+          tick={{
+            fill: "#94a3b8",
+            fontSize: isMobile ? 9 : 11,
+          }}
+          width={isMobile ? 36 : 60}
+          axisLine={false}
+          tickLine={false}
+          tickFormatter={(value) =>
+            isMobile
+              ? `$${Math.round(Number(value || 0) / 1000)}k`
+              : `$${Number(value || 0).toLocaleString()}`
+          }
+        />
+
+        <Tooltip
+          formatter={(value) => [
+            `$${Number(value || 0).toLocaleString()}`,
+            "Revenue",
+          ]}
+          contentStyle={{
+            background: "#020617",
+            border: "1px solid rgba(148,163,184,0.24)",
+            borderRadius: "12px",
+            color: "white",
+          }}
+        />
+
+        <Line
+          type="monotone"
+          dataKey="revenue"
+          stroke="#38bdf8"
+          strokeWidth={isMobile ? 2.5 : 3}
+          dot={!isMobile ? { r: 3 } : false}
+          activeDot={{ r: isMobile ? 4 : 5 }}
+        />
+      </LineChart>
+    </ResponsiveContainer>
+  ) : (
+    <div
+      style={{
+        height: "100%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: "#94a3b8",
+        fontWeight: "800",
+      }}
+    >
+      Revenue chart will appear after more sales data is available.
+    </div>
+  )}
+</div>
 </div>
 {/* AI FORECASTING */}
 <div
