@@ -1,5 +1,5 @@
 "use client";
-
+import { useEffect, useState } from "react";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import {
@@ -110,7 +110,20 @@ while (heightLeft > 0) {
   `Serven-Executive-Report-${safeRestaurantName}-${formattedDate}.pdf`
 );
   };
+const [isMobile, setIsMobile] = useState(false);
 
+useEffect(() => {
+  const checkMobile = () => {
+    setIsMobile(window.innerWidth <= 768);
+  };
+
+  checkMobile();
+
+  window.addEventListener("resize", checkMobile);
+
+  return () =>
+    window.removeEventListener("resize", checkMobile);
+}, []);
   return (
     <div
       style={{

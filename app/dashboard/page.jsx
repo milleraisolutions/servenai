@@ -2602,6 +2602,8 @@ const fetchAIInsights = async () => {
 
     if (!response.ok) {
       console.error("AI insights failed:", response.status);
+      const errorText = await response.text();
+console.error("AI ERROR BODY:", errorText);
       return;
     }
 
