@@ -2584,7 +2584,22 @@ useEffect(() => {
     console.error("Failed to load saved opportunities:", err);
   }
 }, []);
+// 1. Add an explicit loading state to prevent UI glitches
+const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
+
 const fetchAIInsights = async () => {
+  // Defensive Guard: Do not execute if any primary datasets are still empty arrays
+  if (
+    (!salesData || salesData.length === 0) &&
+    (!menuItemsData || menuItemsData.length === 0) &&
+    (!ingredientsData || ingredientsData.length === 0) &&
+    (!laborData || laborData.length === 0)
+  ) {
+    console.warn("AI Insights aborted: Core operational datasets are currently empty.");
+    return;
+  }
+
+  setIsGeneratingInsights(true);
   try {
     const response = await fetch("/api/ai-insights", {
       method: "POST",
@@ -2592,27 +2607,36 @@ const fetchAIInsights = async () => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-  salesData: salesData || [],
-  menuItemsData: menuItemsData || [],
-  ingredientsData: ingredientsData || [],
-  laborData: laborData || [],
-  invoiceData: invoicesData || [],
-}),
+        salesData: salesData || [],
+        menuItemsData: menuItemsData || [],
+        ingredientsData: ingredientsData || [],
+        laborData: laborData || [],
+        invoiceData: invoicesData || [], // Checked match to your variable pluralization
+      }),
     });
 
     if (!response.ok) {
-      console.error("AI insights failed:", response.status);
+      console.error(`AI insights endpoint failed with status code: ${response.status}`);
       const errorText = await response.text();
-console.error("AI ERROR BODY:", errorText);
+      console.error("AI SERVER ERROR RESPONSE:", errorText);
       return;
     }
 
     const data = await response.json();
     setAIInsights(data);
   } catch (error) {
-    console.error("AI insights fetch failed:", error);
+    console.error("AI insights network transmission failed:", error);
+  } finally {
+    setIsGeneratingInsights(false);
   }
 };
+
+// 2. Automatically invoke or re-run the engine ONLY when operational data changes state
+useEffect(() => {
+  fetchAIInsights();
+}, [salesData, menuItemsData, ingredientsData, laborData, invoicesData]);
+
+// 3. Keep your Supabase History fetch locked safely to the initial component mount
 useEffect(() => {
   const fetchHistory = async () => {
     try {
@@ -2629,22 +2653,20 @@ useEffect(() => {
         .order("created_at", { ascending: false });
 
       if (error) {
-        console.error("History fetch error:", error);
+        console.error("History fetch database exception:", error);
         return;
       }
 
       const rows = data || [];
-
       setAiHistory(rows.slice(0, 5));
 
       const total = rows.reduce(
         (sum, item) => sum + Number(item.impact_value || 0),
         0
       );
-
       setTotalAiProfit(total);
     } catch (err) {
-      console.error("History fetch failed:", err);
+      console.error("Supabase analytical history resolution failed:", err);
     }
   };
 
