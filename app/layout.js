@@ -188,14 +188,15 @@ export default function RootLayout({ children }) {
           </div>
         </header>
 
-        <main
-          style={{
-            width: "100%",
-            overflowX: "hidden",
-          }}
-        >
-          {children}
-        </main>
+       <main
+  style={{
+    width: "100%",
+    minHeight: "calc(100vh - 74px)", // Pushes content down nicely relative to your navbar height
+    // overflowX: "hidden" <-- REMOVED: This prevents your tab panels from getting cut off!
+  }}
+>
+  {children}
+</main>
       </body>
     </html>
   );

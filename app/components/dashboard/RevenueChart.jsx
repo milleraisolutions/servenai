@@ -1,17 +1,18 @@
 "use client";
 
+import React from "react";
 import {
-  ResponsiveContainer,
-  LineChart,
-  Line,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
 } from "recharts";
 
-export default function RevenueChart({ data, isMobile = false }) {
-  const chartData = Array.isArray(data)
+export default function RevenueChart({ data, isMobile = false, revenueTracker }) {
+  // Safe data extraction parsing layer
+  const revenueChartData = Array.isArray(data)
     ? data
     : Array.isArray(data?.revenueData)
     ? data.revenueData
@@ -20,112 +21,150 @@ export default function RevenueChart({ data, isMobile = false }) {
   return (
     <div
       style={{
-        marginTop: isMobile ? "20px" : "40px",
-        width: "100%",
-        maxWidth: "100%",
-        minWidth: 0,
-        overflowX: "hidden",
+        marginBottom: "0px",
+        padding: "24px",
+        borderRadius: "22px",
+        minHeight: "520px",
+        display: "flex",
+        flexDirection: "column",
+        background:
+          "radial-gradient(circle at top right, rgba(99,102,241,0.12), transparent 40%), linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.9))",
+        border: "1px solid rgba(148,163,184,0.16)",
+        boxShadow: "0 18px 40px rgba(2,6,23,0.22)",
       }}
     >
-      <h2
-        style={{
-          color: "white",
-          marginBottom: "16px",
-          fontSize: isMobile ? "20px" : "26px",
-        }}
-      >
-        📈 Weekly Revenue
-      </h2>
+      {/* Header Section */}
+      <div style={{ marginBottom: "16px" }}>
+        <div
+          style={{
+            fontSize: "12px",
+            fontWeight: "900",
+            letterSpacing: "0.08em",
+            color: "#c4b5fd",
+            textTransform: "uppercase",
+          }}
+        >
+          Revenue Pattern
+        </div>
 
+        <h3
+          style={{
+            margin: "6px 0 4px",
+            color: "white",
+            fontSize: "22px",
+            fontWeight: "950",
+          }}
+        >
+          Revenue by day
+        </h3>
+
+        <p style={{ margin: 0, color: "#94a3b8", fontSize: "13px" }}>
+          See which days drive the most sales and where revenue drops.
+        </p>
+      </div>
+
+      {/* Chart Canvas Area */}
       <div
         style={{
           width: "100%",
-          maxWidth: "100%",
-          minWidth: 0,
-          height: isMobile ? "240px" : "320px",
-          overflow: "hidden",
+          marginTop: "12px",
+          display: "flex",
+          justifyContent: "center",
         }}
       >
-        {chartData.length > 0 ? (
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart
-              data={chartData}
-              margin={{
-                top: 10,
-                right: isMobile ? 8 : 18,
-                left: isMobile ? -18 : 0,
-                bottom: isMobile ? 18 : 8,
+        {revenueChartData?.length > 0 ? (
+          <AreaChart
+            width={isMobile ? 310 : 500} 
+            height={isMobile ? 300 : 380}
+            data={revenueChartData}
+            margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+          >
+            {/* Glowing Area Fill Definition */}
+            <defs>
+              <linearGradient id="revenueGlow" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.4} />
+                <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.0} />
+              </linearGradient>
+            </defs>
+
+            <CartesianGrid
+              strokeDasharray="3 3"
+              stroke="rgba(148,163,184,0.12)"
+              vertical={false}
+            />
+
+            <XAxis
+              dataKey="day"
+              tick={{ fill: "#94a3b8", fontSize: 10 }}
+              axisLine={false}
+              tickLine={false}
+              minTickGap={15}
+            />
+
+            <YAxis
+              tick={{ fill: "#94a3b8", fontSize: 10 }}
+              axisLine={false}
+              tickLine={false}
+              width={65}
+            />
+
+            <Tooltip
+              formatter={(value) => [
+                `$${Number(value || 0).toLocaleString()}`,
+                "Revenue",
+              ]}
+              contentStyle={{
+                background: "#020617",
+                border: "1px solid rgba(148,163,184,0.24)",
+                borderRadius: "14px",
+                color: "white",
               }}
-            >
-              <CartesianGrid
-                strokeDasharray="3 3"
-                stroke="rgba(148,163,184,0.18)"
-              />
+              labelStyle={{ color: "#e5e7eb" }}
+            />
 
-              <XAxis
-                dataKey="day"
-                tick={{
-                  fill: "#94a3b8",
-                  fontSize: isMobile ? 9 : 12,
-                }}
-                interval={isMobile ? 1 : 0}
-                angle={isMobile ? -20 : 0}
-                textAnchor={isMobile ? "end" : "middle"}
-                axisLine={{ stroke: "rgba(148,163,184,0.18)" }}
-                tickLine={false}
-              />
-
-              <YAxis
-                tick={{
-                  fill: "#94a3b8",
-                  fontSize: isMobile ? 9 : 12,
-                }}
-                width={isMobile ? 42 : 60}
-                axisLine={{ stroke: "rgba(148,163,184,0.18)" }}
-                tickLine={false}
-                tickFormatter={(value) =>
-                  isMobile
-                    ? `$${Math.round(Number(value || 0) / 1000)}k`
-                    : `$${Number(value || 0).toLocaleString()}`
-                }
-              />
-
-              <Tooltip
-                formatter={(value) => [
-                  `$${Number(value || 0).toLocaleString()}`,
-                  "Revenue",
-                ]}
-                contentStyle={{
-                  background: "#020617",
-                  border: "1px solid rgba(148,163,184,0.24)",
-                  borderRadius: "14px",
-                  color: "white",
-                }}
-              />
-
-              <Line
-                type="monotone"
-                dataKey="revenue"
-                name="Revenue"
-                stroke="#8b5cf6"
-                strokeWidth={isMobile ? 3 : 4}
-                dot={false}
-                activeDot={{
-                  r: isMobile ? 5 : 7,
-                  fill: "#fbbf24",
-                  stroke: "white",
-                  strokeWidth: 2,
-                }}
-                connectNulls
-              />
-            </LineChart>
-          </ResponsiveContainer>
+            <Area
+              type="monotone"
+              dataKey="revenue"
+              stroke="#8b5cf6"
+              strokeWidth={3}
+              fillOpacity={1}
+              fill="url(#revenueGlow)"
+              isAnimationActive={false}
+            />
+          </AreaChart>
         ) : (
           <div style={{ color: "#94a3b8", padding: "24px" }}>
-            No revenue data yet.
+            No daily revenue data available yet.
           </div>
         )}
       </div>
+
+      {/* Insights Banner */}
+      {revenueChartData?.length > 0 && (
+        <div
+          style={{
+            marginTop: "auto",
+            padding: "14px 16px",
+            borderRadius: "16px",
+            background: "rgba(139,92,246,0.10)",
+            border: "1px solid rgba(139,92,246,0.22)",
+            color: "#ddd6fe",
+            fontSize: "13px",
+            lineHeight: 1.6,
+            fontWeight: "750",
+          }}
+        >
+          <span style={{ color: "white", fontWeight: "950" }}>
+            Revenue insight:
+          </span>{" "}
+          {revenueTracker?.bestDay?.day || "Your strongest day"} is currently your
+          top-performing sales day, generating{" "}
+          <span style={{ color: "#c4b5fd", fontWeight: "950" }}>
+            ${Number(revenueTracker?.bestDay?.revenue || 0).toLocaleString()}
+          </span>
+          . Review slower days for promo, staffing, or menu opportunities.
+        </div>
+      )}
     </div>
   );
 }

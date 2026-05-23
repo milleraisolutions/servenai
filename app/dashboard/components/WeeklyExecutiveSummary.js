@@ -603,104 +603,144 @@ useEffect(() => {
 <div
   style={{
     pageBreakBefore: "always",
-breakBefore: "page",
+    breakBefore: "page",
     marginTop: "24px",
     padding: "24px",
     borderRadius: "22px",
     background:
       "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.88))",
     border: "1px solid rgba(148,163,184,0.14)",
+    boxShadow: "0 18px 42px rgba(2,6,23,0.22)",
+    overflow: "hidden",
   }}
 >
   <div
     style={{
-      fontSize: "12px",
-      fontWeight: "900",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      color: "#93c5fd",
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "flex-start",
+      gap: "12px",
+      flexWrap: "wrap",
       marginBottom: "16px",
     }}
   >
-    Executive Revenue Trend
+    <div>
+      <div
+        style={{
+          fontSize: "12px",
+          fontWeight: "900",
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          color: "#93c5fd",
+          marginBottom: "6px",
+        }}
+      >
+        Executive Revenue Trend
+      </div>
+
+      <div
+        style={{
+          color: "white",
+          fontSize: isMobile ? "22px" : "26px",
+          fontWeight: "950",
+        }}
+      >
+        Revenue performance overview
+      </div>
+
+      <div
+        style={{
+          marginTop: "6px",
+          color: "#94a3b8",
+          fontSize: "13px",
+          lineHeight: 1.6,
+        }}
+      >
+        Tracks daily revenue movement using live uploaded sales data.
+      </div>
+    </div>
+
+    <div
+      style={{
+        padding: "8px 12px",
+        borderRadius: "999px",
+        background: "rgba(56,189,248,0.12)",
+        border: "1px solid rgba(56,189,248,0.22)",
+        color: "#93c5fd",
+        fontSize: "12px",
+        fontWeight: "900",
+      }}
+    >
+      {revenueChartData?.length || 0} data points
+    </div>
   </div>
 
-<div
+ <div
   style={{
     width: "100%",
-    maxWidth: "100%",
-    minWidth: 0,
-    height: isMobile ? "220px" : "260px",
-    overflow: "hidden",
+    height: isMobile ? "300px" : "400px",
+    marginTop: "12px",
+    overflowX: "auto",
+    overflowY: "hidden",
   }}
 >
   {revenueChartData?.length > 0 ? (
-    <ResponsiveContainer width="100%" height="100%">
-      <LineChart
-        data={revenueChartData}
-        margin={{
-          top: 10,
-          right: isMobile ? 8 : 18,
-          left: isMobile ? -12 : 0,
-          bottom: isMobile ? 18 : 8,
+    <LineChart
+      width={isMobile ? 860 : 980}
+      height={isMobile ? 280 : 380}
+      data={revenueChartData}
+      margin={{ top: 20, right: 30, left: 10, bottom: 30 }}
+    >
+      <CartesianGrid
+        strokeDasharray="3 3"
+        stroke="rgba(148,163,184,0.14)"
+      />
+
+      <XAxis
+        dataKey="day"
+        tick={{ fill: "#94a3b8", fontSize: 11 }}
+        axisLine={false}
+        tickLine={false}
+        interval={isMobile ? 1 : 0}
+      />
+
+      <YAxis
+        tick={{ fill: "#94a3b8", fontSize: 11 }}
+        axisLine={false}
+        tickLine={false}
+        width={65}
+        tickFormatter={(value) =>
+          isMobile
+            ? `$${Math.round(Number(value || 0) / 1000)}k`
+            : `$${Number(value || 0).toLocaleString()}`
+        }
+      />
+
+      <Tooltip
+        formatter={(value) => [
+          `$${Number(value || 0).toLocaleString()}`,
+          "Revenue",
+        ]}
+        contentStyle={{
+          background: "#020617",
+          border: "1px solid rgba(148,163,184,0.24)",
+          borderRadius: "12px",
+          color: "white",
         }}
-      >
-        <CartesianGrid
-          strokeDasharray="3 3"
-          stroke="rgba(148,163,184,0.14)"
-        />
+        labelStyle={{ color: "#e5e7eb" }}
+      />
 
-        <XAxis
-          dataKey="date"
-          tick={{
-            fill: "#94a3b8",
-            fontSize: isMobile ? 9 : 11,
-          }}
-          interval={isMobile ? 1 : 0}
-          angle={isMobile ? -20 : 0}
-          textAnchor={isMobile ? "end" : "middle"}
-          axisLine={false}
-          tickLine={false}
-        />
-
-        <YAxis
-          tick={{
-            fill: "#94a3b8",
-            fontSize: isMobile ? 9 : 11,
-          }}
-          width={isMobile ? 36 : 60}
-          axisLine={false}
-          tickLine={false}
-          tickFormatter={(value) =>
-            isMobile
-              ? `$${Math.round(Number(value || 0) / 1000)}k`
-              : `$${Number(value || 0).toLocaleString()}`
-          }
-        />
-
-        <Tooltip
-          formatter={(value) => [
-            `$${Number(value || 0).toLocaleString()}`,
-            "Revenue",
-          ]}
-          contentStyle={{
-            background: "#020617",
-            border: "1px solid rgba(148,163,184,0.24)",
-            borderRadius: "12px",
-            color: "white",
-          }}
-        />
-
-        <Line
-          type="monotone"
-          dataKey="revenue"
-          stroke="#38bdf8"
-          strokeWidth={isMobile ? 2.5 : 3}
-          dot={!isMobile ? { r: 3 } : false}
-          activeDot={{ r: isMobile ? 4 : 5 }}
-        />
-      </LineChart>
-    </ResponsiveContainer>
+      <Line
+        type="monotone"
+        dataKey="revenue"
+        stroke="#38bdf8"
+        strokeWidth={3.5}
+        dot={{ r: 3 }}
+        activeDot={{ r: 7 }}
+        connectNulls
+        isAnimationActive={false}
+      />
+    </LineChart>
   ) : (
     <div
       style={{
@@ -710,12 +750,37 @@ breakBefore: "page",
         justifyContent: "center",
         color: "#94a3b8",
         fontWeight: "800",
+        fontSize: "13px",
+        textAlign: "center",
       }}
     >
-      Revenue chart will appear after more sales data is available.
+      No active revenue records found for this period.
     </div>
   )}
 </div>
+
+  {revenueChartData?.length > 0 && (
+  <div
+    style={{
+      marginTop: "18px",
+      padding: "14px 16px",
+      borderRadius: "16px",
+      background: "rgba(56,189,248,0.10)",
+      border: "1px solid rgba(56,189,248,0.18)",
+      color: "#bfdbfe",
+      fontSize: "13px",
+      lineHeight: 1.6,
+      fontWeight: "750",
+    }}
+  >
+    <span style={{ color: "white", fontWeight: "950" }}>
+      Executive readout:
+    </span>{" "}
+    Revenue activity is now being tracked from uploaded sales data. Watch for
+    spikes, dips, and repeating patterns across operating days to identify
+    stronger revenue windows and weaker sales periods.
+  </div>
+)}
 </div>
 {/* AI FORECASTING */}
 <div
@@ -723,7 +788,7 @@ breakBefore: "page",
    pageBreakBefore: "always",
 breakBefore: "page",
     marginTop: "20px",
-    padding: "24px",
+    padding: "18px",
     borderRadius: "22px",
     background:
       "linear-gradient(135deg, rgba(14,116,144,0.18), rgba(15,23,42,0.92))",

@@ -20,7 +20,12 @@ export default function HomePage() {
   const [isMobile, setIsMobile] = useState(false);
 const [currentUser, setCurrentUser] = useState(null);
 const [demoResult, setDemoResult] = useState(null);
-
+const [restaurantName, setRestaurantName] = useState("");
+const [contactName, setContactName] = useState("");
+const [email, setEmail] = useState("");
+const [phone, setPhone] = useState("");
+const [city, setCity] = useState("");
+const [isSubmitting, setIsSubmitting] = useState(false);
 useEffect(() => {
   const checkMobile = () => {
     setIsMobile(window.innerWidth < 768);
@@ -162,7 +167,61 @@ textAlign: "center",
   boxSizing: "border-box",
 };
 
-  
+  const handleDemoSubmit = async (e) => {
+  e.preventDefault();
+  setIsSubmitting(true);
+
+  const demoPayload = {
+    restaurant_name: restaurantName,
+    contact_name: contactName,
+    email: email,
+    phone: phone,
+    city: city,
+  };
+
+  try {
+    // 1. Inbound row update directly to your Supabase demo_leads table
+    const { error: supabaseError } = await supabase
+      .from("demo_leads")
+      .insert([demoPayload]);
+
+    if (supabaseError) {
+      console.error("Supabase Save Error:", supabaseError);
+      alert("There was an issue saving your request. Please try again.");
+      setIsSubmitting(false);
+      return;
+    }
+
+    // 2. Instant alert to your inbox using your unified API route
+    await fetch("/api/send-client-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        to: email,
+        restaurantName: restaurantName,
+        contactName: contactName,
+        phone: phone,
+        city: city,
+        type: "demo_notification", // Hits the custom Resend code block we just added
+      }),
+    });
+
+    alert("Demo booked successfully! The SerVen team will reach out shortly.");
+    
+    // Clear inputs on success
+    setRestaurantName("");
+    setContactName("");
+    setEmail("");
+    setPhone("");
+    setCity("");
+
+  } catch (error) {
+    console.error("Form Submission Flow Error:", error);
+    alert("Something went wrong, but your data may have been logged.");
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
 
 

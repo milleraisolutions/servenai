@@ -10,7 +10,6 @@ export async function POST(req) {
     const {
       clientName,
       alerts = [],
-      ownerEmail,
       dashboardUrl,
     } = body || {};
 
@@ -21,29 +20,35 @@ export async function POST(req) {
       );
     }
 
-    const toEmail = ownerEmail || process.env.ALERT_TO_EMAIL;
-
-    if (!toEmail) {
-      return NextResponse.json(
-        { error: "Missing alert recipient email" },
-        { status: 400 }
-      );
-    }
+    // FORCE all alerts to owner email only
+    const toEmail =
+      process.env.ALERT_EMAIL ||
+      "milleraisolutions21@gmail.com";
 
     const normalizedAlerts = alerts.map((alert) => ({
       title: alert.title || alert.rule_name || "Alert Triggered",
+
       message:
         alert.message ||
-        `${alert.metric_key || "Metric"} is ${alert.metric_value || "outside target"}`,
+        `${alert.metric_key || "Metric"} is ${
+          alert.metric_value || "outside target"
+        }`,
+
       severity: alert.severity || alert.type || "warning",
+
       metric: alert.metric_key || "AI Signal",
+
       value:
-        alert.metric_value !== undefined && alert.metric_value !== null
+        alert.metric_value !== undefined &&
+        alert.metric_value !== null
           ? Number(alert.metric_value).toFixed(2)
           : "N/A",
+
       threshold:
         alert.operator && alert.threshold
-          ? `${alert.operator} ${Number(alert.threshold || 0).toFixed(2)}`
+          ? `${alert.operator} ${Number(
+              alert.threshold || 0
+            ).toFixed(2)}`
           : "AI detected",
     }));
 
@@ -67,7 +72,7 @@ export async function POST(req) {
         <h2 style="margin-bottom:12px;">Serven Alert Triggered</h2>
 
         <p style="font-size:15px;line-height:1.6;">
-          <strong>${clientName}</strong> triggered one or more performance alerts in Serven.
+          <strong>${clientName}</strong> triggered one or more operational alerts.
         </p>
 
         <table style="border-collapse:collapse;width:100%;margin-top:16px;margin-bottom:20px;">
@@ -81,6 +86,7 @@ export async function POST(req) {
               <th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">Severity</th>
             </tr>
           </thead>
+
           <tbody>
             ${alertRows}
           </tbody>
@@ -88,24 +94,63 @@ export async function POST(req) {
 
         ${
           dashboardUrl
-            ? `<a href="${dashboardUrl}" style="display:inline-block;padding:12px 18px;background:#4f46e5;color:white;text-decoration:none;border-radius:10px;font-weight:700;">Open Dashboard</a>`
+            ? `
+              <a
+                href="${dashboardUrl}"
+                style="
+                  display:inline-block;
+                  padding:12px 18px;
+                  background:#4f46e5;
+                  color:white;
+                  text-decoration:none;
+                  border-radius:10px;
+                  font-weight:700;
+                "
+              >
+                Open Dashboard
+              </a>
+            `
             : ""
         }
       </div>
     `;
 
+    // SKIP EMAILS IN DEVELOPMENT
+    if (process.env.NODE_ENV !== "production") {
+      console.log("Skipped alert email in development mode");
+
+      return NextResponse.json({
+        success: true,
+        skipped: true,
+        reason: "Development mode",
+      });
+    }
+
     const result = await resend.emails.send({
-      from: process.env.ALERT_FROM_EMAIL,
+      from:
+        process.env.ALERT_FROM_EMAIL ||
+        "Serven Alerts <alerts@servenai.com>",
+
       to: toEmail,
+
       subject: `Serven Alert: ${clientName} needs attention`,
+
       html,
     });
 
-    return NextResponse.json({ success: true, result });
+    return NextResponse.json({
+      success: true,
+      result,
+    });
   } catch (error) {
     console.error("send-alert-email error:", error);
+
     return NextResponse.json(
-      { error: error?.message || "Failed to send alert email" },
+      {
+        error:
+          error?.message ||
+          "Failed to send alert email",
+      },
       { status: 500 }
     );
   }

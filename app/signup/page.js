@@ -80,99 +80,79 @@ export default function Signup() {
     }
   };
 
-  const handleSignup = async () => {
-    try {
-      setErrorMessage("");
+  const handleSignup = async (e) => {
+  if (e) e.preventDefault();
+  
+  // Basic validation checks
+  if (!email || !password) {
+    alert("Please fill in all credentials.");
+    return;
+  }
+  if (password !== confirmPassword) {
+    alert("Passwords do not match.");
+    return;
+  }
 
-      const cleanEmail = String(email || "").trim().toLowerCase();
-      const cleanPassword = String(password || "");
-      const cleanConfirmPassword = String(confirmPassword || "");
-      const cleanPhone = String(phone || "").trim();
+  setLoading(true);
 
-      // 👇 ADD THE OPTION 2 CODE RIGHT HERE 👇
-      const personalProviders = ["gmail.com", "yahoo.com", "hotmail.com", "outlook.com", "icloud.com", "aol.com"];
-      const emailDomain = cleanEmail.split("@")[1];
-
-      if (personalProviders.includes(emailDomain)) {
-        setErrorMessage("Please use your official company email address (e.g., name@yourbusiness.com) instead of a personal email.");
-        return;
-      }
-      // 👆 ADD THE OPTION 2 CODE RIGHT HERE 👆
-
-      if (!cleanEmail || !cleanPassword) {
-        setErrorMessage("Please enter your email and password.");
-        return;
-      }
-
-      if (!cleanEmail || !cleanPassword) {
-        setErrorMessage("Please enter your email and password.");
-        return;
-      }
-
-      if (cleanPassword.length < 6) {
-        setErrorMessage("Password must be at least 6 characters.");
-        return;
-      }
-
-      if (cleanPassword !== cleanConfirmPassword) {
-        setErrorMessage("Passwords do not match.");
-        return;
-      }
-
-      setLoading(true);
-
-      const { data, error } = await supabase.auth.signUp({
-        email: cleanEmail,
-        password: cleanPassword,
-      });
-
-      if (error) {
-        setErrorMessage(error.message || "Signup failed.");
-        return;
-      }
-
-      const userId = data?.user?.id;
-
-      if (!userId) {
-        setErrorMessage("Account created, but user profile was not returned.");
-        return;
-      }
-
-      const { error: profileError } = await supabase
-        .from("users")
-        .upsert(
-          {
-            id: userId,
-            email: cleanEmail,
-            phone: cleanPhone || null,
-            restaurant_name: restaurantName.trim(),
-            business_type: businessType || "",
-            size: size || "",
-            plan: "none",
-            customer_status: "lead",
-            subscription_status: "pending",
-            created_at: new Date().toISOString(),
-          },
-          { onConflict: "id" }
-        );
-
-      if (profileError) {
-        console.error("PROFILE SAVE ERROR:", profileError);
-        setErrorMessage(profileError.message || "Profile save failed.");
-        return;
-      }
-
-      await saveLeadToSupabase({ userId, cleanEmail, cleanPhone });
-
-      router.push("/dashboard");
-    } catch (err) {
-      console.error("SIGNUP FAILED:", err);
-      setErrorMessage(err?.message || "Something went wrong during signup.");
-    } finally {
-      setLoading(false);
-    }
+  // 1. Gather the payload using your existing form states
+  const demoPayload = {
+    restaurant_name: restaurantName,
+    contact_name: "New Sign Up Operator", // Since they sign up directly, you can map this or add a state for their name
+    email: email,
+    phone: phone,
+    city: "Form Sign Up", // Fallback text, or use businessType/size metadata if preferred
   };
 
+  try {
+    // 2. Insert into your Supabase demo_leads tracking table first
+    const { error: dbError } = await supabase
+      .from("demo_leads")
+      .insert([demoPayload]);
+
+    if (dbError) {
+      console.error("Failed to log tracking lead:", dbError);
+      // We don't return here so the actual user signup flow isn't blocked if a logging table has an error
+    }
+
+    // 3. Fire your Resend Owner Email Alert
+    await fetch("/api/send-client-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        to: email,
+        restaurantName: restaurantName,
+        contactName: "Inbound Sign Up",
+        phone: phone,
+        city: `Plan Recommendation: ${getRecommendedPlan(size || "small").toUpperCase()}`,
+        type: "demo_notification", // Route trigger for your custom Resend layout
+      }),
+    });
+
+    // ==========================================
+    // YOUR EXISTING SUPABASE AUTH SIGNUP LOGIC
+    // ==========================================
+    // (Keep whatever existing code you had below to create the user, e.g.:)
+    /*
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { restaurant_name: restaurantName, phone, business_type: businessType }
+      }
+    });
+    if (error) throw error;
+    alert("Profile created successfully!");
+    router.push("/dashboard");
+    */
+
+  } catch (err) {
+    console.error("Signup Flow Error:", err);
+    alert(err.message || "An unexpected error occurred.");
+  } finally {
+    setLoading(false);
+  }
+};
   return (
     <div style={pageWrapper}>
       <div style={cardStyle}>

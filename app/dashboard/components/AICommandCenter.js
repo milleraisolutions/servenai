@@ -21,6 +21,13 @@ export default function AICommandCenter({
   setSimulatedProfit,
   setMessage,
   setAppliedFixes,
+  restaurantHealthScore,
+restaurantHealthGrade,
+restaurantHealthTrend,
+restaurantHealthProjectedScore,
+restaurantHealthPrimaryRisk,
+topHealthAction,
+topHealthRecommendation,
 }) {
   return (
     <>
@@ -39,7 +46,152 @@ export default function AICommandCenter({
   <div style={{ color: "#c4b5fd", fontWeight: "900", fontSize: "12px" }}>
     AI Command Center
   </div>
+{/* 🧠 AI HEALTH STATUS */}
+<div
+  style={{
+    marginTop: "18px",
+    marginBottom: "18px",
+    padding: "18px",
+    borderRadius: "20px",
+    background:
+      "linear-gradient(135deg, rgba(79,70,229,0.16), rgba(15,23,42,0.92))",
+    border: "1px solid rgba(129,140,248,0.18)",
+  }}
+>
+  <div
+    style={{
+      color: "#c7d2fe",
+      fontSize: "12px",
+      fontWeight: "950",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "10px",
+    }}
+  >
+    Restaurant AI Health
+  </div>
 
+  <div
+    style={{
+      display: "flex",
+      justifyContent: "space-between",
+      gap: "18px",
+      flexWrap: "wrap",
+      alignItems: "center",
+    }}
+  >
+    <div>
+      <div
+        style={{
+          color: "white",
+          fontSize: "42px",
+          fontWeight: "1000",
+          lineHeight: 1,
+        }}
+      >
+        {restaurantHealthScore}/100
+      </div>
+
+      <div
+        style={{
+          marginTop: "6px",
+          color: "#c7d2fe",
+          fontSize: "14px",
+          fontWeight: "900",
+        }}
+      >
+        {restaurantHealthGrade}
+      </div>
+    </div>
+
+    <div style={{ flex: 1, minWidth: "260px" }}>
+      <div
+        style={{
+          color: "#e2e8f0",
+          fontSize: "14px",
+          lineHeight: 1.7,
+        }}
+      >
+        Primary operational risk detected:{" "}
+        <strong>{restaurantHealthPrimaryRisk}</strong>.
+        Forecast trend is{" "}
+        <strong>{restaurantHealthTrend}</strong> with a projected score of{" "}
+        <strong>{restaurantHealthProjectedScore}/100</strong>.
+      </div>
+
+      {topHealthRecommendation && (
+        <div
+          style={{
+            marginTop: "12px",
+            padding: "10px 12px",
+            borderRadius: "12px",
+            background: "rgba(255,255,255,0.05)",
+            border: "1px solid rgba(148,163,184,0.12)",
+            color: "#cbd5e1",
+            fontSize: "13px",
+            fontWeight: "800",
+          }}
+        >
+          Recommended Action: {topHealthRecommendation}
+        </div>
+      )}
+    </div>
+  </div>
+</div>
+{/* ⚡ EXECUTIVE AI SUMMARY */}
+<div
+  style={{
+    marginBottom: "20px",
+    padding: "18px",
+    borderRadius: "20px",
+    background:
+      "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.92))",
+    border: "1px solid rgba(148,163,184,0.14)",
+  }}
+>
+  <div
+    style={{
+      color: "#d4af37",
+      fontSize: "12px",
+      fontWeight: "950",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "10px",
+    }}
+  >
+    Executive AI Summary
+  </div>
+
+  <div
+    style={{
+      color: "white",
+      fontSize: "20px",
+      fontWeight: "950",
+      marginBottom: "10px",
+    }}
+  >
+    AI Operational Readout
+  </div>
+
+  <div
+    style={{
+      color: "#e2e8f0",
+      fontSize: "14px",
+      lineHeight: 1.8,
+    }}
+  >
+    Restaurant operations are currently rated{" "}
+    <strong>{restaurantHealthGrade}</strong> with a health score of{" "}
+    <strong>{restaurantHealthScore}/100</strong>. AI forecasting is currently{" "}
+    <strong>{restaurantHealthTrend}</strong> with a projected 30-day score of{" "}
+    <strong>{restaurantHealthProjectedScore}/100</strong>. Primary operational
+    focus is{" "}
+    <strong>
+      {topHealthAction?.text || restaurantHealthPrimaryRisk}
+    </strong>
+    .
+  </div>
+</div>
   <div
     style={{
       color: "white",
