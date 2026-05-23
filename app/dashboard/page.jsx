@@ -17971,13 +17971,695 @@ const advancedBeverageInsight = (() => {
   return "Beverage operations appear controlled across pour variance, bartender leakage, cocktail margins, and happy hour profitability.";
 })();
 
+/* =========================
+   AI RESTAURANT HEALTH SYSTEM
+========================= */
+
+const clampScore = (value) => {
+  return Math.max(0, Math.min(100, Math.round(Number(value || 0))));
+};
+
+const categoryScores = {
+  financialHealth: clampScore(
+    liveScore || 70
+  ),
+
+  revenueHealth: clampScore(
+    70 + Number(liveMomentumPercent || 0)
+  ),
+
+  marginHealth: clampScore(
+    60 + (Number(liveAvgMargin || 0) - 55) * 2
+  ),
+
+  laborHealth: clampScore(
+    100 - Math.max(0, Number(liveLaborIntelligence?.laborPercent || 0) - 25) * 3
+  ),
+
+  inventoryHealth: clampScore(
+    100 - Math.min(50, Number(totalWasteLoss || 0) / 100)
+  ),
+
+  beverageHealth: clampScore(
+    100 -
+      criticalOunceVariance.length * 12 -
+      (bartenderVarianceLeaderboard?.[0]?.status === "Critical" ? 18 : 0)
+  ),
+
+  vendorHealth: clampScore(
+    supplierAlerts?.length
+      ? 100 - supplierAlerts.length * 12
+      : 82
+  ),
+
+  forecastStability: clampScore(
+    forecastConfidence || revenueForecastConfidence || 70
+  ),
+};
+
+const overallAIHealthScore = clampScore(
+  categoryScores.financialHealth * 0.18 +
+    categoryScores.revenueHealth * 0.14 +
+    categoryScores.marginHealth * 0.16 +
+    categoryScores.laborHealth * 0.14 +
+    categoryScores.inventoryHealth * 0.12 +
+    categoryScores.beverageHealth * 0.1 +
+    categoryScores.vendorHealth * 0.08 +
+    categoryScores.forecastStability * 0.08
+);
+
+const aiHealthLabel =
+  overallAIHealthScore >= 90
+    ? "Elite"
+    : overallAIHealthScore >= 80
+    ? "Strong"
+    : overallAIHealthScore >= 70
+    ? "Stable"
+    : overallAIHealthScore >= 60
+    ? "At Risk"
+    : "Critical";
+
+const weakestHealthCategory = Object.entries(categoryScores)
+  .map(([key, value]) => ({ key, value }))
+  .sort((a, b) => a.value - b.value)[0];
+
+const strongestHealthCategory = Object.entries(categoryScores)
+  .map(([key, value]) => ({ key, value }))
+  .sort((a, b) => b.value - a.value)[0];
+
+const formatHealthName = (key) =>
+  String(key || "")
+    .replace(/([A-Z])/g, " $1")
+    .replace(/^./, (char) => char.toUpperCase());
+
+const aiHealthInsight = (() => {
+  if (overallAIHealthScore >= 85) {
+    return `Operations are performing strongly. ${formatHealthName(
+      strongestHealthCategory?.key
+    )} is currently your strongest operating area.`;
+  }
+
+  if (weakestHealthCategory?.value < 65) {
+    return `${formatHealthName(
+      weakestHealthCategory?.key
+    )} is pulling down overall performance and should be reviewed first.`;
+  }
+
+  return `Operations are stable, with ${formatHealthName(
+    weakestHealthCategory?.key
+  )} showing the most room for improvement.`;
+})();
+
+/* =========================
+   AI OPERATIONAL MEMORY ENGINE
+========================= */
+
+const operationalMemoryEvents = useMemo(() => {
+  const events = [];
+
+  if (Number(liveMomentumPercent || 0) < 0) {
+    events.push({
+      type: "Revenue",
+      severity: "Watch",
+      title: "Revenue momentum declined",
+      message: `Revenue momentum is down ${Math.abs(
+        Number(liveMomentumPercent || 0)
+      ).toFixed(1)}%.`,
+      impact: Math.abs(Number(liveMomentumPercent || 0)) * 100,
+    });
+  }
+
+  if (Number(foodCostPercentage || 0) > 32) {
+    events.push({
+      type: "Food Cost",
+      severity: "High",
+      title: "Food cost exceeded target",
+      message: `Food cost is currently ${Number(foodCostPercentage || 0).toFixed(
+        1
+      )}%, above the 32% target.`,
+      impact: Number(totalWasteLoss || 0),
+    });
+  }
+
+  if (Number(liveLaborIntelligence?.laborPercent || 0) > 30) {
+    events.push({
+      type: "Labor",
+      severity: "High",
+      title: "Labor pressure increased",
+      message: `Labor is running at ${Number(
+        liveLaborIntelligence?.laborPercent || 0
+      ).toFixed(1)}% of revenue.`,
+      impact: Number(liveLaborIntelligence?.totalLaborCost || 0),
+    });
+  }
+
+  if (criticalOunceVariance?.length > 0) {
+    events.push({
+      type: "Beverage",
+      severity: "High",
+      title: "Beverage pour variance detected",
+      message: `${criticalOunceVariance[0]?.name} is showing ${Math.abs(
+        Number(criticalOunceVariance[0]?.variancePercent || 0)
+      ).toFixed(1)}% variance.`,
+      impact: Number(criticalOunceVariance[0]?.estimatedLoss || 0),
+    });
+  }
+
+  if (supplierAlerts?.length > 0) {
+    events.push({
+      type: "Vendor",
+      severity: "Watch",
+      title: "Supplier cost movement detected",
+      message: `${supplierAlerts.length} supplier alert(s) detected from invoice intelligence.`,
+      impact: supplierAlerts.length * 350,
+    });
+  }
+
+  if (restaurantHealthScore < 70) {
+    events.push({
+      type: "Health",
+      severity: "Critical",
+      title: "Restaurant health dropped below target",
+      message: `Operational health is currently ${restaurantHealthScore}/100.`,
+      impact: Math.max(0, 75 - restaurantHealthScore) * 120,
+    });
+  }
+
+  if (appliedFixes?.length > 0 || appliedAIFixes?.length > 0) {
+    events.push({
+      type: "AI Action",
+      severity: "Positive",
+      title: "AI optimization actions applied",
+      message: `${(appliedFixes?.length || 0) + (appliedAIFixes?.length || 0)} AI action(s) have been applied.`,
+      impact: Number(aiRecoveredProfit || totalAIRevenueRecovered || 0),
+    });
+  }
+
+  return events
+    .map((event, index) => ({
+      id: `${event.type}-${index}`,
+      timestamp: new Date(Date.now() - index * 86400000).toISOString(),
+      ...event,
+    }))
+    .sort((a, b) => Number(b.impact || 0) - Number(a.impact || 0));
+}, [
+  liveMomentumPercent,
+  foodCostPercentage,
+  totalWasteLoss,
+  liveLaborIntelligence,
+  criticalOunceVariance,
+  supplierAlerts,
+  restaurantHealthScore,
+  appliedFixes,
+  appliedAIFixes,
+  aiRecoveredProfit,
+  totalAIRevenueRecovered,
+]);
+
+const operationalMemorySummary = (() => {
+  if (!operationalMemoryEvents.length) {
+    return "AI has not detected any major operational memory events yet. Upload more sales, labor, inventory, invoice, and beverage data to build the timeline.";
+  }
+
+  const topEvent = operationalMemoryEvents[0];
+
+  if (topEvent.severity === "Critical") {
+    return `${topEvent.title}. This is currently the highest-risk operating memory in the system.`;
+  }
+
+  if (topEvent.severity === "High") {
+    return `${topEvent.title}. AI recommends reviewing this before the next operating cycle.`;
+  }
+
+  if (topEvent.severity === "Positive") {
+    return `${topEvent.title}. AI is tracking recovery impact from recent actions.`;
+  }
+
+  return `${topEvent.title}. AI is monitoring this trend for future movement.`;
+})();
+
+const operationalMemoryRiskCount = operationalMemoryEvents.filter((event) =>
+  ["Critical", "High"].includes(event.severity)
+).length;
+
+const operationalMemoryRecoveredValue = operationalMemoryEvents
+  .filter((event) => event.severity === "Positive")
+  .reduce((sum, event) => sum + Number(event.impact || 0), 0);
+
+const operationalMemoryAtRiskValue = operationalMemoryEvents
+  .filter((event) => event.severity !== "Positive")
+  .reduce((sum, event) => sum + Number(event.impact || 0), 0);
+
+/* =========================
+   CROSS-SYSTEM INTELLIGENCE ENGINE
+========================= */
+
+const crossSystemSignals = useMemo(() => {
+  const signals = [];
+
+  if (
+    Number(liveLaborIntelligence?.laborPercent || 0) > 30 &&
+    Number(liveMomentumPercent || 0) < 0
+  ) {
+    signals.push({
+      title: "Labor Pressure May Be Hurting Revenue Efficiency",
+      category: "Labor + Revenue",
+      severity: "High",
+      message:
+        "Labor percentage is elevated while revenue momentum is declining. AI recommends reviewing shift schedules against demand.",
+      impact: Number(liveLaborIntelligence?.totalLaborCost || 0) * 0.12,
+    });
+  }
+
+  if (
+    Number(foodCostPercentage || 0) > 32 &&
+    Number(liveAvgMargin || 0) < 60
+  ) {
+    signals.push({
+      title: "Food Cost Is Compressing Menu Margin",
+      category: "Food Cost + Margin",
+      severity: "High",
+      message:
+        "Food cost is above target while average margin is below healthy range. AI recommends reviewing recipes, pricing, and supplier costs.",
+      impact: Number(totalWasteLoss || 0) || 1200,
+    });
+  }
+
+  if (
+    supplierAlerts?.length > 0 &&
+    Number(foodCostPercentage || 0) > 32
+  ) {
+    signals.push({
+      title: "Supplier Movement May Be Driving Food Cost Risk",
+      category: "Vendor + Food Cost",
+      severity: "Watch",
+      message:
+        "Supplier alerts and food cost pressure are appearing together. AI recommends checking recent invoices against menu margins.",
+      impact: supplierAlerts.length * 500,
+    });
+  }
+
+  if (
+    criticalOunceVariance?.length > 0 &&
+    happyHourBeverageStatus === "Margin Leak"
+  ) {
+    signals.push({
+      title: "Beverage Variance Is Weakening Happy Hour Profit",
+      category: "Beverage + Promotion",
+      severity: "High",
+      message:
+        "Ounce-level variance and weak happy hour margin are occurring together. AI recommends reviewing pours, discounts, and bartender behavior.",
+      impact:
+        criticalOunceVariance.reduce(
+          (sum, item) => sum + Number(item.estimatedLoss || 0),
+          0
+        ) || 900,
+    });
+  }
+
+  if (
+    advancedBeverageRevenue > 0 &&
+    beverageRevenuePercent < 12 &&
+    liveAOV < 25
+  ) {
+    signals.push({
+      title: "Low Beverage Mix May Be Limiting Average Order Value",
+      category: "Beverage + Revenue",
+      severity: "Watch",
+      message:
+        "Beverage contribution is low while AOV is below premium target. AI recommends pairing beverages with high-margin menu items.",
+      impact: Math.max(750, Number(liveTotalOrders || 0) * 3),
+    });
+  }
+
+  if (
+    operationalMemoryRiskCount > 1 &&
+    overallAIHealthScore < 75
+  ) {
+    signals.push({
+      title: "Multiple Risk Memories Are Pulling Down Health Score",
+      category: "Memory + Health",
+      severity: "Critical",
+      message:
+        "AI memory shows multiple high-risk operational events while the health score is below target.",
+      impact: Number(operationalMemoryAtRiskValue || 0),
+    });
+  }
+
+  return signals.sort((a, b) => Number(b.impact || 0) - Number(a.impact || 0));
+}, [
+  liveLaborIntelligence,
+  liveMomentumPercent,
+  foodCostPercentage,
+  liveAvgMargin,
+  totalWasteLoss,
+  supplierAlerts,
+  criticalOunceVariance,
+  happyHourBeverageStatus,
+  advancedBeverageRevenue,
+  beverageRevenuePercent,
+  liveAOV,
+  liveTotalOrders,
+  operationalMemoryRiskCount,
+  operationalMemoryAtRiskValue,
+  overallAIHealthScore,
+]);
+
+const crossSystemSummary = (() => {
+  if (!crossSystemSignals.length) {
+    return "AI is not detecting major cross-system conflicts yet. As more labor, revenue, inventory, vendor, and beverage data comes in, SerVen will connect the dots across departments.";
+  }
+
+  const topSignal = crossSystemSignals[0];
+
+  return `${topSignal.title}. ${topSignal.message}`;
+})();
+
+const crossSystemRiskValue = crossSystemSignals.reduce(
+  (sum, signal) => sum + Number(signal.impact || 0),
+  0
+);
+
+const crossSystemCriticalCount = crossSystemSignals.filter(
+  (signal) => signal.severity === "Critical" || signal.severity === "High"
+).length;
+
+/* =========================
+   AI EXECUTIVE SUMMARY ENGINE
+========================= */
+
+const executiveSummaryNarrative = (() => {
+  const insights = [];
+
+  if (overallAIHealthScore >= 85) {
+    insights.push(
+      "Restaurant operations are performing at a strong operational level."
+    );
+  } else if (overallAIHealthScore < 70) {
+    insights.push(
+      "Operational instability has been detected across multiple business systems."
+    );
+  } else {
+    insights.push(
+      "Restaurant operations are stable but still contain optimization opportunities."
+    );
+  }
+
+  if (crossSystemSignals.length > 0) {
+    insights.push(
+      `AI connected ${crossSystemSignals.length} cross-system operational relationships.`
+    );
+  }
+
+  if (operationalMemoryRiskCount > 0) {
+    insights.push(
+      `${operationalMemoryRiskCount} operational memory risk event(s) are actively being monitored.`
+    );
+  }
+
+  if (criticalOunceVariance.length > 0) {
+    insights.push(
+      "Beverage variance intelligence detected ounce-level operational inconsistencies."
+    );
+  }
+
+  if (Number(foodCostPercentage || 0) > 32) {
+    insights.push(
+      "Food cost remains above healthy operational thresholds."
+    );
+  }
+
+  if (Number(liveLaborIntelligence?.laborPercent || 0) > 30) {
+    insights.push(
+      "Labor efficiency pressure may be reducing profitability."
+    );
+  }
+
+  if (Number(liveMomentumPercent || 0) > 0) {
+    insights.push(
+      `Revenue momentum is improving by ${Number(
+        liveMomentumPercent || 0
+      ).toFixed(1)}%.`
+    );
+  } else if (Number(liveMomentumPercent || 0) < 0) {
+    insights.push(
+      `Revenue momentum is declining by ${Math.abs(
+        Number(liveMomentumPercent || 0)
+      ).toFixed(1)}%.`
+    );
+  }
+
+  if (Number(aiRecoveredProfit || totalAIRevenueRecovered || 0) > 0) {
+    insights.push(
+      `AI systems have tracked approximately $${Number(
+        aiRecoveredProfit || totalAIRevenueRecovered || 0
+      ).toLocaleString()} in operational recovery impact.`
+    );
+  }
+
+  return insights.join(" ");
+})();
+
+const executivePriorityFocus = (() => {
+  if (crossSystemSignals?.[0]?.title) {
+    return crossSystemSignals[0].title;
+  }
+
+  if (weakestHealthCategory?.key) {
+    return `${formatHealthName(
+      weakestHealthCategory.key
+    )} requires attention`;
+  }
+
+  return "Operations stable";
+})();
+
+/* =========================
+   AI PREDICTIVE RISK ENGINE
+========================= */
+
+const predictiveRiskSignals = useMemo(() => {
+  const risks = [];
+
+  if (Number(liveMomentumPercent || 0) < -5) {
+    risks.push({
+      title: "Revenue Decline Risk",
+      level: "High",
+      message: "Revenue momentum suggests possible short-term sales pressure.",
+      forecast: "Next 7–14 days",
+    });
+  }
+
+  if (Number(foodCostPercentage || 0) > 34) {
+    risks.push({
+      title: "Food Cost Escalation Risk",
+      level: "High",
+      message: "Food cost is trending above healthy operating range.",
+      forecast: "Next 14–30 days",
+    });
+  }
+
+  if (Number(liveLaborIntelligence?.laborPercent || 0) > 32) {
+    risks.push({
+      title: "Labor Efficiency Risk",
+      level: "Watch",
+      message: "Labor cost may continue compressing margins.",
+      forecast: "Next payroll cycle",
+    });
+  }
+
+  if (criticalOunceVariance?.length > 0) {
+    risks.push({
+      title: "Beverage Loss Risk",
+      level: "High",
+      message: "Pour variance may create continued alcohol margin leakage.",
+      forecast: "Next inventory count",
+    });
+  }
+
+  if (crossSystemCriticalCount > 1) {
+    risks.push({
+      title: "Multi-System Risk",
+      level: "Critical",
+      message: "Multiple connected operating risks are active at once.",
+      forecast: "Immediate review",
+    });
+  }
+
+  return risks;
+}, [
+  liveMomentumPercent,
+  foodCostPercentage,
+  liveLaborIntelligence,
+  criticalOunceVariance,
+  crossSystemCriticalCount,
+]);
+
+const predictiveRiskSummary =
+  predictiveRiskSignals.length > 0
+    ? `${predictiveRiskSignals.length} predictive risk signal(s) detected. AI recommends reviewing the highest-risk operating area before the next shift cycle.`
+    : "No major predictive risks detected. Operations appear stable based on current data.";
+
+/* =========================
+   AI EXECUTIVE ACTION QUEUE
+========================= */
+
+const executiveActionQueue = useMemo(() => {
+  const actions = [];
+
+  if (crossSystemSignals?.[0]) {
+    actions.push({
+      title: crossSystemSignals[0].title,
+      department: crossSystemSignals[0].category,
+      priority: crossSystemSignals[0].severity,
+      reason: crossSystemSignals[0].message,
+      impact: Number(crossSystemSignals[0].impact || 0),
+    });
+  }
+
+  if (predictiveRiskSignals?.[0]) {
+    actions.push({
+      title: predictiveRiskSignals[0].title,
+      department: "Predictive Risk",
+      priority: predictiveRiskSignals[0].level,
+      reason: predictiveRiskSignals[0].message,
+      impact: Number(crossSystemRiskValue || 0) * 0.15 || 750,
+    });
+  }
+
+  if (operationalMemoryEvents?.[0]) {
+    actions.push({
+      title: operationalMemoryEvents[0].title,
+      department: operationalMemoryEvents[0].type,
+      priority: operationalMemoryEvents[0].severity,
+      reason: operationalMemoryEvents[0].message,
+      impact: Number(operationalMemoryEvents[0].impact || 0),
+    });
+  }
+
+  if (criticalOunceVariance?.[0]) {
+    actions.push({
+      title: "Review Beverage Pour Variance",
+      department: "Beverage",
+      priority: "High",
+      reason: `${criticalOunceVariance[0].name} is showing ${criticalOunceVariance[0].variancePercent}% variance.`,
+      impact: Number(criticalOunceVariance[0].estimatedLoss || 0),
+    });
+  }
+
+  if (Number(foodCostPercentage || 0) > 32) {
+    actions.push({
+      title: "Review Food Cost & Recipes",
+      department: "Food Cost",
+      priority: "High",
+      reason: `Food cost is currently ${Number(foodCostPercentage || 0).toFixed(
+        1
+      )}%, above target.`,
+      impact: Number(totalWasteLoss || 0) || 900,
+    });
+  }
+
+  return actions
+    .filter((action) => action.title)
+    .sort((a, b) => Number(b.impact || 0) - Number(a.impact || 0))
+    .slice(0, 5);
+}, [
+  crossSystemSignals,
+  predictiveRiskSignals,
+  operationalMemoryEvents,
+  criticalOunceVariance,
+  foodCostPercentage,
+  totalWasteLoss,
+  crossSystemRiskValue,
+]);
+
+const executiveTopAction = executiveActionQueue?.[0] || null;
+
+const executiveActionSummary = executiveTopAction
+  ? `Top recommended action: ${executiveTopAction.title}. Estimated impact: $${Number(
+      executiveTopAction.impact || 0
+    ).toLocaleString()}.`
+  : "No urgent executive actions detected from current operating data.";
+
+/* =========================
+   AI BENCHMARKING SYSTEM
+========================= */
+
+const aiBenchmarks = {
+  foodCostTarget: 32,
+  laborTarget: 30,
+  marginTarget: 60,
+  beverageRevenueTarget: 15,
+  healthTarget: 80,
+};
+
+const benchmarkScores = [
+  {
+    label: "Food Cost",
+    actual: `${Number(foodCostPercentage || 0).toFixed(1)}%`,
+    target: `${aiBenchmarks.foodCostTarget}%`,
+    status:
+      Number(foodCostPercentage || 0) <= aiBenchmarks.foodCostTarget
+        ? "Healthy"
+        : "Above Target",
+  },
+  {
+    label: "Labor Cost",
+    actual: `${Number(liveLaborIntelligence?.laborPercent || 0).toFixed(1)}%`,
+    target: `${aiBenchmarks.laborTarget}%`,
+    status:
+      Number(liveLaborIntelligence?.laborPercent || 0) <= aiBenchmarks.laborTarget
+        ? "Healthy"
+        : "Above Target",
+  },
+  {
+    label: "Menu Margin",
+    actual: `${Number(liveAvgMargin || 0).toFixed(1)}%`,
+    target: `${aiBenchmarks.marginTarget}%`,
+    status:
+      Number(liveAvgMargin || 0) >= aiBenchmarks.marginTarget
+        ? "Healthy"
+        : "Below Target",
+  },
+  {
+    label: "Beverage Mix",
+    actual: `${Number(beverageRevenuePercent || 0).toFixed(1)}%`,
+    target: `${aiBenchmarks.beverageRevenueTarget}%`,
+    status:
+      Number(beverageRevenuePercent || 0) >= aiBenchmarks.beverageRevenueTarget
+        ? "Healthy"
+        : "Low Mix",
+  },
+  {
+    label: "AI Health",
+    actual: `${Number(restaurantHealthScore || overallAIHealthScore || 0)}/100`,
+    target: `${aiBenchmarks.healthTarget}/100`,
+    status:
+      Number(restaurantHealthScore || overallAIHealthScore || 0) >=
+      aiBenchmarks.healthTarget
+        ? "Healthy"
+        : "Needs Work",
+  },
+];
+
+const benchmarkSummary = benchmarkScores.some((item) => item.status !== "Healthy")
+  ? "AI benchmarking found operating areas outside healthy restaurant targets."
+  : "Restaurant performance is currently aligned with healthy benchmark targets.";
+
+/* =========================
+   MULTI-LOCATION INTELLIGENCE
+========================= */
 
 
 
+const topLocation = locationPerformanceData?.[0] || null;
+const weakestLocation =
+  locationPerformanceData?.[locationPerformanceData.length - 1] || null;
 
-
-
-
+const multiLocationSummary =
+  locationPerformanceData.length > 1
+    ? `${topLocation?.location} is currently the strongest location by revenue. ${weakestLocation?.location} may need review.`
+    : "Multi-location intelligence will activate when more than one location appears in uploaded sales data.";
 
 
 
@@ -19783,7 +20465,120 @@ return (
   />
 )}
 </div>
+{/* 👑 AI EXECUTIVE SUMMARY HERO */}
+<div
+  style={{
+    marginBottom: "22px",
+    padding: isMobile ? "22px" : "28px",
+    borderRadius: "28px",
+    background:
+      "radial-gradient(circle at top right, rgba(212,175,55,0.22), transparent 32%), linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.94))",
+    border: "1px solid rgba(212,175,55,0.24)",
+    boxShadow: "0 26px 80px rgba(2,6,23,0.38)",
+  }}
+>
+  <div
+    style={{
+      color: "#d4af37",
+      fontSize: "12px",
+      fontWeight: "950",
+      letterSpacing: "0.1em",
+      textTransform: "uppercase",
+      marginBottom: "10px",
+    }}
+  >
+    AI Executive Summary
+  </div>
 
+  <h1
+    style={{
+      color: "white",
+      fontSize: isMobile ? "28px" : "40px",
+      fontWeight: "1000",
+      lineHeight: 1.1,
+      margin: "0 0 14px",
+    }}
+  >
+    {aiHealthLabel || restaurantHealthGrade} Operations ·{" "}
+    {overallAIHealthScore || restaurantHealthScore}/100
+  </h1>
+
+  <p
+    style={{
+      color: "#e2e8f0",
+      fontSize: "15px",
+      lineHeight: 1.85,
+      margin: "0 0 18px",
+      maxWidth: "980px",
+    }}
+  >
+    {executiveSummaryNarrative}
+  </p>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile ? "1fr" : "repeat(4, 1fr)",
+      gap: "14px",
+    }}
+  >
+    {[
+      {
+        label: "Priority Focus",
+        value: executivePriorityFocus,
+      },
+      {
+        label: "Cross-System Signals",
+        value: crossSystemSignals?.length || 0,
+      },
+      {
+        label: "Memory Events",
+        value: operationalMemoryEvents?.length || 0,
+      },
+      {
+        label: "Estimated Risk Exposure",
+        value: `$${Number(
+          crossSystemRiskValue || operationalMemoryAtRiskValue || 0
+        ).toLocaleString()}`,
+      },
+    ].map((item) => (
+      <div
+        key={item.label}
+        style={{
+          padding: "15px",
+          borderRadius: "18px",
+          background: "rgba(15,23,42,0.72)",
+          border: "1px solid rgba(212,175,55,0.18)",
+        }}
+      >
+        <div
+          style={{
+            color: "#94a3b8",
+            fontSize: "11px",
+            fontWeight: "900",
+            textTransform: "uppercase",
+            letterSpacing: "0.07em",
+          }}
+        >
+          {item.label}
+        </div>
+
+        <div
+          style={{
+            color: "white",
+            fontSize:
+              item.label === "Priority Focus" ? "15px" : "26px",
+            fontWeight: "1000",
+            marginTop: "8px",
+            lineHeight: 1.25,
+          }}
+        >
+          {item.value}
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
 {/* 🧠 RESTAURANT AI HEALTH ENGINE */}
 <div
   style={{
@@ -20302,6 +21097,884 @@ return (
   )}
 </div>
 
+</div>
+{/* 🧠 AI OPERATIONAL MEMORY ENGINE */}
+<div
+  style={{
+    marginBottom: "22px",
+    padding: isMobile ? "20px" : "24px",
+    borderRadius: "26px",
+    background:
+      "radial-gradient(circle at top left, rgba(14,165,233,0.22), transparent 34%), linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.94))",
+    border: "1px solid rgba(56,189,248,0.22)",
+    boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
+  }}
+>
+  <div
+    style={{
+      color: "#7dd3fc",
+      fontSize: "12px",
+      fontWeight: "950",
+      letterSpacing: "0.09em",
+      textTransform: "uppercase",
+      marginBottom: "10px",
+    }}
+  >
+    AI Operational Memory Engine
+  </div>
+
+  <h3
+    style={{
+      color: "white",
+      fontSize: isMobile ? "24px" : "30px",
+      fontWeight: "1000",
+      margin: "0 0 10px",
+    }}
+  >
+    AI remembers what changed, why it matters, and what needs attention.
+  </h3>
+
+  <p
+    style={{
+      color: "#cbd5e1",
+      fontSize: "14px",
+      lineHeight: 1.8,
+      margin: "0 0 18px",
+      maxWidth: "880px",
+    }}
+  >
+    {operationalMemorySummary}
+  </p>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
+      gap: "14px",
+      marginBottom: "18px",
+    }}
+  >
+    {[
+      {
+        label: "Memory Events",
+        value: operationalMemoryEvents.length,
+        sub: "Tracked operational changes",
+      },
+      {
+        label: "High-Risk Memories",
+        value: operationalMemoryRiskCount,
+        sub: "Critical or high-risk events",
+      },
+      {
+        label: "Tracked Recovery",
+        value: `$${Number(operationalMemoryRecoveredValue || 0).toLocaleString()}`,
+        sub: "AI-attributed recovery value",
+      },
+    ].map((item) => (
+      <div
+        key={item.label}
+        style={{
+          padding: "16px",
+          borderRadius: "18px",
+          background: "rgba(15,23,42,0.72)",
+          border: "1px solid rgba(148,163,184,0.14)",
+        }}
+      >
+        <div
+          style={{
+            color: "#94a3b8",
+            fontSize: "11px",
+            fontWeight: "900",
+            textTransform: "uppercase",
+            letterSpacing: "0.07em",
+          }}
+        >
+          {item.label}
+        </div>
+
+        <div
+          style={{
+            color: "white",
+            fontSize: "28px",
+            fontWeight: "1000",
+            marginTop: "8px",
+          }}
+        >
+          {item.value}
+        </div>
+
+        <div style={{ color: "#cbd5e1", fontSize: "12px", marginTop: "6px" }}>
+          {item.sub}
+        </div>
+      </div>
+    ))}
+  </div>
+
+  <div
+    style={{
+      display: "grid",
+      gap: "12px",
+    }}
+  >
+    {(operationalMemoryEvents || []).slice(0, 6).map((event) => {
+      const color =
+        event.severity === "Critical"
+          ? "#f87171"
+          : event.severity === "High"
+          ? "#fbbf24"
+          : event.severity === "Positive"
+          ? "#86efac"
+          : "#7dd3fc";
+
+      return (
+        <div
+          key={event.id}
+          style={{
+            padding: "15px",
+            borderRadius: "18px",
+            background: "rgba(255,255,255,0.045)",
+            border: `1px solid ${color}35`,
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: "12px",
+              flexWrap: "wrap",
+              marginBottom: "8px",
+            }}
+          >
+            <div
+              style={{
+                color,
+                fontSize: "11px",
+                fontWeight: "950",
+                textTransform: "uppercase",
+                letterSpacing: "0.08em",
+              }}
+            >
+              {event.type} · {event.severity}
+            </div>
+
+            <div
+              style={{
+                color: "#94a3b8",
+                fontSize: "11px",
+                fontWeight: "800",
+              }}
+            >
+              {new Date(event.timestamp).toLocaleDateString()}
+            </div>
+          </div>
+
+          <div
+            style={{
+              color: "white",
+              fontSize: "16px",
+              fontWeight: "950",
+              marginBottom: "6px",
+            }}
+          >
+            {event.title}
+          </div>
+
+          <div
+            style={{
+              color: "#cbd5e1",
+              fontSize: "13px",
+              lineHeight: 1.7,
+            }}
+          >
+            {event.message}
+          </div>
+
+          <div
+            style={{
+              marginTop: "10px",
+              color,
+              fontSize: "12px",
+              fontWeight: "900",
+            }}
+          >
+            Estimated impact: ${Number(event.impact || 0).toLocaleString()}
+          </div>
+        </div>
+      );
+    })}
+
+    {!operationalMemoryEvents?.length && (
+      <div
+        style={{
+          padding: "15px",
+          borderRadius: "18px",
+          background: "rgba(255,255,255,0.045)",
+          border: "1px solid rgba(148,163,184,0.14)",
+          color: "#cbd5e1",
+          fontSize: "14px",
+          lineHeight: 1.7,
+        }}
+      >
+        No operational memories yet. Upload more operating data to let AI build
+        a timeline of revenue, labor, food cost, beverage, vendor, and recovery
+        changes.
+      </div>
+    )}
+  </div>
+</div>
+{/* 🔗 CROSS-SYSTEM INTELLIGENCE */}
+<div
+  style={{
+    marginBottom: "22px",
+    padding: isMobile ? "20px" : "24px",
+    borderRadius: "26px",
+    background:
+      "radial-gradient(circle at top right, rgba(168,85,247,0.22), transparent 34%), linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.94))",
+    border: "1px solid rgba(192,132,252,0.22)",
+    boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
+  }}
+>
+  <div
+    style={{
+      color: "#d8b4fe",
+      fontSize: "12px",
+      fontWeight: "950",
+      letterSpacing: "0.09em",
+      textTransform: "uppercase",
+      marginBottom: "10px",
+    }}
+  >
+    Cross-System Intelligence
+  </div>
+
+  <h3
+    style={{
+      color: "white",
+      fontSize: isMobile ? "24px" : "30px",
+      fontWeight: "1000",
+      margin: "0 0 10px",
+    }}
+  >
+    AI connects labor, revenue, food cost, vendors, beverage, and memory.
+  </h3>
+
+  <p
+    style={{
+      color: "#cbd5e1",
+      fontSize: "14px",
+      lineHeight: 1.8,
+      margin: "0 0 18px",
+      maxWidth: "900px",
+    }}
+  >
+    {crossSystemSummary}
+  </p>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
+      gap: "14px",
+      marginBottom: "18px",
+    }}
+  >
+    {[
+      {
+        label: "Connected Signals",
+        value: crossSystemSignals.length,
+        sub: "Cross-department AI findings",
+      },
+      {
+        label: "Critical Connections",
+        value: crossSystemCriticalCount,
+        sub: "High-priority linked risks",
+      },
+      {
+        label: "Estimated Impact",
+        value: `$${Number(crossSystemRiskValue || 0).toLocaleString()}`,
+        sub: "Potential cross-system exposure",
+      },
+    ].map((item) => (
+      <div
+        key={item.label}
+        style={{
+          padding: "16px",
+          borderRadius: "18px",
+          background: "rgba(15,23,42,0.72)",
+          border: "1px solid rgba(148,163,184,0.14)",
+        }}
+      >
+        <div
+          style={{
+            color: "#94a3b8",
+            fontSize: "11px",
+            fontWeight: "900",
+            textTransform: "uppercase",
+            letterSpacing: "0.07em",
+          }}
+        >
+          {item.label}
+        </div>
+
+        <div
+          style={{
+            color: "white",
+            fontSize: "28px",
+            fontWeight: "1000",
+            marginTop: "8px",
+          }}
+        >
+          {item.value}
+        </div>
+
+        <div style={{ color: "#cbd5e1", fontSize: "12px", marginTop: "6px" }}>
+          {item.sub}
+        </div>
+      </div>
+    ))}
+  </div>
+
+  <div style={{ display: "grid", gap: "12px" }}>
+    {(crossSystemSignals || []).slice(0, 5).map((signal, index) => {
+      const color =
+        signal.severity === "Critical"
+          ? "#f87171"
+          : signal.severity === "High"
+          ? "#fbbf24"
+          : "#d8b4fe";
+
+      return (
+        <div
+          key={index}
+          style={{
+            padding: "15px",
+            borderRadius: "18px",
+            background: "rgba(255,255,255,0.045)",
+            border: `1px solid ${color}35`,
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: "12px",
+              flexWrap: "wrap",
+              marginBottom: "8px",
+            }}
+          >
+            <div
+              style={{
+                color,
+                fontSize: "11px",
+                fontWeight: "950",
+                textTransform: "uppercase",
+                letterSpacing: "0.08em",
+              }}
+            >
+              {signal.category} · {signal.severity}
+            </div>
+
+            <div
+              style={{
+                color,
+                fontSize: "12px",
+                fontWeight: "900",
+              }}
+            >
+              ${Number(signal.impact || 0).toLocaleString()} impact
+            </div>
+          </div>
+
+          <div
+            style={{
+              color: "white",
+              fontSize: "16px",
+              fontWeight: "950",
+              marginBottom: "6px",
+            }}
+          >
+            {signal.title}
+          </div>
+
+          <div
+            style={{
+              color: "#cbd5e1",
+              fontSize: "13px",
+              lineHeight: 1.7,
+            }}
+          >
+            {signal.message}
+          </div>
+        </div>
+      );
+    })}
+
+    {!crossSystemSignals?.length && (
+      <div
+        style={{
+          padding: "15px",
+          borderRadius: "18px",
+          background: "rgba(255,255,255,0.045)",
+          border: "1px solid rgba(148,163,184,0.14)",
+          color: "#cbd5e1",
+          fontSize: "14px",
+          lineHeight: 1.7,
+        }}
+      >
+        No major cross-system conflicts detected yet. Upload more connected
+        data to let AI detect relationships between labor, revenue, vendors,
+        food cost, beverage performance, and operational memory.
+      </div>
+    )}
+  </div>
+</div>
+{/* 🔮 AI PREDICTIVE RISK ENGINE */}
+<div
+  style={{
+    marginBottom: "22px",
+    padding: isMobile ? "20px" : "24px",
+    borderRadius: "26px",
+    background:
+      "radial-gradient(circle at top left, rgba(239,68,68,0.18), transparent 34%), linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.94))",
+    border: "1px solid rgba(248,113,113,0.22)",
+    boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
+  }}
+>
+  <div
+    style={{
+      color: "#fca5a5",
+      fontSize: "12px",
+      fontWeight: "950",
+      letterSpacing: "0.09em",
+      textTransform: "uppercase",
+      marginBottom: "10px",
+    }}
+  >
+    AI Predictive Risk Engine
+  </div>
+
+  <h3
+    style={{
+      color: "white",
+      fontSize: isMobile ? "24px" : "30px",
+      fontWeight: "1000",
+      margin: "0 0 10px",
+    }}
+  >
+    AI forecasts operational risks before they become profit leaks.
+  </h3>
+
+  <p
+    style={{
+      color: "#cbd5e1",
+      fontSize: "14px",
+      lineHeight: 1.8,
+      margin: "0 0 18px",
+      maxWidth: "900px",
+    }}
+  >
+    {predictiveRiskSummary}
+  </p>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
+      gap: "14px",
+    }}
+  >
+    {(predictiveRiskSignals || []).slice(0, 3).map((risk, index) => {
+      const color =
+        risk.level === "Critical"
+          ? "#f87171"
+          : risk.level === "High"
+          ? "#fbbf24"
+          : "#93c5fd";
+
+      return (
+        <div
+          key={index}
+          style={{
+            padding: "16px",
+            borderRadius: "18px",
+            background: "rgba(15,23,42,0.72)",
+            border: `1px solid ${color}35`,
+          }}
+        >
+          <div
+            style={{
+              color,
+              fontSize: "11px",
+              fontWeight: "950",
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              marginBottom: "8px",
+            }}
+          >
+            {risk.level} · {risk.forecast}
+          </div>
+
+          <div
+            style={{
+              color: "white",
+              fontSize: "17px",
+              fontWeight: "950",
+              marginBottom: "8px",
+            }}
+          >
+            {risk.title}
+          </div>
+
+          <div
+            style={{
+              color: "#cbd5e1",
+              fontSize: "13px",
+              lineHeight: 1.7,
+            }}
+          >
+            {risk.message}
+          </div>
+        </div>
+      );
+    })}
+
+    {!predictiveRiskSignals?.length && (
+      <div
+        style={{
+          gridColumn: isMobile ? "span 1" : "span 3",
+          padding: "16px",
+          borderRadius: "18px",
+          background: "rgba(34,197,94,0.08)",
+          border: "1px solid rgba(34,197,94,0.18)",
+          color: "#86efac",
+          fontSize: "14px",
+          fontWeight: "900",
+        }}
+      >
+        No predictive risks detected from current operating data.
+      </div>
+    )}
+  </div>
+</div>
+{/* ⚡ AI EXECUTIVE ACTION QUEUE */}
+<div
+  style={{
+    marginBottom: "22px",
+    padding: isMobile ? "20px" : "24px",
+    borderRadius: "26px",
+    background:
+      "radial-gradient(circle at top right, rgba(250,204,21,0.18), transparent 34%), linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.94))",
+    border: "1px solid rgba(250,204,21,0.22)",
+    boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
+  }}
+>
+  <div
+    style={{
+      color: "#fde047",
+      fontSize: "12px",
+      fontWeight: "950",
+      letterSpacing: "0.09em",
+      textTransform: "uppercase",
+      marginBottom: "10px",
+    }}
+  >
+    AI Executive Action Queue
+  </div>
+
+  <h3
+    style={{
+      color: "white",
+      fontSize: isMobile ? "24px" : "30px",
+      fontWeight: "1000",
+      margin: "0 0 10px",
+    }}
+  >
+    AI ranks what to fix first based on operational impact.
+  </h3>
+
+  <p
+    style={{
+      color: "#cbd5e1",
+      fontSize: "14px",
+      lineHeight: 1.8,
+      margin: "0 0 18px",
+      maxWidth: "900px",
+    }}
+  >
+    {executiveActionSummary}
+  </p>
+
+  <div style={{ display: "grid", gap: "12px" }}>
+    {(executiveActionQueue || []).map((action, index) => {
+      const color =
+        action.priority === "Critical"
+          ? "#f87171"
+          : action.priority === "High"
+          ? "#fbbf24"
+          : action.priority === "Positive"
+          ? "#86efac"
+          : "#fde047";
+
+      return (
+        <div
+          key={`${action.title}-${index}`}
+          style={{
+            padding: "16px",
+            borderRadius: "18px",
+            background: "rgba(15,23,42,0.72)",
+            border: `1px solid ${color}35`,
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: "12px",
+              flexWrap: "wrap",
+              marginBottom: "8px",
+            }}
+          >
+            <div
+              style={{
+                color,
+                fontSize: "11px",
+                fontWeight: "950",
+                textTransform: "uppercase",
+                letterSpacing: "0.08em",
+              }}
+            >
+              #{index + 1} · {action.department} · {action.priority}
+            </div>
+
+            <div
+              style={{
+                color,
+                fontSize: "12px",
+                fontWeight: "900",
+              }}
+            >
+              ${Number(action.impact || 0).toLocaleString()} impact
+            </div>
+          </div>
+
+          <div
+            style={{
+              color: "white",
+              fontSize: "17px",
+              fontWeight: "950",
+              marginBottom: "8px",
+            }}
+          >
+            {action.title}
+          </div>
+
+          <div
+            style={{
+              color: "#cbd5e1",
+              fontSize: "13px",
+              lineHeight: 1.7,
+            }}
+          >
+            {action.reason}
+          </div>
+        </div>
+      );
+    })}
+
+    {!executiveActionQueue?.length && (
+      <div
+        style={{
+          padding: "16px",
+          borderRadius: "18px",
+          background: "rgba(34,197,94,0.08)",
+          border: "1px solid rgba(34,197,94,0.18)",
+          color: "#86efac",
+          fontSize: "14px",
+          fontWeight: "900",
+        }}
+      >
+        No urgent executive actions detected.
+      </div>
+    )}
+  </div>
+</div>
+{/* 📊 AI BENCHMARKING SYSTEM */}
+<div
+  style={{
+    marginBottom: "22px",
+    padding: isMobile ? "20px" : "24px",
+    borderRadius: "26px",
+    background:
+      "radial-gradient(circle at top left, rgba(34,197,94,0.18), transparent 34%), linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.94))",
+    border: "1px solid rgba(74,222,128,0.22)",
+    boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
+  }}
+>
+  <div
+    style={{
+      color: "#86efac",
+      fontSize: "12px",
+      fontWeight: "950",
+      letterSpacing: "0.09em",
+      textTransform: "uppercase",
+      marginBottom: "10px",
+    }}
+  >
+    AI Benchmarking System
+  </div>
+
+  <h3
+    style={{
+      color: "white",
+      fontSize: isMobile ? "24px" : "30px",
+      fontWeight: "1000",
+      margin: "0 0 10px",
+    }}
+  >
+    AI compares performance against healthy restaurant operating targets.
+  </h3>
+
+  <p
+    style={{
+      color: "#cbd5e1",
+      fontSize: "14px",
+      lineHeight: 1.8,
+      margin: "0 0 18px",
+      maxWidth: "900px",
+    }}
+  >
+    {benchmarkSummary}
+  </p>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile ? "1fr" : "repeat(5, 1fr)",
+      gap: "12px",
+    }}
+  >
+    {(benchmarkScores || []).map((item) => {
+      const healthy = item.status === "Healthy";
+
+      return (
+        <div
+          key={item.label}
+          style={{
+            padding: "15px",
+            borderRadius: "18px",
+            background: "rgba(15,23,42,0.72)",
+            border: healthy
+              ? "1px solid rgba(34,197,94,0.24)"
+              : "1px solid rgba(251,191,36,0.24)",
+          }}
+        >
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "11px",
+              fontWeight: "900",
+              textTransform: "uppercase",
+              letterSpacing: "0.07em",
+            }}
+          >
+            {item.label}
+          </div>
+
+          <div
+            style={{
+              color: "white",
+              fontSize: "24px",
+              fontWeight: "1000",
+              marginTop: "8px",
+            }}
+          >
+            {item.actual}
+          </div>
+
+          <div style={{ color: "#cbd5e1", fontSize: "12px", marginTop: "6px" }}>
+            Target: {item.target}
+          </div>
+
+          <div
+            style={{
+              marginTop: "10px",
+              color: healthy ? "#86efac" : "#fbbf24",
+              fontSize: "12px",
+              fontWeight: "950",
+            }}
+          >
+            {item.status}
+          </div>
+        </div>
+      );
+    })}
+  </div>
+</div>
+{/* 📍 MULTI-LOCATION INTELLIGENCE */}
+<div
+  style={{
+    marginBottom: "22px",
+    padding: isMobile ? "20px" : "24px",
+    borderRadius: "26px",
+    background:
+      "radial-gradient(circle at top right, rgba(59,130,246,0.18), transparent 34%), linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.94))",
+    border: "1px solid rgba(96,165,250,0.22)",
+  }}
+>
+  <div style={{ color: "#93c5fd", fontSize: "12px", fontWeight: "950" }}>
+    Multi-Location Intelligence
+  </div>
+
+  <h3 style={{ color: "white", fontSize: "28px", fontWeight: "1000" }}>
+    AI compares performance across every location.
+  </h3>
+
+  <p style={{ color: "#cbd5e1", fontSize: "14px", lineHeight: 1.8 }}>
+    {multiLocationSummary}
+  </p>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
+      gap: "14px",
+      marginTop: "18px",
+    }}
+  >
+    {(locationPerformanceData || []).slice(0, 3).map((loc) => (
+      <div
+        key={loc.name}
+        style={{
+          padding: "16px",
+          borderRadius: "18px",
+          background: "rgba(15,23,42,0.72)",
+          border: "1px solid rgba(148,163,184,0.14)",
+        }}
+      >
+        <div style={{ color: "#93c5fd", fontSize: "13px", fontWeight: "900" }}>
+          {loc.name}
+        </div>
+
+        <div style={{ color: "white", fontSize: "26px", fontWeight: "1000", marginTop: "8px" }}>
+          ${Number(loc.revenue || 0).toLocaleString()}
+        </div>
+
+        <div style={{ color: "#cbd5e1", fontSize: "12px", marginTop: "6px" }}>
+          Orders: {loc.orders || 0}
+        </div>
+
+        <div style={{ color: "#cbd5e1", fontSize: "12px", marginTop: "4px" }}>
+          Health: {loc.health || 0}/100
+        </div>
+      </div>
+    ))}
+
+    {!locationPerformanceData?.length && (
+      <div style={itemStyle}>
+        Upload sales data with location fields to activate multi-location intelligence.
+      </div>
+    )}
+  </div>
 </div>
 {/* 🧠 AI SETUP INTELLIGENCE */}
 {!hasOperationalData && (
