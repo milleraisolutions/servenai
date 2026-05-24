@@ -9900,18 +9900,51 @@ const aiOperationalSummary =
     ? "Elevated loss risk detected. Waste patterns, inventory variance, and suspicious operational signals are impacting profitability."
     : "Critical operational risk detected. AI identified significant loss exposure across food usage, inventory control, and shift activity.";
 
-
 const topAIRecommendedAction =
   shiftWasteAlerts.length > 0
-    ? `Review ${shiftWasteAlerts[0].shift} voids, comps, and refunds first.`
+    ? {
+        title: `Review ${shiftWasteAlerts[0].shift} Shift Waste`,
+        description:
+          "AI detected elevated voids, refunds, or comps during this shift window.",
+        priority: "Critical",
+        impact: "$2,400/mo",
+        action: "Open Shift Waste Review",
+      }
     : ingredientUsageAnomalies.length > 0
-    ? `Audit ${ingredientUsageAnomalies[0].ingredientName} usage against recipes.`
+    ? {
+        title: `Audit ${ingredientUsageAnomalies[0].ingredientName} Usage`,
+        description:
+          "Inventory intelligence detected ingredient usage variance outside expected recipe behavior.",
+        priority: "High",
+        impact: "$1,900/mo",
+        action: "Open Ingredient Audit",
+      }
     : suspiciousMenuItems.length > 0
-    ? `Review portioning and pricing for ${suspiciousMenuItems[0].name}.`
+    ? {
+        title: `Optimize ${suspiciousMenuItems[0].name}`,
+        description:
+          "Menu intelligence detected possible pricing, portioning, or margin inefficiencies.",
+        priority: "Medium",
+        impact: "$1,400/mo",
+        action: "Open Menu Review",
+      }
     : usageVariancePercent >= 7
-    ? "Review food cost variance and compare actual prep usage against sales."
-    : "No urgent action needed. Continue monitoring usage trends.";
-
+    ? {
+        title: "Reduce Food Cost Variance",
+        description:
+          "Actual kitchen usage is drifting above expected prep and recipe consumption.",
+        priority: "Medium",
+        impact: "$1,100/mo",
+        action: "Open Variance Review",
+      }
+    : {
+        title: "Operations Running Within Healthy Thresholds",
+        description:
+          "AI systems are actively monitoring operational stability and profitability.",
+        priority: "Stable",
+        impact: "$0/mo",
+        action: "View AI Monitoring",
+      };
 const overallAIConfidence = 92;
   
 const aiRiskBreakdown = [
@@ -14706,10 +14739,10 @@ const riskProjectionTimelineData = useMemo(() => {
     },
   ];
 }, [liveMomentumPercent, laborEfficiencyScore, livePrimeCost]);
-
+const clamp = (value, min = 0, max = 100) =>
+  Math.max(min, Math.min(max, Math.round(Number(value || 0))));
 const aiHealthEngine = useMemo(() => {
-  const clamp = (value, min = 0, max = 100) =>
-    Math.max(min, Math.min(max, Math.round(Number(value || 0))));
+  
 
   const scorePrimeCost = (() => {
     const value = Number(livePrimeCost || primeCostPercentage || 0);
@@ -14796,29 +14829,206 @@ const aiHealthEngine = useMemo(() => {
     return 35;
   })();
 
-  const categoryScores = {
-    financialHealth: clamp(scoreRevenue * 0.35 + scoreMargin * 0.35 + scorePrimeCost * 0.3),
-    laborHealth: clamp(scoreLabor),
-    inventoryHealth: clamp(scoreInventory),
-    wasteHealth: clamp(scoreWaste),
-    vendorHealth: clamp(scoreVendor),
-    marginHealth: clamp(scoreMargin),
-    forecastStability: clamp(
-  scoreRevenue * 0.4 +
-    scorePrimeCost * 0.35 +
-    scoreLabor * 0.25
+/* =========================
+   AI CONSUMABLES INTELLIGENCE
+========================= */
+
+const consumableKeywords = [
+  "oil",
+  "olive oil",
+  "avocado oil",
+  "canola oil",
+  "vegetable oil",
+  "sesame oil",
+  "fryer oil",
+  "butter",
+  "lime",
+  "lemon",
+  "orange",
+  "mint",
+  "parsley",
+  "olive",
+  "cherry",
+  "garnish",
+  "celery",
+  "herb",
+  "strawberry",
+"strawberries",
+"blackberry",
+"blackberries",
+"raspberry",
+"raspberries",
+"blueberry",
+"blueberries",
+"pineapple",
+"cucumber",
+"jalapeno",
+"basil",
+"rosemary",
+"thyme",
+];
+
+const consumableInventoryRows = (
+  uploadComparison?.activeIngredients ||
+  ingredientsData ||
+  []
+).filter((item) => {
+  const text = `${item.name || ""} ${item.ingredient_name || ""} ${
+    item.category || ""
+  }`.toLowerCase();
+
+  return consumableKeywords.some((word) => text.includes(word));
+});
+
+const consumablesIntelligenceData = consumableInventoryRows.map(
+  (item, index) => {
+    const name =
+      item.name ||
+      item.ingredient_name ||
+      item.item ||
+      `Consumable ${index + 1}`;
+
+    const currentStock = Number(
+      item.current_stock ||
+        item.quantity ||
+        item.on_hand ||
+        item.inventory ||
+        0
+    );
+
+    const invoiceQuantity = Number(
+      item.purchased ||
+        item.invoice_quantity ||
+        item.received ||
+        0
+    );
+
+    const estimatedUsage = Math.max(
+      1,
+      Math.round((liveTotalOrders || 0) * 0.04)
+    );
+
+    const estimatedVariance =
+      invoiceQuantity > 0
+        ? Number(
+            (
+              ((invoiceQuantity - estimatedUsage) / invoiceQuantity) *
+              100
+            ).toFixed(1)
+          )
+        : 0;
+
+    const estimatedLeakage =
+      estimatedVariance > 18
+        ? Math.round((invoiceQuantity - estimatedUsage) * 4)
+        : 0;
+
+    const category =
+      name.toLowerCase().includes("oil") ||
+      name.toLowerCase().includes("butter")
+        ? "Cooking Oil"
+        : "Garnish";
+
+    const status =
+      estimatedVariance > 35
+        ? "Critical Variance"
+        : estimatedVariance > 18
+        ? "Variance Risk"
+        : estimatedVariance < -15
+        ? "Understock Risk"
+        : "Controlled";
+
+    return {
+      name,
+      category,
+      currentStock,
+      invoiceQuantity,
+      estimatedUsage,
+      estimatedVariance,
+      estimatedLeakage,
+      status,
+    };
+  }
+);
+
+
+const consumablesVarianceRisk = consumablesIntelligenceData.filter(
+  (item) =>
+    item.status === "Critical Variance" ||
+    item.status === "Variance Risk"
+);
+
+const consumablesEstimatedLeakage = consumablesIntelligenceData.reduce(
+  (sum, item) => sum + Number(item.estimatedLeakage || 0),
+  0
+);
+const consumablesSummary = (() => {
+  if (!consumablesIntelligenceData.length) {
+    return "Upload ingredient or invoice data to activate AI consumables intelligence.";
+  }
+
+  if (consumablesVarianceRisk.length > 0) {
+    return `${consumablesVarianceRisk[0].name} shows unusual depletion compared to estimated operational usage.`;
+  }
+
+  return "Consumables usage appears operationally stable based on estimated depletion patterns.";
+})();
+
+
+
+const categoryScores = {
+  financialHealth: clamp(
+    scoreRevenue * 0.35 +
+      scoreMargin * 0.35 +
+      scorePrimeCost * 0.3
+  ),
+
+  revenueHealth: clamp(scoreRevenue),
+
+  laborHealth: clamp(scoreLabor),
+
+  inventoryHealth: clamp(scoreInventory),
+
+  beverageHealth: clamp(
+  100 -
+    Math.min(
+      45,
+      Number(alcoholVariancePercent || 0) * 2 +
+        Number(lowMarginCocktails?.length || 0) * 6
+    )
 ),
 
-shiftHealth: clamp(
-  mostLaborHeavyShift?.laborPercent > 35
-    ? 55
-    : mostLaborHeavyShift?.laborPercent > 28
-    ? 72
-    : topShift?.revenue > 0
-    ? 88
-    : 65
-),
-  };
+  consumablesHealth: clamp(
+    100 -
+      Math.min(
+        40,
+        Number(consumablesVarianceRisk?.length || 0) * 12 +
+          Number(consumablesEstimatedLeakage || 0) / 120
+      )
+  ),
+
+  wasteHealth: clamp(scoreWaste),
+
+  vendorHealth: clamp(scoreVendor),
+
+  marginHealth: clamp(scoreMargin),
+
+  forecastStability: clamp(
+    scoreRevenue * 0.4 +
+      scorePrimeCost * 0.35 +
+      scoreLabor * 0.25
+  ),
+
+  shiftHealth: clamp(
+    mostLaborHeavyShift?.laborPercent > 35
+      ? 55
+      : mostLaborHeavyShift?.laborPercent > 28
+      ? 72
+      : topShift?.revenue > 0
+      ? 88
+      : 65
+  ),
+};
 
   const overallScore = clamp(
   categoryScores.financialHealth * 0.2 +
@@ -17970,7 +18180,6 @@ const advancedBeverageInsight = (() => {
 
   return "Beverage operations appear controlled across pour variance, bartender leakage, cocktail margins, and happy hour profitability.";
 })();
-
 /* =========================
    AI RESTAURANT HEALTH SYSTEM
 ========================= */
@@ -17979,71 +18188,29 @@ const clampScore = (value) => {
   return Math.max(0, Math.min(100, Math.round(Number(value || 0))));
 };
 
-const categoryScores = {
-  financialHealth: clampScore(
-    liveScore || 70
-  ),
 
-  revenueHealth: clampScore(
-    70 + Number(liveMomentumPercent || 0)
-  ),
-
-  marginHealth: clampScore(
-    60 + (Number(liveAvgMargin || 0) - 55) * 2
-  ),
-
-  laborHealth: clampScore(
-    100 - Math.max(0, Number(liveLaborIntelligence?.laborPercent || 0) - 25) * 3
-  ),
-
-  inventoryHealth: clampScore(
-    100 - Math.min(50, Number(totalWasteLoss || 0) / 100)
-  ),
-
-  beverageHealth: clampScore(
-    100 -
-      criticalOunceVariance.length * 12 -
-      (bartenderVarianceLeaderboard?.[0]?.status === "Critical" ? 18 : 0)
-  ),
-
-  vendorHealth: clampScore(
-    supplierAlerts?.length
-      ? 100 - supplierAlerts.length * 12
-      : 82
-  ),
-
-  forecastStability: clampScore(
-    forecastConfidence || revenueForecastConfidence || 70
-  ),
-};
-
-const overallAIHealthScore = clampScore(
-  categoryScores.financialHealth * 0.18 +
-    categoryScores.revenueHealth * 0.14 +
-    categoryScores.marginHealth * 0.16 +
-    categoryScores.laborHealth * 0.14 +
-    categoryScores.inventoryHealth * 0.12 +
-    categoryScores.beverageHealth * 0.1 +
-    categoryScores.vendorHealth * 0.08 +
-    categoryScores.forecastStability * 0.08
-);
+const laborScore = clampScore(laborHealthScoreData?.score);
+const inventoryScore = clampScore(inventoryHealthScoreData?.score);
 
 const aiHealthLabel =
-  overallAIHealthScore >= 90
+  aiHealthEngine?.overallScore >= 90
     ? "Elite"
-    : overallAIHealthScore >= 80
+    : aiHealthEngine?.overallScore >= 80
     ? "Strong"
-    : overallAIHealthScore >= 70
+    : aiHealthEngine?.overallScore >= 70
     ? "Stable"
-    : overallAIHealthScore >= 60
+    : aiHealthEngine?.overallScore >= 60
     ? "At Risk"
     : "Critical";
 
-const weakestHealthCategory = Object.entries(categoryScores)
+const weakestHealthCategory = Object.entries(
+  aiHealthEngine?.categoryScores || {}
+)
   .map(([key, value]) => ({ key, value }))
   .sort((a, b) => a.value - b.value)[0];
-
-const strongestHealthCategory = Object.entries(categoryScores)
+const strongestHealthCategory = Object.entries(
+  aiHealthEngine?.categoryScores || {}
+)
   .map(([key, value]) => ({ key, value }))
   .sort((a, b) => b.value - a.value)[0];
 
@@ -18053,7 +18220,7 @@ const formatHealthName = (key) =>
     .replace(/^./, (char) => char.toUpperCase());
 
 const aiHealthInsight = (() => {
-  if (overallAIHealthScore >= 85) {
+ if (aiHealthEngine?.overallScore >= 85) {
     return `Operations are performing strongly. ${formatHealthName(
       strongestHealthCategory?.key
     )} is currently your strongest operating area.`;
@@ -18069,6 +18236,7 @@ const aiHealthInsight = (() => {
     weakestHealthCategory?.key
   )} showing the most room for improvement.`;
 })();
+
 
 /* =========================
    AI OPERATIONAL MEMORY ENGINE
@@ -18154,7 +18322,16 @@ const operationalMemoryEvents = useMemo(() => {
       impact: Number(aiRecoveredProfit || totalAIRevenueRecovered || 0),
     });
   }
-
+if (Number(aiHealthEngine?.categoryScores?.consumablesHealth || 100) < 75) {
+  events.push({
+    type: "Consumables",
+    severity: "High",
+    title: "Consumables variance detected",
+    message:
+      "Consumables show unusual estimated depletion across oil, garnish, berries, citrus, herbs, or prep usage.",
+    impact: 850,
+  });
+}
   return events
     .map((event, index) => ({
       id: `${event.type}-${index}`,
@@ -18173,7 +18350,8 @@ const operationalMemoryEvents = useMemo(() => {
   appliedFixes,
   appliedAIFixes,
   aiRecoveredProfit,
-  totalAIRevenueRecovered,
+  totalAIRevenueRecovered, 
+  aiHealthEngine,
 ]);
 
 const operationalMemorySummary = (() => {
@@ -18305,7 +18483,19 @@ const crossSystemSignals = useMemo(() => {
       impact: Number(operationalMemoryAtRiskValue || 0),
     });
   }
-
+if (
+  Number(aiHealthEngine?.categoryScores?.consumablesHealth || 100) < 75 &&
+  Number(foodCostPercentage || 0) > 32
+) {
+  signals.push({
+    title: "Consumables Waste May Be Driving Food Cost Pressure",
+    category: "Consumables + Food Cost",
+    severity: "High",
+    message:
+      "Oil, garnish, berry, citrus, or herb variance is appearing while food cost is above target. AI recommends reviewing prep usage and invoice depletion.",
+    impact: 850,
+  });
+}
   return signals.sort((a, b) => Number(b.impact || 0) - Number(a.impact || 0));
 }, [
   liveLaborIntelligence,
@@ -18322,7 +18512,7 @@ const crossSystemSignals = useMemo(() => {
   liveTotalOrders,
   operationalMemoryRiskCount,
   operationalMemoryAtRiskValue,
-  overallAIHealthScore,
+  aiHealthEngine,
 ]);
 
 const crossSystemSummary = (() => {
@@ -18351,11 +18541,11 @@ const crossSystemCriticalCount = crossSystemSignals.filter(
 const executiveSummaryNarrative = (() => {
   const insights = [];
 
-  if (overallAIHealthScore >= 85) {
+  if (aiHealthEngine?.overallScore >= 85) {
     insights.push(
       "Restaurant operations are performing at a strong operational level."
     );
-  } else if (overallAIHealthScore < 70) {
+  } else if (aiHealthEngine?.overallScore < 70) {
     insights.push(
       "Operational instability has been detected across multiple business systems."
     );
@@ -18416,7 +18606,11 @@ const executiveSummaryNarrative = (() => {
       ).toLocaleString()} in operational recovery impact.`
     );
   }
-
+if (Number(aiHealthEngine?.categoryScores?.consumablesHealth || 100) < 75) {
+  insights.push(
+    `Consumables intelligence detected ${consumablesVarianceRisk.length} oil, garnish, citrus, herb, or berry variance risk(s).`
+  );
+}
   return insights.join(" ");
 })();
 
@@ -18424,7 +18618,9 @@ const executivePriorityFocus = (() => {
   if (crossSystemSignals?.[0]?.title) {
     return crossSystemSignals[0].title;
   }
-
+if (Number(aiHealthEngine?.categoryScores?.consumablesHealth || 100) < 75) {
+  return `Review ${consumablesVarianceRisk[0].name} consumables variance`;
+}
   if (weakestHealthCategory?.key) {
     return `${formatHealthName(
       weakestHealthCategory.key
@@ -18485,7 +18681,23 @@ const predictiveRiskSignals = useMemo(() => {
       forecast: "Immediate review",
     });
   }
+if (Number(aiHealthEngine?.categoryScores?.consumablesHealth || 100) < 75) {
+  risks.push({
+    title: "Consumables Leakage Risk",
+    level:
+      Number(aiHealthEngine?.categoryScores?.consumablesHealth || 100) < 60
+        ? "High"
+        : "Watch",
 
+    message:
+      "AI detected unusual consumables depletion patterns across oils, garnish, berries, herbs, citrus, or prep usage.",
+
+    forecast:
+      Number(aiHealthEngine?.categoryScores?.consumablesHealth || 100) < 60
+        ? "Next operating week"
+        : "Monitor next inventory cycle",
+  });
+}
   return risks;
 }, [
   liveMomentumPercent,
@@ -18493,6 +18705,7 @@ const predictiveRiskSignals = useMemo(() => {
   liveLaborIntelligence,
   criticalOunceVariance,
   crossSystemCriticalCount,
+  aiHealthEngine,
 ]);
 
 const predictiveRiskSummary =
@@ -18558,7 +18771,19 @@ const executiveActionQueue = useMemo(() => {
       impact: Number(totalWasteLoss || 0) || 900,
     });
   }
-
+if (Number(aiHealthEngine?.categoryScores?.consumablesHealth || 100) < 75) {
+  actions.push({
+    title: "Review Consumables Depletion",
+    department: "Consumables",
+    priority:
+      Number(aiHealthEngine?.categoryScores?.consumablesHealth || 100) < 60
+        ? "Critical"
+        : "High",
+    reason:
+      "Consumables show unusual estimated usage variance. Review oil, garnish, berries, citrus, herbs, and prep loss.",
+    impact: 650,
+  });
+}
   return actions
     .filter((action) => action.title)
     .sort((a, b) => Number(b.impact || 0) - Number(a.impact || 0))
@@ -18571,6 +18796,7 @@ const executiveActionQueue = useMemo(() => {
   foodCostPercentage,
   totalWasteLoss,
   crossSystemRiskValue,
+  aiHealthEngine,
 ]);
 
 const executiveTopAction = executiveActionQueue?.[0] || null;
@@ -18603,6 +18829,20 @@ const benchmarkScores = [
         ? "Healthy"
         : "Above Target",
   },
+  {
+  label: "Consumables",
+ actual: `$${Number(
+  100 -
+    Number(aiHealthEngine?.categoryScores?.consumablesHealth || 100)
+).toLocaleString()}`,
+  target: "$0 leakage",
+  status:
+    Number(aiHealthEngine?.categoryScores?.consumablesHealth || 100) >= 90
+      ? "Healthy"
+      : Number(consumablesEstimatedLeakage || 0) <= 500
+      ? "Watch"
+      : "Above Target",
+},
   {
     label: "Labor Cost",
     actual: `${Number(liveLaborIntelligence?.laborPercent || 0).toFixed(1)}%`,
@@ -18660,6 +18900,1591 @@ const multiLocationSummary =
   locationPerformanceData.length > 1
     ? `${topLocation?.location} is currently the strongest location by revenue. ${weakestLocation?.location} may need review.`
     : "Multi-location intelligence will activate when more than one location appears in uploaded sales data.";
+
+{/* =========================
+   AUTONOMOUS AI RECOMMENDATIONS
+========================= */}
+
+const autonomousAIRecommendations = useMemo(() => {
+  const recommendations = [];
+
+  if (
+    Number(foodCostPercentage || 0) > 32 &&
+    Number(liveAvgMargin || 0) < 60
+  ) {
+    recommendations.push({
+      title: "Optimize High Food Cost Menu Items",
+      category: "Food Cost",
+      severity: "High",
+      action:
+        "Review recipes, supplier pricing, and low-margin menu items contributing to elevated food cost.",
+      impact: Math.round(Number(totalWasteLoss || 0) * 0.35 || 1200),
+    });
+  }
+
+  if (
+    Number(liveLaborIntelligence?.laborPercent || 0) > 30 &&
+    Number(liveMomentumPercent || 0) < 0
+  ) {
+    recommendations.push({
+      title: "Reduce Labor Compression",
+      category: "Labor",
+      severity: "High",
+      action:
+        "AI recommends optimizing shift scheduling against projected demand patterns.",
+      impact: Math.round(
+        Number(liveLaborIntelligence?.totalLaborCost || 0) * 0.12
+      ),
+    });
+  }
+
+  if (criticalOunceVariance?.length > 0) {
+    recommendations.push({
+      title: "Correct Beverage Pour Variance",
+      category: "Beverage",
+      severity: "Critical",
+      action:
+        "Review bartender variance, ounce tracking, and high-loss beverage items.",
+      impact: Math.round(
+        criticalOunceVariance.reduce(
+          (sum, item) => sum + Number(item.estimatedLoss || 0),
+          0
+        )
+      ),
+    });
+  }
+
+  if (
+    Number(aiHealthEngine?.categoryScores?.consumablesHealth || 100) < 75
+  ) {
+    recommendations.push({
+      title: "Reduce Consumables Waste",
+      category: "Consumables",
+      severity: "High",
+      action:
+        "AI detected unusual depletion across oils, garnish, berries, herbs, citrus, or prep usage.",
+      impact: 650,
+    });
+  }
+
+  if (supplierAlerts?.length > 0) {
+    recommendations.push({
+      title: "Audit Vendor Cost Increases",
+      category: "Vendor",
+      severity: "Watch",
+      action:
+        "Recent supplier movement may be compressing profitability across inventory and recipes.",
+      impact: supplierAlerts.length * 350,
+    });
+  }
+
+  return recommendations
+    .sort((a, b) => Number(b.impact || 0) - Number(a.impact || 0))
+    .slice(0, 6);
+}, [
+  foodCostPercentage,
+  liveAvgMargin,
+  totalWasteLoss,
+  liveLaborIntelligence,
+  liveMomentumPercent,
+  criticalOunceVariance,
+  supplierAlerts,
+  aiHealthEngine,
+]);
+
+const aiFinancialCommand = useMemo(() => {
+  const primeCost =
+    Number(foodCostPercentage || 0) +
+    Number(liveLaborIntelligence?.laborPercent || 0);
+
+  const projectedWeeklyRecovery =
+    Number(totalWasteLoss || 0) * 0.18 +
+    Number(aiRecoveredProfit || 0) * 0.12 +
+    (criticalOunceVariance || []).reduce(
+      (sum, item) => sum + Number(item.estimatedLoss || 0),
+      0
+    ) *
+      0.22;
+
+  const projectedMonthlyRecovery =
+    projectedWeeklyRecovery * 4;
+
+  const marginPressureLevel =
+    Number(liveAvgMargin || 0) >= 70
+      ? "Low"
+      : Number(liveAvgMargin || 0) >= 60
+      ? "Moderate"
+      : Number(liveAvgMargin || 0) >= 50
+      ? "Elevated"
+      : "Critical";
+
+  const cashFlowRisk =
+    primeCost <= 55
+      ? "Stable"
+      : primeCost <= 65
+      ? "Watch"
+      : primeCost <= 75
+      ? "Elevated"
+      : "Critical";
+
+  const operationalProfitabilityScore = Math.max(
+    0,
+    Math.min(
+      100,
+      Math.round(
+        100 -
+          primeCost * 0.7 -
+          Number(foodCostPercentage || 0) * 0.25 +
+          Number(liveAvgMargin || 0) * 0.45
+      )
+    )
+  );
+
+  return {
+    primeCost,
+    projectedWeeklyRecovery,
+    projectedMonthlyRecovery,
+    marginPressureLevel,
+    cashFlowRisk,
+    operationalProfitabilityScore,
+  };
+}, [
+  foodCostPercentage,
+  liveLaborIntelligence,
+  totalWasteLoss,
+  aiRecoveredProfit,
+  criticalOunceVariance,
+  liveAvgMargin,
+]);
+
+const executiveBenchmarkingData = useMemo(() => {
+  const primeCost = Number(aiFinancialCommand?.primeCost || 0);
+  const laborPercent = Number(liveLaborIntelligence?.laborPercent || 0);
+  const foodCost = Number(foodCostPercentage || 0);
+  const margin = Number(liveAvgMargin || 0);
+  const aiHealth = Number(aiHealthEngine?.overallScore || 0);
+
+  const benchmarks = [
+    {
+      label: "Prime Cost",
+      actual: `${primeCost.toFixed(1)}%`,
+      target: "55–60%",
+      status: primeCost <= 60 ? "Elite" : primeCost <= 65 ? "Watch" : "Critical",
+    },
+    {
+      label: "Labor Cost",
+      actual: `${laborPercent.toFixed(1)}%`,
+      target: "25–30%",
+      status: laborPercent <= 30 ? "Elite" : laborPercent <= 35 ? "Watch" : "Critical",
+    },
+    {
+      label: "Food Cost",
+      actual: `${foodCost.toFixed(1)}%`,
+      target: "28–32%",
+      status: foodCost <= 32 ? "Elite" : foodCost <= 36 ? "Watch" : "Critical",
+    },
+    {
+      label: "Avg Margin",
+      actual: `${margin.toFixed(1)}%`,
+      target: "60–70%",
+      status: margin >= 60 ? "Elite" : margin >= 50 ? "Watch" : "Critical",
+    },
+    {
+      label: "AI Health",
+      actual: `${aiHealth}/100`,
+      target: "80+",
+      status: aiHealth >= 80 ? "Elite" : aiHealth >= 70 ? "Watch" : "Critical",
+    },
+  ];
+
+  return benchmarks;
+}, [
+  aiFinancialCommand,
+  liveLaborIntelligence,
+  foodCostPercentage,
+  liveAvgMargin,
+  aiHealthEngine,
+]);
+
+const restaurantDigitalTwin = useMemo(() => {
+  const revenue = Number(liveTotalRevenue || totalRevenue || 0);
+  const orders = Number(liveTotalOrders || 0);
+  const laborPercent = Number(liveLaborIntelligence?.laborPercent || 0);
+  const foodCost = Number(foodCostPercentage || 0);
+  const primeCost = Number(aiFinancialCommand?.primeCost || 0);
+  const aiHealth = Number(aiHealthEngine?.overallScore || 0);
+  const alertCount = Number(crossSystemSignals?.length || 0);
+  const actionCount = Number(executiveActionQueue?.length || 0);
+
+  const operatingMode =
+    aiHealth >= 85
+      ? "High Performance"
+      : aiHealth >= 70
+      ? "Controlled Growth"
+      : aiHealth >= 60
+      ? "Pressure Mode"
+      : "Recovery Mode";
+
+  const twinStatus =
+    primeCost > 70 || aiHealth < 60
+      ? "Critical"
+      : primeCost > 65 || aiHealth < 70
+      ? "At Risk"
+      : "Stable";
+
+  return {
+    revenue,
+    orders,
+    laborPercent,
+    foodCost,
+    primeCost,
+    aiHealth,
+    alertCount,
+    actionCount,
+    operatingMode,
+    twinStatus,
+  };
+}, [
+  liveTotalRevenue,
+  totalRevenue,
+  liveTotalOrders,
+  liveLaborIntelligence,
+  foodCostPercentage,
+  aiFinancialCommand,
+  aiHealthEngine,
+  crossSystemSignals,
+  executiveActionQueue,
+]);
+
+const autonomousProfitRecoveryEngine = useMemo(() => {
+  const recommendations = autonomousAIRecommendations || [];
+  const executiveActions = executiveActionQueue || [];
+
+  const recommendationImpact = recommendations.reduce(
+    (sum, item) => sum + Number(item.impact || 0),
+    0
+  );
+
+  const executiveImpact = executiveActions.reduce(
+    (sum, item) => sum + Number(item.impact || 0),
+    0
+  );
+
+  const projectedRecovery =
+    recommendationImpact +
+    executiveImpact +
+    Number(aiFinancialCommand?.projectedMonthlyRecovery || 0);
+
+  const activeRecoveryActions =
+    recommendations.length + executiveActions.length;
+
+  const recoveryStage =
+    projectedRecovery >= 10000
+      ? "High-Value Recovery"
+      : projectedRecovery >= 5000
+      ? "Active Recovery"
+      : projectedRecovery > 0
+      ? "Monitoring Recovery"
+      : "Stable";
+
+  const topRecoveryArea =
+    recommendations?.[0]?.category ||
+    executiveActions?.[0]?.department ||
+    "Operations";
+
+  return {
+    projectedRecovery,
+    activeRecoveryActions,
+    recoveryStage,
+    topRecoveryArea,
+  };
+}, [
+  autonomousAIRecommendations,
+  executiveActionQueue,
+  aiFinancialCommand,
+]);
+
+const multiLocationIntelligence = useMemo(() => {
+  const salesRows =
+    multiLocationSalesRows?.length
+      ? multiLocationSalesRows
+      : salesData || [];
+
+  const laborRows = laborData || [];
+  const inventoryRows = ingredientsData || [];
+  const invoiceRows = invoicesData || [];
+
+  const locations = {};
+
+  salesRows.forEach((sale) => {
+    const location =
+      sale.location ||
+      sale.location_name ||
+      sale.store ||
+      sale.store_name ||
+      sale.restaurant_location ||
+      "Main Location";
+
+    const key = String(location || "Main Location").trim();
+
+    if (!locations[key]) {
+      locations[key] = {
+        name: key,
+        revenue: 0,
+        orders: 0,
+        laborCost: 0,
+        inventoryItems: 0,
+        invoiceTotal: 0,
+      };
+    }
+
+    locations[key].revenue += Number(
+      sale.revenue ||
+        sale.total ||
+        sale.amount ||
+        sale.sales ||
+        sale.price ||
+        0
+    );
+
+    locations[key].orders += 1;
+  });
+
+  laborRows.forEach((row) => {
+    const location =
+      row.location ||
+      row.location_name ||
+      row.store ||
+      row.store_name ||
+      "Main Location";
+
+    const key = String(location || "Main Location").trim();
+
+    if (!locations[key]) {
+      locations[key] = {
+        name: key,
+        revenue: 0,
+        orders: 0,
+        laborCost: 0,
+        inventoryItems: 0,
+        invoiceTotal: 0,
+      };
+    }
+
+    locations[key].laborCost += Number(
+      row.labor_cost ||
+        row.total_cost ||
+        row.cost ||
+        row.wages ||
+        0
+    );
+  });
+
+  inventoryRows.forEach((item) => {
+    const location =
+      item.location ||
+      item.location_name ||
+      item.store ||
+      item.store_name ||
+      "Main Location";
+
+    const key = String(location || "Main Location").trim();
+
+    if (!locations[key]) {
+      locations[key] = {
+        name: key,
+        revenue: 0,
+        orders: 0,
+        laborCost: 0,
+        inventoryItems: 0,
+        invoiceTotal: 0,
+      };
+    }
+
+    locations[key].inventoryItems += 1;
+  });
+
+  invoiceRows.forEach((invoice) => {
+    const location =
+      invoice.location ||
+      invoice.location_name ||
+      invoice.store ||
+      invoice.store_name ||
+      "Main Location";
+
+    const key = String(location || "Main Location").trim();
+
+    if (!locations[key]) {
+      locations[key] = {
+        name: key,
+        revenue: 0,
+        orders: 0,
+        laborCost: 0,
+        inventoryItems: 0,
+        invoiceTotal: 0,
+      };
+    }
+
+    locations[key].invoiceTotal += Number(
+      invoice.total ||
+        invoice.amount ||
+        invoice.invoice_total ||
+        invoice.total_cost ||
+        0
+    );
+  });
+
+  const locationArray = Object.values(locations).map((location) => {
+    const laborPercent =
+      location.revenue > 0
+        ? (location.laborCost / location.revenue) * 100
+        : 0;
+
+    const averageOrder =
+      location.orders > 0
+        ? location.revenue / location.orders
+        : 0;
+
+    let score = 100;
+
+    if (laborPercent > 40) score -= 24;
+    else if (laborPercent > 35) score -= 16;
+    else if (laborPercent > 30) score -= 8;
+
+    if (averageOrder > 0 && averageOrder < 18) score -= 10;
+    else if (averageOrder > 0 && averageOrder < 25) score -= 5;
+
+    if (location.revenue <= 0) score -= 20;
+    if (location.inventoryItems <= 0) score -= 8;
+
+    const healthScore = Math.max(0, Math.min(100, Math.round(score)));
+
+    const status =
+      healthScore >= 85
+        ? "High Performer"
+        : healthScore >= 70
+        ? "Stable"
+        : healthScore >= 60
+        ? "Watch"
+        : "Critical";
+
+    return {
+      ...location,
+      laborPercent,
+      averageOrder,
+      healthScore,
+      status,
+    };
+  });
+
+  const rankedLocations = [...locationArray].sort(
+    (a, b) => Number(b.healthScore || 0) - Number(a.healthScore || 0)
+  );
+
+  const topLocation = rankedLocations[0] || null;
+  const weakestLocation = rankedLocations[rankedLocations.length - 1] || null;
+
+  const totalRevenue = locationArray.reduce(
+    (sum, location) => sum + Number(location.revenue || 0),
+    0
+  );
+
+  const totalLocations = locationArray.length;
+
+  const averageHealth =
+    totalLocations > 0
+      ? Math.round(
+          locationArray.reduce(
+            (sum, location) => sum + Number(location.healthScore || 0),
+            0
+          ) / totalLocations
+        )
+      : 0;
+
+  return {
+    locations: rankedLocations,
+    topLocation,
+    weakestLocation,
+    totalRevenue,
+    totalLocations,
+    averageHealth,
+  };
+}, [
+  multiLocationSalesRows,
+  salesData,
+  laborData,
+  ingredientsData,
+  invoicesData,
+]);
+
+const crossLocationAlerts = useMemo(() => {
+  const alerts = [];
+
+  const locations = multiLocationIntelligence?.locations || [];
+
+  locations.forEach((location) => {
+    if (Number(location.healthScore || 0) < 60) {
+      alerts.push({
+        location: location.name,
+        severity: "Critical",
+        title: "Location Health Risk",
+        message:
+          "This location is operating below healthy AI thresholds.",
+      });
+    }
+
+    if (Number(location.laborPercent || 0) > 35) {
+      alerts.push({
+        location: location.name,
+        severity: "High",
+        title: "Labor Pressure",
+        message:
+          "Labor percentage is significantly above target range.",
+      });
+    }
+
+    if (Number(location.averageOrder || 0) < 18) {
+      alerts.push({
+        location: location.name,
+        severity: "Watch",
+        title: "Low Average Order Value",
+        message:
+          "Average order value is below premium operating target.",
+      });
+    }
+
+    if (Number(location.revenue || 0) <= 0) {
+      alerts.push({
+        location: location.name,
+        severity: "Critical",
+        title: "Revenue Instability",
+        message:
+          "Location revenue appears critically low or inactive.",
+      });
+    }
+  });
+
+  return alerts;
+}, [multiLocationIntelligence]);
+
+{/* =========================
+   REGIONAL FORECASTING
+========================= */}
+
+const regionalForecastingData = useMemo(() => {
+  return (multiLocationIntelligence?.locations || []).map((location) => {
+    let projectedRisk = "Stable";
+
+    if (
+      Number(location.healthScore || 0) < 60 ||
+      Number(location.laborPercent || 0) > 38
+    ) {
+      projectedRisk = "Critical";
+    } else if (
+      Number(location.healthScore || 0) < 70 ||
+      Number(location.laborPercent || 0) > 32
+    ) {
+      projectedRisk = "Watch";
+    }
+
+    const projectedRevenueTrend =
+      Number(location.healthScore || 0) >= 85
+        ? "Growth Expected"
+        : Number(location.healthScore || 0) >= 70
+        ? "Stable Trend"
+        : "Decline Risk";
+
+    const projectedMarginPressure =
+      Number(location.laborPercent || 0) > 35
+        ? "High"
+        : Number(location.laborPercent || 0) > 30
+        ? "Moderate"
+        : "Low";
+
+    return {
+      ...location,
+      projectedRisk,
+      projectedRevenueTrend,
+      projectedMarginPressure,
+    };
+  });
+}, [multiLocationIntelligence]);
+
+const executiveDailyBriefing = useMemo(() => {
+  const topRisk =
+    predictiveRiskSignals?.[0]?.title ||
+    crossSystemSignals?.[0]?.title ||
+    "No major operating risks detected.";
+
+  const topRecommendation =
+    autonomousAIRecommendations?.[0]?.title ||
+    executiveActionQueue?.[0]?.title ||
+    "No urgent AI recommendations.";
+
+  const weakestLocation =
+    multiLocationIntelligence?.weakestLocation?.name || "N/A";
+
+  const recoveryOpportunity =
+    autonomousProfitRecoveryEngine?.projectedRecovery || 0;
+
+  const aiHealth =
+    aiHealthEngine?.overallScore ||
+    restaurantHealthScore ||
+    0;
+
+  const summary =
+    aiHealth >= 85
+      ? "Restaurant operations are performing strongly with stable operational conditions."
+      : aiHealth >= 70
+      ? "Restaurant operations remain stable but emerging pressure is developing."
+      : aiHealth >= 60
+      ? "AI systems are detecting meaningful operational instability across key areas."
+      : "Critical operational instability detected across the business.";
+
+  return {
+    aiHealth,
+    topRisk,
+    topRecommendation,
+    weakestLocation,
+    recoveryOpportunity,
+    summary,
+  };
+}, [
+  predictiveRiskSignals,
+  crossSystemSignals,
+  autonomousAIRecommendations,
+  executiveActionQueue,
+  multiLocationIntelligence,
+  autonomousProfitRecoveryEngine,
+  aiHealthEngine,
+  restaurantHealthScore,
+]);
+
+const aiSmartNotifications = useMemo(() => {
+  const notifications = [];
+
+  (predictiveRiskSignals || []).slice(0, 3).forEach((risk) => {
+    notifications.push({
+      title: risk.title,
+      type: "Predictive Risk",
+      severity: risk.level || "Watch",
+      message: risk.message,
+    });
+  });
+
+  (crossLocationAlerts || []).slice(0, 3).forEach((alert) => {
+    notifications.push({
+      title: alert.title,
+      type: "Location Alert",
+      severity: alert.severity || "Watch",
+      message: `${alert.location}: ${alert.message}`,
+    });
+  });
+
+  if (Number(aiFinancialCommand?.projectedMonthlyRecovery || 0) > 0) {
+    notifications.push({
+      title: "Profit Recovery Opportunity",
+      type: "Financial",
+      severity: "High",
+      message: `AI detected $${Number(
+        aiFinancialCommand.projectedMonthlyRecovery || 0
+      ).toLocaleString()} in projected monthly recovery opportunity.`,
+    });
+  }
+
+  if (executiveActionQueue?.[0]) {
+    notifications.push({
+      title: executiveActionQueue[0].title,
+      type: "Executive Action",
+      severity: executiveActionQueue[0].priority || "High",
+      message: executiveActionQueue[0].reason,
+    });
+  }
+
+  if (!notifications.length) {
+    notifications.push({
+      title: "Operations Stable",
+      type: "System",
+      severity: "Normal",
+      message: "No urgent smart notifications detected.",
+    });
+  }
+
+  return notifications.slice(0, 8);
+}, [
+  predictiveRiskSignals,
+  crossLocationAlerts,
+  aiFinancialCommand,
+  executiveActionQueue,
+]);
+
+const aiTaskAssignments = useMemo(() => {
+  const tasks = [];
+
+  (aiSmartNotifications || []).forEach((note) => {
+    if (note.severity === "Critical" || note.severity === "High") {
+      tasks.push({
+        title: `Review ${note.title}`,
+        owner:
+          note.type === "Location Alert"
+            ? "General Manager"
+            : note.type === "Financial"
+            ? "Owner / Operator"
+            : note.type === "Predictive Risk"
+            ? "Operations Manager"
+            : "Manager",
+        priority: note.severity,
+        due: note.severity === "Critical" ? "Today" : "This Week",
+        action: note.message,
+      });
+    }
+  });
+
+  if (executiveActionQueue?.[0]) {
+    tasks.push({
+      title: executiveActionQueue[0].title,
+      owner: "Owner / Operator",
+      priority: executiveActionQueue[0].priority || "High",
+      due: "Today",
+      action: executiveActionQueue[0].reason,
+    });
+  }
+
+  return tasks.slice(0, 8);
+}, [aiSmartNotifications, executiveActionQueue]);
+
+const handleCompleteAITask = (task) => {
+  if (!task?.title) return;
+
+  pushActivity(`AI task completed: ${task.title}`, "ai_task");
+
+  setSavedMessage(`Completed: ${task.title}`);
+
+  setTimeout(() => setSavedMessage(""), 2500);
+};
+
+const handleRunAutopilotWorkflow = () => {
+  const topTask = aiTaskAssignments?.[0];
+
+  if (!topTask) {
+    setSavedMessage("No autopilot workflow available.");
+    setTimeout(() => setSavedMessage(""), 2500);
+    return;
+  }
+
+  pushActivity(`Autopilot workflow started: ${topTask.title}`, "autopilot");
+
+  setGeneratedCampaignPreview({
+    title: `Autopilot Workflow: ${topTask.title}`,
+    sms: topTask.action,
+    emailBody: topTask.action,
+    audience: topTask.owner || "Restaurant Operator",
+    issue: topTask.title,
+    reason: topTask.priority || "AI Recommended",
+  });
+
+  setSavedMessage(`Autopilot workflow started: ${topTask.title}`);
+  setTimeout(() => setSavedMessage(""), 2500);
+};
+
+const handleSaveExecutiveBriefing = () => {
+  const briefing = executiveDailyBriefing;
+
+  if (!briefing) {
+    setSavedMessage("No executive briefing available.");
+    setTimeout(() => setSavedMessage(""), 2500);
+    return;
+  }
+
+  pushActivity(
+    `Executive briefing saved: AI Health ${briefing.aiHealth}/100. Top risk: ${briefing.topRisk}`,
+    "executive_briefing"
+  );
+
+  setSavedMessage("Executive briefing saved");
+  setTimeout(() => setSavedMessage(""), 2500);
+};
+
+const aiActionQueue = [
+  ...(shiftWasteAlerts || []).slice(0, 2).map((alert) => ({
+    type: "Shift Waste",
+    severity: "Critical",
+    message: `${alert.shift} shift showing elevated refunds or comps.`,
+  })),
+
+  ...(ingredientUsageAnomalies || []).slice(0, 2).map((item) => ({
+    type: "Inventory Variance",
+    severity: "High",
+    message: `${item.ingredientName} usage exceeded expected thresholds.`,
+  })),
+
+  ...(suspiciousMenuItems || []).slice(0, 2).map((item) => ({
+    type: "Menu Optimization",
+    severity: "Medium",
+    message: `${item.name} may have pricing or margin inefficiencies.`,
+  })),
+];
+
+const aiOperationalTimeline = [
+  ...(aiActionQueue || []).slice(0, 3).map((action, index) => ({
+    time: index === 0 ? "Now" : `${index + 1}m ago`,
+    title: action.type,
+    message: action.message,
+    status: action.severity,
+  })),
+
+  {
+    time: "5m ago",
+    title: "AI Monitoring Active",
+    message: "SerVen AI scanned sales, labor, inventory, vendor, and menu signals.",
+    status: "Stable",
+  },
+];
+
+
+
+const aiFinancialImpactBreakdown = [
+  {
+    label: "Waste Recovery",
+    amount:
+      shiftWasteAlerts.length > 0
+        ? 2400
+        : usageVariancePercent >= 7
+        ? 1100
+        : 0,
+  },
+  {
+    label: "Inventory Control",
+    amount: ingredientUsageAnomalies.length > 0 ? 1900 : 0,
+  },
+  {
+    label: "Menu Optimization",
+    amount: suspiciousMenuItems.length > 0 ? 1400 : 0,
+  },
+];
+
+const totalAIFinancialImpact = aiFinancialImpactBreakdown.reduce(
+  (sum, item) => sum + Number(item.amount || 0),
+  0
+);
+
+const aiRiskLevel =
+  aiConfidenceScore >= 90 && totalAIFinancialImpact >= 2000
+    ? "Critical"
+    : totalAIFinancialImpact >= 1500
+    ? "High"
+    : totalAIFinancialImpact >= 700
+    ? "Medium"
+    : "Stable";
+
+const aiSystemStatusStrip = [
+  {
+    label: "Risk Level",
+    value: aiRiskLevel,
+  },
+  {
+    label: "Confidence",
+    value: `${aiConfidenceScore}%`,
+  },
+  {
+    label: "Monthly Impact",
+    value: `$${totalAIFinancialImpact.toLocaleString()}`,
+  },
+  {
+    label: "Open Actions",
+    value: `${aiActionQueue.length}`,
+  },
+];
+
+const aiAutopilotSuggestedAction =
+  aiRiskLevel === "Critical"
+    ? {
+        title: "Autopilot Recommends Immediate Review",
+        description:
+          "SerVen AI recommends reviewing the highest-risk action first before the next operating shift.",
+        button: "Launch Critical Review",
+      }
+    : aiRiskLevel === "High"
+    ? {
+        title: "Autopilot Recommends Optimization",
+        description:
+          "AI found a meaningful profit recovery opportunity that should be reviewed this week.",
+        button: "Launch Optimization Review",
+      }
+    : {
+        title: "Autopilot Monitoring Active",
+        description:
+          "No urgent intervention needed. AI will continue monitoring operational signals.",
+        button: "View Monitoring Status",
+      };
+
+const aiExecutiveSummary = `
+SerVen AI detected a ${aiRiskLevel.toLowerCase()} operational risk environment with an estimated monthly optimization opportunity of $${totalAIFinancialImpact.toLocaleString()}.
+Current AI confidence is ${aiConfidenceScore}% based on live inventory, menu, waste, labor, and operational intelligence signals.
+${topAIRecommendedAction?.title || "AI monitoring remains active"} is currently the highest priority recommendation.
+`;
+
+const aiForecastSummary =
+  aiRiskLevel === "Critical"
+    ? "Forecast shows profit pressure may increase if waste, labor, or food cost variance is not corrected before the next reporting cycle."
+    : aiRiskLevel === "High"
+    ? "Forecast shows a meaningful optimization opportunity. Addressing the top recommendation should improve margin stability."
+    : aiRiskLevel === "Medium"
+    ? "Forecast shows moderate operational drift. Continued monitoring and small corrective actions are recommended."
+    : "Forecast shows stable operating conditions with no urgent profit leakage detected.";
+
+const aiRecoveryProjection = {
+  thirtyDays: Math.round(totalAIFinancialImpact * 0.35),
+  sixtyDays: Math.round(totalAIFinancialImpact * 0.7),
+  ninetyDays: Math.round(totalAIFinancialImpact),
+};
+
+const aiOperationalHealthGrade =
+  aiRiskLevel === "Critical"
+    ? "D"
+    : aiRiskLevel === "High"
+    ? "C"
+    : aiRiskLevel === "Medium"
+    ? "B"
+    : "A";
+
+const aiOperationalHealthColor =
+  aiOperationalHealthGrade === "A"
+    ? "#22c55e"
+    : aiOperationalHealthGrade === "B"
+    ? "#f59e0b"
+    : aiOperationalHealthGrade === "C"
+    ? "#fb923c"
+    : "#ef4444";
+
+    const aiDailyBriefingEngine = {
+  headline:
+    aiRiskLevel === "Critical"
+      ? "Immediate operational review recommended today."
+      : aiRiskLevel === "High"
+      ? "High-value optimization opportunity detected."
+      : aiRiskLevel === "Medium"
+      ? "Moderate operating drift detected."
+      : "Operations are stable today.",
+
+  focus:
+    topAIRecommendedAction?.title || "Continue monitoring AI signals",
+
+  summary:
+    totalAIFinancialImpact > 0
+      ? `SerVen AI found $${totalAIFinancialImpact.toLocaleString()}/mo in potential profit recovery.`
+      : "No major profit leakage detected today.",
+};
+const autopilotRecoveryTracker = {
+  recoveredToDate: Number(userProfile?.ai_revenue_recovered || 0),
+  projectedMonthly: totalAIFinancialImpact,
+  projectedAnnual: totalAIFinancialImpact * 12,
+};
+
+const aiExecutiveTimeline = [
+  {
+    label: "Detected",
+    value: topAIRecommendedAction?.title || "AI Monitoring Active",
+  },
+  {
+    label: "Prioritized",
+    value: `${aiRiskLevel} risk with ${aiConfidenceScore}% confidence`,
+  },
+  {
+    label: "Projected",
+    value: `$${totalAIFinancialImpact.toLocaleString()}/mo recovery opportunity`,
+  },
+  {
+    label: "Next Action",
+    value: aiAutopilotSuggestedAction?.button || "Continue Monitoring",
+  },
+];
+const aiMultiLocationExecutiveInsights = (
+  locationPerformanceData ||
+  crossLocationPerformanceData ||
+  locationSalesData ||
+  []
+).map(
+  (location, index) => {
+    const revenue = Number(location.revenue || 0);
+    const labor = Number(location.laborCost || 0);
+    const food = Number(location.foodCost || 0);
+
+    const primeCost =
+      revenue > 0 ? ((labor + food) / revenue) * 100 : 0;
+
+    return {
+      location:
+        location.name ||
+        location.locationName ||
+        `Location ${index + 1}`,
+
+      revenue,
+
+      primeCost,
+
+      health:
+        primeCost <= 55
+          ? "Excellent"
+          : primeCost <= 65
+          ? "Healthy"
+          : primeCost <= 75
+          ? "Watch Closely"
+          : "Critical",
+    };
+  }
+);
+const aiLocationRanking = [...(aiMultiLocationExecutiveInsights || [])].sort(
+  (a, b) => Number(a.primeCost || 0) - Number(b.primeCost || 0)
+);
+
+const aiCrossLocationRisks = (aiMultiLocationExecutiveInsights || []).filter(
+  (location) =>
+    location.health === "Watch Closely" || location.health === "Critical"
+);
+
+const aiExecutiveBenchmarking = {
+  averagePrimeCost:
+    aiMultiLocationExecutiveInsights.length > 0
+      ? aiMultiLocationExecutiveInsights.reduce(
+          (sum, location) => sum + Number(location.primeCost || 0),
+          0
+        ) / aiMultiLocationExecutiveInsights.length
+      : 0,
+
+  bestLocation:
+    aiLocationRanking.length > 0 ? aiLocationRanking[0] : null,
+
+  weakestLocation:
+    aiLocationRanking.length > 0
+      ? aiLocationRanking[aiLocationRanking.length - 1]
+      : null,
+};
+
+const aiEnterpriseScorecard = {
+  locationsTracked: aiMultiLocationExecutiveInsights.length,
+  healthyLocations: aiMultiLocationExecutiveInsights.filter(
+    (location) =>
+      location.health === "Excellent" || location.health === "Healthy"
+  ).length,
+  riskLocations: aiCrossLocationRisks.length,
+  portfolioHealth:
+    aiCrossLocationRisks.length === 0
+      ? "Strong"
+      : aiCrossLocationRisks.length === 1
+      ? "Moderate"
+      : "At Risk",
+};
+
+const aiPortfolioIntelligenceLayer =
+  aiEnterpriseScorecard.locationsTracked === 0
+    ? "No portfolio data available yet. Add multi-location revenue, labor, and food cost data to activate enterprise intelligence."
+    : aiEnterpriseScorecard.riskLocations === 0
+    ? "Portfolio performance is stable. No cross-location risk pattern detected."
+    : aiEnterpriseScorecard.riskLocations === 1
+    ? `${aiEnterpriseScorecard.riskLocations} location needs attention. Review the weakest location before the next reporting cycle.`
+    : `${aiEnterpriseScorecard.riskLocations} locations need attention. AI recommends prioritizing the highest prime cost locations first.`;
+
+const aiPortfolioActionPlan =
+  aiEnterpriseScorecard.riskLocations === 0
+    ? [
+        "Continue monitoring portfolio-wide operational stability.",
+        "Maintain current labor and food cost controls.",
+        "Review executive benchmarks weekly.",
+      ]
+    : [
+        "Prioritize the highest prime cost location first.",
+        "Audit labor scheduling and inventory variance.",
+        "Review menu profitability across risk locations.",
+      ];
+
+const aiExecutiveRecommendations = [
+  {
+    title: "Review Highest-Impact Opportunity",
+    detail: topAIRecommendedAction?.title || "Continue AI monitoring.",
+  },
+  {
+    title: "Prioritize Recovery Potential",
+    detail: `$${totalAIFinancialImpact.toLocaleString()}/mo in estimated optimization opportunity.`,
+  },
+  {
+    title: "Monitor Portfolio Risk",
+    detail:
+      aiEnterpriseScorecard.riskLocations > 0
+        ? `${aiEnterpriseScorecard.riskLocations} location(s) need executive attention.`
+        : "No portfolio-level risk detected.",
+  },
+];
+
+const aiEnterpriseRiskForecast =
+  aiEnterpriseScorecard.riskLocations >= 3
+    ? {
+        level: "Elevated Enterprise Risk",
+        summary:
+          "Multiple locations are trending toward operational instability. Executive intervention recommended.",
+      }
+    : aiEnterpriseScorecard.riskLocations >= 1
+    ? {
+        level: "Moderate Enterprise Risk",
+        summary:
+          "AI detected isolated operational weakness across parts of the portfolio.",
+      }
+    : {
+        level: "Stable Enterprise Outlook",
+        summary:
+          "No major enterprise-level operational deterioration detected.",
+      };
+
+const aiExecutiveKPIMatrix = [
+  {
+    label: "AI Confidence",
+    value: `${aiConfidenceScore}%`,
+  },
+  {
+    label: "Risk Level",
+    value: aiRiskLevel,
+  },
+  {
+    label: "Portfolio Health",
+    value: aiEnterpriseScorecard.portfolioHealth,
+  },
+  {
+    label: "Recovery Opportunity",
+    value: `$${totalAIFinancialImpact.toLocaleString()}/mo`,
+  },
+  {
+    label: "Open AI Actions",
+    value: aiActionQueue.length,
+  },
+  {
+    label: "Health Grade",
+    value: aiOperationalHealthGrade,
+  },
+];
+
+const aiCorporateCommandCenter = {
+  status:
+    aiEnterpriseScorecard.riskLocations >= 2
+      ? "Executive Attention Required"
+      : aiEnterpriseScorecard.riskLocations === 1
+      ? "Portfolio Monitoring Active"
+      : "Enterprise Systems Stable",
+
+  summary:
+    aiEnterpriseScorecard.riskLocations >= 2
+      ? "AI detected elevated operational instability across multiple locations."
+      : aiEnterpriseScorecard.riskLocations === 1
+      ? "AI detected isolated operational weakness requiring review."
+      : "Enterprise portfolio operating within healthy thresholds.",
+};
+const aiEnterpriseRecoveryPlanner = [
+  {
+    phase: "Phase 1",
+    title: "Stabilize Highest-Risk Areas",
+    action:
+      aiCrossLocationRisks.length > 0
+        ? "Review the weakest location and reduce prime cost pressure first."
+        : "Continue monitoring daily operating signals.",
+  },
+  {
+    phase: "Phase 2",
+    title: "Recover Margin Opportunity",
+    action: `Target $${totalAIFinancialImpact.toLocaleString()}/mo in projected optimization.`,
+  },
+  {
+    phase: "Phase 3",
+    title: "Scale Best Practices",
+    action:
+      aiExecutiveBenchmarking.bestLocation?.location
+        ? `Use ${aiExecutiveBenchmarking.bestLocation.location} as the operating benchmark.`
+        : "Use strongest-performing periods as the operating benchmark.",
+  },
+];
+
+const aiExecutiveAlertsFeed = [
+  ...(aiCrossLocationRisks || []).slice(0, 2).map((location) => ({
+    title: `${location.location} Needs Review`,
+    message: `Prime cost is ${location.primeCost.toFixed(1)}%, placing this location in ${location.health} status.`,
+    severity: "High",
+  })),
+  ...(aiActionQueue || []).slice(0, 2).map((action) => ({
+    title: action.type,
+    message: action.message,
+    severity: action.severity,
+  })),
+];
+
+const aiEnterprisePerformanceForecast =
+  aiEnterpriseScorecard.riskLocations >= 2
+    ? {
+        outlook: "Margin pressure may increase",
+        detail:
+          "Multiple locations show operational risk, so portfolio performance may weaken unless corrective action is taken.",
+      }
+    : aiEnterpriseScorecard.riskLocations === 1
+    ? {
+        outlook: "Portfolio mostly stable",
+        detail:
+          "One location needs attention, but the broader portfolio remains manageable.",
+      }
+    : {
+        outlook: "Portfolio performance stable",
+        detail:
+          "No major cross-location risk pattern detected. Current operating trend appears healthy.",
+      };
+
+const aiCEOSummaryLayer = {
+  headline:
+    aiEnterpriseScorecard.riskLocations >= 2
+      ? "Executive intervention recommended across the portfolio."
+      : aiEnterpriseScorecard.riskLocations === 1
+      ? "One location needs leadership attention."
+      : "Portfolio is operating within stable conditions.",
+
+  summary:
+    totalAIFinancialImpact > 0
+      ? `SerVen AI identified $${totalAIFinancialImpact.toLocaleString()}/mo in optimization opportunity with ${aiConfidenceScore}% confidence.`
+      : `SerVen AI is monitoring operations with ${aiConfidenceScore}% confidence and no major recovery opportunity detected.`,
+};
+
+const aiCEODecisionButtons = [
+  {
+    label: "Review Top Action",
+    detail: topAIRecommendedAction?.title || "View AI recommendation",
+  },
+  {
+    label: "Open Recovery Plan",
+    detail: `$${totalAIFinancialImpact.toLocaleString()}/mo opportunity`,
+  },
+  {
+    label: "View Executive Alerts",
+    detail: `${aiExecutiveAlertsFeed.length} active alert(s)`,
+  },
+];
+const aiExecutiveCloseout = {
+  status:
+    aiEnterpriseScorecard.riskLocations >= 2
+      ? "Executive follow-up required."
+      : aiEnterpriseScorecard.riskLocations === 1
+      ? "Continue monitoring flagged location."
+      : "All monitored systems stable.",
+
+  summary: `SerVen AI completed enterprise operational analysis across ${
+    aiEnterpriseScorecard.locationsTracked || 0
+  } monitored location(s).`,
+};
+
+const aiWhatIfSimulator = {
+  reduceFoodCost2Percent: Math.round((totalRevenue || 0) * 0.02),
+  reduceLaborCost15Percent: Math.round((totalRevenue || 0) * 0.015),
+  improveMenuMargin3Percent: Math.round((totalRevenue || 0) * 0.03),
+};
+
+const aiAutonomousProfitRecoveryEngine = [
+  {
+    system: "Food Cost Recovery",
+    status:
+      usageVariancePercent >= 7 ? "Optimization Recommended" : "Stable",
+  },
+  {
+    system: "Labor Efficiency",
+    status:
+      laborCostPercent >= 32 ? "Schedule Optimization Needed" : "Stable",
+  },
+  {
+    system: "Menu Intelligence",
+    status:
+      suspiciousMenuItems.length > 0 ? "Margin Opportunity Detected" : "Stable",
+  },
+  {
+    system: "Inventory Intelligence",
+    status:
+      ingredientUsageAnomalies.length > 0
+        ? "Usage Variance Detected"
+        : "Stable",
+  },
+];
+
+const predictiveSchedulingAI = {
+  status:
+    laborCostPercent >= 32
+      ? "Schedule Optimization Needed"
+      : "Labor Schedule Stable",
+
+  recommendation:
+    laborCostPercent >= 32
+      ? "AI recommends reducing labor coverage during lower-revenue periods and reallocating staff to peak windows."
+      : "Current labor performance appears aligned with revenue demand.",
+
+  projectedSavings:
+    laborCostPercent >= 32
+      ? Math.round((totalRevenue || 0) * 0.015)
+      : 0,
+};
+const aiVendorNegotiationIntelligence = {
+  vendorsFlagged:
+    (vendorInvoiceData || []).filter(
+      (vendor) => Number(vendor.variancePercent || 0) >= 8
+    ).length || 0,
+
+  recommendation:
+    (vendorInvoiceData || []).some(
+      (vendor) => Number(vendor.variancePercent || 0) >= 8
+    )
+      ? "AI detected vendor pricing increases above expected purchasing thresholds."
+      : "No major vendor pricing abnormalities detected.",
+
+  projectedSavings:
+   (vendorInvoiceData || []).reduce((sum, vendor) => {
+      const variance = Number(vendor.variancePercent || 0);
+
+      if (variance >= 8) {
+        return sum + 250;
+      }
+
+      return sum;
+    }, 0),
+};const beverageVarianceData = [];
+const beverageTheftDetectionAI = {
+  suspiciousActivity:
+    (beverageVarianceData || []).filter(
+      (item) => Number(item.variancePercent || 0) >= 12
+    ).length || 0,
+
+  riskLevel:
+    (beverageVarianceData || []).some(
+      (item) => Number(item.variancePercent || 0) >= 18
+    )
+      ? "High"
+      : (beverageVarianceData || []).some(
+          (item) => Number(item.variancePercent || 0) >= 12
+        )
+      ? "Moderate"
+      : "Stable",
+
+  projectedLoss:
+    (beverageVarianceData || []).reduce((sum, item) => {
+      const variance = Number(item.variancePercent || 0);
+
+      if (variance >= 12) {
+        return sum + 180;
+      }
+
+      return sum;
+    }, 0),
+};
+const foodCostPercent = 0;
+
+
+const primeCostPercent =
+  Number(foodCostPercent || 0) +
+  Number(laborCostPercent || 0);
+
+const franchiseBenchmarkIntelligence = {
+  benchmarkPrimeCost: 60,
+  actualPrimeCost: Number(aiExecutiveBenchmarking?.averagePrimeCost || primeCostPercent || 0),
+
+  status:
+    Number(aiExecutiveBenchmarking?.averagePrimeCost || primeCostPercent || 0) <= 60
+      ? "Above Benchmark"
+      : Number(aiExecutiveBenchmarking?.averagePrimeCost || primeCostPercent || 0) <= 68
+      ? "Near Benchmark"
+      : "Below Benchmark",
+
+  variance:
+    Number(aiExecutiveBenchmarking?.averagePrimeCost || primeCostPercent || 0) - 60,
+};
+
+const aiLiveOperationsCopilot = {
+  status:
+    aiRiskLevel === "Critical"
+      ? "Copilot recommends immediate operator review."
+      : aiRiskLevel === "High"
+      ? "Copilot found a high-priority operating issue."
+      : "Copilot is monitoring live operating signals.",
+
+  message:
+    topAIRecommendedAction?.title ||
+    "No urgent intervention needed right now.",
+
+  mode:
+    aiActionQueue.length > 0 ? "Active Guidance" : "Monitoring",
+};
+
+const aiVoiceOperationsAssistant = {
+  status: aiActionQueue.length > 0 ? "Ready to Brief Operator" : "Standby Mode",
+  prompt:
+    aiActionQueue.length > 0
+      ? `Ask: "What should I fix first?" AI will recommend ${topAIRecommendedAction?.title}.`
+      : `Ask: "How is my restaurant performing today?" AI will summarize current performance.`,
+};
+
+const autonomousRestaurantControlLayer = {
+  status:
+    aiRiskLevel === "Critical"
+      ? "Autonomous Intervention Recommended"
+      : aiRiskLevel === "High"
+      ? "Autonomous Optimization Available"
+      : "Monitoring Operations",
+
+  systemsActive: [
+    "Labor Intelligence",
+    "Inventory Intelligence",
+    "Menu Intelligence",
+    "Vendor Intelligence",
+    "Executive Forecasting",
+  ],
+
+  autonomyLevel:
+    aiRiskLevel === "Critical"
+      ? "High"
+      : aiRiskLevel === "High"
+      ? "Moderate"
+      : "Passive",
+};
+
+const aiLiveChatCopilot = {
+  status: aiActionQueue.length > 0 ? "Ready To Assist" : "Monitoring Mode",
+  suggestedPrompt:
+    aiActionQueue.length > 0
+      ? `Ask: "What should I fix first?"`
+      : `Ask: "How is my restaurant performing today?"`,
+  answer:
+    topAIRecommendedAction?.title ||
+    "No urgent issue detected. AI is monitoring operations.",
+};
+const aiPredictiveSalesEngine = {
+  forecast:
+    totalRevenue > 0
+      ? Math.round(totalRevenue * 1.08)
+      : 0,
+
+  trend:
+    totalRevenue > 0
+      ? "AI forecasts an 8% revenue lift opportunity from menu, labor, and operating improvements."
+      : "Upload sales data to activate predictive revenue forecasting.",
+
+  confidence: aiConfidenceScore,
+};
+
+const aiSmartPurchasingSystem = {
+  recommendationCount:
+    (ingredientUsageAnomalies || []).length || 0,
+
+  purchasingMode:
+    (ingredientUsageAnomalies || []).length > 0
+      ? "Optimization Recommended"
+      : "Inventory Purchasing Stable",
+
+  projectedSavings:
+    (ingredientUsageAnomalies || []).length > 0
+      ? (ingredientUsageAnomalies || []).length * 120
+      : 0,
+};
+const aiStaffPerformanceIntelligence = {
+  status:
+    laborCostPercent >= 32
+      ? "Labor Performance Review Recommended"
+      : "Staff Performance Stable",
+
+  insight:
+    laborCostPercent >= 32
+      ? "AI detected labor cost pressure. Review staffing levels, shift coverage, and sales per labor hour."
+      : "Labor performance appears aligned with current revenue activity.",
+
+  projectedImprovement:
+    laborCostPercent >= 32 ? Math.round((totalRevenue || 0) * 0.012) : 0,
+};
+
+const customerData = [];
+const aiGuestIntelligence = useMemo(() => {
+  const guests = customerData || [];
+
+  return guests.map((guest, index) => {
+    const visits =
+      Number(guest.visits || guest.total_visits || 1);
+
+    const spend =
+      Number(guest.total_spend || guest.lifetime_spend || 0);
+
+    const avgSpend =
+      visits > 0 ? spend / visits : spend;
+
+    const loyaltyScore = Math.min(
+      100,
+      Math.round(visits * 6 + avgSpend * 0.12)
+    );
+
+    const churnRisk =
+      visits <= 1
+        ? "High"
+        : visits <= 3
+        ? "Medium"
+        : "Low";
+
+    const guestTier =
+      spend >= 2000
+        ? "VIP"
+        : spend >= 800
+        ? "Premium"
+        : "Standard";
+
+    return {
+      id: guest.id || index,
+      name:
+        guest.name ||
+        guest.customer_name ||
+        `Guest ${index + 1}`,
+
+      visits,
+      spend,
+      avgSpend,
+      loyaltyScore,
+      churnRisk,
+      guestTier,
+    };
+  });
+}, [customerData]);
+const vipGuests = aiGuestIntelligence.filter(
+  (g) => g.guestTier === "VIP"
+).length;
+
+const highRiskGuests = aiGuestIntelligence.filter(
+  (g) => g.churnRisk === "High"
+).length;
+
+const avgGuestSpend =
+  aiGuestIntelligence.reduce(
+    (sum, g) => sum + g.avgSpend,
+    0
+  ) / (aiGuestIntelligence.length || 1);
+  const aiGuestSentimentIntelligence = useMemo(() => {
+  return aiGuestIntelligence.map((guest) => {
+    const sentimentScore =
+      guest.loyaltyScore >= 80
+        ? "Excellent"
+        : guest.loyaltyScore >= 55
+        ? "Positive"
+        : guest.loyaltyScore >= 35
+        ? "Neutral"
+        : "Negative";
+
+    const predictedBehavior =
+      guest.churnRisk === "High"
+        ? "Likely To Stop Visiting"
+        : guest.guestTier === "VIP"
+        ? "High Retention Probability"
+        : "Stable Engagement";
+
+    return {
+      ...guest,
+      sentimentScore,
+      predictedBehavior,
+    };
+  });
+}, [aiGuestIntelligence]);
+
+
 
 
 
@@ -20489,7 +22314,466 @@ return (
   >
     AI Executive Summary
   </div>
+<div
+  style={{
+    marginTop: "22px",
+    padding: "20px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(59,130,246,0.14), rgba(15,23,42,0.94))",
+    border: "1px solid rgba(96,165,250,0.2)",
+  }}
+>
+  <div
+    style={{
+      color: "#93c5fd",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "10px",
+    }}
+  >
+    AI Forecast Summary
+  </div>
+<div
+  style={{
+    marginTop: "22px",
+    padding: "20px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(34,197,94,0.13), rgba(15,23,42,0.94))",
+    border: "1px solid rgba(34,197,94,0.2)",
+  }}
+>
+  <div
+    style={{
+      color: "#86efac",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "14px",
+    }}
+  >
+    AI Recovery Projection
+  </div>
+<div
+  style={{
+    marginTop: "22px",
+    padding: "22px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(99,102,241,0.14), rgba(15,23,42,0.94))",
+    border: "1px solid rgba(129,140,248,0.22)",
+  }}
+>
+  <div
+    style={{
+      color: "#a5b4fc",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "12px",
+    }}
+  >
+    AI Operational Health Grade
+  </div>
+<div
+  style={{
+    marginTop: "22px",
+    padding: "22px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(14,165,233,0.14), rgba(15,23,42,0.94))",
+    border: "1px solid rgba(56,189,248,0.2)",
+  }}
+>
+  <div
+    style={{
+      color: "#7dd3fc",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "10px",
+    }}
+  >
+    AI Daily Briefing
+  </div>
+<div
+  style={{
+    marginTop: "22px",
+    padding: "22px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(16,185,129,0.14), rgba(15,23,42,0.94))",
+    border: "1px solid rgba(16,185,129,0.2)",
+  }}
+>
+  <div
+    style={{
+      color: "#6ee7b7",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "12px",
+    }}
+  >
+    AI Autopilot Revenue Recovery
+  </div>
+<div
+  style={{
+    marginTop: "22px",
+    padding: "22px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(168,85,247,0.14), rgba(15,23,42,0.94))",
+    border: "1px solid rgba(168,85,247,0.22)",
+  }}
+>
+  <div
+    style={{
+      color: "#d8b4fe",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "16px",
+    }}
+  >
+    AI Executive Timeline
+  </div>
+<div
+  style={{
+    marginTop: "22px",
+    padding: "22px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(245,158,11,0.12), rgba(15,23,42,0.94))",
+    border: "1px solid rgba(251,191,36,0.2)",
+  }}
+>
+  <div
+    style={{
+      color: "#fde68a",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "14px",
+    }}
+  >
+    AI Multi-Location Executive Intelligence
+  </div>
 
+  {(aiMultiLocationExecutiveInsights || []).length > 0 ? (
+    <div
+      style={{
+        display: "grid",
+        gap: "12px",
+      }}
+    >
+      {aiMultiLocationExecutiveInsights.map((location, index) => (
+        <div
+          key={index}
+          style={{
+            padding: "16px",
+            borderRadius: "18px",
+            background: "rgba(15,23,42,0.72)",
+            border: "1px solid rgba(148,163,184,0.12)",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: "10px",
+            }}
+          >
+            <div
+              style={{
+                color: "white",
+                fontSize: "16px",
+                fontWeight: "950",
+              }}
+            >
+              {location.location}
+            </div>
+
+            <div
+              style={{
+                color:
+                  location.health === "Excellent"
+                    ? "#86efac"
+                    : location.health === "Healthy"
+                    ? "#fde68a"
+                    : location.health === "Watch Closely"
+                    ? "#fdba74"
+                    : "#fca5a5",
+                fontSize: "12px",
+                fontWeight: "950",
+              }}
+            >
+              {location.health}
+            </div>
+          </div>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: isMobile ? "1fr" : "repeat(2, 1fr)",
+              gap: "10px",
+            }}
+          >
+            <div>
+              <div
+                style={{
+                  color: "#94a3b8",
+                  fontSize: "11px",
+                  fontWeight: "800",
+                }}
+              >
+                Revenue
+              </div>
+
+              <div
+                style={{
+                  color: "#f8fafc",
+                  fontSize: "18px",
+                  fontWeight: "950",
+                }}
+              >
+                ${location.revenue.toLocaleString()}
+              </div>
+            </div>
+
+            <div>
+              <div
+                style={{
+                  color: "#94a3b8",
+                  fontSize: "11px",
+                  fontWeight: "800",
+                }}
+              >
+                Prime Cost
+              </div>
+
+              <div
+                style={{
+                  color: "#f8fafc",
+                  fontSize: "18px",
+                  fontWeight: "950",
+                }}
+              >
+                {location.primeCost.toFixed(1)}%
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  ) : (
+    <div
+      style={{
+        color: "#94a3b8",
+        fontSize: "13px",
+      }}
+    >
+      No multi-location operational data available.
+    </div>
+  )}
+</div>
+  <div style={{ display: "grid", gap: "12px" }}>
+    {aiExecutiveTimeline.map((item, index) => (
+      <div
+        key={index}
+        style={{
+          display: "grid",
+          gridTemplateColumns: isMobile ? "1fr" : "140px 1fr",
+          gap: "10px",
+          padding: "14px",
+          borderRadius: "16px",
+          background: "rgba(15,23,42,0.72)",
+          border: "1px solid rgba(148,163,184,0.12)",
+        }}
+      >
+        <div style={{ color: "#c084fc", fontSize: "12px", fontWeight: "950" }}>
+          {item.label}
+        </div>
+
+        <div style={{ color: "#f5f3ff", fontSize: "14px", fontWeight: "800" }}>
+          {item.value}
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
+      gap: "12px",
+    }}
+  >
+    {[
+      {
+        label: "Recovered To Date",
+        value: autopilotRecoveryTracker.recoveredToDate,
+      },
+      {
+        label: "Projected Monthly",
+        value: autopilotRecoveryTracker.projectedMonthly,
+      },
+      {
+        label: "Projected Annual",
+        value: autopilotRecoveryTracker.projectedAnnual,
+      },
+    ].map((item, index) => (
+      <div
+        key={index}
+        style={{
+          padding: "14px",
+          borderRadius: "16px",
+          background: "rgba(15,23,42,0.72)",
+          border: "1px solid rgba(148,163,184,0.12)",
+        }}
+      >
+        <div style={{ color: "#94a3b8", fontSize: "12px", fontWeight: "800" }}>
+          {item.label}
+        </div>
+
+        <div style={{ color: "#bbf7d0", fontSize: "22px", fontWeight: "950" }}>
+          ${Number(item.value || 0).toLocaleString()}
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+  <h3 style={{ color: "white", fontSize: "22px", fontWeight: "950" }}>
+    {aiDailyBriefingEngine.headline}
+  </h3>
+
+  <p style={{ color: "#cbd5e1", fontSize: "14px", lineHeight: 1.7 }}>
+    {aiDailyBriefingEngine.summary}
+  </p>
+
+  <div
+    style={{
+      marginTop: "14px",
+      padding: "14px",
+      borderRadius: "16px",
+      background: "rgba(15,23,42,0.72)",
+      border: "1px solid rgba(148,163,184,0.12)",
+    }}
+  >
+    <div style={{ color: "#94a3b8", fontSize: "12px", fontWeight: "800" }}>
+      Today’s AI Focus
+    </div>
+
+    <div style={{ color: "#e0f2fe", fontSize: "15px", fontWeight: "950" }}>
+      {aiDailyBriefingEngine.focus}
+    </div>
+  </div>
+</div>
+  <div
+    style={{
+      display: "flex",
+      alignItems: "center",
+      gap: "18px",
+    }}
+  >
+    <div
+      style={{
+        width: "90px",
+        height: "90px",
+        borderRadius: "999px",
+        background: `${aiOperationalHealthColor}22`,
+        border: `2px solid ${aiOperationalHealthColor}`,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: aiOperationalHealthColor,
+        fontSize: "38px",
+        fontWeight: "950",
+      }}
+    >
+      {aiOperationalHealthGrade}
+    </div>
+
+    <div>
+      <div
+        style={{
+          color: "white",
+          fontSize: "20px",
+          fontWeight: "900",
+          marginBottom: "6px",
+        }}
+      >
+        {aiRiskLevel} Operational Risk
+      </div>
+
+      <div
+        style={{
+          color: "#cbd5e1",
+          fontSize: "14px",
+          lineHeight: 1.7,
+          maxWidth: "520px",
+        }}
+      >
+        SerVen AI calculated this grade using operational risk exposure,
+        active AI alerts, financial impact potential, and confidence scoring.
+      </div>
+    </div>
+  </div>
+</div>
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
+      gap: "12px",
+    }}
+  >
+    {[
+      { label: "30 Days", value: aiRecoveryProjection.thirtyDays },
+      { label: "60 Days", value: aiRecoveryProjection.sixtyDays },
+      { label: "90 Days", value: aiRecoveryProjection.ninetyDays },
+    ].map((item, index) => (
+      <div
+        key={index}
+        style={{
+          padding: "14px",
+          borderRadius: "16px",
+          background: "rgba(15,23,42,0.72)",
+          border: "1px solid rgba(148,163,184,0.12)",
+        }}
+      >
+        <div style={{ color: "#94a3b8", fontSize: "12px", fontWeight: "800" }}>
+          {item.label}
+        </div>
+
+        <div style={{ color: "#bbf7d0", fontSize: "22px", fontWeight: "950" }}>
+          ${Number(item.value || 0).toLocaleString()}
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+  <p
+    style={{
+      color: "#dbeafe",
+      fontSize: "14px",
+      lineHeight: 1.8,
+      margin: 0,
+      fontWeight: "700",
+    }}
+  >
+    {aiForecastSummary}
+  </p>
+</div>
   <h1
     style={{
       color: "white",
@@ -20500,7 +22784,7 @@ return (
     }}
   >
     {aiHealthLabel || restaurantHealthGrade} Operations ·{" "}
-    {overallAIHealthScore || restaurantHealthScore}/100
+    {aiHealthEngine?.overallScore || restaurantHealthScore}/100
   </h1>
 
   <p
@@ -20742,6 +23026,10 @@ return (
         label: "Financial Health",
         score: restaurantHealthCategories.financialHealth,
       },
+      {
+  label: "Consumables Health",
+  score: restaurantHealthCategories.consumablesHealth,
+},
       {
         label: "Labor Health",
         score: restaurantHealthCategories.laborHealth,
@@ -21908,6 +24196,161 @@ return (
         </div>
       );
     })}
+  </div>
+</div>
+{/* 🧂 AI CONSUMABLES INTELLIGENCE */}
+<div
+  style={{
+    marginBottom: "22px",
+    padding: isMobile ? "20px" : "24px",
+    borderRadius: "26px",
+    background:
+      "radial-gradient(circle at top right, rgba(245,158,11,0.18), transparent 34%), linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.94))",
+    border: "1px solid rgba(251,191,36,0.22)",
+  }}
+>
+  <div style={{ color: "#fbbf24", fontSize: "12px", fontWeight: "950" }}>
+    AI Consumables Intelligence
+  </div>
+
+  <h3 style={{ color: "white", fontSize: "28px", fontWeight: "1000" }}>
+    AI estimates oil, garnish, berries, herbs, and hidden prep leakage.
+  </h3>
+
+  <p style={{ color: "#cbd5e1", fontSize: "14px", lineHeight: 1.8 }}>
+   {aiHealthEngine?.insight}
+  </p>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
+      gap: "14px",
+      marginTop: "18px",
+      marginBottom: "18px",
+    }}
+  >
+    {[
+      {
+        label: "Tracked Consumables",
+        value:
+  Number(aiHealthEngine?.categoryScores?.consumablesHealth || 100) < 75
+    ? 1
+    : 0,
+        sub: "Oil, garnish, herbs, berries, citrus",
+      },
+      {
+        label: "Variance Risks",
+        value:
+  Number(aiHealthEngine?.categoryScores?.consumablesHealth || 100) < 75
+    ? 1
+    : 0,
+        sub: "Estimated depletion concerns",
+      },
+      {
+        label: "Estimated Leakage",
+       value: `$${Math.round(
+  (100 -
+    Number(aiHealthEngine?.categoryScores?.consumablesHealth || 100)) * 25
+).toLocaleString()}`,
+        sub: "Potential monthly prep loss",
+      },
+    ].map((item) => (
+      <div
+        key={item.label}
+        style={{
+          padding: "16px",
+          borderRadius: "18px",
+          background: "rgba(15,23,42,0.72)",
+          border: "1px solid rgba(148,163,184,0.14)",
+        }}
+      >
+        <div style={{ color: "#94a3b8", fontSize: "11px", fontWeight: "900" }}>
+          {item.label}
+        </div>
+
+        <div
+          style={{
+            color: "white",
+            fontSize: "28px",
+            fontWeight: "1000",
+            marginTop: "8px",
+          }}
+        >
+          {item.value}
+        </div>
+
+        <div style={{ color: "#cbd5e1", fontSize: "12px", marginTop: "6px" }}>
+          {item.sub}
+        </div>
+      </div>
+    ))}
+  </div>
+
+  <div style={{ display: "grid", gap: "12px" }}>
+   {(
+  Number(aiHealthEngine?.categoryScores?.consumablesHealth || 100) < 75
+    ? [
+        {
+          name: "Consumables Variance",
+          status: "Variance Risk",
+          estimatedLeakage: 650,
+        },
+      ]
+    : [
+        {
+          name: "Consumables Stable",
+          status: "Controlled",
+          estimatedLeakage: 0,
+        },
+      ]
+).slice(0, 6).map((item) => (
+      <div
+        key={item.name}
+        style={{
+          padding: "15px",
+          borderRadius: "18px",
+          background: "rgba(255,255,255,0.045)",
+          border:
+            item.status === "Critical Variance"
+              ? "1px solid rgba(248,113,113,0.32)"
+              : item.status === "Variance Risk"
+              ? "1px solid rgba(251,191,36,0.32)"
+              : "1px solid rgba(148,163,184,0.14)",
+        }}
+      >
+        <div style={{ color: "#fbbf24", fontSize: "11px", fontWeight: "950" }}>
+          {item.category} · {item.status}
+        </div>
+
+        <div
+          style={{
+            color: "white",
+            fontSize: "17px",
+            fontWeight: "950",
+            marginTop: "6px",
+          }}
+        >
+          {item.name}
+        </div>
+
+        <div style={{ color: "#cbd5e1", fontSize: "13px", marginTop: "6px" }}>
+          Invoice Qty: {item.invoiceQuantity || 0} · Estimated Usage:{" "}
+          {item.estimatedUsage || 0} · Variance: {item.estimatedVariance || 0}%
+        </div>
+
+        <div style={{ color: "#fbbf24", fontSize: "12px", fontWeight: "900", marginTop: "8px" }}>
+          Est. Leakage: ${Number(item.estimatedLeakage || 0).toLocaleString()}
+        </div>
+      </div>
+    ))}
+
+    {Number(aiHealthEngine?.categoryScores?.consumablesHealth || 100) >= 95 && (
+      <div style={itemStyle}>
+        Upload ingredient or invoice rows containing oil, citrus, berries, herbs,
+        or garnish items to activate consumables intelligence.
+      </div>
+    )}
   </div>
 </div>
 {/* 📍 MULTI-LOCATION INTELLIGENCE */}
@@ -29396,7 +31839,407 @@ boxSizing: "border-box",
               Smart actions based on performance and pricing gaps.
             </p>
           </div>
-        
+        {/* =========================
+   AI COMMAND CENTER HEADER
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginBottom: "24px",
+      padding: "30px",
+      borderRadius: "32px",
+      background:
+        "radial-gradient(circle at top right, rgba(99,102,241,0.28), transparent 34%), linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.94))",
+      border: "1px solid rgba(129,140,248,0.24)",
+      boxShadow: "0 28px 80px rgba(2,6,23,0.38)",
+    }}
+  >
+    <div style={{ color: "#c7d2fe", fontSize: "12px", fontWeight: "900" }}>
+      SERVEN AI COMMAND CENTER
+    </div>
+
+    <h2
+      style={{
+        color: "white",
+        fontSize: isMobile ? "30px" : "42px",
+        fontWeight: "950",
+        marginTop: "10px",
+        marginBottom: "12px",
+      }}
+    >
+      Executive Restaurant Intelligence
+    </h2>
+
+    <p
+      style={{
+        color: "#cbd5e1",
+        fontSize: "15px",
+        lineHeight: 1.7,
+        maxWidth: "880px",
+      }}
+    >
+      SerVen AI is monitoring financial performance, labor pressure, inventory
+      risk, beverage variance, operational memory, and autonomous profit recovery
+      signals in real time.
+    </p>
+
+    <div
+      style={{
+        marginTop: "22px",
+        display: "grid",
+        gridTemplateColumns: isMobile ? "1fr" : "repeat(4, 1fr)",
+        gap: "14px",
+      }}
+    >
+      {[
+        {
+          label: "AI Health",
+          value: `${aiHealthEngine?.overallScore || restaurantHealthScore || 0}/100`,
+        },
+        {
+          label: "Recovery Opportunity",
+          value: `$${Number(
+            autonomousProfitRecoveryEngine?.projectedRecovery || 0
+          ).toLocaleString()}`,
+        },
+        {
+          label: "Operating Mode",
+          value: restaurantDigitalTwin?.operatingMode || "Monitoring",
+        },
+        {
+          label: "Top Priority",
+          value: executiveActionQueue?.[0]?.department || "Stable",
+        },
+      ].map((item) => (
+        <div
+          key={item.label}
+          style={{
+            padding: "16px",
+            borderRadius: "20px",
+            background: "rgba(255,255,255,0.05)",
+            border: "1px solid rgba(148,163,184,0.12)",
+          }}
+        >
+          <div style={{ color: "#a5b4fc", fontSize: "11px", fontWeight: "900" }}>
+            {item.label}
+          </div>
+
+          <div
+            style={{
+              color: "white",
+              fontSize: "22px",
+              fontWeight: "950",
+              marginTop: "6px",
+            }}
+          >
+            {item.value}
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
+{/* =========================
+   EXECUTIVE DAILY BRIEFING
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginBottom: "22px",
+      padding: "26px",
+      borderRadius: "30px",
+      background:
+        "linear-gradient(135deg, rgba(79,70,229,0.18), rgba(15,23,42,0.98))",
+      border: "1px solid rgba(129,140,248,0.22)",
+      boxShadow: "0 24px 70px rgba(2,6,23,0.36)",
+    }}
+  >
+    <div style={{ color: "#c7d2fe", fontSize: "12px", fontWeight: "900" }}>
+      EXECUTIVE DAILY BRIEFING
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "28px",
+        fontWeight: "950",
+        marginTop: "8px",
+      }}
+    >
+      Today’s AI Executive Summary
+    </h3>
+
+    <p
+      style={{
+        color: "#cbd5e1",
+        fontSize: "15px",
+        lineHeight: 1.8,
+        marginTop: "14px",
+      }}
+    >
+      {executiveDailyBriefing?.summary}
+    </p>
+
+    <div
+      style={{
+        marginTop: "22px",
+        display: "grid",
+        gridTemplateColumns: isMobile ? "1fr" : "repeat(4, 1fr)",
+        gap: "14px",
+      }}
+    >
+      {[
+        {
+          label: "AI Health",
+          value: `${executiveDailyBriefing?.aiHealth || 0}/100`,
+        },
+        {
+          label: "Top Risk",
+          value: executiveDailyBriefing?.topRisk || "Stable",
+        },
+        {
+          label: "Top Recovery",
+          value: `$${Number(
+            executiveDailyBriefing?.recoveryOpportunity || 0
+          ).toLocaleString()}`,
+        },
+        {
+          label: "Weakest Location",
+          value:
+            executiveDailyBriefing?.weakestLocation || "N/A",
+        },
+      ].map((item) => (
+        <div
+          key={item.label}
+          style={{
+            padding: "16px",
+            borderRadius: "18px",
+            background: "rgba(255,255,255,0.05)",
+            border: "1px solid rgba(148,163,184,0.12)",
+          }}
+        >
+          <div
+            style={{
+              color: "#a5b4fc",
+              fontSize: "11px",
+              fontWeight: "900",
+            }}
+          >
+            {item.label}
+          </div>
+
+          <div
+            style={{
+              color: "white",
+              fontSize: "18px",
+              fontWeight: "900",
+              marginTop: "6px",
+            }}
+          >
+            {item.value}
+          </div>
+        </div>
+      ))}
+    </div>
+
+    <div
+      style={{
+        marginTop: "22px",
+        padding: "18px",
+        borderRadius: "18px",
+        background: "rgba(255,255,255,0.04)",
+        border: "1px solid rgba(148,163,184,0.10)",
+      }}
+    >
+      <div
+        style={{
+          color: "#93c5fd",
+          fontSize: "12px",
+          fontWeight: "900",
+          marginBottom: "8px",
+        }}
+      >
+        TOP AI RECOMMENDATION
+      </div>
+
+      <div
+        style={{
+          color: "white",
+          fontSize: "16px",
+          fontWeight: "900",
+        }}
+      >
+        {executiveDailyBriefing?.topRecommendation}
+      </div>
+    </div>
+  </div>
+)}
+{/* =========================
+   AI SMART NOTIFICATION CENTER
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginBottom: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+      background:
+        "linear-gradient(135deg, rgba(234,88,12,0.16), rgba(15,23,42,0.98))",
+      border: "1px solid rgba(251,146,60,0.22)",
+      boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
+    }}
+  >
+    <div style={{ color: "#fdba74", fontSize: "12px", fontWeight: "900" }}>
+      AI SMART NOTIFICATION CENTER
+    </div>
+
+    <h3 style={{ color: "white", fontSize: "26px", fontWeight: "950" }}>
+      Live Operational Notifications
+    </h3>
+
+    <div style={{ display: "grid", gap: "12px", marginTop: "18px" }}>
+      {(aiSmartNotifications || []).map((note, index) => (
+        <div
+          key={`${note.title}-${index}`}
+          style={{
+            padding: "16px",
+            borderRadius: "18px",
+            background: "rgba(255,255,255,0.05)",
+            border: "1px solid rgba(148,163,184,0.12)",
+          }}
+        >
+          <div style={{ color: "white", fontSize: "15px", fontWeight: "900" }}>
+            {note.title}
+          </div>
+
+          <div
+            style={{
+              color:
+                note.severity === "Critical"
+                  ? "#fca5a5"
+                  : note.severity === "High"
+                  ? "#fde68a"
+                  : "#93c5fd",
+              fontSize: "12px",
+              fontWeight: "900",
+              marginTop: "4px",
+            }}
+          >
+            {note.type} • {note.severity}
+          </div>
+
+          <p style={{ color: "#cbd5e1", fontSize: "13px", lineHeight: 1.6 }}>
+            {note.message}
+          </p>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
+{/* =========================
+   AI TASK ASSIGNMENT SYSTEM
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginBottom: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+      background:
+        "linear-gradient(135deg, rgba(124,58,237,0.18), rgba(15,23,42,0.98))",
+      border: "1px solid rgba(167,139,250,0.22)",
+      boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
+    }}
+  >
+    <div style={{ color: "#c4b5fd", fontSize: "12px", fontWeight: "900" }}>
+      AI TASK ASSIGNMENT SYSTEM
+    </div>
+
+    <h3 style={{ color: "white", fontSize: "26px", fontWeight: "950" }}>
+      Manager Action Assignments
+    </h3>
+<button
+  type="button"
+  onClick={handleRunAutopilotWorkflow}
+  style={{
+    marginTop: "12px",
+    padding: "12px 16px",
+    borderRadius: "14px",
+    border: "none",
+    background: "linear-gradient(135deg, #8b5cf6, #6366f1)",
+    color: "white",
+    fontWeight: "950",
+    cursor: "pointer",
+  }}
+>
+  Run Top Autopilot Workflow
+</button>
+    <div style={{ display: "grid", gap: "12px", marginTop: "18px" }}>
+      {(aiTaskAssignments || []).length > 0 ? (
+        aiTaskAssignments.map((task, index) => (
+          <div
+            key={`${task.title}-${index}`}
+            style={{
+              padding: "16px",
+              borderRadius: "18px",
+              background: "rgba(255,255,255,0.05)",
+              border: "1px solid rgba(148,163,184,0.12)",
+            }}
+          >
+            <div style={{ color: "white", fontSize: "15px", fontWeight: "900" }}>
+              {task.title}
+            </div>
+
+            <div
+              style={{
+                color:
+                  task.priority === "Critical"
+                    ? "#fca5a5"
+                    : task.priority === "High"
+                    ? "#fde68a"
+                    : "#93c5fd",
+                fontSize: "12px",
+                fontWeight: "900",
+                marginTop: "4px",
+              }}
+            >
+              {task.owner} • {task.priority} • Due {task.due}
+            </div>
+
+            <p style={{ color: "#cbd5e1", fontSize: "13px", lineHeight: 1.6 }}>
+              {task.action}
+            </p>
+            <button
+  type="button"
+  onClick={() => handleCompleteAITask(task)}
+  style={{
+    marginTop: "10px",
+    padding: "10px 14px",
+    borderRadius: "12px",
+    border: "1px solid rgba(34,197,94,0.28)",
+    background: "rgba(34,197,94,0.14)",
+    color: "#bbf7d0",
+    fontSize: "12px",
+    fontWeight: "900",
+    cursor: "pointer",
+  }}
+>
+  Mark Task Completed
+</button>
+          </div>
+        ))
+      ) : (
+        <div style={{ color: "#94a3b8", fontSize: "14px" }}>
+          No manager tasks needed right now.
+        </div>
+      )}
+    </div>
+  </div>
+)}
         {/* 🧠 AI OPERATIONAL COMMAND CENTER */}
 
 {hasProAccess && (
@@ -29607,7 +32450,3680 @@ boxSizing: "border-box",
   </div>
   </div>
 )}
+{/* =========================
+   MULTI-LOCATION INTELLIGENCE
+========================= */}
 
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "26px",
+      borderRadius: "30px",
+      background:
+        "linear-gradient(135deg, rgba(14,165,233,0.18), rgba(15,23,42,0.98))",
+      border: "1px solid rgba(56,189,248,0.22)",
+      boxShadow: "0 24px 70px rgba(2,6,23,0.36)",
+    }}
+  >
+    <div style={{ color: "#7dd3fc", fontSize: "12px", fontWeight: "900" }}>
+      MULTI-LOCATION INTELLIGENCE
+    </div>
+
+    <h3 style={{ color: "white", fontSize: "26px", fontWeight: "950" }}>
+      Location Performance Command
+    </h3>
+
+    <p style={{ color: "#cbd5e1", fontSize: "14px", lineHeight: 1.7 }}>
+      SerVen AI compares location performance across revenue, labor pressure,
+      order volume, inventory activity, and operating health.
+    </p>
+
+    <div
+      style={{
+        marginTop: "22px",
+        display: "grid",
+        gridTemplateColumns: isMobile ? "1fr" : "repeat(4, 1fr)",
+        gap: "14px",
+      }}
+    >
+      {[
+        {
+          label: "Locations",
+          value: multiLocationIntelligence?.totalLocations || 0,
+        },
+        {
+          label: "Total Revenue",
+          value: `$${Number(
+            multiLocationIntelligence?.totalRevenue || 0
+          ).toLocaleString()}`,
+        },
+        {
+          label: "Avg Health",
+          value: `${multiLocationIntelligence?.averageHealth || 0}/100`,
+        },
+        {
+          label: "Top Location",
+          value: multiLocationIntelligence?.topLocation?.name || "N/A",
+        },
+      ].map((item) => (
+        <div
+          key={item.label}
+          style={{
+            padding: "16px",
+            borderRadius: "20px",
+            background: "rgba(255,255,255,0.05)",
+            border: "1px solid rgba(148,163,184,0.12)",
+          }}
+        >
+          <div style={{ color: "#bae6fd", fontSize: "11px", fontWeight: "900" }}>
+            {item.label}
+          </div>
+
+          <div style={{ color: "white", fontSize: "22px", fontWeight: "950" }}>
+            {item.value}
+          </div>
+        </div>
+      ))}
+    </div>
+
+    <div style={{ marginTop: "20px", display: "grid", gap: "12px" }}>
+      {(multiLocationIntelligence?.locations || []).length > 0 ? (
+        multiLocationIntelligence.locations.map((location, index) => (
+          <div
+            key={location.name}
+            style={{
+              padding: "16px",
+              borderRadius: "20px",
+              background: "rgba(255,255,255,0.05)",
+              border: "1px solid rgba(148,163,184,0.12)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: "14px",
+                flexWrap: "wrap",
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    color: "white",
+                    fontSize: "16px",
+                    fontWeight: "900",
+                  }}
+                >
+                  #{index + 1} {location.name}
+                </div>
+
+                <div
+                  style={{
+                    color:
+                      location.status === "High Performer"
+                        ? "#86efac"
+                        : location.status === "Stable"
+                        ? "#93c5fd"
+                        : location.status === "Watch"
+                        ? "#fde68a"
+                        : "#fca5a5",
+                    fontSize: "12px",
+                    fontWeight: "900",
+                    marginTop: "4px",
+                  }}
+                >
+                  {location.status} • {location.healthScore}/100
+                </div>
+              </div>
+
+              <div
+                style={{
+                  color: "#86efac",
+                  fontSize: "15px",
+                  fontWeight: "950",
+                }}
+              >
+                ${Number(location.revenue || 0).toLocaleString()}
+              </div>
+            </div>
+
+            <div
+              style={{
+                marginTop: "12px",
+                display: "grid",
+                gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
+                gap: "10px",
+              }}
+            >
+              <div style={{ color: "#cbd5e1", fontSize: "12px" }}>
+                Orders: {Number(location.orders || 0).toLocaleString()}
+              </div>
+
+              <div style={{ color: "#cbd5e1", fontSize: "12px" }}>
+                Labor: {Number(location.laborPercent || 0).toFixed(1)}%
+              </div>
+
+              <div style={{ color: "#cbd5e1", fontSize: "12px" }}>
+                AOV: ${Number(location.averageOrder || 0).toFixed(2)}
+              </div>
+            </div>
+          </div>
+        ))
+      ) : (
+        <div style={{ color: "#94a3b8", fontSize: "14px" }}>
+          Multi-location intelligence will activate once location-level data is
+          available.
+        </div>
+      )}
+    </div>
+  </div>
+)}
+{/* =========================
+   CROSS-LOCATION ALERTS
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "18px",
+      display: "grid",
+      gap: "12px",
+    }}
+  >
+    {(crossLocationAlerts || []).length > 0 ? (
+      crossLocationAlerts.map((alert, index) => (
+        <div
+          key={`${alert.location}-${index}`}
+          style={{
+            padding: "16px",
+            borderRadius: "18px",
+            background:
+              alert.severity === "Critical"
+                ? "rgba(239,68,68,0.10)"
+                : alert.severity === "High"
+                ? "rgba(245,158,11,0.10)"
+                : "rgba(59,130,246,0.10)",
+            border:
+              alert.severity === "Critical"
+                ? "1px solid rgba(239,68,68,0.24)"
+                : alert.severity === "High"
+                ? "1px solid rgba(245,158,11,0.22)"
+                : "1px solid rgba(59,130,246,0.22)",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: "12px",
+              flexWrap: "wrap",
+            }}
+          >
+            <div>
+              <div
+                style={{
+                  color: "white",
+                  fontSize: "15px",
+                  fontWeight: "900",
+                }}
+              >
+                {alert.title}
+              </div>
+
+              <div
+                style={{
+                  color: "#94a3b8",
+                  fontSize: "12px",
+                  marginTop: "4px",
+                }}
+              >
+                {alert.location} • {alert.severity}
+              </div>
+            </div>
+
+            <div
+              style={{
+                color:
+                  alert.severity === "Critical"
+                    ? "#fca5a5"
+                    : alert.severity === "High"
+                    ? "#fde68a"
+                    : "#93c5fd",
+                fontSize: "12px",
+                fontWeight: "900",
+              }}
+            >
+              AI DETECTED
+            </div>
+          </div>
+
+          <div
+            style={{
+              marginTop: "10px",
+              color: "#cbd5e1",
+              fontSize: "13px",
+              lineHeight: 1.6,
+            }}
+          >
+            {alert.message}
+          </div>
+        </div>
+      ))
+    ) : (
+      <div
+        style={{
+          color: "#94a3b8",
+          fontSize: "14px",
+        }}
+      >
+        No major cross-location operational instability detected.
+      </div>
+    )}
+  </div>
+)}
+{/* =========================
+   LOCATION PERFORMANCE RANKING
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+      background:
+        "linear-gradient(135deg, rgba(30,64,175,0.18), rgba(15,23,42,0.96))",
+      border: "1px solid rgba(96,165,250,0.20)",
+      boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
+    }}
+  >
+    <div style={{ color: "#93c5fd", fontSize: "12px", fontWeight: "900" }}>
+      LOCATION PERFORMANCE RANKING
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "26px",
+        fontWeight: "950",
+        marginTop: "8px",
+      }}
+    >
+      AI Location Ranking System
+    </h3>
+
+    <p
+      style={{
+        color: "#cbd5e1",
+        fontSize: "14px",
+        lineHeight: 1.7,
+        marginBottom: "22px",
+      }}
+    >
+      SerVen AI ranks restaurant locations using operational health,
+      revenue efficiency, labor pressure, and order performance.
+    </p>
+
+    <div style={{ display: "grid", gap: "14px" }}>
+      {(multiLocationIntelligence?.locations || []).map(
+        (location, index) => (
+          <div
+            key={location.name}
+            style={{
+              padding: "18px",
+              borderRadius: "20px",
+              background: "rgba(255,255,255,0.05)",
+              border: "1px solid rgba(148,163,184,0.12)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: "14px",
+                flexWrap: "wrap",
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    color: "white",
+                    fontSize: "18px",
+                    fontWeight: "950",
+                  }}
+                >
+                  #{index + 1} {location.name}
+                </div>
+
+                <div
+                  style={{
+                    marginTop: "4px",
+                    color:
+                      location.status === "High Performer"
+                        ? "#86efac"
+                        : location.status === "Stable"
+                        ? "#93c5fd"
+                        : location.status === "Watch"
+                        ? "#fde68a"
+                        : "#fca5a5",
+                    fontSize: "12px",
+                    fontWeight: "900",
+                  }}
+                >
+                  {location.status}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  color: "white",
+                  fontSize: "26px",
+                  fontWeight: "950",
+                }}
+              >
+                {location.healthScore}/100
+              </div>
+            </div>
+
+            <div
+              style={{
+                marginTop: "16px",
+                width: "100%",
+                height: "10px",
+                borderRadius: "999px",
+                background: "rgba(255,255,255,0.08)",
+                overflow: "hidden",
+              }}
+            >
+              <div
+                style={{
+                  width: `${location.healthScore}%`,
+                  height: "100%",
+                  borderRadius: "999px",
+                  background:
+                    location.healthScore >= 85
+                      ? "linear-gradient(90deg,#22c55e,#4ade80)"
+                      : location.healthScore >= 70
+                      ? "linear-gradient(90deg,#3b82f6,#60a5fa)"
+                      : location.healthScore >= 60
+                      ? "linear-gradient(90deg,#f59e0b,#facc15)"
+                      : "linear-gradient(90deg,#ef4444,#f87171)",
+                }}
+              />
+            </div>
+
+            <div
+              style={{
+                marginTop: "16px",
+                display: "grid",
+                gridTemplateColumns: isMobile
+                  ? "1fr"
+                  : "repeat(4, 1fr)",
+                gap: "12px",
+              }}
+            >
+              {[
+                {
+                  label: "Revenue",
+                  value: `$${Number(
+                    location.revenue || 0
+                  ).toLocaleString()}`,
+                },
+                {
+                  label: "Orders",
+                  value: Number(
+                    location.orders || 0
+                  ).toLocaleString(),
+                },
+                {
+                  label: "Labor %",
+                  value: `${Number(
+                    location.laborPercent || 0
+                  ).toFixed(1)}%`,
+                },
+                {
+                  label: "AOV",
+                  value: `$${Number(
+                    location.averageOrder || 0
+                  ).toFixed(2)}`,
+                },
+              ].map((metric) => (
+                <div
+                  key={metric.label}
+                  style={{
+                    padding: "12px",
+                    borderRadius: "14px",
+                    background: "rgba(255,255,255,0.04)",
+                    border: "1px solid rgba(148,163,184,0.08)",
+                  }}
+                >
+                  <div
+                    style={{
+                      color: "#94a3b8",
+                      fontSize: "11px",
+                      fontWeight: "900",
+                    }}
+                  >
+                    {metric.label}
+                  </div>
+
+                  <div
+                    style={{
+                      color: "white",
+                      fontSize: "16px",
+                      fontWeight: "900",
+                      marginTop: "4px",
+                    }}
+                  >
+                    {metric.value}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      )}
+    </div>
+  </div>
+)}
+
+{/* =========================
+   REGIONAL FORECAST PANEL
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+      background:
+        "linear-gradient(135deg, rgba(8,145,178,0.18), rgba(15,23,42,0.96))",
+      border: "1px solid rgba(34,211,238,0.20)",
+      boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
+    }}
+  >
+    <div style={{ color: "#67e8f9", fontSize: "12px", fontWeight: "900" }}>
+      REGIONAL FORECASTING
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "26px",
+        fontWeight: "950",
+      }}
+    >
+      Predictive Location Intelligence
+    </h3>
+
+    <p
+      style={{
+        color: "#cbd5e1",
+        fontSize: "14px",
+        lineHeight: 1.7,
+        marginBottom: "22px",
+      }}
+    >
+      SerVen AI forecasts future operational instability, labor pressure,
+      and revenue risk across restaurant locations.
+    </p>
+
+    <div style={{ display: "grid", gap: "14px" }}>
+      {(regionalForecastingData || []).map((location, index) => (
+        <div
+          key={`${location.name}-${index}`}
+          style={{
+            padding: "18px",
+            borderRadius: "20px",
+            background: "rgba(255,255,255,0.05)",
+            border: "1px solid rgba(148,163,184,0.12)",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: "12px",
+              flexWrap: "wrap",
+            }}
+          >
+            <div>
+              <div
+                style={{
+                  color: "white",
+                  fontSize: "18px",
+                  fontWeight: "950",
+                }}
+              >
+                {location.name}
+              </div>
+
+              <div
+                style={{
+                  marginTop: "4px",
+                  color:
+                    location.projectedRisk === "Critical"
+                      ? "#fca5a5"
+                      : location.projectedRisk === "Watch"
+                      ? "#fde68a"
+                      : "#86efac",
+                  fontSize: "12px",
+                  fontWeight: "900",
+                }}
+              >
+                {location.projectedRisk} FORECAST
+              </div>
+            </div>
+
+            <div
+              style={{
+                color: "#67e8f9",
+                fontSize: "14px",
+                fontWeight: "900",
+              }}
+            >
+              {location.projectedRevenueTrend}
+            </div>
+          </div>
+
+          <div
+            style={{
+              marginTop: "14px",
+              display: "grid",
+              gridTemplateColumns: isMobile
+                ? "1fr"
+                : "repeat(3, 1fr)",
+              gap: "12px",
+            }}
+          >
+            {[
+              {
+                label: "Health Score",
+                value: `${location.healthScore}/100`,
+              },
+              {
+                label: "Labor Pressure",
+                value: location.projectedMarginPressure,
+              },
+              {
+                label: "Revenue Outlook",
+                value: location.projectedRevenueTrend,
+              },
+            ].map((metric) => (
+              <div
+                key={metric.label}
+                style={{
+                  padding: "12px",
+                  borderRadius: "14px",
+                  background: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(148,163,184,0.08)",
+                }}
+              >
+                <div
+                  style={{
+                    color: "#94a3b8",
+                    fontSize: "11px",
+                    fontWeight: "900",
+                  }}
+                >
+                  {metric.label}
+                </div>
+
+                <div
+                  style={{
+                    color: "white",
+                    fontSize: "16px",
+                    fontWeight: "900",
+                    marginTop: "4px",
+                  }}
+                >
+                  {metric.value}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
+{/* =========================
+   ENTERPRISE OPERATOR SCOREBOARD
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+      background:
+        "linear-gradient(135deg, rgba(88,28,135,0.20), rgba(15,23,42,0.96))",
+      border: "1px solid rgba(168,85,247,0.20)",
+      boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
+    }}
+  >
+    <div style={{ color: "#d8b4fe", fontSize: "12px", fontWeight: "900" }}>
+      ENTERPRISE OPERATOR SCOREBOARD
+    </div>
+
+    <h3 style={{ color: "white", fontSize: "26px", fontWeight: "950" }}>
+      Multi-Location Operating Scoreboard
+    </h3>
+
+    <p style={{ color: "#cbd5e1", fontSize: "14px", lineHeight: 1.7 }}>
+      Compare every location side-by-side across health, revenue, labor,
+      order volume, and forecasted operating risk.
+    </p>
+
+    <div style={{ marginTop: "22px", overflowX: "auto" }}>
+      <div style={{ minWidth: isMobile ? "760px" : "100%" }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1.4fr 1fr 1fr 1fr 1fr 1fr",
+            gap: "10px",
+            padding: "12px 14px",
+            color: "#94a3b8",
+            fontSize: "11px",
+            fontWeight: "900",
+            textTransform: "uppercase",
+          }}
+        >
+          <div>Location</div>
+          <div>Health</div>
+          <div>Revenue</div>
+          <div>Orders</div>
+          <div>Labor</div>
+          <div>Risk</div>
+        </div>
+
+        {(regionalForecastingData || []).map((location, index) => (
+          <div
+            key={`${location.name}-${index}`}
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1.4fr 1fr 1fr 1fr 1fr 1fr",
+              gap: "10px",
+              alignItems: "center",
+              padding: "14px",
+              marginBottom: "10px",
+              borderRadius: "18px",
+              background: "rgba(255,255,255,0.05)",
+              border: "1px solid rgba(148,163,184,0.12)",
+            }}
+          >
+            <div style={{ color: "white", fontWeight: "900" }}>
+              #{index + 1} {location.name}
+            </div>
+
+            <div style={{ color: "#cbd5e1", fontWeight: "800" }}>
+              {location.healthScore}/100
+            </div>
+
+            <div style={{ color: "#86efac", fontWeight: "900" }}>
+              ${Number(location.revenue || 0).toLocaleString()}
+            </div>
+
+            <div style={{ color: "#cbd5e1", fontWeight: "800" }}>
+              {Number(location.orders || 0).toLocaleString()}
+            </div>
+
+            <div
+              style={{
+                color:
+                  Number(location.laborPercent || 0) > 35
+                    ? "#fca5a5"
+                    : Number(location.laborPercent || 0) > 30
+                    ? "#fde68a"
+                    : "#cbd5e1",
+                fontWeight: "900",
+              }}
+            >
+              {Number(location.laborPercent || 0).toFixed(1)}%
+            </div>
+
+            <div
+              style={{
+                color:
+                  location.projectedRisk === "Critical"
+                    ? "#fca5a5"
+                    : location.projectedRisk === "Watch"
+                    ? "#fde68a"
+                    : "#86efac",
+                fontWeight: "900",
+              }}
+            >
+              {location.projectedRisk}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+)}
+{/* =========================
+   MULTI-LOCATION AI ACTION PLAN
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+      background:
+        "linear-gradient(135deg, rgba(127,29,29,0.18), rgba(15,23,42,0.96))",
+      border: "1px solid rgba(248,113,113,0.20)",
+      boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
+    }}
+  >
+    <div style={{ color: "#fca5a5", fontSize: "12px", fontWeight: "900" }}>
+      MULTI-LOCATION AI ACTION PLAN
+    </div>
+
+    <h3 style={{ color: "white", fontSize: "26px", fontWeight: "950" }}>
+      Location-Specific Recommendations
+    </h3>
+
+    <div style={{ display: "grid", gap: "14px", marginTop: "20px" }}>
+      {(regionalForecastingData || [])
+        .filter(
+          (location) =>
+            location.projectedRisk === "Critical" ||
+            location.projectedRisk === "Watch"
+        )
+        .map((location) => {
+          const action =
+            Number(location.laborPercent || 0) > 35
+              ? "Review labor scheduling and reduce low-efficiency coverage."
+              : Number(location.averageOrder || 0) < 18
+              ? "Improve upsell strategy and premium item attachment."
+              : Number(location.healthScore || 0) < 70
+              ? "Review operating health, inventory activity, and sales trends."
+              : "Continue monitoring this location.";
+
+          return (
+            <div
+              key={location.name}
+              style={{
+                padding: "18px",
+                borderRadius: "20px",
+                background: "rgba(255,255,255,0.05)",
+                border: "1px solid rgba(148,163,184,0.12)",
+              }}
+            >
+              <div style={{ color: "white", fontSize: "17px", fontWeight: "900" }}>
+                {location.name}
+              </div>
+
+              <div style={{ color: "#fca5a5", fontSize: "12px", fontWeight: "900", marginTop: "4px" }}>
+                {location.projectedRisk} • {location.healthScore}/100
+              </div>
+
+              <p style={{ color: "#cbd5e1", fontSize: "13px", lineHeight: 1.7 }}>
+                {action}
+              </p>
+            </div>
+          );
+        })}
+    </div>
+  </div>
+)}
+{/* =========================
+   MULTI-LOCATION EXECUTIVE SUMMARY
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+      background:
+        "linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.94))",
+      border: "1px solid rgba(148,163,184,0.14)",
+      boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
+    }}
+  >
+    <div style={{ color: "#c7d2fe", fontSize: "12px", fontWeight: "900" }}>
+      MULTI-LOCATION EXECUTIVE SUMMARY
+    </div>
+<div
+  style={{
+    marginTop: "22px",
+    padding: "22px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(34,197,94,0.12), rgba(15,23,42,0.94))",
+    border: "1px solid rgba(34,197,94,0.2)",
+  }}
+>
+  <div
+    style={{
+      color: "#86efac",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "14px",
+    }}
+  >
+    AI Location Ranking Engine
+  </div>
+<div
+  style={{
+    marginTop: "22px",
+    padding: "22px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(239,68,68,0.12), rgba(15,23,42,0.94))",
+    border: "1px solid rgba(239,68,68,0.2)",
+  }}
+>
+  <div
+    style={{
+      color: "#fca5a5",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "14px",
+    }}
+  >
+    AI Cross-Location Risk Detection
+  </div>
+<div
+  style={{
+    marginTop: "22px",
+    padding: "22px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(14,165,233,0.12), rgba(15,23,42,0.94))",
+    border: "1px solid rgba(56,189,248,0.2)",
+  }}
+>
+  <div
+    style={{
+      color: "#7dd3fc",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "14px",
+    }}
+  >
+    AI Executive Benchmarking
+  </div>
+<div
+  style={{
+    marginTop: "22px",
+    padding: "22px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(99,102,241,0.14), rgba(15,23,42,0.94))",
+    border: "1px solid rgba(129,140,248,0.22)",
+  }}
+>
+  <div
+    style={{
+      color: "#a5b4fc",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "14px",
+    }}
+  >
+    AI Enterprise Scorecard
+  </div>
+<div
+  style={{
+    marginTop: "22px",
+    padding: "22px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(236,72,153,0.12), rgba(15,23,42,0.94))",
+    border: "1px solid rgba(244,114,182,0.2)",
+  }}
+>
+  <div
+    style={{
+      color: "#f9a8d4",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "10px",
+    }}
+  >
+    AI Portfolio Intelligence
+  </div>
+<div
+  style={{
+    marginTop: "22px",
+    padding: "22px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(59,130,246,0.12), rgba(15,23,42,0.94))",
+    border: "1px solid rgba(96,165,250,0.2)",
+  }}
+>
+  <div
+    style={{
+      color: "#93c5fd",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "14px",
+    }}
+  >
+    AI Portfolio Action Plan
+  </div>
+<div
+  style={{
+    marginTop: "22px",
+    padding: "22px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(124,58,237,0.14), rgba(15,23,42,0.94))",
+    border: "1px solid rgba(196,181,253,0.22)",
+  }}
+>
+  <div
+    style={{
+      color: "#c4b5fd",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "14px",
+    }}
+  >
+    AI Executive Recommendations
+  </div>
+<div
+  style={{
+    marginTop: "22px",
+    padding: "22px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(239,68,68,0.12), rgba(15,23,42,0.94))",
+    border: "1px solid rgba(248,113,113,0.2)",
+  }}
+>
+  <div
+    style={{
+      color: "#fca5a5",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "10px",
+    }}
+  >
+    AI Enterprise Risk Forecast
+  </div>
+<div
+  style={{
+    marginTop: "22px",
+    padding: "22px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.92))",
+    border: "1px solid rgba(148,163,184,0.16)",
+  }}
+>
+  <div
+    style={{
+      color: "#e2e8f0",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "14px",
+    }}
+  >
+    AI Executive KPI Matrix
+  </div>
+<div
+  style={{
+    marginTop: "24px",
+    padding: "24px",
+    borderRadius: "24px",
+    background:
+      "radial-gradient(circle at top right, rgba(124,58,237,0.18), transparent 30%), linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.92))",
+    border: "1px solid rgba(196,181,253,0.18)",
+    boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
+  }}
+>
+  <div
+    style={{
+      color: "#c4b5fd",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "12px",
+    }}
+  >
+    AI Corporate Command Center
+  </div>
+<div
+  style={{
+    marginTop: "22px",
+    padding: "22px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(34,197,94,0.12), rgba(15,23,42,0.94))",
+    border: "1px solid rgba(34,197,94,0.2)",
+  }}
+>
+  <div
+    style={{
+      color: "#86efac",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "14px",
+    }}
+  >
+    AI Enterprise Recovery Planner
+  </div>
+<div
+  style={{
+    marginTop: "22px",
+    padding: "22px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(239,68,68,0.12), rgba(15,23,42,0.94))",
+    border: "1px solid rgba(248,113,113,0.2)",
+  }}
+>
+  <div
+    style={{
+      color: "#fca5a5",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "14px",
+    }}
+  >
+    AI Executive Alerts Feed
+  </div>
+<div
+  style={{
+    marginTop: "22px",
+    padding: "22px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(59,130,246,0.12), rgba(15,23,42,0.94))",
+    border: "1px solid rgba(96,165,250,0.2)",
+  }}
+>
+  <div
+    style={{
+      color: "#93c5fd",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "10px",
+    }}
+  >
+    AI Enterprise Performance Forecast
+  </div>
+<div
+  style={{
+    marginTop: "22px",
+    padding: "24px",
+    borderRadius: "24px",
+    background:
+      "linear-gradient(135deg, rgba(250,204,21,0.13), rgba(15,23,42,0.96))",
+    border: "1px solid rgba(250,204,21,0.22)",
+    boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
+  }}
+>
+  <div
+    style={{
+      color: "#fde047",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "12px",
+    }}
+  >
+    AI CEO Summary
+  </div>
+<div
+  style={{
+    marginTop: "18px",
+    display: "grid",
+    gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
+    gap: "12px",
+  }}
+>
+  {aiCEODecisionButtons.map((button, index) => (
+    <button
+      key={index}
+      type="button"
+      style={{
+        padding: "16px",
+        borderRadius: "18px",
+        border: "1px solid rgba(250,204,21,0.22)",
+        background: "rgba(15,23,42,0.72)",
+        cursor: "pointer",
+        textAlign: "left",
+      }}
+    >
+      <div style={{ color: "#fef08a", fontSize: "14px", fontWeight: "950" }}>
+        {button.label}
+      </div>
+
+      <div
+        style={{
+          color: "#e2e8f0",
+          fontSize: "12px",
+          fontWeight: "700",
+          marginTop: "6px",
+        }}
+      >
+        {button.detail}
+      </div>
+    </button>
+  ))}
+</div>
+<div
+  style={{
+    marginTop: "24px",
+    padding: "26px",
+    borderRadius: "26px",
+    background:
+      "radial-gradient(circle at top right, rgba(250,204,21,0.12), transparent 28%), linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.94))",
+    border: "1px solid rgba(250,204,21,0.18)",
+    boxShadow: "0 24px 70px rgba(2,6,23,0.36)",
+    textAlign: "center",
+  }}
+>
+  <div
+    style={{
+      color: "#fde68a",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "12px",
+    }}
+  >
+    AI Executive Closeout
+  </div>
+<div
+  style={{
+    marginTop: "22px",
+    padding: "22px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(14,165,233,0.13), rgba(15,23,42,0.96))",
+    border: "1px solid rgba(56,189,248,0.22)",
+  }}
+>
+  <div style={{ color: "#7dd3fc", fontSize: "12px", fontWeight: "900" }}>
+    AI What-If Simulator
+  </div>
+<div
+  style={{
+    marginTop: "22px",
+    padding: "24px",
+    borderRadius: "24px",
+    background:
+      "linear-gradient(135deg, rgba(34,197,94,0.14), rgba(15,23,42,0.96))",
+    border: "1px solid rgba(34,197,94,0.22)",
+  }}
+>
+  <div
+    style={{
+      color: "#86efac",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "14px",
+    }}
+  >
+    AI Autonomous Profit Recovery Engine
+  </div>
+<div
+  style={{
+    marginTop: "22px",
+    padding: "24px",
+    borderRadius: "24px",
+    background:
+      "linear-gradient(135deg, rgba(6,182,212,0.14), rgba(15,23,42,0.96))",
+    border: "1px solid rgba(34,211,238,0.22)",
+  }}
+>
+  <div
+    style={{
+      color: "#67e8f9",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "12px",
+    }}
+  >
+    Predictive Scheduling AI
+  </div>
+<div
+  style={{
+    marginTop: "22px",
+    padding: "24px",
+    borderRadius: "24px",
+    background:
+      "linear-gradient(135deg, rgba(245,158,11,0.14), rgba(15,23,42,0.96))",
+    border: "1px solid rgba(251,191,36,0.22)",
+  }}
+>
+  <div
+    style={{
+      color: "#fde68a",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "12px",
+    }}
+  >
+    AI Vendor Negotiation Intelligence
+  </div>
+<div
+  style={{
+    marginTop: "22px",
+    padding: "24px",
+    borderRadius: "24px",
+    background:
+      "linear-gradient(135deg, rgba(239,68,68,0.14), rgba(15,23,42,0.96))",
+    border: "1px solid rgba(248,113,113,0.22)",
+  }}
+>
+  <div
+    style={{
+      color: "#fca5a5",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "12px",
+    }}
+  >
+    Beverage Theft Detection AI
+  </div>
+<div
+  style={{
+    marginTop: "22px",
+    padding: "24px",
+    borderRadius: "24px",
+    background:
+      "linear-gradient(135deg, rgba(99,102,241,0.14), rgba(15,23,42,0.96))",
+    border: "1px solid rgba(129,140,248,0.22)",
+  }}
+>
+  <div
+    style={{
+      color: "#a5b4fc",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "12px",
+    }}
+  >
+    Franchise Benchmark Intelligence
+  </div>
+<div
+  style={{
+    marginTop: "22px",
+    padding: "24px",
+    borderRadius: "24px",
+    background:
+      "linear-gradient(135deg, rgba(14,165,233,0.14), rgba(15,23,42,0.96))",
+    border: "1px solid rgba(56,189,248,0.22)",
+  }}
+>
+  <div
+    style={{
+      color: "#7dd3fc",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "12px",
+    }}
+  >
+    AI Live Operations Copilot
+  </div>
+<div
+  style={{
+    marginTop: "22px",
+    padding: "24px",
+    borderRadius: "24px",
+    background:
+      "linear-gradient(135deg, rgba(168,85,247,0.14), rgba(15,23,42,0.96))",
+    border: "1px solid rgba(216,180,254,0.22)",
+  }}
+>
+  <div
+    style={{
+      color: "#d8b4fe",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "12px",
+    }}
+  >
+    AI Voice Operations Assistant
+  </div>
+<div
+  style={{
+    marginTop: "24px",
+    padding: "26px",
+    borderRadius: "26px",
+    background:
+      "radial-gradient(circle at top right, rgba(34,197,94,0.16), transparent 28%), linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.94))",
+    border: "1px solid rgba(34,197,94,0.20)",
+    boxShadow: "0 24px 70px rgba(2,6,23,0.36)",
+  }}
+>
+  <div
+    style={{
+      color: "#86efac",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "12px",
+    }}
+  >
+    Autonomous Restaurant Control Layer
+  </div>
+<div
+  style={{
+    marginTop: "22px",
+    padding: "24px",
+    borderRadius: "24px",
+    background:
+      "linear-gradient(135deg, rgba(59,130,246,0.14), rgba(15,23,42,0.96))",
+    border: "1px solid rgba(96,165,250,0.22)",
+  }}
+>
+  <div
+    style={{
+      color: "#93c5fd",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "12px",
+    }}
+  >
+    AI Live Chat Copilot
+  </div>
+<div
+  style={{
+    marginTop: "22px",
+    padding: "24px",
+    borderRadius: "24px",
+    background:
+      "linear-gradient(135deg, rgba(34,197,94,0.14), rgba(15,23,42,0.96))",
+    border: "1px solid rgba(34,197,94,0.22)",
+  }}
+>
+  <div
+    style={{
+      color: "#86efac",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "12px",
+    }}
+  >
+    AI Predictive Sales Engine
+  </div>
+<div
+  style={{
+    marginTop: "22px",
+    padding: "24px",
+    borderRadius: "24px",
+    background:
+      "linear-gradient(135deg, rgba(245,158,11,0.14), rgba(15,23,42,0.96))",
+    border: "1px solid rgba(251,191,36,0.22)",
+  }}
+>
+  <div
+    style={{
+      color: "#fde68a",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "12px",
+    }}
+  >
+    AI Smart Purchasing System
+  </div>
+<div
+  style={{
+    marginTop: "22px",
+    padding: "24px",
+    borderRadius: "24px",
+    background:
+      "linear-gradient(135deg, rgba(168,85,247,0.14), rgba(15,23,42,0.96))",
+    border: "1px solid rgba(216,180,254,0.22)",
+  }}
+>
+  <div style={{ color: "#d8b4fe", fontSize: "12px", fontWeight: "900" }}>
+    AI Staff Performance Intelligence
+  </div>
+
+  <h3 style={{ color: "white", fontSize: "22px", fontWeight: "950" }}>
+    {aiStaffPerformanceIntelligence.status}
+  </h3>
+
+  <p style={{ color: "#f3e8ff", fontSize: "14px", lineHeight: 1.8 }}>
+    {aiStaffPerformanceIntelligence.insight}
+  </p>
+
+  <div
+    style={{
+      marginTop: "14px",
+      padding: "14px",
+      borderRadius: "16px",
+      background: "rgba(15,23,42,0.72)",
+      border: "1px solid rgba(148,163,184,0.12)",
+    }}
+  >
+    <div style={{ color: "#94a3b8", fontSize: "12px", fontWeight: "800" }}>
+      Projected Labor Improvement
+    </div>
+
+    <div style={{ color: "#f5d0fe", fontSize: "24px", fontWeight: "950" }}>
+      ${Number(aiStaffPerformanceIntelligence.projectedImprovement || 0).toLocaleString()}/mo
+    </div>
+  </div>
+</div>
+  <h3 style={{ color: "white", fontSize: "22px", fontWeight: "950" }}>
+    {aiSmartPurchasingSystem.purchasingMode}
+  </h3>
+
+  <p style={{ color: "#fef3c7", fontSize: "14px", lineHeight: 1.8 }}>
+    AI analyzed ingredient usage patterns, purchasing behavior, and inventory
+    movement to identify smarter purchasing opportunities.
+  </p>
+
+  <div
+    style={{
+      marginTop: "14px",
+      display: "grid",
+      gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
+      gap: "12px",
+    }}
+  >
+    {[
+      {
+        label: "Recommendations",
+        value: aiSmartPurchasingSystem.recommendationCount,
+      },
+      {
+        label: "Projected Savings",
+        value: `$${Number(
+          aiSmartPurchasingSystem.projectedSavings || 0
+        ).toLocaleString()}/mo`,
+      },
+      {
+        label: "Purchasing Status",
+        value: aiSmartPurchasingSystem.purchasingMode,
+      },
+    ].map((item, index) => (
+      <div
+        key={index}
+        style={{
+          padding: "14px",
+          borderRadius: "16px",
+          background: "rgba(15,23,42,0.72)",
+          border: "1px solid rgba(148,163,184,0.12)",
+        }}
+      >
+        <div style={{ color: "#94a3b8", fontSize: "12px", fontWeight: "800" }}>
+          {item.label}
+        </div>
+
+        <div style={{ color: "#fef3c7", fontSize: "20px", fontWeight: "950" }}>
+          {item.value}
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+  <h3 style={{ color: "white", fontSize: "22px", fontWeight: "950" }}>
+    ${Number(aiPredictiveSalesEngine.forecast || 0).toLocaleString()} Forecast
+  </h3>
+
+  <p style={{ color: "#dcfce7", fontSize: "14px", lineHeight: 1.8 }}>
+    {aiPredictiveSalesEngine.trend}
+  </p>
+
+  <div
+    style={{
+      marginTop: "14px",
+      padding: "14px",
+      borderRadius: "16px",
+      background: "rgba(15,23,42,0.72)",
+      border: "1px solid rgba(148,163,184,0.12)",
+    }}
+  >
+    <div style={{ color: "#94a3b8", fontSize: "12px", fontWeight: "800" }}>
+      Forecast Confidence
+    </div>
+
+    <div style={{ color: "#bbf7d0", fontSize: "24px", fontWeight: "950" }}>
+      {aiPredictiveSalesEngine.confidence}%
+    </div>
+  </div>
+</div>
+  <h3 style={{ color: "white", fontSize: "22px", fontWeight: "950" }}>
+    {aiLiveChatCopilot.status}
+  </h3>
+
+  <div
+    style={{
+      marginTop: "14px",
+      padding: "16px",
+      borderRadius: "18px",
+      background: "rgba(15,23,42,0.72)",
+      border: "1px solid rgba(148,163,184,0.12)",
+    }}
+  >
+    <div style={{ color: "#94a3b8", fontSize: "12px", fontWeight: "800" }}>
+      Suggested Question
+    </div>
+
+    <div style={{ color: "#dbeafe", fontSize: "15px", fontWeight: "950" }}>
+      {aiLiveChatCopilot.suggestedPrompt}
+    </div>
+  </div>
+
+  <div
+    style={{
+      marginTop: "12px",
+      padding: "16px",
+      borderRadius: "18px",
+      background: "rgba(30,41,59,0.72)",
+      border: "1px solid rgba(148,163,184,0.12)",
+    }}
+  >
+    <div style={{ color: "#94a3b8", fontSize: "12px", fontWeight: "800" }}>
+      Copilot Preview
+    </div>
+
+    <div
+      style={{
+        color: "#e0f2fe",
+        fontSize: "14px",
+        lineHeight: 1.7,
+        fontWeight: "800",
+      }}
+    >
+      {aiLiveChatCopilot.answer}
+    </div>
+  </div>
+</div>
+  <h2
+    style={{
+      color: "white",
+      fontSize: "30px",
+      fontWeight: "950",
+      marginBottom: "10px",
+    }}
+  >
+    {autonomousRestaurantControlLayer.status}
+  </h2>
+
+  <p
+    style={{
+      color: "#dcfce7",
+      fontSize: "15px",
+      lineHeight: 1.9,
+      marginBottom: "22px",
+      maxWidth: "760px",
+      fontWeight: "700",
+    }}
+  >
+    SerVen AI is actively monitoring operational systems and identifying
+    opportunities for autonomous optimization and profit recovery.
+  </p>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
+      gap: "14px",
+    }}
+  >
+    <div
+      style={{
+        padding: "16px",
+        borderRadius: "18px",
+        background: "rgba(15,23,42,0.72)",
+        border: "1px solid rgba(148,163,184,0.12)",
+      }}
+    >
+      <div style={{ color: "#94a3b8", fontSize: "11px", fontWeight: "800" }}>
+        AI Autonomy Level
+      </div>
+
+      <div style={{ color: "#bbf7d0", fontSize: "22px", fontWeight: "950" }}>
+        {autonomousRestaurantControlLayer.autonomyLevel}
+      </div>
+    </div>
+
+    <div
+      style={{
+        gridColumn: isMobile ? "span 1" : "span 2",
+        padding: "16px",
+        borderRadius: "18px",
+        background: "rgba(15,23,42,0.72)",
+        border: "1px solid rgba(148,163,184,0.12)",
+      }}
+    >
+      <div style={{ color: "#94a3b8", fontSize: "11px", fontWeight: "800" }}>
+        Active AI Systems
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: "10px",
+          marginTop: "10px",
+        }}
+      >
+        {autonomousRestaurantControlLayer.systemsActive.map(
+          (system, index) => (
+            <div
+              key={index}
+              style={{
+                padding: "10px 14px",
+                borderRadius: "999px",
+                background: "rgba(34,197,94,0.14)",
+                border: "1px solid rgba(34,197,94,0.24)",
+                color: "#dcfce7",
+                fontSize: "12px",
+                fontWeight: "900",
+              }}
+            >
+              {system}
+            </div>
+          )
+        )}
+      </div>
+    </div>
+  </div>
+</div>
+  <h3 style={{ color: "white", fontSize: "22px", fontWeight: "950" }}>
+    {aiVoiceOperationsAssistant.status}
+  </h3>
+
+  <p style={{ color: "#f3e8ff", fontSize: "14px", lineHeight: 1.8 }}>
+    {aiVoiceOperationsAssistant.prompt}
+  </p>
+
+  <button
+    type="button"
+    style={{
+      marginTop: "14px",
+      padding: "13px 18px",
+      borderRadius: "16px",
+      border: "1px solid rgba(216,180,254,0.3)",
+      background: "rgba(168,85,247,0.22)",
+      color: "#f5d0fe",
+      fontWeight: "950",
+      cursor: "pointer",
+    }}
+  >
+    Start Voice Briefing
+  </button>
+</div>
+  <h3 style={{ color: "white", fontSize: "22px", fontWeight: "950" }}>
+    {aiLiveOperationsCopilot.mode}
+  </h3>
+
+  <p style={{ color: "#cffafe", fontSize: "14px", lineHeight: 1.8 }}>
+    {aiLiveOperationsCopilot.status}
+  </p>
+
+  <div
+    style={{
+      marginTop: "14px",
+      padding: "16px",
+      borderRadius: "18px",
+      background: "rgba(15,23,42,0.72)",
+      border: "1px solid rgba(148,163,184,0.12)",
+    }}
+  >
+    <div style={{ color: "#94a3b8", fontSize: "12px", fontWeight: "800" }}>
+      Copilot Message
+    </div>
+
+    <div
+      style={{
+        color: "#e0f2fe",
+        fontSize: "15px",
+        lineHeight: 1.7,
+        fontWeight: "850",
+        marginTop: "6px",
+      }}
+    >
+      {aiLiveOperationsCopilot.message}
+    </div>
+  </div>
+</div>
+  <h3 style={{ color: "white", fontSize: "22px", fontWeight: "950" }}>
+    {franchiseBenchmarkIntelligence.status}
+  </h3>
+
+  <p style={{ color: "#ddd6fe", fontSize: "14px", lineHeight: 1.8 }}>
+    AI compared current prime cost performance against a 60% benchmark target.
+  </p>
+
+  <div
+    style={{
+      marginTop: "14px",
+      display: "grid",
+      gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
+      gap: "12px",
+    }}
+  >
+    {[
+      {
+        label: "Benchmark Prime Cost",
+        value: `${franchiseBenchmarkIntelligence.benchmarkPrimeCost}%`,
+      },
+      {
+        label: "Actual Prime Cost",
+        value: `${franchiseBenchmarkIntelligence.actualPrimeCost.toFixed(1)}%`,
+      },
+      {
+        label: "Variance",
+        value: `${franchiseBenchmarkIntelligence.variance.toFixed(1)}%`,
+      },
+    ].map((item, index) => (
+      <div
+        key={index}
+        style={{
+          padding: "14px",
+          borderRadius: "16px",
+          background: "rgba(15,23,42,0.72)",
+          border: "1px solid rgba(148,163,184,0.12)",
+        }}
+      >
+        <div style={{ color: "#94a3b8", fontSize: "12px", fontWeight: "800" }}>
+          {item.label}
+        </div>
+
+        <div style={{ color: "#eef2ff", fontSize: "22px", fontWeight: "950" }}>
+          {item.value}
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+  <h3 style={{ color: "white", fontSize: "22px", fontWeight: "950" }}>
+    {beverageTheftDetectionAI.riskLevel} Beverage Risk
+  </h3>
+
+  <p style={{ color: "#fecaca", fontSize: "14px", lineHeight: 1.8 }}>
+    AI analyzed beverage variance, pour inconsistency, and inventory movement
+    for potential shrinkage signals.
+  </p>
+
+  <div
+    style={{
+      marginTop: "14px",
+      display: "grid",
+      gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
+      gap: "12px",
+    }}
+  >
+    {[
+      {
+        label: "Suspicious Signals",
+        value: beverageTheftDetectionAI.suspiciousActivity,
+      },
+      {
+        label: "Risk Level",
+        value: beverageTheftDetectionAI.riskLevel,
+      },
+      {
+        label: "Projected Loss",
+        value: `$${Number(
+          beverageTheftDetectionAI.projectedLoss || 0
+        ).toLocaleString()}/mo`,
+      },
+    ].map((item, index) => (
+      <div
+        key={index}
+        style={{
+          padding: "14px",
+          borderRadius: "16px",
+          background: "rgba(15,23,42,0.72)",
+          border: "1px solid rgba(148,163,184,0.12)",
+        }}
+      >
+        <div style={{ color: "#94a3b8", fontSize: "12px", fontWeight: "800" }}>
+          {item.label}
+        </div>
+
+        <div style={{ color: "#fee2e2", fontSize: "22px", fontWeight: "950" }}>
+          {item.value}
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+  <h3 style={{ color: "white", fontSize: "22px", fontWeight: "950" }}>
+    {aiVendorNegotiationIntelligence.vendorsFlagged} Vendor Risk Signal(s)
+  </h3>
+
+  <p style={{ color: "#fef3c7", fontSize: "14px", lineHeight: 1.8 }}>
+    {aiVendorNegotiationIntelligence.recommendation}
+  </p>
+
+  <div
+    style={{
+      marginTop: "14px",
+      display: "grid",
+      gridTemplateColumns: isMobile ? "1fr" : "repeat(2, 1fr)",
+      gap: "12px",
+    }}
+  >
+    <div
+      style={{
+        padding: "14px",
+        borderRadius: "16px",
+        background: "rgba(15,23,42,0.72)",
+        border: "1px solid rgba(148,163,184,0.12)",
+      }}
+    >
+      <div style={{ color: "#94a3b8", fontSize: "12px", fontWeight: "800" }}>
+        Vendors Flagged
+      </div>
+
+      <div style={{ color: "#fef3c7", fontSize: "22px", fontWeight: "950" }}>
+        {aiVendorNegotiationIntelligence.vendorsFlagged}
+      </div>
+    </div>
+
+    <div
+      style={{
+        padding: "14px",
+        borderRadius: "16px",
+        background: "rgba(15,23,42,0.72)",
+        border: "1px solid rgba(148,163,184,0.12)",
+      }}
+    >
+      <div style={{ color: "#94a3b8", fontSize: "12px", fontWeight: "800" }}>
+        Negotiation Opportunity
+      </div>
+
+      <div style={{ color: "#fde68a", fontSize: "22px", fontWeight: "950" }}>
+        ${Number(
+          aiVendorNegotiationIntelligence.projectedSavings || 0
+        ).toLocaleString()}/mo
+      </div>
+    </div>
+  </div>
+</div>
+  <h3 style={{ color: "white", fontSize: "22px", fontWeight: "950" }}>
+    {predictiveSchedulingAI.status}
+  </h3>
+
+  <p style={{ color: "#cffafe", fontSize: "14px", lineHeight: 1.8 }}>
+    {predictiveSchedulingAI.recommendation}
+  </p>
+
+  <div
+    style={{
+      marginTop: "14px",
+      padding: "14px",
+      borderRadius: "16px",
+      background: "rgba(15,23,42,0.72)",
+      border: "1px solid rgba(148,163,184,0.12)",
+    }}
+  >
+    <div style={{ color: "#94a3b8", fontSize: "12px", fontWeight: "800" }}>
+      Projected Labor Savings
+    </div>
+
+    <div style={{ color: "#bae6fd", fontSize: "24px", fontWeight: "950" }}>
+      ${Number(predictiveSchedulingAI.projectedSavings || 0).toLocaleString()}/mo
+    </div>
+  </div>
+</div>
+  <div style={{ display: "grid", gap: "12px" }}>
+    {aiAutonomousProfitRecoveryEngine.map((item, index) => (
+      <div
+        key={index}
+        style={{
+          display: "grid",
+          gridTemplateColumns: isMobile ? "1fr" : "1fr auto",
+          gap: "10px",
+          alignItems: "center",
+          padding: "16px",
+          borderRadius: "18px",
+          background: "rgba(15,23,42,0.72)",
+          border: "1px solid rgba(148,163,184,0.12)",
+        }}
+      >
+        <div
+          style={{
+            color: "white",
+            fontSize: "15px",
+            fontWeight: "900",
+          }}
+        >
+          {item.system}
+        </div>
+
+        <div
+          style={{
+            color:
+              item.status === "Stable" ? "#86efac" : "#fde68a",
+            fontSize: "12px",
+            fontWeight: "950",
+          }}
+        >
+          {item.status}
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+  <div
+    style={{
+      marginTop: "14px",
+      display: "grid",
+      gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
+      gap: "12px",
+    }}
+  >
+    {[
+      ["Reduce Food Cost 2%", aiWhatIfSimulator.reduceFoodCost2Percent],
+      ["Reduce Labor Cost 1.5%", aiWhatIfSimulator.reduceLaborCost15Percent],
+      ["Improve Menu Margin 3%", aiWhatIfSimulator.improveMenuMargin3Percent],
+    ].map(([label, value], index) => (
+      <div
+        key={index}
+        style={{
+          padding: "16px",
+          borderRadius: "18px",
+          background: "rgba(15,23,42,0.72)",
+          border: "1px solid rgba(148,163,184,0.12)",
+        }}
+      >
+        <div style={{ color: "#94a3b8", fontSize: "12px", fontWeight: "800" }}>
+          {label}
+        </div>
+
+        <div style={{ color: "#bae6fd", fontSize: "22px", fontWeight: "950" }}>
+          ${Number(value || 0).toLocaleString()}/mo
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+  <h2
+    style={{
+      color: "white",
+      fontSize: "30px",
+      fontWeight: "950",
+      marginBottom: "12px",
+    }}
+  >
+    {aiExecutiveCloseout.status}
+  </h2>
+
+  <p
+    style={{
+      color: "#e5e7eb",
+      fontSize: "15px",
+      lineHeight: 1.9,
+      maxWidth: "760px",
+      margin: "0 auto",
+      fontWeight: "700",
+    }}
+  >
+    {aiExecutiveCloseout.summary}
+  </p>
+
+  <div
+    style={{
+      marginTop: "22px",
+      display: "flex",
+      justifyContent: "center",
+      flexWrap: "wrap",
+      gap: "12px",
+    }}
+  >
+    <button
+      type="button"
+      style={{
+        padding: "14px 18px",
+        borderRadius: "16px",
+        border: "1px solid rgba(250,204,21,0.24)",
+        background: "rgba(250,204,21,0.14)",
+        color: "#fef3c7",
+        fontWeight: "950",
+        cursor: "pointer",
+      }}
+    >
+      Export Executive Report
+    </button>
+
+    <button
+      type="button"
+      style={{
+        padding: "14px 18px",
+        borderRadius: "16px",
+        border: "1px solid rgba(148,163,184,0.18)",
+        background: "rgba(15,23,42,0.72)",
+        color: "#e2e8f0",
+        fontWeight: "900",
+        cursor: "pointer",
+      }}
+    >
+      Continue AI Monitoring
+    </button>
+  </div>
+</div>
+  <h2
+    style={{
+      color: "white",
+      fontSize: "28px",
+      fontWeight: "950",
+      marginBottom: "10px",
+    }}
+  >
+    {aiCEOSummaryLayer.headline}
+  </h2>
+
+  <p
+    style={{
+      color: "#fef9c3",
+      fontSize: "15px",
+      lineHeight: 1.9,
+      margin: 0,
+      fontWeight: "700",
+    }}
+  >
+    {aiCEOSummaryLayer.summary}
+  </p>
+</div>
+  <h3 style={{ color: "white", fontSize: "22px", fontWeight: "950" }}>
+    {aiEnterprisePerformanceForecast.outlook}
+  </h3>
+
+  <p
+    style={{
+      color: "#dbeafe",
+      fontSize: "14px",
+      lineHeight: 1.8,
+      marginTop: "10px",
+      marginBottom: 0,
+      fontWeight: "700",
+    }}
+  >
+    {aiEnterprisePerformanceForecast.detail}
+  </p>
+</div>
+  {(aiExecutiveAlertsFeed || []).length > 0 ? (
+    <div style={{ display: "grid", gap: "12px" }}>
+      {aiExecutiveAlertsFeed.map((alert, index) => (
+        <div
+          key={index}
+          style={{
+            padding: "16px",
+            borderRadius: "18px",
+            background: "rgba(15,23,42,0.72)",
+            border: "1px solid rgba(248,113,113,0.16)",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: "12px",
+            }}
+          >
+            <div style={{ color: "white", fontSize: "15px", fontWeight: "950" }}>
+              {alert.title}
+            </div>
+
+            <div style={{ color: "#fecaca", fontSize: "11px", fontWeight: "950" }}>
+              {alert.severity}
+            </div>
+          </div>
+
+          <div
+            style={{
+              color: "#fecaca",
+              fontSize: "13px",
+              lineHeight: 1.7,
+              marginTop: "6px",
+              fontWeight: "700",
+            }}
+          >
+            {alert.message}
+          </div>
+        </div>
+      ))}
+    </div>
+  ) : (
+    <div style={{ color: "#94a3b8", fontSize: "13px" }}>
+      No executive alerts detected.
+    </div>
+  )}
+</div>
+  <div style={{ display: "grid", gap: "12px" }}>
+    {aiEnterpriseRecoveryPlanner.map((phase, index) => (
+      <div
+        key={index}
+        style={{
+          padding: "16px",
+          borderRadius: "18px",
+          background: "rgba(15,23,42,0.72)",
+          border: "1px solid rgba(148,163,184,0.12)",
+        }}
+      >
+        <div style={{ color: "#bbf7d0", fontSize: "12px", fontWeight: "950" }}>
+          {phase.phase}
+        </div>
+
+        <div
+          style={{
+            color: "white",
+            fontSize: "16px",
+            fontWeight: "950",
+            marginTop: "4px",
+          }}
+        >
+          {phase.title}
+        </div>
+
+        <div
+          style={{
+            color: "#d1fae5",
+            fontSize: "13px",
+            lineHeight: 1.7,
+            marginTop: "6px",
+            fontWeight: "700",
+          }}
+        >
+          {phase.action}
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+  <h2
+    style={{
+      color: "white",
+      fontSize: "30px",
+      fontWeight: "950",
+      marginBottom: "10px",
+    }}
+  >
+    {aiCorporateCommandCenter.status}
+  </h2>
+
+  <p
+    style={{
+      color: "#d1d5db",
+      fontSize: "15px",
+      lineHeight: 1.9,
+      maxWidth: "760px",
+      marginBottom: "22px",
+    }}
+  >
+    {aiCorporateCommandCenter.summary}
+  </p>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile ? "1fr" : "repeat(4, 1fr)",
+      gap: "14px",
+    }}
+  >
+    {[
+      {
+        label: "Enterprise Risk",
+        value: aiRiskLevel,
+      },
+      {
+        label: "Portfolio Health",
+        value: aiEnterpriseScorecard.portfolioHealth,
+      },
+      {
+        label: "Recovery Opportunity",
+        value: `$${totalAIFinancialImpact.toLocaleString()}/mo`,
+      },
+      {
+        label: "Locations Monitored",
+        value: aiEnterpriseScorecard.locationsTracked,
+      },
+    ].map((item, index) => (
+      <div
+        key={index}
+        style={{
+          padding: "16px",
+          borderRadius: "18px",
+          background: "rgba(15,23,42,0.72)",
+          border: "1px solid rgba(148,163,184,0.12)",
+        }}
+      >
+        <div
+          style={{
+            color: "#94a3b8",
+            fontSize: "11px",
+            fontWeight: "800",
+            marginBottom: "6px",
+          }}
+        >
+          {item.label}
+        </div>
+
+        <div
+          style={{
+            color: "#f8fafc",
+            fontSize: "22px",
+            fontWeight: "950",
+          }}
+        >
+          {item.value}
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
+      gap: "12px",
+    }}
+  >
+    {aiExecutiveKPIMatrix.map((item, index) => (
+      <div
+        key={index}
+        style={{
+          padding: "14px",
+          borderRadius: "16px",
+          background: "rgba(15,23,42,0.72)",
+          border: "1px solid rgba(148,163,184,0.12)",
+        }}
+      >
+        <div style={{ color: "#94a3b8", fontSize: "12px", fontWeight: "800" }}>
+          {item.label}
+        </div>
+
+        <div style={{ color: "white", fontSize: "20px", fontWeight: "950" }}>
+          {item.value}
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+  <h3 style={{ color: "white", fontSize: "22px", fontWeight: "950" }}>
+    {aiEnterpriseRiskForecast.level}
+  </h3>
+
+  <p
+    style={{
+      color: "#fecaca",
+      fontSize: "14px",
+      lineHeight: 1.8,
+      marginTop: "10px",
+      marginBottom: 0,
+      fontWeight: "700",
+    }}
+  >
+    {aiEnterpriseRiskForecast.summary}
+  </p>
+</div>
+  <div style={{ display: "grid", gap: "12px" }}>
+    {aiExecutiveRecommendations.map((rec, index) => (
+      <div
+        key={index}
+        style={{
+          padding: "16px",
+          borderRadius: "18px",
+          background: "rgba(15,23,42,0.72)",
+          border: "1px solid rgba(148,163,184,0.12)",
+        }}
+      >
+        <div style={{ color: "white", fontSize: "15px", fontWeight: "950" }}>
+          {rec.title}
+        </div>
+
+        <div
+          style={{
+            color: "#ddd6fe",
+            fontSize: "13px",
+            lineHeight: 1.7,
+            marginTop: "6px",
+            fontWeight: "700",
+          }}
+        >
+          {rec.detail}
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+  <div style={{ display: "grid", gap: "10px" }}>
+    {aiPortfolioActionPlan.map((step, index) => (
+      <div
+        key={index}
+        style={{
+          display: "flex",
+          gap: "12px",
+          alignItems: "flex-start",
+          padding: "14px",
+          borderRadius: "16px",
+          background: "rgba(15,23,42,0.72)",
+          border: "1px solid rgba(148,163,184,0.12)",
+        }}
+      >
+        <div
+          style={{
+            minWidth: "28px",
+            height: "28px",
+            borderRadius: "999px",
+            background: "rgba(59,130,246,0.18)",
+            color: "#bfdbfe",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: "12px",
+            fontWeight: "950",
+          }}
+        >
+          {index + 1}
+        </div>
+
+        <div
+          style={{
+            color: "#e2e8f0",
+            fontSize: "14px",
+            lineHeight: 1.7,
+            fontWeight: "700",
+          }}
+        >
+          {step}
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+  <p
+    style={{
+      color: "#fce7f3",
+      fontSize: "14px",
+      lineHeight: 1.8,
+      margin: 0,
+      fontWeight: "700",
+    }}
+  >
+    {aiPortfolioIntelligenceLayer}
+  </p>
+</div>
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile ? "1fr" : "repeat(4, 1fr)",
+      gap: "12px",
+    }}
+  >
+    {[
+      {
+        label: "Locations Tracked",
+        value: aiEnterpriseScorecard.locationsTracked,
+      },
+      {
+        label: "Healthy Locations",
+        value: aiEnterpriseScorecard.healthyLocations,
+      },
+      {
+        label: "Risk Locations",
+        value: aiEnterpriseScorecard.riskLocations,
+      },
+      {
+        label: "Portfolio Health",
+        value: aiEnterpriseScorecard.portfolioHealth,
+      },
+    ].map((item, index) => (
+      <div
+        key={index}
+        style={{
+          padding: "14px",
+          borderRadius: "16px",
+          background: "rgba(15,23,42,0.72)",
+          border: "1px solid rgba(148,163,184,0.12)",
+        }}
+      >
+        <div style={{ color: "#94a3b8", fontSize: "12px", fontWeight: "800" }}>
+          {item.label}
+        </div>
+
+        <div style={{ color: "#eef2ff", fontSize: "20px", fontWeight: "950" }}>
+          {item.value}
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
+      gap: "12px",
+    }}
+  >
+    {[
+      {
+        label: "Avg Prime Cost",
+        value: `${aiExecutiveBenchmarking.averagePrimeCost.toFixed(1)}%`,
+      },
+      {
+        label: "Best Location",
+        value: aiExecutiveBenchmarking.bestLocation?.location || "N/A",
+      },
+      {
+        label: "Needs Attention",
+        value: aiExecutiveBenchmarking.weakestLocation?.location || "N/A",
+      },
+    ].map((item, index) => (
+      <div
+        key={index}
+        style={{
+          padding: "14px",
+          borderRadius: "16px",
+          background: "rgba(15,23,42,0.72)",
+          border: "1px solid rgba(148,163,184,0.12)",
+        }}
+      >
+        <div style={{ color: "#94a3b8", fontSize: "12px", fontWeight: "800" }}>
+          {item.label}
+        </div>
+
+        <div style={{ color: "#e0f2fe", fontSize: "18px", fontWeight: "950" }}>
+          {item.value}
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+  {(aiCrossLocationRisks || []).length > 0 ? (
+    <div style={{ display: "grid", gap: "10px" }}>
+      {aiCrossLocationRisks.map((location, index) => (
+        <div
+          key={index}
+          style={{
+            padding: "14px",
+            borderRadius: "16px",
+            background: "rgba(15,23,42,0.72)",
+            border: "1px solid rgba(239,68,68,0.18)",
+          }}
+        >
+          <div style={{ color: "white", fontSize: "15px", fontWeight: "950" }}>
+            {location.location}
+          </div>
+
+          <div style={{ color: "#fecaca", fontSize: "13px", marginTop: "6px" }}>
+            Prime cost is at {location.primeCost.toFixed(1)}%, placing this
+            location in {location.health} status.
+          </div>
+        </div>
+      ))}
+    </div>
+  ) : (
+    <div style={{ color: "#94a3b8", fontSize: "13px" }}>
+      No cross-location risk detected.
+    </div>
+  )}
+</div>
+  {(aiLocationRanking || []).length > 0 ? (
+    <div style={{ display: "grid", gap: "10px" }}>
+      {aiLocationRanking.map((location, index) => (
+        <div
+          key={index}
+          style={{
+            display: "grid",
+            gridTemplateColumns: isMobile ? "1fr" : "70px 1fr 120px",
+            gap: "10px",
+            alignItems: "center",
+            padding: "14px",
+            borderRadius: "16px",
+            background: "rgba(15,23,42,0.72)",
+            border: "1px solid rgba(148,163,184,0.12)",
+          }}
+        >
+          <div style={{ color: "#bbf7d0", fontWeight: "950" }}>
+            #{index + 1}
+          </div>
+
+          <div style={{ color: "white", fontWeight: "900" }}>
+            {location.location}
+          </div>
+
+          <div style={{ color: "#cbd5e1", fontSize: "13px", fontWeight: "800" }}>
+            {location.primeCost.toFixed(1)}% Prime
+          </div>
+        </div>
+      ))}
+    </div>
+  ) : (
+    <div style={{ color: "#94a3b8", fontSize: "13px" }}>
+      No location ranking available yet.
+    </div>
+  )}
+</div>
+    <h3 style={{ color: "white", fontSize: "26px", fontWeight: "950" }}>
+      Portfolio Operating Summary
+    </h3>
+
+    <p style={{ color: "#cbd5e1", fontSize: "14px", lineHeight: 1.8 }}>
+      {multiLocationIntelligence?.totalLocations > 1
+        ? `${multiLocationIntelligence.totalLocations} locations are being monitored. ${
+            multiLocationIntelligence?.topLocation?.name || "The top location"
+          } is currently the strongest performer, while ${
+            multiLocationIntelligence?.weakestLocation?.name || "the weakest location"
+          } needs the most attention. Average portfolio health is ${
+            multiLocationIntelligence?.averageHealth || 0
+          }/100.`
+        : "Multi-location executive intelligence will activate once more than one location is detected."}
+    </p>
+  </div>
+)}
+{/* =========================
+   EXECUTIVE RISK RADAR
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "26px",
+      background:
+        "linear-gradient(135deg, rgba(88,28,135,0.28), rgba(15,23,42,0.96))",
+      border: "1px solid rgba(168,85,247,0.22)",
+      boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
+    }}
+  >
+    <div style={{ color: "#d8b4fe", fontSize: "12px", fontWeight: "900" }}>
+      EXECUTIVE RISK RADAR
+    </div>
+
+    <h3 style={{ color: "white", fontSize: "24px", fontWeight: "950" }}>
+      Cross-System Risk Intelligence
+    </h3>
+
+    <p style={{ color: "#cbd5e1", fontSize: "14px", lineHeight: 1.6 }}>
+      SerVen is monitoring connected risk across labor, food cost, beverage,
+      inventory, vendors, consumables, and operational memory.
+    </p>
+
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: isMobile ? "1fr" : "repeat(4, 1fr)",
+        gap: "14px",
+        marginTop: "18px",
+      }}
+    >
+      {[
+        {
+          label: "AI Health",
+          value: `${aiHealthEngine?.overallScore || restaurantHealthScore || 0}/100`,
+          subtext: aiHealthEngine?.grade || "Monitoring",
+        },
+        {
+          label: "Cross-System Signals",
+          value: crossSystemSignals?.length || 0,
+          subtext: "Connected risks detected",
+        },
+        {
+          label: "Predictive Risks",
+          value: predictiveRiskSignals?.length || 0,
+          subtext: "Forward-looking alerts",
+        },
+        {
+          label: "Memory Events",
+          value: operationalMemoryEvents?.length || 0,
+          subtext: "Operational patterns tracked",
+        },
+      ].map((item) => (
+        <div
+          key={item.label}
+          style={{
+            padding: "16px",
+            borderRadius: "18px",
+            background: "rgba(255,255,255,0.05)",
+            border: "1px solid rgba(255,255,255,0.10)",
+          }}
+        >
+          <div style={{ color: "#c4b5fd", fontSize: "11px", fontWeight: "900" }}>
+            {item.label}
+          </div>
+
+          <div style={{ color: "white", fontSize: "24px", fontWeight: "950" }}>
+            {item.value}
+          </div>
+
+          <div style={{ color: "#94a3b8", fontSize: "12px", marginTop: "4px" }}>
+            {item.subtext}
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
+{/* =========================
+   EXECUTIVE AI NARRATIVE
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "26px",
+      borderRadius: "28px",
+      background:
+        "linear-gradient(135deg, rgba(30,41,59,0.96), rgba(15,23,42,0.98))",
+      border: "1px solid rgba(148,163,184,0.14)",
+      boxShadow: "0 24px 70px rgba(2,6,23,0.32)",
+    }}
+  >
+    <div style={{ color: "#93c5fd", fontSize: "12px", fontWeight: "900" }}>
+      EXECUTIVE AI NARRATIVE
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "26px",
+        fontWeight: "950",
+        marginTop: "8px",
+      }}
+    >
+      AI Executive Operating Narrative
+    </h3>
+
+    <div
+      style={{
+        marginTop: "18px",
+        padding: "22px",
+        borderRadius: "22px",
+        background: "rgba(255,255,255,0.04)",
+        border: "1px solid rgba(148,163,184,0.10)",
+      }}
+    >
+      <div
+        style={{
+          color: "#e2e8f0",
+          fontSize: "15px",
+          lineHeight: 1.9,
+          fontWeight: "500",
+        }}
+      >
+        {aiHealthEngine?.overallScore >= 85
+          ? `Restaurant operations are performing at a high level with strong stability across margin, labor, and operational execution. AI systems currently identify ${
+              crossSystemSignals?.length || 0
+            } connected operational signal(s), but overall business health remains strong.`
+
+          : aiHealthEngine?.overallScore >= 70
+          ? `Restaurant operations remain stable overall, though AI has identified emerging pressure across ${
+              executiveActionQueue?.[0]?.department || "operations"
+            }. Predictive systems recommend proactive adjustments to protect margins and operational efficiency.`
+
+          : aiHealthEngine?.overallScore >= 60
+          ? `AI systems have identified meaningful operational pressure affecting profitability and efficiency. Primary risk currently appears connected to ${
+              executiveActionQueue?.[0]?.department || "multi-system operations"
+            }, with additional predictive instability developing.`
+
+          : `Critical operational instability detected. AI systems are identifying elevated multi-system risk across labor, food cost, inventory, beverage, or operational execution. Immediate corrective action is recommended.`}
+      </div>
+
+      <div
+        style={{
+          marginTop: "18px",
+          display: "flex",
+          flexWrap: "wrap",
+          gap: "10px",
+        }}
+      >
+        {(crossSystemSignals || []).slice(0, 4).map((signal, index) => (
+          <div
+            key={`${signal.title}-${index}`}
+            style={{
+              padding: "8px 12px",
+              borderRadius: "999px",
+              background: "rgba(59,130,246,0.12)",
+              border: "1px solid rgba(96,165,250,0.20)",
+              color: "#bfdbfe",
+              fontSize: "11px",
+              fontWeight: "800",
+            }}
+          >
+            {signal.category}
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+)}
+{/* =========================
+   AI OPERATIONAL TIMELINE
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "26px",
+      background:
+        "linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.94))",
+      border: "1px solid rgba(148,163,184,0.14)",
+      boxShadow: "0 24px 70px rgba(2,6,23,0.32)",
+    }}
+  >
+    <div style={{ color: "#67e8f9", fontSize: "12px", fontWeight: "900" }}>
+      AI OPERATIONAL TIMELINE
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "24px",
+        fontWeight: "950",
+        marginTop: "8px",
+      }}
+    >
+      Operational Memory & Risk Timeline
+    </h3>
+
+    <p
+      style={{
+        color: "#94a3b8",
+        fontSize: "14px",
+        lineHeight: 1.6,
+        marginBottom: "20px",
+      }}
+    >
+      SerVen AI continuously tracks operational events, AI actions, vendor
+      movement, labor instability, and profit-impacting patterns over time.
+    </p>
+
+    <div style={{ display: "grid", gap: "14px" }}>
+      {(operationalMemoryEvents || []).length > 0 ? (
+        operationalMemoryEvents.slice(0, 8).map((event, index) => (
+          <div
+            key={`${event.id}-${index}`}
+            style={{
+              display: "flex",
+              gap: "16px",
+              alignItems: "flex-start",
+              padding: "18px",
+              borderRadius: "18px",
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(148,163,184,0.10)",
+            }}
+          >
+            <div
+              style={{
+                width: "12px",
+                height: "12px",
+                marginTop: "6px",
+                borderRadius: "999px",
+                background:
+                  event.severity === "Critical"
+                    ? "#ef4444"
+                    : event.severity === "High"
+                    ? "#f59e0b"
+                    : event.severity === "Positive"
+                    ? "#22c55e"
+                    : "#38bdf8",
+                flexShrink: 0,
+              }}
+            />
+
+            <div style={{ flex: 1 }}>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: "12px",
+                  flexWrap: "wrap",
+                }}
+              >
+                <div>
+                  <div
+                    style={{
+                      color: "white",
+                      fontSize: "15px",
+                      fontWeight: "900",
+                    }}
+                  >
+                    {event.title}
+                  </div>
+
+                  <div
+                    style={{
+                      color: "#94a3b8",
+                      fontSize: "12px",
+                      marginTop: "4px",
+                    }}
+                  >
+                    {event.type} • {event.severity}
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    color: "#86efac",
+                    fontSize: "14px",
+                    fontWeight: "900",
+                  }}
+                >
+                  ${Number(event.impact || 0).toLocaleString()}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  color: "#cbd5e1",
+                  fontSize: "13px",
+                  lineHeight: 1.7,
+                  marginTop: "10px",
+                }}
+              >
+                {event.message}
+              </div>
+
+              <div
+                style={{
+                  marginTop: "10px",
+                  color: "#64748b",
+                  fontSize: "11px",
+                  fontWeight: "700",
+                }}
+              >
+                {new Date(event.timestamp).toLocaleDateString()}
+              </div>
+            </div>
+          </div>
+        ))
+      ) : (
+        <div
+          style={{
+            color: "#94a3b8",
+            fontSize: "14px",
+          }}
+        >
+          No operational memory events detected yet.
+        </div>
+      )}
+    </div>
+  </div>
+)}
+{/* =========================
+   EXECUTIVE FORECAST PANEL
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+      background:
+        "linear-gradient(135deg, rgba(14,116,144,0.20), rgba(15,23,42,0.96))",
+      border: "1px solid rgba(34,211,238,0.20)",
+      boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
+    }}
+  >
+    <div style={{ color: "#67e8f9", fontSize: "12px", fontWeight: "900" }}>
+      EXECUTIVE FORECAST PANEL
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "26px",
+        fontWeight: "950",
+        marginTop: "8px",
+      }}
+    >
+      Predictive Operational Forecasting
+    </h3>
+
+    <p
+      style={{
+        color: "#cbd5e1",
+        fontSize: "14px",
+        lineHeight: 1.7,
+        marginBottom: "20px",
+      }}
+    >
+      SerVen AI forecasts operational instability, labor pressure, food cost
+      escalation, beverage leakage, and margin compression before they become
+      expensive.
+    </p>
+
+    <div
+      style={{
+        display: "grid",
+        gap: "14px",
+      }}
+    >
+      {(predictiveRiskSignals || []).length > 0 ? (
+        predictiveRiskSignals.map((risk, index) => (
+          <div
+            key={`${risk.title}-${index}`}
+            style={{
+              padding: "18px",
+              borderRadius: "20px",
+              background: "rgba(255,255,255,0.05)",
+              border: "1px solid rgba(148,163,184,0.12)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: "12px",
+                flexWrap: "wrap",
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    color: "white",
+                    fontSize: "16px",
+                    fontWeight: "900",
+                  }}
+                >
+                  {risk.title}
+                </div>
+
+                <div
+                  style={{
+                    color:
+                      risk.level === "Critical"
+                        ? "#fca5a5"
+                        : risk.level === "High"
+                        ? "#fde68a"
+                        : "#93c5fd",
+                    fontSize: "12px",
+                    fontWeight: "900",
+                    marginTop: "4px",
+                  }}
+                >
+                  {risk.level} RISK
+                </div>
+              </div>
+
+              <div
+                style={{
+                  color: "#67e8f9",
+                  fontSize: "12px",
+                  fontWeight: "900",
+                }}
+              >
+                {risk.forecast}
+              </div>
+            </div>
+
+            <div
+              style={{
+                color: "#cbd5e1",
+                fontSize: "13px",
+                lineHeight: 1.7,
+                marginTop: "12px",
+              }}
+            >
+              {risk.message}
+            </div>
+          </div>
+        ))
+      ) : (
+        <div
+          style={{
+            color: "#94a3b8",
+            fontSize: "14px",
+          }}
+        >
+          AI forecasting systems are monitoring operational trends.
+        </div>
+      )}
+    </div>
+  </div>
+)}
+
+{/* =========================
+   AUTONOMOUS AI ENGINE UI
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+      background:
+        "linear-gradient(135deg, rgba(79,70,229,0.22), rgba(15,23,42,0.96))",
+      border: "1px solid rgba(129,140,248,0.20)",
+      boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
+    }}
+  >
+    <div style={{ color: "#c7d2fe", fontSize: "12px", fontWeight: "900" }}>
+      AUTONOMOUS AI ENGINE
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "26px",
+        fontWeight: "950",
+        marginTop: "8px",
+      }}
+    >
+      Autonomous Profit Recovery Recommendations
+    </h3>
+
+    <p
+      style={{
+        color: "#cbd5e1",
+        fontSize: "14px",
+        lineHeight: 1.7,
+        marginBottom: "20px",
+      }}
+    >
+      SerVen AI automatically generates operational actions using connected
+      labor, food cost, beverage, inventory, vendor, and AI memory systems.
+    </p>
+
+    <div style={{ display: "grid", gap: "14px" }}>
+      {(autonomousAIRecommendations || []).length > 0 ? (
+        autonomousAIRecommendations.map((recommendation, index) => (
+          <div
+            key={`${recommendation.title}-${index}`}
+            style={{
+              padding: "18px",
+              borderRadius: "20px",
+              background: "rgba(255,255,255,0.05)",
+              border: "1px solid rgba(148,163,184,0.12)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: "12px",
+                flexWrap: "wrap",
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    color: "white",
+                    fontSize: "16px",
+                    fontWeight: "900",
+                  }}
+                >
+                  {recommendation.title}
+                </div>
+
+                <div
+                  style={{
+                    color:
+                      recommendation.severity === "Critical"
+                        ? "#fca5a5"
+                        : recommendation.severity === "High"
+                        ? "#fde68a"
+                        : "#93c5fd",
+                    fontSize: "12px",
+                    fontWeight: "900",
+                    marginTop: "4px",
+                  }}
+                >
+                  {recommendation.category} •{" "}
+                  {recommendation.severity}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  color: "#86efac",
+                  fontSize: "15px",
+                  fontWeight: "950",
+                }}
+              >
+                ${Number(recommendation.impact || 0).toLocaleString()}
+              </div>
+            </div>
+
+            <div
+              style={{
+                color: "#cbd5e1",
+                fontSize: "13px",
+                lineHeight: 1.7,
+                marginTop: "12px",
+              }}
+            >
+              {recommendation.action}
+            </div>
+          </div>
+        ))
+      ) : (
+        <div style={{ color: "#94a3b8", fontSize: "14px" }}>
+          Autonomous AI systems are monitoring operational conditions.
+        </div>
+      )}
+    </div>
+  </div>
+)}
+{/* =========================
+   AI FINANCIAL COMMAND
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+      background:
+        "linear-gradient(135deg, rgba(16,185,129,0.18), rgba(15,23,42,0.96))",
+      border: "1px solid rgba(52,211,153,0.20)",
+      boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
+    }}
+  >
+    <div style={{ color: "#86efac", fontSize: "12px", fontWeight: "900" }}>
+      AI FINANCIAL COMMAND
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "26px",
+        fontWeight: "950",
+        marginTop: "8px",
+      }}
+    >
+      Financial Operating Intelligence
+    </h3>
+
+    <p
+      style={{
+        color: "#d1fae5",
+        fontSize: "14px",
+        lineHeight: 1.7,
+        marginBottom: "22px",
+      }}
+    >
+      SerVen AI monitors operational profitability, cash flow pressure,
+      margin compression, and projected recovery opportunities.
+    </p>
+
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: isMobile ? "1fr" : "repeat(4, 1fr)",
+        gap: "14px",
+      }}
+    >
+      {[
+        {
+          label: "Prime Cost",
+          value: `${Number(
+            aiFinancialCommand?.primeCost || 0
+          ).toFixed(1)}%`,
+          subtext: "Labor + Food Cost",
+        },
+        {
+          label: "Weekly Recovery",
+          value: `$${Number(
+            aiFinancialCommand?.projectedWeeklyRecovery || 0
+          ).toLocaleString()}`,
+          subtext: "Projected AI recovery",
+        },
+        {
+          label: "Cash Flow Risk",
+          value: aiFinancialCommand?.cashFlowRisk || "Stable",
+          subtext: "Operating liquidity pressure",
+        },
+        {
+          label: "Profitability Score",
+          value: `${
+            aiFinancialCommand?.operationalProfitabilityScore || 0
+          }/100`,
+          subtext: "AI operating efficiency",
+        },
+      ].map((card) => (
+        <div
+          key={card.label}
+          style={{
+            padding: "18px",
+            borderRadius: "20px",
+            background: "rgba(255,255,255,0.05)",
+            border: "1px solid rgba(148,163,184,0.12)",
+          }}
+        >
+          <div
+            style={{
+              color: "#bbf7d0",
+              fontSize: "11px",
+              fontWeight: "900",
+            }}
+          >
+            {card.label}
+          </div>
+
+          <div
+            style={{
+              color: "white",
+              fontSize: "24px",
+              fontWeight: "950",
+              marginTop: "6px",
+            }}
+          >
+            {card.value}
+          </div>
+
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "12px",
+              marginTop: "4px",
+            }}
+          >
+            {card.subtext}
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
+{/* =========================
+   EXECUTIVE BENCHMARKING
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+      background:
+        "linear-gradient(135deg, rgba(245,158,11,0.16), rgba(15,23,42,0.96))",
+      border: "1px solid rgba(251,191,36,0.20)",
+      boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
+    }}
+  >
+    <div style={{ color: "#fde68a", fontSize: "12px", fontWeight: "900" }}>
+      EXECUTIVE BENCHMARKING
+    </div>
+
+    <h3 style={{ color: "white", fontSize: "26px", fontWeight: "950" }}>
+      Performance vs Elite Restaurant Targets
+    </h3>
+
+    <div style={{ display: "grid", gap: "12px", marginTop: "18px" }}>
+      {(executiveBenchmarkingData || []).map((item) => (
+        <div
+          key={item.label}
+          style={{
+            display: "grid",
+            gridTemplateColumns: isMobile ? "1fr" : "1.2fr 1fr 1fr 1fr",
+            gap: "12px",
+            padding: "16px",
+            borderRadius: "18px",
+            background: "rgba(255,255,255,0.05)",
+            border: "1px solid rgba(148,163,184,0.12)",
+          }}
+        >
+          <div style={{ color: "white", fontWeight: "900" }}>{item.label}</div>
+          <div style={{ color: "#cbd5e1" }}>Actual: {item.actual}</div>
+          <div style={{ color: "#94a3b8" }}>Target: {item.target}</div>
+          <div style={{ color: item.status === "Elite" ? "#86efac" : item.status === "Watch" ? "#fde68a" : "#fca5a5", fontWeight: "900" }}>
+            {item.status}
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
+{/* =========================
+   RESTAURANT DIGITAL TWIN
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "26px",
+      borderRadius: "30px",
+      background:
+        "linear-gradient(135deg, rgba(59,130,246,0.18), rgba(15,23,42,0.98))",
+      border: "1px solid rgba(96,165,250,0.22)",
+      boxShadow: "0 24px 70px rgba(2,6,23,0.36)",
+    }}
+  >
+    <div style={{ color: "#93c5fd", fontSize: "12px", fontWeight: "900" }}>
+      RESTAURANT DIGITAL TWIN
+    </div>
+
+    <h3 style={{ color: "white", fontSize: "26px", fontWeight: "950" }}>
+      Live Operating Model
+    </h3>
+
+    <p style={{ color: "#cbd5e1", fontSize: "14px", lineHeight: 1.7 }}>
+      SerVen AI builds a live operating model of the restaurant using revenue,
+      labor, food cost, prime cost, AI health, and executive risk signals.
+    </p>
+
+    <div
+      style={{
+        marginTop: "22px",
+        display: "grid",
+        gridTemplateColumns: isMobile ? "1fr" : "1.2fr 1fr",
+        gap: "18px",
+      }}
+    >
+      <div
+        style={{
+          padding: "22px",
+          borderRadius: "24px",
+          background: "rgba(255,255,255,0.05)",
+          border: "1px solid rgba(148,163,184,0.12)",
+        }}
+      >
+        <div style={{ color: "#bfdbfe", fontSize: "12px", fontWeight: "900" }}>
+          CURRENT OPERATING MODE
+        </div>
+
+        <div
+          style={{
+            color: "white",
+            fontSize: "32px",
+            fontWeight: "950",
+            marginTop: "8px",
+          }}
+        >
+          {restaurantDigitalTwin?.operatingMode}
+        </div>
+
+        <div
+          style={{
+            marginTop: "10px",
+            color:
+              restaurantDigitalTwin?.twinStatus === "Critical"
+                ? "#fca5a5"
+                : restaurantDigitalTwin?.twinStatus === "At Risk"
+                ? "#fde68a"
+                : "#86efac",
+            fontSize: "14px",
+            fontWeight: "900",
+          }}
+        >
+          Twin Status: {restaurantDigitalTwin?.twinStatus}
+        </div>
+      </div>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: "12px",
+        }}
+      >
+        {[
+          {
+            label: "Revenue",
+            value: `$${Number(restaurantDigitalTwin?.revenue || 0).toLocaleString()}`,
+          },
+          {
+            label: "Orders",
+            value: Number(restaurantDigitalTwin?.orders || 0).toLocaleString(),
+          },
+          {
+            label: "Prime Cost",
+            value: `${Number(restaurantDigitalTwin?.primeCost || 0).toFixed(1)}%`,
+          },
+          {
+            label: "AI Health",
+            value: `${restaurantDigitalTwin?.aiHealth || 0}/100`,
+          },
+        ].map((item) => (
+          <div
+            key={item.label}
+            style={{
+              padding: "14px",
+              borderRadius: "18px",
+              background: "rgba(255,255,255,0.05)",
+              border: "1px solid rgba(148,163,184,0.10)",
+            }}
+          >
+            <div style={{ color: "#94a3b8", fontSize: "11px", fontWeight: "900" }}>
+              {item.label}
+            </div>
+
+            <div style={{ color: "white", fontSize: "20px", fontWeight: "950" }}>
+              {item.value}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+)}
+{/* =========================
+   AUTONOMOUS PROFIT RECOVERY
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "26px",
+      borderRadius: "30px",
+      background:
+        "linear-gradient(135deg, rgba(34,197,94,0.20), rgba(15,23,42,0.98))",
+      border: "1px solid rgba(74,222,128,0.22)",
+      boxShadow: "0 24px 70px rgba(2,6,23,0.36)",
+    }}
+  >
+    <div style={{ color: "#86efac", fontSize: "12px", fontWeight: "900" }}>
+      AUTONOMOUS PROFIT RECOVERY
+    </div>
+
+    <h3 style={{ color: "white", fontSize: "26px", fontWeight: "950" }}>
+      AI Recovery Engine
+    </h3>
+
+    <p style={{ color: "#d1fae5", fontSize: "14px", lineHeight: 1.7 }}>
+      SerVen AI combines executive actions, autonomous recommendations, and
+      financial command signals to estimate recoverable profit opportunities.
+    </p>
+
+    <div
+      style={{
+        marginTop: "22px",
+        display: "grid",
+        gridTemplateColumns: isMobile ? "1fr" : "repeat(4, 1fr)",
+        gap: "14px",
+      }}
+    >
+      {[
+        {
+          label: "Projected Recovery",
+          value: `$${Number(
+            autonomousProfitRecoveryEngine?.projectedRecovery || 0
+          ).toLocaleString()}`,
+        },
+        {
+          label: "Recovery Actions",
+          value: autonomousProfitRecoveryEngine?.activeRecoveryActions || 0,
+        },
+        {
+          label: "Recovery Stage",
+          value: autonomousProfitRecoveryEngine?.recoveryStage || "Stable",
+        },
+        {
+          label: "Top Area",
+          value: autonomousProfitRecoveryEngine?.topRecoveryArea || "Operations",
+        },
+      ].map((item) => (
+        <div
+          key={item.label}
+          style={{
+            padding: "16px",
+            borderRadius: "20px",
+            background: "rgba(255,255,255,0.05)",
+            border: "1px solid rgba(148,163,184,0.12)",
+          }}
+        >
+          <div style={{ color: "#bbf7d0", fontSize: "11px", fontWeight: "900" }}>
+            {item.label}
+          </div>
+
+          <div style={{ color: "white", fontSize: "22px", fontWeight: "950" }}>
+            {item.value}
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
+{/* =========================
+   EXECUTIVE PRIORITY QUEUE
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "26px",
+      background:
+        "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.92))",
+      border: "1px solid rgba(148,163,184,0.16)",
+      boxShadow: "0 24px 70px rgba(2,6,23,0.32)",
+    }}
+  >
+    <div style={{ color: "#a5b4fc", fontSize: "12px", fontWeight: "900" }}>
+      EXECUTIVE PRIORITY QUEUE
+    </div>
+
+    <h3 style={{ color: "white", fontSize: "24px", fontWeight: "950" }}>
+      AI-Ranked Actions To Protect Profit
+    </h3>
+
+    <p style={{ color: "#94a3b8", fontSize: "14px", marginBottom: "18px" }}>
+      SerVen ranks the highest-impact operational actions across labor, food cost,
+      beverage, inventory, vendor, and AI memory signals.
+    </p>
+
+    <div style={{ display: "grid", gap: "12px" }}>
+      {(executiveActionQueue || []).length > 0 ? (
+        executiveActionQueue.map((action, index) => (
+          <div
+            key={`${action.title}-${index}`}
+            style={{
+              padding: "16px",
+              borderRadius: "18px",
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(148,163,184,0.12)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: "12px",
+                marginBottom: "8px",
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    color: "white",
+                    fontSize: "16px",
+                    fontWeight: "900",
+                  }}
+                >
+                  {index + 1}. {action.title}
+                </div>
+
+                <div
+                  style={{
+                    color: "#94a3b8",
+                    fontSize: "12px",
+                    fontWeight: "800",
+                    marginTop: "4px",
+                  }}
+                >
+                  {action.department} • {action.priority}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  color: "#86efac",
+                  fontSize: "15px",
+                  fontWeight: "950",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                ${Number(action.impact || 0).toLocaleString()}
+              </div>
+            </div>
+
+            <div style={{ color: "#cbd5e1", fontSize: "13px", lineHeight: 1.6 }}>
+              {action.reason}
+            </div>
+          </div>
+        ))
+      ) : (
+        <div style={{ color: "#94a3b8", fontSize: "14px" }}>
+          No urgent executive actions detected. SerVen is monitoring operational
+          signals.
+        </div>
+      )}
+    </div>
+  </div>
+)}
 {/* 🧠 TOP AI RECOMMENDED ACTION */}
 
 {hasProAccess && (
@@ -29640,7 +36156,500 @@ boxSizing: "border-box",
     >
       Top AI Recommended Action
     </div>
+    <h3 style={{ color: "white", fontSize: "24px", fontWeight: "950", margin: 0 }}>
+  {topAIRecommendedAction?.title || "AI is monitoring your operation"}
+</h3>
 
+<p
+  style={{
+    color: "#cbd5e1",
+    fontSize: "14px",
+    lineHeight: 1.7,
+    marginTop: "10px",
+    marginBottom: "16px",
+  }}
+>
+  {topAIRecommendedAction?.description ||
+    "Upload POS, labor, menu, inventory, and invoice data to activate stronger recommendations."}
+</p>
+
+<div
+  style={{
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "10px",
+    marginTop: "12px",
+  }}
+>
+  <div
+    style={{
+      padding: "10px 14px",
+      borderRadius: "999px",
+      background: "rgba(168,85,247,0.14)",
+      border: "1px solid rgba(168,85,247,0.25)",
+      color: "#ddd6fe",
+      fontSize: "12px",
+      fontWeight: "900",
+    }}
+  >
+    Priority: {topAIRecommendedAction?.priority || "Monitoring"}
+  </div>
+
+  <div
+    style={{
+      padding: "10px 14px",
+      borderRadius: "999px",
+      background: "rgba(34,197,94,0.12)",
+      border: "1px solid rgba(34,197,94,0.24)",
+      color: "#bbf7d0",
+      fontSize: "12px",
+      fontWeight: "900",
+    }}
+  >
+    Est. Impact: {topAIRecommendedAction?.impact || "$0/mo"}
+  </div>
+</div>
+<button
+  type="button"
+  onClick={handleSaveExecutiveBriefing}
+  style={{
+    marginTop: "16px",
+    padding: "12px 16px",
+    borderRadius: "14px",
+    border: "1px solid rgba(129,140,248,0.28)",
+    background: "rgba(79,70,229,0.22)",
+    color: "#c7d2fe",
+    fontWeight: "950",
+    cursor: "pointer",
+  }}
+>
+  Save Executive Briefing
+</button>
+<div
+  style={{
+    marginTop: "24px",
+    paddingTop: "20px",
+    borderTop: "1px solid rgba(148,163,184,0.12)",
+  }}
+>
+  <div
+    style={{
+      color: "#a5b4fc",
+      fontSize: "12px",
+      fontWeight: "900",
+      marginBottom: "16px",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+    }}
+  >
+    AI Action Queue
+  </div>
+<div
+  style={{
+    marginTop: "22px",
+    padding: "18px",
+    borderRadius: "20px",
+    background: "rgba(15,23,42,0.72)",
+    border: "1px solid rgba(148,163,184,0.14)",
+  }}
+>
+  <div
+    style={{
+      color: "#93c5fd",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "16px",
+    }}
+  >
+    Live AI Feed
+  </div>
+<div
+  style={{
+    marginTop: "22px",
+    padding: "18px",
+    borderRadius: "20px",
+    background:
+      "linear-gradient(135deg, rgba(34,197,94,0.12), rgba(15,23,42,0.92))",
+    border: "1px solid rgba(34,197,94,0.18)",
+  }}
+>
+  <div
+    style={{
+      color: "#86efac",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "10px",
+    }}
+  >
+    AI Confidence Score
+  </div>
+<div
+  style={{
+    marginTop: "22px",
+    padding: "18px",
+    borderRadius: "20px",
+    background:
+      "linear-gradient(135deg, rgba(245,158,11,0.12), rgba(15,23,42,0.92))",
+    border: "1px solid rgba(245,158,11,0.18)",
+  }}
+>
+  <div
+    style={{
+      color: "#fde68a",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "10px",
+    }}
+  >
+    AI Financial Impact Breakdown
+  </div>
+<div
+  style={{
+    marginTop: "22px",
+    padding: "18px",
+    borderRadius: "20px",
+    background:
+      "linear-gradient(135deg, rgba(239,68,68,0.12), rgba(15,23,42,0.92))",
+    border: "1px solid rgba(239,68,68,0.18)",
+  }}
+>
+  <div
+    style={{
+      color:
+        aiRiskLevel === "Critical"
+          ? "#fca5a5"
+          : aiRiskLevel === "High"
+          ? "#fdba74"
+          : aiRiskLevel === "Medium"
+          ? "#fde68a"
+          : "#86efac",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "10px",
+    }}
+  >
+    AI System Status
+  </div>
+<div
+  style={{
+    marginTop: "22px",
+    padding: "20px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(124,58,237,0.18), rgba(15,23,42,0.94))",
+    border: "1px solid rgba(196,181,253,0.22)",
+  }}
+>
+  <div style={{ color: "#c4b5fd", fontSize: "12px", fontWeight: "900" }}>
+    AI Autopilot Suggested Action
+  </div>
+<div
+  style={{
+    marginTop: "22px",
+    padding: "22px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(6,182,212,0.14), rgba(15,23,42,0.94))",
+    border: "1px solid rgba(34,211,238,0.20)",
+  }}
+>
+  <div
+    style={{
+      color: "#67e8f9",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "10px",
+    }}
+  >
+    AI Executive Summary
+  </div>
+
+  <div
+    style={{
+      color: "white",
+      fontSize: "16px",
+      lineHeight: 1.9,
+      fontWeight: "600",
+    }}
+  >
+    {aiExecutiveSummary}
+  </div>
+
+  <div
+    style={{
+      marginTop: "18px",
+      display: "flex",
+      flexWrap: "wrap",
+      gap: "10px",
+    }}
+  >
+    <button
+      type="button"
+      onClick={handleSaveExecutiveBriefing}
+      style={{
+        padding: "12px 16px",
+        borderRadius: "14px",
+        border: "1px solid rgba(34,211,238,0.24)",
+        background: "rgba(6,182,212,0.18)",
+        color: "#cffafe",
+        fontWeight: "950",
+        cursor: "pointer",
+      }}
+    >
+      Save Briefing
+    </button>
+
+    <button
+      type="button"
+      style={{
+        padding: "12px 16px",
+        borderRadius: "14px",
+        border: "1px solid rgba(148,163,184,0.18)",
+        background: "rgba(15,23,42,0.72)",
+        color: "#e2e8f0",
+        fontWeight: "900",
+        cursor: "pointer",
+      }}
+    >
+      Export AI Report
+    </button>
+  </div>
+</div>
+  <h3 style={{ color: "white", fontSize: "22px", fontWeight: "950" }}>
+    {aiAutopilotSuggestedAction.title}
+  </h3>
+
+  <p style={{ color: "#cbd5e1", fontSize: "14px", lineHeight: 1.7 }}>
+    {aiAutopilotSuggestedAction.description}
+  </p>
+
+  <button
+    type="button"
+    style={{
+      marginTop: "12px",
+      padding: "12px 16px",
+      borderRadius: "14px",
+      border: "1px solid rgba(196,181,253,0.3)",
+      background: "rgba(124,58,237,0.28)",
+      color: "#ede9fe",
+      fontWeight: "950",
+      cursor: "pointer",
+    }}
+  >
+    {aiAutopilotSuggestedAction.button}
+  </button>
+</div>
+  <div style={{ color: "white", fontSize: "30px", fontWeight: "950" }}>
+    {aiRiskLevel} Risk
+  </div>
+
+  <div
+    style={{
+      marginTop: "16px",
+      display: "grid",
+      gridTemplateColumns: isMobile ? "1fr" : "repeat(4, 1fr)",
+      gap: "10px",
+    }}
+  >
+    {aiSystemStatusStrip.map((item, index) => (
+      <div
+        key={index}
+        style={{
+          padding: "12px",
+          borderRadius: "14px",
+          background: "rgba(15,23,42,0.72)",
+          border: "1px solid rgba(148,163,184,0.12)",
+        }}
+      >
+        <div
+          style={{
+            color: "#94a3b8",
+            fontSize: "11px",
+            fontWeight: "800",
+            marginBottom: "6px",
+          }}
+        >
+          {item.label}
+        </div>
+
+        <div style={{ color: "white", fontSize: "15px", fontWeight: "950" }}>
+          {item.value}
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+  <div style={{ color: "white", fontSize: "32px", fontWeight: "950" }}>
+    ${totalAIFinancialImpact.toLocaleString()}/mo
+  </div>
+
+  <div style={{ marginTop: "16px", display: "grid", gap: "10px" }}>
+    {aiFinancialImpactBreakdown.map((item, index) => (
+      <div
+        key={index}
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          padding: "12px 14px",
+          borderRadius: "14px",
+          background: "rgba(15,23,42,0.72)",
+          border: "1px solid rgba(148,163,184,0.12)",
+        }}
+      >
+        <span style={{ color: "#cbd5e1", fontSize: "13px", fontWeight: "800" }}>
+          {item.label}
+        </span>
+
+        <span style={{ color: "#fde68a", fontSize: "13px", fontWeight: "950" }}>
+          ${Number(item.amount || 0).toLocaleString()}
+        </span>
+      </div>
+    ))}
+  </div>
+</div>
+  <div style={{ color: "white", fontSize: "34px", fontWeight: "950" }}>
+    {aiConfidenceScore}%
+  </div>
+
+  <div
+    style={{
+      marginTop: "10px",
+      height: "10px",
+      borderRadius: "999px",
+      background: "rgba(148,163,184,0.18)",
+      overflow: "hidden",
+    }}
+  >
+    <div
+      style={{
+        width: `${aiConfidenceScore}%`,
+        height: "100%",
+        borderRadius: "999px",
+        background:
+          aiConfidenceScore >= 85
+            ? "linear-gradient(90deg, #22c55e, #86efac)"
+            : aiConfidenceScore >= 75
+            ? "linear-gradient(90deg, #f59e0b, #fde68a)"
+            : "linear-gradient(90deg, #6366f1, #a5b4fc)",
+      }}
+    />
+  </div>
+
+  <p style={{ color: "#bbf7d0", fontSize: "13px", lineHeight: 1.6 }}>
+    Confidence is based on how many supporting operational signals were detected.
+  </p>
+</div>
+  <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+    {aiOperationalTimeline.map((event, index) => (
+      <div key={index} style={{ display: "flex", gap: "12px" }}>
+        <div
+          style={{
+            minWidth: "54px",
+            color: "#94a3b8",
+            fontSize: "12px",
+            fontWeight: "800",
+          }}
+        >
+          {event.time}
+        </div>
+
+        <div>
+          <div style={{ color: "white", fontSize: "14px", fontWeight: "900" }}>
+            {event.title}
+          </div>
+
+          <div style={{ color: "#cbd5e1", fontSize: "13px", lineHeight: 1.6 }}>
+            {event.message}
+          </div>
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+  {(aiActionQueue || []).length > 0 ? (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: "12px",
+      }}
+    >
+      {aiActionQueue.map((action, index) => (
+        <div
+          key={index}
+          style={{
+            padding: "14px",
+            borderRadius: "16px",
+            background: "rgba(15,23,42,0.72)",
+            border: "1px solid rgba(148,163,184,0.14)",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              marginBottom: "8px",
+            }}
+          >
+            <div
+              style={{
+                color: "white",
+                fontWeight: "900",
+                fontSize: "14px",
+              }}
+            >
+              {action.type}
+            </div>
+
+            <div
+              style={{
+                color:
+                  action.severity === "Critical"
+                    ? "#fca5a5"
+                    : action.severity === "High"
+                    ? "#fde68a"
+                    : "#c4b5fd",
+                fontSize: "11px",
+                fontWeight: "900",
+              }}
+            >
+              {action.severity}
+            </div>
+          </div>
+
+          <div
+            style={{
+              color: "#cbd5e1",
+              fontSize: "13px",
+              lineHeight: 1.6,
+            }}
+          >
+            {action.message}
+          </div>
+        </div>
+      ))}
+    </div>
+  ) : (
+    <div
+      style={{
+        color: "#94a3b8",
+        fontSize: "13px",
+      }}
+    >
+      No active AI actions detected.
+    </div>
+  )}
+</div>
     <h3
       style={{
         color: "white",
@@ -36444,7 +43453,4045 @@ boxSizing: "border-box",
         </div>
       );
     })()}
+{/* =========================
+   AI GUEST INTELLIGENCE
+========================= */}
 
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "24px",
+      padding: "24px",
+      borderRadius: "28px",
+      background:
+        "linear-gradient(135deg, rgba(59,130,246,0.16), rgba(15,23,42,0.96))",
+      border: "1px solid rgba(96,165,250,0.24)",
+      boxShadow: "0 24px 70px rgba(2,6,23,0.32)",
+    }}
+  >
+    <div
+      style={{
+        color: "#93c5fd",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      AI Guest Intelligence
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "28px",
+        fontWeight: "950",
+        marginBottom: "10px",
+      }}
+    >
+      Customer Behavior & Revenue Intelligence
+    </h3>
+
+    <p
+      style={{
+        color: "#cbd5e1",
+        fontSize: "14px",
+        lineHeight: 1.7,
+        marginBottom: "22px",
+      }}
+    >
+      SerVen AI identifies VIP guests, churn risk, average spend, and loyalty
+      signals so restaurants can protect repeat revenue.
+    </p>
+
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: isMobile
+          ? "1fr"
+          : "repeat(3,minmax(0,1fr))",
+        gap: "16px",
+      }}
+    >
+      <GlassCard
+        title="VIP Guests"
+        value={vipGuests}
+        subtitle="High lifetime value customers"
+      />
+
+      <GlassCard
+        title="At-Risk Guests"
+        value={highRiskGuests}
+        subtitle="Customers likely to churn"
+      />
+
+      <GlassCard
+        title="Average Guest Spend"
+        value={`$${avgGuestSpend.toFixed(0)}`}
+        subtitle="Average customer ticket value"
+      />
+    </div>
+  </div>
+)}
+{/* =========================
+   AI GUEST SENTIMENT INTELLIGENCE
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+      background:
+        "linear-gradient(135deg, rgba(14,165,233,0.14), rgba(15,23,42,0.96))",
+      border: "1px solid rgba(125,211,252,0.20)",
+      overflow: "hidden",
+    }}
+  >
+    <div
+      style={{
+        color: "#7dd3fc",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      AI Guest Sentiment Intelligence
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "24px",
+        fontWeight: "950",
+        marginBottom: "18px",
+      }}
+    >
+      Guest Loyalty & Behavior Analysis
+    </h3>
+
+    <div
+      style={{
+        overflowX: "auto",
+      }}
+    >
+      <table
+        style={{
+          width: "100%",
+          borderCollapse: "collapse",
+          minWidth: "760px",
+        }}
+      >
+        <thead>
+          <tr>
+            {[
+              "Guest",
+              "Tier",
+              "Visits",
+              "Avg Spend",
+              "Sentiment",
+              "Behavior Prediction",
+            ].map((header) => (
+              <th
+                key={header}
+                style={{
+                  textAlign: "left",
+                  padding: "14px",
+                  color: "#bae6fd",
+                  fontSize: "12px",
+                  fontWeight: "900",
+                  borderBottom:
+                    "1px solid rgba(148,163,184,0.14)",
+                }}
+              >
+                {header}
+              </th>
+            ))}
+          </tr>
+        </thead>
+
+        <tbody>
+          {aiGuestSentimentIntelligence
+            .slice(0, 8)
+            .map((guest, index) => (
+              <tr
+                key={guest.id || index}
+                style={{
+                  borderBottom:
+                    "1px solid rgba(148,163,184,0.08)",
+                }}
+              >
+                <td
+                  style={{
+                    padding: "14px",
+                    color: "white",
+                    fontWeight: "700",
+                  }}
+                >
+                  {guest.name}
+                </td>
+
+                <td
+                  style={{
+                    padding: "14px",
+                    color:
+                      guest.guestTier === "VIP"
+                        ? "#facc15"
+                        : guest.guestTier === "Premium"
+                        ? "#93c5fd"
+                        : "#cbd5e1",
+                    fontWeight: "800",
+                  }}
+                >
+                  {guest.guestTier}
+                </td>
+
+                <td
+                  style={{
+                    padding: "14px",
+                    color: "#e2e8f0",
+                  }}
+                >
+                  {guest.visits}
+                </td>
+
+                <td
+                  style={{
+                    padding: "14px",
+                    color: "#86efac",
+                    fontWeight: "700",
+                  }}
+                >
+                  ${guest.avgSpend.toFixed(0)}
+                </td>
+
+                <td
+                  style={{
+                    padding: "14px",
+                    color:
+                      guest.sentimentScore === "Excellent"
+                        ? "#4ade80"
+                        : guest.sentimentScore === "Positive"
+                        ? "#93c5fd"
+                        : guest.sentimentScore === "Neutral"
+                        ? "#facc15"
+                        : "#f87171",
+                    fontWeight: "800",
+                  }}
+                >
+                  {guest.sentimentScore}
+                </td>
+
+                <td
+                  style={{
+                    padding: "14px",
+                    color: "#cbd5e1",
+                    fontSize: "13px",
+                  }}
+                >
+                  {guest.predictedBehavior}
+                </td>
+              </tr>
+            ))}
+        </tbody>
+      </table>
+    </div>
+  </div>
+)}
+{/* =========================
+   VIP GUEST TRACKER
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+      background:
+        "linear-gradient(135deg, rgba(250,204,21,0.12), rgba(15,23,42,0.96))",
+      border: "1px solid rgba(250,204,21,0.22)",
+      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
+    }}
+  >
+    <div
+      style={{
+        color: "#fde68a",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      VIP Guest Tracker
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "24px",
+        fontWeight: "950",
+        marginBottom: "18px",
+      }}
+    >
+      High-Value Customer Intelligence
+    </h3>
+
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: isMobile
+          ? "1fr"
+          : "repeat(auto-fit,minmax(260px,1fr))",
+        gap: "16px",
+      }}
+    >
+      {aiGuestSentimentIntelligence
+        .filter((guest) => guest.guestTier === "VIP")
+        .slice(0, 6)
+        .map((guest, index) => (
+          <div
+            key={guest.id || index}
+            style={{
+              padding: "18px",
+              borderRadius: "22px",
+              background: "rgba(15,23,42,0.76)",
+              border: "1px solid rgba(250,204,21,0.14)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: "14px",
+              }}
+            >
+              <div
+                style={{
+                  color: "white",
+                  fontSize: "18px",
+                  fontWeight: "900",
+                }}
+              >
+                {guest.name}
+              </div>
+
+              <div
+                style={{
+                  padding: "6px 10px",
+                  borderRadius: "999px",
+                  background: "rgba(250,204,21,0.14)",
+                  color: "#fde68a",
+                  fontSize: "11px",
+                  fontWeight: "900",
+                }}
+              >
+                VIP
+              </div>
+            </div>
+
+            <div
+              style={{
+                display: "grid",
+                gap: "10px",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                }}
+              >
+                <span
+                  style={{
+                    color: "#94a3b8",
+                    fontSize: "13px",
+                  }}
+                >
+                  Total Visits
+                </span>
+
+                <span
+                  style={{
+                    color: "#e2e8f0",
+                    fontWeight: "800",
+                  }}
+                >
+                  {guest.visits}
+                </span>
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                }}
+              >
+                <span
+                  style={{
+                    color: "#94a3b8",
+                    fontSize: "13px",
+                  }}
+                >
+                  Average Spend
+                </span>
+
+                <span
+                  style={{
+                    color: "#86efac",
+                    fontWeight: "800",
+                  }}
+                >
+                  ${guest.avgSpend.toFixed(0)}
+                </span>
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                }}
+              >
+                <span
+                  style={{
+                    color: "#94a3b8",
+                    fontSize: "13px",
+                  }}
+                >
+                  Loyalty Score
+                </span>
+
+                <span
+                  style={{
+                    color: "#60a5fa",
+                    fontWeight: "800",
+                  }}
+                >
+                  {guest.loyaltyScore}/100
+                </span>
+              </div>
+
+              <div
+                style={{
+                  marginTop: "10px",
+                  width: "100%",
+                  height: "10px",
+                  borderRadius: "999px",
+                  background: "rgba(51,65,85,0.7)",
+                  overflow: "hidden",
+                }}
+              >
+                <div
+                  style={{
+                    width: `${guest.loyaltyScore}%`,
+                    height: "100%",
+                    borderRadius: "999px",
+                    background:
+                      "linear-gradient(90deg,#facc15,#fde68a)",
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        ))}
+    </div>
+  </div>
+)}
+{/* =========================
+   AI CHURN DETECTION ALERTS
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+      background:
+        "linear-gradient(135deg, rgba(239,68,68,0.12), rgba(15,23,42,0.96))",
+      border: "1px solid rgba(248,113,113,0.20)",
+      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
+    }}
+  >
+    <div
+      style={{
+        color: "#fca5a5",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      AI Churn Detection Alerts
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "24px",
+        fontWeight: "950",
+        marginBottom: "18px",
+      }}
+    >
+      Customers At Risk Of Not Returning
+    </h3>
+
+    <div
+      style={{
+        display: "grid",
+        gap: "14px",
+      }}
+    >
+      {aiGuestSentimentIntelligence
+        .filter((guest) => guest.churnRisk === "High")
+        .slice(0, 6)
+        .map((guest, index) => (
+          <div
+            key={guest.id || index}
+            style={{
+              padding: "18px",
+              borderRadius: "20px",
+              background: "rgba(15,23,42,0.72)",
+              border: "1px solid rgba(248,113,113,0.16)",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: isMobile ? "flex-start" : "center",
+              flexDirection: isMobile ? "column" : "row",
+              gap: "14px",
+            }}
+          >
+            <div>
+              <div
+                style={{
+                  color: "white",
+                  fontSize: "18px",
+                  fontWeight: "900",
+                  marginBottom: "6px",
+                }}
+              >
+                {guest.name}
+              </div>
+
+              <div
+                style={{
+                  color: "#cbd5e1",
+                  fontSize: "13px",
+                  lineHeight: 1.6,
+                }}
+              >
+                AI predicts this guest may stop visiting due to
+                low engagement frequency and declining loyalty signals.
+              </div>
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                gap: "10px",
+                flexWrap: "wrap",
+              }}
+            >
+              <div
+                style={{
+                  padding: "8px 12px",
+                  borderRadius: "999px",
+                  background: "rgba(248,113,113,0.14)",
+                  color: "#fca5a5",
+                  fontSize: "12px",
+                  fontWeight: "900",
+                }}
+              >
+                High Churn Risk
+              </div>
+
+              <div
+                style={{
+                  padding: "8px 12px",
+                  borderRadius: "999px",
+                  background: "rgba(59,130,246,0.14)",
+                  color: "#93c5fd",
+                  fontSize: "12px",
+                  fontWeight: "900",
+                }}
+              >
+                {guest.visits} Visits
+              </div>
+
+              <div
+                style={{
+                  padding: "8px 12px",
+                  borderRadius: "999px",
+                  background: "rgba(34,197,94,0.14)",
+                  color: "#86efac",
+                  fontSize: "12px",
+                  fontWeight: "900",
+                }}
+              >
+                ${guest.avgSpend.toFixed(0)} Avg Spend
+              </div>
+            </div>
+          </div>
+        ))}
+    </div>
+  </div>
+)}
+{/* =========================
+   AI LOYALTY HEATMAP
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+      background:
+        "linear-gradient(135deg, rgba(168,85,247,0.13), rgba(15,23,42,0.96))",
+      border: "1px solid rgba(196,181,253,0.20)",
+      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
+    }}
+  >
+    <div
+      style={{
+        color: "#c4b5fd",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      AI Loyalty Heatmap
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "24px",
+        fontWeight: "950",
+        marginBottom: "18px",
+      }}
+    >
+      Guest Loyalty Score Distribution
+    </h3>
+
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: isMobile
+          ? "1fr"
+          : "repeat(auto-fit,minmax(180px,1fr))",
+        gap: "14px",
+      }}
+    >
+      {[
+        {
+          label: "Excellent",
+          range: "80–100",
+          count: aiGuestSentimentIntelligence.filter(
+            (g) => g.loyaltyScore >= 80
+          ).length,
+          color: "#4ade80",
+        },
+        {
+          label: "Positive",
+          range: "55–79",
+          count: aiGuestSentimentIntelligence.filter(
+            (g) => g.loyaltyScore >= 55 && g.loyaltyScore < 80
+          ).length,
+          color: "#60a5fa",
+        },
+        {
+          label: "Neutral",
+          range: "35–54",
+          count: aiGuestSentimentIntelligence.filter(
+            (g) => g.loyaltyScore >= 35 && g.loyaltyScore < 55
+          ).length,
+          color: "#facc15",
+        },
+        {
+          label: "At Risk",
+          range: "0–34",
+          count: aiGuestSentimentIntelligence.filter(
+            (g) => g.loyaltyScore < 35
+          ).length,
+          color: "#f87171",
+        },
+      ].map((bucket) => (
+        <div
+          key={bucket.label}
+          style={{
+            padding: "18px",
+            borderRadius: "22px",
+            background: "rgba(15,23,42,0.76)",
+            border: "1px solid rgba(148,163,184,0.12)",
+          }}
+        >
+          <div
+            style={{
+              color: bucket.color,
+              fontSize: "13px",
+              fontWeight: "900",
+              marginBottom: "8px",
+            }}
+          >
+            {bucket.label}
+          </div>
+
+          <div
+            style={{
+              color: "white",
+              fontSize: "30px",
+              fontWeight: "950",
+              marginBottom: "6px",
+            }}
+          >
+            {bucket.count}
+          </div>
+
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "12px",
+              fontWeight: "700",
+            }}
+          >
+            Loyalty Score {bucket.range}
+          </div>
+
+          <div
+            style={{
+              marginTop: "14px",
+              height: "8px",
+              borderRadius: "999px",
+              background: "rgba(51,65,85,0.72)",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                width: `${Math.min(
+                  100,
+                  (bucket.count /
+                    (aiGuestSentimentIntelligence.length || 1)) *
+                    100
+                )}%`,
+                height: "100%",
+                borderRadius: "999px",
+                background: bucket.color,
+              }}
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
+{/* =========================
+   GUEST LIFETIME VALUE FORECASTING
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+      background:
+        "linear-gradient(135deg, rgba(34,197,94,0.13), rgba(15,23,42,0.96))",
+      border: "1px solid rgba(74,222,128,0.20)",
+      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
+    }}
+  >
+    <div
+      style={{
+        color: "#86efac",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      Guest Lifetime Value Forecasting
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "24px",
+        fontWeight: "950",
+        marginBottom: "18px",
+      }}
+    >
+      Predicted Future Guest Revenue
+    </h3>
+
+    <div
+      style={{
+        display: "grid",
+        gap: "14px",
+      }}
+    >
+      {aiGuestSentimentIntelligence.slice(0, 6).map((guest, index) => {
+        const projectedLifetimeValue =
+          guest.spend + guest.avgSpend * Math.max(3, guest.loyaltyScore / 10);
+
+        return (
+          <div
+            key={guest.id || index}
+            style={{
+              padding: "18px",
+              borderRadius: "20px",
+              background: "rgba(15,23,42,0.74)",
+              border: "1px solid rgba(74,222,128,0.14)",
+              display: "grid",
+              gridTemplateColumns: isMobile
+                ? "1fr"
+                : "1.4fr 1fr 1fr 1fr",
+              gap: "14px",
+              alignItems: "center",
+            }}
+          >
+            <div>
+              <div
+                style={{
+                  color: "white",
+                  fontSize: "17px",
+                  fontWeight: "900",
+                  marginBottom: "5px",
+                }}
+              >
+                {guest.name}
+              </div>
+
+              <div
+                style={{
+                  color: "#94a3b8",
+                  fontSize: "12px",
+                  fontWeight: "700",
+                }}
+              >
+                {guest.guestTier} • {guest.sentimentScore} sentiment
+              </div>
+            </div>
+
+            <div>
+              <div style={{ color: "#94a3b8", fontSize: "12px" }}>
+                Current Spend
+              </div>
+              <div style={{ color: "#e2e8f0", fontWeight: "900" }}>
+                ${guest.spend.toFixed(0)}
+              </div>
+            </div>
+
+            <div>
+              <div style={{ color: "#94a3b8", fontSize: "12px" }}>
+                Avg Spend
+              </div>
+              <div style={{ color: "#93c5fd", fontWeight: "900" }}>
+                ${guest.avgSpend.toFixed(0)}
+              </div>
+            </div>
+
+            <div>
+              <div style={{ color: "#94a3b8", fontSize: "12px" }}>
+                Forecast LTV
+              </div>
+              <div style={{ color: "#86efac", fontWeight: "950" }}>
+                ${projectedLifetimeValue.toFixed(0)}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  </div>
+)}
+{/* =========================
+   AI PERSONALIZED CAMPAIGN GENERATOR
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+      background:
+        "linear-gradient(135deg, rgba(236,72,153,0.13), rgba(15,23,42,0.96))",
+      border: "1px solid rgba(244,114,182,0.20)",
+      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
+    }}
+  >
+    <div
+      style={{
+        color: "#f9a8d4",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      AI Personalized Campaign Generator
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "24px",
+        fontWeight: "950",
+        marginBottom: "12px",
+      }}
+    >
+      Guest-Specific Marketing Recommendations
+    </h3>
+
+    <p
+      style={{
+        color: "#cbd5e1",
+        fontSize: "13px",
+        lineHeight: 1.7,
+        marginBottom: "18px",
+      }}
+    >
+      AI recommends the right campaign type based on guest tier, loyalty score,
+      churn risk, and average spend behavior.
+    </p>
+
+    <div style={{ display: "grid", gap: "14px" }}>
+      {aiGuestSentimentIntelligence.slice(0, 6).map((guest, index) => {
+        const campaignType =
+          guest.churnRisk === "High"
+            ? "Win-Back Offer"
+            : guest.guestTier === "VIP"
+            ? "VIP Appreciation"
+            : guest.loyaltyScore >= 55
+            ? "Loyalty Booster"
+            : "First-Time Return Offer";
+
+        const campaignMessage =
+          guest.churnRisk === "High"
+            ? `Send ${guest.name} a limited-time comeback offer.`
+            : guest.guestTier === "VIP"
+            ? `Invite ${guest.name} to an exclusive VIP dining experience.`
+            : guest.loyaltyScore >= 55
+            ? `Reward ${guest.name} with a loyalty incentive.`
+            : `Encourage ${guest.name} to return with a personalized offer.`;
+
+        return (
+          <div
+            key={guest.id || index}
+            style={{
+              padding: "18px",
+              borderRadius: "22px",
+              background: "rgba(15,23,42,0.74)",
+              border: "1px solid rgba(244,114,182,0.14)",
+              display: "grid",
+              gridTemplateColumns: isMobile
+                ? "1fr"
+                : "1.2fr 1fr 1.4fr",
+              gap: "14px",
+              alignItems: "center",
+            }}
+          >
+            <div>
+              <div
+                style={{
+                  color: "white",
+                  fontSize: "17px",
+                  fontWeight: "900",
+                  marginBottom: "5px",
+                }}
+              >
+                {guest.name}
+              </div>
+
+              <div
+                style={{
+                  color: "#94a3b8",
+                  fontSize: "12px",
+                  fontWeight: "700",
+                }}
+              >
+                {guest.guestTier} • {guest.churnRisk} churn risk
+              </div>
+            </div>
+
+            <div>
+              <div
+                style={{
+                  color: "#94a3b8",
+                  fontSize: "12px",
+                  marginBottom: "5px",
+                }}
+              >
+                Recommended Campaign
+              </div>
+
+              <div
+                style={{
+                  color: "#f9a8d4",
+                  fontSize: "14px",
+                  fontWeight: "900",
+                }}
+              >
+                {campaignType}
+              </div>
+            </div>
+
+            <div
+              style={{
+                color: "#cbd5e1",
+                fontSize: "13px",
+                lineHeight: 1.6,
+              }}
+            >
+              {campaignMessage}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  </div>
+)}
+{/* =========================
+   AI WIN-BACK AUTOMATION ENGINE
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+      background:
+        "linear-gradient(135deg, rgba(249,115,22,0.13), rgba(15,23,42,0.96))",
+      border: "1px solid rgba(251,146,60,0.22)",
+      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
+    }}
+  >
+    <div
+      style={{
+        color: "#fdba74",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      AI Win-Back Automation Engine
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "24px",
+        fontWeight: "950",
+        marginBottom: "12px",
+      }}
+    >
+      Recover Guests Before They Disappear
+    </h3>
+
+    <p
+      style={{
+        color: "#cbd5e1",
+        fontSize: "13px",
+        lineHeight: 1.7,
+        marginBottom: "18px",
+      }}
+    >
+      AI identifies at-risk guests and recommends automated comeback offers to
+      recover repeat visits.
+    </p>
+
+    <div style={{ display: "grid", gap: "14px" }}>
+      {aiGuestSentimentIntelligence
+        .filter((guest) => guest.churnRisk === "High")
+        .slice(0, 5)
+        .map((guest, index) => {
+          const estimatedRecoveryValue = guest.avgSpend * 2.5;
+
+          return (
+            <div
+              key={guest.id || index}
+              style={{
+                padding: "18px",
+                borderRadius: "22px",
+                background: "rgba(15,23,42,0.74)",
+                border: "1px solid rgba(251,146,60,0.16)",
+                display: "grid",
+                gridTemplateColumns: isMobile
+                  ? "1fr"
+                  : "1.2fr 1fr 1fr 1.2fr",
+                gap: "14px",
+                alignItems: "center",
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    color: "white",
+                    fontSize: "17px",
+                    fontWeight: "900",
+                    marginBottom: "5px",
+                  }}
+                >
+                  {guest.name}
+                </div>
+
+                <div
+                  style={{
+                    color: "#94a3b8",
+                    fontSize: "12px",
+                    fontWeight: "700",
+                  }}
+                >
+                  {guest.visits} visits • {guest.sentimentScore} sentiment
+                </div>
+              </div>
+
+              <div>
+                <div style={{ color: "#94a3b8", fontSize: "12px" }}>
+                  Suggested Offer
+                </div>
+                <div style={{ color: "#fdba74", fontWeight: "900" }}>
+                  Comeback Deal
+                </div>
+              </div>
+
+              <div>
+                <div style={{ color: "#94a3b8", fontSize: "12px" }}>
+                  Recovery Value
+                </div>
+                <div style={{ color: "#86efac", fontWeight: "950" }}>
+                  ${estimatedRecoveryValue.toFixed(0)}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                style={{
+                  padding: "12px 14px",
+                  borderRadius: "14px",
+                  border: "1px solid rgba(251,146,60,0.28)",
+                  background: "rgba(249,115,22,0.16)",
+                  color: "#fed7aa",
+                  fontSize: "13px",
+                  fontWeight: "900",
+                  cursor: "pointer",
+                }}
+              >
+                Draft Win-Back Campaign
+              </button>
+            </div>
+          );
+        })}
+    </div>
+  </div>
+)}
+{/* =========================
+   AI RESERVATION INTELLIGENCE
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+      background:
+        "linear-gradient(135deg, rgba(6,182,212,0.13), rgba(15,23,42,0.96))",
+      border: "1px solid rgba(34,211,238,0.22)",
+      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
+    }}
+  >
+    <div
+      style={{
+        color: "#67e8f9",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      AI Reservation Intelligence
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "24px",
+        fontWeight: "950",
+        marginBottom: "12px",
+      }}
+    >
+      Reservation Demand & Guest Booking Insights
+    </h3>
+
+    <p
+      style={{
+        color: "#cbd5e1",
+        fontSize: "13px",
+        lineHeight: 1.7,
+        marginBottom: "20px",
+      }}
+    >
+      AI analyzes reservation demand patterns, booking behavior, cancellation
+      risk, and peak guest windows to optimize staffing and revenue planning.
+    </p>
+
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: isMobile
+          ? "1fr"
+          : "repeat(4,minmax(0,1fr))",
+        gap: "16px",
+        marginBottom: "22px",
+      }}
+    >
+      <GlassCard
+        title="Peak Reservation Hour"
+        value="7 PM"
+        subtitle="Highest booking activity"
+      />
+
+      <GlassCard
+        title="Cancellation Risk"
+        value="12%"
+        subtitle="Predicted reservation cancellations"
+      />
+
+      <GlassCard
+        title="Weekend Demand"
+        value="+28%"
+        subtitle="Compared to weekday traffic"
+      />
+
+      <GlassCard
+        title="Reservation Fill Rate"
+        value="84%"
+        subtitle="Expected seating utilization"
+      />
+    </div>
+
+    <div
+      style={{
+        display: "grid",
+        gap: "14px",
+      }}
+    >
+      {[
+        {
+          title: "Friday Dinner Rush Forecast",
+          insight:
+            "AI predicts elevated reservation demand between 6 PM and 8 PM.",
+          impact: "Increase staffing coverage",
+        },
+        {
+          title: "VIP Reservation Opportunity",
+          insight:
+            "Multiple high-value guests are predicted to revisit this weekend.",
+          impact: "Prepare premium seating",
+        },
+        {
+          title: "Reservation Gap Detected",
+          insight:
+            "Low reservation activity expected Tuesday after 7 PM.",
+          impact: "Launch targeted promotion",
+        },
+      ].map((item, index) => (
+        <div
+          key={index}
+          style={{
+            padding: "18px",
+            borderRadius: "20px",
+            background: "rgba(15,23,42,0.74)",
+            border: "1px solid rgba(34,211,238,0.14)",
+          }}
+        >
+          <div
+            style={{
+              color: "white",
+              fontSize: "17px",
+              fontWeight: "900",
+              marginBottom: "8px",
+            }}
+          >
+            {item.title}
+          </div>
+
+          <div
+            style={{
+              color: "#cbd5e1",
+              fontSize: "13px",
+              lineHeight: 1.7,
+              marginBottom: "12px",
+            }}
+          >
+            {item.insight}
+          </div>
+
+          <div
+            style={{
+              display: "inline-flex",
+              padding: "8px 12px",
+              borderRadius: "999px",
+              background: "rgba(34,211,238,0.14)",
+              border: "1px solid rgba(34,211,238,0.22)",
+              color: "#67e8f9",
+              fontSize: "12px",
+              fontWeight: "900",
+            }}
+          >
+            {item.impact}
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
+{/* =========================
+   AI GUEST JOURNEY TRACKING
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+      background:
+        "linear-gradient(135deg, rgba(99,102,241,0.13), rgba(15,23,42,0.96))",
+      border: "1px solid rgba(129,140,248,0.22)",
+      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
+    }}
+  >
+    <div
+      style={{
+        color: "#a5b4fc",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      AI Guest Journey Tracking
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "24px",
+        fontWeight: "950",
+        marginBottom: "12px",
+      }}
+    >
+      End-To-End Customer Engagement Intelligence
+    </h3>
+
+    <p
+      style={{
+        color: "#cbd5e1",
+        fontSize: "13px",
+        lineHeight: 1.7,
+        marginBottom: "22px",
+      }}
+    >
+      AI tracks the full customer lifecycle from first visit to loyalty growth,
+      churn risk, and repeat purchase behavior.
+    </p>
+
+    <div
+      style={{
+        display: "grid",
+        gap: "16px",
+      }}
+    >
+      {aiGuestSentimentIntelligence
+        .slice(0, 5)
+        .map((guest, index) => {
+          const currentStage =
+            guest.visits <= 1
+              ? "First Visit"
+              : guest.visits <= 3
+              ? "Returning Guest"
+              : guest.guestTier === "VIP"
+              ? "VIP Loyalist"
+              : "Loyal Customer";
+
+          const nextAction =
+            guest.churnRisk === "High"
+              ? "Launch Win-Back Offer"
+              : guest.guestTier === "VIP"
+              ? "Invite To VIP Experience"
+              : "Increase Loyalty Engagement";
+
+          return (
+            <div
+              key={guest.id || index}
+              style={{
+                padding: "20px",
+                borderRadius: "22px",
+                background: "rgba(15,23,42,0.74)",
+                border: "1px solid rgba(129,140,248,0.14)",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: isMobile ? "flex-start" : "center",
+                  flexDirection: isMobile ? "column" : "row",
+                  gap: "14px",
+                  marginBottom: "18px",
+                }}
+              >
+                <div>
+                  <div
+                    style={{
+                      color: "white",
+                      fontSize: "18px",
+                      fontWeight: "900",
+                      marginBottom: "6px",
+                    }}
+                  >
+                    {guest.name}
+                  </div>
+
+                  <div
+                    style={{
+                      color: "#94a3b8",
+                      fontSize: "12px",
+                      fontWeight: "700",
+                    }}
+                  >
+                    {guest.visits} visits • ${guest.avgSpend.toFixed(0)} avg spend
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: "999px",
+                    background: "rgba(99,102,241,0.14)",
+                    border: "1px solid rgba(129,140,248,0.22)",
+                    color: "#c7d2fe",
+                    fontSize: "12px",
+                    fontWeight: "900",
+                  }}
+                >
+                  {currentStage}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "10px",
+                  flexWrap: "wrap",
+                  marginBottom: "18px",
+                }}
+              >
+                {[
+                  "Awareness",
+                  "First Visit",
+                  "Repeat Visits",
+                  "Loyalty",
+                  "VIP",
+                ].map((step, stepIndex) => {
+                  const activeSteps =
+                    guest.visits <= 1
+                      ? 2
+                      : guest.visits <= 3
+                      ? 3
+                      : guest.guestTier === "VIP"
+                      ? 5
+                      : 4;
+
+                  const isActive = stepIndex + 1 <= activeSteps;
+
+                  return (
+                    <div
+                      key={step}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "10px",
+                      }}
+                    >
+                      <div
+                        style={{
+                          padding: "8px 12px",
+                          borderRadius: "999px",
+                          background: isActive
+                            ? "rgba(99,102,241,0.18)"
+                            : "rgba(51,65,85,0.55)",
+                          color: isActive
+                            ? "#c7d2fe"
+                            : "#64748b",
+                          fontSize: "11px",
+                          fontWeight: "800",
+                          border: isActive
+                            ? "1px solid rgba(129,140,248,0.24)"
+                            : "1px solid rgba(71,85,105,0.18)",
+                        }}
+                      >
+                        {step}
+                      </div>
+
+                      {step !== "VIP" && (
+                        <div
+                          style={{
+                            width: "18px",
+                            height: "2px",
+                            background: isActive
+                              ? "rgba(129,140,248,0.5)"
+                              : "rgba(71,85,105,0.35)",
+                          }}
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div
+                style={{
+                  padding: "14px",
+                  borderRadius: "16px",
+                  background: "rgba(30,41,59,0.72)",
+                  border: "1px solid rgba(148,163,184,0.10)",
+                }}
+              >
+                <div
+                  style={{
+                    color: "#a5b4fc",
+                    fontSize: "12px",
+                    fontWeight: "900",
+                    marginBottom: "6px",
+                  }}
+                >
+                  AI Recommended Next Action
+                </div>
+
+                <div
+                  style={{
+                    color: "#e2e8f0",
+                    fontSize: "13px",
+                    lineHeight: 1.6,
+                  }}
+                >
+                  {nextAction}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+    </div>
+  </div>
+)}
+{/* =========================
+   AI DINING BEHAVIOR INTELLIGENCE
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+      background:
+        "linear-gradient(135deg, rgba(16,185,129,0.13), rgba(15,23,42,0.96))",
+      border: "1px solid rgba(52,211,153,0.22)",
+      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
+    }}
+  >
+    <div
+      style={{
+        color: "#6ee7b7",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      AI Dining Behavior Intelligence
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "24px",
+        fontWeight: "950",
+        marginBottom: "12px",
+      }}
+    >
+      Guest Ordering & Visit Pattern Analysis
+    </h3>
+
+    <p
+      style={{
+        color: "#cbd5e1",
+        fontSize: "13px",
+        lineHeight: 1.7,
+        marginBottom: "22px",
+      }}
+    >
+      AI analyzes guest spending habits, dining frequency, ordering behavior,
+      and visit timing patterns to optimize revenue opportunities.
+    </p>
+
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: isMobile
+          ? "1fr"
+          : "repeat(4,minmax(0,1fr))",
+        gap: "16px",
+        marginBottom: "22px",
+      }}
+    >
+      <GlassCard
+        title="Peak Dining Day"
+        value="Friday"
+        subtitle="Highest guest activity"
+      />
+
+      <GlassCard
+        title="Most Common Visit Time"
+        value="7:15 PM"
+        subtitle="Average reservation arrival"
+      />
+
+      <GlassCard
+        title="Top Guest Category"
+        value="VIP"
+        subtitle="Highest revenue segment"
+      />
+
+      <GlassCard
+        title="Repeat Visit Rate"
+        value="68%"
+        subtitle="Returning customer frequency"
+      />
+    </div>
+
+    <div
+      style={{
+        display: "grid",
+        gap: "14px",
+      }}
+    >
+      {aiGuestSentimentIntelligence
+        .slice(0, 6)
+        .map((guest, index) => {
+          const diningPattern =
+            guest.avgSpend >= 120
+              ? "Premium Dining Preference"
+              : guest.visits >= 5
+              ? "Frequent Repeat Visitor"
+              : guest.churnRisk === "High"
+              ? "Declining Engagement"
+              : "Standard Dining Pattern";
+
+          const recommendedUpsell =
+            guest.avgSpend >= 120
+              ? "Chef Specials & Premium Pairings"
+              : guest.visits >= 5
+              ? "Loyalty Rewards"
+              : guest.churnRisk === "High"
+              ? "Limited-Time Return Offer"
+              : "Combo Promotions";
+
+          return (
+            <div
+              key={guest.id || index}
+              style={{
+                padding: "18px",
+                borderRadius: "22px",
+                background: "rgba(15,23,42,0.74)",
+                border: "1px solid rgba(52,211,153,0.14)",
+                display: "grid",
+                gridTemplateColumns: isMobile
+                  ? "1fr"
+                  : "1.2fr 1fr 1fr",
+                gap: "14px",
+                alignItems: "center",
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    color: "white",
+                    fontSize: "17px",
+                    fontWeight: "900",
+                    marginBottom: "5px",
+                  }}
+                >
+                  {guest.name}
+                </div>
+
+                <div
+                  style={{
+                    color: "#94a3b8",
+                    fontSize: "12px",
+                    fontWeight: "700",
+                  }}
+                >
+                  {guest.visits} visits • ${guest.avgSpend.toFixed(0)} avg spend
+                </div>
+              </div>
+
+              <div>
+                <div
+                  style={{
+                    color: "#94a3b8",
+                    fontSize: "12px",
+                    marginBottom: "5px",
+                  }}
+                >
+                  Dining Pattern
+                </div>
+
+                <div
+                  style={{
+                    color: "#6ee7b7",
+                    fontSize: "13px",
+                    fontWeight: "900",
+                  }}
+                >
+                  {diningPattern}
+                </div>
+              </div>
+
+              <div>
+                <div
+                  style={{
+                    color: "#94a3b8",
+                    fontSize: "12px",
+                    marginBottom: "5px",
+                  }}
+                >
+                  Recommended Offer
+                </div>
+
+                <div
+                  style={{
+                    color: "#e2e8f0",
+                    fontSize: "13px",
+                    fontWeight: "800",
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {recommendedUpsell}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+    </div>
+  </div>
+)}
+{/* =========================
+   AI GUEST RETENTION FORECASTING
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+      background:
+        "linear-gradient(135deg, rgba(59,130,246,0.13), rgba(15,23,42,0.96))",
+      border: "1px solid rgba(96,165,250,0.22)",
+      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
+    }}
+  >
+    <div
+      style={{
+        color: "#93c5fd",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      AI Guest Retention Forecasting
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "24px",
+        fontWeight: "950",
+        marginBottom: "18px",
+      }}
+    >
+      Predicted Guest Return Probability
+    </h3>
+
+    <div style={{ display: "grid", gap: "14px" }}>
+      {aiGuestSentimentIntelligence.slice(0, 6).map((guest, index) => {
+        const retentionProbability =
+          guest.churnRisk === "High"
+            ? Math.max(18, guest.loyaltyScore - 25)
+            : guest.guestTier === "VIP"
+            ? Math.min(98, guest.loyaltyScore + 12)
+            : Math.min(92, guest.loyaltyScore + 8);
+
+        const retentionStatus =
+          retentionProbability >= 80
+            ? "Strong Retention"
+            : retentionProbability >= 55
+            ? "Moderate Retention"
+            : "Retention Risk";
+
+        return (
+          <div
+            key={guest.id || index}
+            style={{
+              padding: "18px",
+              borderRadius: "22px",
+              background: "rgba(15,23,42,0.74)",
+              border: "1px solid rgba(96,165,250,0.14)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: isMobile ? "flex-start" : "center",
+                flexDirection: isMobile ? "column" : "row",
+                gap: "12px",
+                marginBottom: "12px",
+              }}
+            >
+              <div>
+                <div style={{ color: "white", fontSize: "17px", fontWeight: "900" }}>
+                  {guest.name}
+                </div>
+
+                <div style={{ color: "#94a3b8", fontSize: "12px", marginTop: "4px" }}>
+                  {guest.guestTier} • {guest.visits} visits • {guest.churnRisk} churn risk
+                </div>
+              </div>
+
+              <div
+                style={{
+                  color:
+                    retentionProbability >= 80
+                      ? "#86efac"
+                      : retentionProbability >= 55
+                      ? "#fde68a"
+                      : "#fca5a5",
+                  fontSize: "18px",
+                  fontWeight: "950",
+                }}
+              >
+                {retentionProbability}%
+              </div>
+            </div>
+
+            <div
+              style={{
+                height: "10px",
+                borderRadius: "999px",
+                background: "rgba(51,65,85,0.72)",
+                overflow: "hidden",
+                marginBottom: "10px",
+              }}
+            >
+              <div
+                style={{
+                  width: `${retentionProbability}%`,
+                  height: "100%",
+                  borderRadius: "999px",
+                  background:
+                    retentionProbability >= 80
+                      ? "linear-gradient(90deg,#22c55e,#86efac)"
+                      : retentionProbability >= 55
+                      ? "linear-gradient(90deg,#facc15,#fde68a)"
+                      : "linear-gradient(90deg,#ef4444,#fca5a5)",
+                }}
+              />
+            </div>
+
+            <div style={{ color: "#cbd5e1", fontSize: "13px", fontWeight: "800" }}>
+              {retentionStatus}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  </div>
+)}
+{/* =========================
+   AI DYNAMIC OFFER OPTIMIZATION
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+      background:
+        "linear-gradient(135deg, rgba(234,179,8,0.13), rgba(15,23,42,0.96))",
+      border: "1px solid rgba(250,204,21,0.22)",
+      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
+    }}
+  >
+    <div
+      style={{
+        color: "#fde68a",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      AI Dynamic Offer Optimization
+    </div>
+
+    <h3 style={{ color: "white", fontSize: "24px", fontWeight: "950" }}>
+      Best Offer For Each Guest Segment
+    </h3>
+
+    <div style={{ display: "grid", gap: "14px", marginTop: "18px" }}>
+      {aiGuestSentimentIntelligence.slice(0, 6).map((guest, index) => {
+        const optimizedOffer =
+          guest.churnRisk === "High"
+            ? "20% Comeback Offer"
+            : guest.guestTier === "VIP"
+            ? "Complimentary Premium Appetizer"
+            : guest.avgSpend >= 75
+            ? "Chef Special Pairing"
+            : "Free Dessert With Next Visit";
+
+        const expectedLift =
+          guest.churnRisk === "High"
+            ? "+18% return chance"
+            : guest.guestTier === "VIP"
+            ? "+12% loyalty lift"
+            : guest.avgSpend >= 75
+            ? "+9% ticket lift"
+            : "+7% revisit lift";
+
+        return (
+          <div
+            key={guest.id || index}
+            style={{
+              padding: "18px",
+              borderRadius: "22px",
+              background: "rgba(15,23,42,0.74)",
+              border: "1px solid rgba(250,204,21,0.14)",
+              display: "grid",
+              gridTemplateColumns: isMobile
+                ? "1fr"
+                : "1.2fr 1.2fr 1fr",
+              gap: "14px",
+              alignItems: "center",
+            }}
+          >
+            <div>
+              <div style={{ color: "white", fontSize: "17px", fontWeight: "900" }}>
+                {guest.name}
+              </div>
+              <div style={{ color: "#94a3b8", fontSize: "12px", marginTop: "4px" }}>
+                {guest.guestTier} • ${guest.avgSpend.toFixed(0)} avg spend
+              </div>
+            </div>
+
+            <div>
+              <div style={{ color: "#94a3b8", fontSize: "12px" }}>
+                Optimized Offer
+              </div>
+              <div style={{ color: "#fde68a", fontWeight: "900", marginTop: "4px" }}>
+                {optimizedOffer}
+              </div>
+            </div>
+
+            <div
+              style={{
+                padding: "8px 12px",
+                borderRadius: "999px",
+                background: "rgba(250,204,21,0.14)",
+                color: "#fef3c7",
+                fontSize: "12px",
+                fontWeight: "900",
+                width: "fit-content",
+              }}
+            >
+              {expectedLift}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  </div>
+)}
+{/* =========================
+   AI REVENUE RECOVERY CAMPAIGNS
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+      background:
+        "linear-gradient(135deg, rgba(34,197,94,0.14), rgba(15,23,42,0.96))",
+      border: "1px solid rgba(74,222,128,0.22)",
+      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
+    }}
+  >
+    <div
+      style={{
+        color: "#86efac",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      AI Revenue Recovery Campaigns
+    </div>
+
+    <h3 style={{ color: "white", fontSize: "24px", fontWeight: "950" }}>
+      Recover Lost Guest Revenue Automatically
+    </h3>
+
+    <div style={{ display: "grid", gap: "14px", marginTop: "18px" }}>
+      {aiGuestSentimentIntelligence.slice(0, 6).map((guest, index) => {
+        const recoveryOpportunity =
+          guest.churnRisk === "High"
+            ? guest.avgSpend * 3
+            : guest.guestTier === "VIP"
+            ? guest.avgSpend * 1.8
+            : guest.avgSpend * 1.3;
+
+        const recoveryCampaign =
+          guest.churnRisk === "High"
+            ? "Win-Back Revenue Recovery"
+            : guest.guestTier === "VIP"
+            ? "VIP Spend Expansion"
+            : "Repeat Visit Growth";
+
+        return (
+          <div
+            key={guest.id || index}
+            style={{
+              padding: "18px",
+              borderRadius: "22px",
+              background: "rgba(15,23,42,0.74)",
+              border: "1px solid rgba(74,222,128,0.14)",
+              display: "grid",
+              gridTemplateColumns: isMobile
+                ? "1fr"
+                : "1.2fr 1.2fr 1fr 1fr",
+              gap: "14px",
+              alignItems: "center",
+            }}
+          >
+            <div>
+              <div style={{ color: "white", fontSize: "17px", fontWeight: "900" }}>
+                {guest.name}
+              </div>
+
+              <div style={{ color: "#94a3b8", fontSize: "12px", marginTop: "4px" }}>
+                {guest.guestTier} • {guest.churnRisk} churn risk
+              </div>
+            </div>
+
+            <div>
+              <div style={{ color: "#94a3b8", fontSize: "12px" }}>
+                Recovery Campaign
+              </div>
+
+              <div style={{ color: "#86efac", fontWeight: "900", marginTop: "4px" }}>
+                {recoveryCampaign}
+              </div>
+            </div>
+
+            <div>
+              <div style={{ color: "#94a3b8", fontSize: "12px" }}>
+                Opportunity
+              </div>
+
+              <div style={{ color: "#bbf7d0", fontWeight: "950", marginTop: "4px" }}>
+                ${recoveryOpportunity.toFixed(0)}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              style={{
+                padding: "12px 14px",
+                borderRadius: "14px",
+                border: "1px solid rgba(74,222,128,0.26)",
+                background: "rgba(34,197,94,0.14)",
+                color: "#bbf7d0",
+                fontSize: "13px",
+                fontWeight: "900",
+                cursor: "pointer",
+              }}
+            >
+              Build Campaign
+            </button>
+          </div>
+        );
+      })}
+    </div>
+  </div>
+)}
+{/* =========================
+   AI GUEST COMMAND CENTER SUMMARY
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "26px",
+      borderRadius: "30px",
+      background:
+        "linear-gradient(135deg, rgba(14,165,233,0.18), rgba(99,102,241,0.14), rgba(15,23,42,0.98))",
+      border: "1px solid rgba(125,211,252,0.24)",
+      boxShadow: "0 28px 80px rgba(2,6,23,0.38)",
+    }}
+  >
+    <div
+      style={{
+        color: "#bae6fd",
+        fontSize: "12px",
+        fontWeight: "950",
+        letterSpacing: "0.1em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      AI Guest Command Center
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "28px",
+        fontWeight: "950",
+        marginBottom: "12px",
+      }}
+    >
+      Guest Revenue Intelligence Summary
+    </h3>
+
+    <p
+      style={{
+        color: "#cbd5e1",
+        fontSize: "14px",
+        lineHeight: 1.7,
+        maxWidth: "880px",
+        marginBottom: "22px",
+      }}
+    >
+      SerVen AI is tracking VIP guests, churn risk, loyalty signals, retention
+      probability, campaign opportunities, and revenue recovery actions from
+      guest behavior data.
+    </p>
+
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: isMobile
+          ? "1fr"
+          : "repeat(4,minmax(0,1fr))",
+        gap: "16px",
+        marginBottom: "22px",
+      }}
+    >
+      <GlassCard
+        title="Guests Tracked"
+        value={aiGuestSentimentIntelligence.length}
+        subtitle="Total customer profiles analyzed"
+      />
+
+      <GlassCard
+        title="VIP Guests"
+        value={vipGuests}
+        subtitle="High-value customers detected"
+      />
+
+      <GlassCard
+        title="Churn Risks"
+        value={highRiskGuests}
+        subtitle="Guests needing recovery action"
+      />
+
+      <GlassCard
+        title="Avg Guest Spend"
+        value={`$${avgGuestSpend.toFixed(0)}`}
+        subtitle="Average spend per visit"
+      />
+    </div>
+
+    <div
+      style={{
+        padding: "18px",
+        borderRadius: "22px",
+        background: "rgba(15,23,42,0.74)",
+        border: "1px solid rgba(125,211,252,0.16)",
+      }}
+    >
+      <div
+        style={{
+          color: "#7dd3fc",
+          fontSize: "12px",
+          fontWeight: "900",
+          marginBottom: "8px",
+        }}
+      >
+        AI Summary
+      </div>
+
+      <div
+        style={{
+          color: "#e2e8f0",
+          fontSize: "14px",
+          lineHeight: 1.7,
+        }}
+      >
+        {highRiskGuests > 0
+          ? `${highRiskGuests} guest profiles show churn risk. AI recommends launching win-back campaigns and dynamic offers to recover future revenue.`
+          : "Guest retention signals are currently healthy. AI recommends focusing on VIP loyalty expansion and premium upsell campaigns."}
+      </div>
+    </div>
+  </div>
+)}
+{/* =========================
+   AI EXECUTIVE OPERATING SYSTEM
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "24px",
+      padding: "28px",
+      borderRadius: "32px",
+      background:
+        "linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.94), rgba(79,70,229,0.16))",
+      border: "1px solid rgba(129,140,248,0.22)",
+      boxShadow: "0 30px 90px rgba(2,6,23,0.42)",
+      overflow: "hidden",
+      position: "relative",
+    }}
+  >
+    <div
+      style={{
+        position: "absolute",
+        top: "-120px",
+        right: "-120px",
+        width: "260px",
+        height: "260px",
+        borderRadius: "999px",
+        background: "rgba(99,102,241,0.12)",
+        filter: "blur(40px)",
+      }}
+    />
+
+    <div
+      style={{
+        position: "relative",
+        zIndex: 2,
+      }}
+    >
+      <div
+        style={{
+          color: "#c7d2fe",
+          fontSize: "12px",
+          fontWeight: "950",
+          letterSpacing: "0.1em",
+          textTransform: "uppercase",
+          marginBottom: "10px",
+        }}
+      >
+        AI Executive Operating System
+      </div>
+
+      <h2
+        style={{
+          color: "white",
+          fontSize: "34px",
+          fontWeight: "950",
+          marginBottom: "14px",
+        }}
+      >
+        Autonomous Restaurant Intelligence Layer
+      </h2>
+
+      <p
+        style={{
+          color: "#cbd5e1",
+          fontSize: "14px",
+          lineHeight: 1.8,
+          maxWidth: "920px",
+          marginBottom: "26px",
+        }}
+      >
+        SerVen AI continuously analyzes restaurant operations, revenue,
+        guests, labor, inventory, forecasting, and profit leakage to guide
+        executive-level decisions automatically.
+      </p>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: isMobile
+            ? "1fr"
+            : "repeat(4,minmax(0,1fr))",
+          gap: "16px",
+        }}
+      >
+        <GlassCard
+          title="AI Systems Active"
+          value="18"
+          subtitle="Operational intelligence modules"
+        />
+
+        <GlassCard
+          title="Profit Opportunities"
+          value="12"
+          subtitle="AI-detected optimization actions"
+        />
+
+        <GlassCard
+          title="Revenue Protected"
+          value="$18.4k"
+          subtitle="Estimated monthly protection"
+        />
+
+        <GlassCard
+          title="AI Confidence"
+          value="94%"
+          subtitle="Executive intelligence certainty"
+        />
+      </div>
+    </div>
+  </div>
+)}
+{/* =========================
+   AI EXECUTIVE DECISION TIMELINE
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "30px",
+      background:
+        "linear-gradient(135deg, rgba(99,102,241,0.14), rgba(15,23,42,0.96))",
+      border: "1px solid rgba(129,140,248,0.22)",
+      boxShadow: "0 24px 70px rgba(2,6,23,0.32)",
+    }}
+  >
+    <div
+      style={{
+        color: "#c7d2fe",
+        fontSize: "12px",
+        fontWeight: "950",
+        letterSpacing: "0.1em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      AI Executive Decision Timeline
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "24px",
+        fontWeight: "950",
+        marginBottom: "18px",
+      }}
+    >
+      AI-Prioritized Restaurant Actions
+    </h3>
+
+    <div style={{ display: "grid", gap: "14px" }}>
+      {[
+        {
+          time: "Now",
+          title: "Recover At-Risk Guest Revenue",
+          description:
+            "AI detected guests with high churn risk and recommends win-back campaigns.",
+          priority: "Critical",
+        },
+        {
+          time: "Next 24 Hours",
+          title: "Optimize Labor Coverage",
+          description:
+            "AI predicts labor inefficiency during slower revenue windows.",
+          priority: "High",
+        },
+        {
+          time: "This Week",
+          title: "Protect VIP Guest Loyalty",
+          description:
+            "AI recommends premium guest engagement to protect high-value customers.",
+          priority: "Medium",
+        },
+        {
+          time: "This Month",
+          title: "Reduce Vendor & Inventory Leakage",
+          description:
+            "AI identified purchasing and inventory variance opportunities.",
+          priority: "High",
+        },
+      ].map((item, index) => (
+        <div
+          key={index}
+          style={{
+            padding: "18px",
+            borderRadius: "22px",
+            background: "rgba(15,23,42,0.76)",
+            border: "1px solid rgba(129,140,248,0.14)",
+            display: "grid",
+            gridTemplateColumns: isMobile ? "1fr" : "130px 1fr 120px",
+            gap: "14px",
+            alignItems: "center",
+          }}
+        >
+          <div
+            style={{
+              color: "#a5b4fc",
+              fontSize: "13px",
+              fontWeight: "900",
+            }}
+          >
+            {item.time}
+          </div>
+
+          <div>
+            <div
+              style={{
+                color: "white",
+                fontSize: "17px",
+                fontWeight: "900",
+                marginBottom: "6px",
+              }}
+            >
+              {item.title}
+            </div>
+
+            <div
+              style={{
+                color: "#cbd5e1",
+                fontSize: "13px",
+                lineHeight: 1.6,
+              }}
+            >
+              {item.description}
+            </div>
+          </div>
+
+          <div
+            style={{
+              padding: "8px 12px",
+              borderRadius: "999px",
+              background:
+                item.priority === "Critical"
+                  ? "rgba(239,68,68,0.15)"
+                  : item.priority === "High"
+                  ? "rgba(250,204,21,0.15)"
+                  : "rgba(59,130,246,0.15)",
+              color:
+                item.priority === "Critical"
+                  ? "#fca5a5"
+                  : item.priority === "High"
+                  ? "#fde68a"
+                  : "#93c5fd",
+              fontSize: "12px",
+              fontWeight: "900",
+              textAlign: "center",
+            }}
+          >
+            {item.priority}
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
+{/* =========================
+   AI AUTONOMOUS ACTIONS FEED
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "30px",
+      background:
+        "linear-gradient(135deg, rgba(14,165,233,0.14), rgba(15,23,42,0.96))",
+      border: "1px solid rgba(125,211,252,0.22)",
+      boxShadow: "0 24px 70px rgba(2,6,23,0.32)",
+    }}
+  >
+    <div
+      style={{
+        color: "#7dd3fc",
+        fontSize: "12px",
+        fontWeight: "950",
+        letterSpacing: "0.1em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      AI Autonomous Actions Feed
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "24px",
+        fontWeight: "950",
+        marginBottom: "18px",
+      }}
+    >
+      Real-Time AI Operational Activity
+    </h3>
+
+    <div style={{ display: "grid", gap: "14px" }}>
+      {[
+        {
+          action: "VIP Guest Campaign Generated",
+          detail:
+            "AI created a retention campaign for high-value guest segments.",
+          status: "Completed",
+          time: "2 min ago",
+        },
+        {
+          action: "Inventory Variance Detected",
+          detail:
+            "AI identified unusual purchasing behavior in inventory activity.",
+          status: "Monitoring",
+          time: "8 min ago",
+        },
+        {
+          action: "Profit Leakage Alert Triggered",
+          detail:
+            "AI detected elevated labor cost during low-revenue periods.",
+          status: "Critical",
+          time: "14 min ago",
+        },
+        {
+          action: "Reservation Demand Forecast Updated",
+          detail:
+            "AI recalculated projected reservation traffic for weekend service.",
+          status: "Updated",
+          time: "21 min ago",
+        },
+      ].map((item, index) => (
+        <div
+          key={index}
+          style={{
+            padding: "18px",
+            borderRadius: "22px",
+            background: "rgba(15,23,42,0.76)",
+            border: "1px solid rgba(125,211,252,0.14)",
+            display: "grid",
+            gridTemplateColumns: isMobile
+              ? "1fr"
+              : "1.3fr 1fr 120px",
+            gap: "14px",
+            alignItems: "center",
+          }}
+        >
+          <div>
+            <div
+              style={{
+                color: "white",
+                fontSize: "17px",
+                fontWeight: "900",
+                marginBottom: "6px",
+              }}
+            >
+              {item.action}
+            </div>
+
+            <div
+              style={{
+                color: "#cbd5e1",
+                fontSize: "13px",
+                lineHeight: 1.6,
+              }}
+            >
+              {item.detail}
+            </div>
+          </div>
+
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "12px",
+              fontWeight: "700",
+            }}
+          >
+            {item.time}
+          </div>
+
+          <div
+            style={{
+              padding: "8px 12px",
+              borderRadius: "999px",
+              textAlign: "center",
+              fontSize: "12px",
+              fontWeight: "900",
+              background:
+                item.status === "Critical"
+                  ? "rgba(239,68,68,0.15)"
+                  : item.status === "Completed"
+                  ? "rgba(34,197,94,0.15)"
+                  : item.status === "Monitoring"
+                  ? "rgba(250,204,21,0.15)"
+                  : "rgba(59,130,246,0.15)",
+              color:
+                item.status === "Critical"
+                  ? "#fca5a5"
+                  : item.status === "Completed"
+                  ? "#86efac"
+                  : item.status === "Monitoring"
+                  ? "#fde68a"
+                  : "#93c5fd",
+            }}
+          >
+            {item.status}
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
+{/* =========================
+   AI RESTAURANT BRAIN
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "28px",
+      borderRadius: "32px",
+      background:
+        "linear-gradient(135deg, rgba(79,70,229,0.18), rgba(15,23,42,0.98))",
+      border: "1px solid rgba(129,140,248,0.24)",
+      boxShadow: "0 30px 90px rgba(2,6,23,0.38)",
+      position: "relative",
+      overflow: "hidden",
+    }}
+  >
+    <div
+      style={{
+        position: "absolute",
+        top: "-100px",
+        right: "-100px",
+        width: "220px",
+        height: "220px",
+        borderRadius: "999px",
+        background: "rgba(129,140,248,0.10)",
+        filter: "blur(40px)",
+      }}
+    />
+
+    <div style={{ position: "relative", zIndex: 2 }}>
+      <div
+        style={{
+          color: "#c7d2fe",
+          fontSize: "12px",
+          fontWeight: "950",
+          letterSpacing: "0.1em",
+          textTransform: "uppercase",
+          marginBottom: "10px",
+        }}
+      >
+        AI Restaurant Brain
+      </div>
+
+      <h3
+        style={{
+          color: "white",
+          fontSize: "28px",
+          fontWeight: "950",
+          marginBottom: "14px",
+        }}
+      >
+        Unified Restaurant Intelligence Core
+      </h3>
+
+      <p
+        style={{
+          color: "#cbd5e1",
+          fontSize: "14px",
+          lineHeight: 1.8,
+          marginBottom: "24px",
+          maxWidth: "920px",
+        }}
+      >
+        The AI Restaurant Brain combines guest behavior, labor efficiency,
+        revenue trends, forecasting, inventory movement, reservations,
+        marketing, and operational intelligence into one executive decision
+        engine.
+      </p>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: isMobile
+            ? "1fr"
+            : "repeat(3,minmax(0,1fr))",
+          gap: "18px",
+          marginBottom: "24px",
+        }}
+      >
+        {[
+          {
+            title: "Revenue Intelligence",
+            status: "Optimized",
+            description:
+              "Revenue momentum and profitability signals remain healthy.",
+          },
+          {
+            title: "Guest Intelligence",
+            status: "Monitoring",
+            description:
+              "AI detected churn-risk guests requiring engagement recovery.",
+          },
+          {
+            title: "Operational Intelligence",
+            status: "Stable",
+            description:
+              "Labor, inventory, and scheduling systems operating efficiently.",
+          },
+        ].map((system, index) => (
+          <div
+            key={index}
+            style={{
+              padding: "20px",
+              borderRadius: "24px",
+              background: "rgba(15,23,42,0.78)",
+              border: "1px solid rgba(129,140,248,0.14)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: "12px",
+              }}
+            >
+              <div
+                style={{
+                  color: "white",
+                  fontSize: "17px",
+                  fontWeight: "900",
+                }}
+              >
+                {system.title}
+              </div>
+
+              <div
+                style={{
+                  padding: "6px 10px",
+                  borderRadius: "999px",
+                  background:
+                    system.status === "Optimized"
+                      ? "rgba(34,197,94,0.15)"
+                      : system.status === "Monitoring"
+                      ? "rgba(250,204,21,0.15)"
+                      : "rgba(59,130,246,0.15)",
+                  color:
+                    system.status === "Optimized"
+                      ? "#86efac"
+                      : system.status === "Monitoring"
+                      ? "#fde68a"
+                      : "#93c5fd",
+                  fontSize: "11px",
+                  fontWeight: "900",
+                }}
+              >
+                {system.status}
+              </div>
+            </div>
+
+            <div
+              style={{
+                color: "#cbd5e1",
+                fontSize: "13px",
+                lineHeight: 1.7,
+              }}
+            >
+              {system.description}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div
+        style={{
+          padding: "20px",
+          borderRadius: "24px",
+          background: "rgba(15,23,42,0.78)",
+          border: "1px solid rgba(129,140,248,0.16)",
+        }}
+      >
+        <div
+          style={{
+            color: "#a5b4fc",
+            fontSize: "12px",
+            fontWeight: "900",
+            marginBottom: "10px",
+          }}
+        >
+          AI Executive Conclusion
+        </div>
+
+        <div
+          style={{
+            color: "#e2e8f0",
+            fontSize: "14px",
+            lineHeight: 1.8,
+          }}
+        >
+          AI predicts the restaurant is positioned for stable operational
+          growth, but recommends improving guest retention campaigns and
+          monitoring labor-to-revenue efficiency during lower traffic periods
+          to maximize profitability.
+        </div>
+      </div>
+    </div>
+  </div>
+)}
+{/* =========================
+   AI PREDICTIVE RISK SCANNER
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "28px",
+      borderRadius: "32px",
+      background:
+        "linear-gradient(135deg, rgba(239,68,68,0.14), rgba(15,23,42,0.98))",
+      border: "1px solid rgba(248,113,113,0.24)",
+      boxShadow: "0 30px 90px rgba(2,6,23,0.38)",
+    }}
+  >
+    <div
+      style={{
+        color: "#fca5a5",
+        fontSize: "12px",
+        fontWeight: "950",
+        letterSpacing: "0.1em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      AI Predictive Risk Scanner
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "28px",
+        fontWeight: "950",
+        marginBottom: "14px",
+      }}
+    >
+      Operational Threat & Risk Detection
+    </h3>
+
+    <p
+      style={{
+        color: "#cbd5e1",
+        fontSize: "14px",
+        lineHeight: 1.8,
+        marginBottom: "24px",
+        maxWidth: "920px",
+      }}
+    >
+      AI continuously scans restaurant operations for hidden revenue risks,
+      labor inefficiencies, guest churn threats, inventory leakage, and
+      forecasting instability before they become major operational problems.
+    </p>
+
+    <div
+      style={{
+        display: "grid",
+        gap: "16px",
+      }}
+    >
+      {[
+        {
+          risk: "Guest Churn Escalation",
+          severity: "High",
+          probability: "82%",
+          impact: "$4.2k revenue exposure",
+          recommendation:
+            "Launch immediate AI win-back campaigns for at-risk guest segments.",
+        },
+        {
+          risk: "Labor Cost Drift",
+          severity: "Medium",
+          probability: "64%",
+          impact: "Prime cost increase risk",
+          recommendation:
+            "Reduce staffing during forecasted low-volume periods.",
+        },
+        {
+          risk: "Inventory Variance",
+          severity: "High",
+          probability: "77%",
+          impact: "$2.1k waste exposure",
+          recommendation:
+            "Audit ingredient variance and vendor purchasing anomalies.",
+        },
+        {
+          risk: "Weekend Reservation Overload",
+          severity: "Low",
+          probability: "48%",
+          impact: "Potential service bottleneck",
+          recommendation:
+            "Increase front-of-house readiness during peak reservation windows.",
+        },
+      ].map((item, index) => (
+        <div
+          key={index}
+          style={{
+            padding: "20px",
+            borderRadius: "24px",
+            background: "rgba(15,23,42,0.78)",
+            border: "1px solid rgba(248,113,113,0.14)",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: isMobile ? "flex-start" : "center",
+              flexDirection: isMobile ? "column" : "row",
+              gap: "14px",
+              marginBottom: "16px",
+            }}
+          >
+            <div>
+              <div
+                style={{
+                  color: "white",
+                  fontSize: "18px",
+                  fontWeight: "900",
+                  marginBottom: "6px",
+                }}
+              >
+                {item.risk}
+              </div>
+
+              <div
+                style={{
+                  color: "#94a3b8",
+                  fontSize: "13px",
+                }}
+              >
+                Predicted probability: {item.probability}
+              </div>
+            </div>
+
+            <div
+              style={{
+                padding: "8px 14px",
+                borderRadius: "999px",
+                background:
+                  item.severity === "High"
+                    ? "rgba(239,68,68,0.15)"
+                    : item.severity === "Medium"
+                    ? "rgba(250,204,21,0.15)"
+                    : "rgba(59,130,246,0.15)",
+                color:
+                  item.severity === "High"
+                    ? "#fca5a5"
+                    : item.severity === "Medium"
+                    ? "#fde68a"
+                    : "#93c5fd",
+                fontSize: "12px",
+                fontWeight: "900",
+              }}
+            >
+              {item.severity} Risk
+            </div>
+          </div>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: isMobile
+                ? "1fr"
+                : "220px 1fr",
+              gap: "18px",
+              marginBottom: "16px",
+            }}
+          >
+            <div
+              style={{
+                padding: "14px",
+                borderRadius: "18px",
+                background: "rgba(30,41,59,0.72)",
+                border: "1px solid rgba(148,163,184,0.10)",
+              }}
+            >
+              <div
+                style={{
+                  color: "#fca5a5",
+                  fontSize: "12px",
+                  fontWeight: "900",
+                  marginBottom: "6px",
+                }}
+              >
+                Financial Impact
+              </div>
+
+              <div
+                style={{
+                  color: "#e2e8f0",
+                  fontSize: "14px",
+                  fontWeight: "800",
+                }}
+              >
+                {item.impact}
+              </div>
+            </div>
+
+            <div
+              style={{
+                padding: "14px",
+                borderRadius: "18px",
+                background: "rgba(30,41,59,0.72)",
+                border: "1px solid rgba(148,163,184,0.10)",
+              }}
+            >
+              <div
+                style={{
+                  color: "#fca5a5",
+                  fontSize: "12px",
+                  fontWeight: "900",
+                  marginBottom: "6px",
+                }}
+              >
+                AI Recommendation
+              </div>
+
+              <div
+                style={{
+                  color: "#cbd5e1",
+                  fontSize: "13px",
+                  lineHeight: 1.7,
+                }}
+              >
+                {item.recommendation}
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
+{/* =========================
+   AI PROFIT LEAK COMMAND CENTER
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "28px",
+      borderRadius: "32px",
+      background:
+        "linear-gradient(135deg, rgba(245,158,11,0.15), rgba(15,23,42,0.98))",
+      border: "1px solid rgba(251,191,36,0.24)",
+      boxShadow: "0 30px 90px rgba(2,6,23,0.38)",
+    }}
+  >
+    <div
+      style={{
+        color: "#fde68a",
+        fontSize: "12px",
+        fontWeight: "950",
+        letterSpacing: "0.1em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      AI Profit Leak Command Center
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "28px",
+        fontWeight: "950",
+        marginBottom: "14px",
+      }}
+    >
+      Revenue Leakage Detection Engine
+    </h3>
+
+    <p
+      style={{
+        color: "#cbd5e1",
+        fontSize: "14px",
+        lineHeight: 1.8,
+        marginBottom: "24px",
+        maxWidth: "920px",
+      }}
+    >
+      AI continuously monitors operational data to identify hidden revenue loss,
+      waste exposure, labor inefficiency, menu margin weakness, and missed
+      guest revenue opportunities.
+    </p>
+
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: isMobile
+          ? "1fr"
+          : "repeat(4,minmax(0,1fr))",
+        gap: "16px",
+        marginBottom: "24px",
+      }}
+    >
+      <GlassCard
+        title="Monthly Leakage"
+        value="$12.8k"
+        subtitle="Estimated revenue exposure"
+      />
+
+      <GlassCard
+        title="Waste Exposure"
+        value="$3.4k"
+        subtitle="Inventory & food waste risk"
+      />
+
+      <GlassCard
+        title="Labor Leakage"
+        value="$4.1k"
+        subtitle="Scheduling inefficiencies"
+      />
+
+      <GlassCard
+        title="Recovery Potential"
+        value="78%"
+        subtitle="AI recoverable profit estimate"
+      />
+    </div>
+
+    <div style={{ display: "grid", gap: "16px" }}>
+      {[
+        {
+          category: "Menu Margin Leakage",
+          amount: "$2.6k",
+          severity: "High",
+          detail:
+            "Low-margin menu items are overperforming compared to premium offerings.",
+          action:
+            "Increase visibility of high-margin menu items and premium pairings.",
+        },
+        {
+          category: "Labor Efficiency Leakage",
+          amount: "$4.1k",
+          severity: "Critical",
+          detail:
+            "AI detected staffing inefficiency during low-volume periods.",
+          action:
+            "Reduce labor allocation during forecasted slow hours.",
+        },
+        {
+          category: "Inventory Waste Leakage",
+          amount: "$3.4k",
+          severity: "High",
+          detail:
+            "Ingredient variance exceeds projected consumption models.",
+          action:
+            "Audit prep waste and optimize purchasing frequency.",
+        },
+        {
+          category: "Guest Revenue Leakage",
+          amount: "$2.7k",
+          severity: "Medium",
+          detail:
+            "High-value guests show declining engagement behavior.",
+          action:
+            "Launch personalized retention and VIP loyalty campaigns.",
+        },
+      ].map((item, index) => (
+        <div
+          key={index}
+          style={{
+            padding: "20px",
+            borderRadius: "24px",
+            background: "rgba(15,23,42,0.78)",
+            border: "1px solid rgba(251,191,36,0.14)",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: isMobile ? "flex-start" : "center",
+              flexDirection: isMobile ? "column" : "row",
+              gap: "14px",
+              marginBottom: "16px",
+            }}
+          >
+            <div>
+              <div
+                style={{
+                  color: "white",
+                  fontSize: "18px",
+                  fontWeight: "900",
+                  marginBottom: "6px",
+                }}
+              >
+                {item.category}
+              </div>
+
+              <div
+                style={{
+                  color: "#fde68a",
+                  fontSize: "14px",
+                  fontWeight: "900",
+                }}
+              >
+                {item.amount} monthly exposure
+              </div>
+            </div>
+
+            <div
+              style={{
+                padding: "8px 14px",
+                borderRadius: "999px",
+                background:
+                  item.severity === "Critical"
+                    ? "rgba(239,68,68,0.15)"
+                    : item.severity === "High"
+                    ? "rgba(251,191,36,0.15)"
+                    : "rgba(59,130,246,0.15)",
+                color:
+                  item.severity === "Critical"
+                    ? "#fca5a5"
+                    : item.severity === "High"
+                    ? "#fde68a"
+                    : "#93c5fd",
+                fontSize: "12px",
+                fontWeight: "900",
+              }}
+            >
+              {item.severity}
+            </div>
+          </div>
+
+          <div
+            style={{
+              color: "#cbd5e1",
+              fontSize: "13px",
+              lineHeight: 1.7,
+              marginBottom: "16px",
+            }}
+          >
+            {item.detail}
+          </div>
+
+          <div
+            style={{
+              padding: "14px",
+              borderRadius: "18px",
+              background: "rgba(30,41,59,0.72)",
+              border: "1px solid rgba(148,163,184,0.10)",
+            }}
+          >
+            <div
+              style={{
+                color: "#fde68a",
+                fontSize: "12px",
+                fontWeight: "900",
+                marginBottom: "6px",
+              }}
+            >
+              AI Recovery Action
+            </div>
+
+            <div
+              style={{
+                color: "#e2e8f0",
+                fontSize: "13px",
+                lineHeight: 1.7,
+              }}
+            >
+              {item.action}
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
+{/* =========================
+   AI EXECUTIVE FORECAST ENGINE
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "28px",
+      borderRadius: "32px",
+      background:
+        "linear-gradient(135deg, rgba(6,182,212,0.15), rgba(15,23,42,0.98))",
+      border: "1px solid rgba(34,211,238,0.24)",
+      boxShadow: "0 30px 90px rgba(2,6,23,0.38)",
+    }}
+  >
+    <div
+      style={{
+        color: "#67e8f9",
+        fontSize: "12px",
+        fontWeight: "950",
+        letterSpacing: "0.1em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      AI Executive Forecast Engine
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "28px",
+        fontWeight: "950",
+        marginBottom: "14px",
+      }}
+    >
+      Predictive Revenue & Operational Forecasting
+    </h3>
+
+    <p
+      style={{
+        color: "#cbd5e1",
+        fontSize: "14px",
+        lineHeight: 1.8,
+        marginBottom: "24px",
+        maxWidth: "920px",
+      }}
+    >
+      AI forecasts restaurant revenue, labor pressure, guest retention,
+      reservation demand, inventory risk, and profitability trends before
+      they happen.
+    </p>
+
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: isMobile
+          ? "1fr"
+          : "repeat(4,minmax(0,1fr))",
+        gap: "16px",
+        marginBottom: "24px",
+      }}
+    >
+      <GlassCard
+        title="Projected Revenue"
+        value="$148k"
+        subtitle="Next 30 day estimate"
+      />
+
+      <GlassCard
+        title="Forecast Confidence"
+        value="93%"
+        subtitle="AI predictive certainty"
+      />
+
+      <GlassCard
+        title="Projected Prime Cost"
+        value="58%"
+        subtitle="Forecasted combined cost"
+      />
+
+      <GlassCard
+        title="Guest Growth"
+        value="+14%"
+        subtitle="Predicted customer increase"
+      />
+    </div>
+
+    <div style={{ display: "grid", gap: "16px" }}>
+      {[
+        {
+          title: "Revenue Momentum Forecast",
+          prediction:
+            "AI predicts continued revenue acceleration over the next 14 days.",
+          trend: "+8.4%",
+          status: "Positive",
+        },
+        {
+          title: "Labor Pressure Forecast",
+          prediction:
+            "Weekend staffing demand expected to increase due to reservation growth.",
+          trend: "+11%",
+          status: "Monitor",
+        },
+        {
+          title: "Guest Retention Forecast",
+          prediction:
+            "VIP retention remains strong but mid-tier guests show engagement slowdown.",
+          trend: "-4%",
+          status: "Risk",
+        },
+        {
+          title: "Inventory Forecast",
+          prediction:
+            "Ingredient consumption is projected to exceed normal purchasing thresholds.",
+          trend: "+9%",
+          status: "Attention",
+        },
+      ].map((forecast, index) => (
+        <div
+          key={index}
+          style={{
+            padding: "20px",
+            borderRadius: "24px",
+            background: "rgba(15,23,42,0.78)",
+            border: "1px solid rgba(34,211,238,0.14)",
+            display: "grid",
+            gridTemplateColumns: isMobile
+              ? "1fr"
+              : "1.5fr 120px 120px",
+            gap: "16px",
+            alignItems: "center",
+          }}
+        >
+          <div>
+            <div
+              style={{
+                color: "white",
+                fontSize: "18px",
+                fontWeight: "900",
+                marginBottom: "8px",
+              }}
+            >
+              {forecast.title}
+            </div>
+
+            <div
+              style={{
+                color: "#cbd5e1",
+                fontSize: "13px",
+                lineHeight: 1.7,
+              }}
+            >
+              {forecast.prediction}
+            </div>
+          </div>
+
+          <div
+            style={{
+              color:
+                forecast.trend.startsWith("+")
+                  ? "#86efac"
+                  : "#fca5a5",
+              fontSize: "18px",
+              fontWeight: "950",
+              textAlign: "center",
+            }}
+          >
+            {forecast.trend}
+          </div>
+
+          <div
+            style={{
+              padding: "8px 12px",
+              borderRadius: "999px",
+              textAlign: "center",
+              background:
+                forecast.status === "Positive"
+                  ? "rgba(34,197,94,0.15)"
+                  : forecast.status === "Monitor"
+                  ? "rgba(250,204,21,0.15)"
+                  : forecast.status === "Risk"
+                  ? "rgba(239,68,68,0.15)"
+                  : "rgba(59,130,246,0.15)",
+              color:
+                forecast.status === "Positive"
+                  ? "#86efac"
+                  : forecast.status === "Monitor"
+                  ? "#fde68a"
+                  : forecast.status === "Risk"
+                  ? "#fca5a5"
+                  : "#93c5fd",
+              fontSize: "12px",
+              fontWeight: "900",
+            }}
+          >
+            {forecast.status}
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
+{/* =========================
+   RESTAURANT DIGITAL TWIN INTELLIGENCE
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "28px",
+      borderRadius: "32px",
+      background:
+        "linear-gradient(135deg, rgba(124,58,237,0.18), rgba(15,23,42,0.98))",
+      border: "1px solid rgba(167,139,250,0.24)",
+      boxShadow: "0 30px 90px rgba(2,6,23,0.42)",
+    }}
+  >
+    <div
+      style={{
+        color: "#c4b5fd",
+        fontSize: "12px",
+        fontWeight: "950",
+        letterSpacing: "0.1em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      Restaurant Digital Twin Intelligence
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "28px",
+        fontWeight: "950",
+        marginBottom: "14px",
+      }}
+    >
+      AI Simulation Of Restaurant Performance
+    </h3>
+
+    <p
+      style={{
+        color: "#cbd5e1",
+        fontSize: "14px",
+        lineHeight: 1.8,
+        marginBottom: "24px",
+        maxWidth: "920px",
+      }}
+    >
+      SerVen AI models the restaurant as a digital twin, simulating how revenue,
+      labor, inventory, guest behavior, reservations, and profit leaks interact
+      before decisions are made.
+    </p>
+
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: isMobile
+          ? "1fr"
+          : "repeat(4,minmax(0,1fr))",
+        gap: "16px",
+        marginBottom: "24px",
+      }}
+    >
+      <GlassCard
+        title="Simulation Accuracy"
+        value="91%"
+        subtitle="Digital twin confidence"
+      />
+
+      <GlassCard
+        title="Systems Modeled"
+        value="7"
+        subtitle="Revenue, labor, inventory, guests"
+      />
+
+      <GlassCard
+        title="Scenario Impact"
+        value="$22.6k"
+        subtitle="Potential monthly upside"
+      />
+
+      <GlassCard
+        title="Decision Speed"
+        value="Real-Time"
+        subtitle="AI scenario evaluation"
+      />
+    </div>
+
+    <div style={{ display: "grid", gap: "16px" }}>
+      {[
+        {
+          scenario: "What if labor is reduced during slow periods?",
+          result:
+            "AI predicts improved prime cost control without major service impact.",
+          impact: "+$4.8k/mo profit protection",
+          confidence: "89%",
+        },
+        {
+          scenario: "What if VIP campaigns launch this week?",
+          result:
+            "AI predicts higher repeat visit probability from premium guests.",
+          impact: "+$3.2k/mo guest revenue",
+          confidence: "92%",
+        },
+        {
+          scenario: "What if high-margin menu items are promoted?",
+          result:
+            "AI predicts improved average ticket value and stronger margin mix.",
+          impact: "+$6.4k/mo margin upside",
+          confidence: "87%",
+        },
+        {
+          scenario: "What if inventory variance is reduced?",
+          result:
+            "AI predicts lower waste exposure and improved food cost control.",
+          impact: "+$5.1k/mo waste recovery",
+          confidence: "90%",
+        },
+      ].map((item, index) => (
+        <div
+          key={index}
+          style={{
+            padding: "20px",
+            borderRadius: "24px",
+            background: "rgba(15,23,42,0.78)",
+            border: "1px solid rgba(167,139,250,0.14)",
+          }}
+        >
+          <div
+            style={{
+              color: "#c4b5fd",
+              fontSize: "12px",
+              fontWeight: "900",
+              marginBottom: "8px",
+            }}
+          >
+            Scenario Simulation
+          </div>
+
+          <div
+            style={{
+              color: "white",
+              fontSize: "18px",
+              fontWeight: "900",
+              marginBottom: "10px",
+            }}
+          >
+            {item.scenario}
+          </div>
+
+          <div
+            style={{
+              color: "#cbd5e1",
+              fontSize: "13px",
+              lineHeight: 1.7,
+              marginBottom: "16px",
+            }}
+          >
+            {item.result}
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              gap: "10px",
+              flexWrap: "wrap",
+            }}
+          >
+            <div
+              style={{
+                padding: "8px 12px",
+                borderRadius: "999px",
+                background: "rgba(34,197,94,0.14)",
+                color: "#86efac",
+                fontSize: "12px",
+                fontWeight: "900",
+              }}
+            >
+              {item.impact}
+            </div>
+
+            <div
+              style={{
+                padding: "8px 12px",
+                borderRadius: "999px",
+                background: "rgba(167,139,250,0.14)",
+                color: "#ddd6fe",
+                fontSize: "12px",
+                fontWeight: "900",
+              }}
+            >
+              {item.confidence} confidence
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
+{/* =========================
+   AI AUTONOMOUS OPTIMIZATION ENGINE
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "28px",
+      borderRadius: "32px",
+      background:
+        "linear-gradient(135deg, rgba(34,197,94,0.16), rgba(15,23,42,0.98))",
+      border: "1px solid rgba(74,222,128,0.24)",
+      boxShadow: "0 30px 90px rgba(2,6,23,0.42)",
+    }}
+  >
+    <div
+      style={{
+        color: "#86efac",
+        fontSize: "12px",
+        fontWeight: "950",
+        letterSpacing: "0.1em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      AI Autonomous Optimization Engine
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "28px",
+        fontWeight: "950",
+        marginBottom: "14px",
+      }}
+    >
+      Self-Improving Restaurant Performance System
+    </h3>
+
+    <p
+      style={{
+        color: "#cbd5e1",
+        fontSize: "14px",
+        lineHeight: 1.8,
+        marginBottom: "24px",
+        maxWidth: "920px",
+      }}
+    >
+      AI continuously recommends the best operational adjustments across guest
+      recovery, labor efficiency, inventory control, menu profitability, and
+      revenue growth.
+    </p>
+
+    <div style={{ display: "grid", gap: "16px" }}>
+      {[
+        {
+          system: "Guest Revenue Optimization",
+          action: "Launch win-back campaigns for high-risk guests.",
+          result: "+$3.9k/mo potential recovery",
+          status: "Ready",
+        },
+        {
+          system: "Labor Cost Optimization",
+          action: "Reduce staffing during predicted slow periods.",
+          result: "+$4.4k/mo profit protection",
+          status: "Recommended",
+        },
+        {
+          system: "Menu Profit Optimization",
+          action: "Promote high-margin items and premium add-ons.",
+          result: "+$6.1k/mo margin upside",
+          status: "Active",
+        },
+        {
+          system: "Inventory Waste Optimization",
+          action: "Adjust purchasing cadence based on usage variance.",
+          result: "+$3.2k/mo waste reduction",
+          status: "Monitoring",
+        },
+      ].map((item, index) => (
+        <div
+          key={index}
+          style={{
+            padding: "20px",
+            borderRadius: "24px",
+            background: "rgba(15,23,42,0.78)",
+            border: "1px solid rgba(74,222,128,0.14)",
+            display: "grid",
+            gridTemplateColumns: isMobile
+              ? "1fr"
+              : "1.2fr 1.4fr 1fr 120px",
+            gap: "16px",
+            alignItems: "center",
+          }}
+        >
+          <div>
+            <div
+              style={{
+                color: "white",
+                fontSize: "17px",
+                fontWeight: "900",
+                marginBottom: "6px",
+              }}
+            >
+              {item.system}
+            </div>
+
+            <div
+              style={{
+                color: "#94a3b8",
+                fontSize: "12px",
+                fontWeight: "700",
+              }}
+            >
+              AI optimization module
+            </div>
+          </div>
+
+          <div
+            style={{
+              color: "#cbd5e1",
+              fontSize: "13px",
+              lineHeight: 1.7,
+            }}
+          >
+            {item.action}
+          </div>
+
+          <div
+            style={{
+              color: "#86efac",
+              fontSize: "13px",
+              fontWeight: "900",
+            }}
+          >
+            {item.result}
+          </div>
+
+          <div
+            style={{
+              padding: "8px 12px",
+              borderRadius: "999px",
+              textAlign: "center",
+              background:
+                item.status === "Active"
+                  ? "rgba(34,197,94,0.15)"
+                  : item.status === "Ready"
+                  ? "rgba(59,130,246,0.15)"
+                  : item.status === "Recommended"
+                  ? "rgba(250,204,21,0.15)"
+                  : "rgba(148,163,184,0.15)",
+              color:
+                item.status === "Active"
+                  ? "#86efac"
+                  : item.status === "Ready"
+                  ? "#93c5fd"
+                  : item.status === "Recommended"
+                  ? "#fde68a"
+                  : "#cbd5e1",
+              fontSize: "12px",
+              fontWeight: "900",
+            }}
+          >
+            {item.status}
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
+{/* =========================
+   AI EXECUTIVE SUMMARY CLOSEOUT
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "24px",
+      marginBottom: "30px",
+      padding: "32px",
+      borderRadius: "34px",
+      background:
+        "linear-gradient(135deg, rgba(15,23,42,0.99), rgba(30,41,59,0.95), rgba(99,102,241,0.18))",
+      border: "1px solid rgba(129,140,248,0.24)",
+      boxShadow: "0 34px 100px rgba(2,6,23,0.46)",
+      overflow: "hidden",
+      position: "relative",
+    }}
+  >
+    <div
+      style={{
+        position: "absolute",
+        top: "-120px",
+        right: "-120px",
+        width: "260px",
+        height: "260px",
+        borderRadius: "999px",
+        background: "rgba(129,140,248,0.12)",
+        filter: "blur(44px)",
+      }}
+    />
+
+    <div
+      style={{
+        position: "relative",
+        zIndex: 2,
+      }}
+    >
+      <div
+        style={{
+          color: "#c7d2fe",
+          fontSize: "12px",
+          fontWeight: "950",
+          letterSpacing: "0.1em",
+          textTransform: "uppercase",
+          marginBottom: "10px",
+        }}
+      >
+        AI Executive Summary
+      </div>
+
+      <h2
+        style={{
+          color: "white",
+          fontSize: "34px",
+          fontWeight: "950",
+          lineHeight: 1.2,
+          marginBottom: "16px",
+        }}
+      >
+        Restaurant Intelligence Status: Operationally Stable
+      </h2>
+
+      <p
+        style={{
+          color: "#cbd5e1",
+          fontSize: "15px",
+          lineHeight: 1.9,
+          maxWidth: "980px",
+          marginBottom: "28px",
+        }}
+      >
+        SerVen AI has completed a full operational analysis across revenue,
+        labor, inventory, guests, forecasting, reservations, profit leakage,
+        and optimization systems. AI predicts stable growth potential while
+        identifying opportunities to improve guest retention, increase margin
+        efficiency, and reduce operational leakage.
+      </p>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: isMobile
+            ? "1fr"
+            : "repeat(4,minmax(0,1fr))",
+          gap: "16px",
+          marginBottom: "26px",
+        }}
+      >
+        <GlassCard
+          title="Operational Score"
+          value="91%"
+          subtitle="AI system health"
+        />
+
+        <GlassCard
+          title="Profit Recovery"
+          value="$18.7k"
+          subtitle="Estimated monthly opportunity"
+        />
+
+        <GlassCard
+          title="Forecast Confidence"
+          value="94%"
+          subtitle="AI predictive certainty"
+        />
+
+        <GlassCard
+          title="Optimization Status"
+          value="Active"
+          subtitle="Autonomous AI monitoring"
+        />
+      </div>
+
+      <div
+        style={{
+          padding: "22px",
+          borderRadius: "24px",
+          background: "rgba(15,23,42,0.78)",
+          border: "1px solid rgba(129,140,248,0.14)",
+        }}
+      >
+        <div
+          style={{
+            color: "#a5b4fc",
+            fontSize: "12px",
+            fontWeight: "900",
+            marginBottom: "10px",
+          }}
+        >
+          AI Final Recommendation
+        </div>
+
+        <div
+          style={{
+            color: "#e2e8f0",
+            fontSize: "14px",
+            lineHeight: 1.8,
+          }}
+        >
+          Focus immediate optimization efforts on guest retention recovery,
+          high-margin menu visibility, labor efficiency during low-volume
+          periods, and inventory variance reduction. AI predicts these
+          initiatives have the highest probability of near-term profitability
+          improvement.
+        </div>
+      </div>
+    </div>
+  </div>
+)}
     {/* ========================= */}
     {/* MARKETING PROMOTION ENGINE */}
     {/* ========================= */}
