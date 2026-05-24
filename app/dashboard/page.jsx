@@ -27,6 +27,7 @@ import AICommandCenter from "./components/AICommandCenter";
 
 import WeeklyExecutiveSummary from "./components/WeeklyExecutiveSummary";
 import RiskPanel from "./components/RiskPanel";
+import Papa from "papaparse";
 /* ================= COMPONENTS ================= */
 
 function AnimatedNumber({ value }) {
@@ -272,6 +273,7 @@ const [activeLocation, setActiveLocation] = useState("all");
 const [invoiceUploads, setInvoiceUploads] = useState([]);
 const [laborUploads, setLaborUploads] = useState([]);
 const [recipeUsageRules, setRecipeUsageRules] = useState([]);
+const [customerData, setCustomerData] = useState([]);
 const [aiInsights, setAIInsights] = useState({
   success: true,
   summary: "Operational performance is stable. Food costs are trending down.",
@@ -326,6 +328,7 @@ useEffect(() => {
   const [scheduledCampaigns, setScheduledCampaigns] = useState([]);
 const [aiScanMessage, setAiScanMessage] = useState("");
 const [topAiActions, setTopAiActions] = useState([]);
+const [aiActions, setAiActions] = useState([]);
 const [aiToast, setAiToast] = useState(null);
   /* 🔹 AI AUTOMATION */
   const [autoOptimizeEnabled, setAutoOptimizeEnabled] = useState(false);
@@ -365,6 +368,8 @@ const [generatedOpportunities, setGeneratedOpportunities] = useState([]);
   const [connectedPOS, setConnectedPOS] = useState(null);
   const [monthlyRevenue, setMonthlyRevenue] = useState(50000);
   const [showCampaignBuilder, setShowCampaignBuilder] = useState(false);
+  const [autonomousModeEnabled, setAutonomousModeEnabled] =
+  useState(false);
 const [expandedAIAction, setExpandedAIAction] = useState(null);
   /* 🔹 AI */
   const [realAI, setRealAI] = useState(null);
@@ -3602,6 +3607,7 @@ const applyTopRecommendedFix = () => {
             action.description || action.action || "Recommended optimization",
           priority: action.priority || "Medium",
         }))
+
       : [];
 
   if (!source.length) return;
@@ -20396,7 +20402,7 @@ const aiStaffPerformanceIntelligence = {
     laborCostPercent >= 32 ? Math.round((totalRevenue || 0) * 0.012) : 0,
 };
 
-const customerData = [];
+
 const aiGuestIntelligence = useMemo(() => {
   const guests = customerData || [];
 
@@ -20483,6 +20489,189 @@ const avgGuestSpend =
     };
   });
 }, [aiGuestIntelligence]);
+
+
+
+useEffect(() => {
+  const loadCustomers = async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user?.id) return;
+
+    const { data, error } = await supabase
+      .from("customers")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Customers load error:", error);
+      return;
+    }
+
+    setCustomerData(data || []);
+  };
+
+  loadCustomers();
+}, []);
+
+const handleGuestUpload = async (event) => {
+  try {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user?.id) {
+      setMessage("You must be logged in to upload guest data.");
+      return;
+    }
+
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (results) => {
+        const rows = results.data || [];
+
+        const customersToInsert = rows.map((row) => {
+          const visits = Number(
+            row.visits || row.total_visits || row["Total Visits"] || 0
+          );
+
+          const totalSpend = Number(
+            row.total_spend || row.lifetime_spend || row["Total Spend"] || 0
+          );
+
+          return {
+            user_id: user.id,
+            customer_name:
+              row.customer_name ||
+              row.name ||
+              row["Customer Name"] ||
+              row["Guest Name"] ||
+              "Guest",
+            email: row.email || row.Email || null,
+            phone: row.phone || row.Phone || null,
+            visits,
+            total_spend: totalSpend,
+            avg_spend: visits > 0 ? totalSpend / visits : 0,
+            last_visit: row.last_visit || row["Last Visit"] || null,
+          };
+        });
+
+        const { data, error } = await supabase
+          .from("customers")
+          .insert(customersToInsert)
+          .select();
+
+        if (error) {
+          console.error("Guest upload error:", error);
+          setMessage("Guest upload failed. Check console.");
+          return;
+        }
+
+        setCustomerData(data || []);
+        setMessage(`Imported ${data?.length || 0} customer profiles.`);
+      },
+    });
+  } catch (error) {
+    console.error("Guest upload crashed:", error);
+    setMessage("Guest upload failed. Check console.");
+  }
+};
+
+const handleCreateAIAction = async ({
+  actionType = "campaign",
+  title,
+  description,
+  customer,
+  estimatedValue = 0,
+  channel = "Email/SMS",
+  message,
+}) => {
+  try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user?.id) {
+      setMessage("You must be logged in to create AI actions.");
+      return;
+    }
+
+    const actionPayload = {
+      user_id: user.id,
+      action_type: actionType,
+      action_title: title,
+      action_description: description,
+      action_status: "draft",
+      target_customer_id: customer?.id || null,
+      target_customer_name: customer?.name || customer?.customer_name || null,
+      estimated_value: estimatedValue,
+      campaign_channel: channel,
+      campaign_message: message,
+    };
+
+    const { data, error } = await supabase
+      .from("ai_actions")
+      .insert([actionPayload])
+      .select();
+
+    if (error) {
+      console.error("AI action create error:", error);
+      setMessage("AI action failed. Check console.");
+      return;
+    }
+
+    setAiActions((prev) => [data?.[0], ...(prev || [])]);
+    setMessage("AI campaign action saved as draft.");
+  } catch (error) {
+    console.error("AI action crashed:", error);
+    setMessage("AI action failed. Check console.");
+  }
+};
+
+useEffect(() => {
+  const loadAIActions = async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user?.id) return;
+
+    const { data, error } = await supabase
+      .from("ai_actions")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("AI actions load error:", error);
+      return;
+    }
+
+    setAiActions(data || []);
+  };
+
+  loadAIActions();
+}, []);
+
+const autoExecutableActions = aiActions.filter(
+  (action) =>
+    action.action_status === "draft" &&
+    Number(action.estimated_value || 0) >= 500
+);
+
+const lowValueActions = aiActions.filter(
+  (action) =>
+    action.action_status === "draft" &&
+    Number(action.estimated_value || 0) < 100
+);
+
 
 
 
@@ -20862,6 +21051,13 @@ return (
   onChange={handleInvoiceUpload}
   style={{ display: "none" }}
 />
+<input
+  id="guestUpload"
+  type="file"
+  accept=".csv"
+  onChange={handleGuestUpload}
+  style={{ display: "none" }}
+/>
 
 {uploadError && (
   <div
@@ -20957,6 +21153,14 @@ return (
   style={setupSecondaryButton}
 >
   Upload Invoices
+</button>
+<button
+  onClick={() => {
+    document.getElementById("guestUpload")?.click();
+  }}
+  style={setupPrimaryButton}
+>
+  Upload Guest Data
 </button>
 </div>
     </div>
@@ -25362,7 +25566,33 @@ return (
     </div>
   }
 />
+<GlassCard
+  title="AI Campaign Drafts"
+  value={aiActions.length}
+  subtitle="Saved AI automation actions"
+/>
 
+<GlassCard
+  title="Launched Campaigns"
+  value={
+    aiActions.filter(
+      (action) => action.action_status === "launched"
+    ).length
+  }
+  subtitle="AI campaigns executed"
+/>
+
+<GlassCard
+  title="Projected AI Recovery"
+  value={`$${aiActions
+    .reduce(
+      (sum, action) =>
+        sum + Number(action.estimated_value || 0),
+      0
+    )
+    .toFixed(0)}`}
+  subtitle="Projected revenue recovery"
+/>
 </div>
  
 
@@ -36124,29 +36354,25 @@ boxSizing: "border-box",
     </div>
   </div>
 )}
-{/* 🧠 TOP AI RECOMMENDED ACTION */}
+{/* =========================
+   TOP AI RECOMMENDED ACTION
+========================= */}
 
-{hasProAccess && (
+{hasProAccess && topAIAction && (
   <div
     style={{
-      gridColumn: isMobile ? "span 1" : "span 6",
-      minWidth: 0,
-    }}
-  >
-    <div
-    style={{
-      marginTop: "18px",
-      padding: "22px",
-      borderRadius: "24px",
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "30px",
       background:
-        "linear-gradient(135deg, rgba(109,61,245,0.20), rgba(15,23,42,0.96))",
-      border: "1px solid rgba(168,85,247,0.28)",
-      boxShadow: "0 22px 60px rgba(2,6,23,0.35)",
+        "linear-gradient(135deg, rgba(250,204,21,0.16), rgba(15,23,42,0.96))",
+      border: "1px solid rgba(250,204,21,0.24)",
+      boxShadow: "0 28px 80px rgba(2,6,23,0.34)",
     }}
   >
     <div
       style={{
-        color: "#c4b5fd",
+        color: "#fde68a",
         fontSize: "12px",
         fontWeight: "900",
         letterSpacing: "0.08em",
@@ -36156,653 +36382,348 @@ boxSizing: "border-box",
     >
       Top AI Recommended Action
     </div>
-    <h3 style={{ color: "white", fontSize: "24px", fontWeight: "950", margin: 0 }}>
-  {topAIRecommendedAction?.title || "AI is monitoring your operation"}
-</h3>
 
-<p
-  style={{
-    color: "#cbd5e1",
-    fontSize: "14px",
-    lineHeight: 1.7,
-    marginTop: "10px",
-    marginBottom: "16px",
-  }}
->
-  {topAIRecommendedAction?.description ||
-    "Upload POS, labor, menu, inventory, and invoice data to activate stronger recommendations."}
-</p>
-
-<div
-  style={{
-    display: "flex",
-    flexWrap: "wrap",
-    gap: "10px",
-    marginTop: "12px",
-  }}
->
-  <div
-    style={{
-      padding: "10px 14px",
-      borderRadius: "999px",
-      background: "rgba(168,85,247,0.14)",
-      border: "1px solid rgba(168,85,247,0.25)",
-      color: "#ddd6fe",
-      fontSize: "12px",
-      fontWeight: "900",
-    }}
-  >
-    Priority: {topAIRecommendedAction?.priority || "Monitoring"}
-  </div>
-
-  <div
-    style={{
-      padding: "10px 14px",
-      borderRadius: "999px",
-      background: "rgba(34,197,94,0.12)",
-      border: "1px solid rgba(34,197,94,0.24)",
-      color: "#bbf7d0",
-      fontSize: "12px",
-      fontWeight: "900",
-    }}
-  >
-    Est. Impact: {topAIRecommendedAction?.impact || "$0/mo"}
-  </div>
-</div>
-<button
-  type="button"
-  onClick={handleSaveExecutiveBriefing}
-  style={{
-    marginTop: "16px",
-    padding: "12px 16px",
-    borderRadius: "14px",
-    border: "1px solid rgba(129,140,248,0.28)",
-    background: "rgba(79,70,229,0.22)",
-    color: "#c7d2fe",
-    fontWeight: "950",
-    cursor: "pointer",
-  }}
->
-  Save Executive Briefing
-</button>
-<div
-  style={{
-    marginTop: "24px",
-    paddingTop: "20px",
-    borderTop: "1px solid rgba(148,163,184,0.12)",
-  }}
->
-  <div
-    style={{
-      color: "#a5b4fc",
-      fontSize: "12px",
-      fontWeight: "900",
-      marginBottom: "16px",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-    }}
-  >
-    AI Action Queue
-  </div>
-<div
-  style={{
-    marginTop: "22px",
-    padding: "18px",
-    borderRadius: "20px",
-    background: "rgba(15,23,42,0.72)",
-    border: "1px solid rgba(148,163,184,0.14)",
-  }}
->
-  <div
-    style={{
-      color: "#93c5fd",
-      fontSize: "12px",
-      fontWeight: "900",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      marginBottom: "16px",
-    }}
-  >
-    Live AI Feed
-  </div>
-<div
-  style={{
-    marginTop: "22px",
-    padding: "18px",
-    borderRadius: "20px",
-    background:
-      "linear-gradient(135deg, rgba(34,197,94,0.12), rgba(15,23,42,0.92))",
-    border: "1px solid rgba(34,197,94,0.18)",
-  }}
->
-  <div
-    style={{
-      color: "#86efac",
-      fontSize: "12px",
-      fontWeight: "900",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      marginBottom: "10px",
-    }}
-  >
-    AI Confidence Score
-  </div>
-<div
-  style={{
-    marginTop: "22px",
-    padding: "18px",
-    borderRadius: "20px",
-    background:
-      "linear-gradient(135deg, rgba(245,158,11,0.12), rgba(15,23,42,0.92))",
-    border: "1px solid rgba(245,158,11,0.18)",
-  }}
->
-  <div
-    style={{
-      color: "#fde68a",
-      fontSize: "12px",
-      fontWeight: "900",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      marginBottom: "10px",
-    }}
-  >
-    AI Financial Impact Breakdown
-  </div>
-<div
-  style={{
-    marginTop: "22px",
-    padding: "18px",
-    borderRadius: "20px",
-    background:
-      "linear-gradient(135deg, rgba(239,68,68,0.12), rgba(15,23,42,0.92))",
-    border: "1px solid rgba(239,68,68,0.18)",
-  }}
->
-  <div
-    style={{
-      color:
-        aiRiskLevel === "Critical"
-          ? "#fca5a5"
-          : aiRiskLevel === "High"
-          ? "#fdba74"
-          : aiRiskLevel === "Medium"
-          ? "#fde68a"
-          : "#86efac",
-      fontSize: "12px",
-      fontWeight: "900",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      marginBottom: "10px",
-    }}
-  >
-    AI System Status
-  </div>
-<div
-  style={{
-    marginTop: "22px",
-    padding: "20px",
-    borderRadius: "22px",
-    background:
-      "linear-gradient(135deg, rgba(124,58,237,0.18), rgba(15,23,42,0.94))",
-    border: "1px solid rgba(196,181,253,0.22)",
-  }}
->
-  <div style={{ color: "#c4b5fd", fontSize: "12px", fontWeight: "900" }}>
-    AI Autopilot Suggested Action
-  </div>
-<div
-  style={{
-    marginTop: "22px",
-    padding: "22px",
-    borderRadius: "22px",
-    background:
-      "linear-gradient(135deg, rgba(6,182,212,0.14), rgba(15,23,42,0.94))",
-    border: "1px solid rgba(34,211,238,0.20)",
-  }}
->
-  <div
-    style={{
-      color: "#67e8f9",
-      fontSize: "12px",
-      fontWeight: "900",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      marginBottom: "10px",
-    }}
-  >
-    AI Executive Summary
-  </div>
-
-  <div
-    style={{
-      color: "white",
-      fontSize: "16px",
-      lineHeight: 1.9,
-      fontWeight: "600",
-    }}
-  >
-    {aiExecutiveSummary}
-  </div>
-
-  <div
-    style={{
-      marginTop: "18px",
-      display: "flex",
-      flexWrap: "wrap",
-      gap: "10px",
-    }}
-  >
-    <button
-      type="button"
-      onClick={handleSaveExecutiveBriefing}
-      style={{
-        padding: "12px 16px",
-        borderRadius: "14px",
-        border: "1px solid rgba(34,211,238,0.24)",
-        background: "rgba(6,182,212,0.18)",
-        color: "#cffafe",
-        fontWeight: "950",
-        cursor: "pointer",
-      }}
-    >
-      Save Briefing
-    </button>
-
-    <button
-      type="button"
-      style={{
-        padding: "12px 16px",
-        borderRadius: "14px",
-        border: "1px solid rgba(148,163,184,0.18)",
-        background: "rgba(15,23,42,0.72)",
-        color: "#e2e8f0",
-        fontWeight: "900",
-        cursor: "pointer",
-      }}
-    >
-      Export AI Report
-    </button>
-  </div>
-</div>
-  <h3 style={{ color: "white", fontSize: "22px", fontWeight: "950" }}>
-    {aiAutopilotSuggestedAction.title}
-  </h3>
-
-  <p style={{ color: "#cbd5e1", fontSize: "14px", lineHeight: 1.7 }}>
-    {aiAutopilotSuggestedAction.description}
-  </p>
-
-  <button
-    type="button"
-    style={{
-      marginTop: "12px",
-      padding: "12px 16px",
-      borderRadius: "14px",
-      border: "1px solid rgba(196,181,253,0.3)",
-      background: "rgba(124,58,237,0.28)",
-      color: "#ede9fe",
-      fontWeight: "950",
-      cursor: "pointer",
-    }}
-  >
-    {aiAutopilotSuggestedAction.button}
-  </button>
-</div>
-  <div style={{ color: "white", fontSize: "30px", fontWeight: "950" }}>
-    {aiRiskLevel} Risk
-  </div>
-
-  <div
-    style={{
-      marginTop: "16px",
-      display: "grid",
-      gridTemplateColumns: isMobile ? "1fr" : "repeat(4, 1fr)",
-      gap: "10px",
-    }}
-  >
-    {aiSystemStatusStrip.map((item, index) => (
-      <div
-        key={index}
-        style={{
-          padding: "12px",
-          borderRadius: "14px",
-          background: "rgba(15,23,42,0.72)",
-          border: "1px solid rgba(148,163,184,0.12)",
-        }}
-      >
-        <div
-          style={{
-            color: "#94a3b8",
-            fontSize: "11px",
-            fontWeight: "800",
-            marginBottom: "6px",
-          }}
-        >
-          {item.label}
-        </div>
-
-        <div style={{ color: "white", fontSize: "15px", fontWeight: "950" }}>
-          {item.value}
-        </div>
-      </div>
-    ))}
-  </div>
-</div>
-  <div style={{ color: "white", fontSize: "32px", fontWeight: "950" }}>
-    ${totalAIFinancialImpact.toLocaleString()}/mo
-  </div>
-
-  <div style={{ marginTop: "16px", display: "grid", gap: "10px" }}>
-    {aiFinancialImpactBreakdown.map((item, index) => (
-      <div
-        key={index}
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          padding: "12px 14px",
-          borderRadius: "14px",
-          background: "rgba(15,23,42,0.72)",
-          border: "1px solid rgba(148,163,184,0.12)",
-        }}
-      >
-        <span style={{ color: "#cbd5e1", fontSize: "13px", fontWeight: "800" }}>
-          {item.label}
-        </span>
-
-        <span style={{ color: "#fde68a", fontSize: "13px", fontWeight: "950" }}>
-          ${Number(item.amount || 0).toLocaleString()}
-        </span>
-      </div>
-    ))}
-  </div>
-</div>
-  <div style={{ color: "white", fontSize: "34px", fontWeight: "950" }}>
-    {aiConfidenceScore}%
-  </div>
-
-  <div
-    style={{
-      marginTop: "10px",
-      height: "10px",
-      borderRadius: "999px",
-      background: "rgba(148,163,184,0.18)",
-      overflow: "hidden",
-    }}
-  >
-    <div
-      style={{
-        width: `${aiConfidenceScore}%`,
-        height: "100%",
-        borderRadius: "999px",
-        background:
-          aiConfidenceScore >= 85
-            ? "linear-gradient(90deg, #22c55e, #86efac)"
-            : aiConfidenceScore >= 75
-            ? "linear-gradient(90deg, #f59e0b, #fde68a)"
-            : "linear-gradient(90deg, #6366f1, #a5b4fc)",
-      }}
-    />
-  </div>
-
-  <p style={{ color: "#bbf7d0", fontSize: "13px", lineHeight: 1.6 }}>
-    Confidence is based on how many supporting operational signals were detected.
-  </p>
-</div>
-  <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-    {aiOperationalTimeline.map((event, index) => (
-      <div key={index} style={{ display: "flex", gap: "12px" }}>
-        <div
-          style={{
-            minWidth: "54px",
-            color: "#94a3b8",
-            fontSize: "12px",
-            fontWeight: "800",
-          }}
-        >
-          {event.time}
-        </div>
-
-        <div>
-          <div style={{ color: "white", fontSize: "14px", fontWeight: "900" }}>
-            {event.title}
-          </div>
-
-          <div style={{ color: "#cbd5e1", fontSize: "13px", lineHeight: 1.6 }}>
-            {event.message}
-          </div>
-        </div>
-      </div>
-    ))}
-  </div>
-</div>
-  {(aiActionQueue || []).length > 0 ? (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: "12px",
-      }}
-    >
-      {aiActionQueue.map((action, index) => (
-        <div
-          key={index}
-          style={{
-            padding: "14px",
-            borderRadius: "16px",
-            background: "rgba(15,23,42,0.72)",
-            border: "1px solid rgba(148,163,184,0.14)",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginBottom: "8px",
-            }}
-          >
-            <div
-              style={{
-                color: "white",
-                fontWeight: "900",
-                fontSize: "14px",
-              }}
-            >
-              {action.type}
-            </div>
-
-            <div
-              style={{
-                color:
-                  action.severity === "Critical"
-                    ? "#fca5a5"
-                    : action.severity === "High"
-                    ? "#fde68a"
-                    : "#c4b5fd",
-                fontSize: "11px",
-                fontWeight: "900",
-              }}
-            >
-              {action.severity}
-            </div>
-          </div>
-
-          <div
-            style={{
-              color: "#cbd5e1",
-              fontSize: "13px",
-              lineHeight: 1.6,
-            }}
-          >
-            {action.message}
-          </div>
-        </div>
-      ))}
-    </div>
-  ) : (
-    <div
-      style={{
-        color: "#94a3b8",
-        fontSize: "13px",
-      }}
-    >
-      No active AI actions detected.
-    </div>
-  )}
-</div>
     <h3
       style={{
         color: "white",
-        fontSize: "26px",
+        fontSize: "28px",
         fontWeight: "950",
-        margin: "0 0 10px",
+        marginBottom: "12px",
       }}
     >
-      {topAIAction?.title || "Operations Stable"}
+      {topAIAction.title}
     </h3>
 
     <p
       style={{
-        color: "#cbd5e1",
+        color: "#e2e8f0",
         fontSize: "14px",
-        lineHeight: 1.7,
-        marginBottom: "18px",
+        lineHeight: 1.8,
+        marginBottom: "20px",
       }}
     >
-      {topAIAction?.recommendation}
+      {topAIAction.recommendation}
     </p>
 
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-        gap: "12px",
+        gridTemplateColumns: isMobile
+          ? "1fr"
+          : "repeat(3,minmax(0,1fr))",
+        gap: "16px",
       }}
     >
-      <div
-        style={{
-          padding: "14px",
-          borderRadius: "16px",
-          background: "rgba(255,255,255,0.04)",
-          border: "1px solid rgba(255,255,255,0.08)",
-        }}
-      >
-        <div style={{ color: "#94a3b8", fontSize: "11px", fontWeight: "800" }}>
-          CATEGORY
-        </div>
-        <div style={{ color: "white", fontSize: "18px", fontWeight: "950" }}>
-          {topAIAction?.category || "Monitoring"}
-        </div>
-      </div>
+      <GlassCard
+        title="AI Category"
+        value={topAIAction.category || "Monitoring"}
+        subtitle="Highest operational priority"
+      />
 
-      <div
-        style={{
-          padding: "14px",
-          borderRadius: "16px",
-          background: "rgba(255,255,255,0.04)",
-          border: "1px solid rgba(255,255,255,0.08)",
-        }}
-      >
-        <div style={{ color: "#94a3b8", fontSize: "11px", fontWeight: "800" }}>
-          EST. IMPACT
-        </div>
-        <div style={{ color: "#22c55e", fontSize: "18px", fontWeight: "950" }}>
-          {topAIAction?.impact || "+$0/mo"}
-        </div>
-      </div>
+      <GlassCard
+        title="Projected Impact"
+        value={topAIAction.impact || "+$0/mo"}
+        subtitle="Estimated monthly recovery"
+      />
 
-      <div
-        style={{
-          padding: "14px",
-          borderRadius: "16px",
-          background: "rgba(255,255,255,0.04)",
-          border: "1px solid rgba(255,255,255,0.08)",
-        }}
-      >
-        <div style={{ color: "#94a3b8", fontSize: "11px", fontWeight: "800" }}>
-          SEVERITY
-        </div>
-        <div
-          style={{
-            color:
-              topAIAction?.severity === "Critical"
-                ? "#f87171"
-                : topAIAction?.severity === "Warning"
-                ? "#facc15"
-                : "#22c55e",
-            fontSize: "18px",
-            fontWeight: "950",
-          }}
-        >
-          {topAIAction?.severity || "Healthy"}
-        </div>
-      </div>
+      <GlassCard
+        title="Severity"
+        value={topAIAction.severity || "Healthy"}
+        subtitle="Current operational status"
+      />
     </div>
-    {/* ⚡ AI ACTION CONTROLS */}
-    <div
+    <button
+  type="button"
+  onClick={() =>
+    handleCreateAIAction({
+      actionType: "top_ai_recommendation",
+      title: topAIAction.title,
+      description: topAIAction.recommendation,
+      customer: null,
+      estimatedValue: Number(
+        String(topAIAction.impact || "0").replace(/[^0-9.]/g, "")
+      ),
+      channel: "Operational",
+      message: topAIAction.recommendation,
+    })
+  }
   style={{
     marginTop: "18px",
-    display: "flex",
-    gap: "12px",
-    flexWrap: "wrap",
+    padding: "13px 18px",
+    borderRadius: "16px",
+    border: "1px solid rgba(250,204,21,0.28)",
+    background: "rgba(250,204,21,0.14)",
+    color: "#fde68a",
+    fontSize: "13px",
+    fontWeight: "950",
+    cursor: "pointer",
   }}
 >
-  <button
-    type="button"
-    onClick={() => {
-      setGeneratedCampaignPreview({
-        title: topAIAction?.title || "AI Operational Action",
-        sms:
-          topAIAction?.recommendation ||
-          "SerVen detected an operational opportunity.",
-        emailBody:
-          topAIAction?.recommendation ||
-          "SerVen detected an operational opportunity.",
-        audience: "Restaurant Operators",
-        issue: topAIAction?.category || "Operations",
-        reason: topAIAction?.severity || "Monitoring",
-      });
-    }}
-    style={{
-      padding: "12px 16px",
-      borderRadius: "14px",
-      border: "none",
-      background: "linear-gradient(135deg, #4f46e5, #6D3DF5)",
-      color: "white",
-      fontWeight: "900",
-      cursor: "pointer",
-    }}
-  >
-    Generate Action Plan
-  </button>
-
-  <button
-    type="button"
-    onClick={() => {
-      pushActivity(
-        `Reviewed AI action: ${topAIAction?.title || "Operations Stable"}`,
-        "ai"
-      );
-      setSavedMessage("AI action reviewed");
-      setTimeout(() => setSavedMessage(""), 2000);
-    }}
-    style={{
-      padding: "12px 16px",
-      borderRadius: "14px",
-      border: "1px solid rgba(148,163,184,0.22)",
-      background: "rgba(15,23,42,0.85)",
-      color: "white",
-      fontWeight: "900",
-      cursor: "pointer",
-    }}
-  >
-    Mark Reviewed
-  </button>
-</div>
-  </div>
+  Save AI Recommendation
+</button>
   </div>
 )}
+{/* =========================
+   AI AUTONOMOUS EXECUTION ENGINE
+========================= */}
 
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "30px",
+      background:
+        "linear-gradient(135deg, rgba(34,197,94,0.14), rgba(15,23,42,0.96))",
+      border: "1px solid rgba(74,222,128,0.22)",
+      boxShadow: "0 28px 80px rgba(2,6,23,0.34)",
+    }}
+  >
+    <div
+      style={{
+        color: "#86efac",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      AI Autonomous Execution Engine
+    </div>
+
+    <h3 style={{ color: "white", fontSize: "26px", fontWeight: "950" }}>
+      AI-Ready Actions For Automated Execution
+    </h3>
+
+    <div
+      style={{
+        marginTop: "18px",
+        display: "grid",
+        gridTemplateColumns: isMobile ? "1fr" : "repeat(3,minmax(0,1fr))",
+        gap: "16px",
+      }}
+    >
+      <GlassCard
+        title="Ready To Auto-Launch"
+        value={autoExecutableActions.length}
+        subtitle="Drafts above execution threshold"
+      />
+
+      <GlassCard
+        title="Low-Value Drafts"
+        value={lowValueActions.length}
+        subtitle="Actions AI may dismiss"
+      />
+
+      <GlassCard
+        title="Execution Threshold"
+        value="$500"
+        subtitle="Minimum projected value"
+      />
+    </div>
+    {autonomousModeEnabled && (
+  <button
+    type="button"
+    onClick={async () => {
+      const actionIds = autoExecutableActions.map((action) => action.id);
+
+      if (!actionIds.length) {
+        setMessage("No eligible AI actions ready for auto-launch.");
+        return;
+      }
+
+      const { error } = await supabase
+        .from("ai_actions")
+        .update({
+          action_status: "launched",
+        })
+        .in("id", actionIds);
+
+      if (error) {
+        console.error("Auto-launch error:", error);
+        setMessage("AI auto-launch failed.");
+        return;
+      }
+
+      setAiActions((prev) =>
+        prev.map((action) =>
+          actionIds.includes(action.id)
+            ? { ...action, action_status: "launched" }
+            : action
+        )
+      );
+
+      setMessage(`AI auto-launched ${actionIds.length} action(s).`);
+    }}
+    style={{
+      marginTop: "18px",
+      padding: "13px 18px",
+      borderRadius: "16px",
+      border: "1px solid rgba(34,197,94,0.32)",
+      background: "rgba(34,197,94,0.18)",
+      color: "#86efac",
+      fontSize: "13px",
+      fontWeight: "950",
+      cursor: "pointer",
+    }}
+  >
+    Auto-Launch Eligible Actions
+  </button>
+)}
+{autonomousModeEnabled && lowValueActions.length > 0 && (
+  <button
+    type="button"
+    onClick={async () => {
+      const lowValueIds = lowValueActions.map(
+        (action) => action.id
+      );
+
+      const { error } = await supabase
+        .from("ai_actions")
+        .update({
+          action_status: "cancelled",
+        })
+        .in("id", lowValueIds);
+
+      if (error) {
+        console.error("Auto-dismiss error:", error);
+        setMessage("AI auto-dismiss failed.");
+        return;
+      }
+
+      setAiActions((prev) =>
+        prev.map((action) =>
+          lowValueIds.includes(action.id)
+            ? { ...action, action_status: "cancelled" }
+            : action
+        )
+      );
+
+      setMessage(
+        `AI auto-dismissed ${lowValueIds.length} low-value action(s).`
+      );
+    }}
+    style={{
+      marginTop: "14px",
+      marginLeft: "12px",
+      padding: "13px 18px",
+      borderRadius: "16px",
+      border: "1px solid rgba(239,68,68,0.28)",
+      background: "rgba(239,68,68,0.14)",
+      color: "#fca5a5",
+      fontSize: "13px",
+      fontWeight: "950",
+      cursor: "pointer",
+    }}
+  >
+    Auto-Dismiss Low-Value Actions
+  </button>
+)}
+<div
+  style={{
+    marginTop: "18px",
+    padding: "16px",
+    borderRadius: "20px",
+    background: "rgba(15,23,42,0.72)",
+    border: "1px solid rgba(74,222,128,0.14)",
+    color: "#cbd5e1",
+    fontSize: "13px",
+    lineHeight: 1.7,
+  }}
+>
+  {autonomousModeEnabled
+    ? autoExecutableActions.length > 0
+      ? `Autonomous mode is active. AI found ${autoExecutableActions.length} high-value action(s) ready for execution.`
+      : "Autonomous mode is active. No high-value actions are currently ready for execution."
+    : "Autonomous mode is off. AI will recommend actions but will not execute them automatically."}
+</div>
+  </div>
+)}
+{/* =========================
+   AI AUTONOMOUS MODE CONTROL
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "30px",
+      background:
+        "linear-gradient(135deg, rgba(34,197,94,0.14), rgba(15,23,42,0.96))",
+      border: "1px solid rgba(74,222,128,0.22)",
+      boxShadow: "0 28px 80px rgba(2,6,23,0.34)",
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: isMobile ? "flex-start" : "center",
+      flexDirection: isMobile ? "column" : "row",
+      gap: "18px",
+    }}
+  >
+    <div>
+      <div
+        style={{
+          color: "#86efac",
+          fontSize: "12px",
+          fontWeight: "900",
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          marginBottom: "8px",
+        }}
+      >
+        AI Autonomous Mode
+      </div>
+
+      <h3
+        style={{
+          color: "white",
+          fontSize: "24px",
+          fontWeight: "950",
+          marginBottom: "8px",
+        }}
+      >
+        Let AI Auto-Prioritize Recovery Actions
+      </h3>
+
+      <p
+        style={{
+          color: "#cbd5e1",
+          fontSize: "13px",
+          lineHeight: 1.7,
+          maxWidth: "760px",
+        }}
+      >
+        When enabled, SerVen AI can identify high-value draft actions and prepare
+        them for automatic execution based on projected recovery value.
+      </p>
+    </div>
+
+    <button
+      type="button"
+      onClick={() =>
+        setAutonomousModeEnabled((prev) => !prev)
+      }
+      style={{
+        padding: "13px 18px",
+        borderRadius: "16px",
+        border: autonomousModeEnabled
+          ? "1px solid rgba(34,197,94,0.32)"
+          : "1px solid rgba(148,163,184,0.22)",
+        background: autonomousModeEnabled
+          ? "rgba(34,197,94,0.18)"
+          : "rgba(15,23,42,0.72)",
+        color: autonomousModeEnabled ? "#86efac" : "#cbd5e1",
+        fontSize: "13px",
+        fontWeight: "950",
+        cursor: "pointer",
+        minWidth: "160px",
+      }}
+    >
+      {autonomousModeEnabled ? "Autonomous On" : "Autonomous Off"}
+    </button>
+  </div>
+)}
 {/* 📋 AI OPERATIONS COMMAND */}
 {hasProAccess && (
   <div
@@ -43504,7 +43425,24 @@ boxSizing: "border-box",
       SerVen AI identifies VIP guests, churn risk, average spend, and loyalty
       signals so restaurants can protect repeat revenue.
     </p>
-
+{aiGuestSentimentIntelligence.length === 0 && (
+  <div
+    style={{
+      marginBottom: "18px",
+      padding: "18px",
+      borderRadius: "20px",
+      background: "rgba(15,23,42,0.72)",
+      border: "1px solid rgba(96,165,250,0.18)",
+      color: "#cbd5e1",
+      fontSize: "14px",
+      lineHeight: 1.7,
+    }}
+  >
+    Upload or connect customer data to activate AI Guest Intelligence,
+    including VIP detection, churn risk, loyalty scoring, and guest revenue
+    forecasting.
+  </div>
+)}
     <div
       style={{
         display: "grid",
@@ -43613,91 +43551,106 @@ boxSizing: "border-box",
             ))}
           </tr>
         </thead>
+<tbody>
+  {aiGuestSentimentIntelligence.length > 0 ? (
+    aiGuestSentimentIntelligence
+      .slice(0, 8)
+      .map((guest, index) => (
+        <tr
+          key={guest.id || index}
+          style={{
+            borderBottom:
+              "1px solid rgba(148,163,184,0.08)",
+          }}
+        >
+          <td
+            style={{
+              padding: "14px",
+              color: "white",
+              fontWeight: "700",
+            }}
+          >
+            {guest.name}
+          </td>
 
-        <tbody>
-          {aiGuestSentimentIntelligence
-            .slice(0, 8)
-            .map((guest, index) => (
-              <tr
-                key={guest.id || index}
-                style={{
-                  borderBottom:
-                    "1px solid rgba(148,163,184,0.08)",
-                }}
-              >
-                <td
-                  style={{
-                    padding: "14px",
-                    color: "white",
-                    fontWeight: "700",
-                  }}
-                >
-                  {guest.name}
-                </td>
+          <td
+            style={{
+              padding: "14px",
+              color:
+                guest.guestTier === "VIP"
+                  ? "#facc15"
+                  : guest.guestTier === "Premium"
+                  ? "#93c5fd"
+                  : "#cbd5e1",
+              fontWeight: "800",
+            }}
+          >
+            {guest.guestTier}
+          </td>
 
-                <td
-                  style={{
-                    padding: "14px",
-                    color:
-                      guest.guestTier === "VIP"
-                        ? "#facc15"
-                        : guest.guestTier === "Premium"
-                        ? "#93c5fd"
-                        : "#cbd5e1",
-                    fontWeight: "800",
-                  }}
-                >
-                  {guest.guestTier}
-                </td>
+          <td
+            style={{
+              padding: "14px",
+              color: "#e2e8f0",
+            }}
+          >
+            {guest.visits}
+          </td>
 
-                <td
-                  style={{
-                    padding: "14px",
-                    color: "#e2e8f0",
-                  }}
-                >
-                  {guest.visits}
-                </td>
+          <td
+            style={{
+              padding: "14px",
+              color: "#86efac",
+              fontWeight: "700",
+            }}
+          >
+            ${guest.avgSpend.toFixed(0)}
+          </td>
 
-                <td
-                  style={{
-                    padding: "14px",
-                    color: "#86efac",
-                    fontWeight: "700",
-                  }}
-                >
-                  ${guest.avgSpend.toFixed(0)}
-                </td>
+          <td
+            style={{
+              padding: "14px",
+              color:
+                guest.sentimentScore === "Excellent"
+                  ? "#4ade80"
+                  : guest.sentimentScore === "Positive"
+                  ? "#93c5fd"
+                  : guest.sentimentScore === "Neutral"
+                  ? "#facc15"
+                  : "#f87171",
+              fontWeight: "800",
+            }}
+          >
+            {guest.sentimentScore}
+          </td>
 
-                <td
-                  style={{
-                    padding: "14px",
-                    color:
-                      guest.sentimentScore === "Excellent"
-                        ? "#4ade80"
-                        : guest.sentimentScore === "Positive"
-                        ? "#93c5fd"
-                        : guest.sentimentScore === "Neutral"
-                        ? "#facc15"
-                        : "#f87171",
-                    fontWeight: "800",
-                  }}
-                >
-                  {guest.sentimentScore}
-                </td>
-
-                <td
-                  style={{
-                    padding: "14px",
-                    color: "#cbd5e1",
-                    fontSize: "13px",
-                  }}
-                >
-                  {guest.predictedBehavior}
-                </td>
-              </tr>
-            ))}
-        </tbody>
+          <td
+            style={{
+              padding: "14px",
+              color: "#cbd5e1",
+              fontSize: "13px",
+            }}
+          >
+            {guest.predictedBehavior}
+          </td>
+        </tr>
+      ))
+  ) : (
+    <tr>
+      <td
+        colSpan={6}
+        style={{
+          padding: "28px",
+          textAlign: "center",
+          color: "#94a3b8",
+          fontSize: "14px",
+        }}
+      >
+        No guest sentiment data available yet.
+      </td>
+    </tr>
+  )}
+</tbody>
       </table>
     </div>
   </div>
@@ -43751,155 +43704,174 @@ boxSizing: "border-box",
         gap: "16px",
       }}
     >
-      {aiGuestSentimentIntelligence
-        .filter((guest) => guest.guestTier === "VIP")
-        .slice(0, 6)
-        .map((guest, index) => (
-          <div
-            key={guest.id || index}
-            style={{
-              padding: "18px",
-              borderRadius: "22px",
-              background: "rgba(15,23,42,0.76)",
-              border: "1px solid rgba(250,204,21,0.14)",
-            }}
-          >
+      {aiGuestSentimentIntelligence.filter(
+        (guest) => guest.guestTier === "VIP"
+      ).length > 0 ? (
+        aiGuestSentimentIntelligence
+          .filter((guest) => guest.guestTier === "VIP")
+          .slice(0, 6)
+          .map((guest, index) => (
             <div
+              key={guest.id || index}
               style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: "14px",
-              }}
-            >
-              <div
-                style={{
-                  color: "white",
-                  fontSize: "18px",
-                  fontWeight: "900",
-                }}
-              >
-                {guest.name}
-              </div>
-
-              <div
-                style={{
-                  padding: "6px 10px",
-                  borderRadius: "999px",
-                  background: "rgba(250,204,21,0.14)",
-                  color: "#fde68a",
-                  fontSize: "11px",
-                  fontWeight: "900",
-                }}
-              >
-                VIP
-              </div>
-            </div>
-
-            <div
-              style={{
-                display: "grid",
-                gap: "10px",
+                padding: "18px",
+                borderRadius: "22px",
+                background: "rgba(15,23,42,0.76)",
+                border: "1px solid rgba(250,204,21,0.14)",
               }}
             >
               <div
                 style={{
                   display: "flex",
                   justifyContent: "space-between",
-                }}
-              >
-                <span
-                  style={{
-                    color: "#94a3b8",
-                    fontSize: "13px",
-                  }}
-                >
-                  Total Visits
-                </span>
-
-                <span
-                  style={{
-                    color: "#e2e8f0",
-                    fontWeight: "800",
-                  }}
-                >
-                  {guest.visits}
-                </span>
-              </div>
-
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                }}
-              >
-                <span
-                  style={{
-                    color: "#94a3b8",
-                    fontSize: "13px",
-                  }}
-                >
-                  Average Spend
-                </span>
-
-                <span
-                  style={{
-                    color: "#86efac",
-                    fontWeight: "800",
-                  }}
-                >
-                  ${guest.avgSpend.toFixed(0)}
-                </span>
-              </div>
-
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                }}
-              >
-                <span
-                  style={{
-                    color: "#94a3b8",
-                    fontSize: "13px",
-                  }}
-                >
-                  Loyalty Score
-                </span>
-
-                <span
-                  style={{
-                    color: "#60a5fa",
-                    fontWeight: "800",
-                  }}
-                >
-                  {guest.loyaltyScore}/100
-                </span>
-              </div>
-
-              <div
-                style={{
-                  marginTop: "10px",
-                  width: "100%",
-                  height: "10px",
-                  borderRadius: "999px",
-                  background: "rgba(51,65,85,0.7)",
-                  overflow: "hidden",
+                  alignItems: "center",
+                  marginBottom: "14px",
                 }}
               >
                 <div
                   style={{
-                    width: `${guest.loyaltyScore}%`,
-                    height: "100%",
-                    borderRadius: "999px",
-                    background:
-                      "linear-gradient(90deg,#facc15,#fde68a)",
+                    color: "white",
+                    fontSize: "18px",
+                    fontWeight: "900",
                   }}
-                />
+                >
+                  {guest.name}
+                </div>
+
+                <div
+                  style={{
+                    padding: "6px 10px",
+                    borderRadius: "999px",
+                    background: "rgba(250,204,21,0.14)",
+                    color: "#fde68a",
+                    fontSize: "11px",
+                    fontWeight: "900",
+                  }}
+                >
+                  VIP
+                </div>
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gap: "10px",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <span
+                    style={{
+                      color: "#94a3b8",
+                      fontSize: "13px",
+                    }}
+                  >
+                    Total Visits
+                  </span>
+
+                  <span
+                    style={{
+                      color: "#e2e8f0",
+                      fontWeight: "800",
+                    }}
+                  >
+                    {guest.visits}
+                  </span>
+                </div>
+
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <span
+                    style={{
+                      color: "#94a3b8",
+                      fontSize: "13px",
+                    }}
+                  >
+                    Average Spend
+                  </span>
+
+                  <span
+                    style={{
+                      color: "#86efac",
+                      fontWeight: "800",
+                    }}
+                  >
+                    ${guest.avgSpend.toFixed(0)}
+                  </span>
+                </div>
+
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <span
+                    style={{
+                      color: "#94a3b8",
+                      fontSize: "13px",
+                    }}
+                  >
+                    Loyalty Score
+                  </span>
+
+                  <span
+                    style={{
+                      color: "#60a5fa",
+                      fontWeight: "800",
+                    }}
+                  >
+                    {guest.loyaltyScore}/100
+                  </span>
+                </div>
+
+                <div
+                  style={{
+                    marginTop: "10px",
+                    width: "100%",
+                    height: "10px",
+                    borderRadius: "999px",
+                    background: "rgba(51,65,85,0.7)",
+                    overflow: "hidden",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: `${guest.loyaltyScore}%`,
+                      height: "100%",
+                      borderRadius: "999px",
+                      background:
+                        "linear-gradient(90deg,#facc15,#fde68a)",
+                    }}
+                  />
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          ))
+      ) : (
+        <div
+          style={{
+            gridColumn: "1 / -1",
+            padding: "22px",
+            borderRadius: "22px",
+            background: "rgba(15,23,42,0.72)",
+            border: "1px solid rgba(250,204,21,0.14)",
+            color: "#94a3b8",
+            fontSize: "14px",
+            textAlign: "center",
+          }}
+        >
+          No VIP guests detected yet.
+        </div>
+      )}
     </div>
   </div>
 )}
@@ -43949,96 +43921,114 @@ boxSizing: "border-box",
         gap: "14px",
       }}
     >
-      {aiGuestSentimentIntelligence
-        .filter((guest) => guest.churnRisk === "High")
-        .slice(0, 6)
-        .map((guest, index) => (
-          <div
-            key={guest.id || index}
-            style={{
-              padding: "18px",
-              borderRadius: "20px",
-              background: "rgba(15,23,42,0.72)",
-              border: "1px solid rgba(248,113,113,0.16)",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: isMobile ? "flex-start" : "center",
-              flexDirection: isMobile ? "column" : "row",
-              gap: "14px",
-            }}
-          >
-            <div>
-              <div
-                style={{
-                  color: "white",
-                  fontSize: "18px",
-                  fontWeight: "900",
-                  marginBottom: "6px",
-                }}
-              >
-                {guest.name}
-              </div>
-
-              <div
-                style={{
-                  color: "#cbd5e1",
-                  fontSize: "13px",
-                  lineHeight: 1.6,
-                }}
-              >
-                AI predicts this guest may stop visiting due to
-                low engagement frequency and declining loyalty signals.
-              </div>
-            </div>
-
+      {aiGuestSentimentIntelligence.filter(
+        (guest) => guest.churnRisk === "High"
+      ).length > 0 ? (
+        aiGuestSentimentIntelligence
+          .filter((guest) => guest.churnRisk === "High")
+          .slice(0, 6)
+          .map((guest, index) => (
             <div
+              key={guest.id || index}
               style={{
+                padding: "18px",
+                borderRadius: "20px",
+                background: "rgba(15,23,42,0.72)",
+                border: "1px solid rgba(248,113,113,0.16)",
                 display: "flex",
-                gap: "10px",
-                flexWrap: "wrap",
+                justifyContent: "space-between",
+                alignItems: isMobile ? "flex-start" : "center",
+                flexDirection: isMobile ? "column" : "row",
+                gap: "14px",
               }}
             >
-              <div
-                style={{
-                  padding: "8px 12px",
-                  borderRadius: "999px",
-                  background: "rgba(248,113,113,0.14)",
-                  color: "#fca5a5",
-                  fontSize: "12px",
-                  fontWeight: "900",
-                }}
-              >
-                High Churn Risk
+              <div>
+                <div
+                  style={{
+                    color: "white",
+                    fontSize: "18px",
+                    fontWeight: "900",
+                    marginBottom: "6px",
+                  }}
+                >
+                  {guest.name}
+                </div>
+
+                <div
+                  style={{
+                    color: "#cbd5e1",
+                    fontSize: "13px",
+                    lineHeight: 1.6,
+                  }}
+                >
+                  AI predicts this guest may stop visiting due to low
+                  engagement frequency and declining loyalty signals.
+                </div>
               </div>
 
               <div
                 style={{
-                  padding: "8px 12px",
-                  borderRadius: "999px",
-                  background: "rgba(59,130,246,0.14)",
-                  color: "#93c5fd",
-                  fontSize: "12px",
-                  fontWeight: "900",
+                  display: "flex",
+                  gap: "10px",
+                  flexWrap: "wrap",
                 }}
               >
-                {guest.visits} Visits
-              </div>
+                <div
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: "999px",
+                    background: "rgba(248,113,113,0.14)",
+                    color: "#fca5a5",
+                    fontSize: "12px",
+                    fontWeight: "900",
+                  }}
+                >
+                  High Churn Risk
+                </div>
 
-              <div
-                style={{
-                  padding: "8px 12px",
-                  borderRadius: "999px",
-                  background: "rgba(34,197,94,0.14)",
-                  color: "#86efac",
-                  fontSize: "12px",
-                  fontWeight: "900",
-                }}
-              >
-                ${guest.avgSpend.toFixed(0)} Avg Spend
+                <div
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: "999px",
+                    background: "rgba(59,130,246,0.14)",
+                    color: "#93c5fd",
+                    fontSize: "12px",
+                    fontWeight: "900",
+                  }}
+                >
+                  {guest.visits} Visits
+                </div>
+
+                <div
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: "999px",
+                    background: "rgba(34,197,94,0.14)",
+                    color: "#86efac",
+                    fontSize: "12px",
+                    fontWeight: "900",
+                  }}
+                >
+                  ${guest.avgSpend.toFixed(0)} Avg Spend
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          ))
+      ) : (
+        <div
+          style={{
+            padding: "22px",
+            borderRadius: "20px",
+            background: "rgba(15,23,42,0.72)",
+            border: "1px solid rgba(248,113,113,0.14)",
+            color: "#94a3b8",
+            fontSize: "14px",
+            textAlign: "center",
+          }}
+        >
+          No high-risk guests detected.
+        </div>
+      )}
     </div>
   </div>
 )}
@@ -44368,98 +44358,114 @@ boxSizing: "border-box",
     </p>
 
     <div style={{ display: "grid", gap: "14px" }}>
-      {aiGuestSentimentIntelligence.slice(0, 6).map((guest, index) => {
-        const campaignType =
-          guest.churnRisk === "High"
-            ? "Win-Back Offer"
-            : guest.guestTier === "VIP"
-            ? "VIP Appreciation"
-            : guest.loyaltyScore >= 55
-            ? "Loyalty Booster"
-            : "First-Time Return Offer";
+      {aiGuestSentimentIntelligence.length > 0 ? (
+        aiGuestSentimentIntelligence.slice(0, 6).map((guest, index) => {
+          const campaignType =
+            guest.churnRisk === "High"
+              ? "Win-Back Offer"
+              : guest.guestTier === "VIP"
+              ? "VIP Appreciation"
+              : guest.loyaltyScore >= 55
+              ? "Loyalty Booster"
+              : "First-Time Return Offer";
 
-        const campaignMessage =
-          guest.churnRisk === "High"
-            ? `Send ${guest.name} a limited-time comeback offer.`
-            : guest.guestTier === "VIP"
-            ? `Invite ${guest.name} to an exclusive VIP dining experience.`
-            : guest.loyaltyScore >= 55
-            ? `Reward ${guest.name} with a loyalty incentive.`
-            : `Encourage ${guest.name} to return with a personalized offer.`;
+          const campaignMessage =
+            guest.churnRisk === "High"
+              ? `Send ${guest.name} a limited-time comeback offer.`
+              : guest.guestTier === "VIP"
+              ? `Invite ${guest.name} to an exclusive VIP dining experience.`
+              : guest.loyaltyScore >= 55
+              ? `Reward ${guest.name} with a loyalty incentive.`
+              : `Encourage ${guest.name} to return with a personalized offer.`;
 
-        return (
-          <div
-            key={guest.id || index}
-            style={{
-              padding: "18px",
-              borderRadius: "22px",
-              background: "rgba(15,23,42,0.74)",
-              border: "1px solid rgba(244,114,182,0.14)",
-              display: "grid",
-              gridTemplateColumns: isMobile
-                ? "1fr"
-                : "1.2fr 1fr 1.4fr",
-              gap: "14px",
-              alignItems: "center",
-            }}
-          >
-            <div>
-              <div
-                style={{
-                  color: "white",
-                  fontSize: "17px",
-                  fontWeight: "900",
-                  marginBottom: "5px",
-                }}
-              >
-                {guest.name}
-              </div>
-
-              <div
-                style={{
-                  color: "#94a3b8",
-                  fontSize: "12px",
-                  fontWeight: "700",
-                }}
-              >
-                {guest.guestTier} • {guest.churnRisk} churn risk
-              </div>
-            </div>
-
-            <div>
-              <div
-                style={{
-                  color: "#94a3b8",
-                  fontSize: "12px",
-                  marginBottom: "5px",
-                }}
-              >
-                Recommended Campaign
-              </div>
-
-              <div
-                style={{
-                  color: "#f9a8d4",
-                  fontSize: "14px",
-                  fontWeight: "900",
-                }}
-              >
-                {campaignType}
-              </div>
-            </div>
-
+          return (
             <div
+              key={guest.id || index}
               style={{
-                color: "#cbd5e1",
-                fontSize: "13px",
-                lineHeight: 1.6,
+                padding: "18px",
+                borderRadius: "22px",
+                background: "rgba(15,23,42,0.74)",
+                border: "1px solid rgba(244,114,182,0.14)",
+                display: "grid",
+                gridTemplateColumns: isMobile
+                  ? "1fr"
+                  : "1.2fr 1fr 1.4fr",
+                gap: "14px",
+                alignItems: "center",
               }}
             >
-              {campaignMessage}
+              <div>
+                <div
+                  style={{
+                    color: "white",
+                    fontSize: "17px",
+                    fontWeight: "900",
+                    marginBottom: "5px",
+                  }}
+                >
+                  {guest.name}
+                </div>
+
+                <div
+                  style={{
+                    color: "#94a3b8",
+                    fontSize: "12px",
+                    fontWeight: "700",
+                  }}
+                >
+                  {guest.guestTier} • {guest.churnRisk} churn risk
+                </div>
+              </div>
+
+              <div>
+                <div
+                  style={{
+                    color: "#94a3b8",
+                    fontSize: "12px",
+                    marginBottom: "5px",
+                  }}
+                >
+                  Recommended Campaign
+                </div>
+
+                <div
+                  style={{
+                    color: "#f9a8d4",
+                    fontSize: "14px",
+                    fontWeight: "900",
+                  }}
+                >
+                  {campaignType}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  color: "#cbd5e1",
+                  fontSize: "13px",
+                  lineHeight: 1.6,
+                }}
+              >
+                {campaignMessage}
+              </div>
             </div>
-          </div>
-        );
-      })}
+          );
+        })
+      ) : (
+        <div
+          style={{
+            padding: "22px",
+            borderRadius: "22px",
+            background: "rgba(15,23,42,0.72)",
+            border: "1px solid rgba(244,114,182,0.14)",
+            color: "#94a3b8",
+            fontSize: "14px",
+            textAlign: "center",
+          }}
+        >
+          No personalized campaigns generated yet.
+        </div>
+      )}
     </div>
   </div>
 )}
@@ -44516,87 +44522,116 @@ boxSizing: "border-box",
     </p>
 
     <div style={{ display: "grid", gap: "14px" }}>
-      {aiGuestSentimentIntelligence
-        .filter((guest) => guest.churnRisk === "High")
-        .slice(0, 5)
-        .map((guest, index) => {
-          const estimatedRecoveryValue = guest.avgSpend * 2.5;
+      {aiGuestSentimentIntelligence.filter(
+        (guest) => guest.churnRisk === "High"
+      ).length > 0 ? (
+        aiGuestSentimentIntelligence
+          .filter((guest) => guest.churnRisk === "High")
+          .slice(0, 5)
+          .map((guest, index) => {
+            const estimatedRecoveryValue = guest.avgSpend * 2.5;
 
-          return (
-            <div
-              key={guest.id || index}
-              style={{
-                padding: "18px",
-                borderRadius: "22px",
-                background: "rgba(15,23,42,0.74)",
-                border: "1px solid rgba(251,146,60,0.16)",
-                display: "grid",
-                gridTemplateColumns: isMobile
-                  ? "1fr"
-                  : "1.2fr 1fr 1fr 1.2fr",
-                gap: "14px",
-                alignItems: "center",
-              }}
-            >
-              <div>
-                <div
-                  style={{
-                    color: "white",
-                    fontSize: "17px",
-                    fontWeight: "900",
-                    marginBottom: "5px",
-                  }}
-                >
-                  {guest.name}
-                </div>
-
-                <div
-                  style={{
-                    color: "#94a3b8",
-                    fontSize: "12px",
-                    fontWeight: "700",
-                  }}
-                >
-                  {guest.visits} visits • {guest.sentimentScore} sentiment
-                </div>
-              </div>
-
-              <div>
-                <div style={{ color: "#94a3b8", fontSize: "12px" }}>
-                  Suggested Offer
-                </div>
-                <div style={{ color: "#fdba74", fontWeight: "900" }}>
-                  Comeback Deal
-                </div>
-              </div>
-
-              <div>
-                <div style={{ color: "#94a3b8", fontSize: "12px" }}>
-                  Recovery Value
-                </div>
-                <div style={{ color: "#86efac", fontWeight: "950" }}>
-                  ${estimatedRecoveryValue.toFixed(0)}
-                </div>
-              </div>
-
-              <button
-                type="button"
+            return (
+              <div
+                key={guest.id || index}
                 style={{
-                  padding: "12px 14px",
-                  borderRadius: "14px",
-                  border: "1px solid rgba(251,146,60,0.28)",
-                  background: "rgba(249,115,22,0.16)",
-                  color: "#fed7aa",
-                  fontSize: "13px",
-                  fontWeight: "900",
-                  cursor: "pointer",
+                  padding: "18px",
+                  borderRadius: "22px",
+                  background: "rgba(15,23,42,0.74)",
+                  border: "1px solid rgba(251,146,60,0.16)",
+                  display: "grid",
+                  gridTemplateColumns: isMobile
+                    ? "1fr"
+                    : "1.2fr 1fr 1fr 1.2fr",
+                  gap: "14px",
+                  alignItems: "center",
                 }}
               >
-                Draft Win-Back Campaign
-              </button>
-            </div>
-          );
-        })}
+                <div>
+                  <div
+                    style={{
+                      color: "white",
+                      fontSize: "17px",
+                      fontWeight: "900",
+                      marginBottom: "5px",
+                    }}
+                  >
+                    {guest.name}
+                  </div>
+
+                  <div
+                    style={{
+                      color: "#94a3b8",
+                      fontSize: "12px",
+                      fontWeight: "700",
+                    }}
+                  >
+                    {guest.visits} visits • {guest.sentimentScore} sentiment
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ color: "#94a3b8", fontSize: "12px" }}>
+                    Suggested Offer
+                  </div>
+                  <div style={{ color: "#fdba74", fontWeight: "900" }}>
+                    Comeback Deal
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ color: "#94a3b8", fontSize: "12px" }}>
+                    Recovery Value
+                  </div>
+                  <div style={{ color: "#86efac", fontWeight: "950" }}>
+                    ${estimatedRecoveryValue.toFixed(0)}
+                  </div>
+                </div>
+
+                <button
+  type="button"
+  onClick={() =>
+    handleCreateAIAction({
+      actionType: "win_back_campaign",
+      title: "Comeback Deal",
+      description: `AI drafted a win-back campaign for ${guest.name}.`,
+      customer: guest,
+      estimatedValue: estimatedRecoveryValue,
+      channel: "Email/SMS",
+      message: `Hi ${guest.name}, we miss you at the restaurant. Come back this week and enjoy a personalized comeback offer on your next visit.`,
+    })
+  }
+  style={{
+    padding: "12px 14px",
+    borderRadius: "14px",
+    border: "1px solid rgba(251,146,60,0.28)",
+    background: "rgba(249,115,22,0.16)",
+    color: "#fed7aa",
+    fontSize: "13px",
+    fontWeight: "900",
+    cursor: "pointer",
+  }}
+>
+  Draft Win-Back Campaign
+</button>
+              </div>
+            );
+          })
+      ) : (
+        <div
+          style={{
+            padding: "22px",
+            borderRadius: "22px",
+            background: "rgba(15,23,42,0.72)",
+            border: "1px solid rgba(251,146,60,0.14)",
+            color: "#94a3b8",
+            fontSize: "14px",
+            textAlign: "center",
+          }}
+        >
+          No win-back campaigns available yet.
+        </div>
+      )}
     </div>
   </div>
 )}
@@ -44821,187 +44856,204 @@ boxSizing: "border-box",
         gap: "16px",
       }}
     >
-      {aiGuestSentimentIntelligence
-        .slice(0, 5)
-        .map((guest, index) => {
-          const currentStage =
-            guest.visits <= 1
-              ? "First Visit"
-              : guest.visits <= 3
-              ? "Returning Guest"
-              : guest.guestTier === "VIP"
-              ? "VIP Loyalist"
-              : "Loyal Customer";
+      {aiGuestSentimentIntelligence.length > 0 ? (
+        aiGuestSentimentIntelligence
+          .slice(0, 5)
+          .map((guest, index) => {
+            const currentStage =
+              guest.visits <= 1
+                ? "First Visit"
+                : guest.visits <= 3
+                ? "Returning Guest"
+                : guest.guestTier === "VIP"
+                ? "VIP Loyalist"
+                : "Loyal Customer";
 
-          const nextAction =
-            guest.churnRisk === "High"
-              ? "Launch Win-Back Offer"
-              : guest.guestTier === "VIP"
-              ? "Invite To VIP Experience"
-              : "Increase Loyalty Engagement";
+            const nextAction =
+              guest.churnRisk === "High"
+                ? "Launch Win-Back Offer"
+                : guest.guestTier === "VIP"
+                ? "Invite To VIP Experience"
+                : "Increase Loyalty Engagement";
 
-          return (
-            <div
-              key={guest.id || index}
-              style={{
-                padding: "20px",
-                borderRadius: "22px",
-                background: "rgba(15,23,42,0.74)",
-                border: "1px solid rgba(129,140,248,0.14)",
-              }}
-            >
+            return (
               <div
+                key={guest.id || index}
                 style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: isMobile ? "flex-start" : "center",
-                  flexDirection: isMobile ? "column" : "row",
-                  gap: "14px",
-                  marginBottom: "18px",
+                  padding: "20px",
+                  borderRadius: "22px",
+                  background: "rgba(15,23,42,0.74)",
+                  border: "1px solid rgba(129,140,248,0.14)",
                 }}
               >
-                <div>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: isMobile ? "flex-start" : "center",
+                    flexDirection: isMobile ? "column" : "row",
+                    gap: "14px",
+                    marginBottom: "18px",
+                  }}
+                >
+                  <div>
+                    <div
+                      style={{
+                        color: "white",
+                        fontSize: "18px",
+                        fontWeight: "900",
+                        marginBottom: "6px",
+                      }}
+                    >
+                      {guest.name}
+                    </div>
+
+                    <div
+                      style={{
+                        color: "#94a3b8",
+                        fontSize: "12px",
+                        fontWeight: "700",
+                      }}
+                    >
+                      {guest.visits} visits • $
+                      {guest.avgSpend.toFixed(0)} avg spend
+                    </div>
+                  </div>
+
                   <div
                     style={{
-                      color: "white",
-                      fontSize: "18px",
+                      padding: "8px 12px",
+                      borderRadius: "999px",
+                      background: "rgba(99,102,241,0.14)",
+                      border: "1px solid rgba(129,140,248,0.22)",
+                      color: "#c7d2fe",
+                      fontSize: "12px",
+                      fontWeight: "900",
+                    }}
+                  >
+                    {currentStage}
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "10px",
+                    flexWrap: "wrap",
+                    marginBottom: "18px",
+                  }}
+                >
+                  {[
+                    "Awareness",
+                    "First Visit",
+                    "Repeat Visits",
+                    "Loyalty",
+                    "VIP",
+                  ].map((step, stepIndex) => {
+                    const activeSteps =
+                      guest.visits <= 1
+                        ? 2
+                        : guest.visits <= 3
+                        ? 3
+                        : guest.guestTier === "VIP"
+                        ? 5
+                        : 4;
+
+                    const isActive = stepIndex + 1 <= activeSteps;
+
+                    return (
+                      <div
+                        key={step}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "10px",
+                        }}
+                      >
+                        <div
+                          style={{
+                            padding: "8px 12px",
+                            borderRadius: "999px",
+                            background: isActive
+                              ? "rgba(99,102,241,0.18)"
+                              : "rgba(51,65,85,0.55)",
+                            color: isActive
+                              ? "#c7d2fe"
+                              : "#64748b",
+                            fontSize: "11px",
+                            fontWeight: "800",
+                            border: isActive
+                              ? "1px solid rgba(129,140,248,0.24)"
+                              : "1px solid rgba(71,85,105,0.18)",
+                          }}
+                        >
+                          {step}
+                        </div>
+
+                        {step !== "VIP" && (
+                          <div
+                            style={{
+                              width: "18px",
+                              height: "2px",
+                              background: isActive
+                                ? "rgba(129,140,248,0.5)"
+                                : "rgba(71,85,105,0.35)",
+                            }}
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div
+                  style={{
+                    padding: "14px",
+                    borderRadius: "16px",
+                    background: "rgba(30,41,59,0.72)",
+                    border: "1px solid rgba(148,163,184,0.10)",
+                  }}
+                >
+                  <div
+                    style={{
+                      color: "#a5b4fc",
+                      fontSize: "12px",
                       fontWeight: "900",
                       marginBottom: "6px",
                     }}
                   >
-                    {guest.name}
+                    AI Recommended Next Action
                   </div>
 
                   <div
                     style={{
-                      color: "#94a3b8",
-                      fontSize: "12px",
-                      fontWeight: "700",
+                      color: "#e2e8f0",
+                      fontSize: "13px",
+                      lineHeight: 1.6,
                     }}
                   >
-                    {guest.visits} visits • ${guest.avgSpend.toFixed(0)} avg spend
+                    {nextAction}
                   </div>
                 </div>
-
-                <div
-                  style={{
-                    padding: "8px 12px",
-                    borderRadius: "999px",
-                    background: "rgba(99,102,241,0.14)",
-                    border: "1px solid rgba(129,140,248,0.22)",
-                    color: "#c7d2fe",
-                    fontSize: "12px",
-                    fontWeight: "900",
-                  }}
-                >
-                  {currentStage}
-                </div>
               </div>
-
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "10px",
-                  flexWrap: "wrap",
-                  marginBottom: "18px",
-                }}
-              >
-                {[
-                  "Awareness",
-                  "First Visit",
-                  "Repeat Visits",
-                  "Loyalty",
-                  "VIP",
-                ].map((step, stepIndex) => {
-                  const activeSteps =
-                    guest.visits <= 1
-                      ? 2
-                      : guest.visits <= 3
-                      ? 3
-                      : guest.guestTier === "VIP"
-                      ? 5
-                      : 4;
-
-                  const isActive = stepIndex + 1 <= activeSteps;
-
-                  return (
-                    <div
-                      key={step}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "10px",
-                      }}
-                    >
-                      <div
-                        style={{
-                          padding: "8px 12px",
-                          borderRadius: "999px",
-                          background: isActive
-                            ? "rgba(99,102,241,0.18)"
-                            : "rgba(51,65,85,0.55)",
-                          color: isActive
-                            ? "#c7d2fe"
-                            : "#64748b",
-                          fontSize: "11px",
-                          fontWeight: "800",
-                          border: isActive
-                            ? "1px solid rgba(129,140,248,0.24)"
-                            : "1px solid rgba(71,85,105,0.18)",
-                        }}
-                      >
-                        {step}
-                      </div>
-
-                      {step !== "VIP" && (
-                        <div
-                          style={{
-                            width: "18px",
-                            height: "2px",
-                            background: isActive
-                              ? "rgba(129,140,248,0.5)"
-                              : "rgba(71,85,105,0.35)",
-                          }}
-                        />
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div
-                style={{
-                  padding: "14px",
-                  borderRadius: "16px",
-                  background: "rgba(30,41,59,0.72)",
-                  border: "1px solid rgba(148,163,184,0.10)",
-                }}
-              >
-                <div
-                  style={{
-                    color: "#a5b4fc",
-                    fontSize: "12px",
-                    fontWeight: "900",
-                    marginBottom: "6px",
-                  }}
-                >
-                  AI Recommended Next Action
-                </div>
-
-                <div
-                  style={{
-                    color: "#e2e8f0",
-                    fontSize: "13px",
-                    lineHeight: 1.6,
-                  }}
-                >
-                  {nextAction}
-                </div>
-              </div>
-            </div>
-          );
-        })}
+            );
+          })
+      ) : (
+        <div
+          style={{
+            padding: "22px",
+            borderRadius: "22px",
+            background: "rgba(15,23,42,0.72)",
+            border: "1px solid rgba(129,140,248,0.14)",
+            color: "#94a3b8",
+            fontSize: "14px",
+            textAlign: "center",
+          }}
+        >
+          No guest journey data available yet.
+        </div>
+      )}
     </div>
   </div>
 )}
@@ -45092,15 +45144,9 @@ boxSizing: "border-box",
       />
     </div>
 
-    <div
-      style={{
-        display: "grid",
-        gap: "14px",
-      }}
-    >
-      {aiGuestSentimentIntelligence
-        .slice(0, 6)
-        .map((guest, index) => {
+    <div style={{ display: "grid", gap: "14px" }}>
+      {aiGuestSentimentIntelligence.length > 0 ? (
+        aiGuestSentimentIntelligence.slice(0, 6).map((guest, index) => {
           const diningPattern =
             guest.avgSpend >= 120
               ? "Premium Dining Preference"
@@ -45204,7 +45250,22 @@ boxSizing: "border-box",
               </div>
             </div>
           );
-        })}
+        })
+      ) : (
+        <div
+          style={{
+            padding: "22px",
+            borderRadius: "22px",
+            background: "rgba(15,23,42,0.72)",
+            border: "1px solid rgba(52,211,153,0.14)",
+            color: "#94a3b8",
+            fontSize: "14px",
+            textAlign: "center",
+          }}
+        >
+          No dining behavior data available yet.
+        </div>
+      )}
     </div>
   </div>
 )}
@@ -45249,97 +45310,132 @@ boxSizing: "border-box",
     </h3>
 
     <div style={{ display: "grid", gap: "14px" }}>
-      {aiGuestSentimentIntelligence.slice(0, 6).map((guest, index) => {
-        const retentionProbability =
-          guest.churnRisk === "High"
-            ? Math.max(18, guest.loyaltyScore - 25)
-            : guest.guestTier === "VIP"
-            ? Math.min(98, guest.loyaltyScore + 12)
-            : Math.min(92, guest.loyaltyScore + 8);
+      {aiGuestSentimentIntelligence.length > 0 ? (
+        aiGuestSentimentIntelligence.slice(0, 6).map((guest, index) => {
+          const retentionProbability =
+            guest.churnRisk === "High"
+              ? Math.max(18, guest.loyaltyScore - 25)
+              : guest.guestTier === "VIP"
+              ? Math.min(98, guest.loyaltyScore + 12)
+              : Math.min(92, guest.loyaltyScore + 8);
 
-        const retentionStatus =
-          retentionProbability >= 80
-            ? "Strong Retention"
-            : retentionProbability >= 55
-            ? "Moderate Retention"
-            : "Retention Risk";
+          const retentionStatus =
+            retentionProbability >= 80
+              ? "Strong Retention"
+              : retentionProbability >= 55
+              ? "Moderate Retention"
+              : "Retention Risk";
 
-        return (
-          <div
-            key={guest.id || index}
-            style={{
-              padding: "18px",
-              borderRadius: "22px",
-              background: "rgba(15,23,42,0.74)",
-              border: "1px solid rgba(96,165,250,0.14)",
-            }}
-          >
+          return (
             <div
+              key={guest.id || index}
               style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: isMobile ? "flex-start" : "center",
-                flexDirection: isMobile ? "column" : "row",
-                gap: "12px",
-                marginBottom: "12px",
+                padding: "18px",
+                borderRadius: "22px",
+                background: "rgba(15,23,42,0.74)",
+                border: "1px solid rgba(96,165,250,0.14)",
               }}
             >
-              <div>
-                <div style={{ color: "white", fontSize: "17px", fontWeight: "900" }}>
-                  {guest.name}
-                </div>
-
-                <div style={{ color: "#94a3b8", fontSize: "12px", marginTop: "4px" }}>
-                  {guest.guestTier} • {guest.visits} visits • {guest.churnRisk} churn risk
-                </div>
-              </div>
-
               <div
                 style={{
-                  color:
-                    retentionProbability >= 80
-                      ? "#86efac"
-                      : retentionProbability >= 55
-                      ? "#fde68a"
-                      : "#fca5a5",
-                  fontSize: "18px",
-                  fontWeight: "950",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: isMobile ? "flex-start" : "center",
+                  flexDirection: isMobile ? "column" : "row",
+                  gap: "12px",
+                  marginBottom: "12px",
                 }}
               >
-                {retentionProbability}%
-              </div>
-            </div>
+                <div>
+                  <div
+                    style={{
+                      color: "white",
+                      fontSize: "17px",
+                      fontWeight: "900",
+                    }}
+                  >
+                    {guest.name}
+                  </div>
 
-            <div
-              style={{
-                height: "10px",
-                borderRadius: "999px",
-                background: "rgba(51,65,85,0.72)",
-                overflow: "hidden",
-                marginBottom: "10px",
-              }}
-            >
+                  <div
+                    style={{
+                      color: "#94a3b8",
+                      fontSize: "12px",
+                      marginTop: "4px",
+                    }}
+                  >
+                    {guest.guestTier} • {guest.visits} visits •{" "}
+                    {guest.churnRisk} churn risk
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    color:
+                      retentionProbability >= 80
+                        ? "#86efac"
+                        : retentionProbability >= 55
+                        ? "#fde68a"
+                        : "#fca5a5",
+                    fontSize: "18px",
+                    fontWeight: "950",
+                  }}
+                >
+                  {retentionProbability}%
+                </div>
+              </div>
+
               <div
                 style={{
-                  width: `${retentionProbability}%`,
-                  height: "100%",
+                  height: "10px",
                   borderRadius: "999px",
-                  background:
-                    retentionProbability >= 80
-                      ? "linear-gradient(90deg,#22c55e,#86efac)"
-                      : retentionProbability >= 55
-                      ? "linear-gradient(90deg,#facc15,#fde68a)"
-                      : "linear-gradient(90deg,#ef4444,#fca5a5)",
+                  background: "rgba(51,65,85,0.72)",
+                  overflow: "hidden",
+                  marginBottom: "10px",
                 }}
-              />
-            </div>
+              >
+                <div
+                  style={{
+                    width: `${retentionProbability}%`,
+                    height: "100%",
+                    borderRadius: "999px",
+                    background:
+                      retentionProbability >= 80
+                        ? "linear-gradient(90deg,#22c55e,#86efac)"
+                        : retentionProbability >= 55
+                        ? "linear-gradient(90deg,#facc15,#fde68a)"
+                        : "linear-gradient(90deg,#ef4444,#fca5a5)",
+                  }}
+                />
+              </div>
 
-            <div style={{ color: "#cbd5e1", fontSize: "13px", fontWeight: "800" }}>
-              {retentionStatus}
+              <div
+                style={{
+                  color: "#cbd5e1",
+                  fontSize: "13px",
+                  fontWeight: "800",
+                }}
+              >
+                {retentionStatus}
+              </div>
             </div>
-          </div>
-        );
-      })}
+          );
+        })
+      ) : (
+        <div
+          style={{
+            padding: "22px",
+            borderRadius: "22px",
+            background: "rgba(15,23,42,0.72)",
+            border: "1px solid rgba(96,165,250,0.14)",
+            color: "#94a3b8",
+            fontSize: "14px",
+            textAlign: "center",
+          }}
+        >
+          No retention forecasts available yet.
+        </div>
+      )}
     </div>
   </div>
 )}
@@ -45483,85 +45579,650 @@ boxSizing: "border-box",
     </h3>
 
     <div style={{ display: "grid", gap: "14px", marginTop: "18px" }}>
-      {aiGuestSentimentIntelligence.slice(0, 6).map((guest, index) => {
-        const recoveryOpportunity =
-          guest.churnRisk === "High"
-            ? guest.avgSpend * 3
-            : guest.guestTier === "VIP"
-            ? guest.avgSpend * 1.8
-            : guest.avgSpend * 1.3;
+      {aiGuestSentimentIntelligence.length > 0 ? (
+        aiGuestSentimentIntelligence.slice(0, 6).map((guest, index) => {
+          const recoveryOpportunity =
+            guest.churnRisk === "High"
+              ? guest.avgSpend * 3
+              : guest.guestTier === "VIP"
+              ? guest.avgSpend * 1.8
+              : guest.avgSpend * 1.3;
 
-        const recoveryCampaign =
-          guest.churnRisk === "High"
-            ? "Win-Back Revenue Recovery"
-            : guest.guestTier === "VIP"
-            ? "VIP Spend Expansion"
-            : "Repeat Visit Growth";
+          const recoveryCampaign =
+            guest.churnRisk === "High"
+              ? "Win-Back Revenue Recovery"
+              : guest.guestTier === "VIP"
+              ? "VIP Spend Expansion"
+              : "Repeat Visit Growth";
 
-        return (
+          return (
+            <div
+              key={guest.id || index}
+              style={{
+                padding: "18px",
+                borderRadius: "22px",
+                background: "rgba(15,23,42,0.74)",
+                border: "1px solid rgba(74,222,128,0.14)",
+                display: "grid",
+                gridTemplateColumns: isMobile
+                  ? "1fr"
+                  : "1.2fr 1.2fr 1fr 1fr",
+                gap: "14px",
+                alignItems: "center",
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    color: "white",
+                    fontSize: "17px",
+                    fontWeight: "900",
+                  }}
+                >
+                  {guest.name}
+                </div>
+
+                <div
+                  style={{
+                    color: "#94a3b8",
+                    fontSize: "12px",
+                    marginTop: "4px",
+                  }}
+                >
+                  {guest.guestTier} • {guest.churnRisk} churn risk
+                </div>
+              </div>
+
+              <div>
+                <div style={{ color: "#94a3b8", fontSize: "12px" }}>
+                  Recovery Campaign
+                </div>
+
+                <div
+                  style={{
+                    color: "#86efac",
+                    fontWeight: "900",
+                    marginTop: "4px",
+                  }}
+                >
+                  {recoveryCampaign}
+                </div>
+              </div>
+
+              <div>
+                <div style={{ color: "#94a3b8", fontSize: "12px" }}>
+                  Opportunity
+                </div>
+
+                <div
+                  style={{
+                    color: "#bbf7d0",
+                    fontWeight: "950",
+                    marginTop: "4px",
+                  }}
+                >
+                  ${recoveryOpportunity.toFixed(0)}
+                </div>
+              </div>
+
+             <button
+  type="button"
+  onClick={() =>
+    handleCreateAIAction({
+      actionType: "revenue_recovery_campaign",
+      title: recoveryCampaign,
+      description: `AI generated a ${recoveryCampaign} for ${guest.name}.`,
+      customer: guest,
+      estimatedValue: recoveryOpportunity,
+      channel: "Email/SMS",
+      message: `Hi ${guest.name}, we’d love to welcome you back with a personalized offer on your next visit.`,
+    })
+  }
+  style={{
+    padding: "12px 14px",
+    borderRadius: "14px",
+    border: "1px solid rgba(74,222,128,0.26)",
+    background: "rgba(34,197,94,0.14)",
+    color: "#bbf7d0",
+    fontSize: "13px",
+    fontWeight: "900",
+    cursor: "pointer",
+  }}
+>
+  Build Campaign
+</button>
+            </div>
+          );
+        })
+      ) : (
+        <div
+          style={{
+            padding: "22px",
+            borderRadius: "22px",
+            background: "rgba(15,23,42,0.72)",
+            border: "1px solid rgba(74,222,128,0.14)",
+            color: "#94a3b8",
+            fontSize: "14px",
+            textAlign: "center",
+          }}
+        >
+          No revenue recovery campaigns available yet.
+        </div>
+      )}
+    </div>
+  </div>
+)}
+{/* =========================
+   SAVED AI CAMPAIGN DRAFTS
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+      background:
+        "linear-gradient(135deg, rgba(14,165,233,0.14), rgba(15,23,42,0.96))",
+      border: "1px solid rgba(125,211,252,0.22)",
+      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
+    }}
+  >
+    <div
+      style={{
+        color: "#7dd3fc",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      Saved AI Campaign Drafts
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "24px",
+        fontWeight: "950",
+        marginBottom: "18px",
+      }}
+    >
+      AI Actions Ready For Review
+    </h3>
+
+    <div style={{ display: "grid", gap: "14px" }}>
+      {aiActions.length > 0 ? (
+        aiActions.slice(0, 6).map((action) => (
           <div
-            key={guest.id || index}
+            key={action.id}
             style={{
               padding: "18px",
               borderRadius: "22px",
               background: "rgba(15,23,42,0.74)",
-              border: "1px solid rgba(74,222,128,0.14)",
+              border: "1px solid rgba(125,211,252,0.14)",
               display: "grid",
               gridTemplateColumns: isMobile
                 ? "1fr"
-                : "1.2fr 1.2fr 1fr 1fr",
+                : "1.3fr 1fr 1fr",
               gap: "14px",
               alignItems: "center",
             }}
           >
             <div>
-              <div style={{ color: "white", fontSize: "17px", fontWeight: "900" }}>
-                {guest.name}
+              <div
+                style={{
+                  color: "white",
+                  fontSize: "17px",
+                  fontWeight: "900",
+                  marginBottom: "6px",
+                }}
+              >
+                {action.action_title || "AI Campaign Draft"}
               </div>
-
-              <div style={{ color: "#94a3b8", fontSize: "12px", marginTop: "4px" }}>
-                {guest.guestTier} • {guest.churnRisk} churn risk
+<div
+  style={{
+    marginTop: "8px",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "8px",
+    padding: "6px 10px",
+    borderRadius: "999px",
+    background:
+      action.action_status === "launched"
+        ? "rgba(34,197,94,0.14)"
+        : action.action_status === "cancelled"
+        ? "rgba(239,68,68,0.14)"
+        : "rgba(59,130,246,0.14)",
+    border:
+      action.action_status === "launched"
+        ? "1px solid rgba(34,197,94,0.24)"
+        : action.action_status === "cancelled"
+        ? "1px solid rgba(239,68,68,0.24)"
+        : "1px solid rgba(59,130,246,0.24)",
+    color:
+      action.action_status === "launched"
+        ? "#86efac"
+        : action.action_status === "cancelled"
+        ? "#fca5a5"
+        : "#93c5fd",
+    fontSize: "11px",
+    fontWeight: "900",
+    textTransform: "uppercase",
+    letterSpacing: "0.05em",
+  }}
+>
+  {action.action_status || "draft"}
+</div>
+              <div
+                style={{
+                  color: "#cbd5e1",
+                  fontSize: "13px",
+                  lineHeight: 1.6,
+                }}
+              >
+                {action.campaign_message || action.action_description}
               </div>
             </div>
 
             <div>
               <div style={{ color: "#94a3b8", fontSize: "12px" }}>
-                Recovery Campaign
+                Target Guest
               </div>
-
-              <div style={{ color: "#86efac", fontWeight: "900", marginTop: "4px" }}>
-                {recoveryCampaign}
+              <div style={{ color: "#e2e8f0", fontWeight: "900" }}>
+                {action.target_customer_name || "Guest Segment"}
               </div>
             </div>
 
             <div>
               <div style={{ color: "#94a3b8", fontSize: "12px" }}>
-                Opportunity
+                Estimated Value
+              </div>
+              <div style={{ color: "#86efac", fontWeight: "950" }}>
+                ${Number(action.estimated_value || 0).toFixed(0)}
+              </div>
+            </div>
+            <div
+  style={{
+    display: "flex",
+    gap: "10px",
+    flexWrap: "wrap",
+    marginTop: "14px",
+  }}
+>
+ <button
+  type="button"
+  onClick={async () => {
+    const { error } = await supabase
+      .from("ai_actions")
+      .update({
+        action_status: "launched",
+      })
+      .eq("id", action.id);
+
+    if (error) {
+      console.error("Launch campaign error:", error);
+      setMessage("Failed to launch campaign.");
+      return;
+    }
+
+    setAiActions((prev) =>
+      prev.map((item) =>
+        item.id === action.id
+          ? { ...item, action_status: "launched" }
+          : item
+      )
+    );
+
+    setMessage("Campaign launched successfully.");
+  }}
+  style={{
+    padding: "10px 12px",
+    borderRadius: "12px",
+    border: "1px solid rgba(34,197,94,0.24)",
+    background: "rgba(34,197,94,0.14)",
+    color: "#86efac",
+    fontSize: "12px",
+    fontWeight: "900",
+    cursor: "pointer",
+  }}
+>
+  Launch Campaign
+</button>
+
+  <button
+  type="button"
+  onClick={() => {
+    alert(
+      action.campaign_message ||
+        action.action_description ||
+        "No draft message available."
+    );
+  }}
+  style={{
+    padding: "10px 12px",
+    borderRadius: "12px",
+    border: "1px solid rgba(59,130,246,0.24)",
+    background: "rgba(59,130,246,0.14)",
+    color: "#93c5fd",
+    fontSize: "12px",
+    fontWeight: "900",
+    cursor: "pointer",
+  }}
+>
+  View Draft
+</button>
+
+ <button
+  type="button"
+  onClick={async () => {
+    const { error } = await supabase
+      .from("ai_actions")
+      .update({
+        action_status: "cancelled",
+      })
+      .eq("id", action.id);
+
+    if (error) {
+      console.error("Cancel campaign error:", error);
+      setMessage("Failed to cancel campaign.");
+      return;
+    }
+
+    setAiActions((prev) =>
+      prev.map((item) =>
+        item.id === action.id
+          ? { ...item, action_status: "cancelled" }
+          : item
+      )
+    );
+
+    setMessage("Campaign cancelled.");
+  }}
+  style={{
+    padding: "10px 12px",
+    borderRadius: "12px",
+    border: "1px solid rgba(239,68,68,0.24)",
+    background: "rgba(239,68,68,0.14)",
+    color: "#fca5a5",
+    fontSize: "12px",
+    fontWeight: "900",
+    cursor: "pointer",
+  }}
+>
+  Cancel
+</button>
+</div>
+          </div>
+        ))
+      ) : (
+        <div
+          style={{
+            padding: "22px",
+            borderRadius: "22px",
+            background: "rgba(15,23,42,0.72)",
+            border: "1px solid rgba(125,211,252,0.14)",
+            color: "#94a3b8",
+            fontSize: "14px",
+            textAlign: "center",
+          }}
+        >
+          No AI campaign drafts saved yet.
+        </div>
+      )}
+    </div>
+  </div>
+)}
+{/* =========================
+   LIVE AI ACTIVITY FEED
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+      background:
+        "linear-gradient(135deg, rgba(168,85,247,0.14), rgba(15,23,42,0.96))",
+      border: "1px solid rgba(192,132,252,0.22)",
+      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
+    }}
+  >
+    <div
+      style={{
+        color: "#d8b4fe",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      Live AI Activity Feed
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "24px",
+        fontWeight: "950",
+        marginBottom: "18px",
+      }}
+    >
+      Real-Time Autonomous AI Actions
+    </h3>
+
+    <div style={{ display: "grid", gap: "14px" }}>
+      {aiActions.length > 0 ? (
+        aiActions.slice(0, 8).map((action) => (
+          <div
+            key={action.id}
+            style={{
+              padding: "16px",
+              borderRadius: "18px",
+              background: "rgba(15,23,42,0.72)",
+              border: "1px solid rgba(192,132,252,0.14)",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: isMobile ? "flex-start" : "center",
+              flexDirection: isMobile ? "column" : "row",
+              gap: "12px",
+            }}
+          >
+            <div>
+              <div
+                style={{
+                  color: "white",
+                  fontWeight: "900",
+                  marginBottom: "4px",
+                }}
+              >
+                {action.action_title}
               </div>
 
-              <div style={{ color: "#bbf7d0", fontWeight: "950", marginTop: "4px" }}>
-                ${recoveryOpportunity.toFixed(0)}
+              <div
+                style={{
+                  color: "#cbd5e1",
+                  fontSize: "13px",
+                }}
+              >
+                {action.action_description}
               </div>
             </div>
 
-            <button
-              type="button"
+            <div
               style={{
-                padding: "12px 14px",
-                borderRadius: "14px",
-                border: "1px solid rgba(74,222,128,0.26)",
-                background: "rgba(34,197,94,0.14)",
-                color: "#bbf7d0",
-                fontSize: "13px",
+                padding: "6px 10px",
+                borderRadius: "999px",
+                background:
+                  action.action_status === "launched"
+                    ? "rgba(34,197,94,0.14)"
+                    : action.action_status === "cancelled"
+                    ? "rgba(239,68,68,0.14)"
+                    : "rgba(59,130,246,0.14)",
+                color:
+                  action.action_status === "launched"
+                    ? "#86efac"
+                    : action.action_status === "cancelled"
+                    ? "#fca5a5"
+                    : "#93c5fd",
+                fontSize: "11px",
                 fontWeight: "900",
-                cursor: "pointer",
+                textTransform: "uppercase",
               }}
             >
-              Build Campaign
-            </button>
+              {action.action_status || "draft"}
+            </div>
           </div>
-        );
-      })}
+        ))
+      ) : (
+        <div
+          style={{
+            padding: "20px",
+            borderRadius: "18px",
+            background: "rgba(15,23,42,0.72)",
+            border: "1px solid rgba(192,132,252,0.14)",
+            color: "#94a3b8",
+            textAlign: "center",
+          }}
+        >
+          No AI activity detected yet.
+        </div>
+      )}
+    </div>
+  </div>
+)}
+{/* =========================
+   AI REVENUE RECOVERY TRACKER
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+      background:
+        "linear-gradient(135deg, rgba(34,197,94,0.14), rgba(15,23,42,0.96))",
+      border: "1px solid rgba(74,222,128,0.22)",
+      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
+    }}
+  >
+    <div
+      style={{
+        color: "#86efac",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      AI Revenue Recovery Tracker
+    </div>
+
+    <h3 style={{ color: "white", fontSize: "24px", fontWeight: "950" }}>
+      AI-Generated Revenue Opportunity
+    </h3>
+
+    <div
+      style={{
+        marginTop: "18px",
+        display: "grid",
+        gridTemplateColumns: isMobile ? "1fr" : "repeat(3,minmax(0,1fr))",
+        gap: "16px",
+      }}
+    >
+      <GlassCard
+        title="Draft Recovery"
+        value={`$${aiActions
+          .filter((action) => action.action_status !== "cancelled")
+          .reduce((sum, action) => sum + Number(action.estimated_value || 0), 0)
+          .toFixed(0)}`}
+        subtitle="Open AI recovery opportunities"
+      />
+
+      <GlassCard
+        title="Launched Recovery"
+        value={`$${aiActions
+          .filter((action) => action.action_status === "launched")
+          .reduce((sum, action) => sum + Number(action.estimated_value || 0), 0)
+          .toFixed(0)}`}
+        subtitle="Campaigns moved into action"
+      />
+
+      <GlassCard
+        title="Cancelled Recovery"
+        value={`$${aiActions
+          .filter((action) => action.action_status === "cancelled")
+          .reduce((sum, action) => sum + Number(action.estimated_value || 0), 0)
+          .toFixed(0)}`}
+        subtitle="Dismissed opportunities"
+      />
+    </div>
+  </div>
+)}
+{/* =========================
+   AI ACTION PERFORMANCE INSIGHTS
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+      background:
+        "linear-gradient(135deg, rgba(59,130,246,0.14), rgba(15,23,42,0.96))",
+      border: "1px solid rgba(96,165,250,0.22)",
+      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
+    }}
+  >
+    <div
+      style={{
+        color: "#93c5fd",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      AI Action Performance Insights
+    </div>
+
+    <h3 style={{ color: "white", fontSize: "24px", fontWeight: "950" }}>
+      Campaign Execution Intelligence
+    </h3>
+
+    <div
+      style={{
+        marginTop: "18px",
+        padding: "18px",
+        borderRadius: "22px",
+        background: "rgba(15,23,42,0.74)",
+        border: "1px solid rgba(96,165,250,0.14)",
+      }}
+    >
+      <div
+        style={{
+          color: "#e2e8f0",
+          fontSize: "14px",
+          lineHeight: 1.8,
+        }}
+      >
+        {aiActions.length === 0
+          ? "No AI campaign actions have been created yet. Build a campaign from a guest recovery recommendation to activate performance tracking."
+          : aiActions.filter((action) => action.action_status === "launched")
+              .length > 0
+          ? `AI has launched ${
+              aiActions.filter((action) => action.action_status === "launched")
+                .length
+            } campaign action(s). Continue monitoring recovery value and guest engagement response.`
+          : "AI campaign drafts are ready for review. Launch the highest-value recovery actions first to begin tracking projected revenue impact."}
+      </div>
     </div>
   </div>
 )}
