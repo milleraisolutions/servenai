@@ -68464,7 +68464,16 @@ if (!user) {
   return;
 }
 
-if (!isOwner && (!userProfile?.plan || userProfile.plan === "free")) {
+if (
+  !(
+    userProfile?.role === "owner" ||
+    [
+      "antoinemiller@servenai.com",
+      "milleraisolutions21@gmail.com",
+    ].includes(user?.email)
+  ) &&
+  (!userProfile?.plan || userProfile.plan === "free")
+) {
   router.push("/pricing");
   return;
 }
