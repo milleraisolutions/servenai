@@ -148,7 +148,7 @@ const newUser = data?.user;
 if (newUser) {
   const { error: userInsertError } = await supabase
     .from("users")
-    .insert([
+    .upsert([
       {
         id: newUser.id,
         email: email,
@@ -158,8 +158,9 @@ if (newUser) {
         plan: getRecommendedPlan(size),
         role: "executive",
       },
-    ]);
-
+    ],
+{ onConflict: "id" }
+);
   if (userInsertError) {
     console.error("USER INSERT ERROR:", userInsertError);
   }

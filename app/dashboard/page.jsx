@@ -13107,7 +13107,7 @@ const userRole = String(
   userProfile?.role ||
     userProfile?.account_type ||
     userProfile?.business_role ||
-    "owner"
+    "executive"
 ).toLowerCase();
 const isOwnerRole = userRole === "owner";
 const isExecutiveRole = userRole === "executive";
