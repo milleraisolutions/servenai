@@ -338,7 +338,17 @@ const OWNER_EMAILS = [
 const normalizedEmail = String(user?.email || "")
   .trim()
   .toLowerCase();
-
+const userRole = String(
+  userProfile?.role ||
+    userProfile?.account_type ||
+    userProfile?.business_role ||
+    "executive"
+).toLowerCase();
+const isOwnerRole = userRole === "owner";
+const isExecutiveRole = userRole === "executive";
+const isGMRole = userRole === "gm";
+const isKitchenManagerRole = userRole === "kitchen_manager";
+const isStaffRole = userRole === "staff";
 const isOwner =
   userProfile?.role === "owner" ||
   [
@@ -13106,17 +13116,7 @@ const locationOptions = useMemo(() => {
   return Array.from(locations);
 }, [multiLocationSalesRows]);
 
-const userRole = String(
-  userProfile?.role ||
-    userProfile?.account_type ||
-    userProfile?.business_role ||
-    "executive"
-).toLowerCase();
-const isOwnerRole = userRole === "owner";
-const isExecutiveRole = userRole === "executive";
-const isGMRole = userRole === "gm";
-const isKitchenManagerRole = userRole === "kitchen_manager";
-const isStaffRole = userRole === "staff";
+
 
 const isOwnerOrGM =
   isOwnerRole ||
@@ -68458,51 +68458,7 @@ minWidth: 0,
                 console.error("Please choose a data source first.");
                 return;
               }
-const { data: { user } } = await supabase.auth.getUser();
-if (!user) {
-  router.push("/login");
-  return;
-}
 
-if (
-  !(
-    userProfile?.role === "owner" ||
-    [
-      "antoinemiller@servenai.com",
-      "milleraisolutions21@gmail.com",
-    ].includes(user?.email)
-  ) &&
-  (!userProfile?.plan || userProfile.plan === "free")
-) {
-  router.push("/pricing");
-  return;
-}
-const safeTotalRevenue = Number(totalRevenue ?? 0);
-const safePrevMonth = Number(revenueTrend?.previousMonthRevenue ?? 0);
-const safeLastWeek = Number(revenueTrend?.lastWeekRevenue ?? 0);
-const safeScore = Number(score ?? 0);
-const {
-  data: uploadedFileRow,
-  error: uploadInsertError,
-} = await supabase
-  .from("uploads")
-  .insert([
-    {
-      user_id: user?.id || null,
-      file_name: pendingUploadSummary?.fileName || null,
-      source_name: selectedDataSource,
-      row_count: Number(pendingUploadSummary?.rowCount ?? 0),
-      upload_type: "pos",
-      status: "completed",
-    },
-  ])
-  .select()
-  .single();
-
-if (uploadInsertError) {
-  console.error("Uploads table insert failed:", uploadInsertError);
-  return;
-}
 const res = await fetch("/api/client-upload-summary", {
   method: "POST",
   headers: {
