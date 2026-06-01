@@ -54,14 +54,14 @@ export default function RootLayout({ children }) {
   };
 
   const containerStyle = {
-  width: "100%",
- maxWidth: isMobile ? "100%" : "1380px",
-  margin: "0 auto",
-  padding: isMobile ? "12px 14px" : "0 20px",
-  boxSizing: "border-box",
-  overflowX: "hidden",
-  minWidth: 0,
-};
+    width: "100%",
+    maxWidth: isMobile ? "100%" : "1380px",
+    margin: "0 auto",
+    padding: isMobile ? "12px 14px" : "0 20px",
+    boxSizing: "border-box",
+    overflowX: "hidden",
+    minWidth: 0,
+  };
 
   const navLink = {
     color: "#cbd5e1",
@@ -76,10 +76,12 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <head>
         <title>SerVen AI</title>
+
         <meta
           name="description"
           content="AI profit intelligence for restaurants."
         />
+
         <meta name="application-name" content="SerVen AI" />
         <meta name="theme-color" content="#020617" />
 
@@ -88,36 +90,46 @@ export default function RootLayout({ children }) {
           sizes="180x180"
           href="/apple-icon.png?v=3"
         />
+
         <link
           rel="icon"
           type="image/png"
           sizes="32x32"
           href="/favicon-32x32.png?v=3"
         />
+
         <link
           rel="icon"
           type="image/png"
           sizes="16x16"
           href="/favicon-16x16.png?v=3"
         />
+
+        <link rel="icon" href="/icon.png" />
+        <link rel="apple-touch-icon" href="/apple-icon.png" />
+
         <link rel="manifest" href="/site.webmanifest" />
         <link rel="shortcut icon" href="/favicon.ico?v=3" />
 
         <meta property="og:title" content="SerVen AI" />
+
         <meta
           property="og:description"
           content="AI profit intelligence for restaurants."
         />
+
         <meta property="og:image" content="/og-image.png" />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://servenai.com" />
 
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="SerVen AI" />
+
         <meta
           name="twitter:description"
           content="AI profit intelligence for restaurants."
         />
+
         <meta name="twitter:image" content="/og-image.png" />
       </head>
 
@@ -131,6 +143,7 @@ export default function RootLayout({ children }) {
           minHeight: "100vh",
           background: "#020617",
           color: "white",
+
           fontFamily:
             'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
         }}
@@ -139,12 +152,16 @@ export default function RootLayout({ children }) {
           <div
             style={{
               ...containerStyle,
+
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
+
               gap: isMobile ? "12px" : "20px",
+
               paddingTop: isMobile ? "12px" : "16px",
               paddingBottom: isMobile ? "12px" : "16px",
+
               flexWrap: "wrap",
             }}
           >
@@ -192,12 +209,20 @@ export default function RootLayout({ children }) {
               style={{
                 display: "flex",
                 alignItems: "center",
-                justifyContent: isMobile ? "flex-start" : "flex-end",
+
+                justifyContent: isMobile
+                  ? "flex-start"
+                  : "flex-end",
+
                 gap: isMobile ? "12px" : "16px",
+
                 flexWrap: "wrap",
+
                 minWidth: 0,
                 maxWidth: "100%",
+
                 width: isMobile ? "100%" : "auto",
+
                 overflow: "hidden",
               }}
             >
@@ -230,17 +255,16 @@ export default function RootLayout({ children }) {
           </div>
         </header>
 
-       <main
-  style={{
-    width: "100%",
-    minHeight: "calc(100vh - 74px)",
-    overflowX: "hidden",
-    overflowY: "visible",
-  }}
->
-  {children}
-</main>
-        
+        <main
+          style={{
+            width: "100%",
+            minHeight: "calc(100vh - 74px)",
+            overflowX: "hidden",
+            overflowY: "visible",
+          }}
+        >
+          {children}
+        </main>
       </body>
     </html>
   );

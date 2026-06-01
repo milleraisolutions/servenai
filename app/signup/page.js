@@ -129,22 +129,51 @@ export default function Signup() {
       }),
     });
 
-    // ==========================================
-    // YOUR EXISTING SUPABASE AUTH SIGNUP LOGIC
-    // ==========================================
-    // (Keep whatever existing code you had below to create the user, e.g.:)
-    /*
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { restaurant_name: restaurantName, phone, business_type: businessType }
-      }
-    });
-    if (error) throw error;
-    alert("Profile created successfully!");
-    router.push("/dashboard");
-    */
+   const { data, error } = await supabase.auth.signUp({
+  email,
+  password,
+  options: {
+    data: {
+      restaurant_name: restaurantName,
+      phone,
+      business_type: businessType,
+    },
+  },
+});
+
+if (error) throw error;
+
+const newUser = data?.user;
+
+if (newUser) {
+  const { error: userInsertError } = await supabase
+    .from("users")
+    .insert([
+      {
+        id: newUser.id,
+        email: email,
+        restaurant_name: restaurantName,
+        business_type: businessType,
+        size: size,
+        plan: getRecommendedPlan(size),
+        role: "executive",
+      },
+    ]);
+
+  if (userInsertError) {
+    console.error("USER INSERT ERROR:", userInsertError);
+  }
+
+  await saveLeadToSupabase({
+    userId: newUser.id,
+    cleanEmail: email,
+    cleanPhone: phone,
+  });
+}
+
+alert("Profile created successfully!");
+
+router.push("/dashboard");
 
   } catch (err) {
     console.error("Signup Flow Error:", err);
