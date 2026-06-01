@@ -339,9 +339,12 @@ const normalizedEmail = String(user?.email || "")
   .trim()
   .toLowerCase();
 
-const isOwner = OWNER_EMAILS.includes(
-  String(user?.email || "").trim().toLowerCase()
-);
+const isOwner =
+  userProfile?.role === "owner" ||
+  [
+    "antoinemiller@servenai.com",
+    "milleraisolutions21@gmail.com",
+  ].includes(user?.email);
 
 
 
