@@ -13132,7 +13132,7 @@ const isManager =
   userRole === "gm" ||
   userRole === "executive";
 const canSeeOwnerDashboard =
-  isOwner ||
+  isOwnerRole ||
   isRestaurantOwner;
 
 const canSeeManagerDashboard =
