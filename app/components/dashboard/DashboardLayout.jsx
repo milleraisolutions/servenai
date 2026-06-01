@@ -23,7 +23,13 @@ export default function DashboardLayout({ data }) {
       <div>
         <DashboardHeader />
 
-        <DashboardTabs data={data} />
+   <DashboardTabs
+  data={{
+    ...data,
+    isKitchenManagerRole: data.isKitchenManagerRole,
+    isGMRole: data.isGMRole,
+  }}
+/>
 
         <FilterBar data={data} />
 

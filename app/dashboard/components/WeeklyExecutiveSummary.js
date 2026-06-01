@@ -126,10 +126,14 @@ useEffect(() => {
 }, []);
   return (
     <div
-      style={{
-        marginTop: "24px",
-      }}
-    >
+  style={{
+    marginTop: "12px",
+    width: "100%",
+    maxWidth: "100%",
+    minWidth: 0,
+    overflow: "hidden",
+  }}
+>
       <button
         type="button"
         onClick={generateExecutivePDF}
@@ -150,18 +154,28 @@ useEffect(() => {
         Download Executive PDF
       </button>
 
-      <div
-        id="weekly-executive-report-export"
-        style={{
-          padding: "28px",
-          borderRadius: "24px",
-          background:
-            "linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.96))",
-          border: "1px solid rgba(148,163,184,0.16)",
-          boxShadow:
-            "0 24px 60px rgba(2,6,23,0.35)",
-        }}
-      >
+    <div
+  id="weekly-executive-report-export"
+  style={{
+    width: "100%",
+    maxWidth: "100%",
+    minWidth: 0,
+    overflow: "hidden",
+    boxSizing: "border-box",
+
+      padding: "14px",
+
+    borderRadius: "20px",
+
+    background:
+      "linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.96))",
+
+    border: "1px solid rgba(148,163,184,0.16)",
+
+    boxShadow:
+      "0 18px 40px rgba(2,6,23,0.28)",
+  }}
+>
         {/* HEADER */}
         <div
           style={{
@@ -366,7 +380,7 @@ useEffect(() => {
     style={{
       display: "grid",
       gridTemplateColumns:
-        "repeat(auto-fit, minmax(240px, 1fr))",
+        "repeat(auto-fit, minmax(160px, 1fr))",
       gap: "16px",
     }}
   >
@@ -678,16 +692,15 @@ useEffect(() => {
  <div
   style={{
     width: "100%",
-    height: isMobile ? "300px" : "400px",
-    marginTop: "12px",
-    overflowX: "auto",
-    overflowY: "hidden",
+    height: isMobile ? "240px" : "270px",
+    marginTop: "10px",
+    overflow: "hidden",
   }}
 >
   {revenueChartData?.length > 0 ? (
     <LineChart
-      width={isMobile ? 860 : 980}
-      height={isMobile ? 280 : 380}
+  width={isMobile ? 620 : 820}
+  height={isMobile ? 220 : 250}
       data={revenueChartData}
       margin={{ top: 20, right: 30, left: 10, bottom: 30 }}
     >

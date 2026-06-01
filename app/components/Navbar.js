@@ -1,29 +1,52 @@
 import Link from "next/link";
 
 export default function Navbar() {
+  const navLinkStyle = {
+    color: "white",
+    textDecoration: "none",
+    fontSize: "13px",
+    fontWeight: "700",
+    whiteSpace: "nowrap",
+  };
+
   return (
     <div
       style={{
         width: "100%",
-        background: "#111",
+        maxWidth: "100vw",
+        background: "#020617",
         color: "white",
-        padding: "15px 40px",
+        padding: "14px 18px",
+        boxSizing: "border-box",
         display: "flex",
         justifyContent: "space-between",
-        alignItems: "center"
+        alignItems: "center",
+        gap: "14px",
+        overflowX: "hidden",
       }}
     >
-      <h2>Restaurant AI</h2>
+      <h2 style={{ margin: 0, whiteSpace: "nowrap", fontSize: "22px" }}>
+        SerVen
+      </h2>
 
-      <div style={{ display: "flex", gap: "25px" }}>
-        <Link href="/" style={{ color: "white" }}>Home</Link>
-        <Link href="/dashboard" style={{ color: "white" }}>Dashboard</Link>
-        <Link href="/menu-intelligence" style={{ color: "white" }}>Menu Intelligence</Link>
-        <Link href="/inventory-ai" style={{ color: "white" }}>Inventory AI</Link>
-        <Link href="/forecasting" style={{ color: "white" }}>Forecasting</Link>
-        <Link href="/profit-reveal" style={{ color: "white" }}>
-          Profit Reveal
-        </Link>
+      <div
+        style={{
+          display: "flex",
+          gap: "14px",
+          alignItems: "center",
+          justifyContent: "flex-end",
+          flexWrap: "nowrap",
+          minWidth: 0,
+          overflow: "hidden",
+        }}
+      >
+        <Link href="/" style={navLinkStyle}>Home</Link>
+        <Link href="/dashboard" style={navLinkStyle}>Dashboard</Link>
+        <Link href="/menu-intelligence" style={navLinkStyle}>Menu</Link>
+        <Link href="/inventory-ai" style={navLinkStyle}>Inventory</Link>
+        <Link href="/forecasting" style={navLinkStyle}>Forecasting</Link>
+        <Link href="/profit-reveal" style={navLinkStyle}>Profit Reveal</Link>
+        <Link href="/login" style={navLinkStyle}>Login</Link>
       </div>
     </div>
   );

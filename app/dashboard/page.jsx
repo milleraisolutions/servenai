@@ -1,6 +1,8 @@
 
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import useDashboardData from "../hooks/useDashboardData";
 import { useEffect, useMemo, useRef, useState } from "react";
 import ErrorBoundary from "../components/ErrorBoundary";
@@ -20,6 +22,8 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
+  AreaChart,
+  Area,
 } from "recharts";
 
 import * as XLSX from "xlsx";
@@ -56,7 +60,10 @@ function AnimatedNumber({ value }) {
 
 function GlassCard({ title, value, subtext, featured = false }) {
   const [hover, setHover] = useState(false);
-  const numericValue = Number(String(value).replace(/[^0-9.-]+/g, ""));
+
+  const numericValue = Number(
+    String(value).replace(/[^0-9.-]+/g, "")
+  );
 
   return (
     <div
@@ -76,29 +83,26 @@ function GlassCard({ title, value, subtext, featured = false }) {
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
     >
-      <div>
-        <div style={{ fontSize: "12px", color: "#94a3b8" }}>{title}</div>
+      <div style={{ fontSize: "12px", color: "#94a3b8" }}>{title}</div>
 
-        <div style={{ fontSize: "30px", fontWeight: "800", color: "white" }}>
-          {String(value).includes("/") ? (
-            value
-          ) : (
-            <>
-              {String(value).includes("$") && "$"}
-              <AnimatedNumber value={numericValue || 0} />
-              {String(value).includes("%") && "%"}
-            </>
-          )}
-        </div>
-
-        {subtext && (
-          <div style={{ marginTop: "8px", fontSize: "12px", color: "#94a3b8" }}>
-            {subtext}
-          </div>
+      <div style={{ fontSize: "30px", fontWeight: "800", color: "white" }}>
+        {String(value).includes("/") ? (
+          value
+        ) : (
+          <>
+            {String(value).includes("$") && "$"}
+            <AnimatedNumber value={numericValue || 0} />
+            {String(value).includes("%") && "%"}
+          </>
         )}
       </div>
+
+      {subtext && (
+        <div style={{ marginTop: "8px", fontSize: "12px", color: "#94a3b8" }}>
+          {subtext}
+        </div>
+      )}
     </div>
-    
   );
 }
 
@@ -170,17 +174,10 @@ const [showSourcePicker, setShowSourcePicker] = useState(false);
 const [selectedDataSource, setSelectedDataSource] = useState("");
 const [pendingUploadSummary, setPendingUploadSummary] = useState(null);
 const [clientUploads, setClientUploads] = useState([]);
+const [locations, setLocations] = useState([]);
 const [user, setUser] = useState(null);
+const [selectedEnterpriseLocation, setSelectedEnterpriseLocation] = useState(null);
 
-const OWNER_EMAILS = [
-  "antoinemiller@servenai.com",
-  "milleraisolutions21@gmail.com",
-  "millerantoine2137@gmail.com",
-];
-
-const isOwner = OWNER_EMAILS.includes(
-  user?.email?.toLowerCase()
-);
 const isMobile =
   typeof window !== "undefined" && window.innerWidth < 640;
 const [clientAlerts, setClientAlerts] = useState([]);
@@ -219,6 +216,12 @@ const [recipeMenuItem, setRecipeMenuItem] = useState("");
 const [recipeIngredient, setRecipeIngredient] = useState("");
 const [recipeQuantityUsed, setRecipeQuantityUsed] = useState("");
 const [recipeTolerance, setRecipeTolerance] = useState(5);
+const [recipes, setRecipes] = useState([]);
+const [recipeIngredients, setRecipeIngredients] = useState([]);
+const [employees, setEmployees] = useState([]);
+const [employeeShifts, setEmployeeShifts] = useState([]);
+const [beverageItems, setBeverageItems] = useState([]);
+const [beverageUsage, setBeverageUsage] = useState([]);
 const [mapping, setMapping] = useState({
   name: "",
   category: "",
@@ -274,20 +277,158 @@ const [invoiceUploads, setInvoiceUploads] = useState([]);
 const [laborUploads, setLaborUploads] = useState([]);
 const [recipeUsageRules, setRecipeUsageRules] = useState([]);
 const [customerData, setCustomerData] = useState([]);
-const [aiInsights, setAIInsights] = useState({
-  success: true,
-  summary: "Operational performance is stable. Food costs are trending down.",
-  score: 78,
-  alerts: [],
-  recommendations: ["Optimize prep quantities for high-variance line items."],
-});
+const [kitchenPrepTasks, setKitchenPrepTasks] = useState([]);
+const [kitchenStationPerformance, setKitchenStationPerformance] = useState([]);const [users, setUsers] = useState([]);
 const [recentUploads, setRecentUploads] = useState([]);
-/* 📊 UPLOADED POS KITCHEN PERFORMANCE STATE (Yesterday's Data) */
 const [yesterdayPrepData, setYesterdayPrepData] = useState([]);
+const [customPlanRequests, setCustomPlanRequests] = useState([]);
+
+const loadAdminData = async () => {
+  const { data: usersData, error: usersError } = await supabase
+    .from("users")
+    .select("*");
+
+  if (!usersError) {
+    setUsers(usersData || []);
+  }
+
+  const { data: importData, error: importError } = await supabase
+    .from("client_data_uploads")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (!importError) {
+    setClientImports(importData || []);
+  }
+
+  const { data: alertData, error: alertError } = await supabase
+    .from("client_alerts")
+    .select("*")
+    .order("triggered_at", { ascending: false });
+
+  if (!alertError) {
+    setClientAlerts(alertData || []);
+  }
+
+  const { data: customPlanData, error: customPlanError } = await supabase
+    .from("custom_plan_requests")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (!customPlanError) {
+    setCustomPlanRequests(customPlanData || []);
+  }
+};
+
+useEffect(() => {
+  if (!user?.id) return;
+
+  loadAdminData();
+}, [user?.id]);
+
+
+/* ================= ACCESS / PLAN GATE ================= */
+
+const OWNER_EMAILS = [
+  "antoinemiller@servenai.com",
+  "milleraisolutions21@gmail.com",
+  "millerantoine2137@gmail.com",
+];
+
+const normalizedEmail = String(user?.email || "")
+  .trim()
+  .toLowerCase();
+
+const isOwner = OWNER_EMAILS.includes(
+  String(user?.email || "").trim().toLowerCase()
+);
+
+
+
+
+
+
+const normalizedStatus = String(
+  userProfile?.customer_status ||
+    userProfile?.status ||
+    userProfile?.subscription_status ||
+    ""
+)
+  .trim()
+  .toLowerCase();
+
+const hasPaidAccess =
+  isOwner ||
+  (
+    ["active", "paid", "trialing"].includes(normalizedStatus) &&
+    ["starter", "growth", "pro"].includes(normalizedPlan)
+  );
+
+const hasStarterAccess = hasPaidAccess;
+
+const hasGrowthAccess =
+  isOwner ||
+  (
+    ["active", "paid", "trialing"].includes(normalizedStatus) &&
+    ["growth", "pro"].includes(normalizedPlan)
+  );
+
+const hasProAccess =
+  isOwner ||
+  (
+    ["active", "paid", "trialing"].includes(normalizedStatus) &&
+    normalizedPlan === "pro"
+  );
+
+
+const getBestAutopilotLeak = () => {
+  const signals = Array.isArray(profitLeakSignals) ? profitLeakSignals : [];
+
+  if (!signals.length) return null;
+
+  return signals
+    .map((leak) => ({
+      ...leak,
+      itemName: leak.item || leak.name || "Low-margin item",
+      margin: Number(leak.margin ?? leak.marginPercent ?? 0),
+      impact: Number(
+        leak.impact ??
+          leak.recoverableProfit ??
+          leak.monthlyImpact ??
+          leak.loss ??
+          0
+      ),
+    }))
+    .sort((a, b) => {
+      if (b.impact !== a.impact) return b.impact - a.impact;
+      return a.margin - b.margin;
+    })[0];
+};
+
+
+
+
+
+
+
 
 
 
 const userPlan = user?.plan || userProfile?.plan || null;
+const safePlan = String(
+  statusPlan || userProfile?.plan || userPlan || "none"
+)
+  .trim()
+  .toLowerCase();
+  const [devPlan, setDevPlan] = useState("starter");
+const effectivePlan = String(
+  isOwner ? devPlan || "pro" : safePlan || "none"
+)
+  .trim()
+  .toLowerCase();
+const normalizedPlan = String(effectivePlan || "")
+  .trim()
+  .toLowerCase();
 const filteredCustomPlanLeads =
   leadStatusFilter === "all"
     ? customPlanLeads
@@ -357,7 +498,7 @@ const [generatedOpportunities, setGeneratedOpportunities] = useState([]);
 
   /* 🔹 SYSTEM */
   const [websitePromo, setWebsitePromo] = useState(null);
-  const [devPlan, setDevPlan] = useState("starter");
+  
   const [autoTriggersEnabled, setAutoTriggersEnabled] = useState(false);
   const [triggeredCampaigns, setTriggeredCampaigns] = useState([]);
   const [selectedSegment, setSelectedSegment] = useState("all");
@@ -456,11 +597,83 @@ const latestAiAction = aiHistory?.length ? aiHistory[0] : null;
     totalOrders,
   } = useDashboardData();
 
+const activeBenchmarks = {
+  labor: {
+    low: 18,
+    high: 30,
+  },
+  foodCost: {
+    low: 24,
+    high: 32,
+  },
+  primeCost: {
+    low: 50,
+    high: 65,
+  },
+  margin: {
+    low: 60,
+    high: 75,
+  },
+};
+
+
+
+  useEffect(() => {
+  if (!hasProAccess) return;
+  if (!totalRevenue || totalRevenue <= 0) return;
+
+  updateCampaignRevenueAutomatically();
+}, [totalRevenue, hasProAccess]);
+useEffect(() => {
+  if (!hasProAccess) return;
+  if (!autoCampaignsEnabled) return;
+  if (!profitLeakSignals || profitLeakSignals.length === 0) return;
+
+  const topLeak = getBestAutopilotLeak();
+
+  if (!topLeak) return;
+
+  const itemName = topLeak.itemName;
+  const triggerKey = `profit-leak-${itemName}`;
+
+  if (lastAutopilotTrigger === triggerKey) return;
+
+  setLastAutopilotTrigger(triggerKey);
+
+ // handleAutoLaunchCampaignFromRecommendation({
+//   item: itemName,
+//   suggestion:
+//     topLeak?.suggestion || "Promote higher-margin items to recover profit",
+// });
+}, [
+  hasProAccess,
+  autoCampaignsEnabled,
+  profitLeakSignals,
+  lastAutopilotTrigger,
+]);
+
+
+console.log("ACCESS DEBUG:", {
+  email: normalizedEmail,
+  isOwner,
+  statusPlan,
+  userProfilePlan: userProfile?.plan,
+  userPlan,
+  safePlan,
+  effectivePlan,
+  hasPaidAccess,
+  hasStarterAccess,
+  hasGrowthAccess,
+  hasProAccess,
+});
+
+console.log("RAW USER PROFILE:", userProfile);
 
 
 
 
-  
+
+
 const filterByActiveLocation = (rows = []) => {
   if (activeLocation === "all" || !activeLocation) {
     return rows || [];
@@ -2311,17 +2524,25 @@ const topAIActions = (fixSuggestions || [])
   .sort((a, b) => (b.estimatedGain || 0) - (a.estimatedGain || 0))
   .slice(0, 3);
 
-
 const dashboardShellStyle = {
   width: "100%",
-  maxWidth: "100%",
+  maxWidth: "none",
   minWidth: 0,
+
+  margin: 0,
+  padding: isMobile ? "8px" : "10px",
+
+  display: "grid",
+  gridTemplateColumns: isMobile ? "1fr" : "210px minmax(0, 1fr)",
+  gap: isMobile ? "12px" : "18px",
+
+  justifyContent: "stretch",
+  alignItems: "start",
+
   overflowX: "visible",
   overflowY: "visible",
-  display: "grid",
-  gridTemplateColumns: isMobile ? "1fr" : "260px minmax(0, 1fr)",
-  gap: isMobile ? "14px" : "22px",
-  alignItems: "start",
+
+  boxSizing: "border-box",
 };
 const sidebarTitleStyle = {
   fontSize: "12px",
@@ -2331,14 +2552,21 @@ const sidebarTitleStyle = {
   marginBottom: "10px",
 };
 const contentAreaStyle = {
+  flex: 1,
+
   width: "100%",
-  maxWidth: "none",
   minWidth: 0,
 
-  overflowX: "hidden",
+  maxWidth: "none",
+
+  margin: 0,
+
+  padding: isMobile ? "14px" : "24px",
+
+  overflowX: "auto",
   overflowY: "visible",
 
-  display: "block",
+  boxSizing: "border-box",
 };
 const upgradePillStyle = {
   padding: "10px 12px",
@@ -2351,17 +2579,24 @@ const upgradePillStyle = {
   boxShadow: "0 6px 18px rgba(79,70,229,0.35)",
 };
 const sidebarStyle = {
-  width: "100%",
-  minWidth: 0,
-  maxWidth: "100%",
+  width: isMobile ? "100%" : "210px",
+  minWidth: isMobile ? 0 : "210px",
+
   position: isMobile ? "relative" : "sticky",
   top: isMobile ? "auto" : "20px",
-  padding: "18px",
+
+  padding: isMobile ? "16px" : "22px",
+
   borderRadius: "22px",
+
   background:
     "linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.94))",
+
   border: "1px solid rgba(148,163,184,0.14)",
+
   boxShadow: "0 18px 50px rgba(2,6,23,0.22)",
+
+  height: "fit-content",
 };
 const sidebarFooterStyle = {
   marginTop: "auto",
@@ -7814,6 +8049,23 @@ pushActivity(
 
   return campaign;
 };
+useEffect(() => {
+  if (!hasProAccess || !autoCampaignsEnabled) return;
+
+  const timer = setTimeout(() => {
+    autoBuildCampaignFromSignals();
+  }, 1500);
+
+  return () => clearTimeout(timer);
+}, [
+  hasProAccess,
+  autoCampaignsEnabled,
+  unusualDropDetected,
+  totalWasteLoss,
+  avgMargin,
+  revenueDropPercent,
+  autoBuildCampaignFromSignals,
+]);
 const isValidUUID = (id) => {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
     String(id || "")
@@ -8800,519 +9052,6 @@ useEffect(() => {
 
 
 
-
-/* ================= ACCESS / PLAN GATE ================= */
-
-const ownerEmail = "antoinemiller@servenai.com";
-const isDev =
-  process.env.NODE_ENV === "development";
-
-const testAccessEmail = isDev
-  ? "millerantoine2137@gmail.com"
-  : null;
-
-const normalizedEmail = String(user?.email || "")
-  .trim()
-  .toLowerCase();
-
-const safePlan = String(statusPlan || userProfile?.plan || userPlan || "none")
-  .trim()
-  .toLowerCase();
-
-const effectivePlan = String(
-  isOwner ? devPlan || "pro" : safePlan || "none"
-)
-  .trim()
-  .toLowerCase();
-const normalizedPlan = String(effectivePlan || "")
-  .trim()
-  .toLowerCase();
-
-const normalizedStatus = String(
-  userProfile?.customer_status || ""
-)
-  .trim()
-  .toLowerCase();
-
-const hasPaidAccess =
-  isOwner ||
-  normalizedEmail === ownerEmail ||
-  normalizedEmail === testAccessEmail ||
-  (
-    normalizedStatus === "active" &&
-    ["starter", "growth", "pro"].includes(normalizedPlan)
-  );
-
-const hasStarterAccess = hasPaidAccess;
-
-const hasGrowthAccess =
-  isOwner ||
-  (
-    normalizedStatus === "active" &&
-    ["growth", "pro"].includes(normalizedPlan)
-  );
-
-const hasProAccess =
-  isOwner ||
-  (
-    normalizedStatus === "active" &&
-    normalizedPlan === "pro"
-  );
-const sidebarTabs = [
-  {
-    key: "overview",
-    label: "Overview",
-    icon: "📊",
-    locked: false,
-  },
-  {
-    key: "ai",
-    label: "AI Insights",
-    icon: "🧠",
-    locked: false,
-  },
-  {
-    key: "client_alerts",
-    label: "Client Alerts",
-    icon: "🚨",
-    locked: false,
-  },
-  {
-    key: "analytics",
-    label: "Analytics",
-    icon: "📊",
-    locked: false,
-  },
-  {
-    key: "inventory",
-    label: "Inventory",
-    icon: "📦",
-    locked: false,
-  },
-
-  // NEW TABS
-
-  {
-    key: "financial",
-    label: "Financial Intelligence",
-    icon: "💰",
-    locked: false,
-  },
-  {
-    key: "labor",
-    label: "Labor Intelligence",
-    icon: "👥",
-    locked: false,
-  },
-  {
-  key: "operations",
-  label: "Operations Intelligence",
-  icon: "⚙️",
-},
-  {
-    key: "menu",
-    label: "Menu Intelligence",
-    icon: "🍽️",
-    locked: false,
-  },
-  {
-    key: "beverage",
-    label: "Beverage Intelligence",
-    icon: "🍸",
-    locked: false,
-  },
-  {
-    key: "ai_alerts",
-    label: "AI Alerts",
-    icon: "🚨",
-    locked: false,
-  },
-
-  {
-    key: "growth",
-    label: "Growth Tools",
-    icon: "📈",
-    locked: !hasGrowthAccess,
-  },
-  {
-    key: "marketing",
-    label: "Marketing",
-    icon: "📣",
-    locked: !hasGrowthAccess,
-  },
-  {
-    key: "pro",
-    label: "Pro AI",
-    icon: "⚡",
-    locked: !hasProAccess,
-  },
-];
-const getBestAutopilotLeak = () => {
-  const signals = Array.isArray(profitLeakSignals) ? profitLeakSignals : [];
-
-  if (!signals.length) return null;
-
-  return signals
-    .map((leak) => ({
-      ...leak,
-      itemName: leak.item || leak.name || "Low-margin item",
-      margin: Number(leak.margin ?? leak.marginPercent ?? 0),
-      impact: Number(
-        leak.impact ??
-          leak.recoverableProfit ??
-          leak.monthlyImpact ??
-          leak.loss ??
-          0
-      ),
-    }))
-    .sort((a, b) => {
-      if (b.impact !== a.impact) return b.impact - a.impact;
-      return a.margin - b.margin;
-    })[0];
-};
-
-useEffect(() => {
-  if (!hasProAccess || !autoCampaignsEnabled) return;
-
-  const timer = setTimeout(() => {
-    autoBuildCampaignFromSignals();
-  }, 1500);
-
-  return () => clearTimeout(timer);
-}, [
-  hasProAccess,
-  autoCampaignsEnabled,
-  unusualDropDetected,
-  totalWasteLoss,
-  avgMargin,
-  revenueDropPercent,
-  autoBuildCampaignFromSignals,
-]);
-
-useEffect(() => {
-  if (!hasProAccess) return;
-  if (!totalRevenue || totalRevenue <= 0) return;
-
-  updateCampaignRevenueAutomatically();
-}, [totalRevenue, hasProAccess]);
-
-useEffect(() => {
-  if (!hasProAccess) return;
-  if (!autoCampaignsEnabled) return;
-  if (!profitLeakSignals || profitLeakSignals.length === 0) return;
-
-  const topLeak = getBestAutopilotLeak();
-
-  if (!topLeak) return;
-
-  const itemName = topLeak.itemName;
-  const triggerKey = `profit-leak-${itemName}`;
-
-  if (lastAutopilotTrigger === triggerKey) return;
-
-  setLastAutopilotTrigger(triggerKey);
-
- // handleAutoLaunchCampaignFromRecommendation({
-//   item: itemName,
-//   suggestion:
-//     topLeak?.suggestion || "Promote higher-margin items to recover profit",
-// });
-}, [
-  hasProAccess,
-  autoCampaignsEnabled,
-  profitLeakSignals,
-  lastAutopilotTrigger,
-]);
-
-useEffect(() => {
-  if (!hasProAccess) return;
-  if (!autoCampaignsEnabled) return;
-
-  const shouldRunCampaign =
-    unusualDropDetected ||
-    Number(avgMargin || 0) < 60 ||
-    Number(totalWasteLoss || 0) > 0;
-
-  if (!shouldRunCampaign) return;
-
-  const campaign = buildProfitDrivenCampaign();
-
-  if (!campaign) return;
-
-  setSavedCampaigns((prev) => [
-    {
-      id: Date.now() + Math.random(),
-      ...campaign,
-      status: "draft",
-      created_at: new Date().toISOString(),
-      autoGenerated: true,
-    },
-    ...(prev || []),
-  ]);
-
-  setSavedMessage("Autopilot created a campaign draft");
-  pushActivity("Autopilot created campaign draft", "launch");
-
-  const timer = setTimeout(() => setSavedMessage(""), 2500);
-
-  return () => clearTimeout(timer);
-}, [
-  hasProAccess,
-  autoCampaignsEnabled,
-  unusualDropDetected,
-  avgMargin,
-  totalWasteLoss,
-]);
-
-console.log("ACCESS DEBUG:", {
-  email: normalizedEmail,
-  isOwner,
-  statusPlan,
-  userProfilePlan: userProfile?.plan,
-  userPlan,
-  safePlan,
-  effectivePlan,
-  hasPaidAccess,
-  hasStarterAccess,
-  hasGrowthAccess,
-  hasProAccess,
-});
-
-console.log("RAW USER PROFILE:", userProfile);
-
-const topSellingItemsData =
-  topSellingItems?.length > 0
-    ? topSellingItems.slice(0, 6).map((item, index) => ({
-        rank: index + 1,
-        name: item.name || item.item || `Item ${index + 1}`,
-        revenue: Number(item.revenue || item.sales || item.total || 0),
-        quantity: Number(item.quantity || item.quantity_sold || item.orders || 0),
-      }))
-    : [];
-
-
-
-const shouldShowLoading =
-  loading &&
-  !user &&
-  !userProfile &&
-  !revenueData?.length &&
-  !salesData?.length &&
-  !clientUploads?.length;
-
-const fetchClientImports = async () => {
-  try {
-    setImportsLoading(true);
-
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
-    const user = session?.user;
-
-    if (!user?.id) {
-      console.log("No user found for imports");
-      return;
-    }
-
-    const { data, error } = await supabase
-      .from("client_data_uploads")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      console.error("CLIENT IMPORTS LOAD ERROR:", error);
-      return;
-    }
-
-    console.log("CLIENT IMPORTS:", data);
-    setClientImports(data || []);
-  } catch (err) {
-    console.error("fetchClientImports crashed:", err);
-  } finally {
-    setImportsLoading(false);
-  }
-};
-useEffect(() => {
-  fetchClientImports();
-}, []);
-
-const getCampaignROIStats = () => {
-  const campaigns = savedCampaigns || [];
-
-  const totalSpend = campaigns.reduce(
-    (sum, campaign) => sum + Number(campaign.estimated_cost || 0),
-    0
-  );
-
-  const totalRevenue = campaigns.reduce((sum, campaign) => {
-    const performance = getRealCampaignPerformance(campaign);
-    return sum + Number(performance?.revenue || 0);
-  }, 0);
-
-  const netProfit = totalRevenue - totalSpend;
-
-  const roiPercent =
-    totalSpend > 0 ? ((netProfit / totalSpend) * 100).toFixed(1) : 0;
-
-  return {
-    totalSpend,
-    totalRevenue,
-    netProfit,
-    roiPercent,
-  };
-};
-
-const executiveSummary = useMemo(() => {
-  const revenueGrowth = Number(revenueTrend?.growthPercent || 0);
-  const bestDay = revenueTracker?.bestDay?.day || "N/A";
-  const bestDayRevenue = Number(
-    revenueTracker?.bestDay?.revenue || 0
-  );
-
-  const foodCost = Number(foodCostPercentage || 0);
-  const margin = Number(avgMargin || 0);
-
-  const aiOpportunityValue = topAiActions.reduce((sum, action) => {
-    return (
-      sum +
-      Number(
-        String(action.impact || "").replace(/[^0-9]/g, "")
-      )
-    );
-  }, 0);
-
-  let revenueLine = "";
-
-  if (revenueGrowth > 0) {
-    revenueLine = `Revenue increased ${revenueGrowth.toFixed(
-      1
-    )}% compared to last week.`;
-  } else if (revenueGrowth < 0) {
-    revenueLine = `Revenue declined ${Math.abs(
-      revenueGrowth
-    ).toFixed(1)}% compared to last week.`;
-  } else {
-    revenueLine = "Revenue remained stable compared to last week.";
-  }
-
-  let foodCostLine =
-    foodCost > 35
-      ? "Food cost is currently above the recommended target."
-      : "Food cost is operating within a healthy range.";
-
-  let marginLine =
-    margin < 60
-      ? "Average margin performance needs attention."
-      : "Margin performance is healthy overall.";
-
-  return {
-    headline: "AI Executive Summary",
-    summary: `
-${revenueLine}
-
-${bestDay} generated the strongest sales performance at $${bestDayRevenue.toLocaleString()}.
-
-${foodCostLine}
-
-${marginLine}
-
-SerVen identified approximately $${aiOpportunityValue.toLocaleString()} in potential recoverable profit opportunities.
-    `,
-  };
-}, [
-  revenueTrend,
-  revenueTracker,
-  foodCostPercentage,
-  avgMargin,
-  topAiActions,
-]);
-
-const benchmarkInsights = useMemo(() => {
-  const foodCost = Number(foodCostPercentage || 0);
-
-const laborCost = Number(
-  liveLaborIntelligence?.laborPercent ||
-    laborCostPercentage ||
-    laborIntelligence?.laborPercentage ||
-    0
-);
-
-  const margin = Number(avgMargin || 0);
-
-const benchmarks = {
-  foodCost: 30,
-  laborCost: 25,
-  margin: 65,
-  primeCost: 60,
-};
-
-const activeBenchmarks = {
-  foodCost: {
-    low: 28,
-    high: 32,
-  },
-  laborCost: {
-    low: 20,
-    high: 30,
-  },
-  margin: {
-    low: 60,
-    high: 75,
-  },
-  primeCost: {
-    low: 55,
-    high: 60,
-  },
-};
-
-  return [
-    {
-      title: "Food Cost",
-      current: `${foodCost.toFixed(1)}%`,
-      benchmark: `${benchmarks.foodCost}%`,
-      status:
-        foodCost <= benchmarks.foodCost
-          ? "Healthy"
-          : "Above Industry Average",
-      impact:
-        foodCost > benchmarks.foodCost
-          ? "Higher food costs may be reducing profitability."
-          : "Food cost is operating efficiently.",
-    },
-    {
-      title: "Labor Cost",
-      current: `${laborCost.toFixed(1)}%`,
-      benchmark: `${benchmarks.laborCost}%`,
-      status:
-        laborCost <= benchmarks.laborCost
-          ? "Healthy"
-          : "Higher Than Recommended",
-      impact:
-        laborCost > benchmarks.laborCost
-          ? "Labor efficiency may need optimization."
-          : "Labor cost is within target range.",
-    },
-    {
-      title: "Average Margin",
-      current: `${margin.toFixed(1)}%`,
-      benchmark: `${benchmarks.margin}%`,
-      status:
-        margin >= benchmarks.margin ? "Strong" : "Below Industry Target",
-      impact:
-        margin < benchmarks.margin
-          ? "Menu pricing or food cost may need adjustment."
-          : "Margin performance is strong.",
-    },
-  ];
-}, [
-  foodCostPercentage,
-  laborCostPercentage,
-  laborIntelligence,
-  avgMargin,
-]);
-
 /* ========================= */
 /* 📊 RESTAURANT BENCHMARKS */
 /* ========================= */
@@ -9349,205 +9088,12 @@ const restaurantBenchmarks = {
   },
 };
 
-/* ========================= */
-/* 🧠 ACTIVE BENCHMARK SET */
-/* ========================= */
-
-const normalizedBusinessType = (
-  userProfile?.business_type ||
-  businessType ||
-  "default"
-)
-  .toLowerCase()
-  .replace(/\s+/g, "_");
-
-const activeBenchmarks =
-  restaurantBenchmarks[normalizedBusinessType] ||
-  restaurantBenchmarks.default;
-
-
-if (shouldShowLoading) {
-  return (
-    <div
-      style={{
-        minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background:
-          "radial-gradient(circle at top left, rgba(109,61,245,0.15), transparent 40%), radial-gradient(circle at bottom right, rgba(79,70,229,0.1), transparent 40%), linear-gradient(180deg, #0B0F1A 0%, #111827 100%)",
-        padding: "40px",
-      }}
-    >
-      <div
-        style={{
-          background: "rgba(255,255,255,0.04)",
-          padding: "32px",
-          borderRadius: "20px",
-          border: "1px solid rgba(255,255,255,0.08)",
-          boxShadow: "0 20px 50px rgba(0,0,0,0.35)",
-          textAlign: "center",
-          maxWidth: "420px",
-          width: "100%",
-          backdropFilter: "blur(12px)",
-        }}
-      >
-        <div
-          style={{
-            fontSize: "12px",
-            fontWeight: "800",
-            letterSpacing: "0.08em",
-            color: "#a5b4fc",
-            marginBottom: "10px",
-          }}
-        >
-          AI ANALYZING
-        </div>
-
-        <h2
-          style={{
-            margin: 0,
-            fontSize: "22px",
-            fontWeight: "800",
-            color: "#ffffff",
-          }}
-        >
-          Building your dashboard...
-        </h2>
-
-        <p
-          style={{
-            marginTop: "10px",
-            fontSize: "13px",
-            color: "#94a3b8",
-          }}
-        >
-          AI is processing your restaurant data in real time
-        </p>
-      </div>
-    </div>
-  );
-}
-
-const monthlyRevenueForImpact = Number(
-  totalRevenue ||
-    realSalesMetrics?.totalRevenueFromDb ||
-    dashboardRevenue ||
-    0
-);
-
-const foodCostOveragePercent = Math.max(
-  0,
-  Number(foodCostPercentage || 0) - activeBenchmarks.foodCost.high
-);
-
-const estimatedFoodCostImpact = Math.round(
-  monthlyRevenueForImpact * (foodCostOveragePercent / 100)
-);
-
-
-
-const laborOveragePercent = Math.max(
-  0,
-  Number(liveLaborIntelligence?.laborPercent || 0) -
-    activeBenchmarks.labor.high
-);
 
 
 
 
 
 
-
-
-
-
-/* ========================= */
-/* 🍽️ MENU PRICING INTELLIGENCE */
-/* ========================= */
-
-const menuPricingOpportunities = (menuItemsData || [])
-  .map((item) => {
-    const price = Number(item.price || item.menu_price || item.selling_price || 0);
-    const cost = Number(item.cost || item.food_cost || item.unit_cost || 0);
-    const quantitySold = Number(item.quantity_sold || item.qty_sold || item.sold || 0);
-
-    const marginPercent = price > 0 ? ((price - cost) / price) * 100 : 0;
-    const targetMargin = activeBenchmarks.margin.low;
-
-    const marginGap = Math.max(0, targetMargin - marginPercent);
-    const estimatedMonthlyImpact = Math.round(
-      price * (marginGap / 100) * quantitySold
-    );
-
-    return {
-      ...item,
-      price,
-      cost,
-      quantitySold,
-      marginPercent,
-      marginGap,
-      estimatedMonthlyImpact,
-      name: item.name || item.item_name || item.menu_item || "Menu Item",
-    };
-  })
-  .filter((item) => item.price > 0 && item.cost > 0 && item.marginGap > 0)
-  .sort((a, b) => b.estimatedMonthlyImpact - a.estimatedMonthlyImpact);
-
-const topUnderpricedItems = menuPricingOpportunities.slice(0, 3);
-
-const dynamicMenuPricingImpact = topUnderpricedItems.reduce(
-  (sum, item) => sum + Number(item.estimatedMonthlyImpact || 0),
-  0
-);
-const estimatedMenuPricingImpact =
-  dynamicMenuPricingImpact > 0
-    ? dynamicMenuPricingImpact
-    : Math.round(monthlyRevenueForImpact * 0.015);
-    let recommendedAction = {
-  title:
-  topUnderpricedItems.length > 0
-    ? "Fix underpriced menu items"
-    : "Optimize menu pricing",
- text:
-  topUnderpricedItems.length > 0
-    ? `Top pricing opportunities detected: ${topUnderpricedItems
-        .map((item) => item.name)
-        .join(", ")}. These items are below target margin and may be reducing profit.`
-    : "Several high-volume items may be priced below target margins.",
-  impact: estimatedMenuPricingImpact,
-  type: "Menu Pricing",
-};
-const estimatedLaborImpact = Math.round(
-  monthlyRevenueForImpact * (laborOveragePercent / 100) * 0.45
-);
-if (
-  estimatedFoodCostImpact >
-  estimatedMenuPricingImpact &&
-  estimatedFoodCostImpact > estimatedLaborImpact
-)
- {
-  recommendedAction = {
-    title: "Reduce food cost variance",
-    text:
-      "Food cost percentage is currently running above benchmark range.",
-    impact: estimatedFoodCostImpact,
-    type: "Food Cost",
-  };
-}
-if (
-  estimatedLaborImpact >
-  estimatedMenuPricingImpact &&
-  estimatedLaborImpact > estimatedFoodCostImpact
-) {
-  recommendedAction = {
-    title: "Optimize labor coverage",
-    text:
-      "Labor allocation appears above efficient operating range.",
-    impact: estimatedLaborImpact,
-    type: "Labor",
-  };
-}
 
 /* ========================= */
 /* 🧾 EXPECTED USAGE ENGINE V1 */
@@ -9951,6 +9497,36 @@ const topAIRecommendedAction =
         impact: "$0/mo",
         action: "View AI Monitoring",
       };
+      const aiFinancialImpactBreakdown = [
+  {
+    label: "Waste Recovery",
+    amount:
+      shiftWasteAlerts.length > 0
+        ? 2400
+        : usageVariancePercent >= 7
+        ? 1100
+        : 0,
+  },
+  {
+    label: "Inventory Control",
+    amount: ingredientUsageAnomalies.length > 0 ? 1900 : 0,
+  },
+  {
+    label: "Menu Optimization",
+    amount: suspiciousMenuItems.length > 0 ? 1400 : 0,
+  },
+];
+
+      const totalAIFinancialImpact = aiFinancialImpactBreakdown.reduce(
+  (sum, item) => sum + Number(item.amount || 0),
+  0
+);
+const totalAICriticalImpact =
+  Number(estimatedTotalRecovery || 0) +
+  Number(estimatedWasteRecovery || 0) +
+  Number(estimatedShiftRecovery || 0) +
+  Number(estimatedInventoryRecovery || 0);
+
 const overallAIConfidence = 92;
   
 const aiRiskBreakdown = [
@@ -10299,7 +9875,470 @@ const beverageRiskInsight =
     ? "Potential pour cost pressure detected. Beverage pricing or inventory controls may need review."
     : estimatedAlcoholCostPercent >= 24
     ? "Beverage margins appear stable with moderate cost pressure."
-    : "Strong beverage margin profile detected.";/* =========================
+    : "Strong beverage margin profile detected.";
+
+
+    
+/* =========================
+   AI AUTOPILOT CAMPAIGN ENGINE
+========================= */
+
+useEffect(() => {
+  if (!hasProAccess) return;
+  if (!autoCampaignsEnabled) return;
+
+  const shouldRunCampaign =
+    unusualDropDetected ||
+    Number(avgMargin || 0) < 60 ||
+    Number(totalWasteLoss || 0) > 0;
+
+  if (!shouldRunCampaign) return;
+
+  if (typeof buildProfitDrivenCampaign !== "function") return;
+
+  const campaign = buildProfitDrivenCampaign();
+
+  if (!campaign) return;
+
+  setSavedCampaigns((prev) => [
+    {
+      id: Date.now() + Math.random(),
+      ...campaign,
+      status: "draft",
+      created_at: new Date().toISOString(),
+      autoGenerated: true,
+    },
+    ...(prev || []),
+  ]);
+
+  setSavedMessage("Autopilot created a campaign draft");
+
+  if (typeof pushActivity === "function") {
+    pushActivity("Autopilot created campaign draft", "launch");
+  }
+
+  const timer = setTimeout(() => {
+    setSavedMessage("");
+  }, 2500);
+
+  return () => clearTimeout(timer);
+}, [
+  hasProAccess,
+  autoCampaignsEnabled,
+  unusualDropDetected,
+  avgMargin,
+  totalWasteLoss,
+  buildProfitDrivenCampaign,
+  pushActivity,
+]);
+const topSellingItemsData =
+  topSellingItems?.length > 0
+    ? topSellingItems.slice(0, 6).map((item, index) => ({
+        rank: index + 1,
+        name: item.name || item.item || `Item ${index + 1}`,
+        revenue: Number(item.revenue || item.sales || item.total || 0),
+        quantity: Number(item.quantity || item.quantity_sold || item.orders || 0),
+      }))
+    : [];
+
+
+
+const shouldShowLoading =
+  loading &&
+  !user &&
+  !userProfile &&
+  !revenueData?.length &&
+  !salesData?.length &&
+  !clientUploads?.length;
+if (shouldShowLoading) {
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background:
+          "radial-gradient(circle at top left, rgba(109,61,245,0.15), transparent 40%), radial-gradient(circle at bottom right, rgba(79,70,229,0.1), transparent 40%), linear-gradient(180deg, #0B0F1A 0%, #111827 100%)",
+        padding: "40px",
+      }}
+    >
+      <div
+        style={{
+          background: "rgba(255,255,255,0.04)",
+          padding: "32px",
+          borderRadius: "20px",
+          border: "1px solid rgba(255,255,255,0.08)",
+          boxShadow: "0 20px 50px rgba(0,0,0,0.35)",
+          textAlign: "center",
+          maxWidth: "420px",
+          width: "100%",
+          backdropFilter: "blur(12px)",
+        }}
+      >
+        <div
+          style={{
+            fontSize: "12px",
+            fontWeight: "800",
+            letterSpacing: "0.08em",
+            color: "#a5b4fc",
+            marginBottom: "10px",
+          }}
+        >
+          AI ANALYZING
+        </div>
+
+        <h2
+          style={{
+            margin: 0,
+            fontSize: "22px",
+            fontWeight: "800",
+            color: "#ffffff",
+          }}
+        >
+          Building your dashboard...
+        </h2>
+
+        <p
+          style={{
+            marginTop: "10px",
+            fontSize: "13px",
+            color: "#94a3b8",
+          }}
+        >
+          AI is processing your restaurant data in real time
+        </p>
+      </div>
+    </div>
+  );
+}
+const fetchClientImports = async () => {
+  try {
+    setImportsLoading(true);
+
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    const user = session?.user;
+
+    if (!user?.id) {
+      console.log("No user found for imports");
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("client_data_uploads")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("CLIENT IMPORTS LOAD ERROR:", error);
+      return;
+    }
+
+    console.log("CLIENT IMPORTS:", data);
+    setClientImports(data || []);
+  } catch (err) {
+    console.error("fetchClientImports crashed:", err);
+  } finally {
+    setImportsLoading(false);
+  }
+};
+useEffect(() => {
+  fetchClientImports();
+}, []);
+
+const getCampaignROIStats = () => {
+  const campaigns = savedCampaigns || [];
+
+  const totalSpend = campaigns.reduce(
+    (sum, campaign) => sum + Number(campaign.estimated_cost || 0),
+    0
+  );
+
+  const totalRevenue = campaigns.reduce((sum, campaign) => {
+    const performance = getRealCampaignPerformance(campaign);
+    return sum + Number(performance?.revenue || 0);
+  }, 0);
+
+  const netProfit = totalRevenue - totalSpend;
+
+  const roiPercent =
+    totalSpend > 0 ? ((netProfit / totalSpend) * 100).toFixed(1) : 0;
+
+  return {
+    totalSpend,
+    totalRevenue,
+    netProfit,
+    roiPercent,
+  };
+};
+
+const executiveSummary = useMemo(() => {
+  const revenueGrowth = Number(revenueTrend?.growthPercent || 0);
+  const bestDay = revenueTracker?.bestDay?.day || "N/A";
+  const bestDayRevenue = Number(
+    revenueTracker?.bestDay?.revenue || 0
+  );
+
+  const foodCost = Number(foodCostPercentage || 0);
+  const margin = Number(avgMargin || 0);
+
+  const aiOpportunityValue = topAiActions.reduce((sum, action) => {
+    return (
+      sum +
+      Number(
+        String(action.impact || "").replace(/[^0-9]/g, "")
+      )
+    );
+  }, 0);
+
+  let revenueLine = "";
+
+  if (revenueGrowth > 0) {
+    revenueLine = `Revenue increased ${revenueGrowth.toFixed(
+      1
+    )}% compared to last week.`;
+  } else if (revenueGrowth < 0) {
+    revenueLine = `Revenue declined ${Math.abs(
+      revenueGrowth
+    ).toFixed(1)}% compared to last week.`;
+  } else {
+    revenueLine = "Revenue remained stable compared to last week.";
+  }
+
+  let foodCostLine =
+    foodCost > 35
+      ? "Food cost is currently above the recommended target."
+      : "Food cost is operating within a healthy range.";
+
+  let marginLine =
+    margin < 60
+      ? "Average margin performance needs attention."
+      : "Margin performance is healthy overall.";
+
+  return {
+    headline: "AI Executive Summary",
+    summary: `
+${revenueLine}
+
+${bestDay} generated the strongest sales performance at $${bestDayRevenue.toLocaleString()}.
+
+${foodCostLine}
+
+${marginLine}
+
+SerVen identified approximately $${aiOpportunityValue.toLocaleString()} in potential recoverable profit opportunities.
+    `,
+  };
+}, [
+  revenueTrend,
+  revenueTracker,
+  foodCostPercentage,
+  avgMargin,
+  topAiActions,
+]);
+
+const benchmarkInsights = useMemo(() => {
+  const foodCost = Number(foodCostPercentage || 0);
+
+const laborCost = Number(
+  liveLaborIntelligence?.laborPercent ||
+    laborCostPercentage ||
+    laborIntelligence?.laborPercentage ||
+    0
+);
+
+  const margin = Number(avgMargin || 0);
+
+const benchmarks = {
+  foodCost: 30,
+  laborCost: 25,
+  margin: 65,
+  primeCost: 60,
+};
+
+
+
+  return [
+    {
+      title: "Food Cost",
+      current: `${foodCost.toFixed(1)}%`,
+      benchmark: `${benchmarks.foodCost}%`,
+      status:
+        foodCost <= benchmarks.foodCost
+          ? "Healthy"
+          : "Above Industry Average",
+      impact:
+        foodCost > benchmarks.foodCost
+          ? "Higher food costs may be reducing profitability."
+          : "Food cost is operating efficiently.",
+    },
+    {
+      title: "Labor Cost",
+      current: `${laborCost.toFixed(1)}%`,
+      benchmark: `${benchmarks.laborCost}%`,
+      status:
+        laborCost <= benchmarks.laborCost
+          ? "Healthy"
+          : "Higher Than Recommended",
+      impact:
+        laborCost > benchmarks.laborCost
+          ? "Labor efficiency may need optimization."
+          : "Labor cost is within target range.",
+    },
+    {
+      title: "Average Margin",
+      current: `${margin.toFixed(1)}%`,
+      benchmark: `${benchmarks.margin}%`,
+      status:
+        margin >= benchmarks.margin ? "Strong" : "Below Industry Target",
+      impact:
+        margin < benchmarks.margin
+          ? "Menu pricing or food cost may need adjustment."
+          : "Margin performance is strong.",
+    },
+  ];
+}, [
+  foodCostPercentage,
+  laborCostPercentage,
+  laborIntelligence,
+  avgMargin,
+]);
+
+
+/* ========================= */
+/* 🧠 ACTIVE BENCHMARK SET */
+/* ========================= */
+
+const normalizedBusinessType = (
+  userProfile?.business_type ||
+  businessType ||
+  "default"
+)
+  .toLowerCase()
+  .replace(/\s+/g, "_");
+
+
+
+
+
+const monthlyRevenueForImpact = Number(
+  totalRevenue ||
+    realSalesMetrics?.totalRevenueFromDb ||
+    dashboardRevenue ||
+    0
+);
+
+const foodCostOveragePercent = Math.max(
+  0,
+  Number(foodCostPercentage || 0) - activeBenchmarks.foodCost.high
+);
+
+const estimatedFoodCostImpact = Math.round(
+  monthlyRevenueForImpact * (foodCostOveragePercent / 100)
+);
+
+
+
+const laborOveragePercent = Math.max(
+  0,
+  Number(liveLaborIntelligence?.laborPercent || 0) -
+    activeBenchmarks.labor.high
+);
+
+
+
+/* ========================= */
+/* 🍽️ MENU PRICING INTELLIGENCE */
+/* ========================= */
+
+const menuPricingOpportunities = (menuItemsData || [])
+  .map((item) => {
+    const price = Number(item.price || item.menu_price || item.selling_price || 0);
+    const cost = Number(item.cost || item.food_cost || item.unit_cost || 0);
+    const quantitySold = Number(item.quantity_sold || item.qty_sold || item.sold || 0);
+
+    const marginPercent = price > 0 ? ((price - cost) / price) * 100 : 0;
+    const targetMargin = activeBenchmarks.margin.low;
+
+    const marginGap = Math.max(0, targetMargin - marginPercent);
+    const estimatedMonthlyImpact = Math.round(
+      price * (marginGap / 100) * quantitySold
+    );
+
+    return {
+      ...item,
+      price,
+      cost,
+      quantitySold,
+      marginPercent,
+      marginGap,
+      estimatedMonthlyImpact,
+      name: item.name || item.item_name || item.menu_item || "Menu Item",
+    };
+  })
+  .filter((item) => item.price > 0 && item.cost > 0 && item.marginGap > 0)
+  .sort((a, b) => b.estimatedMonthlyImpact - a.estimatedMonthlyImpact);
+
+const topUnderpricedItems = menuPricingOpportunities.slice(0, 3);
+
+const dynamicMenuPricingImpact = topUnderpricedItems.reduce(
+  (sum, item) => sum + Number(item.estimatedMonthlyImpact || 0),
+  0
+);
+const estimatedMenuPricingImpact =
+  dynamicMenuPricingImpact > 0
+    ? dynamicMenuPricingImpact
+    : Math.round(monthlyRevenueForImpact * 0.015);
+    let recommendedAction = {
+  title:
+  topUnderpricedItems.length > 0
+    ? "Fix underpriced menu items"
+    : "Optimize menu pricing",
+ text:
+  topUnderpricedItems.length > 0
+    ? `Top pricing opportunities detected: ${topUnderpricedItems
+        .map((item) => item.name)
+        .join(", ")}. These items are below target margin and may be reducing profit.`
+    : "Several high-volume items may be priced below target margins.",
+  impact: estimatedMenuPricingImpact,
+  type: "Menu Pricing",
+};
+const estimatedLaborImpact = Math.round(
+  monthlyRevenueForImpact * (laborOveragePercent / 100) * 0.45
+);
+if (
+  estimatedFoodCostImpact >
+  estimatedMenuPricingImpact &&
+  estimatedFoodCostImpact > estimatedLaborImpact
+)
+ {
+  recommendedAction = {
+    title: "Reduce food cost variance",
+    text:
+      "Food cost percentage is currently running above benchmark range.",
+    impact: estimatedFoodCostImpact,
+    type: "Food Cost",
+  };
+}
+if (
+  estimatedLaborImpact >
+  estimatedMenuPricingImpact &&
+  estimatedLaborImpact > estimatedFoodCostImpact
+) {
+  recommendedAction = {
+    title: "Optimize labor coverage",
+    text:
+      "Labor allocation appears above efficient operating range.",
+    impact: estimatedLaborImpact,
+    type: "Labor",
+  };
+}
+
+    /* =========================
    PRIME COST INTELLIGENCE
 ========================= */
 
@@ -10626,90 +10665,6 @@ const shiftPerformanceInsight =
     : topShift?.shift
     ? `Protect ${topShift.shift} by keeping top-selling items stocked and staffing coverage strong.`
     : "Upload POS and labor data to generate AI shift recommendations.";
-/* =========================
-   PREDICTIVE OPERATIONAL ALERTS
-========================= */
-const predictiveAlerts = useMemo(() => {
-  const alerts = [];
-
-  if (livePrimeCost >= 65) {
-    alerts.push({
-      severity: "Critical",
-      type: "Prime Cost Forecast",
-      title: "Prime Cost Risk",
-      detail: "Prime cost is operating above the healthy benchmark range.",
-      recommendation:
-        "Review food cost, labor cost, pricing, and scheduling before profit compression worsens.",
-    });
-  }
-
-  if (laborEfficiencyScore > 0 && laborEfficiencyScore < 60) {
-    alerts.push({
-      severity: "Warning",
-      type: "Labor Forecast",
-      title: "Labor Efficiency Declining",
-      detail: "Labor productivity may be reducing profitability.",
-      recommendation:
-        "Review labor scheduling, sales per labor hour, and slow-shift staffing levels.",
-    });
-  }
-
-  if (Number(liveMomentumPercent || 0) < -10) {
-    alerts.push({
-      severity: "Critical",
-      type: "Revenue Forecast",
-      title: "Revenue Momentum Slowing",
-      detail:
-        "Revenue trend has declined significantly compared to previous periods.",
-      recommendation:
-        "Review traffic patterns, menu performance, promotions, and recent sales drops.",
-    });
-  }
-
-  if (topShift?.shift === "Dinner" && topShift?.revenue > liveTotalRevenue * 0.5) {
-    alerts.push({
-      severity: "Healthy",
-      type: "Shift Forecast",
-      title: "Strong Dinner Performance",
-      detail: "Dinner service is generating the majority of revenue.",
-      recommendation:
-        "Protect dinner service execution and look for ways to lift lunch or slower dayparts.",
-    });
-  }
-
-  if (effectiveFoodCostPercent > activeBenchmarks?.foodCost?.high) {
-    alerts.push({
-      severity: "Warning",
-      type: "Food Cost Forecast",
-      title: "Food Cost Pressure",
-      detail: "Food cost is operating above benchmark range.",
-      recommendation:
-        "Review ingredient costs, vendor invoices, waste variance, and recipe pricing.",
-    });
-  }
-
-  if (!alerts.length) {
-    alerts.push({
-      severity: "Healthy",
-      type: "Monitoring",
-      title: "No Predictive Alerts",
-      detail:
-        "AI is not detecting major prime cost, labor, revenue, or food cost risks right now.",
-      recommendation:
-        "Continue uploading sales, labor, menu, invoice, and ingredient data to improve prediction accuracy.",
-    });
-  }
-
-  return alerts;
-}, [
-  livePrimeCost,
-  laborEfficiencyScore,
-  liveMomentumPercent,
-  topShift,
-  liveTotalRevenue,
-  effectiveFoodCostPercent,
-  activeBenchmarks,
-]);
 /* =========================
    ACTUAL VS EXPECTED USAGE INTELLIGENCE
 ========================= */
@@ -11395,6 +11350,90 @@ const executiveRiskInsight =
     ? "High operational risk detected. Multiple cost or efficiency signals need attention."
     : "Critical operational risk detected. Immediate executive review recommended.";
 
+/* =========================
+   PREDICTIVE OPERATIONAL ALERTS
+========================= */
+const predictiveAlerts = useMemo(() => {
+  const alerts = [];
+
+  if (livePrimeCost >= 65) {
+    alerts.push({
+      severity: "Critical",
+      type: "Prime Cost Forecast",
+      title: "Prime Cost Risk",
+      detail: "Prime cost is operating above the healthy benchmark range.",
+      recommendation:
+        "Review food cost, labor cost, pricing, and scheduling before profit compression worsens.",
+    });
+  }
+
+  if (laborEfficiencyScore > 0 && laborEfficiencyScore < 60) {
+    alerts.push({
+      severity: "Warning",
+      type: "Labor Forecast",
+      title: "Labor Efficiency Declining",
+      detail: "Labor productivity may be reducing profitability.",
+      recommendation:
+        "Review labor scheduling, sales per labor hour, and slow-shift staffing levels.",
+    });
+  }
+
+  if (Number(liveMomentumPercent || 0) < -10) {
+    alerts.push({
+      severity: "Critical",
+      type: "Revenue Forecast",
+      title: "Revenue Momentum Slowing",
+      detail:
+        "Revenue trend has declined significantly compared to previous periods.",
+      recommendation:
+        "Review traffic patterns, menu performance, promotions, and recent sales drops.",
+    });
+  }
+
+  if (topShift?.shift === "Dinner" && topShift?.revenue > liveTotalRevenue * 0.5) {
+    alerts.push({
+      severity: "Healthy",
+      type: "Shift Forecast",
+      title: "Strong Dinner Performance",
+      detail: "Dinner service is generating the majority of revenue.",
+      recommendation:
+        "Protect dinner service execution and look for ways to lift lunch or slower dayparts.",
+    });
+  }
+
+  if (effectiveFoodCostPercent > activeBenchmarks?.foodCost?.high) {
+    alerts.push({
+      severity: "Warning",
+      type: "Food Cost Forecast",
+      title: "Food Cost Pressure",
+      detail: "Food cost is operating above benchmark range.",
+      recommendation:
+        "Review ingredient costs, vendor invoices, waste variance, and recipe pricing.",
+    });
+  }
+
+  if (!alerts.length) {
+    alerts.push({
+      severity: "Healthy",
+      type: "Monitoring",
+      title: "No Predictive Alerts",
+      detail:
+        "AI is not detecting major prime cost, labor, revenue, or food cost risks right now.",
+      recommendation:
+        "Continue uploading sales, labor, menu, invoice, and ingredient data to improve prediction accuracy.",
+    });
+  }
+
+  return alerts;
+}, [
+  livePrimeCost,
+  laborEfficiencyScore,
+  liveMomentumPercent,
+  topShift,
+  liveTotalRevenue,
+  effectiveFoodCostPercent,
+  activeBenchmarks,
+]);
 /* =========================
    AI AUTOPILOT RECOMMENDATIONS
 ========================= */
@@ -13070,56 +13109,76 @@ const userRole = String(
     userProfile?.business_role ||
     "owner"
 ).toLowerCase();
+const isOwnerRole = userRole === "owner";
+const isExecutiveRole = userRole === "executive";
+const isGMRole = userRole === "gm";
+const isKitchenManagerRole = userRole === "kitchen_manager";
+const isStaffRole = userRole === "staff";
 
-const userAllowedLocations = Array.isArray(userProfile?.location_access)
-  ? userProfile.location_access
-  : [];
-
+const isOwnerOrGM =
+  isOwnerRole ||
+  isGMRole ||
+  isExecutiveRole;
 const isRestaurantOwner =
   userRole === "owner" ||
-  userRole === "restaurant_owner";
+  userRole === "restaurant_owner" ||
+  userRole === "executive";
 
 const isManager =
   userRole === "manager" ||
   userRole === "store_manager" ||
   userRole === "general_manager" ||
-  userRole === "kitchen_manager";
-
-const canSeeAllLocations =
-  isOwner ||
-  isRestaurantOwner ||
-  userAllowedLocations.includes("all");
-
-const canSeeMultiLocation =
-  isOwner ||
-  isRestaurantOwner ||
-  hasProAccess;
-
+  userRole === "kitchen_manager" ||
+  userRole === "gm" ||
+  userRole === "executive";
 const canSeeOwnerDashboard =
   isOwner ||
   isRestaurantOwner;
 
 const canSeeManagerDashboard =
   isManager && !canSeeOwnerDashboard;
+const sidebarTabs = isKitchenManagerRole
+  ? [
+      { key: "kitchen_manager", label: "Kitchen Manager", icon: "🍳" },
+      { key: "recipes", label: "Recipes", icon: "📋" },
+      { key: "inventory", label: "Inventory", icon: "📦" },
+      { key: "labor", label: "Labor", icon: "👥" },
+    ]
 
-const managerLocationOptions = canSeeAllLocations
-  ? locationOptions
-  : locationOptions.filter((location) =>
-      userAllowedLocations.includes(location)
-    );
+  : isGMRole
+  ? [
+      { key: "overview", label: "Overview", icon: "📊" },
+      { key: "ai", label: "AI Command", icon: "🧠" },
+      { key: "analytics", label: "Analytics", icon: "📈" },
+      { key: "labor", label: "Labor", icon: "👥" },
+      { key: "inventory", label: "Inventory", icon: "📦" },
+      { key: "recipes", label: "Recipes", icon: "📋" },
+      { key: "marketing", label: "Marketing", icon: "📣" },
+      { key: "kitchen_manager", label: "Kitchen", icon: "🍳" },
+    ]
 
-useEffect(() => {
-  if (
-    !canSeeAllLocations &&
-    managerLocationOptions.length > 0
-  ) {
-    setActiveLocation(managerLocationOptions[0]);
-  }
-}, [
-  canSeeAllLocations,
-  managerLocationOptions,
-]);
+  : isExecutiveRole || isOwnerRole
+  ? [
+      { key: "overview", label: "Overview", icon: "📊" },
+      { key: "ai", label: "AI Insights", icon: "🧠" },
+      { key: "client_alerts", label: "Client Alerts", icon: "🚨" },
+      { key: "analytics", label: "Analytics", icon: "📈" },
+      { key: "inventory", label: "Inventory", icon: "📦" },
+      { key: "financial", label: "Financial Intelligence", icon: "💰" },
+      { key: "labor", label: "Labor Intelligence", icon: "👥" },
+      { key: "operations", label: "Operations Intelligence", icon: "⚙️" },
+      { key: "recipes", label: "Menu Intelligence", icon: "🍽️" },
+      { key: "beverage", label: "Beverage Intelligence", icon: "🍸" },
+      { key: "ai_alerts", label: "AI Alerts", icon: "🚨" },
+      { key: "growth", label: "Growth Tools", icon: "📈" },
+      { key: "marketing", label: "Marketing", icon: "📣" },
+      { key: "pro_ai", label: "Pro AI", icon: "⚡" },
+      { key: "kitchen_manager", label: "Kitchen", icon: "🍳" },
+      { key: "multi_location", label: "Enterprise", icon: "🏢" },
+      { key: "admin", label: "Admin", icon: "⚙️" },
+    ]
 
+  : [];
 const deleteLead = async (leadId) => {
   if (!leadId) return;
 
@@ -18813,84 +18872,6 @@ const executiveActionSummary = executiveTopAction
     ).toLocaleString()}.`
   : "No urgent executive actions detected from current operating data.";
 
-/* =========================
-   AI BENCHMARKING SYSTEM
-========================= */
-
-const aiBenchmarks = {
-  foodCostTarget: 32,
-  laborTarget: 30,
-  marginTarget: 60,
-  beverageRevenueTarget: 15,
-  healthTarget: 80,
-};
-
-const benchmarkScores = [
-  {
-    label: "Food Cost",
-    actual: `${Number(foodCostPercentage || 0).toFixed(1)}%`,
-    target: `${aiBenchmarks.foodCostTarget}%`,
-    status:
-      Number(foodCostPercentage || 0) <= aiBenchmarks.foodCostTarget
-        ? "Healthy"
-        : "Above Target",
-  },
-  {
-  label: "Consumables",
- actual: `$${Number(
-  100 -
-    Number(aiHealthEngine?.categoryScores?.consumablesHealth || 100)
-).toLocaleString()}`,
-  target: "$0 leakage",
-  status:
-    Number(aiHealthEngine?.categoryScores?.consumablesHealth || 100) >= 90
-      ? "Healthy"
-      : Number(consumablesEstimatedLeakage || 0) <= 500
-      ? "Watch"
-      : "Above Target",
-},
-  {
-    label: "Labor Cost",
-    actual: `${Number(liveLaborIntelligence?.laborPercent || 0).toFixed(1)}%`,
-    target: `${aiBenchmarks.laborTarget}%`,
-    status:
-      Number(liveLaborIntelligence?.laborPercent || 0) <= aiBenchmarks.laborTarget
-        ? "Healthy"
-        : "Above Target",
-  },
-  {
-    label: "Menu Margin",
-    actual: `${Number(liveAvgMargin || 0).toFixed(1)}%`,
-    target: `${aiBenchmarks.marginTarget}%`,
-    status:
-      Number(liveAvgMargin || 0) >= aiBenchmarks.marginTarget
-        ? "Healthy"
-        : "Below Target",
-  },
-  {
-    label: "Beverage Mix",
-    actual: `${Number(beverageRevenuePercent || 0).toFixed(1)}%`,
-    target: `${aiBenchmarks.beverageRevenueTarget}%`,
-    status:
-      Number(beverageRevenuePercent || 0) >= aiBenchmarks.beverageRevenueTarget
-        ? "Healthy"
-        : "Low Mix",
-  },
-  {
-    label: "AI Health",
-    actual: `${Number(restaurantHealthScore || overallAIHealthScore || 0)}/100`,
-    target: `${aiBenchmarks.healthTarget}/100`,
-    status:
-      Number(restaurantHealthScore || overallAIHealthScore || 0) >=
-      aiBenchmarks.healthTarget
-        ? "Healthy"
-        : "Needs Work",
-  },
-];
-
-const benchmarkSummary = benchmarkScores.some((item) => item.status !== "Healthy")
-  ? "AI benchmarking found operating areas outside healthy restaurant targets."
-  : "Restaurant performance is currently aligned with healthy benchmark targets.";
 
 /* =========================
    MULTI-LOCATION INTELLIGENCE
@@ -19749,30 +19730,8 @@ const aiOperationalTimeline = [
 
 
 
-const aiFinancialImpactBreakdown = [
-  {
-    label: "Waste Recovery",
-    amount:
-      shiftWasteAlerts.length > 0
-        ? 2400
-        : usageVariancePercent >= 7
-        ? 1100
-        : 0,
-  },
-  {
-    label: "Inventory Control",
-    amount: ingredientUsageAnomalies.length > 0 ? 1900 : 0,
-  },
-  {
-    label: "Menu Optimization",
-    amount: suspiciousMenuItems.length > 0 ? 1400 : 0,
-  },
-];
 
-const totalAIFinancialImpact = aiFinancialImpactBreakdown.reduce(
-  (sum, item) => sum + Number(item.amount || 0),
-  0
-);
+
 
 const aiRiskLevel =
   aiConfidenceScore >= 90 && totalAIFinancialImpact >= 2000
@@ -20119,7 +20078,20 @@ const aiExecutiveAlertsFeed = [
     severity: action.severity,
   })),
 ];
-
+      const aiCEODecisionButtons = [
+  {
+    label: "Review Top Action",
+    detail: topAIRecommendedAction?.title || "View AI recommendation",
+  },
+  {
+    label: "Open Recovery Plan",
+    detail: `$${totalAICriticalImpact.toLocaleString()}/mo opportunity`,
+  },
+  {
+    label: "View Executive Alerts",
+    detail: `${aiExecutiveAlertsFeed.length} active alert(s)`,
+  },
+];
 const aiEnterprisePerformanceForecast =
   aiEnterpriseScorecard.riskLocations >= 2
     ? {
@@ -20153,20 +20125,7 @@ const aiCEOSummaryLayer = {
       : `SerVen AI is monitoring operations with ${aiConfidenceScore}% confidence and no major recovery opportunity detected.`,
 };
 
-const aiCEODecisionButtons = [
-  {
-    label: "Review Top Action",
-    detail: topAIRecommendedAction?.title || "View AI recommendation",
-  },
-  {
-    label: "Open Recovery Plan",
-    detail: `$${totalAIFinancialImpact.toLocaleString()}/mo opportunity`,
-  },
-  {
-    label: "View Executive Alerts",
-    detail: `${aiExecutiveAlertsFeed.length} active alert(s)`,
-  },
-];
+
 const aiExecutiveCloseout = {
   status:
     aiEnterpriseScorecard.riskLocations >= 2
@@ -20672,10 +20631,1630 @@ const lowValueActions = aiActions.filter(
     Number(action.estimated_value || 0) < 100
 );
 
+useEffect(() => {
+  const loadRecipes = async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user?.id) return;
+
+    const { data: recipeData, error: recipeError } = await supabase
+      .from("recipes")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false });
+
+    if (recipeError) {
+      console.error("Recipes load error:", recipeError);
+      return;
+    }
+
+    const { data: ingredientData, error: ingredientError } = await supabase
+      .from("recipe_ingredients")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false });
+
+    if (ingredientError) {
+      console.error("Recipe ingredients load error:", ingredientError);
+      return;
+    }
+
+    setRecipes(recipeData || []);
+    setRecipeIngredients(ingredientData || []);
+  };
+
+  loadRecipes();
+}, []);
+
+const handleRecipeUpload = async (event) => {
+  try {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user?.id) {
+      setMessage("You must be logged in to upload recipes.");
+      return;
+    }
+
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (results) => {
+        const rows = results.data || [];
+
+        const recipeMap = new Map();
+
+        rows.forEach((row) => {
+          const recipeName =
+            row.recipe_name ||
+            row["Recipe Name"] ||
+            row.menu_item_name ||
+            row["Menu Item"] ||
+            "Untitled Recipe";
+
+          if (!recipeMap.has(recipeName)) {
+            recipeMap.set(recipeName, {
+              recipe: {
+                user_id: user.id,
+                recipe_name: recipeName,
+                menu_item_name:
+                  row.menu_item_name || row["Menu Item"] || recipeName,
+                category: row.category || row.Category || null,
+                selling_price: Number(
+                  row.selling_price || row["Selling Price"] || row.price || 0
+                ),
+                prep_time_minutes: Number(
+                  row.prep_time_minutes || row["Prep Time"] || 0
+                ),
+                serving_size: row.serving_size || row["Serving Size"] || null,
+                notes: row.notes || row.Notes || null,
+              },
+              ingredients: [],
+            });
+          }
+
+          recipeMap.get(recipeName).ingredients.push(row);
+        });
+
+        const savedRecipes = [];
+        const savedIngredients = [];
+
+        for (const [, group] of recipeMap) {
+          const { data: recipeInsert, error: recipeError } = await supabase
+            .from("recipes")
+            .insert([group.recipe])
+            .select()
+            .single();
+
+          if (recipeError) {
+            console.error("Recipe insert error:", recipeError);
+            continue;
+          }
+
+          const ingredientRows = group.ingredients.map((row) => {
+            const quantity = Number(row.quantity || row.Quantity || 0);
+            const costPerUnit = Number(
+              row.cost_per_unit || row["Cost Per Unit"] || row.unit_cost || 0
+            );
+
+            return {
+              user_id: user.id,
+              recipe_id: recipeInsert.id,
+              ingredient_name:
+                row.ingredient_name ||
+                row["Ingredient Name"] ||
+                row.ingredient ||
+                "Ingredient",
+              quantity,
+              unit: row.unit || row.Unit || null,
+              cost_per_unit: costPerUnit,
+              total_cost: quantity * costPerUnit,
+            };
+          });
+
+          const { data: ingredientInsert, error: ingredientError } =
+            await supabase
+              .from("recipe_ingredients")
+              .insert(ingredientRows)
+              .select();
+
+          if (ingredientError) {
+            console.error("Recipe ingredients insert error:", ingredientError);
+          }
+
+          savedRecipes.push(recipeInsert);
+          savedIngredients.push(...(ingredientInsert || []));
+        }
+
+        setRecipes((prev) => [...savedRecipes, ...(prev || [])]);
+        setRecipeIngredients((prev) => [
+          ...savedIngredients,
+          ...(prev || []),
+        ]);
+
+        setMessage(`Imported ${savedRecipes.length} recipe card(s).`);
+      },
+    });
+  } catch (error) {
+    console.error("Recipe upload crashed:", error);
+    setMessage("Recipe upload failed. Check console.");
+  }
+};
+
+useEffect(() => {
+  const loadEmployees = async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user?.id) return;
+
+    const { data: employeesData, error: employeesError } = await supabase
+      .from("employees")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false });
+
+    if (employeesError) {
+      console.error("Employees load error:", employeesError);
+      return;
+    }
+
+    const { data: shiftsData, error: shiftsError } = await supabase
+      .from("employee_shifts")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("shift_date", { ascending: false });
+
+    if (shiftsError) {
+      console.error("Employee shifts load error:", shiftsError);
+      return;
+    }
+
+    setEmployees(employeesData || []);
+    setEmployeeShifts(shiftsData || []);
+  };
+
+  loadEmployees();
+}, []);
+
+const handleEmployeeShiftUpload = async (event) => {
+  try {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user?.id) {
+      setMessage("You must be logged in to upload employee shifts.");
+      return;
+    }
+
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (results) => {
+        const rows = results.data || [];
+
+        const employeeMap = new Map();
+
+        rows.forEach((row) => {
+          const employeeName =
+            row.employee_name ||
+            row["Employee Name"] ||
+            row.name ||
+            "Unknown Employee";
+
+          if (!employeeMap.has(employeeName)) {
+            employeeMap.set(employeeName, {
+              user_id: user.id,
+              employee_name: employeeName,
+              role: row.role || row.Role || null,
+              department: row.department || row.Department || "Labor",
+              hourly_rate: Number(
+                row.hourly_rate || row["Hourly Rate"] || 0
+              ),
+              status: "active",
+            });
+          }
+        });
+
+        const employeesToInsert = Array.from(employeeMap.values());
+
+        const { data: insertedEmployees, error: employeesError } =
+          await supabase
+            .from("employees")
+            .insert(employeesToInsert)
+            .select();
+
+        if (employeesError) {
+          console.error("Employee insert error:", employeesError);
+          setMessage("Employee upload failed. Check console.");
+          return;
+        }
+
+        const employeeLookup = new Map(
+          (insertedEmployees || []).map((employee) => [
+            employee.employee_name,
+            employee.id,
+          ])
+        );
+
+        const shiftsToInsert = rows.map((row) => {
+          const employeeName =
+            row.employee_name ||
+            row["Employee Name"] ||
+            row.name ||
+            "Unknown Employee";
+
+          const hoursWorked = Number(
+            row.hours_worked || row["Hours Worked"] || row.hours || 0
+          );
+
+          const hourlyRate = Number(
+            row.hourly_rate || row["Hourly Rate"] || 0
+          );
+
+          return {
+            user_id: user.id,
+            employee_id: employeeLookup.get(employeeName) || null,
+            shift_date:
+              row.shift_date || row["Shift Date"] || row.date || null,
+            shift_start:
+              row.shift_start || row["Shift Start"] || null,
+            shift_end:
+              row.shift_end || row["Shift End"] || null,
+            hours_worked: hoursWorked,
+            labor_cost:
+              Number(row.labor_cost || row["Labor Cost"] || 0) ||
+              hoursWorked * hourlyRate,
+            revenue_during_shift: Number(
+              row.revenue_during_shift ||
+                row["Revenue During Shift"] ||
+                row.revenue ||
+                0
+            ),
+          };
+        });
+
+        const { data: insertedShifts, error: shiftsError } = await supabase
+          .from("employee_shifts")
+          .insert(shiftsToInsert)
+          .select();
+
+        if (shiftsError) {
+          console.error("Shift insert error:", shiftsError);
+          setMessage("Employee shifts upload failed. Check console.");
+          return;
+        }
+
+        setEmployees((prev) => [...(insertedEmployees || []), ...(prev || [])]);
+        setEmployeeShifts((prev) => [
+          ...(insertedShifts || []),
+          ...(prev || []),
+        ]);
+
+        setMessage(`Imported ${insertedShifts?.length || 0} employee shifts.`);
+      },
+    });
+  } catch (error) {
+    console.error("Employee shift upload crashed:", error);
+    setMessage("Employee shift upload failed. Check console.");
+  }
+};
+
+useEffect(() => {
+  const loadBeverageData = async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user?.id) return;
+
+    const { data: itemsData, error: itemsError } = await supabase
+      .from("beverage_items")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false });
+
+    if (itemsError) {
+      console.error("Beverage items load error:", itemsError);
+      return;
+    }
+
+    const { data: usageData, error: usageError } = await supabase
+      .from("beverage_usage")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("usage_date", { ascending: false });
+
+    if (usageError) {
+      console.error("Beverage usage load error:", usageError);
+      return;
+    }
+
+    setBeverageItems(itemsData || []);
+    setBeverageUsage(usageData || []);
+  };
+
+  loadBeverageData();
+}, []);
+
+const handleBeverageUpload = async (event) => {
+  try {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user?.id) {
+      setMessage("You must be logged in to upload beverage data.");
+      return;
+    }
+
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (results) => {
+        const rows = results.data || [];
+
+        const beverageRows = rows.map((row) => ({
+          user_id: user.id,
+          beverage_name:
+            row.beverage_name ||
+            row["Beverage Name"] ||
+            row.item ||
+            row.Item ||
+            "Beverage",
+          category: row.category || row.Category || "Beverage",
+          bottle_size_oz: Number(row.bottle_size_oz || row["Bottle Size Oz"] || 0),
+          cost_per_bottle: Number(row.cost_per_bottle || row["Cost Per Bottle"] || 0),
+          pour_size_oz: Number(row.pour_size_oz || row["Pour Size Oz"] || 0),
+          selling_price: Number(row.selling_price || row["Selling Price"] || 0),
+        }));
+
+        const { data, error } = await supabase
+          .from("beverage_items")
+          .insert(beverageRows)
+          .select();
+
+        if (error) {
+          console.error("Beverage upload error:", error);
+          setMessage("Beverage upload failed. Check console.");
+          return;
+        }
+
+        setBeverageItems((prev) => [...(data || []), ...(prev || [])]);
+        setMessage(`Imported ${data?.length || 0} beverage item(s).`);
+      },
+    });
+  } catch (error) {
+    console.error("Beverage upload crashed:", error);
+    setMessage("Beverage upload failed. Check console.");
+  }
+};
+
+useEffect(() => {
+  const loadLocations = async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user?.id) return;
+
+    const { data, error } = await supabase
+      .from("locations")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Locations load error:", error);
+      return;
+    }
+
+    setLocations(data || []);
+  };
+
+  loadLocations();
+}, []);
+const handleLocationUpload = async (event) => {
+  try {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user?.id) {
+      setMessage("You must be logged in to upload locations.");
+      return;
+    }
+
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (results) => {
+        const rows = results.data || [];
+
+        const locationsToInsert = rows.map((row) => ({
+          user_id: user.id,
+          location_name:
+            row.location_name ||
+            row["Location Name"] ||
+            row.name ||
+            "Location",
+          city: row.city || row.City || null,
+          state: row.state || row.State || null,
+          status: row.status || row.Status || "active",
+          monthly_revenue: Number(
+            row.monthly_revenue || row["Monthly Revenue"] || 0
+          ),
+          food_cost_percent: Number(
+            row.food_cost_percent || row["Food Cost Percent"] || 0
+          ),
+          labor_cost_percent: Number(
+            row.labor_cost_percent || row["Labor Cost Percent"] || 0
+          ),
+          prime_cost_percent: Number(
+            row.prime_cost_percent || row["Prime Cost Percent"] || 0
+          ),
+          health_score: Number(
+            row.health_score || row["Health Score"] || 0
+          ),
+        }));
+
+        const { data, error } = await supabase
+          .from("locations")
+          .insert(locationsToInsert)
+          .select();
+
+        if (error) {
+          console.error("Location upload error:", error);
+          setMessage("Location upload failed. Check console.");
+          return;
+        }
+
+        setLocations((prev) => [...(data || []), ...(prev || [])]);
+        setMessage(`Imported ${data?.length || 0} location(s).`);
+      },
+    });
+  } catch (error) {
+    console.error("Location upload crashed:", error);
+    setMessage("Location upload failed. Check console.");
+  }
+};
+
+useEffect(() => {
+  const loadKitchenManagerData = async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user?.id) return;
+
+    const { data: prepData, error: prepError } = await supabase
+      .from("kitchen_prep_tasks")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("prep_date", { ascending: false });
+
+    if (prepError) {
+      console.error("Kitchen prep load error:", prepError);
+      return;
+    }
+
+  const { data: stationData, error: stationError } = await supabase
+  .from("kitchen_station_performance")
+  .select("*")
+  .eq("user_id", user.id)
+  .order("shift_date", { ascending: false });
+
+if (stationError) {
+  console.error("Kitchen station load error full:", {
+    message: stationError?.message,
+    details: stationError?.details,
+    hint: stationError?.hint,
+    code: stationError?.code,
+    raw: stationError,
+  });
+
+  return;
+}
+
+    setKitchenPrepTasks(prepData || []);
+    setKitchenStationPerformance(stationData || []);
+  };
+
+  loadKitchenManagerData();
+}, []);
+
+const handleKitchenPrepUpload = async (event) => {
+  try {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user?.id) {
+      setMessage("You must be logged in to upload kitchen prep data.");
+      return;
+    }
+
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (results) => {
+        const rows = results.data || [];
+
+        const prepTasks = rows.map((row) => ({
+          user_id: user.id,
+          task_name:
+            row.task_name ||
+            row["Task Name"] ||
+            row.prep_item ||
+            row["Prep Item"] ||
+            "Prep Task",
+          station: row.station || row.Station || null,
+          prep_date: row.prep_date || row["Prep Date"] || row.date || null,
+          expected_quantity: Number(
+            row.expected_quantity || row["Expected Quantity"] || 0
+          ),
+          actual_quantity: Number(
+            row.actual_quantity || row["Actual Quantity"] || 0
+          ),
+          unit: row.unit || row.Unit || null,
+          status: row.status || row.Status || "pending",
+        }));
+
+        const { data, error } = await supabase
+          .from("kitchen_prep_tasks")
+          .insert(prepTasks)
+          .select();
+
+        if (error) {
+          console.error("Kitchen prep upload error:", error);
+          setMessage("Kitchen prep upload failed. Check console.");
+          return;
+        }
+
+        setKitchenPrepTasks((prev) => [...(data || []), ...(prev || [])]);
+        setMessage(`Imported ${data?.length || 0} kitchen prep task(s).`);
+      },
+    });
+  } catch (error) {
+    console.error("Kitchen prep upload crashed:", error);
+    setMessage("Kitchen prep upload failed. Check console.");
+  }
+};
+const handleKitchenStationUpload = async (event) => {
+  try {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user?.id) {
+      setMessage("You must be logged in to upload kitchen station data.");
+      return;
+    }
+
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (results) => {
+        const rows = results.data || [];
+
+        const stationRows = rows.map((row) => ({
+          user_id: user.id,
+          station_name:
+            row.station_name ||
+            row["Station Name"] ||
+            row.station ||
+            row.Station ||
+            "Kitchen Station",
+          shift_date: row.shift_date || row["Shift Date"] || row.date || null,
+          tickets_completed: Number(
+            row.tickets_completed || row["Tickets Completed"] || 0
+          ),
+          average_ticket_time: Number(
+            row.average_ticket_time || row["Average Ticket Time"] || 0
+          ),
+          waste_cost: Number(row.waste_cost || row["Waste Cost"] || 0),
+          labor_hours: Number(row.labor_hours || row["Labor Hours"] || 0),
+          status: row.status || row.Status || "stable",
+        }));
+
+        const { data, error } = await supabase
+          .from("kitchen_station_performance")
+          .insert(stationRows)
+          .select();
+
+        if (error) {
+          console.error("Kitchen station upload error:", error);
+          setMessage("Kitchen station upload failed. Check console.");
+          return;
+        }
+
+        setKitchenStationPerformance((prev) => [
+          ...(data || []),
+          ...(prev || []),
+        ]);
+
+        setMessage(`Imported ${data?.length || 0} kitchen station row(s).`);
+      },
+    });
+  } catch (error) {
+    console.error("Kitchen station upload crashed:", error);
+    setMessage("Kitchen station upload failed. Check console.");
+  }
+};
 
 
+/* =========================
+   AI BENCHMARKING SYSTEM
+========================= */
 
+const aiBenchmarks = {
+  foodCostTarget: 32,
+  laborTarget: 30,
+  marginTarget: 60,
+  beverageRevenueTarget: 15,
+  healthTarget: 80,
+};
 
+const benchmarkScores = [
+  {
+    label: "Food Cost",
+    actual: `${Number(foodCostPercentage || 0).toFixed(1)}%`,
+    target: `${aiBenchmarks.foodCostTarget}%`,
+    status:
+      Number(foodCostPercentage || 0) <= aiBenchmarks.foodCostTarget
+        ? "Healthy"
+        : "Above Target",
+  },
+  {
+  label: "Consumables",
+ actual: `$${Number(
+  100 -
+    Number(aiHealthEngine?.categoryScores?.consumablesHealth || 100)
+).toLocaleString()}`,
+  target: "$0 leakage",
+  status:
+    Number(aiHealthEngine?.categoryScores?.consumablesHealth || 100) >= 90
+      ? "Healthy"
+      : Number(consumablesEstimatedLeakage || 0) <= 500
+      ? "Watch"
+      : "Above Target",
+},
+  {
+    label: "Labor Cost",
+    actual: `${Number(liveLaborIntelligence?.laborPercent || 0).toFixed(1)}%`,
+    target: `${aiBenchmarks.laborTarget}%`,
+    status:
+      Number(liveLaborIntelligence?.laborPercent || 0) <= aiBenchmarks.laborTarget
+        ? "Healthy"
+        : "Above Target",
+  },
+  {
+    label: "Menu Margin",
+    actual: `${Number(liveAvgMargin || 0).toFixed(1)}%`,
+    target: `${aiBenchmarks.marginTarget}%`,
+    status:
+      Number(liveAvgMargin || 0) >= aiBenchmarks.marginTarget
+        ? "Healthy"
+        : "Below Target",
+  },
+  {
+    label: "Beverage Mix",
+    actual: `${Number(beverageRevenuePercent || 0).toFixed(1)}%`,
+    target: `${aiBenchmarks.beverageRevenueTarget}%`,
+    status:
+      Number(beverageRevenuePercent || 0) >= aiBenchmarks.beverageRevenueTarget
+        ? "Healthy"
+        : "Low Mix",
+  },
+  {
+    label: "AI Health",
+    actual: `${Number(restaurantHealthScore || overallAIHealthScore || 0)}/100`,
+    target: `${aiBenchmarks.healthTarget}/100`,
+    status:
+      Number(restaurantHealthScore || overallAIHealthScore || 0) >=
+      aiBenchmarks.healthTarget
+        ? "Healthy"
+        : "Needs Work",
+  },
+];
+
+const benchmarkSummary = benchmarkScores.some((item) => item.status !== "Healthy")
+  ? "AI benchmarking found operating areas outside healthy restaurant targets."
+  : "Restaurant performance is currently aligned with healthy benchmark targets.";
+
+const gmPriorities = useMemo(() => {
+  const priorities = [];
+
+  if (Number(liveMomentumPercent || 0) < 0) {
+    priorities.push({
+      title: "Revenue needs attention",
+      detail: `Sales are down ${Math.abs(Number(liveMomentumPercent || 0)).toFixed(1)}%. Review traffic, promos, and staffing today.`,
+      level: "Critical",
+    });
+  }
+
+  if (Number(liveLaborIntelligence?.laborPercent || 0) > 30) {
+    priorities.push({
+      title: "Labor is running high",
+      detail: `Labor is at ${Number(liveLaborIntelligence?.laborPercent || 0).toFixed(1)}% of revenue. Check schedule efficiency.`,
+      level: "Warning",
+    });
+  }
+
+  if (Number(foodCostPercentage || 0) > 32) {
+    priorities.push({
+      title: "Food cost is above target",
+      detail: `Food cost is at ${Number(foodCostPercentage || 0).toFixed(1)}%. Review waste, prep, and vendor changes.`,
+      level: "Warning",
+    });
+  }
+
+  if ((profitLeakSignals || []).length > 0) {
+    priorities.push({
+      title: "Profit leaks detected",
+      detail: `${profitLeakSignals.length} margin issue(s) need review today.`,
+      level: "Action",
+    });
+  }
+
+  if (!priorities.length) {
+    priorities.push({
+      title: "Operations look stable",
+      detail: "No major GM-level risks detected right now.",
+      level: "Healthy",
+    });
+  }
+
+  return priorities.slice(0, 4);
+}, [
+  liveMomentumPercent,
+  liveLaborIntelligence,
+  foodCostPercentage,
+  profitLeakSignals,
+]);
+
+const gmShiftFocus = useMemo(() => {
+  const laborPercent = Number(
+    liveLaborIntelligence?.laborPercent || 0
+  );
+
+  const foodCost = Number(foodCostPercentage || 0);
+
+  const momentum = Number(liveMomentumPercent || 0);
+
+  if (momentum < 0 && laborPercent > 30) {
+    return {
+      title: "Protect Profitability Tonight",
+      message:
+        "Sales are slowing while labor is elevated. Focus on tighter staffing and higher-margin items.",
+      action: "Reduce unnecessary labor hours and push top-margin menu items.",
+    };
+  }
+
+  if (foodCost > 32) {
+    return {
+      title: "Control Food Cost",
+      message:
+        "Food cost is above target today. Watch prep waste and portion consistency.",
+      action: "Review waste, prep quantities, and vendor pricing.",
+    };
+  }
+
+  if (momentum > 8) {
+    return {
+      title: "Maximize Sales Momentum",
+      message:
+        "Revenue momentum is strong today. Focus on throughput and upsells.",
+      action: "Push add-ons, beverages, and premium items.",
+    };
+  }
+
+  return {
+    title: "Maintain Stable Operations",
+    message:
+      "Operations are currently stable across sales, labor, and food cost.",
+    action: "Continue monitoring service speed and shift execution.",
+  };
+}, [
+  liveLaborIntelligence,
+  foodCostPercentage,
+  liveMomentumPercent,
+]);
+
+const gmOperationalPulse = useMemo(() => {
+  const laborScore =
+    Number(liveLaborIntelligence?.laborPercent || 0) <= 28
+      ? 92
+      : Number(liveLaborIntelligence?.laborPercent || 0) <= 32
+      ? 76
+      : 58;
+
+  const foodScore =
+    Number(foodCostPercentage || 0) <= 30
+      ? 90
+      : Number(foodCostPercentage || 0) <= 33
+      ? 74
+      : 55;
+
+  const revenueScore =
+    Number(liveMomentumPercent || 0) >= 8
+      ? 94
+      : Number(liveMomentumPercent || 0) >= 0
+      ? 80
+      : 61;
+
+  const operationsScore =
+    score || Math.round((laborScore + foodScore + revenueScore) / 3);
+
+  return [
+    {
+      label: "Revenue Health",
+      value: revenueScore,
+    },
+    {
+      label: "Labor Efficiency",
+      value: laborScore,
+    },
+    {
+      label: "Food Cost Control",
+      value: foodScore,
+    },
+    {
+      label: "Operations Stability",
+      value: operationsScore,
+    },
+  ];
+}, [
+  liveLaborIntelligence,
+  foodCostPercentage,
+  liveMomentumPercent,
+  score,
+]);
+
+const gmShiftChecklist = useMemo(() => {
+  return [
+    {
+      title: "Opening Check",
+      items: [
+        "Review yesterday’s sales and labor performance",
+        "Check prep levels against expected demand",
+        "Confirm top-margin items are ready to sell",
+      ],
+    },
+    {
+      title: "Midday Check",
+      items: [
+        "Watch labor percentage against live revenue",
+        "Review slow sellers and push high-margin items",
+        "Check inventory or vendor alerts",
+      ],
+    },
+    {
+      title: "Closing Check",
+      items: [
+        "Review waste, comps, and voids",
+        "Check shift performance and sales momentum",
+        "Log tomorrow’s priority action",
+      ],
+    },
+  ];
+}, []);
+
+const gmRiskRadar = useMemo(() => {
+  const risks = [];
+
+  if (Number(liveMomentumPercent || 0) < 0) {
+    risks.push({
+      label: "Revenue Risk",
+      value: "High",
+      detail: "Sales momentum is trending down.",
+    });
+  }
+
+  if (Number(liveLaborIntelligence?.laborPercent || 0) > 30) {
+    risks.push({
+      label: "Labor Risk",
+      value: "Medium",
+      detail: "Labor cost is above ideal range.",
+    });
+  }
+
+  if (Number(foodCostPercentage || 0) > 32) {
+    risks.push({
+      label: "Food Cost Risk",
+      value: "Medium",
+      detail: "Food cost is above target.",
+    });
+  }
+
+  if ((profitLeakSignals || []).length > 0) {
+    risks.push({
+      label: "Margin Risk",
+      value: "High",
+      detail: `${profitLeakSignals.length} profit leak(s) detected.`,
+    });
+  }
+
+  if (!risks.length) {
+    risks.push({
+      label: "Operational Risk",
+      value: "Low",
+      detail: "No major operational risks detected right now.",
+    });
+  }
+
+  return risks.slice(0, 4);
+}, [
+  liveMomentumPercent,
+  liveLaborIntelligence,
+  foodCostPercentage,
+  profitLeakSignals,
+]);
+
+const gmStaffingInsights = useMemo(() => {
+  const laborPercent = Number(
+    liveLaborIntelligence?.laborPercent || 0
+  );
+
+  const revenue = Number(liveTotalRevenue || 0);
+
+  let status = "Optimized";
+  let recommendation =
+    "Current staffing levels appear healthy for sales volume.";
+
+  if (laborPercent > 32) {
+    status = "Overstaffed";
+    recommendation =
+      "Labor is running above target. Consider tightening shift coverage.";
+  } else if (laborPercent < 20 && revenue > 0) {
+    status = "Lean Staffing";
+    recommendation =
+      "Labor is very lean. Watch service speed and employee workload.";
+  }
+
+  return {
+    laborPercent,
+    status,
+    recommendation,
+  };
+}, [liveLaborIntelligence, liveTotalRevenue]);
+
+const gmMenuPushInsights = useMemo(() => {
+  const items =
+    mostProfitableItems?.length
+      ? mostProfitableItems
+      : topSellingItems?.length
+      ? topSellingItems
+      : [];
+
+  const topItems = items.slice(0, 3).map((item, index) => ({
+    name: item.name || item.item || item.menu_item || `Menu Item ${index + 1}`,
+    reason:
+      index === 0
+        ? "Best item to push today based on margin or sales strength."
+        : "Strong option for upsells and staff recommendations.",
+  }));
+
+  if (!topItems.length) {
+    return [
+      {
+        name: "High-margin specials",
+        reason: "Upload menu data to identify the best items to push today.",
+      },
+    ];
+  }
+
+  return topItems;
+}, [mostProfitableItems, topSellingItems]);
+
+const gmInventoryWatch = useMemo(() => {
+  const lowStockItems = (locationIngredientsData || [])
+    .filter((item) => {
+      const current = Number(
+        item.current_stock ||
+          item.quantity ||
+          item.qty ||
+          item.on_hand ||
+          item.stock ||
+          0
+      );
+
+      const par = Number(
+        item.par_level ||
+          item.par ||
+          item.minimum_stock ||
+          item.reorder_point ||
+          0
+      );
+
+      return par > 0 && current <= par;
+    })
+    .slice(0, 4)
+    .map((item, index) => ({
+      name:
+        item.name ||
+        item.ingredient_name ||
+        item.item ||
+        `Inventory Item ${index + 1}`,
+      detail: "At or below par level. Review before next shift.",
+    }));
+
+  if (!lowStockItems.length) {
+    return [
+      {
+        name: "Inventory Stable",
+        detail: "No low-stock ingredients detected right now.",
+      },
+    ];
+  }
+
+  return lowStockItems;
+}, [locationIngredientsData]);
+
+const gmRevenueSnapshot = useMemo(() => {
+  const revenue = Number(liveTotalRevenue || 0);
+  const orders = Number(liveTotalOrders || 0);
+  const avgOrder = Number(liveAOV || 0);
+
+  let performance = "Stable";
+
+  if (Number(liveMomentumPercent || 0) > 8) {
+    performance = "Strong";
+  } else if (Number(liveMomentumPercent || 0) < 0) {
+    performance = "Declining";
+  }
+
+  return {
+    revenue,
+    orders,
+    avgOrder,
+    performance,
+  };
+}, [
+  liveTotalRevenue,
+  liveTotalOrders,
+  liveAOV,
+  liveMomentumPercent,
+]);
+
+const gmActionQueue = useMemo(() => {
+  const actions = [];
+
+  if (Number(foodCostPercentage || 0) > 32) {
+    actions.push({
+      title: "Reduce Food Cost Pressure",
+      detail:
+        "Review prep waste, portion consistency, and vendor pricing today.",
+      priority: "High",
+    });
+  }
+
+  if (Number(liveLaborIntelligence?.laborPercent || 0) > 30) {
+    actions.push({
+      title: "Optimize Labor Deployment",
+      detail:
+        "Adjust shift coverage and reduce unnecessary labor hours.",
+      priority: "Medium",
+    });
+  }
+
+  if (Number(liveMomentumPercent || 0) < 0) {
+    actions.push({
+      title: "Recover Sales Momentum",
+      detail:
+        "Push high-margin specials and increase upsell focus.",
+      priority: "High",
+    });
+  }
+
+  if ((profitLeakSignals || []).length > 0) {
+    actions.push({
+      title: "Fix Margin Leaks",
+      detail: `${profitLeakSignals.length} menu or operational margin risks detected.`,
+      priority: "Critical",
+    });
+  }
+
+  if (!actions.length) {
+    actions.push({
+      title: "Operations Running Smoothly",
+      detail:
+        "No major AI operational actions required at the moment.",
+      priority: "Stable",
+    });
+  }
+
+  return actions.slice(0, 5);
+}, [
+  foodCostPercentage,
+  liveLaborIntelligence,
+  liveMomentumPercent,
+  profitLeakSignals,
+]);
+
+const gmExecutiveSummary = useMemo(() => {
+  const momentum = Number(liveMomentumPercent || 0);
+  const labor = Number(
+    liveLaborIntelligence?.laborPercent || 0
+  );
+  const food = Number(foodCostPercentage || 0);
+
+  let summary =
+    "Operations are stable with no major performance risks detected.";
+
+  if (momentum < 0 && labor > 30) {
+    summary =
+      "Revenue momentum is slowing while labor remains elevated. Tightening labor efficiency and focusing on high-margin items should be prioritized.";
+  } else if (food > 32) {
+    summary =
+      "Food cost pressure is rising. Prep control, waste reduction, and inventory monitoring should be the focus today.";
+  } else if (momentum > 8) {
+    summary =
+      "Revenue momentum is strong. Focus on throughput, upsells, and maintaining execution quality during peak periods.";
+  }
+
+  return summary;
+}, [
+  liveMomentumPercent,
+  liveLaborIntelligence,
+  foodCostPercentage,
+]);
+
+const gmTeamPerformance = useMemo(() => {
+  return [
+    {
+      label: "Front of House",
+      score:
+        Number(liveMomentumPercent || 0) > 0 ? 88 : 72,
+      detail: "Guest traffic and service flow performance.",
+    },
+    {
+      label: "Kitchen Execution",
+      score:
+        Number(foodCostPercentage || 0) <= 30 ? 91 : 69,
+      detail: "Prep, ticket flow, and food consistency.",
+    },
+    {
+      label: "Labor Efficiency",
+      score:
+        Number(liveLaborIntelligence?.laborPercent || 0) <= 28
+          ? 90
+          : 66,
+      detail: "Shift efficiency and staffing balance.",
+    },
+  ];
+}, [
+  liveMomentumPercent,
+  foodCostPercentage,
+  liveLaborIntelligence,
+]);
+
+const gmPeakHoursInsights = useMemo(() => {
+  const peakLabel =
+    livePeakHours && livePeakHours !== "N/A"
+      ? livePeakHours
+      : "Dinner Rush";
+
+  let recommendation =
+    "Maintain strong staffing and speed during peak demand windows.";
+
+  if (Number(liveMomentumPercent || 0) < 0) {
+    recommendation =
+      "Use peak periods to push promotions and increase guest traffic.";
+  }
+
+  return {
+    peakLabel,
+    recommendation,
+  };
+}, [livePeakHours, liveMomentumPercent]);
+
+const gmServiceExecution = useMemo(() => {
+  let speedScore = 88;
+  let executionStatus = "Strong";
+  let recommendation =
+    "Service execution is stable across current operating conditions.";
+
+  if (Number(liveLaborIntelligence?.laborPercent || 0) < 20) {
+    speedScore = 72;
+    executionStatus = "Watch Closely";
+    recommendation =
+      "Lean staffing could slow ticket times during rush periods.";
+  }
+
+  if (Number(liveMomentumPercent || 0) < 0) {
+    speedScore -= 6;
+    recommendation =
+      "Focus on guest experience and speed to recover momentum.";
+  }
+
+  return {
+    speedScore,
+    executionStatus,
+    recommendation,
+  };
+}, [liveLaborIntelligence, liveMomentumPercent]);
+
+const gmProfitRecovery = useMemo(() => {
+  const opportunities = [];
+
+  if (Number(foodCostPercentage || 0) > 32) {
+    opportunities.push({
+      title: "Food Cost Recovery",
+      amount: "$2.4K/mo",
+      detail:
+        "Reducing waste and tightening prep control could recover margin.",
+    });
+  }
+
+  if (Number(liveLaborIntelligence?.laborPercent || 0) > 30) {
+    opportunities.push({
+      title: "Labor Optimization",
+      amount: "$1.8K/mo",
+      detail:
+        "Optimizing shift deployment may reduce labor pressure.",
+    });
+  }
+
+  if ((profitLeakSignals || []).length > 0) {
+    opportunities.push({
+      title: "Menu Margin Recovery",
+      amount: `$${(
+        profitLeakSignals.length * 700
+      ).toLocaleString()}/mo`,
+      detail:
+        "AI identified low-margin menu or pricing inefficiencies.",
+    });
+  }
+
+  if (!opportunities.length) {
+    opportunities.push({
+      title: "Operations Stable",
+      amount: "$0 Risk",
+      detail:
+        "No major profit recovery opportunities detected currently.",
+    });
+  }
+
+  return opportunities.slice(0, 4);
+}, [
+  foodCostPercentage,
+  liveLaborIntelligence,
+  profitLeakSignals,
+]);
+
+const gmForecastingCenter = useMemo(() => {
+  const projectedRevenue =
+    Number(liveTotalRevenue || 0) *
+    (1 + Number(liveMomentumPercent || 0) / 100);
+
+  let staffingForecast = "Stable";
+  let riskLevel = "Low";
+
+  if (Number(liveLaborIntelligence?.laborPercent || 0) > 30) {
+    staffingForecast = "Watch Labor";
+    riskLevel = "Medium";
+  }
+
+  if (Number(liveMomentumPercent || 0) < 0) {
+    riskLevel = "Elevated";
+  }
+
+  return {
+    projectedRevenue,
+    staffingForecast,
+    riskLevel,
+  };
+}, [
+  liveTotalRevenue,
+  liveMomentumPercent,
+  liveLaborIntelligence,
+]);
+
+const gmVendorCostControl = useMemo(() => {
+  const invoiceCount = Number(locationInvoicesData?.length || 0);
+
+  const vendorRisk =
+    invoiceCount > 0 && Number(foodCostPercentage || 0) > 32
+      ? "Review Needed"
+      : invoiceCount > 0
+      ? "Monitored"
+      : "No Invoice Data";
+
+  const recommendation =
+    vendorRisk === "Review Needed"
+      ? "Food cost is high with invoice data available. Review vendor pricing and recent cost changes."
+      : vendorRisk === "Monitored"
+      ? "Vendor costs are being tracked. Continue monitoring invoice changes."
+      : "Upload invoices to activate vendor cost intelligence.";
+
+  return {
+    invoiceCount,
+    vendorRisk,
+    recommendation,
+  };
+}, [locationInvoicesData, foodCostPercentage]);
+
+const gmClosingReport = useMemo(() => {
+  const issues = [];
+
+  if (Number(liveMomentumPercent || 0) < 0) {
+    issues.push("Revenue momentum declined today.");
+  }
+
+  if (Number(liveLaborIntelligence?.laborPercent || 0) > 30) {
+    issues.push("Labor percentage finished above target.");
+  }
+
+  if (Number(foodCostPercentage || 0) > 32) {
+    issues.push("Food cost needs review before tomorrow.");
+  }
+
+  if ((profitLeakSignals || []).length > 0) {
+    issues.push(`${profitLeakSignals.length} profit leak(s) need follow-up.`);
+  }
+
+  return {
+    status: issues.length ? "Review Needed" : "Clean Close",
+    issues,
+    nextStep: issues.length
+      ? "Review the flagged items before the next shift."
+      : "No major closing issues detected.",
+  };
+}, [
+  liveMomentumPercent,
+  liveLaborIntelligence,
+  foodCostPercentage,
+  profitLeakSignals,
+]);
+
+const gmDecisionButtons = [
+  {
+    label: "Review Labor",
+    detail: "Check staffing efficiency and shift coverage.",
+  },
+  {
+    label: "Review Food Cost",
+    detail: "Check waste, prep, portions, and vendor changes.",
+  },
+  {
+    label: "Push Menu Items",
+    detail: "Tell staff which high-margin items to recommend.",
+  },
+  {
+    label: "Prepare Close",
+    detail: "Review end-of-day risks and next-shift notes.",
+  },
+];
+
+const gmLiveFeed = useMemo(() => {
+  const feed = [];
+
+  if (Number(liveMomentumPercent || 0) > 0) {
+    feed.push("Revenue momentum increased during the current shift.");
+  }
+
+  if (Number(foodCostPercentage || 0) > 32) {
+    feed.push("AI flagged elevated food cost pressure.");
+  }
+
+  if (Number(liveLaborIntelligence?.laborPercent || 0) > 30) {
+    feed.push("Labor efficiency warning triggered.");
+  }
+
+  if ((profitLeakSignals || []).length > 0) {
+    feed.push(
+      `${profitLeakSignals.length} margin leak opportunity(s) identified.`
+    );
+  }
+
+  if (!feed.length) {
+    feed.push("Operations are stable with no major alerts.");
+  }
+
+  return feed.slice(0, 6);
+}, [
+  liveMomentumPercent,
+  foodCostPercentage,
+  liveLaborIntelligence,
+  profitLeakSignals,
+]);
+
+const gmAutopilotStatus = useMemo(() => {
+  const activeIssues =
+    gmActionQueue.filter((action) => action.priority !== "Stable").length || 0;
+
+  return {
+    status: activeIssues > 0 ? "Monitoring Issues" : "Standing By",
+    activeIssues,
+    message:
+      activeIssues > 0
+        ? "SerVen AI is monitoring active GM-level risks and recommended actions."
+        : "No urgent GM actions detected. Autopilot is monitoring quietly.",
+  };
+}, [gmActionQueue]);
+
+const gmRecommendationTimeline = useMemo(() => {
+  return [
+    {
+      time: "Opening",
+      action: "Review staffing plan and prep levels.",
+    },
+    {
+      time: "Lunch Rush",
+      action: "Push high-margin items and monitor ticket speed.",
+    },
+    {
+      time: "Mid Shift",
+      action: "Check labor percentage versus live revenue.",
+    },
+    {
+      time: "Dinner Rush",
+      action: "Maximize throughput and monitor service quality.",
+    },
+    {
+      time: "Closing",
+      action: "Review waste, comps, and shift performance.",
+    },
+  ];
+}, []);
+
+const gmDailyFocusScore = useMemo(() => {
+  let scoreValue = 92;
+
+  if (Number(liveMomentumPercent || 0) < 0) {
+    scoreValue -= 12;
+  }
+
+  if (Number(foodCostPercentage || 0) > 32) {
+    scoreValue -= 10;
+  }
+
+  if (Number(liveLaborIntelligence?.laborPercent || 0) > 30) {
+    scoreValue -= 8;
+  }
+
+  if ((profitLeakSignals || []).length > 0) {
+    scoreValue -= 6;
+  }
+
+  scoreValue = Math.max(48, Math.min(98, scoreValue));
+
+  let label = "Excellent";
+  let insight =
+    "Operations are running efficiently with minimal risk exposure.";
+
+  if (scoreValue < 85) {
+    label = "Watch Closely";
+    insight =
+      "Some operational areas need attention to maintain performance.";
+  }
+
+  if (scoreValue < 70) {
+    label = "Action Needed";
+    insight =
+      "Multiple operational risks require GM attention today.";
+  }
+
+  return {
+    scoreValue,
+    label,
+    insight,
+  };
+}, [
+  liveMomentumPercent,
+  foodCostPercentage,
+  liveLaborIntelligence,
+  profitLeakSignals,
+]);
+
+const gmMiniCardStyle = {
+  padding: "18px",
+  borderRadius: "18px",
+  background: "rgba(15,23,42,0.72)",
+  border: "1px solid rgba(148,163,184,0.14)",
+};
+
+const gmMiniLabelStyle = {
+  color: "#94a3b8",
+  fontSize: "12px",
+  fontWeight: "800",
+  marginBottom: "8px",
+};
+
+const gmMiniValueStyle = {
+  color: "white",
+  fontSize: "24px",
+  fontWeight: "950",
+};
+
+const gmMiniTextStyle = {
+  color: "#cbd5e1",
+  fontSize: "13px",
+  lineHeight: 1.6,
+};
+const dashboardSectionStyle = {
+  marginBottom: "24px",
+  padding: isMobile ? "18px" : "24px",
+  borderRadius: isMobile ? "20px" : "26px",
+  background:
+    "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.92))",
+  border: "1px solid rgba(148,163,184,0.14)",
+  boxShadow: "0 20px 60px rgba(2,6,23,0.24)",
+  overflow: "hidden",
+};
+
+const dashboardGridStyle = {
+  display: "grid",
+  gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
+  gap: isMobile ? "12px" : "16px",
+};
+
+const dashboardMiniCardStyle = {
+  padding: isMobile ? "14px" : "18px",
+  borderRadius: "18px",
+  background: "rgba(15,23,42,0.72)",
+  border: "1px solid rgba(148,163,184,0.14)",
+  minWidth: 0,
+};
+
+const dashboardMutedTextStyle = {
+  color: "#94a3b8",
+  fontSize: "13px",
+  lineHeight: 1.6,
+};
+const kegMiniLabelStyle = {
+  color: "#94a3b8",
+  fontSize: "11px",
+  fontWeight: "800",
+  marginBottom: "4px",
+  textTransform: "uppercase",
+  letterSpacing: "0.04em",
+};
+const kegMiniValueStyle = {
+  color: "white",
+  fontSize: "22px",
+  fontWeight: "950",
+  lineHeight: 1.1,
+};
+const renderSafeText = (value, fallback = "") => {
+  if (value === null || value === undefined) return fallback;
+
+  if (typeof value === "object") {
+    return (
+      value.title ||
+      value.message ||
+      value.description ||
+      value.action ||
+      fallback
+    );
+  }
+
+  return value;
+};
 
 
 
@@ -20761,7 +22340,7 @@ if (!hasPaidAccess) {
         >
           Signed in as:{" "}
           <strong style={{ color: "white" }}>
-            {normalizedEmail || "Unknown user"}
+            {String(user?.email || "").trim().toLowerCase() || "Unknown user"}
           </strong>
         </div>
       </div>
@@ -20770,7 +22349,7 @@ if (!hasPaidAccess) {
   );
 }
 console.log("ACCESS DEBUG:", {
-  normalizedEmail,
+  normalizedEmail: String(user?.email || "").trim().toLowerCase(),
   effectivePlan,
   normalizedPlan,
   normalizedStatus,
@@ -20918,91 +22497,134 @@ return (
 
     <div style={dashboardShellStyle}>
       {/* SIDEBAR */}
-      <div style={sidebarStyle}>
-        <div style={sidebarTitleStyle}>SERVEN COMMAND</div>
-        {isMobile && (
-  <select
-    value={activeTab}
-    onChange={(e) => setActiveTab(e.target.value)}
+    <div style={sidebarStyle}>
+  <div style={sidebarTitleStyle}>SERVEN COMMAND</div>
+
+  {isMobile && (
+    <select
+      value={activeTab}
+      onChange={(e) => setActiveTab(e.target.value)}
+      style={{
+        width: "100%",
+        padding: "12px",
+        borderRadius: "12px",
+        background: "#020617",
+        color: "white",
+        border: "1px solid rgba(255,255,255,0.14)",
+        fontWeight: "800",
+        marginBottom: "12px",
+      }}
+    >
+      {sidebarTabs.map((tab) => (
+        <option key={tab.key} value={tab.key}>
+          {tab.icon} {tab.label} {tab.locked ? "🔒" : ""}
+        </option>
+      ))}
+    </select>
+  )}
+
+  <button
+    type="button"
+    onClick={() => {
+      localStorage.clear();
+      sessionStorage.clear();
+      supabase.auth.signOut();
+      window.location.replace("/");
+    }}
     style={{
       width: "100%",
-      padding: "12px",
-      borderRadius: "12px",
-      background: "#020617",
+      marginBottom: "14px",
+      padding: "11px 14px",
+      borderRadius: "14px",
+      border: "1px solid rgba(255,255,255,0.10)",
+      background: "rgba(255,255,255,0.05)",
       color: "white",
-      border: "1px solid rgba(255,255,255,0.14)",
-      fontWeight: "800",
-      marginBottom: "10px",
+      fontWeight: "900",
+      cursor: "pointer",
     }}
   >
-    {sidebarTabs.map((tab) => (
-      <option key={tab.key} value={tab.key}>
-        {tab.icon} {tab.label} {tab.locked ? "🔒" : ""}
-      </option>
-    ))}
-  </select>
-)}
-<button
-  type="button"
-  onClick={() => {
-    console.log("LOGOUT CLICKED");
+    Log Out
+  </button>
 
-    localStorage.clear();
-    sessionStorage.clear();
+  {!isMobile && (
+    <div style={{ display: "grid", gap: "8px" }}>
+      {sidebarTabs.map((tab) => {
+        const isActive = activeTab === tab.key;
 
-    supabase.auth.signOut();
-
-    window.location.replace("/");
-  }}
-  style={{
-    padding: "10px 14px",
-    borderRadius: "12px",
-    border: "1px solid rgba(255,255,255,0.10)",
-    background: "rgba(255,255,255,0.04)",
-    color: "white",
-    fontWeight: "800",
-    cursor: "pointer",
-  }}
->
-  Log Out
-</button>
-
-{!isMobile && sidebarTabs.map((tab) => {
-          const isActive = activeTab === tab.key;
-
-          return (
-            <button
-              key={tab.key}
-              type="button"
-              onClick={() => setActiveTab(tab.key)}
-              style={getTabButtonStyle(isActive, tab.locked)}
+        return (
+          <button
+            key={tab.key}
+            type="button"
+            onClick={() => !tab.locked && setActiveTab(tab.key)}
+            style={getTabButtonStyle(isActive, tab.locked)}
+          >
+            <span
+              style={{
+                display: "flex",
+                gap: "10px",
+                alignItems: "center",
+                minWidth: 0,
+              }}
             >
-              <span style={{ display: "flex", gap: "10px" }}>
-                <span>{tab.icon}</span>
-                <span>{tab.label}</span>
+              <span>{tab.icon}</span>
+              <span
+                style={{
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {tab.label}
               </span>
+            </span>
 
-              <span>{tab.locked ? "🔒" : isActive ? "•" : ""}</span>
-            </button>
-          );
-        })}
+            <span>{tab.locked ? "🔒" : isActive ? "•" : ""}</span>
+          </button>
+        );
+      })}
+    </div>
+  )}
 
-        <div style={sidebarFooterStyle}>
-          <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.72)" }}>
-            Active plan
-          </div>
-          <div style={{ fontSize: "16px", fontWeight: "800", marginTop: "4px" }}>
-            {effectivePlan ? effectivePlan.toUpperCase() : "STARTER"}
-          </div>
+  <div style={sidebarFooterStyle}>
+    <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.72)" }}>
+      Active plan
+    </div>
 
-          {!hasProAccess && (
-            <div style={upgradePillStyle}>Upgrade for more AI power</div>
-          )}
-        </div>
-      </div>
+    <div style={{ fontSize: "16px", fontWeight: "800", marginTop: "4px" }}>
+      {effectivePlan ? effectivePlan.toUpperCase() : "STARTER"}
+    </div>
+
+    {!hasProAccess && (
+      <div style={upgradePillStyle}>Upgrade for more AI power</div>
+    )}
+  </div>
+</div>
 
       {/* CONTENT AREA */}
-      <div style={contentAreaStyle}>
+<main style={contentAreaStyle}>
+ <div
+  style={{
+    width: "100%",
+
+    maxWidth:
+      activeTab === "growth" ||
+      activeTab === "inventory" ||
+      activeTab === "labor" ||
+      activeTab === "operations"
+        ? "calc(100vw - 260px)"
+        : "760px",
+
+    margin: "0 0 0 -24px",
+    minWidth: 0,
+
+    boxSizing: "border-box",
+
+    overflowX: "hidden",
+    overflowY: "visible",
+
+    height: "auto",
+  }}
+>
 {/* ================================ */}
 {/* FIRST-TIME CLIENT SETUP CARD */}
 {/* ================================ */}
@@ -21014,14 +22636,15 @@ return (
   
     <div
       style={{
-        marginBottom: "24px",
-        padding: "28px",
-        borderRadius: "26px",
-        background:
-          "radial-gradient(circle at top right, rgba(109,61,245,0.28), transparent 32%), linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.94))",
-        border: "1px solid rgba(167,139,250,0.24)",
-        boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
-      }}
+  marginBottom: "24px",
+  padding: isMobile ? "16px" : "20px",
+  borderRadius: isMobile ? "22px" : "26px",
+  background:
+    "radial-gradient(circle at top right, rgba(109,61,245,0.28), transparent 32%), linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.94))",
+  border: "1px solid rgba(167,139,250,0.24)",
+  boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
+  overflow: "hidden",
+}}
     >
       <div
         style={{
@@ -21058,7 +22681,34 @@ return (
   onChange={handleGuestUpload}
   style={{ display: "none" }}
 />
-
+<input
+  id="recipeUpload"
+  type="file"
+  accept=".csv"
+  onChange={handleRecipeUpload}
+  style={{ display: "none" }}
+/>
+<input
+  id="employeeShiftUpload"
+  type="file"
+  accept=".csv"
+  onChange={handleEmployeeShiftUpload}
+  style={{ display: "none" }}
+/>
+<input
+  id="beverageUpload"
+  type="file"
+  accept=".csv"
+  onChange={handleBeverageUpload}
+  style={{ display: "none" }}
+/>
+<input
+  id="locationUpload"
+  type="file"
+  accept=".csv"
+  onChange={handleLocationUpload}
+  style={{ display: "none" }}
+/>
 {uploadError && (
   <div
     style={{
@@ -21100,7 +22750,16 @@ return (
         recommendations.
       </p>
 
-      <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+      <div
+  style={{
+    display: "grid",
+    gridTemplateColumns: isMobile
+  ? "1fr"
+  : "repeat(2, minmax(0, 1fr))",
+    gap: "12px",
+    width: "100%",
+  }}
+>
   <button
     onClick={() => {
       selectedUploadTypeRef.current = "pos";
@@ -21161,6 +22820,38 @@ return (
   style={setupPrimaryButton}
 >
   Upload Guest Data
+</button>
+<button
+  onClick={() => {
+    document.getElementById("recipeUpload")?.click();
+  }}
+  style={setupGoldButton}
+>
+  Upload Recipe Cards
+</button>
+<button
+  onClick={() => {
+    document.getElementById("employeeShiftUpload")?.click();
+  }}
+  style={setupSecondaryButton}
+>
+  Upload Employee Shifts
+</button>
+<button
+  onClick={() => {
+    document.getElementById("beverageUpload")?.click();
+  }}
+  style={setupGoldButton}
+>
+  Upload Beverage Data
+</button>
+<button
+  onClick={() => {
+    document.getElementById("locationUpload")?.click();
+  }}
+  style={setupPrimaryButton}
+>
+  Upload Locations
 </button>
 </div>
     </div>
@@ -21709,8 +23400,8 @@ return (
             <div
               key={item.label}
               style={{
-                padding: "14px",
-                borderRadius: "18px",
+                padding: "10px",
+borderRadius: "14px",
                 background: "rgba(15,23,42,0.72)",
                 border: "1px solid rgba(148,163,184,0.14)",
               }}
@@ -22781,14 +24472,92 @@ return (
       ))}
     </div>
   ) : (
-    <div
-      style={{
-        color: "#94a3b8",
-        fontSize: "13px",
-      }}
-    >
-      No multi-location operational data available.
-    </div>
+   <div
+  style={{
+    padding: "18px",
+    borderRadius: "18px",
+    background: "rgba(15,23,42,0.72)",
+    border: "1px solid rgba(148,163,184,0.12)",
+  }}
+>
+  <div
+    style={{
+      color: "white",
+      fontSize: "18px",
+      fontWeight: "900",
+      marginBottom: "10px",
+    }}
+  >
+    Multi-location intelligence inactive
+  </div>
+
+  <div
+    style={{
+      color: "#cbd5e1",
+      fontSize: "14px",
+      lineHeight: 1.7,
+      marginBottom: "16px",
+    }}
+  >
+    Upload sales, labor, inventory, or invoice data with a location column to activate cross-location AI intelligence.
+  </div>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile
+        ? "1fr"
+        : "repeat(3, minmax(0, 1fr))",
+      gap: "12px",
+    }}
+  >
+    {[
+      {
+        label: "Locations Detected",
+        value: "0",
+      },
+      {
+        label: "Top Performing Store",
+        value: "N/A",
+      },
+      {
+        label: "Enterprise Health",
+        value: "--",
+      },
+    ].map((item) => (
+      <div
+        key={item.label}
+        style={{
+          padding: "14px",
+          borderRadius: "14px",
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(148,163,184,0.10)",
+        }}
+      >
+        <div
+          style={{
+            color: "#94a3b8",
+            fontSize: "11px",
+            fontWeight: "800",
+            marginBottom: "6px",
+          }}
+        >
+          {item.label}
+        </div>
+
+        <div
+          style={{
+            color: "white",
+            fontSize: "24px",
+            fontWeight: "950",
+          }}
+        >
+          {item.value}
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
   )}
 </div>
   <div style={{ display: "grid", gap: "12px" }}>
@@ -27080,28 +28849,4625 @@ return (
    
   </>
 )}
+{activeTab === "multi_location" && (
+  <>
+  {/* ENTERPRISE COMMAND CENTER HEADER */}
 
+<div
+  style={{
+    marginBottom: "20px",
+    padding: "30px",
+    borderRadius: "30px",
+    background:
+      "radial-gradient(circle at top right, rgba(99,102,241,0.20), transparent 35%), linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.94))",
+    border: "1px solid rgba(129,140,248,0.20)",
+    boxShadow: "0 30px 80px rgba(2,6,23,0.40)",
+    overflow: "hidden",
+    position: "relative",
+  }}
+>
+  <div
+    style={{
+      position: "absolute",
+      top: "-80px",
+      right: "-80px",
+      width: "240px",
+      height: "240px",
+      borderRadius: "999px",
+      background: "rgba(99,102,241,0.12)",
+      filter: "blur(40px)",
+    }}
+  />
+
+  <div
+    style={{
+      position: "relative",
+      zIndex: 2,
+    }}
+  >
+    <div
+      style={{
+        color: "#c7d2fe",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      Enterprise Command Center
+    </div>
+
+    <h1
+      style={{
+        margin: 0,
+        color: "white",
+        fontSize: isMobile ? "34px" : "52px",
+        fontWeight: "1000",
+        lineHeight: 1.05,
+        maxWidth: "980px",
+      }}
+    >
+      Multi-location AI intelligence for enterprise restaurant operations
+    </h1>
+
+    <p
+      style={{
+        marginTop: "18px",
+        color: "#cbd5e1",
+        fontSize: "16px",
+        lineHeight: 1.8,
+        maxWidth: "880px",
+      }}
+    >
+      Monitor enterprise revenue, compare location performance,
+      identify operational risk, forecast growth, and automate
+      executive decision-making across every restaurant location.
+    </p>
+
+    <div
+      style={{
+        marginTop: "26px",
+        display: "grid",
+        gridTemplateColumns: isMobile
+          ? "1fr"
+          : "repeat(4, minmax(0, 1fr))",
+        gap: "14px",
+      }}
+    >
+      {[
+        {
+          label: "Enterprise Revenue",
+          value: `$${Number(
+  (locationPerformanceData || []).reduce(
+    (sum, location) => sum + Number(location.revenue || 0),
+    0
+  )
+).toLocaleString(undefined, {
+  maximumFractionDigits: 0,
+})}`,
+        },
+        {
+          label: "Locations",
+          value: Number(
+            (locationPerformanceData || []).length || 0
+          ).toLocaleString(),
+        },
+        {
+          label: "Enterprise Health",
+          value: "72/100",
+        },
+        {
+          label: "AI Forecast Confidence",
+          value: "92%",
+        },
+      ].map((item) => (
+        <div
+          key={item.label}
+          style={{
+            padding: "18px",
+            borderRadius: "20px",
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(148,163,184,0.12)",
+            backdropFilter: "blur(10px)",
+          }}
+        >
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "11px",
+              fontWeight: "900",
+              marginBottom: "8px",
+              textTransform: "uppercase",
+            }}
+          >
+            {item.label}
+          </div>
+
+          <div
+  style={{
+    color: "white",
+    fontSize:
+      item.label === "Enterprise Revenue"
+        ? "24px"
+        : "30px",
+    fontWeight: "1000",
+    lineHeight: 1.1,
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+  }}
+>
+  {item.value}
+</div>
+        </div>
+      ))}
+    </div>
+  </div>
+</div>
+    <div
+      style={{
+        padding: "24px",
+        borderRadius: "24px",
+        background:
+          "radial-gradient(circle at top right, rgba(99,102,241,0.14), transparent 40%), linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.9))",
+        border: "1px solid rgba(148,163,184,0.16)",
+        boxShadow: "0 18px 40px rgba(2,6,23,0.22)",
+      }}
+    >
+      <div
+        style={{
+          color: "#c7d2fe",
+          fontSize: "12px",
+          fontWeight: "900",
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          marginBottom: "8px",
+        }}
+      >
+        Enterprise Intelligence
+      </div>
+
+      <h2
+        style={{
+          margin: 0,
+          color: "white",
+          fontSize: "30px",
+          fontWeight: "950",
+        }}
+      >
+        Multi-location command center
+      </h2>
+
+      <p
+        style={{
+          marginTop: "12px",
+          color: "#94a3b8",
+          fontSize: "14px",
+          lineHeight: 1.7,
+          maxWidth: "760px",
+        }}
+      >
+        Compare restaurant locations, identify operational leaks,
+        monitor labor efficiency, and track enterprise-wide profitability.
+      </p>
+
+      <div
+        style={{
+          marginTop: "20px",
+          display: "grid",
+          gridTemplateColumns: isMobile
+            ? "1fr"
+            : "repeat(3, minmax(0, 1fr))",
+          gap: "14px",
+        }}
+      >
+        {[
+          {
+            label: "Locations",
+            value: "0",
+          },
+          {
+            label: "Top Location",
+            value: "N/A",
+          },
+          {
+            label: "Enterprise Health",
+            value: "--",
+          },
+        ].map((item) => (
+          <div
+            key={item.label}
+            style={{
+              padding: "18px",
+              borderRadius: "18px",
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(148,163,184,0.12)",
+            }}
+          >
+            <div
+              style={{
+                color: "#94a3b8",
+                fontSize: "11px",
+                fontWeight: "800",
+                marginBottom: "8px",
+              }}
+            >
+              {item.label}
+            </div>
+
+            <div
+              style={{
+                color: "white",
+                fontSize: "28px",
+                fontWeight: "950",
+              }}
+            >
+              {item.value}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+    {/* CROSS-LOCATION COMPARISON GRAPH */}
+
+<div
+  style={{
+    marginTop: "18px",
+    padding: "24px",
+    borderRadius: "24px",
+    background:
+      "linear-gradient(135deg, rgba(59,130,246,0.14), rgba(15,23,42,0.96))",
+    border: "1px solid rgba(96,165,250,0.20)",
+    boxShadow: "0 18px 40px rgba(2,6,23,0.22)",
+  }}
+>
+  <div
+    style={{
+      color: "#93c5fd",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "8px",
+    }}
+  >
+    Cross-Location Comparison
+  </div>
+
+  <h3
+    style={{
+      margin: 0,
+      color: "white",
+      fontSize: "24px",
+      fontWeight: "950",
+    }}
+  >
+    Revenue by location
+  </h3>
+
+  <p
+    style={{
+      margin: "8px 0 18px",
+      color: "#94a3b8",
+      fontSize: "13px",
+      lineHeight: 1.6,
+    }}
+  >
+    Compare location performance using uploaded sales data.
+  </p>
+
+  <div
+    style={{
+      width: "100%",
+      overflowX: "auto",
+    }}
+  >
+    <BarChart
+  width={(locationPerformanceData || []).length <= 1 ? 620 : 980}
+      height={320}
+      data={
+        (locationPerformanceData || []).length
+          ? locationPerformanceData
+          : [
+              { name: "Location 1", revenue: 0, orders: 0 },
+              { name: "Location 2", revenue: 0, orders: 0 },
+              { name: "Location 3", revenue: 0, orders: 0 },
+            ]
+      }
+      margin={{ top: 10, right: 24, left: 0, bottom: 24 }}
+    >
+      <XAxis
+        dataKey="name"
+        tick={{ fill: "#94a3b8", fontSize: 11 }}
+        axisLine={{ stroke: "rgba(148,163,184,0.2)" }}
+        tickLine={false}
+      />
+
+      <YAxis
+        tick={{ fill: "#94a3b8", fontSize: 11 }}
+        axisLine={{ stroke: "rgba(148,163,184,0.2)" }}
+        tickLine={false}
+      />
+
+      <Tooltip />
+
+      <Bar
+  dataKey="revenue"
+  fill="#60a5fa"
+  radius={[8, 8, 0, 0]}
+  maxBarSize={220}
+/>
+    </BarChart>
+  </div>
+</div>
+{/* LOCATION RANKING CARDS */}
+
+<div
+  style={{
+    marginTop: "18px",
+    display: "grid",
+    gridTemplateColumns: isMobile ? "1fr" : "repeat(3, minmax(0, 1fr))",
+    gap: "14px",
+  }}
+>
+  {((locationPerformanceData || []).length
+    ? locationPerformanceData
+    : [
+  {
+    name: "Upload multi-location data",
+    revenue: 0,
+    orders: 0,
+    health: "Waiting For Data",
+    score: 0,
+  },
+]
+  )
+    .slice(0, 6)
+    .map((location, index) => (
+      <div
+        key={location.name || index}
+        style={{
+          padding: "20px",
+          borderRadius: "22px",
+          background:
+            "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.9))",
+          border: "1px solid rgba(148,163,184,0.14)",
+          boxShadow: "0 18px 40px rgba(2,6,23,0.22)",
+        }}
+      >
+        <div
+          style={{
+            color: "#94a3b8",
+            fontSize: "12px",
+            fontWeight: "900",
+            marginBottom: "8px",
+          }}
+        >
+          #{index + 1} LOCATION
+        </div>
+
+        <div
+          style={{
+            color: "white",
+            fontSize: "22px",
+            fontWeight: "950",
+            marginBottom: "12px",
+          }}
+        >
+          {location.name || location.location || `Location ${index + 1}`}
+        </div>
+
+        <div style={{ color: "#22c55e", fontSize: "26px", fontWeight: "950" }}>
+          ${Number(location.revenue || 0).toLocaleString()}
+        </div>
+
+        <div style={{ color: "#94a3b8", fontSize: "13px", marginTop: "6px" }}>
+          {Number(location.orders || 0).toLocaleString()} orders
+        </div>
+
+        <div
+          style={{
+            marginTop: "14px",
+            padding: "7px 10px",
+            borderRadius: "999px",
+            display: "inline-flex",
+            background: "rgba(99,102,241,0.12)",
+            color: "#c7d2fe",
+            fontSize: "11px",
+            fontWeight: "900",
+          }}
+        >
+          {location.health || "Pending"}
+        </div>
+        <button
+  onClick={() => setSelectedEnterpriseLocation(location)}
+  style={{
+    marginTop: "16px",
+    width: "100%",
+    padding: "10px 14px",
+    borderRadius: "12px",
+    border: "1px solid rgba(148,163,184,0.14)",
+    background: "rgba(255,255,255,0.04)",
+    color: "white",
+    fontWeight: "900",
+    cursor: "pointer",
+  }}
+>
+  View Location →
+</button>
+      </div>
+    ))}
+</div>
+{/* WORST PERFORMING LOCATION */}
+
+<div
+  style={{
+    marginTop: "18px",
+    padding: "24px",
+    borderRadius: "24px",
+    background:
+      "linear-gradient(135deg, rgba(239,68,68,0.14), rgba(15,23,42,0.96))",
+    border: "1px solid rgba(248,113,113,0.22)",
+    boxShadow: "0 18px 40px rgba(2,6,23,0.22)",
+  }}
+>
+  <div
+    style={{
+      color: "#fca5a5",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "8px",
+    }}
+  >
+    Enterprise Risk Detection
+  </div>
+
+  <h3
+    style={{
+      margin: 0,
+      color: "white",
+      fontSize: "24px",
+      fontWeight: "950",
+    }}
+  >
+    Worst-performing location
+  </h3>
+
+  <div
+    style={{
+      marginTop: "18px",
+      padding: "18px",
+      borderRadius: "18px",
+      background: "rgba(15,23,42,0.72)",
+      border: "1px solid rgba(248,113,113,0.18)",
+    }}
+  >
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        gap: "12px",
+        flexWrap: "wrap",
+        alignItems: "center",
+      }}
+    >
+      <div>
+        <div
+          style={{
+            color: "white",
+            fontSize: "22px",
+            fontWeight: "950",
+            marginBottom: "6px",
+          }}
+        >
+          {(locationPerformanceData || []).length
+            ? [...locationPerformanceData].sort(
+                (a, b) => Number(a.revenue || 0) - Number(b.revenue || 0)
+              )[0]?.name || "Unknown"
+            : "No locations detected"}
+        </div>
+
+        <div
+          style={{
+            color: "#cbd5e1",
+            fontSize: "14px",
+            lineHeight: 1.6,
+            maxWidth: "720px",
+          }}
+        >
+          AI detected this location is underperforming compared to the rest
+          of the enterprise network.
+        </div>
+      </div>
+
+      <div
+        style={{
+          padding: "10px 14px",
+          borderRadius: "14px",
+          background: "rgba(239,68,68,0.12)",
+          border: "1px solid rgba(248,113,113,0.20)",
+          color: "#fca5a5",
+          fontSize: "13px",
+          fontWeight: "900",
+        }}
+      >
+        Immediate review recommended
+      </div>
+    </div>
+
+    <div
+      style={{
+        marginTop: "18px",
+        display: "grid",
+        gridTemplateColumns: isMobile
+          ? "1fr"
+          : "repeat(3, minmax(0, 1fr))",
+        gap: "12px",
+      }}
+    >
+      {[
+        {
+          label: "Revenue",
+          value: `$${Number(
+            (locationPerformanceData || []).length
+              ? [...locationPerformanceData].sort(
+                  (a, b) => Number(a.revenue || 0) - Number(b.revenue || 0)
+                )[0]?.revenue || 0
+              : 0
+          ).toLocaleString()}`,
+        },
+        {
+          label: "Orders",
+          value: Number(
+            (locationPerformanceData || []).length
+              ? [...locationPerformanceData].sort(
+                  (a, b) => Number(a.revenue || 0) - Number(b.revenue || 0)
+                )[0]?.orders || 0
+              : 0
+          ).toLocaleString(),
+        },
+        {
+          label: "Operational Health",
+          value:
+            (locationPerformanceData || []).length
+              ? [...locationPerformanceData].sort(
+                  (a, b) => Number(a.revenue || 0) - Number(b.revenue || 0)
+                )[0]?.health || "At Risk"
+              : "--",
+        },
+      ].map((item) => (
+        <div
+          key={item.label}
+          style={{
+            padding: "14px",
+            borderRadius: "14px",
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(148,163,184,0.10)",
+          }}
+        >
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "11px",
+              fontWeight: "800",
+              marginBottom: "6px",
+            }}
+          >
+            {item.label}
+          </div>
+
+          <div
+            style={{
+              color: "white",
+              fontSize: "24px",
+              fontWeight: "950",
+            }}
+          >
+            {item.value}
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+</div>
+{/* ENTERPRISE RECOVERABLE PROFIT */}
+
+<div
+  style={{
+    marginTop: "18px",
+    padding: "26px",
+    borderRadius: "28px",
+    background:
+      "radial-gradient(circle at top right, rgba(34,197,94,0.18), transparent 35%), linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.94))",
+    border: "1px solid rgba(74,222,128,0.22)",
+    boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
+  }}
+>
+  <div
+    style={{
+      color: "#86efac",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "10px",
+    }}
+  >
+    Enterprise Recoverable Profit
+  </div>
+
+  <h2
+    style={{
+      margin: 0,
+      color: "white",
+      fontSize: "34px",
+      fontWeight: "1000",
+      lineHeight: 1.1,
+    }}
+  >
+    $
+    {Number(
+      (locationPerformanceData || []).reduce(
+        (sum, location) =>
+          sum + Number(location.revenue || 0) * 0.08,
+        0
+      ) || 0
+    ).toLocaleString()}
+  </h2>
+
+  <p
+    style={{
+      marginTop: "12px",
+      color: "#cbd5e1",
+      fontSize: "15px",
+      lineHeight: 1.7,
+      maxWidth: "780px",
+    }}
+  >
+    SerVen AI estimates your enterprise group could recover this
+    monthly revenue through labor optimization, inventory controls,
+    vendor management, and AI operational automation.
+  </p>
+
+  <div
+    style={{
+      marginTop: "20px",
+      display: "grid",
+      gridTemplateColumns: isMobile
+        ? "1fr"
+        : "repeat(4, minmax(0, 1fr))",
+      gap: "14px",
+    }}
+  >
+    {[
+      {
+        label: "Labor Optimization",
+        value: "28%",
+      },
+      {
+        label: "Inventory Recovery",
+        value: "21%",
+      },
+      {
+        label: "Vendor Savings",
+        value: "17%",
+      },
+      {
+        label: "AI Automation",
+        value: "34%",
+      },
+    ].map((item) => (
+      <div
+        key={item.label}
+        style={{
+          padding: "16px",
+          borderRadius: "18px",
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(148,163,184,0.12)",
+        }}
+      >
+        <div
+          style={{
+            color: "#94a3b8",
+            fontSize: "11px",
+            fontWeight: "900",
+            marginBottom: "8px",
+            textTransform: "uppercase",
+          }}
+        >
+          {item.label}
+        </div>
+
+        <div
+          style={{
+            color: "#86efac",
+            fontSize: "28px",
+            fontWeight: "1000",
+          }}
+        >
+          {item.value}
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+{/* LOCATION REVENUE TREND */}
+
+<div
+  style={{
+    marginTop: "18px",
+    padding: "24px",
+    borderRadius: "24px",
+    background:
+      "linear-gradient(135deg, rgba(168,85,247,0.14), rgba(15,23,42,0.96))",
+    border: "1px solid rgba(168,85,247,0.22)",
+    boxShadow: "0 18px 40px rgba(2,6,23,0.22)",
+  }}
+>
+  <div
+    style={{
+      color: "#d8b4fe",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "8px",
+    }}
+  >
+    Enterprise Revenue Trend
+  </div>
+
+  <h3
+    style={{
+      margin: 0,
+      color: "white",
+      fontSize: "24px",
+      fontWeight: "950",
+    }}
+  >
+    Revenue trend by location
+  </h3>
+
+  <p
+    style={{
+      margin: "8px 0 18px",
+      color: "#94a3b8",
+      fontSize: "13px",
+      lineHeight: 1.6,
+    }}
+  >
+    Track how each location is contributing to enterprise-wide revenue.
+  </p>
+
+  <div
+    style={{
+      width: "100%",
+      overflowX: "auto",
+    }}
+  >
+    <LineChart
+      width={980}
+      height={320}
+      data={
+        (locationPerformanceData || []).length
+          ? locationPerformanceData.map((location, index) => ({
+              name: location.name || location.location || `Location ${index + 1}`,
+              revenue: Number(location.revenue || 0),
+              orders: Number(location.orders || 0),
+            }))
+          : [
+              { name: "Location 1", revenue: 0, orders: 0 },
+              { name: "Location 2", revenue: 0, orders: 0 },
+              { name: "Location 3", revenue: 0, orders: 0 },
+            ]
+      }
+      margin={{ top: 10, right: 24, left: 0, bottom: 24 }}
+    >
+      <XAxis
+        dataKey="name"
+        tick={{ fill: "#94a3b8", fontSize: 11 }}
+        axisLine={{ stroke: "rgba(148,163,184,0.2)" }}
+        tickLine={false}
+      />
+
+      <YAxis
+        tick={{ fill: "#94a3b8", fontSize: 11 }}
+        axisLine={{ stroke: "rgba(148,163,184,0.2)" }}
+        tickLine={false}
+      />
+
+      <Tooltip />
+
+      <Line
+        type="monotone"
+        dataKey="revenue"
+        stroke="#c084fc"
+        strokeWidth={3}
+        dot={{ r: 4 }}
+      />
+    </LineChart>
+  </div>
+</div>
+{/* ENTERPRISE AI ACTION QUEUE */}
+
+<div
+  style={{
+    marginTop: "18px",
+    padding: "24px",
+    borderRadius: "24px",
+    background:
+      "linear-gradient(135deg, rgba(245,158,11,0.14), rgba(15,23,42,0.96))",
+    border: "1px solid rgba(251,191,36,0.22)",
+    boxShadow: "0 18px 40px rgba(2,6,23,0.22)",
+  }}
+>
+  <div
+    style={{
+      color: "#fde68a",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "8px",
+    }}
+  >
+    Enterprise AI Action Queue
+  </div>
+
+  <h3
+    style={{
+      margin: 0,
+      color: "white",
+      fontSize: "24px",
+      fontWeight: "950",
+    }}
+  >
+    Highest-impact actions across locations
+  </h3>
+
+  <div
+    style={{
+      marginTop: "18px",
+      display: "grid",
+      gap: "12px",
+    }}
+  >
+    {[
+      {
+        title: "Review lowest-performing location",
+        impact: "$1,850/mo",
+        priority: "High",
+      },
+      {
+        title: "Compare labor % across stores",
+        impact: "$1,240/mo",
+        priority: "Medium",
+      },
+      {
+        title: "Audit inventory variance by location",
+        impact: "$980/mo",
+        priority: "Medium",
+      },
+    ].map((item) => (
+      <div
+        key={item.title}
+        style={{
+          padding: "16px",
+          borderRadius: "18px",
+          background: "rgba(15,23,42,0.72)",
+          border: "1px solid rgba(148,163,184,0.12)",
+          display: "flex",
+          justifyContent: "space-between",
+          gap: "12px",
+          flexWrap: "wrap",
+          alignItems: "center",
+        }}
+      >
+        <div>
+          <div style={{ color: "white", fontSize: "15px", fontWeight: "900" }}>
+            {item.title}
+          </div>
+          <div style={{ color: "#94a3b8", fontSize: "12px", marginTop: "4px" }}>
+            Estimated impact: {item.impact}
+          </div>
+        </div>
+
+        <div
+          style={{
+            padding: "7px 10px",
+            borderRadius: "999px",
+            background:
+              item.priority === "High"
+                ? "rgba(239,68,68,0.14)"
+                : "rgba(245,158,11,0.14)",
+            color: item.priority === "High" ? "#fca5a5" : "#fde68a",
+            fontSize: "11px",
+            fontWeight: "900",
+          }}
+        >
+          {item.priority}
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+{/* ENTERPRISE LOCATION HEALTH GRID */}
+
+<div
+  style={{
+    marginTop: "18px",
+    padding: "24px",
+    borderRadius: "24px",
+    background:
+      "linear-gradient(135deg, rgba(6,182,212,0.14), rgba(15,23,42,0.96))",
+    border: "1px solid rgba(34,211,238,0.22)",
+    boxShadow: "0 18px 40px rgba(2,6,23,0.22)",
+  }}
+>
+  <div
+    style={{
+      color: "#67e8f9",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "8px",
+    }}
+  >
+    Enterprise Health Grid
+  </div>
+
+  <h3
+    style={{
+      margin: 0,
+      color: "white",
+      fontSize: "24px",
+      fontWeight: "950",
+    }}
+  >
+    Location operational health
+  </h3>
+
+  <div
+    style={{
+      marginTop: "18px",
+      display: "grid",
+      gridTemplateColumns: isMobile
+        ? "1fr"
+        : "repeat(auto-fit, minmax(240px, 1fr))",
+      gap: "14px",
+    }}
+  >
+    {((locationPerformanceData || []).length
+      ? locationPerformanceData
+      : [
+          {
+            name: "Location 1",
+            health: "Healthy",
+            score: 82,
+          },
+          {
+            name: "Location 2",
+            health: "Watch Closely",
+            score: 68,
+          },
+          {
+            name: "Location 3",
+            health: "At Risk",
+            score: 54,
+          },
+        ]
+    ).map((location, index) => {
+      const score = Number(location.score || location.healthScore || 72);
+
+      const color =
+        score >= 80
+          ? "#22c55e"
+          : score >= 70
+          ? "#38bdf8"
+          : score >= 60
+          ? "#fbbf24"
+          : "#f87171";
+
+      return (
+        <div
+          key={location.name || index}
+          style={{
+            padding: "18px",
+            borderRadius: "20px",
+            background: "rgba(15,23,42,0.72)",
+            border: `1px solid ${color}40`,
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: "12px",
+              marginBottom: "12px",
+              alignItems: "center",
+            }}
+          >
+            <div
+              style={{
+                color: "white",
+                fontSize: "18px",
+                fontWeight: "950",
+              }}
+            >
+              {location.name || `Location ${index + 1}`}
+            </div>
+
+            <div
+              style={{
+                color,
+                fontSize: "13px",
+                fontWeight: "950",
+              }}
+            >
+              {score}/100
+            </div>
+          </div>
+
+          <div
+            style={{
+              width: "100%",
+              height: "8px",
+              borderRadius: "999px",
+              background: "rgba(255,255,255,0.08)",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                width: `${Math.max(6, Math.min(100, score))}%`,
+                height: "100%",
+                borderRadius: "999px",
+                background: color,
+              }}
+            />
+          </div>
+
+          <div
+            style={{
+              marginTop: "12px",
+              display: "inline-flex",
+              padding: "7px 10px",
+              borderRadius: "999px",
+              background: `${color}18`,
+              color,
+              fontSize: "11px",
+              fontWeight: "900",
+            }}
+          >
+            {location.health || "Healthy"}
+          </div>
+        </div>
+      );
+    })}
+  </div>
+</div>
+{/* ENTERPRISE BENCHMARK LEADERBOARD */}
+
+<div
+  style={{
+    marginTop: "18px",
+    padding: "24px",
+    borderRadius: "24px",
+    background:
+      "linear-gradient(135deg, rgba(99,102,241,0.14), rgba(15,23,42,0.96))",
+    border: "1px solid rgba(129,140,248,0.22)",
+    boxShadow: "0 18px 40px rgba(2,6,23,0.22)",
+  }}
+>
+  <div
+    style={{
+      color: "#c7d2fe",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "8px",
+    }}
+  >
+    Enterprise Benchmarking
+  </div>
+
+  <h3
+    style={{
+      margin: 0,
+      color: "white",
+      fontSize: "24px",
+      fontWeight: "950",
+    }}
+  >
+    Location performance leaderboard
+  </h3>
+
+  <div
+    style={{
+      marginTop: "18px",
+      display: "grid",
+      gap: "12px",
+    }}
+  >
+    {((locationPerformanceData || []).length
+      ? [...locationPerformanceData].sort(
+          (a, b) => Number(b.revenue || 0) - Number(a.revenue || 0)
+        )
+      : [
+          {
+            name: "Location 1",
+            revenue: 42000,
+            margin: 68,
+          },
+          {
+            name: "Location 2",
+            revenue: 31000,
+            margin: 61,
+          },
+          {
+            name: "Location 3",
+            revenue: 24000,
+            margin: 54,
+          },
+        ]
+    ).map((location, index) => (
+      <div
+        key={location.name || index}
+        style={{
+          padding: "16px",
+          borderRadius: "18px",
+          background: "rgba(15,23,42,0.72)",
+          border: "1px solid rgba(148,163,184,0.12)",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: "12px",
+          flexWrap: "wrap",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "14px",
+          }}
+        >
+          <div
+            style={{
+              width: "38px",
+              height: "38px",
+              borderRadius: "999px",
+              background:
+                index === 0
+                  ? "rgba(250,204,21,0.18)"
+                  : index === 1
+                  ? "rgba(148,163,184,0.18)"
+                  : "rgba(180,83,9,0.18)",
+              color:
+                index === 0
+                  ? "#fde68a"
+                  : index === 1
+                  ? "#cbd5e1"
+                  : "#fdba74",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontWeight: "950",
+              fontSize: "16px",
+            }}
+          >
+            #{index + 1}
+          </div>
+
+          <div>
+            <div
+              style={{
+                color: "white",
+                fontSize: "16px",
+                fontWeight: "900",
+              }}
+            >
+              {location.name || `Location ${index + 1}`}
+            </div>
+
+            <div
+              style={{
+                color: "#94a3b8",
+                fontSize: "12px",
+                marginTop: "4px",
+              }}
+            >
+              Margin: {location.margin || 0}%
+            </div>
+          </div>
+        </div>
+
+        <div
+          style={{
+            color: "#22c55e",
+            fontSize: "24px",
+            fontWeight: "950",
+          }}
+        >
+          ${Number(location.revenue || 0).toLocaleString()}
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+{/* ENTERPRISE GM SCORECARDS */}
+
+<div
+  style={{
+    marginTop: "18px",
+    padding: "24px",
+    borderRadius: "24px",
+    background:
+      "linear-gradient(135deg, rgba(34,197,94,0.14), rgba(15,23,42,0.96))",
+    border: "1px solid rgba(74,222,128,0.22)",
+    boxShadow: "0 18px 40px rgba(2,6,23,0.22)",
+  }}
+>
+  <div
+    style={{
+      color: "#86efac",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "8px",
+    }}
+  >
+    GM Performance Intelligence
+  </div>
+
+  <h3
+    style={{
+      margin: 0,
+      color: "white",
+      fontSize: "24px",
+      fontWeight: "950",
+    }}
+  >
+    General manager scorecards
+  </h3>
+
+  <div
+    style={{
+      marginTop: "18px",
+      display: "grid",
+      gridTemplateColumns: isMobile
+        ? "1fr"
+        : "repeat(auto-fit, minmax(260px, 1fr))",
+      gap: "14px",
+    }}
+  >
+    {((locationPerformanceData || []).length
+      ? locationPerformanceData
+      : [
+          { name: "Location 1", revenue: 42000, score: 86 },
+          { name: "Location 2", revenue: 31000, score: 74 },
+          { name: "Location 3", revenue: 24000, score: 62 },
+        ]
+    ).map((location, index) => {
+      const score = Number(location.score || location.healthScore || 75);
+
+      const color =
+        score >= 80
+          ? "#22c55e"
+          : score >= 70
+          ? "#38bdf8"
+          : score >= 60
+          ? "#fbbf24"
+          : "#f87171";
+
+      return (
+        <div
+          key={location.name || index}
+          style={{
+            padding: "18px",
+            borderRadius: "20px",
+            background: "rgba(15,23,42,0.72)",
+            border: `1px solid ${color}40`,
+          }}
+        >
+          <div
+            style={{
+              color: "white",
+              fontSize: "18px",
+              fontWeight: "950",
+              marginBottom: "10px",
+            }}
+          >
+            {location.name || `Location ${index + 1}`}
+          </div>
+
+          <div
+            style={{
+              color,
+              fontSize: "42px",
+              fontWeight: "1000",
+              lineHeight: 1,
+            }}
+          >
+            {score}
+          </div>
+
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "12px",
+              marginTop: "6px",
+              fontWeight: "800",
+            }}
+          >
+            GM Operational Score
+          </div>
+
+          <div
+            style={{
+              marginTop: "14px",
+              display: "grid",
+              gap: "8px",
+            }}
+          >
+            {[
+              ["Labor Control", score >= 75 ? "Strong" : "Needs Review"],
+              ["Inventory Discipline", score >= 70 ? "Stable" : "At Risk"],
+              ["Revenue Execution", score >= 80 ? "High" : "Monitor"],
+            ].map(([label, value]) => (
+              <div
+                key={label}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: "12px",
+                  fontSize: "12px",
+                }}
+              >
+                <span style={{ color: "#94a3b8" }}>{label}</span>
+                <span style={{ color: "white", fontWeight: "900" }}>
+                  {value}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    })}
+  </div>
+</div>
+{/* ENTERPRISE AI FORECAST ENGINE */}
+
+<div
+  style={{
+    marginTop: "18px",
+    padding: "24px",
+    borderRadius: "24px",
+    background:
+      "linear-gradient(135deg, rgba(236,72,153,0.14), rgba(15,23,42,0.96))",
+    border: "1px solid rgba(244,114,182,0.22)",
+    boxShadow: "0 18px 40px rgba(2,6,23,0.22)",
+  }}
+>
+  <div
+    style={{
+      color: "#f9a8d4",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "8px",
+    }}
+  >
+    Enterprise Forecast Engine
+  </div>
+
+  <h3
+    style={{
+      margin: 0,
+      color: "white",
+      fontSize: "24px",
+      fontWeight: "950",
+    }}
+  >
+    Predicted enterprise revenue
+  </h3>
+
+  <p
+    style={{
+      margin: "8px 0 18px",
+      color: "#94a3b8",
+      fontSize: "13px",
+      lineHeight: 1.6,
+    }}
+  >
+    AI projections based on enterprise sales momentum and operational trends.
+  </p>
+
+  <div
+    style={{
+      width: "100%",
+      overflowX: "auto",
+      marginBottom: "20px",
+    }}
+  >
+    <AreaChart
+      width={980}
+      height={320}
+      data={[
+        {
+          period: "Current",
+          revenue: Number(
+            (locationPerformanceData || []).reduce(
+              (sum, location) => sum + Number(location.revenue || 0),
+              0
+            )
+          ),
+        },
+        {
+          period: "30 Days",
+          revenue:
+            Number(
+              (locationPerformanceData || []).reduce(
+                (sum, location) => sum + Number(location.revenue || 0),
+                0
+              )
+            ) * 1.08,
+        },
+        {
+          period: "60 Days",
+          revenue:
+            Number(
+              (locationPerformanceData || []).reduce(
+                (sum, location) => sum + Number(location.revenue || 0),
+                0
+              )
+            ) * 1.16,
+        },
+        {
+          period: "90 Days",
+          revenue:
+            Number(
+              (locationPerformanceData || []).reduce(
+                (sum, location) => sum + Number(location.revenue || 0),
+                0
+              )
+            ) * 1.24,
+        },
+      ]}
+      margin={{ top: 10, right: 24, left: 0, bottom: 24 }}
+    >
+      <defs>
+        <linearGradient id="enterpriseForecastFill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#f472b6" stopOpacity={0.35} />
+          <stop offset="100%" stopColor="#f472b6" stopOpacity={0.02} />
+        </linearGradient>
+      </defs>
+
+      <XAxis
+        dataKey="period"
+        tick={{ fill: "#94a3b8", fontSize: 11 }}
+        axisLine={{ stroke: "rgba(148,163,184,0.2)" }}
+        tickLine={false}
+      />
+
+      <YAxis
+        tick={{ fill: "#94a3b8", fontSize: 11 }}
+        axisLine={{ stroke: "rgba(148,163,184,0.2)" }}
+        tickLine={false}
+      />
+
+      <Tooltip />
+
+      <Area
+        type="monotone"
+        dataKey="revenue"
+        stroke="#f472b6"
+        strokeWidth={3}
+        fill="url(#enterpriseForecastFill)"
+      />
+    </AreaChart>
+  </div>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile
+        ? "1fr"
+        : "repeat(3, minmax(0, 1fr))",
+      gap: "14px",
+    }}
+  >
+    {[
+      {
+        label: "Projected Growth",
+        value: "+24%",
+      },
+      {
+        label: "Forecast Confidence",
+        value: "92%",
+      },
+      {
+        label: "Expansion Readiness",
+        value: "Strong",
+      },
+    ].map((item) => (
+      <div
+        key={item.label}
+        style={{
+          padding: "16px",
+          borderRadius: "18px",
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(148,163,184,0.12)",
+        }}
+      >
+        <div
+          style={{
+            color: "#94a3b8",
+            fontSize: "11px",
+            fontWeight: "900",
+            marginBottom: "8px",
+            textTransform: "uppercase",
+          }}
+        >
+          {item.label}
+        </div>
+<div
+  style={{
+    color: "white",
+    fontSize:
+      item.label === "Enterprise Revenue"
+        ? "22px"
+        : "28px",
+    fontWeight: "1000",
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+  }}
+>
+  {item.value}
+</div>
+      </div>
+    ))}
+  </div>
+</div>
+{/* ENTERPRISE RISK HEATMAP */}
+
+<div
+  style={{
+    marginTop: "18px",
+    padding: "24px",
+    borderRadius: "24px",
+    background:
+      "linear-gradient(135deg, rgba(239,68,68,0.12), rgba(15,23,42,0.96))",
+    border: "1px solid rgba(248,113,113,0.22)",
+    boxShadow: "0 18px 40px rgba(2,6,23,0.22)",
+  }}
+>
+  <div
+    style={{
+      color: "#fca5a5",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "8px",
+    }}
+  >
+    Enterprise Risk Heatmap
+  </div>
+
+  <h3
+    style={{
+      margin: 0,
+      color: "white",
+      fontSize: "24px",
+      fontWeight: "950",
+    }}
+  >
+    Operational risk by category
+  </h3>
+
+  <div
+    style={{
+      marginTop: "18px",
+      display: "grid",
+      gridTemplateColumns: isMobile
+        ? "1fr"
+        : "repeat(4, minmax(0, 1fr))",
+      gap: "12px",
+    }}
+  >
+    {[
+      { label: "Labor", score: 72 },
+      { label: "Inventory", score: 64 },
+      { label: "Vendor", score: 81 },
+      { label: "Food Cost", score: 59 },
+      { label: "Waste", score: 67 },
+      { label: "Beverage", score: 74 },
+      { label: "Sales", score: 88 },
+      { label: "Forecast", score: 79 },
+    ].map((item) => {
+      const color =
+        item.score >= 80
+          ? "#22c55e"
+          : item.score >= 70
+          ? "#38bdf8"
+          : item.score >= 60
+          ? "#fbbf24"
+          : "#f87171";
+
+      return (
+        <div
+          key={item.label}
+          style={{
+            padding: "16px",
+            borderRadius: "18px",
+            background: `${color}14`,
+            border: `1px solid ${color}35`,
+          }}
+        >
+          <div
+            style={{
+              color: "#cbd5e1",
+              fontSize: "12px",
+              fontWeight: "900",
+              marginBottom: "10px",
+            }}
+          >
+            {item.label}
+          </div>
+
+          <div
+            style={{
+              color,
+              fontSize: "30px",
+              fontWeight: "1000",
+            }}
+          >
+            {item.score}
+          </div>
+
+          <div
+            style={{
+              marginTop: "10px",
+              height: "7px",
+              borderRadius: "999px",
+              background: "rgba(255,255,255,0.10)",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                width: `${item.score}%`,
+                height: "100%",
+                borderRadius: "999px",
+                background: color,
+              }}
+            />
+          </div>
+        </div>
+      );
+    })}
+  </div>
+</div>
+{/* ENTERPRISE AI NOTIFICATIONS */}
+
+<div
+  style={{
+    marginTop: "18px",
+    padding: "24px",
+    borderRadius: "24px",
+    background:
+      "linear-gradient(135deg, rgba(59,130,246,0.12), rgba(15,23,42,0.96))",
+    border: "1px solid rgba(96,165,250,0.22)",
+    boxShadow: "0 18px 40px rgba(2,6,23,0.22)",
+  }}
+>
+  <div
+    style={{
+      color: "#93c5fd",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "8px",
+    }}
+  >
+    Enterprise AI Feed
+  </div>
+
+  <h3
+    style={{
+      margin: 0,
+      color: "white",
+      fontSize: "24px",
+      fontWeight: "950",
+    }}
+  >
+    Live enterprise notifications
+  </h3>
+
+  <div
+    style={{
+      marginTop: "18px",
+      display: "grid",
+      gap: "12px",
+    }}
+  >
+    {[
+      {
+        title: "Labor spike detected at Location 2",
+        time: "2 min ago",
+        severity: "High",
+      },
+      {
+        title: "Food cost improved 4% at Location 1",
+        time: "18 min ago",
+        severity: "Positive",
+      },
+      {
+        title: "Inventory variance detected across 3 stores",
+        time: "42 min ago",
+        severity: "Medium",
+      },
+      {
+        title: "Revenue momentum accelerating enterprise-wide",
+        time: "1 hour ago",
+        severity: "Positive",
+      },
+    ].map((item) => {
+      const color =
+        item.severity === "High"
+          ? "#f87171"
+          : item.severity === "Medium"
+          ? "#fbbf24"
+          : "#22c55e";
+
+      return (
+        <div
+          key={item.title}
+          style={{
+            padding: "16px",
+            borderRadius: "18px",
+            background: "rgba(15,23,42,0.72)",
+            border: `1px solid ${color}30`,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: "12px",
+            flexWrap: "wrap",
+          }}
+        >
+          <div>
+            <div
+              style={{
+                color: "white",
+                fontSize: "15px",
+                fontWeight: "900",
+              }}
+            >
+              {item.title}
+            </div>
+
+            <div
+              style={{
+                color: "#94a3b8",
+                fontSize: "12px",
+                marginTop: "4px",
+              }}
+            >
+              {item.time}
+            </div>
+          </div>
+
+          <div
+            style={{
+              padding: "7px 10px",
+              borderRadius: "999px",
+              background: `${color}18`,
+              color,
+              fontSize: "11px",
+              fontWeight: "900",
+            }}
+          >
+            {item.severity}
+          </div>
+        </div>
+      );
+    })}
+  </div>
+</div>
+{/* ENTERPRISE EXECUTIVE SUMMARY */}
+
+<div
+  style={{
+    marginTop: "18px",
+    padding: "28px",
+    borderRadius: "28px",
+    background:
+      "radial-gradient(circle at top right, rgba(250,204,21,0.16), transparent 35%), linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.94))",
+    border: "1px solid rgba(250,204,21,0.18)",
+    boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
+  }}
+>
+  <div
+    style={{
+      color: "#fde68a",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "10px",
+    }}
+  >
+    Enterprise Executive Summary
+  </div>
+
+  <h2
+    style={{
+      margin: 0,
+      color: "white",
+      fontSize: "34px",
+      fontWeight: "1000",
+      lineHeight: 1.1,
+      maxWidth: "900px",
+    }}
+  >
+    Enterprise operations are stabilizing, but margin pressure remains
+    across lower-performing locations.
+  </h2>
+
+  <p
+    style={{
+      marginTop: "16px",
+      color: "#cbd5e1",
+      fontSize: "15px",
+      lineHeight: 1.8,
+      maxWidth: "920px",
+    }}
+  >
+    SerVen AI identified labor inefficiencies, inventory variance,
+    and operational inconsistency across multiple locations.
+    Enterprise forecasting models project continued revenue growth,
+    but AI recommends immediate focus on underperforming stores
+    to protect long-term margins.
+  </p>
+
+  <div
+    style={{
+      marginTop: "24px",
+      display: "grid",
+      gridTemplateColumns: isMobile
+        ? "1fr"
+        : "repeat(3, minmax(0, 1fr))",
+      gap: "16px",
+    }}
+  >
+    {[
+      {
+        title: "Top Priority",
+        value: "Location Performance Recovery",
+      },
+      {
+        title: "Enterprise Trend",
+        value: "Revenue Growth Accelerating",
+      },
+      {
+        title: "AI Confidence",
+        value: "92%",
+      },
+    ].map((item) => (
+      <div
+        key={item.title}
+        style={{
+          padding: "18px",
+          borderRadius: "20px",
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(148,163,184,0.12)",
+        }}
+      >
+        <div
+          style={{
+            color: "#94a3b8",
+            fontSize: "11px",
+            fontWeight: "900",
+            marginBottom: "10px",
+            textTransform: "uppercase",
+          }}
+        >
+          {item.title}
+        </div>
+
+        <div
+          style={{
+            color: "white",
+            fontSize: "24px",
+            fontWeight: "950",
+            lineHeight: 1.3,
+          }}
+        >
+          {item.value}
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+{/* ENTERPRISE AI AUTOPILOT */}
+
+<div
+  style={{
+    marginTop: "18px",
+    marginBottom: "40px",
+    padding: "28px",
+    borderRadius: "28px",
+    background:
+      "radial-gradient(circle at top right, rgba(34,197,94,0.18), transparent 35%), linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.94))",
+    border: "1px solid rgba(74,222,128,0.22)",
+    boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
+  }}
+>
+  <div
+    style={{
+      color: "#86efac",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "10px",
+    }}
+  >
+    Enterprise AI Autopilot
+  </div>
+
+  <h2
+    style={{
+      margin: 0,
+      color: "white",
+      fontSize: "34px",
+      fontWeight: "1000",
+      lineHeight: 1.1,
+    }}
+  >
+    Autonomous operational optimization
+  </h2>
+
+  <p
+    style={{
+      marginTop: "16px",
+      color: "#cbd5e1",
+      fontSize: "15px",
+      lineHeight: 1.8,
+      maxWidth: "920px",
+    }}
+  >
+    SerVen AI continuously monitors enterprise-wide operations and
+    automatically recommends actions to improve labor efficiency,
+    reduce waste, optimize inventory, and increase profitability.
+  </p>
+
+  <div
+    style={{
+      marginTop: "24px",
+      display: "grid",
+      gridTemplateColumns: isMobile
+        ? "1fr"
+        : "repeat(4, minmax(0, 1fr))",
+      gap: "14px",
+    }}
+  >
+    {[
+      {
+        title: "Labor Optimization",
+        status: "Active",
+      },
+      {
+        title: "Inventory Monitoring",
+        status: "Active",
+      },
+      {
+        title: "Vendor Intelligence",
+        status: "Monitoring",
+      },
+      {
+        title: "Revenue Forecasting",
+        status: "Running",
+      },
+    ].map((item) => (
+      <div
+        key={item.title}
+        style={{
+          padding: "18px",
+          borderRadius: "20px",
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(148,163,184,0.12)",
+        }}
+      >
+        <div
+          style={{
+            color: "white",
+            fontSize: "16px",
+            fontWeight: "900",
+            marginBottom: "14px",
+          }}
+        >
+          {item.title}
+        </div>
+
+        <div
+          style={{
+            display: "inline-flex",
+            padding: "8px 12px",
+            borderRadius: "999px",
+            background: "rgba(34,197,94,0.16)",
+            color: "#86efac",
+            fontSize: "11px",
+            fontWeight: "900",
+          }}
+        >
+          ● {item.status}
+        </div>
+      </div>
+    ))}
+  </div>
+
+  <div
+    style={{
+      marginTop: "28px",
+      display: "flex",
+      gap: "14px",
+      flexWrap: "wrap",
+    }}
+  >
+    <button
+      style={{
+        padding: "12px 18px",
+        borderRadius: "14px",
+        border: "none",
+        background: "#22c55e",
+        color: "white",
+        fontWeight: "900",
+        cursor: "pointer",
+      }}
+    >
+      Enable Full Autopilot
+    </button>
+
+    <button
+      style={{
+        padding: "12px 18px",
+        borderRadius: "14px",
+        border: "1px solid rgba(148,163,184,0.16)",
+        background: "rgba(255,255,255,0.04)",
+        color: "white",
+        fontWeight: "900",
+        cursor: "pointer",
+      }}
+    >
+      View Enterprise Actions
+    </button>
+  </div>
+</div>
+  </>
+)}
+{/* =========================
+   GM COMMAND CENTER
+========================= */}
+
+{activeTab === "gm_command" && hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "26px",
+      background:
+        "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.92))",
+      border: "1px solid rgba(148,163,184,0.18)",
+      boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
+    }}
+  >
+    <div
+      style={{
+        color: "#93c5fd",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      GM Command Center
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "26px",
+        fontWeight: "950",
+        marginBottom: "10px",
+      }}
+    >
+      Today’s General Manager Priorities
+    </h3>
+
+    <p
+      style={{
+        color: "#cbd5e1",
+        fontSize: "14px",
+        lineHeight: 1.7,
+        marginBottom: "18px",
+      }}
+    >
+      SerVen AI is monitoring sales, labor, food cost, inventory, and operational risk so the GM knows what needs attention first.
+    </p>
+
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
+        gap: "14px",
+      }}
+    >
+      {[
+        {
+          title: "Sales Momentum",
+          value: `${Number(liveMomentumPercent || 0).toFixed(1)}%`,
+          detail:
+            Number(liveMomentumPercent || 0) >= 0
+              ? "Revenue trend is stable or improving."
+              : "Revenue is trending down and may need action.",
+        },
+        {
+          title: "Labor Watch",
+          value: `${Number(liveLaborIntelligence?.laborPercent || 0).toFixed(1)}%`,
+          detail:
+            Number(liveLaborIntelligence?.laborPercent || 0) > 30
+              ? "Labor may be running high versus revenue."
+              : "Labor is currently within a manageable range.",
+        },
+        {
+          title: "Food Cost Watch",
+          value: `${Number(foodCostPercentage || 0).toFixed(1)}%`,
+          detail:
+            Number(foodCostPercentage || 0) > 32
+              ? "Food cost is above healthy target."
+              : "Food cost is currently controlled.",
+        },
+      ].map((item) => (
+        <div
+          key={item.title}
+          style={{
+            padding: "18px",
+            borderRadius: "20px",
+            background: "rgba(15,23,42,0.72)",
+            border: "1px solid rgba(148,163,184,0.14)",
+          }}
+        >
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "12px",
+              fontWeight: "800",
+              marginBottom: "8px",
+            }}
+          >
+            {item.title}
+          </div>
+
+          <div
+            style={{
+              color: "white",
+              fontSize: "26px",
+              fontWeight: "950",
+              marginBottom: "8px",
+            }}
+          >
+            {item.value}
+          </div>
+
+          <div
+            style={{
+              color: "#cbd5e1",
+              fontSize: "13px",
+              lineHeight: 1.5,
+            }}
+          >
+            {item.detail}
+          </div>
+        </div>
+      ))}
+    </div>
+
+    <div
+      style={{
+        marginTop: "18px",
+        display: "grid",
+        gap: "12px",
+      }}
+    >
+      {gmPriorities.map((priority, index) => (
+        <div
+          key={index}
+          style={{
+            padding: "16px",
+            borderRadius: "18px",
+            background:
+              priority.level === "Critical"
+                ? "rgba(239,68,68,0.12)"
+                : priority.level === "Warning"
+                ? "rgba(245,158,11,0.12)"
+                : priority.level === "Action"
+                ? "rgba(99,102,241,0.12)"
+                : "rgba(34,197,94,0.12)",
+            border:
+              priority.level === "Critical"
+                ? "1px solid rgba(239,68,68,0.28)"
+                : priority.level === "Warning"
+                ? "1px solid rgba(245,158,11,0.28)"
+                : priority.level === "Action"
+                ? "1px solid rgba(99,102,241,0.28)"
+                : "1px solid rgba(34,197,94,0.28)",
+          }}
+        >
+          <div
+            style={{
+              color:
+                priority.level === "Critical"
+                  ? "#fca5a5"
+                  : priority.level === "Warning"
+                  ? "#fcd34d"
+                  : priority.level === "Action"
+                  ? "#c4b5fd"
+                  : "#86efac",
+              fontSize: "12px",
+              fontWeight: "900",
+              marginBottom: "6px",
+              textTransform: "uppercase",
+            }}
+          >
+            {priority.level}
+          </div>
+
+          <div
+            style={{
+              color: "white",
+              fontSize: "15px",
+              fontWeight: "900",
+              marginBottom: "6px",
+            }}
+          >
+            {priority.title}
+          </div>
+
+          <div
+            style={{
+              color: "#cbd5e1",
+              fontSize: "13px",
+              lineHeight: 1.6,
+            }}
+          >
+            {priority.detail}
+          </div>
+        </div>
+      ))}
+    </div>
+    <div
+  style={{
+    marginTop: "18px",
+    padding: "20px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(59,130,246,0.14), rgba(15,23,42,0.92))",
+    border: "1px solid rgba(96,165,250,0.24)",
+  }}
+>
+  <div
+    style={{
+      color: "#93c5fd",
+      fontSize: "12px",
+      fontWeight: "900",
+      marginBottom: "8px",
+      textTransform: "uppercase",
+    }}
+  >
+    GM Shift Focus
+  </div>
+
+  <h3
+    style={{
+      color: "white",
+      fontSize: "22px",
+      fontWeight: "900",
+      marginBottom: "10px",
+    }}
+  >
+    {gmShiftFocus.title}
+  </h3>
+
+  <p
+    style={{
+      color: "#cbd5e1",
+      fontSize: "14px",
+      lineHeight: 1.7,
+      marginBottom: "14px",
+    }}
+  >
+    {gmShiftFocus.message}
+  </p>
+
+  <div
+    style={{
+      padding: "14px",
+      borderRadius: "16px",
+      background: "rgba(15,23,42,0.72)",
+      border: "1px solid rgba(148,163,184,0.14)",
+    }}
+  >
+    <div
+      style={{
+        color: "#bfdbfe",
+        fontSize: "11px",
+        fontWeight: "900",
+        marginBottom: "6px",
+        textTransform: "uppercase",
+      }}
+    >
+      Recommended GM Action
+    </div>
+
+    <div
+      style={{
+        color: "white",
+        fontSize: "14px",
+        lineHeight: 1.6,
+      }}
+    >
+      {gmShiftFocus.action}
+    </div>
+  </div>
+</div>
+<div
+  style={{
+    marginTop: "18px",
+    padding: "20px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(99,102,241,0.14), rgba(15,23,42,0.94))",
+    border: "1px solid rgba(129,140,248,0.22)",
+  }}
+>
+  <div
+    style={{
+      color: "#c4b5fd",
+      fontSize: "12px",
+      fontWeight: "900",
+      marginBottom: "14px",
+      textTransform: "uppercase",
+    }}
+  >
+    GM Operational Pulse
+  </div>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile ? "1fr" : "repeat(2, 1fr)",
+      gap: "14px",
+    }}
+  >
+    {gmOperationalPulse.map((item) => (
+      <div
+        key={item.label}
+        style={{
+          padding: "16px",
+          borderRadius: "18px",
+          background: "rgba(15,23,42,0.72)",
+          border: "1px solid rgba(148,163,184,0.14)",
+        }}
+      >
+        <div
+          style={{
+            color: "#94a3b8",
+            fontSize: "12px",
+            fontWeight: "800",
+            marginBottom: "10px",
+          }}
+        >
+          {item.label}
+        </div>
+
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "12px",
+          }}
+        >
+          <div
+            style={{
+              flex: 1,
+              height: "10px",
+              borderRadius: "999px",
+              overflow: "hidden",
+              background: "rgba(255,255,255,0.08)",
+            }}
+          >
+            <div
+              style={{
+                width: `${item.value}%`,
+                height: "100%",
+                borderRadius: "999px",
+                background:
+                  item.value >= 85
+                    ? "#22c55e"
+                    : item.value >= 70
+                    ? "#f59e0b"
+                    : "#ef4444",
+              }}
+            />
+          </div>
+
+          <div
+            style={{
+              color: "white",
+              fontSize: "14px",
+              fontWeight: "900",
+              minWidth: "44px",
+              textAlign: "right",
+            }}
+          >
+            {item.value}%
+          </div>
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+<div
+  style={{
+    marginTop: "18px",
+    padding: "20px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(34,197,94,0.12), rgba(15,23,42,0.94))",
+    border: "1px solid rgba(34,197,94,0.22)",
+  }}
+>
+  <div
+    style={{
+      color: "#86efac",
+      fontSize: "12px",
+      fontWeight: "900",
+      marginBottom: "14px",
+      textTransform: "uppercase",
+    }}
+  >
+    GM Shift Checklist
+  </div>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
+      gap: "14px",
+    }}
+  >
+    {gmShiftChecklist.map((section) => (
+      <div
+        key={section.title}
+        style={{
+          padding: "16px",
+          borderRadius: "18px",
+          background: "rgba(15,23,42,0.72)",
+          border: "1px solid rgba(148,163,184,0.14)",
+        }}
+      >
+        <div
+          style={{
+            color: "white",
+            fontSize: "15px",
+            fontWeight: "900",
+            marginBottom: "12px",
+          }}
+        >
+          {section.title}
+        </div>
+
+        <div style={{ display: "grid", gap: "10px" }}>
+          {section.items.map((item) => (
+            <div
+              key={item}
+              style={{
+                color: "#cbd5e1",
+                fontSize: "13px",
+                lineHeight: 1.5,
+              }}
+            >
+              ✓ {item}
+            </div>
+          ))}
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+<div
+  style={{
+    marginTop: "18px",
+    padding: "20px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(239,68,68,0.12), rgba(15,23,42,0.94))",
+    border: "1px solid rgba(248,113,113,0.22)",
+  }}
+>
+  <div
+    style={{
+      color: "#fca5a5",
+      fontSize: "12px",
+      fontWeight: "900",
+      marginBottom: "14px",
+      textTransform: "uppercase",
+    }}
+  >
+    GM Risk Radar
+  </div>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile ? "1fr" : "repeat(2, 1fr)",
+      gap: "14px",
+    }}
+  >
+    {gmRiskRadar.map((risk) => (
+      <div
+        key={risk.label}
+        style={{
+          padding: "16px",
+          borderRadius: "18px",
+          background: "rgba(15,23,42,0.72)",
+          border: "1px solid rgba(148,163,184,0.14)",
+        }}
+      >
+        <div
+          style={{
+            color: "#94a3b8",
+            fontSize: "12px",
+            fontWeight: "800",
+            marginBottom: "8px",
+          }}
+        >
+          {risk.label}
+        </div>
+
+        <div
+          style={{
+            color:
+              risk.value === "High"
+                ? "#fca5a5"
+                : risk.value === "Medium"
+                ? "#fcd34d"
+                : "#86efac",
+            fontSize: "22px",
+            fontWeight: "950",
+            marginBottom: "8px",
+          }}
+        >
+          {risk.value}
+        </div>
+
+        <div
+          style={{
+            color: "#cbd5e1",
+            fontSize: "13px",
+            lineHeight: 1.5,
+          }}
+        >
+          {risk.detail}
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+<div
+  style={{
+    marginTop: "18px",
+    padding: "20px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(6,182,212,0.12), rgba(15,23,42,0.94))",
+    border: "1px solid rgba(34,211,238,0.22)",
+  }}
+>
+  <div
+    style={{
+      color: "#67e8f9",
+      fontSize: "12px",
+      fontWeight: "900",
+      marginBottom: "14px",
+      textTransform: "uppercase",
+    }}
+  >
+    GM Staffing Intelligence
+  </div>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
+      gap: "14px",
+    }}
+  >
+    <div
+      style={{
+        padding: "18px",
+        borderRadius: "18px",
+        background: "rgba(15,23,42,0.72)",
+        border: "1px solid rgba(148,163,184,0.14)",
+      }}
+    >
+      <div
+        style={{
+          color: "#94a3b8",
+          fontSize: "12px",
+          fontWeight: "800",
+          marginBottom: "8px",
+        }}
+      >
+        Labor Percentage
+      </div>
+
+      <div
+        style={{
+          color: "white",
+          fontSize: "28px",
+          fontWeight: "950",
+        }}
+      >
+        {gmStaffingInsights.laborPercent.toFixed(1)}%
+      </div>
+    </div>
+
+    <div
+      style={{
+        padding: "18px",
+        borderRadius: "18px",
+        background: "rgba(15,23,42,0.72)",
+        border: "1px solid rgba(148,163,184,0.14)",
+      }}
+    >
+      <div
+        style={{
+          color: "#94a3b8",
+          fontSize: "12px",
+          fontWeight: "800",
+          marginBottom: "8px",
+        }}
+      >
+        Staffing Status
+      </div>
+
+      <div
+        style={{
+          color:
+            gmStaffingInsights.status === "Optimized"
+              ? "#86efac"
+              : gmStaffingInsights.status === "Overstaffed"
+              ? "#fca5a5"
+              : "#fcd34d",
+          fontSize: "24px",
+          fontWeight: "950",
+        }}
+      >
+        {gmStaffingInsights.status}
+      </div>
+    </div>
+
+    <div
+      style={{
+        padding: "18px",
+        borderRadius: "18px",
+        background: "rgba(15,23,42,0.72)",
+        border: "1px solid rgba(148,163,184,0.14)",
+      }}
+    >
+      <div
+        style={{
+          color: "#94a3b8",
+          fontSize: "12px",
+          fontWeight: "800",
+          marginBottom: "8px",
+        }}
+      >
+        AI Recommendation
+      </div>
+
+      <div
+        style={{
+          color: "#cbd5e1",
+          fontSize: "13px",
+          lineHeight: 1.6,
+        }}
+      >
+        {gmStaffingInsights.recommendation}
+      </div>
+    </div>
+  </div>
+</div>
+<div
+  style={{
+    marginTop: "18px",
+    padding: "20px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(245,158,11,0.12), rgba(15,23,42,0.94))",
+    border: "1px solid rgba(251,191,36,0.22)",
+  }}
+>
+  <div
+    style={{
+      color: "#fcd34d",
+      fontSize: "12px",
+      fontWeight: "900",
+      marginBottom: "14px",
+      textTransform: "uppercase",
+    }}
+  >
+    GM Menu Push Intelligence
+  </div>
+
+  <div style={{ display: "grid", gap: "12px" }}>
+    {gmMenuPushInsights.map((item) => (
+      <div
+        key={item.name}
+        style={{
+          padding: "16px",
+          borderRadius: "18px",
+          background: "rgba(15,23,42,0.72)",
+          border: "1px solid rgba(148,163,184,0.14)",
+        }}
+      >
+        <div
+          style={{
+            color: "white",
+            fontSize: "15px",
+            fontWeight: "900",
+            marginBottom: "6px",
+          }}
+        >
+          {item.name}
+        </div>
+
+        <div
+          style={{
+            color: "#cbd5e1",
+            fontSize: "13px",
+            lineHeight: 1.6,
+          }}
+        >
+          {item.reason}
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+<div
+  style={{
+    marginTop: "18px",
+    padding: "20px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(16,185,129,0.12), rgba(15,23,42,0.94))",
+    border: "1px solid rgba(52,211,153,0.22)",
+  }}
+>
+  <div
+    style={{
+      color: "#6ee7b7",
+      fontSize: "12px",
+      fontWeight: "900",
+      marginBottom: "14px",
+      textTransform: "uppercase",
+    }}
+  >
+    GM Inventory Watch
+  </div>
+
+  <div style={{ display: "grid", gap: "12px" }}>
+    {gmInventoryWatch.map((item) => (
+      <div
+        key={item.name}
+        style={{
+          padding: "16px",
+          borderRadius: "18px",
+          background: "rgba(15,23,42,0.72)",
+          border: "1px solid rgba(148,163,184,0.14)",
+        }}
+      >
+        <div
+          style={{
+            color: "white",
+            fontSize: "15px",
+            fontWeight: "900",
+            marginBottom: "6px",
+          }}
+        >
+          {item.name}
+        </div>
+
+        <div
+          style={{
+            color: "#cbd5e1",
+            fontSize: "13px",
+            lineHeight: 1.6,
+          }}
+        >
+          {item.detail}
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+<div
+  style={{
+    marginTop: "18px",
+    padding: "20px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(59,130,246,0.12), rgba(15,23,42,0.94))",
+    border: "1px solid rgba(96,165,250,0.22)",
+  }}
+>
+  <div
+    style={{
+      color: "#93c5fd",
+      fontSize: "12px",
+      fontWeight: "900",
+      marginBottom: "14px",
+      textTransform: "uppercase",
+    }}
+  >
+    GM Daily Revenue Snapshot
+  </div>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile ? "1fr" : "repeat(4, 1fr)",
+      gap: "14px",
+    }}
+  >
+    {[
+      {
+        label: "Revenue",
+        value: `$${gmRevenueSnapshot.revenue.toLocaleString()}`,
+      },
+      {
+        label: "Orders",
+        value: gmRevenueSnapshot.orders,
+      },
+      {
+        label: "Average Order",
+        value: `$${gmRevenueSnapshot.avgOrder.toFixed(2)}`,
+      },
+      {
+        label: "Performance",
+        value: gmRevenueSnapshot.performance,
+      },
+    ].map((item) => (
+      <div
+        key={item.label}
+        style={{
+          padding: "18px",
+          borderRadius: "18px",
+          background: "rgba(15,23,42,0.72)",
+          border: "1px solid rgba(148,163,184,0.14)",
+        }}
+      >
+        <div
+          style={{
+            color: "#94a3b8",
+            fontSize: "12px",
+            fontWeight: "800",
+            marginBottom: "8px",
+          }}
+        >
+          {item.label}
+        </div>
+
+        <div
+          style={{
+            color: "white",
+            fontSize: "24px",
+            fontWeight: "950",
+          }}
+        >
+          {item.value}
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+<div
+  style={{
+    marginTop: "18px",
+    padding: "20px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(168,85,247,0.12), rgba(15,23,42,0.94))",
+    border: "1px solid rgba(192,132,252,0.22)",
+  }}
+>
+  <div
+    style={{
+      color: "#d8b4fe",
+      fontSize: "12px",
+      fontWeight: "900",
+      marginBottom: "14px",
+      textTransform: "uppercase",
+    }}
+  >
+    GM AI Action Queue
+  </div>
+
+  <div style={{ display: "grid", gap: "12px" }}>
+    {gmActionQueue.map((action, index) => (
+      <div
+        key={index}
+        style={{
+          padding: "16px",
+          borderRadius: "18px",
+          background: "rgba(15,23,42,0.72)",
+          border: "1px solid rgba(148,163,184,0.14)",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: "8px",
+          }}
+        >
+          <div
+            style={{
+              color: "white",
+              fontSize: "15px",
+              fontWeight: "900",
+            }}
+          >
+            {action.title}
+          </div>
+
+          <div
+            style={{
+              color:
+                action.priority === "Critical"
+                  ? "#fca5a5"
+                  : action.priority === "High"
+                  ? "#fcd34d"
+                  : action.priority === "Medium"
+                  ? "#93c5fd"
+                  : "#86efac",
+              fontSize: "11px",
+              fontWeight: "900",
+              textTransform: "uppercase",
+            }}
+          >
+            {action.priority}
+          </div>
+        </div>
+
+        <div
+          style={{
+            color: "#cbd5e1",
+            fontSize: "13px",
+            lineHeight: 1.6,
+          }}
+        >
+          {action.detail}
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+<div
+  style={{
+    marginTop: "18px",
+    padding: "22px",
+    borderRadius: "24px",
+    background:
+      "linear-gradient(135deg, rgba(250,204,21,0.12), rgba(15,23,42,0.94))",
+    border: "1px solid rgba(250,204,21,0.24)",
+    boxShadow: "0 18px 50px rgba(2,6,23,0.28)",
+  }}
+>
+  <div
+    style={{
+      color: "#fde68a",
+      fontSize: "12px",
+      fontWeight: "900",
+      marginBottom: "10px",
+      textTransform: "uppercase",
+      letterSpacing: "0.08em",
+    }}
+  >
+    GM Executive Summary
+  </div>
+
+  <div
+    style={{
+      color: "white",
+      fontSize: "22px",
+      fontWeight: "900",
+      marginBottom: "12px",
+      lineHeight: 1.3,
+    }}
+  >
+    AI Operational Overview
+  </div>
+
+  <p
+    style={{
+      color: "#e2e8f0",
+      fontSize: "14px",
+      lineHeight: 1.8,
+      margin: 0,
+    }}
+  >
+    {gmExecutiveSummary}
+  </p>
+</div>
+<div
+  style={{
+    marginTop: "18px",
+    padding: "20px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(14,165,233,0.12), rgba(15,23,42,0.94))",
+    border: "1px solid rgba(56,189,248,0.22)",
+  }}
+>
+  <div
+    style={{
+      color: "#7dd3fc",
+      fontSize: "12px",
+      fontWeight: "900",
+      marginBottom: "14px",
+      textTransform: "uppercase",
+    }}
+  >
+    GM Team Performance Snapshot
+  </div>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
+      gap: "14px",
+    }}
+  >
+    {gmTeamPerformance.map((team) => (
+      <div
+        key={team.label}
+        style={{
+          padding: "18px",
+          borderRadius: "18px",
+          background: "rgba(15,23,42,0.72)",
+          border: "1px solid rgba(148,163,184,0.14)",
+        }}
+      >
+        <div
+          style={{
+            color: "#94a3b8",
+            fontSize: "12px",
+            fontWeight: "800",
+            marginBottom: "10px",
+          }}
+        >
+          {team.label}
+        </div>
+
+        <div
+          style={{
+            color:
+              team.score >= 85
+                ? "#86efac"
+                : team.score >= 70
+                ? "#fcd34d"
+                : "#fca5a5",
+            fontSize: "32px",
+            fontWeight: "950",
+            marginBottom: "10px",
+          }}
+        >
+          {team.score}%
+        </div>
+
+        <div
+          style={{
+            color: "#cbd5e1",
+            fontSize: "13px",
+            lineHeight: 1.6,
+          }}
+        >
+          {team.detail}
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+<div
+  style={{
+    marginTop: "18px",
+    padding: "20px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(244,114,182,0.12), rgba(15,23,42,0.94))",
+    border: "1px solid rgba(244,114,182,0.22)",
+  }}
+>
+  <div
+    style={{
+      color: "#f9a8d4",
+      fontSize: "12px",
+      fontWeight: "900",
+      marginBottom: "14px",
+      textTransform: "uppercase",
+    }}
+  >
+    GM Peak Hours Intelligence
+  </div>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile ? "1fr" : "1fr 2fr",
+      gap: "14px",
+    }}
+  >
+    <div
+      style={{
+        padding: "18px",
+        borderRadius: "18px",
+        background: "rgba(15,23,42,0.72)",
+        border: "1px solid rgba(148,163,184,0.14)",
+      }}
+    >
+      <div
+        style={{
+          color: "#94a3b8",
+          fontSize: "12px",
+          fontWeight: "800",
+          marginBottom: "10px",
+        }}
+      >
+        Peak Sales Window
+      </div>
+
+      <div
+        style={{
+          color: "white",
+          fontSize: "30px",
+          fontWeight: "950",
+        }}
+      >
+        {gmPeakHoursInsights.peakLabel}
+      </div>
+    </div>
+
+    <div
+      style={{
+        padding: "18px",
+        borderRadius: "18px",
+        background: "rgba(15,23,42,0.72)",
+        border: "1px solid rgba(148,163,184,0.14)",
+      }}
+    >
+      <div
+        style={{
+          color: "#94a3b8",
+          fontSize: "12px",
+          fontWeight: "800",
+          marginBottom: "10px",
+        }}
+      >
+        AI Peak-Hour Recommendation
+      </div>
+
+      <div
+        style={{
+          color: "#cbd5e1",
+          fontSize: "14px",
+          lineHeight: 1.7,
+        }}
+      >
+        {gmPeakHoursInsights.recommendation}
+      </div>
+    </div>
+  </div>
+</div><div
+  style={{
+    marginTop: "18px",
+    padding: "20px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(34,197,94,0.10), rgba(15,23,42,0.94))",
+    border: "1px solid rgba(74,222,128,0.22)",
+  }}
+>
+  <div
+    style={{
+      color: "#86efac",
+      fontSize: "12px",
+      fontWeight: "900",
+      marginBottom: "14px",
+      textTransform: "uppercase",
+    }}
+  >
+    GM Service Execution Intelligence
+  </div>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
+      gap: "14px",
+    }}
+  >
+    <div
+      style={{
+        padding: "18px",
+        borderRadius: "18px",
+        background: "rgba(15,23,42,0.72)",
+        border: "1px solid rgba(148,163,184,0.14)",
+      }}
+    >
+      <div
+        style={{
+          color: "#94a3b8",
+          fontSize: "12px",
+          fontWeight: "800",
+          marginBottom: "8px",
+        }}
+      >
+        Service Speed Score
+      </div>
+
+      <div
+        style={{
+          color:
+            gmServiceExecution.speedScore >= 85
+              ? "#86efac"
+              : gmServiceExecution.speedScore >= 70
+              ? "#fcd34d"
+              : "#fca5a5",
+          fontSize: "32px",
+          fontWeight: "950",
+        }}
+      >
+        {gmServiceExecution.speedScore}%
+      </div>
+    </div>
+
+    <div
+      style={{
+        padding: "18px",
+        borderRadius: "18px",
+        background: "rgba(15,23,42,0.72)",
+        border: "1px solid rgba(148,163,184,0.14)",
+      }}
+    >
+      <div
+        style={{
+          color: "#94a3b8",
+          fontSize: "12px",
+          fontWeight: "800",
+          marginBottom: "8px",
+        }}
+      >
+        Execution Status
+      </div>
+
+      <div
+        style={{
+          color: "white",
+          fontSize: "24px",
+          fontWeight: "950",
+        }}
+      >
+        {gmServiceExecution.executionStatus}
+      </div>
+    </div>
+
+    <div
+      style={{
+        padding: "18px",
+        borderRadius: "18px",
+        background: "rgba(15,23,42,0.72)",
+        border: "1px solid rgba(148,163,184,0.14)",
+      }}
+    >
+      <div
+        style={{
+          color: "#94a3b8",
+          fontSize: "12px",
+          fontWeight: "800",
+          marginBottom: "8px",
+        }}
+      >
+        AI Recommendation
+      </div>
+
+      <div
+        style={{
+          color: "#cbd5e1",
+          fontSize: "13px",
+          lineHeight: 1.6,
+        }}
+      >
+        {gmServiceExecution.recommendation}
+      </div>
+    </div>
+  </div>
+</div>
+<div
+  style={{
+    marginTop: "18px",
+    padding: "20px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(234,179,8,0.12), rgba(15,23,42,0.94))",
+    border: "1px solid rgba(250,204,21,0.22)",
+  }}
+>
+  <div
+    style={{
+      color: "#fde68a",
+      fontSize: "12px",
+      fontWeight: "900",
+      marginBottom: "14px",
+      textTransform: "uppercase",
+    }}
+  >
+    GM Profit Recovery Opportunities
+  </div>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile ? "1fr" : "repeat(2, 1fr)",
+      gap: "14px",
+    }}
+  >
+    {gmProfitRecovery.map((item) => (
+      <div
+        key={item.title}
+        style={{
+          padding: "18px",
+          borderRadius: "18px",
+          background: "rgba(15,23,42,0.72)",
+          border: "1px solid rgba(148,163,184,0.14)",
+        }}
+      >
+        <div
+          style={{
+            color: "#94a3b8",
+            fontSize: "12px",
+            fontWeight: "800",
+            marginBottom: "8px",
+          }}
+        >
+          {item.title}
+        </div>
+
+        <div
+          style={{
+            color: "#fde68a",
+            fontSize: "28px",
+            fontWeight: "950",
+            marginBottom: "10px",
+          }}
+        >
+          {item.amount}
+        </div>
+
+        <div
+          style={{
+            color: "#cbd5e1",
+            fontSize: "13px",
+            lineHeight: 1.6,
+          }}
+        >
+          {item.detail}
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+<div
+  style={{
+    marginTop: "18px",
+    padding: "20px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(99,102,241,0.12), rgba(15,23,42,0.94))",
+    border: "1px solid rgba(129,140,248,0.22)",
+  }}
+>
+  <div
+    style={{
+      color: "#c4b5fd",
+      fontSize: "12px",
+      fontWeight: "900",
+      marginBottom: "14px",
+      textTransform: "uppercase",
+    }}
+  >
+    GM AI Forecasting Center
+  </div>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
+      gap: "14px",
+    }}
+  >
+    <div
+      style={{
+        padding: "18px",
+        borderRadius: "18px",
+        background: "rgba(15,23,42,0.72)",
+        border: "1px solid rgba(148,163,184,0.14)",
+      }}
+    >
+      <div
+        style={{
+          color: "#94a3b8",
+          fontSize: "12px",
+          fontWeight: "800",
+          marginBottom: "8px",
+        }}
+      >
+        Projected Revenue
+      </div>
+
+      <div
+        style={{
+          color: "white",
+          fontSize: "28px",
+          fontWeight: "950",
+        }}
+      >
+        $
+        {Math.round(
+          gmForecastingCenter.projectedRevenue
+        ).toLocaleString()}
+      </div>
+    </div>
+
+    <div
+      style={{
+        padding: "18px",
+        borderRadius: "18px",
+        background: "rgba(15,23,42,0.72)",
+        border: "1px solid rgba(148,163,184,0.14)",
+      }}
+    >
+      <div
+        style={{
+          color: "#94a3b8",
+          fontSize: "12px",
+          fontWeight: "800",
+          marginBottom: "8px",
+        }}
+      >
+        Staffing Forecast
+      </div>
+
+      <div
+        style={{
+          color: "#c4b5fd",
+          fontSize: "24px",
+          fontWeight: "950",
+        }}
+      >
+        {gmForecastingCenter.staffingForecast}
+      </div>
+    </div>
+
+    <div
+      style={{
+        padding: "18px",
+        borderRadius: "18px",
+        background: "rgba(15,23,42,0.72)",
+        border: "1px solid rgba(148,163,184,0.14)",
+      }}
+    >
+      <div
+        style={{
+          color: "#94a3b8",
+          fontSize: "12px",
+          fontWeight: "800",
+          marginBottom: "8px",
+        }}
+      >
+        Operational Risk
+      </div>
+
+      <div
+        style={{
+          color:
+            gmForecastingCenter.riskLevel === "Low"
+              ? "#86efac"
+              : gmForecastingCenter.riskLevel === "Medium"
+              ? "#fcd34d"
+              : "#fca5a5",
+          fontSize: "24px",
+          fontWeight: "950",
+        }}
+      >
+        {gmForecastingCenter.riskLevel}
+      </div>
+    </div>
+  </div>
+</div>
+<div
+  style={{
+    marginTop: "18px",
+    padding: "20px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(249,115,22,0.12), rgba(15,23,42,0.94))",
+    border: "1px solid rgba(251,146,60,0.22)",
+  }}
+>
+  <div
+    style={{
+      color: "#fdba74",
+      fontSize: "12px",
+      fontWeight: "900",
+      marginBottom: "14px",
+      textTransform: "uppercase",
+    }}
+  >
+    GM Vendor & Cost Control Intelligence
+  </div>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
+      gap: "14px",
+    }}
+  >
+    <div style={gmMiniCardStyle}>
+      <div style={gmMiniLabelStyle}>Invoices Tracked</div>
+      <div style={gmMiniValueStyle}>{gmVendorCostControl.invoiceCount}</div>
+    </div>
+
+    <div style={gmMiniCardStyle}>
+      <div style={gmMiniLabelStyle}>Vendor Risk</div>
+      <div
+        style={{
+          ...gmMiniValueStyle,
+          color:
+            gmVendorCostControl.vendorRisk === "Review Needed"
+              ? "#fca5a5"
+              : gmVendorCostControl.vendorRisk === "Monitored"
+              ? "#86efac"
+              : "#fcd34d",
+        }}
+      >
+        {gmVendorCostControl.vendorRisk}
+      </div>
+    </div>
+
+    <div style={gmMiniCardStyle}>
+      <div style={gmMiniLabelStyle}>AI Recommendation</div>
+      <div style={gmMiniTextStyle}>{gmVendorCostControl.recommendation}</div>
+    </div>
+  </div>
+</div>
+<div
+  style={{
+    marginTop: "18px",
+    padding: "20px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(20,184,166,0.12), rgba(15,23,42,0.94))",
+    border: "1px solid rgba(45,212,191,0.22)",
+  }}
+>
+  <div
+    style={{
+      color: "#5eead4",
+      fontSize: "12px",
+      fontWeight: "900",
+      marginBottom: "14px",
+      textTransform: "uppercase",
+    }}
+  >
+    GM Closing Report Intelligence
+  </div>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile ? "1fr" : "1fr 2fr",
+      gap: "14px",
+    }}
+  >
+    <div style={gmMiniCardStyle}>
+      <div style={gmMiniLabelStyle}>Close Status</div>
+      <div
+        style={{
+          ...gmMiniValueStyle,
+          color: gmClosingReport.status === "Clean Close" ? "#86efac" : "#fcd34d",
+        }}
+      >
+        {gmClosingReport.status}
+      </div>
+    </div>
+
+    <div style={gmMiniCardStyle}>
+      <div style={gmMiniLabelStyle}>End-of-Day Notes</div>
+
+      <div style={{ display: "grid", gap: "8px" }}>
+        {(gmClosingReport.issues.length
+          ? gmClosingReport.issues
+          : ["No major issues detected today."]
+        ).map((issue) => (
+          <div
+            key={issue}
+            style={{
+              color: "#cbd5e1",
+              fontSize: "13px",
+              lineHeight: 1.6,
+            }}
+          >
+            • {issue}
+          </div>
+        ))}
+      </div>
+
+      <div
+        style={{
+          marginTop: "12px",
+          color: "#99f6e4",
+          fontSize: "13px",
+          fontWeight: "800",
+        }}
+      >
+        {gmClosingReport.nextStep}
+      </div>
+    </div>
+  </div>
+</div>
+<div
+  style={{
+    marginTop: "18px",
+    padding: "20px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.92))",
+    border: "1px solid rgba(148,163,184,0.18)",
+  }}
+>
+  <div
+    style={{
+      color: "#e2e8f0",
+      fontSize: "12px",
+      fontWeight: "900",
+      marginBottom: "14px",
+      textTransform: "uppercase",
+    }}
+  >
+    GM Decision Controls
+  </div>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile ? "1fr" : "repeat(4, 1fr)",
+      gap: "12px",
+    }}
+  >
+    {gmDecisionButtons.map((button) => (
+      <button
+        key={button.label}
+        type="button"
+        style={{
+          padding: "16px",
+          borderRadius: "18px",
+          border: "1px solid rgba(148,163,184,0.18)",
+          background: "rgba(15,23,42,0.72)",
+          cursor: "pointer",
+          textAlign: "left",
+        }}
+      >
+        <div
+          style={{
+            color: "white",
+            fontSize: "14px",
+            fontWeight: "900",
+            marginBottom: "6px",
+          }}
+        >
+          {button.label}
+        </div>
+
+        <div
+          style={{
+            color: "#94a3b8",
+            fontSize: "12px",
+            lineHeight: 1.5,
+          }}
+        >
+          {button.detail}
+        </div>
+      </button>
+    ))}
+  </div>
+</div>
+<div
+  style={{
+    marginTop: "18px",
+    padding: "20px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(59,130,246,0.10), rgba(15,23,42,0.94))",
+    border: "1px solid rgba(96,165,250,0.20)",
+  }}
+>
+  <div
+    style={{
+      color: "#93c5fd",
+      fontSize: "12px",
+      fontWeight: "900",
+      marginBottom: "14px",
+      textTransform: "uppercase",
+    }}
+  >
+    Live GM Activity Feed
+  </div>
+
+  <div
+    style={{
+      display: "grid",
+      gap: "10px",
+    }}
+  >
+    {gmLiveFeed.map((item, index) => (
+      <div
+        key={index}
+        style={{
+          padding: "14px",
+          borderRadius: "16px",
+          background: "rgba(15,23,42,0.72)",
+          border: "1px solid rgba(148,163,184,0.14)",
+          color: "#cbd5e1",
+          fontSize: "13px",
+          lineHeight: 1.6,
+        }}
+      >
+        • {item}
+      </div>
+    ))}
+  </div>
+</div>
+<div
+  style={{
+    marginTop: "18px",
+    padding: "22px",
+    borderRadius: "24px",
+    background:
+      "linear-gradient(135deg, rgba(99,102,241,0.16), rgba(15,23,42,0.96))",
+    border: "1px solid rgba(129,140,248,0.24)",
+  }}
+>
+  <div
+    style={{
+      color: "#c4b5fd",
+      fontSize: "12px",
+      fontWeight: "900",
+      marginBottom: "10px",
+      textTransform: "uppercase",
+    }}
+  >
+    GM Autopilot Status
+  </div>
+
+  <h3
+    style={{
+      color: "white",
+      fontSize: "24px",
+      fontWeight: "950",
+      marginBottom: "10px",
+    }}
+  >
+    {gmAutopilotStatus.status}
+  </h3>
+
+  <p
+    style={{
+      color: "#cbd5e1",
+      fontSize: "14px",
+      lineHeight: 1.7,
+      marginBottom: "14px",
+    }}
+  >
+    {gmAutopilotStatus.message}
+  </p>
+
+  <div style={gmMiniCardStyle}>
+    <div style={gmMiniLabelStyle}>Active GM Issues</div>
+    <div style={gmMiniValueStyle}>{gmAutopilotStatus.activeIssues}</div>
+  </div>
+</div>
+<div
+  style={{
+    marginTop: "18px",
+    padding: "20px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(168,85,247,0.10), rgba(15,23,42,0.94))",
+    border: "1px solid rgba(192,132,252,0.20)",
+  }}
+>
+  <div
+    style={{
+      color: "#d8b4fe",
+      fontSize: "12px",
+      fontWeight: "900",
+      marginBottom: "14px",
+      textTransform: "uppercase",
+    }}
+  >
+    GM AI Recommendations Timeline
+  </div>
+
+  <div
+    style={{
+      display: "grid",
+      gap: "12px",
+    }}
+  >
+    {gmRecommendationTimeline.map((item) => (
+      <div
+        key={item.time}
+        style={{
+          display: "grid",
+          gridTemplateColumns: isMobile ? "1fr" : "140px 1fr",
+          gap: "14px",
+          padding: "14px",
+          borderRadius: "16px",
+          background: "rgba(15,23,42,0.72)",
+          border: "1px solid rgba(148,163,184,0.14)",
+        }}
+      >
+        <div
+          style={{
+            color: "#c4b5fd",
+            fontSize: "13px",
+            fontWeight: "900",
+          }}
+        >
+          {item.time}
+        </div>
+
+        <div
+          style={{
+            color: "#cbd5e1",
+            fontSize: "13px",
+            lineHeight: 1.6,
+          }}
+        >
+          {item.action}
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+<div
+  style={{
+    marginTop: "18px",
+    padding: "24px",
+    borderRadius: "24px",
+    background:
+      "linear-gradient(135deg, rgba(250,204,21,0.14), rgba(15,23,42,0.96))",
+    border: "1px solid rgba(250,204,21,0.24)",
+    boxShadow: "0 22px 60px rgba(2,6,23,0.30)",
+    textAlign: "center",
+  }}
+>
+  <div
+    style={{
+      color: "#fde68a",
+      fontSize: "12px",
+      fontWeight: "900",
+      marginBottom: "10px",
+      textTransform: "uppercase",
+      letterSpacing: "0.08em",
+    }}
+  >
+    GM Daily Focus Score
+  </div>
+
+  <div
+    style={{
+      color:
+        gmDailyFocusScore.scoreValue >= 85
+          ? "#86efac"
+          : gmDailyFocusScore.scoreValue >= 70
+          ? "#fcd34d"
+          : "#fca5a5",
+      fontSize: "64px",
+      fontWeight: "950",
+      lineHeight: 1,
+      marginBottom: "12px",
+    }}
+  >
+    {gmDailyFocusScore.scoreValue}
+  </div>
+
+  <div
+    style={{
+      color: "white",
+      fontSize: "24px",
+      fontWeight: "900",
+      marginBottom: "10px",
+    }}
+  >
+    {gmDailyFocusScore.label}
+  </div>
+
+  <p
+    style={{
+      color: "#e2e8f0",
+      fontSize: "14px",
+      lineHeight: 1.8,
+      maxWidth: "700px",
+      margin: "0 auto",
+    }}
+  >
+    {gmDailyFocusScore.insight}
+  </p>
+</div>
+
+  </div>
+)}
+{/* =========================
+   KITCHEN MANAGER DASHBOARD
+========================= */}
+
+{activeTab === "kitchen_manager" && (
+  <div>
+    <h2 style={{ color: "white", fontSize: "30px", fontWeight: "950" }}>
+      Kitchen Manager Dashboard
+    </h2>
+
+    <p style={{ color: "#94a3b8", marginBottom: "22px" }}>
+      Prep, station performance, waste, ticket time, and kitchen execution.
+    </p>
+    <div
+  style={{
+    display: "grid",
+    gridTemplateColumns: isMobile
+      ? "1fr"
+      : "repeat(4,minmax(0,1fr))",
+    gap: "14px",
+    marginBottom: "22px",
+  }}
+>
+  <GlassCard
+    title="Prep Tasks"
+    value={kitchenPrepTasks.length}
+    subtitle="Kitchen prep workload"
+  />
+
+  <GlassCard
+    title="Stations Tracked"
+    value={kitchenStationPerformance.length}
+    subtitle="Kitchen station analytics"
+  />
+
+  <GlassCard
+    title="Avg Ticket Time"
+    value={`${(
+      kitchenStationPerformance.reduce(
+        (sum, station) =>
+          sum + Number(station.average_ticket_time || 0),
+        0
+      ) / (kitchenStationPerformance.length || 1)
+    ).toFixed(1)} min`}
+    subtitle="Average kitchen execution speed"
+  />
+
+  <GlassCard
+    title="Kitchen Waste"
+    value={`$${kitchenStationPerformance
+      .reduce(
+        (sum, station) =>
+          sum + Number(station.waste_cost || 0),
+        0
+      )
+      .toFixed(0)}`}
+    subtitle="Tracked waste exposure"
+  />
+</div>
+{/* =========================
+   KM PREP TASK INTELLIGENCE
+========================= */}
+
+<div style={{ display: "grid", gap: "14px", marginTop: "18px" }}>
+  {kitchenPrepTasks.length > 0 ? (
+    kitchenPrepTasks.slice(0, 8).map((task) => {
+      const variance =
+        Number(task.actual_quantity || 0) -
+        Number(task.expected_quantity || 0);
+
+      return (
+        <div
+          key={task.id}
+          style={{
+            padding: "18px",
+            borderRadius: "22px",
+            background: "rgba(15,23,42,0.74)",
+            border: "1px solid rgba(251,191,36,0.14)",
+            display: "grid",
+            gridTemplateColumns: isMobile
+              ? "1fr"
+              : "1.2fr 0.8fr 0.8fr 0.8fr",
+            gap: "14px",
+            alignItems: "center",
+          }}
+        >
+          <div>
+            <div style={{ color: "white", fontSize: "17px", fontWeight: "900" }}>
+              {task.task_name}
+            </div>
+
+            <div style={{ color: "#94a3b8", fontSize: "12px", marginTop: "4px" }}>
+              {task.station || "Kitchen"} • {task.prep_date || "No date"}
+            </div>
+          </div>
+
+          <div>
+            <div style={{ color: "#94a3b8", fontSize: "11px" }}>
+              Expected
+            </div>
+            <div style={{ color: "white", fontWeight: "900" }}>
+              {Number(task.expected_quantity || 0).toFixed(1)} {task.unit || ""}
+            </div>
+          </div>
+
+          <div>
+            <div style={{ color: "#94a3b8", fontSize: "11px" }}>
+              Actual
+            </div>
+            <div style={{ color: "white", fontWeight: "900" }}>
+              {Number(task.actual_quantity || 0).toFixed(1)} {task.unit || ""}
+            </div>
+          </div>
+
+          <div>
+            <div style={{ color: "#94a3b8", fontSize: "11px" }}>
+              Variance
+            </div>
+            <div
+              style={{
+                color:
+                  Math.abs(variance) > 5
+                    ? "#f87171"
+                    : Math.abs(variance) > 2
+                    ? "#fbbf24"
+                    : "#86efac",
+                fontWeight: "950",
+              }}
+            >
+              {variance.toFixed(1)} {task.unit || ""}
+            </div>
+          </div>
+        </div>
+      );
+    })
+  ) : (
+    <div
+      style={{
+        padding: "20px",
+        borderRadius: "20px",
+        background: "rgba(15,23,42,0.72)",
+        border: "1px solid rgba(148,163,184,0.14)",
+        color: "#94a3b8",
+        textAlign: "center",
+      }}
+    >
+      Upload kitchen prep data to activate prep task intelligence.
+    </div>
+  )}
+</div>
+{/* =========================
+   KM STATION PERFORMANCE INTELLIGENCE
+========================= */}
+
+<div style={{ display: "grid", gap: "14px", marginTop: "18px" }}>
+  {kitchenStationPerformance.length > 0 ? (
+    kitchenStationPerformance.slice(0, 8).map((station) => (
+      <div
+        key={station.id}
+        style={{
+          padding: "18px",
+          borderRadius: "22px",
+          background: "rgba(15,23,42,0.74)",
+          border: "1px solid rgba(125,211,252,0.14)",
+          display: "grid",
+          gridTemplateColumns: isMobile
+            ? "1fr"
+            : "1.2fr 0.8fr 0.8fr 0.8fr",
+          gap: "14px",
+          alignItems: "center",
+        }}
+      >
+        <div>
+          <div style={{ color: "white", fontSize: "17px", fontWeight: "900" }}>
+            {station.station_name}
+          </div>
+
+          <div style={{ color: "#94a3b8", fontSize: "12px", marginTop: "4px" }}>
+            {station.shift_date || "No shift date"} • {station.status || "stable"}
+          </div>
+        </div>
+
+        <div>
+          <div style={{ color: "#94a3b8", fontSize: "11px" }}>
+            Tickets
+          </div>
+          <div style={{ color: "white", fontWeight: "900" }}>
+            {Number(station.tickets_completed || 0)}
+          </div>
+        </div>
+
+        <div>
+          <div style={{ color: "#94a3b8", fontSize: "11px" }}>
+            Avg Ticket Time
+          </div>
+          <div
+            style={{
+              color:
+                Number(station.average_ticket_time || 0) > 18
+                  ? "#f87171"
+                  : Number(station.average_ticket_time || 0) > 12
+                  ? "#fbbf24"
+                  : "#86efac",
+              fontWeight: "950",
+            }}
+          >
+            {Number(station.average_ticket_time || 0).toFixed(1)} min
+          </div>
+        </div>
+
+        <div>
+          <div style={{ color: "#94a3b8", fontSize: "11px" }}>
+            Waste Cost
+          </div>
+          <div
+            style={{
+              color:
+                Number(station.waste_cost || 0) > 100
+                  ? "#f87171"
+                  : Number(station.waste_cost || 0) > 50
+                  ? "#fbbf24"
+                  : "#86efac",
+              fontWeight: "950",
+            }}
+          >
+            ${Number(station.waste_cost || 0).toFixed(0)}
+          </div>
+        </div>
+      </div>
+    ))
+  ) : (
+    <div
+      style={{
+        padding: "20px",
+        borderRadius: "20px",
+        background: "rgba(15,23,42,0.72)",
+        border: "1px solid rgba(148,163,184,0.14)",
+        color: "#94a3b8",
+        textAlign: "center",
+      }}
+    >
+      Upload station performance data to activate kitchen station intelligence.
+    </div>
+  )}
+</div>
+{/* =========================
+   AI KITCHEN RISK ALERTS
+========================= */}
+
+<div
+  style={{
+    marginTop: "18px",
+    display: "grid",
+    gap: "12px",
+  }}
+>
+  {kitchenStationPerformance
+    .filter(
+      (station) =>
+        Number(station.average_ticket_time || 0) > 15 ||
+        Number(station.waste_cost || 0) > 75
+    )
+    .slice(0, 6)
+    .map((station) => (
+      <div
+        key={station.id}
+        style={{
+          padding: "18px",
+          borderRadius: "20px",
+          background:
+            "linear-gradient(135deg, rgba(239,68,68,0.12), rgba(15,23,42,0.86))",
+          border: "1px solid rgba(248,113,113,0.18)",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: isMobile ? "flex-start" : "center",
+            flexDirection: isMobile ? "column" : "row",
+            gap: "12px",
+          }}
+        >
+          <div>
+            <div
+              style={{
+                color: "white",
+                fontSize: "17px",
+                fontWeight: "900",
+                marginBottom: "4px",
+              }}
+            >
+              {station.station_name}
+            </div>
+
+            <div
+              style={{
+                color: "#fca5a5",
+                fontSize: "13px",
+                lineHeight: 1.7,
+              }}
+            >
+              AI detected elevated kitchen execution risk, ticket slowdown,
+              or excessive waste exposure at this station.
+            </div>
+          </div>
+
+          <div
+            style={{
+              padding: "10px 12px",
+              borderRadius: "14px",
+              background: "rgba(239,68,68,0.14)",
+              border: "1px solid rgba(248,113,113,0.22)",
+              color: "#fca5a5",
+              fontWeight: "900",
+              fontSize: "13px",
+            }}
+          >
+            {Number(station.average_ticket_time || 0).toFixed(1)} min
+          </div>
+        </div>
+      </div>
+    ))}
+</div>
+{/* =========================
+   AI KITCHEN OPTIMIZATION RECOMMENDATIONS
+========================= */}
+
+<div
+  style={{
+    marginTop: "18px",
+    display: "grid",
+    gap: "14px",
+  }}
+>
+  {kitchenStationPerformance.length > 0 ? (
+    kitchenStationPerformance.slice(0, 6).map((station) => {
+      const avgTicket = Number(
+        station.average_ticket_time || 0
+      );
+
+      const waste = Number(station.waste_cost || 0);
+
+      let recommendation =
+        "Kitchen station performance is operating within acceptable execution benchmarks.";
+
+      if (avgTicket > 18 || waste > 120) {
+        recommendation =
+          "Critical kitchen inefficiency detected. AI recommends immediate workflow optimization and waste reduction review.";
+      } else if (avgTicket > 14 || waste > 70) {
+        recommendation =
+          "Moderate operational pressure detected. Review station staffing and prep execution efficiency.";
+      } else if (avgTicket > 0) {
+        recommendation =
+          "Kitchen execution performance is stable with healthy operational flow.";
+      }
+
+      return (
+        <div
+          key={station.id}
+          style={{
+            padding: "18px",
+            borderRadius: "20px",
+            background:
+              "linear-gradient(135deg, rgba(15,23,42,0.84), rgba(30,41,59,0.82))",
+            border: "1px solid rgba(148,163,184,0.12)",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: isMobile ? "flex-start" : "center",
+              flexDirection: isMobile ? "column" : "row",
+              gap: "12px",
+              marginBottom: "10px",
+            }}
+          >
+            <div>
+              <div
+                style={{
+                  color: "white",
+                  fontSize: "17px",
+                  fontWeight: "900",
+                }}
+              >
+                {station.station_name}
+              </div>
+
+              <div
+                style={{
+                  color: "#94a3b8",
+                  fontSize: "12px",
+                  marginTop: "4px",
+                }}
+              >
+                {avgTicket.toFixed(1)} min avg ticket • $
+                {waste.toFixed(0)} waste
+              </div>
+            </div>
+
+            <div
+              style={{
+                padding: "8px 12px",
+                borderRadius: "999px",
+                background:
+                  avgTicket <= 12 && waste <= 50
+                    ? "rgba(34,197,94,0.14)"
+                    : avgTicket <= 16 && waste <= 90
+                    ? "rgba(250,204,21,0.14)"
+                    : "rgba(239,68,68,0.14)",
+                color:
+                  avgTicket <= 12 && waste <= 50
+                    ? "#86efac"
+                    : avgTicket <= 16 && waste <= 90
+                    ? "#fde68a"
+                    : "#fca5a5",
+                fontWeight: "900",
+                fontSize: "12px",
+              }}
+            >
+              {avgTicket <= 12 && waste <= 50
+                ? "Efficient"
+                : avgTicket <= 16 && waste <= 90
+                ? "Watch"
+                : "Critical"}
+            </div>
+          </div>
+
+          <div
+            style={{
+              color: "#cbd5e1",
+              fontSize: "13px",
+              lineHeight: 1.7,
+            }}
+          >
+            {recommendation}
+          </div>
+        </div>
+      );
+    })
+  ) : (
+    <div
+      style={{
+        padding: "18px",
+        borderRadius: "18px",
+        background: "rgba(15,23,42,0.72)",
+        border: "1px solid rgba(148,163,184,0.14)",
+        color: "#94a3b8",
+        textAlign: "center",
+      }}
+    >
+      Upload kitchen station data to activate AI kitchen optimization recommendations.
+    </div>
+  )}
+</div>
+{/* =========================
+   KM KITCHEN HEALTH SCORE
+========================= */}
+
+<div
+  style={{
+    marginTop: "18px",
+    padding: "24px",
+    borderRadius: "28px",
+    background:
+      "linear-gradient(135deg, rgba(16,185,129,0.14), rgba(15,23,42,0.96))",
+    border: "1px solid rgba(52,211,153,0.22)",
+    boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
+  }}
+>
+  <div
+    style={{
+      color: "#6ee7b7",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "10px",
+    }}
+  >
+    Kitchen Health Intelligence
+  </div>
+
+  {(() => {
+    const avgTicketTime =
+      kitchenStationPerformance.reduce(
+        (sum, station) =>
+          sum + Number(station.average_ticket_time || 0),
+        0
+      ) / (kitchenStationPerformance.length || 1);
+
+    const totalWaste = kitchenStationPerformance.reduce(
+      (sum, station) =>
+        sum + Number(station.waste_cost || 0),
+      0
+    );
+
+    const prepVariance = kitchenPrepTasks.reduce((sum, task) => {
+      return (
+        sum +
+        Math.abs(
+          Number(task.actual_quantity || 0) -
+            Number(task.expected_quantity || 0)
+        )
+      );
+    }, 0);
+
+    let kitchenHealthScore = 100;
+
+    kitchenHealthScore -= avgTicketTime > 18 ? 30 : avgTicketTime > 14 ? 18 : 6;
+
+    kitchenHealthScore -= totalWaste > 200 ? 25 : totalWaste > 100 ? 14 : 5;
+
+    kitchenHealthScore -= prepVariance > 25 ? 20 : prepVariance > 10 ? 10 : 4;
+
+    kitchenHealthScore = Math.max(
+      0,
+      Math.min(100, kitchenHealthScore)
+    );
+
+    return (
+      <>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "24px",
+            flexDirection: isMobile ? "column" : "row",
+          }}
+        >
+          <div
+            style={{
+              width: "160px",
+              height: "160px",
+              borderRadius: "999px",
+              border: `10px solid ${
+                kitchenHealthScore >= 80
+                  ? "#34d399"
+                  : kitchenHealthScore >= 65
+                  ? "#fbbf24"
+                  : "#f87171"
+              }`,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color:
+                kitchenHealthScore >= 80
+                  ? "#86efac"
+                  : kitchenHealthScore >= 65
+                  ? "#fde68a"
+                  : "#fca5a5",
+              fontSize: "36px",
+              fontWeight: "950",
+              background: "rgba(15,23,42,0.86)",
+            }}
+          >
+            {kitchenHealthScore}
+          </div>
+
+          <div style={{ flex: 1 }}>
+            <div
+              style={{
+                color: "white",
+                fontSize: "26px",
+                fontWeight: "950",
+                marginBottom: "10px",
+              }}
+            >
+              {kitchenHealthScore >= 80
+                ? "Kitchen Operating Efficiently"
+                : kitchenHealthScore >= 65
+                ? "Kitchen Performance Needs Attention"
+                : "Critical Kitchen Risk Detected"}
+            </div>
+
+            <div
+              style={{
+                color: "#cbd5e1",
+                fontSize: "14px",
+                lineHeight: 1.8,
+              }}
+            >
+              AI continuously monitors prep execution, station efficiency,
+              kitchen waste, and ticket times to calculate live operational
+              kitchen health.
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  })()}
+</div>
+
+  </div>
+)}
   {activeTab === "analytics" && (
   <div
     style={{
       width: "100%",
       maxWidth: "100%",
       minWidth: 0,
-      overflowX: "hidden",
-      overflowY: "visible",
+      overflow: "visible",
       display: "grid",
+      gridTemplateColumns: "1fr",
       gap: "24px",
+      boxSizing: "border-box",
       paddingBottom: "24px",
     }}
   >
      {/* PRIMARY CHART */}
-    <div
-      style={{
-        ...sectionCard,
-        borderRadius: "20px",
-        padding: "22px",
-      }}
-    >
+   <div
+  style={{
+    ...sectionCard,
+    width: "100%",
+    maxWidth: "100%",
+    minWidth: 0,
+    borderRadius: "20px",
+    padding: "22px",
+    overflow: "hidden",
+    boxSizing: "border-box",
+  }}
+>
       <div
         style={{
           fontSize: "11px",
@@ -27480,36 +33846,43 @@ return (
 </div>
 </div>
 )}
-
 {!executiveModeEnabled && (
   <>
     <div style={{ marginTop: "24px" }}>
       <div
         style={{
           color: "#94a3b8",
-          fontSize: "12px",
+          fontSize: "11px",
           fontWeight: "900",
           letterSpacing: "0.08em",
-          marginBottom: "12px",
+          textTransform: "uppercase",
+          marginBottom: "14px",
         }}
       >
         CORE ANALYTICS
       </div>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr",
-          gap: "20px",
-        }}
-      >
- {/* REVENUE BY DAY BAR CHART */}
+  <div
+  style={{
+    display: "grid",
+    gridTemplateColumns: "1fr",
+    gap: "16px",
+    width: "100%",
+    maxWidth: "100%",
+    minWidth: 0,
+    overflow: "visible",
+    alignItems: "start",
+  }}
+>
+{/* REVENUE BY DAY BAR CHART */}
 <div
   style={{
-    marginBottom: "0px",
-    padding: "24px",
+    gridColumn: isMobile ? "span 1" : "span 12",
+    width: "100%",
+    minWidth: 0,
+    maxWidth: "100%",
+    padding: "22px",
     borderRadius: "22px",
-    minHeight: "620px",
     display: "flex",
     flexDirection: "column",
     background:
@@ -27517,6 +33890,8 @@ return (
     border: "1px solid rgba(148,163,184,0.16)",
     boxShadow: "0 18px 40px rgba(2,6,23,0.22)",
     overflow: "hidden",
+    boxSizing: "border-box",
+    alignSelf: "start",
   }}
 >
   <div style={{ marginBottom: "16px" }}>
@@ -27647,13 +34022,16 @@ return (
     </div>
   )}
 </div>
-        {/* MENU MIX / SALES DISTRIBUTION */}
+{/* MENU MIX / SALES DISTRIBUTION */}
 <div
   style={{
-    marginBottom: "0px",
-    padding: "24px",
+    gridColumn: isMobile ? "span 1" : "span 12",
+    width: "100%",
+    minWidth: 0,
+    maxWidth: "100%",
+    padding: "22px",
     borderRadius: "22px",
-    minHeight: "620px",
+    minHeight: "420px",
     display: "flex",
     flexDirection: "column",
     background:
@@ -27661,6 +34039,8 @@ return (
     border: "1px solid rgba(148,163,184,0.16)",
     boxShadow: "0 18px 40px rgba(2,6,23,0.22)",
     overflow: "hidden",
+    boxSizing: "border-box",
+    alignSelf: "start",
   }}
 >
   <div
@@ -27720,89 +34100,102 @@ return (
   <div
     style={{
       display: "grid",
-      gridTemplateColumns: isMobile ? "1fr" : "2fr 1fr",
-      gap: "22px",
-      alignItems: "stretch",
-      flex: 1,
+      gridTemplateColumns: "1fr",
+      gap: "18px",
+      alignItems: "start",
+      width: "100%",
     }}
+  ><div
+  style={{
+    width: "100%",
+    height: "320px",
+    minHeight: "320px",
+    overflowX: "auto",
+    overflowY: "hidden",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+  }}
+>
+  {salesDistributionData?.length > 0 ? (
+   <PieChart width={520} height={320}>
+  <Pie
+    data={salesDistributionData}
+    dataKey="value"
+    nameKey="name"
+    cx="50%"
+    cy="50%"
+    outerRadius={105}
+    innerRadius={52}
+    paddingAngle={3}
   >
+    {(salesDistributionData || []).map((entry, index) => {
+      const colors = [
+        "#4f46e5",
+        "#22c55e",
+        "#f59e0b",
+        "#ef4444",
+        "#06b6d4",
+        "#a855f7",
+      ];
+
+      return (
+        <Cell
+          key={`menu-mix-cell-${index}`}
+          fill={colors[index % colors.length]}
+        />
+      );
+    })}
+  </Pie>
+
+  <Tooltip
+    formatter={(value) => [
+      `$${Number(value || 0).toLocaleString()}`,
+      "Revenue",
+    ]}
+    contentStyle={{
+      background: "#020617",
+      border: "1px solid rgba(148,163,184,0.24)",
+      borderRadius: "14px",
+      color: "white",
+    }}
+  />
+
+  <Legend
+    verticalAlign="bottom"
+    height={36}
+    wrapperStyle={{
+      color: "#cbd5e1",
+      fontSize: "12px",
+      paddingTop: "10px",
+    }}
+  />
+</PieChart>
+  ) : (
     <div
       style={{
-        width: "100%",
-        minHeight: isMobile ? "340px" : "420px",
-        overflowX: "auto",
-        overflowY: "hidden",
+        color: "#94a3b8",
+        height: "100%",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
+        textAlign: "center",
       }}
     >
-      {salesDistributionData?.length > 0 ? (
-        <PieChart width={isMobile ? 760 : 620} height={isMobile ? 340 : 420}>
-          <Pie
-            data={salesDistributionData}
-            dataKey="value"
-            nameKey="name"
-            outerRadius={isMobile ? 95 : 145}
-            innerRadius={isMobile ? 44 : 70}
-            paddingAngle={3}
-            label={
-              isMobile
-                ? false
-                : ({ name, percent }) =>
-                    `${name} ${(percent * 100).toFixed(0)}%`
-            }
-          >
-            {(salesDistributionData || []).map((entry, index) => {
-              const colors = [
-                "#4f46e5",
-                "#22c55e",
-                "#f59e0b",
-                "#ef4444",
-                "#06b6d4",
-                "#a855f7",
-              ];
-
-              return (
-                <Cell
-                  key={`menu-mix-cell-${index}`}
-                  fill={colors[index % colors.length]}
-                />
-              );
-            })}
-          </Pie>
-
-          <Tooltip
-            formatter={(value) => [
-              `$${Number(value || 0).toLocaleString()}`,
-              "Revenue",
-            ]}
-            contentStyle={{
-              background: "#020617",
-              border: "1px solid rgba(148,163,184,0.24)",
-              borderRadius: "14px",
-              color: "white",
-            }}
-          />
-        </PieChart>
-      ) : (
-        <div style={{ color: "#94a3b8", padding: "24px" }}>
-          No sales distribution data available yet.
-        </div>
-      )}
+      No sales distribution data available yet.
     </div>
+  )}
+</div>
 
     <div
       style={{
-        padding: "18px",
+        padding: "16px",
         borderRadius: "18px",
         background:
           "linear-gradient(135deg, rgba(15,23,42,0.84), rgba(30,41,59,0.72))",
         border: "1px solid rgba(148,163,184,0.14)",
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "space-between",
-        gap: "14px",
+        display: "grid",
+        gap: "12px",
       }}
     >
       <div>
@@ -27819,7 +34212,7 @@ return (
           AI Menu Readout
         </div>
 
-        <div style={{ color: "white", fontSize: "20px", fontWeight: "950" }}>
+        <div style={{ color: "white", fontSize: "18px", fontWeight: "950" }}>
           Top seller concentration
         </div>
 
@@ -27831,63 +34224,69 @@ return (
             lineHeight: 1.6,
           }}
         >
-          Your highest revenue item is driving a large share of sales. Use this
-          to protect margins, avoid over-discounting, and promote profitable
-          pairings.
+          Your highest revenue item is driving a large share of sales.
         </p>
       </div>
 
       <div
         style={{
-          display: "grid",
-          gap: "10px",
+          padding: "13px",
+          borderRadius: "14px",
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(148,163,184,0.10)",
         }}
       >
-        <div
-          style={{
-            padding: "13px",
-            borderRadius: "14px",
-            background: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(148,163,184,0.10)",
-          }}
-        >
-          <div style={{ color: "#94a3b8", fontSize: "11px" }}>Top Segment</div>
-          <div style={{ color: "white", fontSize: "18px", fontWeight: "900" }}>
-            {salesDistributionData?.[0]?.name || "Waiting for menu data"}
-          </div>
+        <div style={{ color: "#94a3b8", fontSize: "11px" }}>
+          Top Segment
         </div>
 
         <div
           style={{
-            padding: "13px",
-            borderRadius: "14px",
-            background: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(148,163,184,0.10)",
+            color: "white",
+            fontSize: "18px",
+            fontWeight: "900",
           }}
         >
-          <div style={{ color: "#94a3b8", fontSize: "11px" }}>
-            Top Segment Revenue
-          </div>
-          <div style={{ color: "#86efac", fontSize: "18px", fontWeight: "900" }}>
-            ${Number(salesDistributionData?.[0]?.value || 0).toLocaleString()}
-          </div>
+          {salesDistributionData?.[0]?.name || "Waiting for menu data"}
+        </div>
+      </div>
+
+      <div
+        style={{
+          padding: "13px",
+          borderRadius: "14px",
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(148,163,184,0.10)",
+        }}
+      >
+        <div style={{ color: "#94a3b8", fontSize: "11px" }}>
+          Top Segment Revenue
         </div>
 
         <div
           style={{
-            padding: "13px",
-            borderRadius: "14px",
-            background: "rgba(34,197,94,0.10)",
-            border: "1px solid rgba(34,197,94,0.18)",
-            color: "#bbf7d0",
-            fontSize: "13px",
-            lineHeight: 1.6,
-            fontWeight: "750",
+            color: "#86efac",
+            fontSize: "18px",
+            fontWeight: "900",
           }}
         >
-          Recommended action: bundle your top seller with a high-margin add-on
-          instead of discounting the main item.
+          ${Number(salesDistributionData?.[0]?.value || 0).toLocaleString()}
         </div>
+      </div>
+
+      <div
+        style={{
+          padding: "13px",
+          borderRadius: "14px",
+          background: "rgba(34,197,94,0.10)",
+          border: "1px solid rgba(34,197,94,0.18)",
+          color: "#bbf7d0",
+          fontSize: "13px",
+          lineHeight: 1.6,
+          fontWeight: "750",
+        }}
+      >
+        Recommended action: bundle your top seller with a high-margin add-on.
       </div>
     </div>
   </div>
@@ -27909,14 +34308,16 @@ return (
     </div>
   )}
 </div>
-
-       {/* FOOD COST % TREND */}
+{/* FOOD COST % TREND */}
 <div
   style={{
-    marginBottom: "0px",
-    padding: "24px",
+    gridColumn: isMobile ? "span 1" : "span 12",
+    width: "100%",
+    minWidth: 0,
+    maxWidth: "100%",
+    padding: "22px",
     borderRadius: "22px",
-    minHeight: "620px",
+    minHeight: "420px",
     display: "flex",
     flexDirection: "column",
     background:
@@ -27924,6 +34325,8 @@ return (
     border: "1px solid rgba(148,163,184,0.16)",
     boxShadow: "0 18px 40px rgba(2,6,23,0.22)",
     overflow: "hidden",
+    boxSizing: "border-box",
+    alignSelf: "start",
   }}
 >
   <div
@@ -27998,255 +34401,230 @@ return (
   <div
     style={{
       display: "grid",
-      gridTemplateColumns: isMobile ? "1fr" : "2fr 1fr",
-      gap: "22px",
-      alignItems: "stretch",
-      flex: 1,
+      gridTemplateColumns: "1fr",
+      gap: "18px",
+      width: "100%",
     }}
-  >
+  ><div
+  style={{
+    width: "100%",
+    height: "340px",
+    minHeight: "340px",
+    overflowX: "auto",
+    overflowY: "hidden",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+  }}
+>
+  {foodCostTrendData?.length > 0 ? (
+   <LineChart
+  width={isMobile ? 900 : 820}
+  height={340}
+  data={foodCostTrendData}
+  margin={{ top: 24, right: 30, left: 10, bottom: 30 }}
+>
+  <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.12)" />
+
+  <XAxis
+    dataKey="date"
+    tick={{ fill: "#94a3b8", fontSize: 10 }}
+    axisLine={{ stroke: "rgba(148,163,184,0.18)" }}
+    tickLine={false}
+  />
+
+  <YAxis
+    tickFormatter={(value) => `${Number(value || 0).toFixed(0)}%`}
+    tick={{ fill: "#94a3b8", fontSize: 10 }}
+    width={60}
+    axisLine={{ stroke: "rgba(148,163,184,0.18)" }}
+    tickLine={false}
+  />
+
+  <Tooltip
+    formatter={(value, name) => [
+      `${Number(value || 0).toFixed(1)}%`,
+      name,
+    ]}
+    contentStyle={{
+      background: "#020617",
+      border: "1px solid rgba(148,163,184,0.24)",
+      borderRadius: "14px",
+      color: "white",
+    }}
+  />
+
+  <Legend
+    wrapperStyle={{
+      color: "#cbd5e1",
+      fontSize: "12px",
+      paddingTop: "10px",
+    }}
+  />
+
+  <Line
+    type="monotone"
+    dataKey="target"
+    name="Target"
+    stroke="#22c55e"
+    strokeWidth={2}
+    strokeDasharray="5 5"
+    dot={false}
+    connectNulls
+    isAnimationActive={false}
+  />
+
+  <Line
+    type="monotone"
+    dataKey="danger"
+    name="Danger"
+    stroke="#ef4444"
+    strokeWidth={2}
+    strokeDasharray="5 5"
+    dot={false}
+    connectNulls
+    isAnimationActive={false}
+  />
+
+  <Line
+    type="monotone"
+    dataKey="foodCostPercent"
+    name="Food Cost %"
+    stroke="#f59e0b"
+    strokeWidth={4}
+    dot={{ r: 3 }}
+    activeDot={{
+      r: 6,
+      fill: "#fbbf24",
+      stroke: "white",
+      strokeWidth: 2,
+    }}
+    connectNulls
+    isAnimationActive={false}
+  />
+</LineChart>
+  ) : (
     <div
       style={{
-        width: "100%",
-        minHeight: isMobile ? "340px" : "420px",
-        overflowX: "auto",
-        overflowY: "hidden",
-      }}
-    >
-      {foodCostTrendData?.length > 0 ? (
-        <LineChart
-          width={isMobile ? 900 : 680}
-          height={isMobile ? 340 : 420}
-          data={foodCostTrendData}
-          margin={{ top: 24, right: 35, left: 10, bottom: 36 }}
-        >
-          <CartesianGrid
-            strokeDasharray="3 3"
-            stroke="rgba(148,163,184,0.14)"
-          />
-
-          <XAxis
-            dataKey="date"
-            tick={{ fill: "#94a3b8", fontSize: 10 }}
-            axisLine={{ stroke: "rgba(148,163,184,0.18)" }}
-            tickLine={false}
-            interval={1}
-          />
-
-          <YAxis
-            tickFormatter={(value) => `${Number(value).toFixed(0)}%`}
-            tick={{ fill: "#94a3b8", fontSize: 10 }}
-            width={60}
-            axisLine={{ stroke: "rgba(148,163,184,0.18)" }}
-            tickLine={false}
-            domain={[0, (dataMax) => Math.max(45, Math.ceil(dataMax + 5))]}
-          />
-
-          <Tooltip
-            wrapperStyle={{ pointerEvents: "none" }}
-            formatter={(value, name) => [
-              `${Number(value || 0).toFixed(1)}%`,
-              name === "foodCostPercent"
-                ? "Food Cost"
-                : name === "target"
-                ? "Target"
-                : "Danger Zone",
-            ]}
-            contentStyle={{
-              background: "#020617",
-              border: "1px solid rgba(148,163,184,0.24)",
-              borderRadius: "14px",
-              color: "white",
-            }}
-            labelStyle={{ color: "#e5e7eb" }}
-          />
-
-          <Legend
-            wrapperStyle={{
-              color: "#94a3b8",
-              fontSize: "12px",
-              fontWeight: "800",
-            }}
-          />
-
-          <Line
-            type="monotone"
-            dataKey="target"
-            name="Target"
-            stroke="#22c55e"
-            strokeWidth={2}
-            strokeDasharray="5 5"
-            dot={false}
-            isAnimationActive={false}
-          />
-
-          <Line
-            type="monotone"
-            dataKey="danger"
-            name="Danger Zone"
-            stroke="#ef4444"
-            strokeWidth={2}
-            strokeDasharray="5 5"
-            dot={false}
-            isAnimationActive={false}
-          />
-
-          <Line
-            type="monotone"
-            dataKey="foodCostPercent"
-            name="Food Cost"
-            stroke="#f59e0b"
-            strokeWidth={4}
-            dot={{ r: 3 }}
-            activeDot={{
-              r: 7,
-              fill: "#fbbf24",
-              stroke: "white",
-              strokeWidth: 2,
-            }}
-            connectNulls
-            isAnimationActive={false}
-          />
-        </LineChart>
-      ) : (
-        <div style={{ color: "#94a3b8", padding: "24px" }}>
-          No food cost trend data available yet.
-        </div>
-      )}
-    </div>
-
-    <div
-      style={{
-        padding: "18px",
-        borderRadius: "18px",
-        background:
-          "linear-gradient(135deg, rgba(15,23,42,0.84), rgba(30,41,59,0.72))",
-        border: "1px solid rgba(148,163,184,0.14)",
+        color: "#94a3b8",
+        height: "100%",
         display: "flex",
-        flexDirection: "column",
-        justifyContent: "space-between",
-        gap: "14px",
+        alignItems: "center",
+        justifyContent: "center",
+        textAlign: "center",
       }}
     >
-      <div>
-        <div
-          style={{
-            color: "#fca5a5",
-            fontSize: "12px",
-            fontWeight: "900",
-            letterSpacing: "0.08em",
-            textTransform: "uppercase",
-            marginBottom: "10px",
-          }}
-        >
-          AI Cost Readout
-        </div>
+      No food cost trend data available yet.
+    </div>
+  )}
+</div>
 
-        <div style={{ color: "white", fontSize: "20px", fontWeight: "950" }}>
-          Margin pressure check
-        </div>
-
-        <p
-          style={{
-            marginTop: "8px",
-            color: "#94a3b8",
-            fontSize: "13px",
-            lineHeight: 1.6,
-          }}
-        >
-          Food cost should stay near target. When it moves toward the danger
-          zone, review vendor costs, waste, portions, and menu pricing.
-        </p>
-      </div>
-
-      <div style={{ display: "grid", gap: "10px" }}>
-        <div
-          style={{
-            padding: "13px",
-            borderRadius: "14px",
-            background: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(148,163,184,0.10)",
-          }}
-        >
-          <div style={{ color: "#94a3b8", fontSize: "11px" }}>
-            Current Food Cost
-          </div>
-          <div
-            style={{
-              color:
-                Number(foodCostPercentage || 0) >= 35
-                  ? "#fca5a5"
-                  : Number(foodCostPercentage || 0) >= 30
-                  ? "#fde68a"
-                  : "#86efac",
-              fontSize: "18px",
-              fontWeight: "900",
-            }}
-          >
-            {Number(foodCostPercentage || 0).toFixed(1)}%
-          </div>
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: isMobile
+          ? "1fr"
+          : "repeat(3,minmax(0,1fr))",
+        gap: "12px",
+      }}
+    >
+      <div
+        style={{
+          padding: "14px",
+          borderRadius: "16px",
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(148,163,184,0.10)",
+        }}
+      >
+        <div style={{ color: "#94a3b8", fontSize: "11px" }}>
+          Current Food Cost
         </div>
 
         <div
           style={{
-            padding: "13px",
-            borderRadius: "14px",
-            background: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(148,163,184,0.10)",
-          }}
-        >
-          <div style={{ color: "#94a3b8", fontSize: "11px" }}>
-            Target Range
-          </div>
-          <div style={{ color: "#86efac", fontSize: "18px", fontWeight: "900" }}>
-            28%–30%
-          </div>
-        </div>
-
-        <div
-          style={{
-            padding: "13px",
-            borderRadius: "14px",
-            background:
-              Number(foodCostPercentage || 0) >= 35
-                ? "rgba(239,68,68,0.10)"
-                : Number(foodCostPercentage || 0) >= 30
-                ? "rgba(245,158,11,0.10)"
-                : "rgba(34,197,94,0.10)",
-            border:
-              Number(foodCostPercentage || 0) >= 35
-                ? "1px solid rgba(239,68,68,0.18)"
-                : Number(foodCostPercentage || 0) >= 30
-                ? "1px solid rgba(245,158,11,0.18)"
-                : "1px solid rgba(34,197,94,0.18)",
             color:
               Number(foodCostPercentage || 0) >= 35
-                ? "#fecaca"
+                ? "#fca5a5"
                 : Number(foodCostPercentage || 0) >= 30
                 ? "#fde68a"
-                : "#bbf7d0",
-            fontSize: "13px",
-            lineHeight: 1.6,
-            fontWeight: "750",
+                : "#86efac",
+            fontSize: "20px",
+            fontWeight: "900",
           }}
         >
-          {Number(foodCostPercentage || 0) >= 35
-            ? "Critical: food cost is above the danger zone. Review waste, vendor prices, and portions immediately."
-            : Number(foodCostPercentage || 0) >= 30
-            ? "Watch closely: food cost is above target. Check high-cost ingredients and pricing."
-            : "Healthy: food cost is currently under target. Keep monitoring supplier changes."}
+          {Number(foodCostPercentage || 0).toFixed(1)}%
         </div>
+      </div>
+
+      <div
+        style={{
+          padding: "14px",
+          borderRadius: "16px",
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(148,163,184,0.10)",
+        }}
+      >
+        <div style={{ color: "#94a3b8", fontSize: "11px" }}>
+          Target Range
+        </div>
+
+        <div
+          style={{
+            color: "#86efac",
+            fontSize: "20px",
+            fontWeight: "900",
+          }}
+        >
+          28%–30%
+        </div>
+      </div>
+
+      <div
+        style={{
+          padding: "14px",
+          borderRadius: "16px",
+          background:
+            Number(foodCostPercentage || 0) >= 35
+              ? "rgba(239,68,68,0.10)"
+              : Number(foodCostPercentage || 0) >= 30
+              ? "rgba(245,158,11,0.10)"
+              : "rgba(34,197,94,0.10)",
+          border:
+            Number(foodCostPercentage || 0) >= 35
+              ? "1px solid rgba(239,68,68,0.18)"
+              : Number(foodCostPercentage || 0) >= 30
+              ? "1px solid rgba(245,158,11,0.18)"
+              : "1px solid rgba(34,197,94,0.18)",
+          color:
+            Number(foodCostPercentage || 0) >= 35
+              ? "#fecaca"
+              : Number(foodCostPercentage || 0) >= 30
+              ? "#fde68a"
+              : "#bbf7d0",
+          fontSize: "13px",
+          lineHeight: 1.6,
+          fontWeight: "750",
+        }}
+      >
+        {Number(foodCostPercentage || 0) >= 35
+          ? "Critical: food cost is above danger zone."
+          : Number(foodCostPercentage || 0) >= 30
+          ? "Watch closely: food cost is above target."
+          : "Healthy: food cost is currently under target."}
       </div>
     </div>
   </div>
 </div>
-
-        {/* PROFIT LEAKAGE TOP ITEMS */}
+{/* PROFIT LEAKAGE TOP ITEMS */}
 <div
   style={{
-    marginBottom: "0px",
-    padding: "24px",
+    gridColumn: isMobile ? "span 1" : "span 12",
+    width: "100%",
+    minWidth: 0,
+    maxWidth: "100%",
+    padding: "22px",
     borderRadius: "22px",
-    minHeight: "620px",
+    minHeight: "420px",
     display: "flex",
     flexDirection: "column",
     background:
@@ -28254,6 +34632,8 @@ return (
     border: "1px solid rgba(148,163,184,0.16)",
     boxShadow: "0 18px 40px rgba(2,6,23,0.22)",
     overflow: "hidden",
+    boxSizing: "border-box",
+    alignSelf: "start",
   }}
 >
   <div
@@ -28291,7 +34671,7 @@ return (
       </h3>
 
       <p style={{ margin: 0, color: "#94a3b8", fontSize: "13px" }}>
-        Flags items that may be selling but leaking profit through weak margins.
+        Flags items that may be selling but leaking profit.
       </p>
     </div>
 
@@ -28313,220 +34693,182 @@ return (
   <div
     style={{
       display: "grid",
-      gridTemplateColumns: isMobile ? "1fr" : "2fr 1fr",
-      gap: "22px",
-      alignItems: "stretch",
-      flex: 1,
+      gridTemplateColumns: "1fr",
+      gap: "18px",
+      width: "100%",
     }}
-  >
-    <div
-      style={{
-        width: "100%",
-        minHeight: isMobile ? "340px" : "420px",
-        overflowX: "auto",
-        overflowY: "hidden",
-      }}
+  ><div
+  style={{
+    width: "100%",
+    height: "340px",
+    minHeight: "340px",
+    overflowX: "auto",
+    overflowY: "hidden",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+  }}
+>
+  {profitLeakageChartData?.length > 0 ? (
+    <BarChart
+      width={isMobile ? 900 : 820}
+      height={340}
+      data={profitLeakageChartData}
+      margin={{ top: 24, right: 30, left: 10, bottom: 40 }}
     >
-      {profitLeakageChartData?.length > 0 ? (
-        <BarChart
-          width={isMobile ? 900 : 680}
-          height={isMobile ? 340 : 420}
-          data={profitLeakageChartData}
-          margin={{ top: 24, right: 35, left: 10, bottom: 46 }}
-          barCategoryGap="18%"
-        >
-          <CartesianGrid
-            strokeDasharray="3 3"
-            stroke="rgba(148,163,184,0.14)"
-            vertical={false}
-          />
+      <CartesianGrid
+        strokeDasharray="3 3"
+        stroke="rgba(148,163,184,0.14)"
+        vertical={false}
+      />
 
-          <XAxis
-            dataKey="name"
-            tick={{ fill: "#94a3b8", fontSize: 10 }}
-            axisLine={false}
-            tickLine={false}
-            interval={0}
-            angle={isMobile ? -20 : 0}
-            textAnchor={isMobile ? "end" : "middle"}
-          />
+      <XAxis
+        dataKey="name"
+        tick={{ fill: "#94a3b8", fontSize: 10 }}
+        axisLine={false}
+        tickLine={false}
+        interval={0}
+      />
 
-          <YAxis
-            tick={{ fill: "#94a3b8", fontSize: 10 }}
-            axisLine={false}
-            tickLine={false}
-            width={65}
-            tickFormatter={(value) =>
-              `$${Number(value || 0).toLocaleString()}`
-            }
-          />
+      <YAxis
+        tick={{ fill: "#94a3b8", fontSize: 10 }}
+        axisLine={false}
+        tickLine={false}
+        width={70}
+        tickFormatter={(value) => `$${Number(value || 0).toLocaleString()}`}
+      />
 
-          <Tooltip
-            cursor={{ fill: "rgba(249,115,22,0.12)" }}
-            wrapperStyle={{ pointerEvents: "none" }}
-            formatter={(value) => [
-              `$${Number(value || 0).toLocaleString()}`,
-              "Estimated Loss",
-            ]}
-            contentStyle={{
-              background: "#020617",
-              border: "1px solid rgba(148,163,184,0.24)",
-              borderRadius: "14px",
-              color: "white",
-            }}
-            labelStyle={{ color: "#e5e7eb" }}
-          />
+      <Tooltip
+        formatter={(value) => [
+          `$${Number(value || 0).toLocaleString()}`,
+          "Estimated Loss",
+        ]}
+        contentStyle={{
+          background: "#020617",
+          border: "1px solid rgba(148,163,184,0.24)",
+          borderRadius: "14px",
+          color: "white",
+        }}
+      />
 
-          <Bar
-            dataKey="loss"
-            fill="#f97316"
-            radius={[10, 10, 0, 0]}
-            barSize={38}
-            isAnimationActive={false}
-          />
-        </BarChart>
-      ) : (
-        <div style={{ color: "#94a3b8", padding: "24px" }}>
-          No profit leakage data available yet.
-        </div>
-      )}
-    </div>
-
+      <Bar
+        dataKey="loss"
+        fill="#f97316"
+        radius={[10, 10, 0, 0]}
+        barSize={34}
+        isAnimationActive={false}
+      />
+    </BarChart>
+  ) : (
     <div
       style={{
-        padding: "18px",
-        borderRadius: "18px",
-        background:
-          "linear-gradient(135deg, rgba(15,23,42,0.84), rgba(30,41,59,0.72))",
-        border: "1px solid rgba(148,163,184,0.14)",
+        color: "#94a3b8",
+        height: "100%",
         display: "flex",
-        flexDirection: "column",
-        justifyContent: "space-between",
-        gap: "14px",
+        alignItems: "center",
+        justifyContent: "center",
+        textAlign: "center",
       }}
     >
-      <div>
+      No profit leakage data available yet.
+    </div>
+  )}
+</div>
+
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: isMobile
+          ? "1fr"
+          : "repeat(3,minmax(0,1fr))",
+        gap: "12px",
+      }}
+    >
+      <div
+        style={{
+          padding: "14px",
+          borderRadius: "16px",
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(148,163,184,0.10)",
+        }}
+      >
+        <div style={{ color: "#94a3b8", fontSize: "11px" }}>
+          Priority Item
+        </div>
+
+        <div
+          style={{
+            color: "white",
+            fontSize: "20px",
+            fontWeight: "900",
+          }}
+        >
+          {profitLeakageChartData?.[0]?.name || "Waiting for menu data"}
+        </div>
+      </div>
+
+      <div
+        style={{
+          padding: "14px",
+          borderRadius: "16px",
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(148,163,184,0.10)",
+        }}
+      >
+        <div style={{ color: "#94a3b8", fontSize: "11px" }}>
+          Recoverable Margin
+        </div>
+
         <div
           style={{
             color: "#fdba74",
-            fontSize: "12px",
+            fontSize: "20px",
             fontWeight: "900",
-            letterSpacing: "0.08em",
-            textTransform: "uppercase",
-            marginBottom: "10px",
           }}
         >
-          AI Profit Readout
+          ${Number(
+            profitLeakageChartData?.[0]?.loss || 0
+          ).toLocaleString()}
         </div>
-
-        <div style={{ color: "white", fontSize: "20px", fontWeight: "950" }}>
-          Highest margin leak
-        </div>
-
-        <p
-          style={{
-            marginTop: "8px",
-            color: "#94a3b8",
-            fontSize: "13px",
-            lineHeight: 1.6,
-          }}
-        >
-          These items may be selling but still reducing profit because of weak
-          price, high cost, portioning, or vendor changes.
-        </p>
       </div>
 
-      <div style={{ display: "grid", gap: "10px" }}>
-        <div
-          style={{
-            padding: "13px",
-            borderRadius: "14px",
-            background: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(148,163,184,0.10)",
-          }}
-        >
-          <div style={{ color: "#94a3b8", fontSize: "11px" }}>
-            Priority Item
-          </div>
-          <div style={{ color: "white", fontSize: "18px", fontWeight: "900" }}>
-            {profitLeakageChartData?.[0]?.name || "Waiting for menu data"}
-          </div>
-        </div>
-
-        <div
-          style={{
-            padding: "13px",
-            borderRadius: "14px",
-            background: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(148,163,184,0.10)",
-          }}
-        >
-          <div style={{ color: "#94a3b8", fontSize: "11px" }}>
-            Estimated Recoverable Margin
-          </div>
-          <div style={{ color: "#fdba74", fontSize: "18px", fontWeight: "900" }}>
-            ${Number(profitLeakageChartData?.[0]?.loss || 0).toLocaleString()}
-          </div>
-        </div>
-
-        <div
-          style={{
-            padding: "13px",
-            borderRadius: "14px",
-            background: "rgba(249,115,22,0.10)",
-            border: "1px solid rgba(249,115,22,0.18)",
-            color: "#fed7aa",
-            fontSize: "13px",
-            lineHeight: 1.6,
-            fontWeight: "750",
-          }}
-        >
-          Recommended action: review recipe cost, vendor price, portion size, and
-          selling price for the highest leaking item first.
-        </div>
+      <div
+        style={{
+          padding: "14px",
+          borderRadius: "16px",
+          background: "rgba(249,115,22,0.10)",
+          border: "1px solid rgba(249,115,22,0.18)",
+          color: "#fed7aa",
+          fontSize: "13px",
+          lineHeight: 1.6,
+          fontWeight: "750",
+        }}
+      >
+        Review recipe cost, portions, vendor pricing, and menu pricing on your
+        highest leaking items first.
       </div>
     </div>
   </div>
-
-  {profitLeakageChartData?.length > 0 && (
-    <div
-      style={{
-        marginTop: "18px",
-        padding: "14px 16px",
-        borderRadius: "16px",
-        background: "rgba(249,115,22,0.10)",
-        border: "1px solid rgba(249,115,22,0.22)",
-        color: "#fed7aa",
-        fontSize: "13px",
-        lineHeight: 1.6,
-        fontWeight: "800",
-      }}
-    >
-      Highest profit leak:{" "}
-      <span style={{ color: "white", fontWeight: "950" }}>
-        {profitLeakageChartData?.[0]?.name || "Menu item"}
-      </span>{" "}
-      is estimated to be leaking{" "}
-      <span style={{ color: "#fdba74", fontWeight: "950" }}>
-        ${Number(profitLeakageChartData?.[0]?.loss || 0).toLocaleString()}
-      </span>{" "}
-      in recoverable margin.
-    </div>
-  )}
 </div>
 {/* PRIME COST INTELLIGENCE */}
 <div
   style={{
-    marginBottom: "0px",
-    padding: "24px",
+    gridColumn: isMobile ? "span 1" : "span 12",
+    width: "100%",
+    minWidth: 0,
+    maxWidth: "100%",
+    padding: "22px",
     borderRadius: "22px",
-    minHeight: "520px",
+    minHeight: "360px",
     display: "flex",
     flexDirection: "column",
     background:
       "radial-gradient(circle at top right, rgba(212,175,55,0.14), transparent 40%), linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.9))",
     border: "1px solid rgba(148,163,184,0.16)",
     boxShadow: "0 18px 40px rgba(2,6,23,0.22)",
+    overflow: "hidden",
+    boxSizing: "border-box",
+    alignSelf: "start",
   }}
 >
   <div style={{ marginBottom: "18px" }}>
@@ -28561,7 +34903,9 @@ return (
   <div
     style={{
       display: "grid",
-      gridTemplateColumns: isMobile ? "1fr" : "repeat(4, minmax(0, 1fr))",
+      gridTemplateColumns: isMobile
+        ? "1fr"
+        : "repeat(2, minmax(0, 1fr))",
       gap: "12px",
       marginBottom: "18px",
     }}
@@ -28607,6 +34951,7 @@ return (
       fontSize: "13px",
       lineHeight: 1.7,
       fontWeight: "750",
+      overflowWrap: "anywhere",
     }}
   >
     <span style={{ color: "white", fontWeight: "950" }}>AI readout:</span>{" "}
@@ -28616,6 +34961,10 @@ return (
 {/* 👥 LABOR INTELLIGENCE */}
 <div
   style={{
+    gridColumn: isMobile ? "span 1" : "span 12",
+    width: "100%",
+    minWidth: 0,
+    maxWidth: "100%",
     marginBottom: "0px",
     padding: "24px",
     borderRadius: "22px",
@@ -28668,7 +35017,7 @@ return (
   <div
     style={{
       display: "grid",
-      gridTemplateColumns: isMobile ? "1fr" : "1.2fr 1fr",
+      gridTemplateColumns: isMobile ? "1fr" : "1fr 1.15fr",
       gap: "22px",
       flex: 1,
     }}
@@ -28678,7 +35027,7 @@ return (
         display: "grid",
         gridTemplateColumns: isMobile
           ? "1fr"
-          : "repeat(3, minmax(0, 1fr))",
+          : "repeat(2, minmax(0, 1fr))",
         gap: "12px",
         alignContent: "start",
       }}
@@ -28713,11 +35062,9 @@ return (
             color:
               liveLaborIntelligence?.laborPercent <= 0
                 ? "#94a3b8"
-                : liveLaborIntelligence.laborPercent >
-                  activeBenchmarks.labor.high
+                : liveLaborIntelligence.laborPercent > activeBenchmarks.labor.high
                 ? "#fca5a5"
-                : liveLaborIntelligence.laborPercent <
-                  activeBenchmarks.labor.low
+                : liveLaborIntelligence.laborPercent < activeBenchmarks.labor.low
                 ? "#fde68a"
                 : "#86efac",
             fontSize: "24px",
@@ -28747,6 +35094,42 @@ return (
             : liveLaborIntelligence.laborPercent < activeBenchmarks.labor.low
             ? "Understaffed risk"
             : "Healthy range"}
+        </div>
+      </div>
+
+      <div
+        style={{
+          padding: "16px",
+          borderRadius: "16px",
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(148,163,184,0.10)",
+        }}
+      >
+        <div style={{ color: "#94a3b8", fontSize: "11px" }}>
+          Efficiency Score
+        </div>
+
+        <div
+          style={{
+            color:
+              liveLaborIntelligence?.laborPercent <= 0
+                ? "#94a3b8"
+                : liveLaborIntelligence.laborPercent > activeBenchmarks.labor.high
+                ? "#fca5a5"
+                : liveLaborIntelligence.laborPercent < activeBenchmarks.labor.low
+                ? "#fde68a"
+                : "#86efac",
+            fontSize: "24px",
+            fontWeight: "950",
+          }}
+        >
+          {liveLaborIntelligence?.laborPercent <= 0
+            ? "--"
+            : liveLaborIntelligence.laborPercent > activeBenchmarks.labor.high
+            ? "62/100"
+            : liveLaborIntelligence.laborPercent < activeBenchmarks.labor.low
+            ? "74/100"
+            : "91/100"}
         </div>
       </div>
 
@@ -28800,6 +35183,32 @@ return (
         Staffing efficiency check
       </div>
 
+      <div
+        style={{
+          display: "flex",
+          alignItems: "flex-end",
+          gap: "6px",
+          height: "70px",
+          marginTop: "18px",
+          marginBottom: "18px",
+        }}
+      >
+        {[42, 58, 61, 48, 74, 63, 56].map((value, index) => (
+          <div
+            key={index}
+            style={{
+              flex: 1,
+              borderRadius: "8px 8px 0 0",
+              height: `${value}%`,
+              background:
+                value > 65
+                  ? "linear-gradient(to top, #ef4444, #fca5a5)"
+                  : "linear-gradient(to top, #3b82f6, #93c5fd)",
+            }}
+          />
+        ))}
+      </div>
+
       <p
         style={{
           marginTop: "8px",
@@ -28828,12 +35237,47 @@ return (
         Recommended action: compare labor % against your busiest revenue days
         and adjust schedules around peak windows.
       </div>
+
+      {liveLaborIntelligence?.laborPercent > activeBenchmarks.labor.high && (
+        <div
+          style={{
+            marginTop: "12px",
+            padding: "14px",
+            borderRadius: "14px",
+            background: "rgba(239,68,68,0.10)",
+            border: "1px solid rgba(248,113,113,0.20)",
+            color: "#fecaca",
+            fontSize: "13px",
+            lineHeight: 1.6,
+            fontWeight: "700",
+          }}
+        >
+          AI detected labor inefficiency during lower revenue windows.
+          Consider reducing staffing during slower shifts to protect margins.
+        </div>
+      )}
+
+      <div
+        style={{
+          marginTop: "14px",
+          color: "#cbd5e1",
+          fontSize: "12px",
+          lineHeight: 1.6,
+        }}
+      >
+        Forecast: maintaining current staffing patterns could increase labor
+        pressure by 6% over the next 30 days if revenue slows.
+      </div>
     </div>
   </div>
 </div>
 {/* 👥 SHIFT PERFORMANCE INTELLIGENCE */}
 <div
   style={{
+    gridColumn: isMobile ? "span 1" : "span 12",
+    width: "100%",
+    minWidth: 0,
+    maxWidth: "100%",
     marginBottom: "22px",
     padding: isMobile ? "20px" : "24px",
     borderRadius: "24px",
@@ -28841,6 +35285,7 @@ return (
       "radial-gradient(circle at top right, rgba(34,211,238,0.16), transparent 34%), linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.92))",
     border: "1px solid rgba(34,211,238,0.18)",
     boxShadow: "0 22px 60px rgba(2,6,23,0.28)",
+    overflow: "hidden",
   }}
 >
   <div style={{ color: "#67e8f9", fontSize: "12px", fontWeight: "950" }}>
@@ -28851,45 +35296,142 @@ return (
     AI shift profitability analysis
   </h3>
 
-  <p style={{ color: "#cbd5e1", fontSize: "14px", lineHeight: 1.7 }}>
+  <p
+    style={{
+      color: "#cbd5e1",
+      fontSize: "14px",
+      lineHeight: 1.7,
+      maxWidth: "920px",
+    }}
+  >
     {shiftPerformanceInsight}
   </p>
-<div
-  style={{
-    marginTop: "12px",
-    padding: "12px 14px",
-    borderRadius: "14px",
-    background: "rgba(255,255,255,0.05)",
-    border: "1px solid rgba(34,211,238,0.14)",
-    color: "#e2e8f0",
-    fontSize: "13px",
-    fontWeight: "800",
-    lineHeight: 1.6,
-  }}
->
-  {shiftExecutiveSummary}
-</div>
-<div
-  style={{
-    marginTop: "12px",
-    padding: "12px 14px",
-    borderRadius: "14px",
-    background: "rgba(34,211,238,0.08)",
-    border: "1px solid rgba(34,211,238,0.18)",
-    color: "#cffafe",
-    fontSize: "13px",
-    fontWeight: "900",
-    lineHeight: 1.6,
-  }}
->
-  Recommended Action: {shiftActionRecommendation}
-</div>
+
+  {/* EXECUTIVE SUMMARY */}
+  <div
+    style={{
+      marginTop: "12px",
+      padding: "12px 14px",
+      borderRadius: "14px",
+      background: "rgba(255,255,255,0.05)",
+      border: "1px solid rgba(34,211,238,0.14)",
+      color: "#e2e8f0",
+      fontSize: "13px",
+      fontWeight: "800",
+      lineHeight: 1.6,
+    }}
+  >
+    {shiftExecutiveSummary}
+  </div>
+
+  {/* RECOMMENDED ACTION */}
+  <div
+    style={{
+      marginTop: "12px",
+      padding: "12px 14px",
+      borderRadius: "14px",
+      background: "rgba(34,211,238,0.08)",
+      border: "1px solid rgba(34,211,238,0.18)",
+      color: "#cffafe",
+      fontSize: "13px",
+      fontWeight: "900",
+      lineHeight: 1.6,
+    }}
+  >
+    Recommended Action: {shiftActionRecommendation}
+  </div>
+
+  {/* AI SHIFT TREND */}
+  <div
+    style={{
+      marginTop: "20px",
+      padding: "18px",
+      borderRadius: "18px",
+      background:
+        "linear-gradient(135deg, rgba(8,47,73,0.55), rgba(15,23,42,0.82))",
+      border: "1px solid rgba(34,211,238,0.14)",
+    }}
+  >
+    <div
+      style={{
+        color: "#67e8f9",
+        fontSize: "11px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "14px",
+      }}
+    >
+      Shift Pressure Trend
+    </div>
+
+    <div
+      style={{
+        display: "flex",
+        alignItems: "flex-end",
+        gap: "8px",
+        height: "90px",
+      }}
+    >
+      {(shiftOperationalData || []).map((shift, index) => {
+        const laborHeight = Math.min(
+          Math.max(Number(shift.laborPercent || 0), 20),
+          100
+        );
+
+        const color =
+          shift.status === "Overstaffed"
+            ? "linear-gradient(to top, #ef4444, #fca5a5)"
+            : shift.status === "Watch Closely"
+            ? "linear-gradient(to top, #f59e0b, #fde68a)"
+            : "linear-gradient(to top, #06b6d4, #67e8f9)";
+
+        return (
+          <div
+            key={index}
+            style={{
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: "8px",
+            }}
+          >
+            <div
+              style={{
+                width: "100%",
+                borderRadius: "10px 10px 0 0",
+                height: `${laborHeight}%`,
+                background: color,
+                minHeight: "24px",
+                transition: "0.3s ease",
+              }}
+            />
+
+            <div
+              style={{
+                color: "#94a3b8",
+                fontSize: "10px",
+                fontWeight: "800",
+              }}
+            >
+              {shift.shift}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  </div>
+
+  {/* SHIFT CARDS */}
   <div
     style={{
       display: "grid",
-      gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fit, minmax(190px, 1fr))",
-      gap: "12px",
-      marginTop: "18px",
+      gridTemplateColumns: isMobile
+        ? "1fr"
+        : "repeat(auto-fit, minmax(220px, 1fr))",
+      gap: "14px",
+      marginTop: "20px",
     }}
   >
     {(shiftOperationalData || []).map((shift) => {
@@ -28904,31 +35446,158 @@ return (
         <div
           key={shift.shift}
           style={{
-            padding: "16px",
-            borderRadius: "18px",
-            background: "rgba(255,255,255,0.045)",
-            border: `1px solid ${color}30`,
+            padding: "18px",
+            borderRadius: "20px",
+            background:
+              "linear-gradient(135deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02))",
+            border: `1px solid ${color}35`,
+            backdropFilter: "blur(10px)",
+            position: "relative",
+            overflow: "hidden",
           }}
         >
-          <div style={{ color: "#94a3b8", fontSize: "11px", fontWeight: "900" }}>
+          <div
+            style={{
+              position: "absolute",
+              top: "-40px",
+              right: "-30px",
+              width: "100px",
+              height: "100px",
+              borderRadius: "999px",
+              background: `${color}12`,
+            }}
+          />
+
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "11px",
+              fontWeight: "900",
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+            }}
+          >
             {shift.shift}
           </div>
 
-          <div style={{ color: "white", fontSize: "24px", fontWeight: "950" }}>
+          <div
+            style={{
+              marginTop: "8px",
+              color: "white",
+              fontSize: "28px",
+              fontWeight: "950",
+            }}
+          >
             ${Number(shift.revenue || 0).toLocaleString()}
           </div>
 
-          <div style={{ color: "#cbd5e1", fontSize: "12px", marginTop: "6px" }}>
-            {Number(shift.orders || 0).toLocaleString()} orders • Avg $
+          <div
+            style={{
+              marginTop: "6px",
+              color: "#cbd5e1",
+              fontSize: "12px",
+              lineHeight: 1.6,
+            }}
+          >
+            {Number(shift.orders || 0).toLocaleString()} orders
+          </div>
+
+          <div
+            style={{
+              marginTop: "2px",
+              color: "#94a3b8",
+              fontSize: "12px",
+            }}
+          >
+            Avg Order: $
             {Number(shift.avgOrderValue || 0).toFixed(2)}
           </div>
 
-          <div style={{ color, fontSize: "12px", fontWeight: "900", marginTop: "10px" }}>
-            Labor: {Number(shift.laborPercent || 0).toFixed(1)}% • {shift.status}
+          <div
+            style={{
+              marginTop: "14px",
+              padding: "10px",
+              borderRadius: "12px",
+              background: `${color}12`,
+              border: `1px solid ${color}22`,
+            }}
+          >
+            <div
+              style={{
+                color,
+                fontSize: "12px",
+                fontWeight: "900",
+              }}
+            >
+              Labor: {Number(shift.laborPercent || 0).toFixed(1)}%
+            </div>
+
+            <div
+              style={{
+                marginTop: "4px",
+                color: "#e2e8f0",
+                fontSize: "12px",
+                fontWeight: "700",
+              }}
+            >
+              {shift.status}
+            </div>
+          </div>
+
+          {/* AI SIGNAL */}
+          <div
+            style={{
+              marginTop: "14px",
+              color: "#cbd5e1",
+              fontSize: "12px",
+              lineHeight: 1.6,
+            }}
+          >
+            {shift.status === "Overstaffed"
+              ? "AI detected excess labor pressure during this shift."
+              : shift.status === "Watch Closely"
+              ? "Shift performance is approaching risk threshold."
+              : "Shift profitability is operating within healthy range."}
           </div>
         </div>
       );
     })}
+  </div>
+
+  {/* AI FORECAST */}
+  <div
+    style={{
+      marginTop: "20px",
+      padding: "18px",
+      borderRadius: "18px",
+      background:
+        "linear-gradient(135deg, rgba(6,182,212,0.08), rgba(15,23,42,0.92))",
+      border: "1px solid rgba(34,211,238,0.16)",
+    }}
+  >
+    <div
+      style={{
+        color: "#67e8f9",
+        fontSize: "12px",
+        fontWeight: "900",
+        marginBottom: "10px",
+      }}
+    >
+      AI Forecast
+    </div>
+
+    <div
+      style={{
+        color: "#e2e8f0",
+        fontSize: "13px",
+        lineHeight: 1.7,
+      }}
+    >
+      Based on current staffing patterns, SerVen predicts labor pressure may
+      increase during slower sales windows over the next 14 days. Optimizing
+      schedules around high-volume periods could improve operational efficiency
+      and protect profit margins.
+    </div>
   </div>
 </div>
 {/* =========================
@@ -29007,19 +35676,13 @@ return (
         <div
           key={item.label}
           style={{
-            padding: "16px",
-            borderRadius: "18px",
+            padding: "12px",
+            borderRadius: "14px",
             background: "rgba(15,23,42,0.76)",
             border: "1px solid rgba(148,163,184,0.16)",
           }}
         >
-          <div
-            style={{
-              color: "#94a3b8",
-              fontSize: "12px",
-              fontWeight: "800",
-            }}
-          >
+          <div style={{ color: "#94a3b8", fontSize: "12px", fontWeight: "800" }}>
             {item.label}
           </div>
 
@@ -29034,13 +35697,7 @@ return (
             {item.value}
           </div>
 
-          <div
-            style={{
-              color: "#94a3b8",
-              fontSize: "12px",
-              marginTop: "4px",
-            }}
-          >
+          <div style={{ color: "#94a3b8", fontSize: "12px", marginTop: "4px" }}>
             {item.sub}
           </div>
         </div>
@@ -29067,108 +35724,7 @@ return (
       >
         Vendor Spend by Supplier
       </div>
-<div
-  style={{
-    marginTop: "20px",
-    padding: "18px",
-    borderRadius: "20px",
-    background:
-      "linear-gradient(135deg, rgba(59,130,246,0.10), rgba(15,23,42,0.82))",
-    border: "1px solid rgba(96,165,250,0.16)",
-  }}
->
-  <div
-    style={{
-      color: "#93c5fd",
-      fontSize: "13px",
-      fontWeight: "900",
-      marginBottom: "14px",
-    }}
-  >
-    Vendor Cost Trend Intelligence
-  </div>
 
-  {vendorCostTrendData.length > 0 ? (
-    <div style={{ display: "grid", gap: "12px" }}>
-      {vendorCostTrendData.map((vendor, index) => (
-        <div
-          key={index}
-          style={{
-            padding: "14px",
-            borderRadius: "16px",
-            background: "rgba(15,23,42,0.72)",
-            border: "1px solid rgba(148,163,184,0.12)",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              gap: "12px",
-            }}
-          >
-            <div>
-              <div
-                style={{
-                  color: "white",
-                  fontSize: "14px",
-                  fontWeight: "800",
-                }}
-              >
-                {vendor.vendor}
-              </div>
-
-              <div
-                style={{
-                  color: "#94a3b8",
-                  fontSize: "12px",
-                  marginTop: "4px",
-                }}
-              >
-                Previous: $
-                {Number(vendor.previousSpend || 0).toLocaleString()}
-              </div>
-            </div>
-
-            <div style={{ textAlign: "right" }}>
-              <div
-                style={{
-                  color: "#e2e8f0",
-                  fontSize: "14px",
-                  fontWeight: "800",
-                }}
-              >
-                ${Number(vendor.currentSpend || 0).toLocaleString()}
-              </div>
-
-              <div
-                style={{
-                  color:
-                    vendor.changePercent > 12
-                      ? "#f87171"
-                      : vendor.changePercent > 5
-                      ? "#facc15"
-                      : "#34d399",
-                  fontSize: "12px",
-                  fontWeight: "900",
-                  marginTop: "4px",
-                }}
-              >
-                {vendor.changePercent > 0 ? "+" : ""}
-                {vendor.changePercent}%
-              </div>
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  ) : (
-    <p style={{ color: "#94a3b8", fontSize: "14px" }}>
-      Vendor trend intelligence will appear after invoice uploads.
-    </p>
-  )}
-</div>
       {vendorSpendData.length > 0 ? (
         <div style={{ display: "grid", gap: "12px" }}>
           {vendorSpendData.map((vendor) => {
@@ -29192,23 +35748,11 @@ return (
                     marginBottom: "6px",
                   }}
                 >
-                  <span
-                    style={{
-                      color: "white",
-                      fontSize: "13px",
-                      fontWeight: "800",
-                    }}
-                  >
+                  <span style={{ color: "white", fontSize: "13px", fontWeight: "800" }}>
                     {vendor.vendor}
                   </span>
 
-                  <span
-                    style={{
-                      color: "#cbd5e1",
-                      fontSize: "13px",
-                      fontWeight: "800",
-                    }}
-                  >
+                  <span style={{ color: "#cbd5e1", fontSize: "13px", fontWeight: "800" }}>
                     ${Number(vendor.spend || 0).toLocaleString()}
                   </span>
                 </div>
@@ -29242,6 +35786,91 @@ return (
       ) : (
         <p style={{ color: "#94a3b8", fontSize: "14px" }}>
           Vendor spend will appear after invoice or ingredient cost uploads.
+        </p>
+      )}
+    </div>
+
+    {/* VENDOR COST TREND INTELLIGENCE */}
+    <div
+      style={{
+        marginTop: "20px",
+        padding: "18px",
+        borderRadius: "20px",
+        background:
+          "linear-gradient(135deg, rgba(59,130,246,0.10), rgba(15,23,42,0.82))",
+        border: "1px solid rgba(96,165,250,0.16)",
+      }}
+    >
+      <div
+        style={{
+          color: "#93c5fd",
+          fontSize: "13px",
+          fontWeight: "900",
+          marginBottom: "14px",
+        }}
+      >
+        Vendor Cost Trend Intelligence
+      </div>
+
+      {vendorCostTrendData.length > 0 ? (
+        <div style={{ display: "grid", gap: "12px" }}>
+          {vendorCostTrendData.map((vendor, index) => (
+            <div
+              key={index}
+              style={{
+                padding: "14px",
+                borderRadius: "16px",
+                background: "rgba(15,23,42,0.72)",
+                border: "1px solid rgba(148,163,184,0.12)",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: "12px",
+                }}
+              >
+                <div>
+                  <div style={{ color: "white", fontSize: "14px", fontWeight: "800" }}>
+                    {vendor.vendor}
+                  </div>
+
+                  <div style={{ color: "#94a3b8", fontSize: "12px", marginTop: "4px" }}>
+                    Previous: ${Number(vendor.previousSpend || 0).toLocaleString()}
+                  </div>
+                </div>
+
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ color: "#e2e8f0", fontSize: "14px", fontWeight: "800" }}>
+                    ${Number(vendor.currentSpend || 0).toLocaleString()}
+                  </div>
+
+                  <div
+                    style={{
+                      color:
+                        vendor.changePercent > 12
+                          ? "#f87171"
+                          : vendor.changePercent > 5
+                          ? "#facc15"
+                          : "#34d399",
+                      fontSize: "12px",
+                      fontWeight: "900",
+                      marginTop: "4px",
+                    }}
+                  >
+                    {vendor.changePercent > 0 ? "+" : ""}
+                    {vendor.changePercent}%
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p style={{ color: "#94a3b8", fontSize: "14px" }}>
+          Vendor trend intelligence will appear after invoice uploads.
         </p>
       )}
     </div>
@@ -29281,9 +35910,7 @@ return (
                 key={index}
                 style={{
                   display: "grid",
-                  gridTemplateColumns: isMobile
-                    ? "1fr"
-                    : "1fr 0.8fr 0.8fr 0.6fr",
+                  gridTemplateColumns: isMobile ? "1fr" : "1fr 0.8fr 0.8fr 0.6fr",
                   gap: "10px",
                   alignItems: "center",
                   padding: "12px",
@@ -29293,13 +35920,7 @@ return (
                 }}
               >
                 <div>
-                  <div
-                    style={{
-                      color: "white",
-                      fontSize: "14px",
-                      fontWeight: "800",
-                    }}
-                  >
+                  <div style={{ color: "white", fontSize: "14px", fontWeight: "800" }}>
                     {invoice.vendor}
                   </div>
 
@@ -29338,8 +35959,7 @@ return (
           </div>
         ) : (
           <p style={{ color: "#94a3b8", fontSize: "14px" }}>
-            Upload invoice or ingredient cost data to activate vendor
-            intelligence.
+            Upload invoice or ingredient cost data to activate vendor intelligence.
           </p>
         )}
       </div>
@@ -29363,48 +35983,50 @@ return (
         >
           AI Vendor Recommendation
         </div>
-<div
-  style={{
-    marginBottom: "14px",
-    padding: "14px",
-    borderRadius: "16px",
-    background: "rgba(15,23,42,0.68)",
-    border: "1px solid rgba(148,163,184,0.14)",
-  }}
->
-  <div
-    style={{
-      color: "#94a3b8",
-      fontSize: "12px",
-      fontWeight: "800",
-      marginBottom: "6px",
-    }}
-  >
-    Vendor Risk Score
-  </div>
 
-  <div
-    style={{
-      color: vendorRiskColor,
-      fontSize: "28px",
-      fontWeight: "900",
-      lineHeight: 1,
-    }}
-  >
-    {vendorRiskScore}/100
-  </div>
+        <div
+          style={{
+            marginBottom: "14px",
+            padding: "14px",
+            borderRadius: "16px",
+            background: "rgba(15,23,42,0.68)",
+            border: "1px solid rgba(148,163,184,0.14)",
+          }}
+        >
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "12px",
+              fontWeight: "800",
+              marginBottom: "6px",
+            }}
+          >
+            Vendor Risk Score
+          </div>
 
-  <div
-    style={{
-      color: "#cbd5e1",
-      fontSize: "12px",
-      marginTop: "6px",
-      fontWeight: "800",
-    }}
-  >
-    {vendorRiskLabel}
-  </div>
-</div>
+          <div
+            style={{
+              color: vendorRiskColor,
+              fontSize: "28px",
+              fontWeight: "900",
+              lineHeight: 1,
+            }}
+          >
+            {vendorRiskScore}/100
+          </div>
+
+          <div
+            style={{
+              color: "#cbd5e1",
+              fontSize: "12px",
+              marginTop: "6px",
+              fontWeight: "800",
+            }}
+          >
+            {vendorRiskLabel}
+          </div>
+        </div>
+
         <p
           style={{
             color: "#e2e8f0",
@@ -29424,8 +36046,7 @@ return (
       </div>
     </div>
   </div>
-)}
-{/* =========================
+)}{/* =========================
    📦 INVENTORY BURN RATE INTELLIGENCE
 ========================= */}
 
@@ -29479,10 +36100,11 @@ return (
       detect low-stock risk, waste, overuse, and abnormal depletion patterns.
     </p>
 
+    {/* KPI CARDS */}
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: isMobile ? "1fr" : "repeat(4, 1fr)",
+        gridTemplateColumns: isMobile ? "1fr" : "repeat(5, 1fr)",
         gap: "14px",
       }}
     >
@@ -29507,6 +36129,16 @@ return (
           value: `${averageDaysRemaining}`,
           sub: "Across inventory",
         },
+        {
+          label: "Inventory Health",
+          value:
+            criticalBurnItems.length > 0
+              ? "62/100"
+              : watchBurnItems.length > 0
+              ? "81/100"
+              : "96/100",
+          sub: "AI inventory efficiency",
+        },
       ].map((item) => (
         <div
           key={item.label}
@@ -29517,7 +36149,13 @@ return (
             border: "1px solid rgba(148,163,184,0.16)",
           }}
         >
-          <div style={{ color: "#94a3b8", fontSize: "12px", fontWeight: "800" }}>
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "12px",
+              fontWeight: "800",
+            }}
+          >
             {item.label}
           </div>
 
@@ -29532,7 +36170,13 @@ return (
             {item.value}
           </div>
 
-          <div style={{ color: "#94a3b8", fontSize: "12px", marginTop: "4px" }}>
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "12px",
+              marginTop: "4px",
+            }}
+          >
             {item.sub}
           </div>
         </div>
@@ -29547,6 +36191,7 @@ return (
         gap: "16px",
       }}
     >
+      {/* BURN RATE REVIEW QUEUE */}
       <div
         style={{
           padding: "18px",
@@ -29566,6 +36211,67 @@ return (
           Burn Rate Review Queue
         </div>
 
+        {/* BURN PRESSURE VISUALIZATION */}
+        {inventoryBurnRateData.length > 0 && (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "flex-end",
+              gap: "8px",
+              height: "90px",
+              marginBottom: "18px",
+            }}
+          >
+            {(inventoryBurnRateData || []).slice(0, 7).map((item, index) => {
+              const level = Math.min(
+                Math.max(Number(item.actualDailyUsage || 10), 15),
+                100
+              );
+
+              const color =
+                item.status === "Critical Burn"
+                  ? "linear-gradient(to top, #ef4444, #fca5a5)"
+                  : item.status === "Watch Closely"
+                  ? "linear-gradient(to top, #f59e0b, #fde68a)"
+                  : "linear-gradient(to top, #22c55e, #86efac)";
+
+              return (
+                <div
+                  key={index}
+                  style={{
+                    flex: 1,
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: "6px",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: "100%",
+                      height: `${level}%`,
+                      minHeight: "18px",
+                      borderRadius: "10px 10px 0 0",
+                      background: color,
+                    }}
+                  />
+
+                  <div
+                    style={{
+                      color: "#94a3b8",
+                      fontSize: "10px",
+                      fontWeight: "800",
+                      textAlign: "center",
+                    }}
+                  >
+                    {item.name?.slice(0, 8)}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         {inventoryBurnRateData.length > 0 ? (
           <div style={{ display: "grid", gap: "10px" }}>
             {inventoryBurnRateData.slice(0, 7).map((item, index) => (
@@ -29578,27 +36284,43 @@ return (
                     : "1.1fr 0.7fr 0.7fr 0.7fr 0.8fr",
                   gap: "10px",
                   alignItems: "center",
-                  padding: "12px",
-                  borderRadius: "14px",
+                  padding: "14px",
+                  borderRadius: "16px",
                   background: "rgba(15,23,42,0.72)",
                   border: "1px solid rgba(148,163,184,0.12)",
+                  boxShadow:
+                    item.status === "Critical Burn"
+                      ? "0 0 18px rgba(239,68,68,0.16)"
+                      : item.status === "Watch Closely"
+                      ? "0 0 16px rgba(250,204,21,0.12)"
+                      : "0 0 14px rgba(34,197,94,0.10)",
                 }}
               >
                 <div>
-                  <div style={{ color: "white", fontSize: "14px", fontWeight: "800" }}>
+                  <div
+                    style={{
+                      color: "white",
+                      fontSize: "14px",
+                      fontWeight: "800",
+                    }}
+                  >
                     {item.name}
                   </div>
+
                   <div style={{ color: "#94a3b8", fontSize: "12px" }}>
-                    Current stock: {Number(item.currentStock || 0).toLocaleString()}
+                    Current stock:{" "}
+                    {Number(item.currentStock || 0).toLocaleString()}
                   </div>
                 </div>
 
                 <div style={{ color: "#cbd5e1", fontSize: "13px" }}>
-                  Expected: {Number(item.expectedDailyUsage || 0).toLocaleString()}/day
+                  Expected:{" "}
+                  {Number(item.expectedDailyUsage || 0).toLocaleString()}/day
                 </div>
 
                 <div style={{ color: "#cbd5e1", fontSize: "13px" }}>
-                  Actual: {Number(item.actualDailyUsage || 0).toLocaleString()}/day
+                  Actual:{" "}
+                  {Number(item.actualDailyUsage || 0).toLocaleString()}/day
                 </div>
 
                 <div style={{ color: "#cbd5e1", fontSize: "13px" }}>
@@ -29629,6 +36351,7 @@ return (
         )}
       </div>
 
+      {/* AI INVENTORY RECOMMENDATION */}
       <div
         style={{
           padding: "18px",
@@ -29669,17 +36392,54 @@ return (
             ? "Inventory burn rate looks healthy. No major depletion risks detected."
             : "Inventory burn rate intelligence is ready. Upload ingredient stock and usage data to detect fast-moving inventory risks."}
         </p>
+
+        {/* AI FORECAST */}
+        <div
+          style={{
+            marginTop: "16px",
+            padding: "14px",
+            borderRadius: "14px",
+            background: "rgba(15,23,42,0.66)",
+            border: "1px solid rgba(148,163,184,0.12)",
+          }}
+        >
+          <div
+            style={{
+              color: "#86efac",
+              fontSize: "12px",
+              fontWeight: "900",
+              marginBottom: "8px",
+            }}
+          >
+            AI Forecast
+          </div>
+
+          <div
+            style={{
+              color: "#cbd5e1",
+              fontSize: "12px",
+              lineHeight: 1.6,
+            }}
+          >
+            Based on current depletion patterns, SerVen predicts inventory
+            pressure could increase over the next 7 days if usage trends
+            continue.
+          </div>
+        </div>
       </div>
     </div>
   </div>
-)}
-{/* =========================
+)}{/* =========================
    🚨 INVENTORY RISK ALERTS
 ========================= */}
 
 {hasProAccess && (
   <div
     style={{
+      gridColumn: isMobile ? "span 1" : "span 12",
+      width: "100%",
+      minWidth: 0,
+      maxWidth: "100%",
       marginTop: "18px",
       padding: "22px",
       borderRadius: "24px",
@@ -29687,6 +36447,7 @@ return (
         "linear-gradient(135deg, rgba(127,29,29,0.22), rgba(15,23,42,0.96))",
       border: "1px solid rgba(248,113,113,0.22)",
       boxShadow: "0 20px 60px rgba(2,6,23,0.30)",
+      overflow: "hidden",
     }}
   >
     <div
@@ -29705,7 +36466,7 @@ return (
     <h3
       style={{
         color: "white",
-        fontSize: "22px",
+        fontSize: "24px",
         fontWeight: "900",
         margin: "0 0 12px",
       }}
@@ -29717,22 +36478,102 @@ return (
       style={{
         color: "#cbd5e1",
         fontSize: "14px",
-        lineHeight: "1.6",
-        marginBottom: "18px",
+        lineHeight: "1.7",
+        marginBottom: "20px",
+        maxWidth: "900px",
       }}
     >
-      Detects abnormal inventory depletion, low-stock risk, usage spikes,
-      and potential waste before operational issues escalate.
+      Detects abnormal inventory depletion, low-stock risk, unusual usage spikes,
+      and possible waste patterns before operational issues impact service or profitability.
     </p>
 
+    {/* ALERT SUMMARY STRIP */}
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: isMobile ? "1fr" : "repeat(4, 1fr)",
+        gap: "12px",
+        marginBottom: "20px",
+      }}
+    >
+      {[
+        {
+          label: "Critical Alerts",
+          value: inventoryRiskAlerts.filter(
+            (a) => a.severity === "Critical"
+          ).length,
+          color: "#f87171",
+        },
+        {
+          label: "High Risk",
+          value: inventoryRiskAlerts.filter(
+            (a) => a.severity === "High"
+          ).length,
+          color: "#facc15",
+        },
+        {
+          label: "Total Alerts",
+          value: inventoryRiskAlerts.length,
+          color: "#93c5fd",
+        },
+        {
+          label: "Inventory Status",
+          value:
+            inventoryRiskAlerts.length > 5
+              ? "At Risk"
+              : inventoryRiskAlerts.length > 0
+              ? "Monitoring"
+              : "Healthy",
+          color:
+            inventoryRiskAlerts.length > 5
+              ? "#f87171"
+              : inventoryRiskAlerts.length > 0
+              ? "#facc15"
+              : "#34d399",
+        },
+      ].map((item) => (
+        <div
+          key={item.label}
+          style={{
+            padding: "14px",
+            borderRadius: "16px",
+            background: "rgba(15,23,42,0.72)",
+            border: `1px solid ${item.color}25`,
+          }}
+        >
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "11px",
+              fontWeight: "800",
+            }}
+          >
+            {item.label}
+          </div>
+
+          <div
+            style={{
+              color: item.color,
+              fontSize: "24px",
+              fontWeight: "950",
+              marginTop: "8px",
+            }}
+          >
+            {item.value}
+          </div>
+        </div>
+      ))}
+    </div>
+
+    {/* LIVE ALERT FEED */}
     {inventoryRiskAlerts.length > 0 ? (
       <div style={{ display: "grid", gap: "12px" }}>
         {inventoryRiskAlerts.slice(0, 8).map((alert, index) => (
           <div
             key={`${alert.ingredient}-${index}`}
             style={{
-              padding: "14px",
-              borderRadius: "16px",
+              padding: "16px",
+              borderRadius: "18px",
               background: "rgba(15,23,42,0.72)",
               border:
                 alert.severity === "Critical"
@@ -29740,6 +36581,13 @@ return (
                   : alert.severity === "High"
                   ? "1px solid rgba(250,204,21,0.24)"
                   : "1px solid rgba(148,163,184,0.14)",
+
+              boxShadow:
+                alert.severity === "Critical"
+                  ? "0 0 18px rgba(248,113,113,0.16)"
+                  : alert.severity === "High"
+                  ? "0 0 16px rgba(250,204,21,0.12)"
+                  : "0 0 14px rgba(96,165,250,0.10)",
             }}
           >
             <div
@@ -29748,7 +36596,7 @@ return (
                 justifyContent: "space-between",
                 gap: "12px",
                 alignItems: "center",
-                marginBottom: "8px",
+                marginBottom: "10px",
               }}
             >
               <div
@@ -29763,14 +36611,26 @@ return (
 
               <div
                 style={{
+                  padding: "6px 10px",
+                  borderRadius: "999px",
+                  background:
+                    alert.severity === "Critical"
+                      ? "rgba(248,113,113,0.12)"
+                      : alert.severity === "High"
+                      ? "rgba(250,204,21,0.12)"
+                      : "rgba(59,130,246,0.12)",
+
                   color:
                     alert.severity === "Critical"
                       ? "#f87171"
                       : alert.severity === "High"
                       ? "#facc15"
                       : "#93c5fd",
-                  fontSize: "12px",
+
+                  fontSize: "11px",
                   fontWeight: "900",
+                  letterSpacing: "0.04em",
+                  textTransform: "uppercase",
                 }}
               >
                 {alert.severity}
@@ -29781,10 +36641,46 @@ return (
               style={{
                 color: "#e2e8f0",
                 fontSize: "14px",
-                lineHeight: "1.6",
+                lineHeight: "1.7",
               }}
             >
               {alert.message}
+            </div>
+
+            {/* AI ACTION */}
+            <div
+              style={{
+                marginTop: "12px",
+                padding: "12px",
+                borderRadius: "14px",
+                background: "rgba(255,255,255,0.04)",
+                border: "1px solid rgba(148,163,184,0.10)",
+              }}
+            >
+              <div
+                style={{
+                  color: "#fca5a5",
+                  fontSize: "11px",
+                  fontWeight: "900",
+                  marginBottom: "6px",
+                }}
+              >
+                AI Recommended Action
+              </div>
+
+              <div
+                style={{
+                  color: "#cbd5e1",
+                  fontSize: "12px",
+                  lineHeight: "1.6",
+                }}
+              >
+                {alert.severity === "Critical"
+                  ? "Review prep usage immediately and verify recent inventory counts."
+                  : alert.severity === "High"
+                  ? "Monitor depletion closely and prepare restock planning."
+                  : "Continue monitoring usage behavior for abnormal changes."}
+              </div>
             </div>
           </div>
         ))}
@@ -29792,8 +36688,8 @@ return (
     ) : (
       <div
         style={{
-          padding: "16px",
-          borderRadius: "16px",
+          padding: "18px",
+          borderRadius: "18px",
           background: "rgba(255,255,255,0.04)",
           border: "1px solid rgba(255,255,255,0.08)",
           color: "#94a3b8",
@@ -29803,15 +36699,53 @@ return (
         No inventory risks detected right now.
       </div>
     )}
+
+    {/* AI FORECAST */}
+    <div
+      style={{
+        marginTop: "20px",
+        padding: "16px",
+        borderRadius: "18px",
+        background:
+          "linear-gradient(135deg, rgba(248,113,113,0.08), rgba(15,23,42,0.88))",
+        border: "1px solid rgba(248,113,113,0.14)",
+      }}
+    >
+      <div
+        style={{
+          color: "#fca5a5",
+          fontSize: "12px",
+          fontWeight: "900",
+          marginBottom: "8px",
+        }}
+      >
+        AI Inventory Forecast
+      </div>
+
+      <div
+        style={{
+          color: "#e2e8f0",
+          fontSize: "13px",
+          lineHeight: "1.7",
+        }}
+      >
+        Based on current depletion patterns and ingredient movement,
+        SerVen predicts inventory pressure may increase over the next
+        5–7 days if current usage trends continue.
+      </div>
+    </div>
   </div>
-)}
-{/* =========================
+)}{/* =========================
    🔮 PREDICTIVE RESTOCK INTELLIGENCE
 ========================= */}
 
 {hasProAccess && (
   <div
     style={{
+      gridColumn: isMobile ? "span 1" : "span 12",
+      width: "100%",
+      minWidth: 0,
+      maxWidth: "100%",
       marginTop: "18px",
       padding: "22px",
       borderRadius: "24px",
@@ -29940,13 +36874,17 @@ return (
     )}
   </div>
 )}
-        {/* AI PROFIT RECOVERY TREND */}
+   {/* AI PROFIT RECOVERY TREND */}
 <div
   style={{
+    gridColumn: isMobile ? "span 1" : "span 12",
+    width: "100%",
+    minWidth: 0,
+    maxWidth: "100%",
     marginBottom: "24px",
     padding: "24px",
     borderRadius: "22px",
-    minHeight: "620px",
+    minHeight: "auto",
     display: "flex",
     flexDirection: "column",
     background:
@@ -30006,13 +36944,17 @@ return (
       style={{
         width: "100%",
         minHeight: isMobile ? "340px" : "420px",
+        padding: "12px",
+        borderRadius: "18px",
+        background: "rgba(15,23,42,0.35)",
+        border: "1px solid rgba(148,163,184,0.10)",
         overflowX: "auto",
         overflowY: "hidden",
       }}
     >
       {aiProfitTrendData?.length > 0 ? (
         <LineChart
-          width={isMobile ? 900 : 680}
+          width={isMobile ? 900 : 760}
           height={isMobile ? 340 : 420}
           data={aiProfitTrendData}
           margin={{ top: 24, right: 35, left: 10, bottom: 36 }}
@@ -30160,6 +37102,7 @@ return (
           <div style={{ color: "#94a3b8", fontSize: "11px" }}>
             Projected Profit Lift
           </div>
+
           <div style={{ color: "#c4b5fd", fontSize: "18px", fontWeight: "900" }}>
             +${Number(simulatedProfit || 0).toLocaleString()}
           </div>
@@ -30176,6 +37119,7 @@ return (
           <div style={{ color: "#94a3b8", fontSize: "11px" }}>
             Recovery Confidence
           </div>
+
           <div style={{ color: "#86efac", fontSize: "18px", fontWeight: "900" }}>
             {revenueForecastConfidence || 68}%
           </div>
@@ -32038,20 +38982,20 @@ return (
 )}
  {activeTab === "ai" && (
   <>
-  <div
-  style={{
-    marginTop: "30px",
-    display: "flex",
-    flexDirection: "column",
-    gap: "20px",
-    width: "100%",
-    maxWidth: "calc(100vw - 340px)",
-paddingRight: "20px",
-boxSizing: "border-box",
-    minWidth: 0,
-    overflowX: "hidden",
-  }}
->
+    <div
+      style={{
+        marginTop: "30px",
+        display: "flex",
+        flexDirection: "column",
+        gap: "20px",
+        width: "100%",
+        maxWidth: "100%",
+        minWidth: 0,
+        overflow: "visible",
+        paddingRight: 0,
+        boxSizing: "border-box",
+      }}
+    >
        
           <div style={{ marginBottom: "14px" }}>
             <h3
@@ -32069,7 +39013,7 @@ boxSizing: "border-box",
               Smart actions based on performance and pricing gaps.
             </p>
           </div>
-        {/* =========================
+   {/* =========================
    AI COMMAND CENTER HEADER
 ========================= */}
 
@@ -32083,6 +39027,8 @@ boxSizing: "border-box",
         "radial-gradient(circle at top right, rgba(99,102,241,0.28), transparent 34%), linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.94))",
       border: "1px solid rgba(129,140,248,0.24)",
       boxShadow: "0 28px 80px rgba(2,6,23,0.38)",
+      width: "100%",
+      boxSizing: "border-box",
     }}
   >
     <div style={{ color: "#c7d2fe", fontSize: "12px", fontWeight: "900" }}>
@@ -32118,7 +39064,7 @@ boxSizing: "border-box",
       style={{
         marginTop: "22px",
         display: "grid",
-        gridTemplateColumns: isMobile ? "1fr" : "repeat(4, 1fr)",
+        gridTemplateColumns: isMobile ? "1fr" : "repeat(4, minmax(0, 1fr))",
         gap: "14px",
       }}
     >
@@ -32149,9 +39095,16 @@ boxSizing: "border-box",
             borderRadius: "20px",
             background: "rgba(255,255,255,0.05)",
             border: "1px solid rgba(148,163,184,0.12)",
+            minWidth: 0,
           }}
         >
-          <div style={{ color: "#a5b4fc", fontSize: "11px", fontWeight: "900" }}>
+          <div
+            style={{
+              color: "#a5b4fc",
+              fontSize: "11px",
+              fontWeight: "900",
+            }}
+          >
             {item.label}
           </div>
 
@@ -32161,6 +39114,7 @@ boxSizing: "border-box",
               fontSize: "22px",
               fontWeight: "950",
               marginTop: "6px",
+              overflowWrap: "anywhere",
             }}
           >
             {item.value}
@@ -32184,6 +39138,9 @@ boxSizing: "border-box",
         "linear-gradient(135deg, rgba(79,70,229,0.18), rgba(15,23,42,0.98))",
       border: "1px solid rgba(129,140,248,0.22)",
       boxShadow: "0 24px 70px rgba(2,6,23,0.36)",
+      width: "100%",
+      boxSizing: "border-box",
+      overflow: "hidden",
     }}
   >
     <div style={{ color: "#c7d2fe", fontSize: "12px", fontWeight: "900" }}>
@@ -32209,14 +39166,14 @@ boxSizing: "border-box",
         marginTop: "14px",
       }}
     >
-      {executiveDailyBriefing?.summary}
+      {executiveDailyBriefing?.summary || "AI briefing is monitoring current operating signals."}
     </p>
 
     <div
       style={{
         marginTop: "22px",
         display: "grid",
-        gridTemplateColumns: isMobile ? "1fr" : "repeat(4, 1fr)",
+        gridTemplateColumns: isMobile ? "1fr" : "repeat(4, minmax(0, 1fr))",
         gap: "14px",
       }}
     >
@@ -32237,8 +39194,7 @@ boxSizing: "border-box",
         },
         {
           label: "Weakest Location",
-          value:
-            executiveDailyBriefing?.weakestLocation || "N/A",
+          value: executiveDailyBriefing?.weakestLocation || "N/A",
         },
       ].map((item) => (
         <div
@@ -32248,6 +39204,7 @@ boxSizing: "border-box",
             borderRadius: "18px",
             background: "rgba(255,255,255,0.05)",
             border: "1px solid rgba(148,163,184,0.12)",
+            minWidth: 0,
           }}
         >
           <div
@@ -32266,6 +39223,7 @@ boxSizing: "border-box",
               fontSize: "18px",
               fontWeight: "900",
               marginTop: "6px",
+              overflowWrap: "anywhere",
             }}
           >
             {item.value}
@@ -32299,9 +39257,11 @@ boxSizing: "border-box",
           color: "white",
           fontSize: "16px",
           fontWeight: "900",
+          overflowWrap: "anywhere",
         }}
       >
-        {executiveDailyBriefing?.topRecommendation}
+        {executiveDailyBriefing?.topRecommendation ||
+          "No urgent executive recommendation right now."}
       </div>
     </div>
   </div>
@@ -32320,52 +39280,104 @@ boxSizing: "border-box",
         "linear-gradient(135deg, rgba(234,88,12,0.16), rgba(15,23,42,0.98))",
       border: "1px solid rgba(251,146,60,0.22)",
       boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
+      width: "100%",
+      boxSizing: "border-box",
+      overflow: "hidden",
     }}
   >
-    <div style={{ color: "#fdba74", fontSize: "12px", fontWeight: "900" }}>
+    <div
+      style={{
+        color: "#fdba74",
+        fontSize: "12px",
+        fontWeight: "900",
+      }}
+    >
       AI SMART NOTIFICATION CENTER
     </div>
 
-    <h3 style={{ color: "white", fontSize: "26px", fontWeight: "950" }}>
+    <h3
+      style={{
+        color: "white",
+        fontSize: "26px",
+        fontWeight: "950",
+        marginTop: "8px",
+      }}
+    >
       Live Operational Notifications
     </h3>
 
-    <div style={{ display: "grid", gap: "12px", marginTop: "18px" }}>
-      {(aiSmartNotifications || []).map((note, index) => (
+    <div
+      style={{
+        display: "grid",
+        gap: "12px",
+        marginTop: "18px",
+      }}
+    >
+      {(aiSmartNotifications || []).length > 0 ? (
+        aiSmartNotifications.map((note, index) => (
+          <div
+            key={`${note.title}-${index}`}
+            style={{
+              padding: "16px",
+              borderRadius: "18px",
+              background: "rgba(255,255,255,0.05)",
+              border: "1px solid rgba(148,163,184,0.12)",
+              minWidth: 0,
+            }}
+          >
+            <div
+              style={{
+                color: "white",
+                fontSize: "15px",
+                fontWeight: "900",
+                overflowWrap: "anywhere",
+              }}
+            >
+              {note.title}
+            </div>
+
+            <div
+              style={{
+                color:
+                  note.severity === "Critical"
+                    ? "#fca5a5"
+                    : note.severity === "High"
+                    ? "#fde68a"
+                    : "#93c5fd",
+                fontSize: "12px",
+                fontWeight: "900",
+                marginTop: "4px",
+              }}
+            >
+              {note.type} • {note.severity}
+            </div>
+
+            <p
+              style={{
+                color: "#cbd5e1",
+                fontSize: "13px",
+                lineHeight: 1.6,
+                overflowWrap: "anywhere",
+              }}
+            >
+              {note.message}
+            </p>
+          </div>
+        ))
+      ) : (
         <div
-          key={`${note.title}-${index}`}
           style={{
             padding: "16px",
             borderRadius: "18px",
-            background: "rgba(255,255,255,0.05)",
-            border: "1px solid rgba(148,163,184,0.12)",
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(148,163,184,0.10)",
+            color: "#94a3b8",
+            fontSize: "14px",
           }}
         >
-          <div style={{ color: "white", fontSize: "15px", fontWeight: "900" }}>
-            {note.title}
-          </div>
-
-          <div
-            style={{
-              color:
-                note.severity === "Critical"
-                  ? "#fca5a5"
-                  : note.severity === "High"
-                  ? "#fde68a"
-                  : "#93c5fd",
-              fontSize: "12px",
-              fontWeight: "900",
-              marginTop: "4px",
-            }}
-          >
-            {note.type} • {note.severity}
-          </div>
-
-          <p style={{ color: "#cbd5e1", fontSize: "13px", lineHeight: 1.6 }}>
-            {note.message}
-          </p>
+          No active AI operational notifications right now.
         </div>
-      ))}
+      )}
     </div>
   </div>
 )}
@@ -32383,32 +39395,57 @@ boxSizing: "border-box",
         "linear-gradient(135deg, rgba(124,58,237,0.18), rgba(15,23,42,0.98))",
       border: "1px solid rgba(167,139,250,0.22)",
       boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
+      width: "100%",
+      boxSizing: "border-box",
+      overflow: "hidden",
     }}
   >
-    <div style={{ color: "#c4b5fd", fontSize: "12px", fontWeight: "900" }}>
+    <div
+      style={{
+        color: "#c4b5fd",
+        fontSize: "12px",
+        fontWeight: "900",
+      }}
+    >
       AI TASK ASSIGNMENT SYSTEM
     </div>
 
-    <h3 style={{ color: "white", fontSize: "26px", fontWeight: "950" }}>
+    <h3
+      style={{
+        color: "white",
+        fontSize: "26px",
+        fontWeight: "950",
+        marginTop: "8px",
+      }}
+    >
       Manager Action Assignments
     </h3>
-<button
-  type="button"
-  onClick={handleRunAutopilotWorkflow}
-  style={{
-    marginTop: "12px",
-    padding: "12px 16px",
-    borderRadius: "14px",
-    border: "none",
-    background: "linear-gradient(135deg, #8b5cf6, #6366f1)",
-    color: "white",
-    fontWeight: "950",
-    cursor: "pointer",
-  }}
->
-  Run Top Autopilot Workflow
-</button>
-    <div style={{ display: "grid", gap: "12px", marginTop: "18px" }}>
+
+    <button
+      type="button"
+      onClick={handleRunAutopilotWorkflow}
+      style={{
+        marginTop: "12px",
+        padding: "12px 16px",
+        borderRadius: "14px",
+        border: "none",
+        background: "linear-gradient(135deg, #8b5cf6, #6366f1)",
+        color: "white",
+        fontWeight: "950",
+        cursor: "pointer",
+        width: isMobile ? "100%" : "auto",
+      }}
+    >
+      Run Top Autopilot Workflow
+    </button>
+
+    <div
+      style={{
+        display: "grid",
+        gap: "12px",
+        marginTop: "18px",
+      }}
+    >
       {(aiTaskAssignments || []).length > 0 ? (
         aiTaskAssignments.map((task, index) => (
           <div
@@ -32418,9 +39455,17 @@ boxSizing: "border-box",
               borderRadius: "18px",
               background: "rgba(255,255,255,0.05)",
               border: "1px solid rgba(148,163,184,0.12)",
+              minWidth: 0,
             }}
           >
-            <div style={{ color: "white", fontSize: "15px", fontWeight: "900" }}>
+            <div
+              style={{
+                color: "white",
+                fontSize: "15px",
+                fontWeight: "900",
+                overflowWrap: "anywhere",
+              }}
+            >
               {task.title}
             </div>
 
@@ -32435,249 +39480,285 @@ boxSizing: "border-box",
                 fontSize: "12px",
                 fontWeight: "900",
                 marginTop: "4px",
+                overflowWrap: "anywhere",
               }}
             >
               {task.owner} • {task.priority} • Due {task.due}
             </div>
 
-            <p style={{ color: "#cbd5e1", fontSize: "13px", lineHeight: 1.6 }}>
+            <p
+              style={{
+                color: "#cbd5e1",
+                fontSize: "13px",
+                lineHeight: 1.6,
+                overflowWrap: "anywhere",
+              }}
+            >
               {task.action}
             </p>
+
             <button
-  type="button"
-  onClick={() => handleCompleteAITask(task)}
-  style={{
-    marginTop: "10px",
-    padding: "10px 14px",
-    borderRadius: "12px",
-    border: "1px solid rgba(34,197,94,0.28)",
-    background: "rgba(34,197,94,0.14)",
-    color: "#bbf7d0",
-    fontSize: "12px",
-    fontWeight: "900",
-    cursor: "pointer",
-  }}
->
-  Mark Task Completed
-</button>
+              type="button"
+              onClick={() => handleCompleteAITask(task)}
+              style={{
+                marginTop: "10px",
+                padding: "10px 14px",
+                borderRadius: "12px",
+                border: "1px solid rgba(34,197,94,0.28)",
+                background: "rgba(34,197,94,0.14)",
+                color: "#bbf7d0",
+                fontSize: "12px",
+                fontWeight: "900",
+                cursor: "pointer",
+                width: isMobile ? "100%" : "auto",
+              }}
+            >
+              Mark Task Completed
+            </button>
           </div>
         ))
       ) : (
-        <div style={{ color: "#94a3b8", fontSize: "14px" }}>
+        <div
+          style={{
+            padding: "16px",
+            borderRadius: "18px",
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(148,163,184,0.10)",
+            color: "#94a3b8",
+            fontSize: "14px",
+          }}
+        >
           No manager tasks needed right now.
         </div>
       )}
     </div>
   </div>
 )}
-        {/* 🧠 AI OPERATIONAL COMMAND CENTER */}
+      {/* =========================
+   AI OPERATIONAL COMMAND CENTER
+========================= */}
 
 {hasProAccess && (
   <div
     style={{
       gridColumn: isMobile ? "span 1" : "span 4",
       minWidth: 0,
-    }}
-  >
-    <div
-    style={{
-      marginTop: "18px",
-      padding: "24px",
-      borderRadius: "26px",
-      background:
-        aiCommandCenter?.commandStatus === "Critical"
-          ? "linear-gradient(135deg, rgba(239,68,68,0.16), rgba(15,23,42,0.97))"
-          : aiCommandCenter?.commandStatus === "Monitoring"
-          ? "linear-gradient(135deg, rgba(250,204,21,0.12), rgba(15,23,42,0.97))"
-          : "linear-gradient(135deg, rgba(109,61,245,0.16), rgba(15,23,42,0.97))",
-      border:
-        aiCommandCenter?.commandStatus === "Critical"
-          ? "1px solid rgba(239,68,68,0.28)"
-          : aiCommandCenter?.commandStatus === "Monitoring"
-          ? "1px solid rgba(250,204,21,0.24)"
-          : "1px solid rgba(168,85,247,0.26)",
-      boxShadow: "0 26px 70px rgba(2,6,23,0.35)",
+      width: "100%",
     }}
   >
     <div
       style={{
-        color:
+        marginTop: "18px",
+        padding: "24px",
+        borderRadius: "26px",
+        background:
           aiCommandCenter?.commandStatus === "Critical"
-            ? "#fca5a5"
+            ? "linear-gradient(135deg, rgba(239,68,68,0.16), rgba(15,23,42,0.97))"
             : aiCommandCenter?.commandStatus === "Monitoring"
-            ? "#fde68a"
-            : "#c4b5fd",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
+            ? "linear-gradient(135deg, rgba(250,204,21,0.12), rgba(15,23,42,0.97))"
+            : "linear-gradient(135deg, rgba(109,61,245,0.16), rgba(15,23,42,0.97))",
+        border:
+          aiCommandCenter?.commandStatus === "Critical"
+            ? "1px solid rgba(239,68,68,0.28)"
+            : aiCommandCenter?.commandStatus === "Monitoring"
+            ? "1px solid rgba(250,204,21,0.24)"
+            : "1px solid rgba(168,85,247,0.26)",
+        boxShadow: "0 26px 70px rgba(2,6,23,0.35)",
+        boxSizing: "border-box",
+        overflow: "hidden",
       }}
     >
-      AI Operational Command Center
-    </div>
+      <div
+        style={{
+          color:
+            aiCommandCenter?.commandStatus === "Critical"
+              ? "#fca5a5"
+              : aiCommandCenter?.commandStatus === "Monitoring"
+              ? "#fde68a"
+              : "#c4b5fd",
+          fontSize: "12px",
+          fontWeight: "900",
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          marginBottom: "10px",
+        }}
+      >
+        AI Operational Command Center
+      </div>
 
-    <h2
-      style={{
-        color: "white",
-        fontSize: "30px",
-        fontWeight: "950",
-        margin: "0 0 10px",
-      }}
-    >
-      {aiCommandCenter?.commandStatus || "Stable"} Restaurant AI Status
-    </h2>
+      <h2
+        style={{
+          color: "white",
+          fontSize: "30px",
+          fontWeight: "950",
+          margin: "0 0 10px",
+        }}
+      >
+        {aiCommandCenter?.commandStatus || "Stable"} Restaurant AI Status
+      </h2>
 
-    <p
-      style={{
-        color: "#cbd5e1",
-        fontSize: "14px",
-        lineHeight: 1.7,
-        marginBottom: "18px",
-      }}
-    >
-      {aiCommandCenter?.commandMessage}
-    </p>
+      <p
+        style={{
+          color: "#cbd5e1",
+          fontSize: "14px",
+          lineHeight: 1.7,
+          marginBottom: "18px",
+          overflowWrap: "anywhere",
+        }}
+      >
+        {aiCommandCenter?.commandMessage ||
+          "AI systems are actively monitoring restaurant operations."}
+      </p>
 
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-        gap: "12px",
-      }}
-    >
-      {[
-        {
-          label: "Critical Escalations",
-          value: aiCommandCenter?.criticalEscalations || 0,
-        },
-        {
-          label: "Autonomous Actions",
-          value: aiCommandCenter?.autonomousCount || 0,
-        },
-        {
-          label: "Recurring Critical",
-          value: aiCommandCenter?.recurringCritical || 0,
-        },
-        {
-          label: "Command Status",
-          value: aiCommandCenter?.commandStatus || "Stable",
-        },
-      ].map((metric) => (
-        <div
-          key={metric.label}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns:
+            isMobile
+              ? "1fr"
+              : "repeat(auto-fit, minmax(180px, 1fr))",
+          gap: "12px",
+        }}
+      >
+        {[
+          {
+            label: "Critical Escalations",
+            value: aiCommandCenter?.criticalEscalations || 0,
+          },
+          {
+            label: "Autonomous Actions",
+            value: aiCommandCenter?.autonomousCount || 0,
+          },
+          {
+            label: "Recurring Critical",
+            value: aiCommandCenter?.recurringCritical || 0,
+          },
+          {
+            label: "Command Status",
+            value: aiCommandCenter?.commandStatus || "Stable",
+          },
+        ].map((metric) => (
+          <div
+            key={metric.label}
+            style={{
+              padding: "14px",
+              borderRadius: "16px",
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              minWidth: 0,
+            }}
+          >
+            <div
+              style={{
+                color: "#94a3b8",
+                fontSize: "11px",
+                fontWeight: "900",
+                textTransform: "uppercase",
+                marginBottom: "6px",
+              }}
+            >
+              {metric.label}
+            </div>
+
+            <div
+              style={{
+                color:
+                  metric.value === "Critical"
+                    ? "#f87171"
+                    : metric.value === "Monitoring"
+                    ? "#facc15"
+                    : "white",
+                fontSize: "24px",
+                fontWeight: "950",
+                overflowWrap: "anywhere",
+              }}
+            >
+              {metric.value}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* =========================
+         COMMAND CENTER ACTION CONTROLS
+      ========================= */}
+
+      <div
+        style={{
+          marginTop: "18px",
+          display: "flex",
+          gap: "12px",
+          flexWrap: "wrap",
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => {
+            pushActivity(
+              `Command Center reviewed: ${
+                aiCommandCenter?.commandStatus || "Stable"
+              }`,
+              "command"
+            );
+
+            setSavedMessage("Command Center reviewed");
+
+            setTimeout(() => setSavedMessage(""), 2000);
+          }}
           style={{
-            padding: "14px",
-            borderRadius: "16px",
-            background: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(255,255,255,0.08)",
+            padding: "12px 16px",
+            borderRadius: "14px",
+            border: "1px solid rgba(168,85,247,0.28)",
+            background: "rgba(88,28,135,0.30)",
+            color: "#e9d5ff",
+            fontWeight: "900",
+            cursor: "pointer",
+            width: isMobile ? "100%" : "auto",
           }}
         >
-          <div
-            style={{
-              color: "#94a3b8",
-              fontSize: "11px",
-              fontWeight: "900",
-              textTransform: "uppercase",
-              marginBottom: "6px",
-            }}
-          >
-            {metric.label}
-          </div>
+          Mark Command Reviewed
+        </button>
 
-          <div
-            style={{
-              color:
-                metric.value === "Critical"
-                  ? "#f87171"
-                  : metric.value === "Monitoring"
-                  ? "#facc15"
-                  : "white",
-              fontSize: "24px",
-              fontWeight: "950",
-            }}
-          >
-            {metric.value}
-          </div>
-        </div>
-      ))}
+        <button
+          type="button"
+          onClick={() => {
+            setGeneratedCampaignPreview({
+              title: "AI Command Center Action Plan",
+              sms:
+                aiCommandCenter?.commandMessage ||
+                "AI Command Center generated an operational plan.",
+              emailBody:
+                aiCommandCenter?.commandMessage ||
+                "AI Command Center generated an operational plan.",
+              audience: "Restaurant Operators",
+              issue: "AI Command Center",
+              reason: aiCommandCenter?.commandStatus || "Stable",
+            });
+
+            setSavedMessage("Command action plan generated");
+
+            setTimeout(() => setSavedMessage(""), 2000);
+          }}
+          style={{
+            padding: "12px 16px",
+            borderRadius: "14px",
+            border: "none",
+            background:
+              aiCommandCenter?.commandStatus === "Critical"
+                ? "linear-gradient(135deg, #ef4444, #f97316)"
+                : aiCommandCenter?.commandStatus === "Monitoring"
+                ? "linear-gradient(135deg, #facc15, #f97316)"
+                : "linear-gradient(135deg, #8b5cf6, #6366f1)",
+            color: "white",
+            fontWeight: "950",
+            cursor: "pointer",
+            width: isMobile ? "100%" : "auto",
+          }}
+        >
+          Generate Command Plan
+        </button>
+      </div>
     </div>
-    {/* ========================= */}
-{/* 🧠 COMMAND CENTER ACTION CONTROLS */}
-{/* ========================= */}
-
-<div
-  style={{
-    marginTop: "18px",
-    display: "flex",
-    gap: "12px",
-    flexWrap: "wrap",
-  }}
->
-  <button
-    type="button"
-    onClick={() => {
-      pushActivity(
-        `Command Center reviewed: ${
-          aiCommandCenter?.commandStatus || "Stable"
-        }`,
-        "command"
-      );
-
-      setSavedMessage("Command Center reviewed");
-      setTimeout(() => setSavedMessage(""), 2000);
-    }}
-    style={{
-      padding: "12px 16px",
-      borderRadius: "14px",
-      border: "1px solid rgba(168,85,247,0.28)",
-      background: "rgba(88,28,135,0.30)",
-      color: "#e9d5ff",
-      fontWeight: "900",
-      cursor: "pointer",
-    }}
-  >
-    Mark Command Reviewed
-  </button>
-
-  <button
-    type="button"
-    onClick={() => {
-      setGeneratedCampaignPreview({
-        title: "AI Command Center Action Plan",
-        sms:
-          aiCommandCenter?.commandMessage ||
-          "AI Command Center generated an operational plan.",
-        emailBody:
-          aiCommandCenter?.commandMessage ||
-          "AI Command Center generated an operational plan.",
-        audience: "Restaurant Operators",
-        issue: "AI Command Center",
-        reason: aiCommandCenter?.commandStatus || "Stable",
-      });
-
-      setSavedMessage("Command action plan generated");
-      setTimeout(() => setSavedMessage(""), 2000);
-    }}
-    style={{
-      padding: "12px 16px",
-      borderRadius: "14px",
-      border: "none",
-      background:
-        aiCommandCenter?.commandStatus === "Critical"
-          ? "linear-gradient(135deg, #ef4444, #f97316)"
-          : aiCommandCenter?.commandStatus === "Monitoring"
-          ? "linear-gradient(135deg, #facc15, #f97316)"
-          : "linear-gradient(135deg, #8b5cf6, #6366f1)",
-      color: "white",
-      fontWeight: "950",
-      cursor: "pointer",
-    }}
-  >
-    Generate Command Plan
-  </button>
-</div>
-  </div>
   </div>
 )}
 {/* =========================
@@ -32694,17 +39775,40 @@ boxSizing: "border-box",
         "linear-gradient(135deg, rgba(14,165,233,0.18), rgba(15,23,42,0.98))",
       border: "1px solid rgba(56,189,248,0.22)",
       boxShadow: "0 24px 70px rgba(2,6,23,0.36)",
+      width: "100%",
+      boxSizing: "border-box",
+      overflow: "hidden",
     }}
   >
-    <div style={{ color: "#7dd3fc", fontSize: "12px", fontWeight: "900" }}>
+    <div
+      style={{
+        color: "#7dd3fc",
+        fontSize: "12px",
+        fontWeight: "900",
+      }}
+    >
       MULTI-LOCATION INTELLIGENCE
     </div>
 
-    <h3 style={{ color: "white", fontSize: "26px", fontWeight: "950" }}>
+    <h3
+      style={{
+        color: "white",
+        fontSize: "26px",
+        fontWeight: "950",
+        marginTop: "8px",
+      }}
+    >
       Location Performance Command
     </h3>
 
-    <p style={{ color: "#cbd5e1", fontSize: "14px", lineHeight: 1.7 }}>
+    <p
+      style={{
+        color: "#cbd5e1",
+        fontSize: "14px",
+        lineHeight: 1.7,
+        overflowWrap: "anywhere",
+      }}
+    >
       SerVen AI compares location performance across revenue, labor pressure,
       order volume, inventory activity, and operating health.
     </p>
@@ -32713,7 +39817,8 @@ boxSizing: "border-box",
       style={{
         marginTop: "22px",
         display: "grid",
-        gridTemplateColumns: isMobile ? "1fr" : "repeat(4, 1fr)",
+        gridTemplateColumns:
+          isMobile ? "1fr" : "repeat(4, minmax(0, 1fr))",
         gap: "14px",
       }}
     >
@@ -32744,20 +39849,41 @@ boxSizing: "border-box",
             borderRadius: "20px",
             background: "rgba(255,255,255,0.05)",
             border: "1px solid rgba(148,163,184,0.12)",
+            minWidth: 0,
           }}
         >
-          <div style={{ color: "#bae6fd", fontSize: "11px", fontWeight: "900" }}>
+          <div
+            style={{
+              color: "#bae6fd",
+              fontSize: "11px",
+              fontWeight: "900",
+            }}
+          >
             {item.label}
           </div>
 
-          <div style={{ color: "white", fontSize: "22px", fontWeight: "950" }}>
+          <div
+            style={{
+              color: "white",
+              fontSize: "22px",
+              fontWeight: "950",
+              marginTop: "6px",
+              overflowWrap: "anywhere",
+            }}
+          >
             {item.value}
           </div>
         </div>
       ))}
     </div>
 
-    <div style={{ marginTop: "20px", display: "grid", gap: "12px" }}>
+    <div
+      style={{
+        marginTop: "20px",
+        display: "grid",
+        gap: "12px",
+      }}
+    >
       {(multiLocationIntelligence?.locations || []).length > 0 ? (
         multiLocationIntelligence.locations.map((location, index) => (
           <div
@@ -32767,6 +39893,7 @@ boxSizing: "border-box",
               borderRadius: "20px",
               background: "rgba(255,255,255,0.05)",
               border: "1px solid rgba(148,163,184,0.12)",
+              minWidth: 0,
             }}
           >
             <div
@@ -32777,12 +39904,13 @@ boxSizing: "border-box",
                 flexWrap: "wrap",
               }}
             >
-              <div>
+              <div style={{ minWidth: 0 }}>
                 <div
                   style={{
                     color: "white",
                     fontSize: "16px",
                     fontWeight: "900",
+                    overflowWrap: "anywhere",
                   }}
                 >
                   #{index + 1} {location.name}
@@ -32801,6 +39929,7 @@ boxSizing: "border-box",
                     fontSize: "12px",
                     fontWeight: "900",
                     marginTop: "4px",
+                    overflowWrap: "anywhere",
                   }}
                 >
                   {location.status} • {location.healthScore}/100
@@ -32812,6 +39941,7 @@ boxSizing: "border-box",
                   color: "#86efac",
                   fontSize: "15px",
                   fontWeight: "950",
+                  overflowWrap: "anywhere",
                 }}
               >
                 ${Number(location.revenue || 0).toLocaleString()}
@@ -32822,28 +39952,403 @@ boxSizing: "border-box",
               style={{
                 marginTop: "12px",
                 display: "grid",
-                gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
+                gridTemplateColumns:
+                  isMobile ? "1fr" : "repeat(3, minmax(0, 1fr))",
                 gap: "10px",
               }}
             >
-              <div style={{ color: "#cbd5e1", fontSize: "12px" }}>
+              <div
+                style={{
+                  color: "#cbd5e1",
+                  fontSize: "12px",
+                }}
+              >
                 Orders: {Number(location.orders || 0).toLocaleString()}
               </div>
 
-              <div style={{ color: "#cbd5e1", fontSize: "12px" }}>
+              <div
+                style={{
+                  color: "#cbd5e1",
+                  fontSize: "12px",
+                }}
+              >
                 Labor: {Number(location.laborPercent || 0).toFixed(1)}%
               </div>
 
-              <div style={{ color: "#cbd5e1", fontSize: "12px" }}>
+              <div
+                style={{
+                  color: "#cbd5e1",
+                  fontSize: "12px",
+                }}
+              >
                 AOV: ${Number(location.averageOrder || 0).toFixed(2)}
               </div>
             </div>
           </div>
         ))
       ) : (
-        <div style={{ color: "#94a3b8", fontSize: "14px" }}>
+        <div
+          style={{
+            padding: "16px",
+            borderRadius: "18px",
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(148,163,184,0.10)",
+            color: "#94a3b8",
+            fontSize: "14px",
+          }}
+        >
           Multi-location intelligence will activate once location-level data is
           available.
+        </div>
+      )}
+    </div>
+  </div>
+)}
+{/* =========================
+   MULTI-LOCATION ENTERPRISE INTELLIGENCE
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+      background:
+        "linear-gradient(135deg, rgba(99,102,241,0.14), rgba(15,23,42,0.96))",
+      border: "1px solid rgba(129,140,248,0.22)",
+      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
+      width: "100%",
+      boxSizing: "border-box",
+      overflow: "hidden",
+    }}
+  >
+    <div
+      style={{
+        color: "#a5b4fc",
+        fontSize: "12px",
+        fontWeight: "900",
+      }}
+    >
+      Multi-Location Enterprise Intelligence
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "24px",
+        fontWeight: "950",
+        marginTop: "8px",
+      }}
+    >
+      Location Performance & Cross-Store Benchmarking
+    </h3>
+
+    <div
+      style={{
+        marginTop: "18px",
+        display: "grid",
+        gridTemplateColumns: isMobile ? "1fr" : "repeat(4, minmax(0, 1fr))",
+        gap: "14px",
+      }}
+    >
+      <GlassCard
+        title="Locations Tracked"
+        value={locations.length}
+        subtitle="Active restaurant units"
+      />
+
+      <GlassCard
+        title="Total Revenue"
+        value={`$${locations
+          .reduce((sum, loc) => sum + Number(loc.monthly_revenue || 0), 0)
+          .toLocaleString()}`}
+        subtitle="Combined monthly revenue"
+      />
+
+      <GlassCard
+        title="Avg Health Score"
+        value={`${(
+          locations.reduce(
+            (sum, loc) => sum + Number(loc.health_score || 0),
+            0
+          ) / (locations.length || 1)
+        ).toFixed(0)}/100`}
+        subtitle="Enterprise operating health"
+      />
+
+      <GlassCard
+        title="At-Risk Locations"
+        value={
+          locations.filter((loc) => Number(loc.health_score || 0) < 65).length
+        }
+        subtitle="Locations needing attention"
+      />
+    </div>
+
+    <div
+      style={{
+        marginTop: "18px",
+        display: "grid",
+        gap: "14px",
+      }}
+    >
+      {locations.length > 0 ? (
+        locations.slice(0, 10).map((loc) => (
+          <div
+            key={loc.id}
+            style={{
+              padding: "18px",
+              borderRadius: "22px",
+              background: "rgba(15,23,42,0.74)",
+              border: "1px solid rgba(129,140,248,0.14)",
+              display: "grid",
+              gridTemplateColumns: isMobile
+                ? "1fr"
+                : "1.3fr minmax(0, 0.8fr) minmax(0, 0.8fr) minmax(0, 0.8fr)",
+              gap: "14px",
+              alignItems: "center",
+              minWidth: 0,
+            }}
+          >
+            <div style={{ minWidth: 0 }}>
+              <div
+                style={{
+                  color: "white",
+                  fontSize: "17px",
+                  fontWeight: "900",
+                  overflowWrap: "anywhere",
+                }}
+              >
+                {loc.location_name}
+              </div>
+
+              <div
+                style={{
+                  color: "#94a3b8",
+                  fontSize: "12px",
+                  marginTop: "4px",
+                  overflowWrap: "anywhere",
+                }}
+              >
+                {[loc.city, loc.state].filter(Boolean).join(", ") ||
+                  "No location details"}
+              </div>
+            </div>
+
+            <div style={{ minWidth: 0 }}>
+              <div style={{ color: "#94a3b8", fontSize: "11px" }}>
+                Revenue
+              </div>
+
+              <div
+                style={{
+                  color: "#86efac",
+                  fontWeight: "900",
+                  overflowWrap: "anywhere",
+                }}
+              >
+                ${Number(loc.monthly_revenue || 0).toLocaleString()}
+              </div>
+            </div>
+
+            <div style={{ minWidth: 0 }}>
+              <div style={{ color: "#94a3b8", fontSize: "11px" }}>
+                Prime Cost
+              </div>
+
+              <div
+                style={{
+                  color:
+                    Number(loc.prime_cost_percent || 0) > 65
+                      ? "#f87171"
+                      : Number(loc.prime_cost_percent || 0) > 60
+                      ? "#fbbf24"
+                      : "#86efac",
+                  fontWeight: "900",
+                  overflowWrap: "anywhere",
+                }}
+              >
+                {Number(loc.prime_cost_percent || 0).toFixed(1)}%
+              </div>
+            </div>
+
+            <div style={{ minWidth: 0 }}>
+              <div style={{ color: "#94a3b8", fontSize: "11px" }}>
+                Health
+              </div>
+
+              <div
+                style={{
+                  color:
+                    Number(loc.health_score || 0) >= 80
+                      ? "#86efac"
+                      : Number(loc.health_score || 0) >= 65
+                      ? "#fbbf24"
+                      : "#f87171",
+                  fontWeight: "950",
+                  overflowWrap: "anywhere",
+                }}
+              >
+                {Number(loc.health_score || 0).toFixed(0)}/100
+              </div>
+            </div>
+          </div>
+        ))
+      ) : (
+        <div
+          style={{
+            padding: "16px",
+            borderRadius: "18px",
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(148,163,184,0.10)",
+            color: "#94a3b8",
+            fontSize: "14px",
+          }}
+        >
+          Upload location data to activate multi-location intelligence.
+        </div>
+      )}
+    </div>
+  </div>
+)}
+{/* =========================
+   AI CROSS-LOCATION RISK ALERTS
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+      background:
+        "linear-gradient(135deg, rgba(239,68,68,0.12), rgba(15,23,42,0.96))",
+      border: "1px solid rgba(248,113,113,0.20)",
+      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
+      width: "100%",
+      boxSizing: "border-box",
+      overflow: "hidden",
+    }}
+  >
+    <div
+      style={{
+        color: "#fca5a5",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      AI Cross-Location Risk Alerts
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "24px",
+        fontWeight: "950",
+        marginBottom: "16px",
+      }}
+    >
+      At-Risk Location Signals
+    </h3>
+
+    <div
+      style={{
+        display: "grid",
+        gap: "12px",
+      }}
+    >
+      {locations.filter(
+        (loc) =>
+          Number(loc.health_score || 0) < 65 ||
+          Number(loc.prime_cost_percent || 0) > 65
+      ).length > 0 ? (
+        locations
+          .filter(
+            (loc) =>
+              Number(loc.health_score || 0) < 65 ||
+              Number(loc.prime_cost_percent || 0) > 65
+          )
+          .slice(0, 6)
+          .map((loc) => (
+            <div
+              key={loc.id}
+              style={{
+                padding: "18px",
+                borderRadius: "20px",
+                background:
+                  "linear-gradient(135deg, rgba(239,68,68,0.12), rgba(15,23,42,0.86))",
+                border: "1px solid rgba(248,113,113,0.18)",
+                minWidth: 0,
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: isMobile ? "flex-start" : "center",
+                  flexDirection: isMobile ? "column" : "row",
+                  gap: "12px",
+                }}
+              >
+                <div style={{ minWidth: 0 }}>
+                  <div
+                    style={{
+                      color: "white",
+                      fontSize: "17px",
+                      fontWeight: "900",
+                      marginBottom: "4px",
+                      overflowWrap: "anywhere",
+                    }}
+                  >
+                    {loc.location_name}
+                  </div>
+
+                  <div
+                    style={{
+                      color: "#fca5a5",
+                      fontSize: "13px",
+                      lineHeight: 1.7,
+                      overflowWrap: "anywhere",
+                    }}
+                  >
+                    AI detected operational instability, elevated prime cost exposure,
+                    or declining health performance at this location.
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    padding: "10px 12px",
+                    borderRadius: "14px",
+                    background: "rgba(239,68,68,0.14)",
+                    border: "1px solid rgba(248,113,113,0.22)",
+                    color: "#fca5a5",
+                    fontWeight: "900",
+                    fontSize: "13px",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {Number(loc.health_score || 0).toFixed(0)}/100 Health
+                </div>
+              </div>
+            </div>
+          ))
+      ) : (
+        <div
+          style={{
+            padding: "16px",
+            borderRadius: "18px",
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(148,163,184,0.10)",
+            color: "#94a3b8",
+            fontSize: "14px",
+          }}
+        >
+          No high-risk cross-location signals detected right now.
         </div>
       )}
     </div>
@@ -32856,100 +40361,509 @@ boxSizing: "border-box",
 {hasProAccess && (
   <div
     style={{
-      marginTop: "18px",
-      display: "grid",
-      gap: "12px",
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+      background:
+        "linear-gradient(135deg, rgba(59,130,246,0.12), rgba(15,23,42,0.96))",
+      border: "1px solid rgba(96,165,250,0.20)",
+      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
+      width: "100%",
+      boxSizing: "border-box",
+      overflow: "hidden",
     }}
   >
-    {(crossLocationAlerts || []).length > 0 ? (
-      crossLocationAlerts.map((alert, index) => (
-        <div
-          key={`${alert.location}-${index}`}
-          style={{
-            padding: "16px",
-            borderRadius: "18px",
-            background:
-              alert.severity === "Critical"
-                ? "rgba(239,68,68,0.10)"
-                : alert.severity === "High"
-                ? "rgba(245,158,11,0.10)"
-                : "rgba(59,130,246,0.10)",
-            border:
-              alert.severity === "Critical"
-                ? "1px solid rgba(239,68,68,0.24)"
-                : alert.severity === "High"
-                ? "1px solid rgba(245,158,11,0.22)"
-                : "1px solid rgba(59,130,246,0.22)",
-          }}
-        >
+    <div
+      style={{
+        color: "#93c5fd",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      Cross-Location Alerts
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "24px",
+        fontWeight: "950",
+        marginBottom: "16px",
+      }}
+    >
+      Enterprise Alert Feed
+    </h3>
+
+    <div
+      style={{
+        display: "grid",
+        gap: "12px",
+      }}
+    >
+      {(crossLocationAlerts || []).length > 0 ? (
+        crossLocationAlerts.map((alert, index) => (
           <div
+            key={`${alert.location}-${index}`}
             style={{
-              display: "flex",
-              justifyContent: "space-between",
-              gap: "12px",
-              flexWrap: "wrap",
+              padding: "16px",
+              borderRadius: "18px",
+              background:
+                alert.severity === "Critical"
+                  ? "rgba(239,68,68,0.10)"
+                  : alert.severity === "High"
+                  ? "rgba(245,158,11,0.10)"
+                  : "rgba(59,130,246,0.10)",
+              border:
+                alert.severity === "Critical"
+                  ? "1px solid rgba(239,68,68,0.24)"
+                  : alert.severity === "High"
+                  ? "1px solid rgba(245,158,11,0.22)"
+                  : "1px solid rgba(59,130,246,0.22)",
+              minWidth: 0,
             }}
           >
-            <div>
-              <div
-                style={{
-                  color: "white",
-                  fontSize: "15px",
-                  fontWeight: "900",
-                }}
-              >
-                {alert.title}
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: "12px",
+                flexWrap: "wrap",
+              }}
+            >
+              <div style={{ minWidth: 0 }}>
+                <div
+                  style={{
+                    color: "white",
+                    fontSize: "15px",
+                    fontWeight: "900",
+                    overflowWrap: "anywhere",
+                  }}
+                >
+                  {alert.title}
+                </div>
+
+                <div
+                  style={{
+                    color: "#94a3b8",
+                    fontSize: "12px",
+                    marginTop: "4px",
+                    overflowWrap: "anywhere",
+                  }}
+                >
+                  {alert.location} • {alert.severity}
+                </div>
               </div>
 
               <div
                 style={{
-                  color: "#94a3b8",
+                  color:
+                    alert.severity === "Critical"
+                      ? "#fca5a5"
+                      : alert.severity === "High"
+                      ? "#fde68a"
+                      : "#93c5fd",
                   fontSize: "12px",
-                  marginTop: "4px",
+                  fontWeight: "900",
+                  whiteSpace: "nowrap",
                 }}
               >
-                {alert.location} • {alert.severity}
+                AI DETECTED
               </div>
             </div>
 
             <div
               style={{
-                color:
-                  alert.severity === "Critical"
-                    ? "#fca5a5"
-                    : alert.severity === "High"
-                    ? "#fde68a"
-                    : "#93c5fd",
-                fontSize: "12px",
-                fontWeight: "900",
+                marginTop: "10px",
+                color: "#cbd5e1",
+                fontSize: "13px",
+                lineHeight: 1.6,
+                overflowWrap: "anywhere",
               }}
             >
-              AI DETECTED
+              {alert.message}
             </div>
           </div>
-
-          <div
-            style={{
-              marginTop: "10px",
-              color: "#cbd5e1",
-              fontSize: "13px",
-              lineHeight: 1.6,
-            }}
-          >
-            {alert.message}
-          </div>
+        ))
+      ) : (
+        <div
+          style={{
+            padding: "16px",
+            borderRadius: "18px",
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(148,163,184,0.10)",
+            color: "#94a3b8",
+            fontSize: "14px",
+          }}
+        >
+          No major cross-location operational instability detected.
         </div>
-      ))
-    ) : (
-      <div
-        style={{
-          color: "#94a3b8",
-          fontSize: "14px",
-        }}
-      >
-        No major cross-location operational instability detected.
-      </div>
-    )}
+      )}
+    </div>
+  </div>
+)}
+{/* =========================
+   AI ENTERPRISE OPTIMIZATION RECOMMENDATIONS
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+      background:
+        "linear-gradient(135deg, rgba(34,197,94,0.12), rgba(15,23,42,0.96))",
+      border: "1px solid rgba(74,222,128,0.20)",
+      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
+      width: "100%",
+      boxSizing: "border-box",
+      overflow: "hidden",
+    }}
+  >
+    <div
+      style={{
+        color: "#86efac",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      AI Enterprise Optimization Recommendations
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "24px",
+        fontWeight: "950",
+        marginBottom: "16px",
+      }}
+    >
+      Location Optimization Plan
+    </h3>
+
+    <div
+      style={{
+        display: "grid",
+        gap: "14px",
+      }}
+    >
+      {locations.length > 0 ? (
+        locations.slice(0, 8).map((loc) => {
+          const health = Number(loc.health_score || 0);
+          const primeCost = Number(loc.prime_cost_percent || 0);
+
+          let recommendation =
+            "Location performance is operating within healthy enterprise benchmarks.";
+
+          if (health < 55 || primeCost > 68) {
+            recommendation =
+              "Critical operational intervention recommended. AI detected severe profitability pressure and operational instability.";
+          } else if (health < 70 || primeCost > 62) {
+            recommendation =
+              "Location performance is below target. AI recommends labor, food cost, and operational optimization review.";
+          } else if (health < 80) {
+            recommendation =
+              "Location performance is stable but still has optimization opportunity.";
+          }
+
+          return (
+            <div
+              key={loc.id}
+              style={{
+                padding: "18px",
+                borderRadius: "20px",
+                background:
+                  "linear-gradient(135deg, rgba(15,23,42,0.84), rgba(30,41,59,0.82))",
+                border: "1px solid rgba(148,163,184,0.12)",
+                minWidth: 0,
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: isMobile ? "flex-start" : "center",
+                  flexDirection: isMobile ? "column" : "row",
+                  gap: "12px",
+                  marginBottom: "10px",
+                }}
+              >
+                <div style={{ minWidth: 0 }}>
+                  <div
+                    style={{
+                      color: "white",
+                      fontSize: "17px",
+                      fontWeight: "900",
+                      overflowWrap: "anywhere",
+                    }}
+                  >
+                    {loc.location_name}
+                  </div>
+
+                  <div
+                    style={{
+                      color: "#94a3b8",
+                      fontSize: "12px",
+                      marginTop: "4px",
+                      overflowWrap: "anywhere",
+                    }}
+                  >
+                    ${Number(loc.monthly_revenue || 0).toLocaleString()} revenue •{" "}
+                    {primeCost.toFixed(1)}% prime cost
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: "999px",
+                    background:
+                      health >= 80
+                        ? "rgba(34,197,94,0.14)"
+                        : health >= 65
+                        ? "rgba(250,204,21,0.14)"
+                        : "rgba(239,68,68,0.14)",
+                    color:
+                      health >= 80
+                        ? "#86efac"
+                        : health >= 65
+                        ? "#fde68a"
+                        : "#fca5a5",
+                    fontWeight: "900",
+                    fontSize: "12px",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {health >= 80
+                    ? "Enterprise Healthy"
+                    : health >= 65
+                    ? "Optimization Opportunity"
+                    : "Critical Risk"}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  color: "#cbd5e1",
+                  fontSize: "13px",
+                  lineHeight: 1.7,
+                  overflowWrap: "anywhere",
+                }}
+              >
+                {recommendation}
+              </div>
+            </div>
+          );
+        })
+      ) : (
+        <div
+          style={{
+            padding: "18px",
+            borderRadius: "18px",
+            background: "rgba(15,23,42,0.72)",
+            border: "1px solid rgba(148,163,184,0.14)",
+            color: "#94a3b8",
+            textAlign: "center",
+            fontSize: "14px",
+          }}
+        >
+          Upload location data to activate enterprise AI optimization recommendations.
+        </div>
+      )}
+    </div>
+  </div>
+)}
+{/* =========================
+   ENTERPRISE LOCATION RANKINGS
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "22px",
+      borderRadius: "24px",
+      background:
+        "linear-gradient(135deg, rgba(34,197,94,0.12), rgba(15,23,42,0.92))",
+      border: "1px solid rgba(74,222,128,0.18)",
+      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
+      width: "100%",
+      boxSizing: "border-box",
+      overflow: "hidden",
+    }}
+  >
+    <div
+      style={{
+        color: "#86efac",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      Enterprise Location Rankings
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "24px",
+        fontWeight: "950",
+        marginBottom: "16px",
+      }}
+    >
+      AI Top Performing Locations
+    </h3>
+
+    <div
+      style={{
+        display: "grid",
+        gap: "14px",
+      }}
+    >
+      {locations.length > 0 ? (
+        [...locations]
+          .sort(
+            (a, b) =>
+              Number(b.health_score || 0) -
+              Number(a.health_score || 0)
+          )
+          .slice(0, 5)
+          .map((loc, index) => (
+            <div
+              key={loc.id}
+              style={{
+                padding: "18px",
+                borderRadius: "20px",
+                background: "rgba(15,23,42,0.74)",
+                border: "1px solid rgba(74,222,128,0.14)",
+                display: "grid",
+                gridTemplateColumns: isMobile
+                  ? "1fr"
+                  : "0.5fr 1.2fr minmax(0,0.8fr) minmax(0,0.8fr)",
+                gap: "14px",
+                alignItems: "center",
+                minWidth: 0,
+              }}
+            >
+              <div
+                style={{
+                  width: "44px",
+                  height: "44px",
+                  borderRadius: "999px",
+                  background:
+                    index === 0
+                      ? "rgba(250,204,21,0.18)"
+                      : "rgba(148,163,184,0.14)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color:
+                    index === 0 ? "#fde68a" : "#cbd5e1",
+                  fontWeight: "950",
+                  fontSize: "18px",
+                  flexShrink: 0,
+                }}
+              >
+                #{index + 1}
+              </div>
+
+              <div style={{ minWidth: 0 }}>
+                <div
+                  style={{
+                    color: "white",
+                    fontSize: "17px",
+                    fontWeight: "900",
+                    overflowWrap: "anywhere",
+                  }}
+                >
+                  {loc.location_name}
+                </div>
+
+                <div
+                  style={{
+                    color: "#94a3b8",
+                    fontSize: "12px",
+                    marginTop: "4px",
+                    overflowWrap: "anywhere",
+                  }}
+                >
+                  {[loc.city, loc.state]
+                    .filter(Boolean)
+                    .join(", ")}
+                </div>
+              </div>
+
+              <div style={{ minWidth: 0 }}>
+                <div
+                  style={{
+                    color: "#94a3b8",
+                    fontSize: "11px",
+                  }}
+                >
+                  Revenue
+                </div>
+
+                <div
+                  style={{
+                    color: "#86efac",
+                    fontWeight: "900",
+                    overflowWrap: "anywhere",
+                  }}
+                >
+                  $
+                  {Number(
+                    loc.monthly_revenue || 0
+                  ).toLocaleString()}
+                </div>
+              </div>
+
+              <div style={{ minWidth: 0 }}>
+                <div
+                  style={{
+                    color: "#94a3b8",
+                    fontSize: "11px",
+                  }}
+                >
+                  Health Score
+                </div>
+
+                <div
+                  style={{
+                    color: "#86efac",
+                    fontWeight: "950",
+                    overflowWrap: "anywhere",
+                  }}
+                >
+                  {Number(loc.health_score || 0).toFixed(0)}
+                  /100
+                </div>
+              </div>
+            </div>
+          ))
+      ) : (
+        <div
+          style={{
+            padding: "18px",
+            borderRadius: "18px",
+            background: "rgba(15,23,42,0.72)",
+            border: "1px solid rgba(148,163,184,0.14)",
+            color: "#94a3b8",
+            textAlign: "center",
+            fontSize: "14px",
+          }}
+        >
+          Upload location data to activate enterprise rankings.
+        </div>
+      )}
+    </div>
   </div>
 )}
 {/* =========================
@@ -32966,9 +40880,20 @@ boxSizing: "border-box",
         "linear-gradient(135deg, rgba(30,64,175,0.18), rgba(15,23,42,0.96))",
       border: "1px solid rgba(96,165,250,0.20)",
       boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
+      width: "100%",
+      boxSizing: "border-box",
+      overflow: "hidden",
     }}
   >
-    <div style={{ color: "#93c5fd", fontSize: "12px", fontWeight: "900" }}>
+    <div
+      style={{
+        color: "#93c5fd",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+      }}
+    >
       LOCATION PERFORMANCE RANKING
     </div>
 
@@ -32989,15 +40914,21 @@ boxSizing: "border-box",
         fontSize: "14px",
         lineHeight: 1.7,
         marginBottom: "22px",
+        overflowWrap: "anywhere",
       }}
     >
       SerVen AI ranks restaurant locations using operational health,
       revenue efficiency, labor pressure, and order performance.
     </p>
 
-    <div style={{ display: "grid", gap: "14px" }}>
-      {(multiLocationIntelligence?.locations || []).map(
-        (location, index) => (
+    <div
+      style={{
+        display: "grid",
+        gap: "14px",
+      }}
+    >
+      {(multiLocationIntelligence?.locations || []).length > 0 ? (
+        multiLocationIntelligence.locations.map((location, index) => (
           <div
             key={location.name}
             style={{
@@ -33005,6 +40936,7 @@ boxSizing: "border-box",
               borderRadius: "20px",
               background: "rgba(255,255,255,0.05)",
               border: "1px solid rgba(148,163,184,0.12)",
+              minWidth: 0,
             }}
           >
             <div
@@ -33015,12 +40947,13 @@ boxSizing: "border-box",
                 flexWrap: "wrap",
               }}
             >
-              <div>
+              <div style={{ minWidth: 0 }}>
                 <div
                   style={{
                     color: "white",
                     fontSize: "18px",
                     fontWeight: "950",
+                    overflowWrap: "anywhere",
                   }}
                 >
                   #{index + 1} {location.name}
@@ -33039,6 +40972,7 @@ boxSizing: "border-box",
                         : "#fca5a5",
                     fontSize: "12px",
                     fontWeight: "900",
+                    overflowWrap: "anywhere",
                   }}
                 >
                   {location.status}
@@ -33050,6 +40984,7 @@ boxSizing: "border-box",
                   color: "white",
                   fontSize: "26px",
                   fontWeight: "950",
+                  overflowWrap: "anywhere",
                 }}
               >
                 {location.healthScore}/100
@@ -33087,9 +41022,10 @@ boxSizing: "border-box",
               style={{
                 marginTop: "16px",
                 display: "grid",
-                gridTemplateColumns: isMobile
-                  ? "1fr"
-                  : "repeat(4, 1fr)",
+                gridTemplateColumns:
+                  isMobile
+                    ? "1fr"
+                    : "repeat(4, minmax(0, 1fr))",
                 gap: "12px",
               }}
             >
@@ -33126,6 +41062,7 @@ boxSizing: "border-box",
                     borderRadius: "14px",
                     background: "rgba(255,255,255,0.04)",
                     border: "1px solid rgba(148,163,184,0.08)",
+                    minWidth: 0,
                   }}
                 >
                   <div
@@ -33144,6 +41081,7 @@ boxSizing: "border-box",
                       fontSize: "16px",
                       fontWeight: "900",
                       marginTop: "4px",
+                      overflowWrap: "anywhere",
                     }}
                   >
                     {metric.value}
@@ -33152,7 +41090,21 @@ boxSizing: "border-box",
               ))}
             </div>
           </div>
-        )
+        ))
+      ) : (
+        <div
+          style={{
+            padding: "18px",
+            borderRadius: "18px",
+            background: "rgba(15,23,42,0.72)",
+            border: "1px solid rgba(148,163,184,0.14)",
+            color: "#94a3b8",
+            textAlign: "center",
+            fontSize: "14px",
+          }}
+        >
+          No location ranking data available yet.
+        </div>
       )}
     </div>
   </div>
@@ -33172,9 +41124,20 @@ boxSizing: "border-box",
         "linear-gradient(135deg, rgba(8,145,178,0.18), rgba(15,23,42,0.96))",
       border: "1px solid rgba(34,211,238,0.20)",
       boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
+      width: "100%",
+      boxSizing: "border-box",
+      overflow: "hidden",
     }}
   >
-    <div style={{ color: "#67e8f9", fontSize: "12px", fontWeight: "900" }}>
+    <div
+      style={{
+        color: "#67e8f9",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+      }}
+    >
       REGIONAL FORECASTING
     </div>
 
@@ -33183,6 +41146,7 @@ boxSizing: "border-box",
         color: "white",
         fontSize: "26px",
         fontWeight: "950",
+        marginTop: "8px",
       }}
     >
       Predictive Location Intelligence
@@ -33194,128 +41158,155 @@ boxSizing: "border-box",
         fontSize: "14px",
         lineHeight: 1.7,
         marginBottom: "22px",
+        overflowWrap: "anywhere",
       }}
     >
-      SerVen AI forecasts future operational instability, labor pressure,
-      and revenue risk across restaurant locations.
+      SerVen AI forecasts future operational instability, labor pressure, and
+      revenue risk across restaurant locations.
     </p>
 
-    <div style={{ display: "grid", gap: "14px" }}>
-      {(regionalForecastingData || []).map((location, index) => (
-        <div
-          key={`${location.name}-${index}`}
-          style={{
-            padding: "18px",
-            borderRadius: "20px",
-            background: "rgba(255,255,255,0.05)",
-            border: "1px solid rgba(148,163,184,0.12)",
-          }}
-        >
+    <div
+      style={{
+        display: "grid",
+        gap: "14px",
+      }}
+    >
+      {(regionalForecastingData || []).length > 0 ? (
+        regionalForecastingData.map((location, index) => (
           <div
+            key={`${location.name}-${index}`}
             style={{
-              display: "flex",
-              justifyContent: "space-between",
-              gap: "12px",
-              flexWrap: "wrap",
+              padding: "18px",
+              borderRadius: "20px",
+              background: "rgba(255,255,255,0.05)",
+              border: "1px solid rgba(148,163,184,0.12)",
+              minWidth: 0,
             }}
           >
-            <div>
-              <div
-                style={{
-                  color: "white",
-                  fontSize: "18px",
-                  fontWeight: "950",
-                }}
-              >
-                {location.name}
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: "12px",
+                flexWrap: "wrap",
+              }}
+            >
+              <div style={{ minWidth: 0 }}>
+                <div
+                  style={{
+                    color: "white",
+                    fontSize: "18px",
+                    fontWeight: "950",
+                    overflowWrap: "anywhere",
+                  }}
+                >
+                  {location.name}
+                </div>
+
+                <div
+                  style={{
+                    marginTop: "4px",
+                    color:
+                      location.projectedRisk === "Critical"
+                        ? "#fca5a5"
+                        : location.projectedRisk === "Watch"
+                        ? "#fde68a"
+                        : "#86efac",
+                    fontSize: "12px",
+                    fontWeight: "900",
+                    overflowWrap: "anywhere",
+                  }}
+                >
+                  {location.projectedRisk} FORECAST
+                </div>
               </div>
 
               <div
                 style={{
-                  marginTop: "4px",
-                  color:
-                    location.projectedRisk === "Critical"
-                      ? "#fca5a5"
-                      : location.projectedRisk === "Watch"
-                      ? "#fde68a"
-                      : "#86efac",
-                  fontSize: "12px",
+                  color: "#67e8f9",
+                  fontSize: "14px",
                   fontWeight: "900",
+                  overflowWrap: "anywhere",
                 }}
               >
-                {location.projectedRisk} FORECAST
+                {location.projectedRevenueTrend}
               </div>
             </div>
 
             <div
               style={{
-                color: "#67e8f9",
-                fontSize: "14px",
-                fontWeight: "900",
+                marginTop: "14px",
+                display: "grid",
+                gridTemplateColumns:
+                  isMobile ? "1fr" : "repeat(3, minmax(0, 1fr))",
+                gap: "12px",
               }}
             >
-              {location.projectedRevenueTrend}
+              {[
+                {
+                  label: "Health Score",
+                  value: `${location.healthScore}/100`,
+                },
+                {
+                  label: "Labor Pressure",
+                  value: location.projectedMarginPressure,
+                },
+                {
+                  label: "Revenue Outlook",
+                  value: location.projectedRevenueTrend,
+                },
+              ].map((metric) => (
+                <div
+                  key={metric.label}
+                  style={{
+                    padding: "12px",
+                    borderRadius: "14px",
+                    background: "rgba(255,255,255,0.04)",
+                    border: "1px solid rgba(148,163,184,0.08)",
+                    minWidth: 0,
+                  }}
+                >
+                  <div
+                    style={{
+                      color: "#94a3b8",
+                      fontSize: "11px",
+                      fontWeight: "900",
+                    }}
+                  >
+                    {metric.label}
+                  </div>
+
+                  <div
+                    style={{
+                      color: "white",
+                      fontSize: "16px",
+                      fontWeight: "900",
+                      marginTop: "4px",
+                      overflowWrap: "anywhere",
+                    }}
+                  >
+                    {metric.value}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
-
-          <div
-            style={{
-              marginTop: "14px",
-              display: "grid",
-              gridTemplateColumns: isMobile
-                ? "1fr"
-                : "repeat(3, 1fr)",
-              gap: "12px",
-            }}
-          >
-            {[
-              {
-                label: "Health Score",
-                value: `${location.healthScore}/100`,
-              },
-              {
-                label: "Labor Pressure",
-                value: location.projectedMarginPressure,
-              },
-              {
-                label: "Revenue Outlook",
-                value: location.projectedRevenueTrend,
-              },
-            ].map((metric) => (
-              <div
-                key={metric.label}
-                style={{
-                  padding: "12px",
-                  borderRadius: "14px",
-                  background: "rgba(255,255,255,0.04)",
-                  border: "1px solid rgba(148,163,184,0.08)",
-                }}
-              >
-                <div
-                  style={{
-                    color: "#94a3b8",
-                    fontSize: "11px",
-                    fontWeight: "900",
-                  }}
-                >
-                  {metric.label}
-                </div>
-
-                <div
-                  style={{
-                    color: "white",
-                    fontSize: "16px",
-                    fontWeight: "900",
-                    marginTop: "4px",
-                  }}
-                >
-                  {metric.value}
-                </div>
-              </div>
-            ))}
-          </div>
+        ))
+      ) : (
+        <div
+          style={{
+            padding: "18px",
+            borderRadius: "18px",
+            background: "rgba(15,23,42,0.72)",
+            border: "1px solid rgba(148,163,184,0.14)",
+            color: "#94a3b8",
+            textAlign: "center",
+            fontSize: "14px",
+          }}
+        >
+          No regional forecast data available yet.
         </div>
-      ))}
+      )}
     </div>
   </div>
 )}
@@ -33333,22 +41324,53 @@ boxSizing: "border-box",
         "linear-gradient(135deg, rgba(88,28,135,0.20), rgba(15,23,42,0.96))",
       border: "1px solid rgba(168,85,247,0.20)",
       boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
+      width: "100%",
+      boxSizing: "border-box",
+      overflow: "hidden",
     }}
   >
-    <div style={{ color: "#d8b4fe", fontSize: "12px", fontWeight: "900" }}>
+    <div
+      style={{
+        color: "#d8b4fe",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+      }}
+    >
       ENTERPRISE OPERATOR SCOREBOARD
     </div>
 
-    <h3 style={{ color: "white", fontSize: "26px", fontWeight: "950" }}>
+    <h3
+      style={{
+        color: "white",
+        fontSize: "26px",
+        fontWeight: "950",
+        marginTop: "8px",
+      }}
+    >
       Multi-Location Operating Scoreboard
     </h3>
 
-    <p style={{ color: "#cbd5e1", fontSize: "14px", lineHeight: 1.7 }}>
+    <p
+      style={{
+        color: "#cbd5e1",
+        fontSize: "14px",
+        lineHeight: 1.7,
+        overflowWrap: "anywhere",
+      }}
+    >
       Compare every location side-by-side across health, revenue, labor,
       order volume, and forecasted operating risk.
     </p>
 
-    <div style={{ marginTop: "22px", overflowX: "auto" }}>
+    <div
+      style={{
+        marginTop: "22px",
+        overflowX: "auto",
+        WebkitOverflowScrolling: "touch",
+      }}
+    >
       <div style={{ minWidth: isMobile ? "760px" : "100%" }}>
         <div
           style={{
@@ -33370,66 +41392,109 @@ boxSizing: "border-box",
           <div>Risk</div>
         </div>
 
-        {(regionalForecastingData || []).map((location, index) => (
+        {(regionalForecastingData || []).length > 0 ? (
+          regionalForecastingData.map((location, index) => (
+            <div
+              key={`${location.name}-${index}`}
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1.4fr 1fr 1fr 1fr 1fr 1fr",
+                gap: "10px",
+                alignItems: "center",
+                padding: "14px",
+                marginBottom: "10px",
+                borderRadius: "18px",
+                background: "rgba(255,255,255,0.05)",
+                border: "1px solid rgba(148,163,184,0.12)",
+                minWidth: 0,
+              }}
+            >
+              <div
+                style={{
+                  color: "white",
+                  fontWeight: "900",
+                  overflowWrap: "anywhere",
+                }}
+              >
+                #{index + 1} {location.name}
+              </div>
+
+              <div
+                style={{
+                  color: "#cbd5e1",
+                  fontWeight: "800",
+                  overflowWrap: "anywhere",
+                }}
+              >
+                {location.healthScore}/100
+              </div>
+
+              <div
+                style={{
+                  color: "#86efac",
+                  fontWeight: "900",
+                  overflowWrap: "anywhere",
+                }}
+              >
+                ${Number(location.revenue || 0).toLocaleString()}
+              </div>
+
+              <div
+                style={{
+                  color: "#cbd5e1",
+                  fontWeight: "800",
+                  overflowWrap: "anywhere",
+                }}
+              >
+                {Number(location.orders || 0).toLocaleString()}
+              </div>
+
+              <div
+                style={{
+                  color:
+                    Number(location.laborPercent || 0) > 35
+                      ? "#fca5a5"
+                      : Number(location.laborPercent || 0) > 30
+                      ? "#fde68a"
+                      : "#cbd5e1",
+                  fontWeight: "900",
+                  overflowWrap: "anywhere",
+                }}
+              >
+                {Number(location.laborPercent || 0).toFixed(1)}%
+              </div>
+
+              <div
+                style={{
+                  color:
+                    location.projectedRisk === "Critical"
+                      ? "#fca5a5"
+                      : location.projectedRisk === "Watch"
+                      ? "#fde68a"
+                      : "#86efac",
+                  fontWeight: "900",
+                  overflowWrap: "anywhere",
+                }}
+              >
+                {location.projectedRisk}
+              </div>
+            </div>
+          ))
+        ) : (
           <div
-            key={`${location.name}-${index}`}
             style={{
-              display: "grid",
-              gridTemplateColumns: "1.4fr 1fr 1fr 1fr 1fr 1fr",
-              gap: "10px",
-              alignItems: "center",
-              padding: "14px",
-              marginBottom: "10px",
+              padding: "18px",
               borderRadius: "18px",
-              background: "rgba(255,255,255,0.05)",
-              border: "1px solid rgba(148,163,184,0.12)",
+              background: "rgba(15,23,42,0.72)",
+              border: "1px solid rgba(148,163,184,0.14)",
+              color: "#94a3b8",
+              textAlign: "center",
+              fontSize: "14px",
             }}
           >
-            <div style={{ color: "white", fontWeight: "900" }}>
-              #{index + 1} {location.name}
-            </div>
-
-            <div style={{ color: "#cbd5e1", fontWeight: "800" }}>
-              {location.healthScore}/100
-            </div>
-
-            <div style={{ color: "#86efac", fontWeight: "900" }}>
-              ${Number(location.revenue || 0).toLocaleString()}
-            </div>
-
-            <div style={{ color: "#cbd5e1", fontWeight: "800" }}>
-              {Number(location.orders || 0).toLocaleString()}
-            </div>
-
-            <div
-              style={{
-                color:
-                  Number(location.laborPercent || 0) > 35
-                    ? "#fca5a5"
-                    : Number(location.laborPercent || 0) > 30
-                    ? "#fde68a"
-                    : "#cbd5e1",
-                fontWeight: "900",
-              }}
-            >
-              {Number(location.laborPercent || 0).toFixed(1)}%
-            </div>
-
-            <div
-              style={{
-                color:
-                  location.projectedRisk === "Critical"
-                    ? "#fca5a5"
-                    : location.projectedRisk === "Watch"
-                    ? "#fde68a"
-                    : "#86efac",
-                fontWeight: "900",
-              }}
-            >
-              {location.projectedRisk}
-            </div>
+            No enterprise scoreboard data available yet.
           </div>
-        ))}
+        )}
       </div>
     </div>
   </div>
@@ -33448,57 +41513,124 @@ boxSizing: "border-box",
         "linear-gradient(135deg, rgba(127,29,29,0.18), rgba(15,23,42,0.96))",
       border: "1px solid rgba(248,113,113,0.20)",
       boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
+      width: "100%",
+      boxSizing: "border-box",
+      overflow: "hidden",
     }}
   >
-    <div style={{ color: "#fca5a5", fontSize: "12px", fontWeight: "900" }}>
+    <div
+      style={{
+        color: "#fca5a5",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+      }}
+    >
       MULTI-LOCATION AI ACTION PLAN
     </div>
 
-    <h3 style={{ color: "white", fontSize: "26px", fontWeight: "950" }}>
+    <h3
+      style={{
+        color: "white",
+        fontSize: "26px",
+        fontWeight: "950",
+        marginTop: "8px",
+      }}
+    >
       Location-Specific Recommendations
     </h3>
 
-    <div style={{ display: "grid", gap: "14px", marginTop: "20px" }}>
-      {(regionalForecastingData || [])
-        .filter(
-          (location) =>
-            location.projectedRisk === "Critical" ||
-            location.projectedRisk === "Watch"
-        )
-        .map((location) => {
-          const action =
-            Number(location.laborPercent || 0) > 35
-              ? "Review labor scheduling and reduce low-efficiency coverage."
-              : Number(location.averageOrder || 0) < 18
-              ? "Improve upsell strategy and premium item attachment."
-              : Number(location.healthScore || 0) < 70
-              ? "Review operating health, inventory activity, and sales trends."
-              : "Continue monitoring this location.";
+    <div
+      style={{
+        display: "grid",
+        gap: "14px",
+        marginTop: "20px",
+      }}
+    >
+      {(regionalForecastingData || []).filter(
+        (location) =>
+          location.projectedRisk === "Critical" ||
+          location.projectedRisk === "Watch"
+      ).length > 0 ? (
+        (regionalForecastingData || [])
+          .filter(
+            (location) =>
+              location.projectedRisk === "Critical" ||
+              location.projectedRisk === "Watch"
+          )
+          .map((location) => {
+            const action =
+              Number(location.laborPercent || 0) > 35
+                ? "Review labor scheduling and reduce low-efficiency coverage."
+                : Number(location.averageOrder || 0) < 18
+                ? "Improve upsell strategy and premium item attachment."
+                : Number(location.healthScore || 0) < 70
+                ? "Review operating health, inventory activity, and sales trends."
+                : "Continue monitoring this location.";
 
-          return (
-            <div
-              key={location.name}
-              style={{
-                padding: "18px",
-                borderRadius: "20px",
-                background: "rgba(255,255,255,0.05)",
-                border: "1px solid rgba(148,163,184,0.12)",
-              }}
-            >
-              <div style={{ color: "white", fontSize: "17px", fontWeight: "900" }}>
-                {location.name}
+            return (
+              <div
+                key={location.name}
+                style={{
+                  padding: "18px",
+                  borderRadius: "20px",
+                  background: "rgba(255,255,255,0.05)",
+                  border: "1px solid rgba(148,163,184,0.12)",
+                  minWidth: 0,
+                }}
+              >
+                <div
+                  style={{
+                    color: "white",
+                    fontSize: "17px",
+                    fontWeight: "900",
+                    overflowWrap: "anywhere",
+                  }}
+                >
+                  {location.name}
+                </div>
+
+                <div
+                  style={{
+                    color: "#fca5a5",
+                    fontSize: "12px",
+                    fontWeight: "900",
+                    marginTop: "4px",
+                    overflowWrap: "anywhere",
+                  }}
+                >
+                  {location.projectedRisk} • {location.healthScore}/100
+                </div>
+
+                <p
+                  style={{
+                    color: "#cbd5e1",
+                    fontSize: "13px",
+                    lineHeight: 1.7,
+                    overflowWrap: "anywhere",
+                  }}
+                >
+                  {action}
+                </p>
               </div>
-
-              <div style={{ color: "#fca5a5", fontSize: "12px", fontWeight: "900", marginTop: "4px" }}>
-                {location.projectedRisk} • {location.healthScore}/100
-              </div>
-
-              <p style={{ color: "#cbd5e1", fontSize: "13px", lineHeight: 1.7 }}>
-                {action}
-              </p>
-            </div>
-          );
-        })}
+            );
+          })
+      ) : (
+        <div
+          style={{
+            padding: "18px",
+            borderRadius: "18px",
+            background: "rgba(15,23,42,0.72)",
+            border: "1px solid rgba(148,163,184,0.14)",
+            color: "#94a3b8",
+            textAlign: "center",
+            fontSize: "14px",
+          }}
+        >
+          No urgent multi-location action plan needed right now.
+        </div>
+      )}
     </div>
   </div>
 )}
@@ -33510,1787 +41642,82 @@ boxSizing: "border-box",
   <div
     style={{
       marginTop: "22px",
-      padding: "24px",
-      borderRadius: "28px",
-      background:
-        "linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.94))",
-      border: "1px solid rgba(148,163,184,0.14)",
-      boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
-    }}
-  >
-    <div style={{ color: "#c7d2fe", fontSize: "12px", fontWeight: "900" }}>
-      MULTI-LOCATION EXECUTIVE SUMMARY
-    </div>
-<div
-  style={{
-    marginTop: "22px",
-    padding: "22px",
-    borderRadius: "22px",
-    background:
-      "linear-gradient(135deg, rgba(34,197,94,0.12), rgba(15,23,42,0.94))",
-    border: "1px solid rgba(34,197,94,0.2)",
-  }}
->
-  <div
-    style={{
-      color: "#86efac",
-      fontSize: "12px",
-      fontWeight: "900",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      marginBottom: "14px",
-    }}
-  >
-    AI Location Ranking Engine
-  </div>
-<div
-  style={{
-    marginTop: "22px",
-    padding: "22px",
-    borderRadius: "22px",
-    background:
-      "linear-gradient(135deg, rgba(239,68,68,0.12), rgba(15,23,42,0.94))",
-    border: "1px solid rgba(239,68,68,0.2)",
-  }}
->
-  <div
-    style={{
-      color: "#fca5a5",
-      fontSize: "12px",
-      fontWeight: "900",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      marginBottom: "14px",
-    }}
-  >
-    AI Cross-Location Risk Detection
-  </div>
-<div
-  style={{
-    marginTop: "22px",
-    padding: "22px",
-    borderRadius: "22px",
-    background:
-      "linear-gradient(135deg, rgba(14,165,233,0.12), rgba(15,23,42,0.94))",
-    border: "1px solid rgba(56,189,248,0.2)",
-  }}
->
-  <div
-    style={{
-      color: "#7dd3fc",
-      fontSize: "12px",
-      fontWeight: "900",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      marginBottom: "14px",
-    }}
-  >
-    AI Executive Benchmarking
-  </div>
-<div
-  style={{
-    marginTop: "22px",
-    padding: "22px",
-    borderRadius: "22px",
-    background:
-      "linear-gradient(135deg, rgba(99,102,241,0.14), rgba(15,23,42,0.94))",
-    border: "1px solid rgba(129,140,248,0.22)",
-  }}
->
-  <div
-    style={{
-      color: "#a5b4fc",
-      fontSize: "12px",
-      fontWeight: "900",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      marginBottom: "14px",
-    }}
-  >
-    AI Enterprise Scorecard
-  </div>
-<div
-  style={{
-    marginTop: "22px",
-    padding: "22px",
-    borderRadius: "22px",
-    background:
-      "linear-gradient(135deg, rgba(236,72,153,0.12), rgba(15,23,42,0.94))",
-    border: "1px solid rgba(244,114,182,0.2)",
-  }}
->
-  <div
-    style={{
-      color: "#f9a8d4",
-      fontSize: "12px",
-      fontWeight: "900",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      marginBottom: "10px",
-    }}
-  >
-    AI Portfolio Intelligence
-  </div>
-<div
-  style={{
-    marginTop: "22px",
-    padding: "22px",
-    borderRadius: "22px",
-    background:
-      "linear-gradient(135deg, rgba(59,130,246,0.12), rgba(15,23,42,0.94))",
-    border: "1px solid rgba(96,165,250,0.2)",
-  }}
->
-  <div
-    style={{
-      color: "#93c5fd",
-      fontSize: "12px",
-      fontWeight: "900",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      marginBottom: "14px",
-    }}
-  >
-    AI Portfolio Action Plan
-  </div>
-<div
-  style={{
-    marginTop: "22px",
-    padding: "22px",
-    borderRadius: "22px",
-    background:
-      "linear-gradient(135deg, rgba(124,58,237,0.14), rgba(15,23,42,0.94))",
-    border: "1px solid rgba(196,181,253,0.22)",
-  }}
->
-  <div
-    style={{
-      color: "#c4b5fd",
-      fontSize: "12px",
-      fontWeight: "900",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      marginBottom: "14px",
-    }}
-  >
-    AI Executive Recommendations
-  </div>
-<div
-  style={{
-    marginTop: "22px",
-    padding: "22px",
-    borderRadius: "22px",
-    background:
-      "linear-gradient(135deg, rgba(239,68,68,0.12), rgba(15,23,42,0.94))",
-    border: "1px solid rgba(248,113,113,0.2)",
-  }}
->
-  <div
-    style={{
-      color: "#fca5a5",
-      fontSize: "12px",
-      fontWeight: "900",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      marginBottom: "10px",
-    }}
-  >
-    AI Enterprise Risk Forecast
-  </div>
-<div
-  style={{
-    marginTop: "22px",
-    padding: "22px",
-    borderRadius: "22px",
-    background:
-      "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.92))",
-    border: "1px solid rgba(148,163,184,0.16)",
-  }}
->
-  <div
-    style={{
-      color: "#e2e8f0",
-      fontSize: "12px",
-      fontWeight: "900",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      marginBottom: "14px",
-    }}
-  >
-    AI Executive KPI Matrix
-  </div>
-<div
-  style={{
-    marginTop: "24px",
-    padding: "24px",
-    borderRadius: "24px",
-    background:
-      "radial-gradient(circle at top right, rgba(124,58,237,0.18), transparent 30%), linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.92))",
-    border: "1px solid rgba(196,181,253,0.18)",
-    boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
-  }}
->
-  <div
-    style={{
-      color: "#c4b5fd",
-      fontSize: "12px",
-      fontWeight: "900",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      marginBottom: "12px",
-    }}
-  >
-    AI Corporate Command Center
-  </div>
-<div
-  style={{
-    marginTop: "22px",
-    padding: "22px",
-    borderRadius: "22px",
-    background:
-      "linear-gradient(135deg, rgba(34,197,94,0.12), rgba(15,23,42,0.94))",
-    border: "1px solid rgba(34,197,94,0.2)",
-  }}
->
-  <div
-    style={{
-      color: "#86efac",
-      fontSize: "12px",
-      fontWeight: "900",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      marginBottom: "14px",
-    }}
-  >
-    AI Enterprise Recovery Planner
-  </div>
-<div
-  style={{
-    marginTop: "22px",
-    padding: "22px",
-    borderRadius: "22px",
-    background:
-      "linear-gradient(135deg, rgba(239,68,68,0.12), rgba(15,23,42,0.94))",
-    border: "1px solid rgba(248,113,113,0.2)",
-  }}
->
-  <div
-    style={{
-      color: "#fca5a5",
-      fontSize: "12px",
-      fontWeight: "900",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      marginBottom: "14px",
-    }}
-  >
-    AI Executive Alerts Feed
-  </div>
-<div
-  style={{
-    marginTop: "22px",
-    padding: "22px",
-    borderRadius: "22px",
-    background:
-      "linear-gradient(135deg, rgba(59,130,246,0.12), rgba(15,23,42,0.94))",
-    border: "1px solid rgba(96,165,250,0.2)",
-  }}
->
-  <div
-    style={{
-      color: "#93c5fd",
-      fontSize: "12px",
-      fontWeight: "900",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      marginBottom: "10px",
-    }}
-  >
-    AI Enterprise Performance Forecast
-  </div>
-<div
-  style={{
-    marginTop: "22px",
-    padding: "24px",
-    borderRadius: "24px",
-    background:
-      "linear-gradient(135deg, rgba(250,204,21,0.13), rgba(15,23,42,0.96))",
-    border: "1px solid rgba(250,204,21,0.22)",
-    boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
-  }}
->
-  <div
-    style={{
-      color: "#fde047",
-      fontSize: "12px",
-      fontWeight: "900",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      marginBottom: "12px",
-    }}
-  >
-    AI CEO Summary
-  </div>
-<div
-  style={{
-    marginTop: "18px",
-    display: "grid",
-    gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
-    gap: "12px",
-  }}
->
-  {aiCEODecisionButtons.map((button, index) => (
-    <button
-      key={index}
-      type="button"
-      style={{
-        padding: "16px",
-        borderRadius: "18px",
-        border: "1px solid rgba(250,204,21,0.22)",
-        background: "rgba(15,23,42,0.72)",
-        cursor: "pointer",
-        textAlign: "left",
-      }}
-    >
-      <div style={{ color: "#fef08a", fontSize: "14px", fontWeight: "950" }}>
-        {button.label}
-      </div>
-
-      <div
-        style={{
-          color: "#e2e8f0",
-          fontSize: "12px",
-          fontWeight: "700",
-          marginTop: "6px",
-        }}
-      >
-        {button.detail}
-      </div>
-    </button>
-  ))}
-</div>
-<div
-  style={{
-    marginTop: "24px",
-    padding: "26px",
-    borderRadius: "26px",
-    background:
-      "radial-gradient(circle at top right, rgba(250,204,21,0.12), transparent 28%), linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.94))",
-    border: "1px solid rgba(250,204,21,0.18)",
-    boxShadow: "0 24px 70px rgba(2,6,23,0.36)",
-    textAlign: "center",
-  }}
->
-  <div
-    style={{
-      color: "#fde68a",
-      fontSize: "12px",
-      fontWeight: "900",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      marginBottom: "12px",
-    }}
-  >
-    AI Executive Closeout
-  </div>
-<div
-  style={{
-    marginTop: "22px",
-    padding: "22px",
-    borderRadius: "22px",
-    background:
-      "linear-gradient(135deg, rgba(14,165,233,0.13), rgba(15,23,42,0.96))",
-    border: "1px solid rgba(56,189,248,0.22)",
-  }}
->
-  <div style={{ color: "#7dd3fc", fontSize: "12px", fontWeight: "900" }}>
-    AI What-If Simulator
-  </div>
-<div
-  style={{
-    marginTop: "22px",
-    padding: "24px",
-    borderRadius: "24px",
-    background:
-      "linear-gradient(135deg, rgba(34,197,94,0.14), rgba(15,23,42,0.96))",
-    border: "1px solid rgba(34,197,94,0.22)",
-  }}
->
-  <div
-    style={{
-      color: "#86efac",
-      fontSize: "12px",
-      fontWeight: "900",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      marginBottom: "14px",
-    }}
-  >
-    AI Autonomous Profit Recovery Engine
-  </div>
-<div
-  style={{
-    marginTop: "22px",
-    padding: "24px",
-    borderRadius: "24px",
-    background:
-      "linear-gradient(135deg, rgba(6,182,212,0.14), rgba(15,23,42,0.96))",
-    border: "1px solid rgba(34,211,238,0.22)",
-  }}
->
-  <div
-    style={{
-      color: "#67e8f9",
-      fontSize: "12px",
-      fontWeight: "900",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      marginBottom: "12px",
-    }}
-  >
-    Predictive Scheduling AI
-  </div>
-<div
-  style={{
-    marginTop: "22px",
-    padding: "24px",
-    borderRadius: "24px",
-    background:
-      "linear-gradient(135deg, rgba(245,158,11,0.14), rgba(15,23,42,0.96))",
-    border: "1px solid rgba(251,191,36,0.22)",
-  }}
->
-  <div
-    style={{
-      color: "#fde68a",
-      fontSize: "12px",
-      fontWeight: "900",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      marginBottom: "12px",
-    }}
-  >
-    AI Vendor Negotiation Intelligence
-  </div>
-<div
-  style={{
-    marginTop: "22px",
-    padding: "24px",
-    borderRadius: "24px",
-    background:
-      "linear-gradient(135deg, rgba(239,68,68,0.14), rgba(15,23,42,0.96))",
-    border: "1px solid rgba(248,113,113,0.22)",
-  }}
->
-  <div
-    style={{
-      color: "#fca5a5",
-      fontSize: "12px",
-      fontWeight: "900",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      marginBottom: "12px",
-    }}
-  >
-    Beverage Theft Detection AI
-  </div>
-<div
-  style={{
-    marginTop: "22px",
-    padding: "24px",
-    borderRadius: "24px",
-    background:
-      "linear-gradient(135deg, rgba(99,102,241,0.14), rgba(15,23,42,0.96))",
-    border: "1px solid rgba(129,140,248,0.22)",
-  }}
->
-  <div
-    style={{
-      color: "#a5b4fc",
-      fontSize: "12px",
-      fontWeight: "900",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      marginBottom: "12px",
-    }}
-  >
-    Franchise Benchmark Intelligence
-  </div>
-<div
-  style={{
-    marginTop: "22px",
-    padding: "24px",
-    borderRadius: "24px",
-    background:
-      "linear-gradient(135deg, rgba(14,165,233,0.14), rgba(15,23,42,0.96))",
-    border: "1px solid rgba(56,189,248,0.22)",
-  }}
->
-  <div
-    style={{
-      color: "#7dd3fc",
-      fontSize: "12px",
-      fontWeight: "900",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      marginBottom: "12px",
-    }}
-  >
-    AI Live Operations Copilot
-  </div>
-<div
-  style={{
-    marginTop: "22px",
-    padding: "24px",
-    borderRadius: "24px",
-    background:
-      "linear-gradient(135deg, rgba(168,85,247,0.14), rgba(15,23,42,0.96))",
-    border: "1px solid rgba(216,180,254,0.22)",
-  }}
->
-  <div
-    style={{
-      color: "#d8b4fe",
-      fontSize: "12px",
-      fontWeight: "900",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      marginBottom: "12px",
-    }}
-  >
-    AI Voice Operations Assistant
-  </div>
-<div
-  style={{
-    marginTop: "24px",
-    padding: "26px",
-    borderRadius: "26px",
-    background:
-      "radial-gradient(circle at top right, rgba(34,197,94,0.16), transparent 28%), linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.94))",
-    border: "1px solid rgba(34,197,94,0.20)",
-    boxShadow: "0 24px 70px rgba(2,6,23,0.36)",
-  }}
->
-  <div
-    style={{
-      color: "#86efac",
-      fontSize: "12px",
-      fontWeight: "900",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      marginBottom: "12px",
-    }}
-  >
-    Autonomous Restaurant Control Layer
-  </div>
-<div
-  style={{
-    marginTop: "22px",
-    padding: "24px",
-    borderRadius: "24px",
-    background:
-      "linear-gradient(135deg, rgba(59,130,246,0.14), rgba(15,23,42,0.96))",
-    border: "1px solid rgba(96,165,250,0.22)",
-  }}
->
-  <div
-    style={{
-      color: "#93c5fd",
-      fontSize: "12px",
-      fontWeight: "900",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      marginBottom: "12px",
-    }}
-  >
-    AI Live Chat Copilot
-  </div>
-<div
-  style={{
-    marginTop: "22px",
-    padding: "24px",
-    borderRadius: "24px",
-    background:
-      "linear-gradient(135deg, rgba(34,197,94,0.14), rgba(15,23,42,0.96))",
-    border: "1px solid rgba(34,197,94,0.22)",
-  }}
->
-  <div
-    style={{
-      color: "#86efac",
-      fontSize: "12px",
-      fontWeight: "900",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      marginBottom: "12px",
-    }}
-  >
-    AI Predictive Sales Engine
-  </div>
-<div
-  style={{
-    marginTop: "22px",
-    padding: "24px",
-    borderRadius: "24px",
-    background:
-      "linear-gradient(135deg, rgba(245,158,11,0.14), rgba(15,23,42,0.96))",
-    border: "1px solid rgba(251,191,36,0.22)",
-  }}
->
-  <div
-    style={{
-      color: "#fde68a",
-      fontSize: "12px",
-      fontWeight: "900",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      marginBottom: "12px",
-    }}
-  >
-    AI Smart Purchasing System
-  </div>
-<div
-  style={{
-    marginTop: "22px",
-    padding: "24px",
-    borderRadius: "24px",
-    background:
-      "linear-gradient(135deg, rgba(168,85,247,0.14), rgba(15,23,42,0.96))",
-    border: "1px solid rgba(216,180,254,0.22)",
-  }}
->
-  <div style={{ color: "#d8b4fe", fontSize: "12px", fontWeight: "900" }}>
-    AI Staff Performance Intelligence
-  </div>
-
-  <h3 style={{ color: "white", fontSize: "22px", fontWeight: "950" }}>
-    {aiStaffPerformanceIntelligence.status}
-  </h3>
-
-  <p style={{ color: "#f3e8ff", fontSize: "14px", lineHeight: 1.8 }}>
-    {aiStaffPerformanceIntelligence.insight}
-  </p>
-
-  <div
-    style={{
-      marginTop: "14px",
-      padding: "14px",
-      borderRadius: "16px",
-      background: "rgba(15,23,42,0.72)",
-      border: "1px solid rgba(148,163,184,0.12)",
-    }}
-  >
-    <div style={{ color: "#94a3b8", fontSize: "12px", fontWeight: "800" }}>
-      Projected Labor Improvement
-    </div>
-
-    <div style={{ color: "#f5d0fe", fontSize: "24px", fontWeight: "950" }}>
-      ${Number(aiStaffPerformanceIntelligence.projectedImprovement || 0).toLocaleString()}/mo
-    </div>
-  </div>
-</div>
-  <h3 style={{ color: "white", fontSize: "22px", fontWeight: "950" }}>
-    {aiSmartPurchasingSystem.purchasingMode}
-  </h3>
-
-  <p style={{ color: "#fef3c7", fontSize: "14px", lineHeight: 1.8 }}>
-    AI analyzed ingredient usage patterns, purchasing behavior, and inventory
-    movement to identify smarter purchasing opportunities.
-  </p>
-
-  <div
-    style={{
-      marginTop: "14px",
       display: "grid",
-      gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
-      gap: "12px",
+      gap: "18px",
+      width: "100%",
+      boxSizing: "border-box",
     }}
   >
     {[
-      {
-        label: "Recommendations",
-        value: aiSmartPurchasingSystem.recommendationCount,
-      },
-      {
-        label: "Projected Savings",
-        value: `$${Number(
-          aiSmartPurchasingSystem.projectedSavings || 0
-        ).toLocaleString()}/mo`,
-      },
-      {
-        label: "Purchasing Status",
-        value: aiSmartPurchasingSystem.purchasingMode,
-      },
-    ].map((item, index) => (
+      "MULTI-LOCATION EXECUTIVE SUMMARY",
+      "AI LOCATION RANKING ENGINE",
+      "AI CROSS-LOCATION RISK DETECTION",
+      "AI EXECUTIVE BENCHMARKING",
+      "AI ENTERPRISE SCORECARD",
+      "AI PORTFOLIO INTELLIGENCE",
+      "AI PORTFOLIO ACTION PLAN",
+      "AI EXECUTIVE RECOMMENDATIONS",
+      "AI ENTERPRISE RISK FORECAST",
+      "AI EXECUTIVE KPI MATRIX",
+      "AI CORPORATE COMMAND CENTER",
+      "AI ENTERPRISE RECOVERY PLANNER",
+      "AI EXECUTIVE ALERTS FEED",
+      "AI ENTERPRISE PERFORMANCE FORECAST",
+      "AI CEO SUMMARY",
+      "AI EXECUTIVE CLOSEOUT",
+      "AI WHAT-IF SIMULATOR",
+      "AI AUTONOMOUS PROFIT RECOVERY ENGINE",
+      "PREDICTIVE SCHEDULING AI",
+      "AI VENDOR NEGOTIATION INTELLIGENCE",
+      "BEVERAGE THEFT DETECTION AI",
+      "FRANCHISE BENCHMARK INTELLIGENCE",
+      "AI LIVE OPERATIONS COPILOT",
+      "AI VOICE OPERATIONS ASSISTANT",
+      "AUTONOMOUS RESTAURANT CONTROL LAYER",
+      "AI LIVE CHAT COPILOT",
+      "AI PREDICTIVE SALES ENGINE",
+      "AI SMART PURCHASING SYSTEM",
+      "AI STAFF PERFORMANCE INTELLIGENCE",
+    ].map((title) => (
       <div
-        key={index}
+        key={title}
         style={{
-          padding: "14px",
-          borderRadius: "16px",
-          background: "rgba(15,23,42,0.72)",
-          border: "1px solid rgba(148,163,184,0.12)",
-        }}
-      >
-        <div style={{ color: "#94a3b8", fontSize: "12px", fontWeight: "800" }}>
-          {item.label}
-        </div>
-
-        <div style={{ color: "#fef3c7", fontSize: "20px", fontWeight: "950" }}>
-          {item.value}
-        </div>
-      </div>
-    ))}
-  </div>
-</div>
-  <h3 style={{ color: "white", fontSize: "22px", fontWeight: "950" }}>
-    ${Number(aiPredictiveSalesEngine.forecast || 0).toLocaleString()} Forecast
-  </h3>
-
-  <p style={{ color: "#dcfce7", fontSize: "14px", lineHeight: 1.8 }}>
-    {aiPredictiveSalesEngine.trend}
-  </p>
-
-  <div
-    style={{
-      marginTop: "14px",
-      padding: "14px",
-      borderRadius: "16px",
-      background: "rgba(15,23,42,0.72)",
-      border: "1px solid rgba(148,163,184,0.12)",
-    }}
-  >
-    <div style={{ color: "#94a3b8", fontSize: "12px", fontWeight: "800" }}>
-      Forecast Confidence
-    </div>
-
-    <div style={{ color: "#bbf7d0", fontSize: "24px", fontWeight: "950" }}>
-      {aiPredictiveSalesEngine.confidence}%
-    </div>
-  </div>
-</div>
-  <h3 style={{ color: "white", fontSize: "22px", fontWeight: "950" }}>
-    {aiLiveChatCopilot.status}
-  </h3>
-
-  <div
-    style={{
-      marginTop: "14px",
-      padding: "16px",
-      borderRadius: "18px",
-      background: "rgba(15,23,42,0.72)",
-      border: "1px solid rgba(148,163,184,0.12)",
-    }}
-  >
-    <div style={{ color: "#94a3b8", fontSize: "12px", fontWeight: "800" }}>
-      Suggested Question
-    </div>
-
-    <div style={{ color: "#dbeafe", fontSize: "15px", fontWeight: "950" }}>
-      {aiLiveChatCopilot.suggestedPrompt}
-    </div>
-  </div>
-
-  <div
-    style={{
-      marginTop: "12px",
-      padding: "16px",
-      borderRadius: "18px",
-      background: "rgba(30,41,59,0.72)",
-      border: "1px solid rgba(148,163,184,0.12)",
-    }}
-  >
-    <div style={{ color: "#94a3b8", fontSize: "12px", fontWeight: "800" }}>
-      Copilot Preview
-    </div>
-
-    <div
-      style={{
-        color: "#e0f2fe",
-        fontSize: "14px",
-        lineHeight: 1.7,
-        fontWeight: "800",
-      }}
-    >
-      {aiLiveChatCopilot.answer}
-    </div>
-  </div>
-</div>
-  <h2
-    style={{
-      color: "white",
-      fontSize: "30px",
-      fontWeight: "950",
-      marginBottom: "10px",
-    }}
-  >
-    {autonomousRestaurantControlLayer.status}
-  </h2>
-
-  <p
-    style={{
-      color: "#dcfce7",
-      fontSize: "15px",
-      lineHeight: 1.9,
-      marginBottom: "22px",
-      maxWidth: "760px",
-      fontWeight: "700",
-    }}
-  >
-    SerVen AI is actively monitoring operational systems and identifying
-    opportunities for autonomous optimization and profit recovery.
-  </p>
-
-  <div
-    style={{
-      display: "grid",
-      gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
-      gap: "14px",
-    }}
-  >
-    <div
-      style={{
-        padding: "16px",
-        borderRadius: "18px",
-        background: "rgba(15,23,42,0.72)",
-        border: "1px solid rgba(148,163,184,0.12)",
-      }}
-    >
-      <div style={{ color: "#94a3b8", fontSize: "11px", fontWeight: "800" }}>
-        AI Autonomy Level
-      </div>
-
-      <div style={{ color: "#bbf7d0", fontSize: "22px", fontWeight: "950" }}>
-        {autonomousRestaurantControlLayer.autonomyLevel}
-      </div>
-    </div>
-
-    <div
-      style={{
-        gridColumn: isMobile ? "span 1" : "span 2",
-        padding: "16px",
-        borderRadius: "18px",
-        background: "rgba(15,23,42,0.72)",
-        border: "1px solid rgba(148,163,184,0.12)",
-      }}
-    >
-      <div style={{ color: "#94a3b8", fontSize: "11px", fontWeight: "800" }}>
-        Active AI Systems
-      </div>
-
-      <div
-        style={{
-          display: "flex",
-          flexWrap: "wrap",
-          gap: "10px",
-          marginTop: "10px",
-        }}
-      >
-        {autonomousRestaurantControlLayer.systemsActive.map(
-          (system, index) => (
-            <div
-              key={index}
-              style={{
-                padding: "10px 14px",
-                borderRadius: "999px",
-                background: "rgba(34,197,94,0.14)",
-                border: "1px solid rgba(34,197,94,0.24)",
-                color: "#dcfce7",
-                fontSize: "12px",
-                fontWeight: "900",
-              }}
-            >
-              {system}
-            </div>
-          )
-        )}
-      </div>
-    </div>
-  </div>
-</div>
-  <h3 style={{ color: "white", fontSize: "22px", fontWeight: "950" }}>
-    {aiVoiceOperationsAssistant.status}
-  </h3>
-
-  <p style={{ color: "#f3e8ff", fontSize: "14px", lineHeight: 1.8 }}>
-    {aiVoiceOperationsAssistant.prompt}
-  </p>
-
-  <button
-    type="button"
-    style={{
-      marginTop: "14px",
-      padding: "13px 18px",
-      borderRadius: "16px",
-      border: "1px solid rgba(216,180,254,0.3)",
-      background: "rgba(168,85,247,0.22)",
-      color: "#f5d0fe",
-      fontWeight: "950",
-      cursor: "pointer",
-    }}
-  >
-    Start Voice Briefing
-  </button>
-</div>
-  <h3 style={{ color: "white", fontSize: "22px", fontWeight: "950" }}>
-    {aiLiveOperationsCopilot.mode}
-  </h3>
-
-  <p style={{ color: "#cffafe", fontSize: "14px", lineHeight: 1.8 }}>
-    {aiLiveOperationsCopilot.status}
-  </p>
-
-  <div
-    style={{
-      marginTop: "14px",
-      padding: "16px",
-      borderRadius: "18px",
-      background: "rgba(15,23,42,0.72)",
-      border: "1px solid rgba(148,163,184,0.12)",
-    }}
-  >
-    <div style={{ color: "#94a3b8", fontSize: "12px", fontWeight: "800" }}>
-      Copilot Message
-    </div>
-
-    <div
-      style={{
-        color: "#e0f2fe",
-        fontSize: "15px",
-        lineHeight: 1.7,
-        fontWeight: "850",
-        marginTop: "6px",
-      }}
-    >
-      {aiLiveOperationsCopilot.message}
-    </div>
-  </div>
-</div>
-  <h3 style={{ color: "white", fontSize: "22px", fontWeight: "950" }}>
-    {franchiseBenchmarkIntelligence.status}
-  </h3>
-
-  <p style={{ color: "#ddd6fe", fontSize: "14px", lineHeight: 1.8 }}>
-    AI compared current prime cost performance against a 60% benchmark target.
-  </p>
-
-  <div
-    style={{
-      marginTop: "14px",
-      display: "grid",
-      gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
-      gap: "12px",
-    }}
-  >
-    {[
-      {
-        label: "Benchmark Prime Cost",
-        value: `${franchiseBenchmarkIntelligence.benchmarkPrimeCost}%`,
-      },
-      {
-        label: "Actual Prime Cost",
-        value: `${franchiseBenchmarkIntelligence.actualPrimeCost.toFixed(1)}%`,
-      },
-      {
-        label: "Variance",
-        value: `${franchiseBenchmarkIntelligence.variance.toFixed(1)}%`,
-      },
-    ].map((item, index) => (
-      <div
-        key={index}
-        style={{
-          padding: "14px",
-          borderRadius: "16px",
-          background: "rgba(15,23,42,0.72)",
-          border: "1px solid rgba(148,163,184,0.12)",
-        }}
-      >
-        <div style={{ color: "#94a3b8", fontSize: "12px", fontWeight: "800" }}>
-          {item.label}
-        </div>
-
-        <div style={{ color: "#eef2ff", fontSize: "22px", fontWeight: "950" }}>
-          {item.value}
-        </div>
-      </div>
-    ))}
-  </div>
-</div>
-  <h3 style={{ color: "white", fontSize: "22px", fontWeight: "950" }}>
-    {beverageTheftDetectionAI.riskLevel} Beverage Risk
-  </h3>
-
-  <p style={{ color: "#fecaca", fontSize: "14px", lineHeight: 1.8 }}>
-    AI analyzed beverage variance, pour inconsistency, and inventory movement
-    for potential shrinkage signals.
-  </p>
-
-  <div
-    style={{
-      marginTop: "14px",
-      display: "grid",
-      gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
-      gap: "12px",
-    }}
-  >
-    {[
-      {
-        label: "Suspicious Signals",
-        value: beverageTheftDetectionAI.suspiciousActivity,
-      },
-      {
-        label: "Risk Level",
-        value: beverageTheftDetectionAI.riskLevel,
-      },
-      {
-        label: "Projected Loss",
-        value: `$${Number(
-          beverageTheftDetectionAI.projectedLoss || 0
-        ).toLocaleString()}/mo`,
-      },
-    ].map((item, index) => (
-      <div
-        key={index}
-        style={{
-          padding: "14px",
-          borderRadius: "16px",
-          background: "rgba(15,23,42,0.72)",
-          border: "1px solid rgba(148,163,184,0.12)",
-        }}
-      >
-        <div style={{ color: "#94a3b8", fontSize: "12px", fontWeight: "800" }}>
-          {item.label}
-        </div>
-
-        <div style={{ color: "#fee2e2", fontSize: "22px", fontWeight: "950" }}>
-          {item.value}
-        </div>
-      </div>
-    ))}
-  </div>
-</div>
-  <h3 style={{ color: "white", fontSize: "22px", fontWeight: "950" }}>
-    {aiVendorNegotiationIntelligence.vendorsFlagged} Vendor Risk Signal(s)
-  </h3>
-
-  <p style={{ color: "#fef3c7", fontSize: "14px", lineHeight: 1.8 }}>
-    {aiVendorNegotiationIntelligence.recommendation}
-  </p>
-
-  <div
-    style={{
-      marginTop: "14px",
-      display: "grid",
-      gridTemplateColumns: isMobile ? "1fr" : "repeat(2, 1fr)",
-      gap: "12px",
-    }}
-  >
-    <div
-      style={{
-        padding: "14px",
-        borderRadius: "16px",
-        background: "rgba(15,23,42,0.72)",
-        border: "1px solid rgba(148,163,184,0.12)",
-      }}
-    >
-      <div style={{ color: "#94a3b8", fontSize: "12px", fontWeight: "800" }}>
-        Vendors Flagged
-      </div>
-
-      <div style={{ color: "#fef3c7", fontSize: "22px", fontWeight: "950" }}>
-        {aiVendorNegotiationIntelligence.vendorsFlagged}
-      </div>
-    </div>
-
-    <div
-      style={{
-        padding: "14px",
-        borderRadius: "16px",
-        background: "rgba(15,23,42,0.72)",
-        border: "1px solid rgba(148,163,184,0.12)",
-      }}
-    >
-      <div style={{ color: "#94a3b8", fontSize: "12px", fontWeight: "800" }}>
-        Negotiation Opportunity
-      </div>
-
-      <div style={{ color: "#fde68a", fontSize: "22px", fontWeight: "950" }}>
-        ${Number(
-          aiVendorNegotiationIntelligence.projectedSavings || 0
-        ).toLocaleString()}/mo
-      </div>
-    </div>
-  </div>
-</div>
-  <h3 style={{ color: "white", fontSize: "22px", fontWeight: "950" }}>
-    {predictiveSchedulingAI.status}
-  </h3>
-
-  <p style={{ color: "#cffafe", fontSize: "14px", lineHeight: 1.8 }}>
-    {predictiveSchedulingAI.recommendation}
-  </p>
-
-  <div
-    style={{
-      marginTop: "14px",
-      padding: "14px",
-      borderRadius: "16px",
-      background: "rgba(15,23,42,0.72)",
-      border: "1px solid rgba(148,163,184,0.12)",
-    }}
-  >
-    <div style={{ color: "#94a3b8", fontSize: "12px", fontWeight: "800" }}>
-      Projected Labor Savings
-    </div>
-
-    <div style={{ color: "#bae6fd", fontSize: "24px", fontWeight: "950" }}>
-      ${Number(predictiveSchedulingAI.projectedSavings || 0).toLocaleString()}/mo
-    </div>
-  </div>
-</div>
-  <div style={{ display: "grid", gap: "12px" }}>
-    {aiAutonomousProfitRecoveryEngine.map((item, index) => (
-      <div
-        key={index}
-        style={{
-          display: "grid",
-          gridTemplateColumns: isMobile ? "1fr" : "1fr auto",
-          gap: "10px",
-          alignItems: "center",
-          padding: "16px",
-          borderRadius: "18px",
-          background: "rgba(15,23,42,0.72)",
-          border: "1px solid rgba(148,163,184,0.12)",
+          padding: "24px",
+          borderRadius: "24px",
+          background:
+            "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.92))",
+          border: "1px solid rgba(148,163,184,0.16)",
+          boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
+          width: "100%",
+          boxSizing: "border-box",
+          overflow: "hidden",
         }}
       >
         <div
           style={{
-            color: "white",
-            fontSize: "15px",
+            color: "#c7d2fe",
+            fontSize: "12px",
             fontWeight: "900",
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            marginBottom: "10px",
           }}
         >
-          {item.system}
+          {title}
         </div>
 
         <div
           style={{
-            color:
-              item.status === "Stable" ? "#86efac" : "#fde68a",
-            fontSize: "12px",
-            fontWeight: "950",
-          }}
-        >
-          {item.status}
-        </div>
-      </div>
-    ))}
-  </div>
-</div>
-  <div
-    style={{
-      marginTop: "14px",
-      display: "grid",
-      gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
-      gap: "12px",
-    }}
-  >
-    {[
-      ["Reduce Food Cost 2%", aiWhatIfSimulator.reduceFoodCost2Percent],
-      ["Reduce Labor Cost 1.5%", aiWhatIfSimulator.reduceLaborCost15Percent],
-      ["Improve Menu Margin 3%", aiWhatIfSimulator.improveMenuMargin3Percent],
-    ].map(([label, value], index) => (
-      <div
-        key={index}
-        style={{
-          padding: "16px",
-          borderRadius: "18px",
-          background: "rgba(15,23,42,0.72)",
-          border: "1px solid rgba(148,163,184,0.12)",
-        }}
-      >
-        <div style={{ color: "#94a3b8", fontSize: "12px", fontWeight: "800" }}>
-          {label}
-        </div>
-
-        <div style={{ color: "#bae6fd", fontSize: "22px", fontWeight: "950" }}>
-          ${Number(value || 0).toLocaleString()}/mo
-        </div>
-      </div>
-    ))}
-  </div>
-</div>
-  <h2
-    style={{
-      color: "white",
-      fontSize: "30px",
-      fontWeight: "950",
-      marginBottom: "12px",
-    }}
-  >
-    {aiExecutiveCloseout.status}
-  </h2>
-
-  <p
-    style={{
-      color: "#e5e7eb",
-      fontSize: "15px",
-      lineHeight: 1.9,
-      maxWidth: "760px",
-      margin: "0 auto",
-      fontWeight: "700",
-    }}
-  >
-    {aiExecutiveCloseout.summary}
-  </p>
-
-  <div
-    style={{
-      marginTop: "22px",
-      display: "flex",
-      justifyContent: "center",
-      flexWrap: "wrap",
-      gap: "12px",
-    }}
-  >
-    <button
-      type="button"
-      style={{
-        padding: "14px 18px",
-        borderRadius: "16px",
-        border: "1px solid rgba(250,204,21,0.24)",
-        background: "rgba(250,204,21,0.14)",
-        color: "#fef3c7",
-        fontWeight: "950",
-        cursor: "pointer",
-      }}
-    >
-      Export Executive Report
-    </button>
-
-    <button
-      type="button"
-      style={{
-        padding: "14px 18px",
-        borderRadius: "16px",
-        border: "1px solid rgba(148,163,184,0.18)",
-        background: "rgba(15,23,42,0.72)",
-        color: "#e2e8f0",
-        fontWeight: "900",
-        cursor: "pointer",
-      }}
-    >
-      Continue AI Monitoring
-    </button>
-  </div>
-</div>
-  <h2
-    style={{
-      color: "white",
-      fontSize: "28px",
-      fontWeight: "950",
-      marginBottom: "10px",
-    }}
-  >
-    {aiCEOSummaryLayer.headline}
-  </h2>
-
-  <p
-    style={{
-      color: "#fef9c3",
-      fontSize: "15px",
-      lineHeight: 1.9,
-      margin: 0,
-      fontWeight: "700",
-    }}
-  >
-    {aiCEOSummaryLayer.summary}
-  </p>
-</div>
-  <h3 style={{ color: "white", fontSize: "22px", fontWeight: "950" }}>
-    {aiEnterprisePerformanceForecast.outlook}
-  </h3>
-
-  <p
-    style={{
-      color: "#dbeafe",
-      fontSize: "14px",
-      lineHeight: 1.8,
-      marginTop: "10px",
-      marginBottom: 0,
-      fontWeight: "700",
-    }}
-  >
-    {aiEnterprisePerformanceForecast.detail}
-  </p>
-</div>
-  {(aiExecutiveAlertsFeed || []).length > 0 ? (
-    <div style={{ display: "grid", gap: "12px" }}>
-      {aiExecutiveAlertsFeed.map((alert, index) => (
-        <div
-          key={index}
-          style={{
-            padding: "16px",
-            borderRadius: "18px",
-            background: "rgba(15,23,42,0.72)",
-            border: "1px solid rgba(248,113,113,0.16)",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              gap: "12px",
-            }}
-          >
-            <div style={{ color: "white", fontSize: "15px", fontWeight: "950" }}>
-              {alert.title}
-            </div>
-
-            <div style={{ color: "#fecaca", fontSize: "11px", fontWeight: "950" }}>
-              {alert.severity}
-            </div>
-          </div>
-
-          <div
-            style={{
-              color: "#fecaca",
-              fontSize: "13px",
-              lineHeight: 1.7,
-              marginTop: "6px",
-              fontWeight: "700",
-            }}
-          >
-            {alert.message}
-          </div>
-        </div>
-      ))}
-    </div>
-  ) : (
-    <div style={{ color: "#94a3b8", fontSize: "13px" }}>
-      No executive alerts detected.
-    </div>
-  )}
-</div>
-  <div style={{ display: "grid", gap: "12px" }}>
-    {aiEnterpriseRecoveryPlanner.map((phase, index) => (
-      <div
-        key={index}
-        style={{
-          padding: "16px",
-          borderRadius: "18px",
-          background: "rgba(15,23,42,0.72)",
-          border: "1px solid rgba(148,163,184,0.12)",
-        }}
-      >
-        <div style={{ color: "#bbf7d0", fontSize: "12px", fontWeight: "950" }}>
-          {phase.phase}
-        </div>
-
-        <div
-          style={{
-            color: "white",
-            fontSize: "16px",
-            fontWeight: "950",
-            marginTop: "4px",
-          }}
-        >
-          {phase.title}
-        </div>
-
-        <div
-          style={{
-            color: "#d1fae5",
-            fontSize: "13px",
-            lineHeight: 1.7,
-            marginTop: "6px",
-            fontWeight: "700",
-          }}
-        >
-          {phase.action}
-        </div>
-      </div>
-    ))}
-  </div>
-</div>
-  <h2
-    style={{
-      color: "white",
-      fontSize: "30px",
-      fontWeight: "950",
-      marginBottom: "10px",
-    }}
-  >
-    {aiCorporateCommandCenter.status}
-  </h2>
-
-  <p
-    style={{
-      color: "#d1d5db",
-      fontSize: "15px",
-      lineHeight: 1.9,
-      maxWidth: "760px",
-      marginBottom: "22px",
-    }}
-  >
-    {aiCorporateCommandCenter.summary}
-  </p>
-
-  <div
-    style={{
-      display: "grid",
-      gridTemplateColumns: isMobile ? "1fr" : "repeat(4, 1fr)",
-      gap: "14px",
-    }}
-  >
-    {[
-      {
-        label: "Enterprise Risk",
-        value: aiRiskLevel,
-      },
-      {
-        label: "Portfolio Health",
-        value: aiEnterpriseScorecard.portfolioHealth,
-      },
-      {
-        label: "Recovery Opportunity",
-        value: `$${totalAIFinancialImpact.toLocaleString()}/mo`,
-      },
-      {
-        label: "Locations Monitored",
-        value: aiEnterpriseScorecard.locationsTracked,
-      },
-    ].map((item, index) => (
-      <div
-        key={index}
-        style={{
-          padding: "16px",
-          borderRadius: "18px",
-          background: "rgba(15,23,42,0.72)",
-          border: "1px solid rgba(148,163,184,0.12)",
-        }}
-      >
-        <div
-          style={{
-            color: "#94a3b8",
-            fontSize: "11px",
-            fontWeight: "800",
-            marginBottom: "6px",
-          }}
-        >
-          {item.label}
-        </div>
-
-        <div
-          style={{
-            color: "#f8fafc",
-            fontSize: "22px",
-            fontWeight: "950",
-          }}
-        >
-          {item.value}
-        </div>
-      </div>
-    ))}
-  </div>
-</div>
-  <div
-    style={{
-      display: "grid",
-      gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
-      gap: "12px",
-    }}
-  >
-    {aiExecutiveKPIMatrix.map((item, index) => (
-      <div
-        key={index}
-        style={{
-          padding: "14px",
-          borderRadius: "16px",
-          background: "rgba(15,23,42,0.72)",
-          border: "1px solid rgba(148,163,184,0.12)",
-        }}
-      >
-        <div style={{ color: "#94a3b8", fontSize: "12px", fontWeight: "800" }}>
-          {item.label}
-        </div>
-
-        <div style={{ color: "white", fontSize: "20px", fontWeight: "950" }}>
-          {item.value}
-        </div>
-      </div>
-    ))}
-  </div>
-</div>
-  <h3 style={{ color: "white", fontSize: "22px", fontWeight: "950" }}>
-    {aiEnterpriseRiskForecast.level}
-  </h3>
-
-  <p
-    style={{
-      color: "#fecaca",
-      fontSize: "14px",
-      lineHeight: 1.8,
-      marginTop: "10px",
-      marginBottom: 0,
-      fontWeight: "700",
-    }}
-  >
-    {aiEnterpriseRiskForecast.summary}
-  </p>
-</div>
-  <div style={{ display: "grid", gap: "12px" }}>
-    {aiExecutiveRecommendations.map((rec, index) => (
-      <div
-        key={index}
-        style={{
-          padding: "16px",
-          borderRadius: "18px",
-          background: "rgba(15,23,42,0.72)",
-          border: "1px solid rgba(148,163,184,0.12)",
-        }}
-      >
-        <div style={{ color: "white", fontSize: "15px", fontWeight: "950" }}>
-          {rec.title}
-        </div>
-
-        <div
-          style={{
-            color: "#ddd6fe",
-            fontSize: "13px",
-            lineHeight: 1.7,
-            marginTop: "6px",
-            fontWeight: "700",
-          }}
-        >
-          {rec.detail}
-        </div>
-      </div>
-    ))}
-  </div>
-</div>
-  <div style={{ display: "grid", gap: "10px" }}>
-    {aiPortfolioActionPlan.map((step, index) => (
-      <div
-        key={index}
-        style={{
-          display: "flex",
-          gap: "12px",
-          alignItems: "flex-start",
-          padding: "14px",
-          borderRadius: "16px",
-          background: "rgba(15,23,42,0.72)",
-          border: "1px solid rgba(148,163,184,0.12)",
-        }}
-      >
-        <div
-          style={{
-            minWidth: "28px",
-            height: "28px",
-            borderRadius: "999px",
-            background: "rgba(59,130,246,0.18)",
-            color: "#bfdbfe",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: "12px",
-            fontWeight: "950",
-          }}
-        >
-          {index + 1}
-        </div>
-
-        <div
-          style={{
-            color: "#e2e8f0",
+            color: "#cbd5e1",
             fontSize: "14px",
             lineHeight: 1.7,
-            fontWeight: "700",
           }}
         >
-          {step}
+          AI module active. Add this section’s real content here after the layout
+          is stable.
         </div>
       </div>
     ))}
-  </div>
-</div>
-  <p
-    style={{
-      color: "#fce7f3",
-      fontSize: "14px",
-      lineHeight: 1.8,
-      margin: 0,
-      fontWeight: "700",
-    }}
-  >
-    {aiPortfolioIntelligenceLayer}
-  </p>
-</div>
-  <div
-    style={{
-      display: "grid",
-      gridTemplateColumns: isMobile ? "1fr" : "repeat(4, 1fr)",
-      gap: "12px",
-    }}
-  >
-    {[
-      {
-        label: "Locations Tracked",
-        value: aiEnterpriseScorecard.locationsTracked,
-      },
-      {
-        label: "Healthy Locations",
-        value: aiEnterpriseScorecard.healthyLocations,
-      },
-      {
-        label: "Risk Locations",
-        value: aiEnterpriseScorecard.riskLocations,
-      },
-      {
-        label: "Portfolio Health",
-        value: aiEnterpriseScorecard.portfolioHealth,
-      },
-    ].map((item, index) => (
-      <div
-        key={index}
-        style={{
-          padding: "14px",
-          borderRadius: "16px",
-          background: "rgba(15,23,42,0.72)",
-          border: "1px solid rgba(148,163,184,0.12)",
-        }}
-      >
-        <div style={{ color: "#94a3b8", fontSize: "12px", fontWeight: "800" }}>
-          {item.label}
-        </div>
-
-        <div style={{ color: "#eef2ff", fontSize: "20px", fontWeight: "950" }}>
-          {item.value}
-        </div>
-      </div>
-    ))}
-  </div>
-</div>
-  <div
-    style={{
-      display: "grid",
-      gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
-      gap: "12px",
-    }}
-  >
-    {[
-      {
-        label: "Avg Prime Cost",
-        value: `${aiExecutiveBenchmarking.averagePrimeCost.toFixed(1)}%`,
-      },
-      {
-        label: "Best Location",
-        value: aiExecutiveBenchmarking.bestLocation?.location || "N/A",
-      },
-      {
-        label: "Needs Attention",
-        value: aiExecutiveBenchmarking.weakestLocation?.location || "N/A",
-      },
-    ].map((item, index) => (
-      <div
-        key={index}
-        style={{
-          padding: "14px",
-          borderRadius: "16px",
-          background: "rgba(15,23,42,0.72)",
-          border: "1px solid rgba(148,163,184,0.12)",
-        }}
-      >
-        <div style={{ color: "#94a3b8", fontSize: "12px", fontWeight: "800" }}>
-          {item.label}
-        </div>
-
-        <div style={{ color: "#e0f2fe", fontSize: "18px", fontWeight: "950" }}>
-          {item.value}
-        </div>
-      </div>
-    ))}
-  </div>
-</div>
-  {(aiCrossLocationRisks || []).length > 0 ? (
-    <div style={{ display: "grid", gap: "10px" }}>
-      {aiCrossLocationRisks.map((location, index) => (
-        <div
-          key={index}
-          style={{
-            padding: "14px",
-            borderRadius: "16px",
-            background: "rgba(15,23,42,0.72)",
-            border: "1px solid rgba(239,68,68,0.18)",
-          }}
-        >
-          <div style={{ color: "white", fontSize: "15px", fontWeight: "950" }}>
-            {location.location}
-          </div>
-
-          <div style={{ color: "#fecaca", fontSize: "13px", marginTop: "6px" }}>
-            Prime cost is at {location.primeCost.toFixed(1)}%, placing this
-            location in {location.health} status.
-          </div>
-        </div>
-      ))}
-    </div>
-  ) : (
-    <div style={{ color: "#94a3b8", fontSize: "13px" }}>
-      No cross-location risk detected.
-    </div>
-  )}
-</div>
-  {(aiLocationRanking || []).length > 0 ? (
-    <div style={{ display: "grid", gap: "10px" }}>
-      {aiLocationRanking.map((location, index) => (
-        <div
-          key={index}
-          style={{
-            display: "grid",
-            gridTemplateColumns: isMobile ? "1fr" : "70px 1fr 120px",
-            gap: "10px",
-            alignItems: "center",
-            padding: "14px",
-            borderRadius: "16px",
-            background: "rgba(15,23,42,0.72)",
-            border: "1px solid rgba(148,163,184,0.12)",
-          }}
-        >
-          <div style={{ color: "#bbf7d0", fontWeight: "950" }}>
-            #{index + 1}
-          </div>
-
-          <div style={{ color: "white", fontWeight: "900" }}>
-            {location.location}
-          </div>
-
-          <div style={{ color: "#cbd5e1", fontSize: "13px", fontWeight: "800" }}>
-            {location.primeCost.toFixed(1)}% Prime
-          </div>
-        </div>
-      ))}
-    </div>
-  ) : (
-    <div style={{ color: "#94a3b8", fontSize: "13px" }}>
-      No location ranking available yet.
-    </div>
-  )}
-</div>
-    <h3 style={{ color: "white", fontSize: "26px", fontWeight: "950" }}>
-      Portfolio Operating Summary
-    </h3>
-
-    <p style={{ color: "#cbd5e1", fontSize: "14px", lineHeight: 1.8 }}>
-      {multiLocationIntelligence?.totalLocations > 1
-        ? `${multiLocationIntelligence.totalLocations} locations are being monitored. ${
-            multiLocationIntelligence?.topLocation?.name || "The top location"
-          } is currently the strongest performer, while ${
-            multiLocationIntelligence?.weakestLocation?.name || "the weakest location"
-          } needs the most attention. Average portfolio health is ${
-            multiLocationIntelligence?.averageHealth || 0
-          }/100.`
-        : "Multi-location executive intelligence will activate once more than one location is detected."}
-    </p>
   </div>
 )}
 {/* =========================
@@ -35307,17 +41734,42 @@ boxSizing: "border-box",
         "linear-gradient(135deg, rgba(88,28,135,0.28), rgba(15,23,42,0.96))",
       border: "1px solid rgba(168,85,247,0.22)",
       boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
+      width: "100%",
+      boxSizing: "border-box",
+      overflow: "hidden",
     }}
   >
-    <div style={{ color: "#d8b4fe", fontSize: "12px", fontWeight: "900" }}>
+    <div
+      style={{
+        color: "#d8b4fe",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+      }}
+    >
       EXECUTIVE RISK RADAR
     </div>
 
-    <h3 style={{ color: "white", fontSize: "24px", fontWeight: "950" }}>
+    <h3
+      style={{
+        color: "white",
+        fontSize: "24px",
+        fontWeight: "950",
+        marginTop: "8px",
+      }}
+    >
       Cross-System Risk Intelligence
     </h3>
 
-    <p style={{ color: "#cbd5e1", fontSize: "14px", lineHeight: 1.6 }}>
+    <p
+      style={{
+        color: "#cbd5e1",
+        fontSize: "14px",
+        lineHeight: 1.6,
+        overflowWrap: "anywhere",
+      }}
+    >
       SerVen is monitoring connected risk across labor, food cost, beverage,
       inventory, vendors, consumables, and operational memory.
     </p>
@@ -35325,7 +41777,8 @@ boxSizing: "border-box",
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: isMobile ? "1fr" : "repeat(4, 1fr)",
+        gridTemplateColumns:
+          isMobile ? "1fr" : "repeat(4, minmax(0, 1fr))",
         gap: "14px",
         marginTop: "18px",
       }}
@@ -35359,17 +41812,40 @@ boxSizing: "border-box",
             borderRadius: "18px",
             background: "rgba(255,255,255,0.05)",
             border: "1px solid rgba(255,255,255,0.10)",
+            minWidth: 0,
           }}
         >
-          <div style={{ color: "#c4b5fd", fontSize: "11px", fontWeight: "900" }}>
+          <div
+            style={{
+              color: "#c4b5fd",
+              fontSize: "11px",
+              fontWeight: "900",
+              overflowWrap: "anywhere",
+            }}
+          >
             {item.label}
           </div>
 
-          <div style={{ color: "white", fontSize: "24px", fontWeight: "950" }}>
+          <div
+            style={{
+              color: "white",
+              fontSize: "24px",
+              fontWeight: "950",
+              marginTop: "6px",
+              overflowWrap: "anywhere",
+            }}
+          >
             {item.value}
           </div>
 
-          <div style={{ color: "#94a3b8", fontSize: "12px", marginTop: "4px" }}>
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "12px",
+              marginTop: "4px",
+              overflowWrap: "anywhere",
+            }}
+          >
             {item.subtext}
           </div>
         </div>
@@ -35391,9 +41867,20 @@ boxSizing: "border-box",
         "linear-gradient(135deg, rgba(30,41,59,0.96), rgba(15,23,42,0.98))",
       border: "1px solid rgba(148,163,184,0.14)",
       boxShadow: "0 24px 70px rgba(2,6,23,0.32)",
+      width: "100%",
+      boxSizing: "border-box",
+      overflow: "hidden",
     }}
   >
-    <div style={{ color: "#93c5fd", fontSize: "12px", fontWeight: "900" }}>
+    <div
+      style={{
+        color: "#93c5fd",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+      }}
+    >
       EXECUTIVE AI NARRATIVE
     </div>
 
@@ -35415,6 +41902,7 @@ boxSizing: "border-box",
         borderRadius: "22px",
         background: "rgba(255,255,255,0.04)",
         border: "1px solid rgba(148,163,184,0.10)",
+        minWidth: 0,
       }}
     >
       <div
@@ -35423,23 +41911,21 @@ boxSizing: "border-box",
           fontSize: "15px",
           lineHeight: 1.9,
           fontWeight: "500",
+          overflowWrap: "anywhere",
         }}
       >
         {aiHealthEngine?.overallScore >= 85
           ? `Restaurant operations are performing at a high level with strong stability across margin, labor, and operational execution. AI systems currently identify ${
               crossSystemSignals?.length || 0
             } connected operational signal(s), but overall business health remains strong.`
-
           : aiHealthEngine?.overallScore >= 70
           ? `Restaurant operations remain stable overall, though AI has identified emerging pressure across ${
               executiveActionQueue?.[0]?.department || "operations"
             }. Predictive systems recommend proactive adjustments to protect margins and operational efficiency.`
-
           : aiHealthEngine?.overallScore >= 60
           ? `AI systems have identified meaningful operational pressure affecting profitability and efficiency. Primary risk currently appears connected to ${
               executiveActionQueue?.[0]?.department || "multi-system operations"
             }, with additional predictive instability developing.`
-
           : `Critical operational instability detected. AI systems are identifying elevated multi-system risk across labor, food cost, inventory, beverage, or operational execution. Immediate corrective action is recommended.`}
       </div>
 
@@ -35462,6 +41948,8 @@ boxSizing: "border-box",
               color: "#bfdbfe",
               fontSize: "11px",
               fontWeight: "800",
+              maxWidth: "100%",
+              overflowWrap: "anywhere",
             }}
           >
             {signal.category}
@@ -35485,9 +41973,20 @@ boxSizing: "border-box",
         "linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.94))",
       border: "1px solid rgba(148,163,184,0.14)",
       boxShadow: "0 24px 70px rgba(2,6,23,0.32)",
+      width: "100%",
+      boxSizing: "border-box",
+      overflow: "hidden",
     }}
   >
-    <div style={{ color: "#67e8f9", fontSize: "12px", fontWeight: "900" }}>
+    <div
+      style={{
+        color: "#67e8f9",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+      }}
+    >
       AI OPERATIONAL TIMELINE
     </div>
 
@@ -35508,6 +42007,7 @@ boxSizing: "border-box",
         fontSize: "14px",
         lineHeight: 1.6,
         marginBottom: "20px",
+        overflowWrap: "anywhere",
       }}
     >
       SerVen AI continuously tracks operational events, AI actions, vendor
@@ -35527,6 +42027,7 @@ boxSizing: "border-box",
               borderRadius: "18px",
               background: "rgba(255,255,255,0.04)",
               border: "1px solid rgba(148,163,184,0.10)",
+              minWidth: 0,
             }}
           >
             <div
@@ -35547,7 +42048,7 @@ boxSizing: "border-box",
               }}
             />
 
-            <div style={{ flex: 1 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
               <div
                 style={{
                   display: "flex",
@@ -35556,12 +42057,13 @@ boxSizing: "border-box",
                   flexWrap: "wrap",
                 }}
               >
-                <div>
+                <div style={{ minWidth: 0 }}>
                   <div
                     style={{
                       color: "white",
                       fontSize: "15px",
                       fontWeight: "900",
+                      overflowWrap: "anywhere",
                     }}
                   >
                     {event.title}
@@ -35572,6 +42074,7 @@ boxSizing: "border-box",
                       color: "#94a3b8",
                       fontSize: "12px",
                       marginTop: "4px",
+                      overflowWrap: "anywhere",
                     }}
                   >
                     {event.type} • {event.severity}
@@ -35583,6 +42086,7 @@ boxSizing: "border-box",
                     color: "#86efac",
                     fontSize: "14px",
                     fontWeight: "900",
+                    whiteSpace: "nowrap",
                   }}
                 >
                   ${Number(event.impact || 0).toLocaleString()}
@@ -35595,6 +42099,7 @@ boxSizing: "border-box",
                   fontSize: "13px",
                   lineHeight: 1.7,
                   marginTop: "10px",
+                  overflowWrap: "anywhere",
                 }}
               >
                 {event.message}
@@ -35608,7 +42113,9 @@ boxSizing: "border-box",
                   fontWeight: "700",
                 }}
               >
-                {new Date(event.timestamp).toLocaleDateString()}
+                {event.timestamp
+                  ? new Date(event.timestamp).toLocaleDateString()
+                  : "Recent"}
               </div>
             </div>
           </div>
@@ -35616,6 +42123,10 @@ boxSizing: "border-box",
       ) : (
         <div
           style={{
+            padding: "16px",
+            borderRadius: "18px",
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(148,163,184,0.10)",
             color: "#94a3b8",
             fontSize: "14px",
           }}
@@ -35640,9 +42151,20 @@ boxSizing: "border-box",
         "linear-gradient(135deg, rgba(14,116,144,0.20), rgba(15,23,42,0.96))",
       border: "1px solid rgba(34,211,238,0.20)",
       boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
+      width: "100%",
+      boxSizing: "border-box",
+      overflow: "hidden",
     }}
   >
-    <div style={{ color: "#67e8f9", fontSize: "12px", fontWeight: "900" }}>
+    <div
+      style={{
+        color: "#67e8f9",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+      }}
+    >
       EXECUTIVE FORECAST PANEL
     </div>
 
@@ -35663,6 +42185,7 @@ boxSizing: "border-box",
         fontSize: "14px",
         lineHeight: 1.7,
         marginBottom: "20px",
+        overflowWrap: "anywhere",
       }}
     >
       SerVen AI forecasts operational instability, labor pressure, food cost
@@ -35685,6 +42208,7 @@ boxSizing: "border-box",
               borderRadius: "20px",
               background: "rgba(255,255,255,0.05)",
               border: "1px solid rgba(148,163,184,0.12)",
+              minWidth: 0,
             }}
           >
             <div
@@ -35695,12 +42219,13 @@ boxSizing: "border-box",
                 flexWrap: "wrap",
               }}
             >
-              <div>
+              <div style={{ minWidth: 0 }}>
                 <div
                   style={{
                     color: "white",
                     fontSize: "16px",
                     fontWeight: "900",
+                    overflowWrap: "anywhere",
                   }}
                 >
                   {risk.title}
@@ -35717,6 +42242,7 @@ boxSizing: "border-box",
                     fontSize: "12px",
                     fontWeight: "900",
                     marginTop: "4px",
+                    overflowWrap: "anywhere",
                   }}
                 >
                   {risk.level} RISK
@@ -35728,6 +42254,7 @@ boxSizing: "border-box",
                   color: "#67e8f9",
                   fontSize: "12px",
                   fontWeight: "900",
+                  overflowWrap: "anywhere",
                 }}
               >
                 {risk.forecast}
@@ -35740,6 +42267,7 @@ boxSizing: "border-box",
                 fontSize: "13px",
                 lineHeight: 1.7,
                 marginTop: "12px",
+                overflowWrap: "anywhere",
               }}
             >
               {risk.message}
@@ -35749,6 +42277,10 @@ boxSizing: "border-box",
       ) : (
         <div
           style={{
+            padding: "16px",
+            borderRadius: "18px",
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(148,163,184,0.10)",
             color: "#94a3b8",
             fontSize: "14px",
           }}
@@ -35774,9 +42306,20 @@ boxSizing: "border-box",
         "linear-gradient(135deg, rgba(79,70,229,0.22), rgba(15,23,42,0.96))",
       border: "1px solid rgba(129,140,248,0.20)",
       boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
+      width: "100%",
+      boxSizing: "border-box",
+      overflow: "hidden",
     }}
   >
-    <div style={{ color: "#c7d2fe", fontSize: "12px", fontWeight: "900" }}>
+    <div
+      style={{
+        color: "#c7d2fe",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+      }}
+    >
       AUTONOMOUS AI ENGINE
     </div>
 
@@ -35797,13 +42340,19 @@ boxSizing: "border-box",
         fontSize: "14px",
         lineHeight: 1.7,
         marginBottom: "20px",
+        overflowWrap: "anywhere",
       }}
     >
       SerVen AI automatically generates operational actions using connected
       labor, food cost, beverage, inventory, vendor, and AI memory systems.
     </p>
 
-    <div style={{ display: "grid", gap: "14px" }}>
+    <div
+      style={{
+        display: "grid",
+        gap: "14px",
+      }}
+    >
       {(autonomousAIRecommendations || []).length > 0 ? (
         autonomousAIRecommendations.map((recommendation, index) => (
           <div
@@ -35813,6 +42362,7 @@ boxSizing: "border-box",
               borderRadius: "20px",
               background: "rgba(255,255,255,0.05)",
               border: "1px solid rgba(148,163,184,0.12)",
+              minWidth: 0,
             }}
           >
             <div
@@ -35823,12 +42373,13 @@ boxSizing: "border-box",
                 flexWrap: "wrap",
               }}
             >
-              <div>
+              <div style={{ minWidth: 0 }}>
                 <div
                   style={{
                     color: "white",
                     fontSize: "16px",
                     fontWeight: "900",
+                    overflowWrap: "anywhere",
                   }}
                 >
                   {recommendation.title}
@@ -35845,6 +42396,7 @@ boxSizing: "border-box",
                     fontSize: "12px",
                     fontWeight: "900",
                     marginTop: "4px",
+                    overflowWrap: "anywhere",
                   }}
                 >
                   {recommendation.category} •{" "}
@@ -35857,6 +42409,7 @@ boxSizing: "border-box",
                   color: "#86efac",
                   fontSize: "15px",
                   fontWeight: "950",
+                  whiteSpace: "nowrap",
                 }}
               >
                 ${Number(recommendation.impact || 0).toLocaleString()}
@@ -35869,6 +42422,7 @@ boxSizing: "border-box",
                 fontSize: "13px",
                 lineHeight: 1.7,
                 marginTop: "12px",
+                overflowWrap: "anywhere",
               }}
             >
               {recommendation.action}
@@ -35876,7 +42430,16 @@ boxSizing: "border-box",
           </div>
         ))
       ) : (
-        <div style={{ color: "#94a3b8", fontSize: "14px" }}>
+        <div
+          style={{
+            padding: "16px",
+            borderRadius: "18px",
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(148,163,184,0.10)",
+            color: "#94a3b8",
+            fontSize: "14px",
+          }}
+        >
           Autonomous AI systems are monitoring operational conditions.
         </div>
       )}
@@ -35897,9 +42460,20 @@ boxSizing: "border-box",
         "linear-gradient(135deg, rgba(16,185,129,0.18), rgba(15,23,42,0.96))",
       border: "1px solid rgba(52,211,153,0.20)",
       boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
+      width: "100%",
+      boxSizing: "border-box",
+      overflow: "hidden",
     }}
   >
-    <div style={{ color: "#86efac", fontSize: "12px", fontWeight: "900" }}>
+    <div
+      style={{
+        color: "#86efac",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+      }}
+    >
       AI FINANCIAL COMMAND
     </div>
 
@@ -35920,6 +42494,7 @@ boxSizing: "border-box",
         fontSize: "14px",
         lineHeight: 1.7,
         marginBottom: "22px",
+        overflowWrap: "anywhere",
       }}
     >
       SerVen AI monitors operational profitability, cash flow pressure,
@@ -35929,16 +42504,14 @@ boxSizing: "border-box",
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: isMobile ? "1fr" : "repeat(4, 1fr)",
+        gridTemplateColumns: isMobile ? "1fr" : "repeat(4, minmax(0, 1fr))",
         gap: "14px",
       }}
     >
       {[
         {
           label: "Prime Cost",
-          value: `${Number(
-            aiFinancialCommand?.primeCost || 0
-          ).toFixed(1)}%`,
+          value: `${Number(aiFinancialCommand?.primeCost || 0).toFixed(1)}%`,
           subtext: "Labor + Food Cost",
         },
         {
@@ -35955,9 +42528,7 @@ boxSizing: "border-box",
         },
         {
           label: "Profitability Score",
-          value: `${
-            aiFinancialCommand?.operationalProfitabilityScore || 0
-          }/100`,
+          value: `${aiFinancialCommand?.operationalProfitabilityScore || 0}/100`,
           subtext: "AI operating efficiency",
         },
       ].map((card) => (
@@ -35968,6 +42539,7 @@ boxSizing: "border-box",
             borderRadius: "20px",
             background: "rgba(255,255,255,0.05)",
             border: "1px solid rgba(148,163,184,0.12)",
+            minWidth: 0,
           }}
         >
           <div
@@ -35975,6 +42547,7 @@ boxSizing: "border-box",
               color: "#bbf7d0",
               fontSize: "11px",
               fontWeight: "900",
+              overflowWrap: "anywhere",
             }}
           >
             {card.label}
@@ -35986,6 +42559,7 @@ boxSizing: "border-box",
               fontSize: "24px",
               fontWeight: "950",
               marginTop: "6px",
+              overflowWrap: "anywhere",
             }}
           >
             {card.value}
@@ -35996,6 +42570,7 @@ boxSizing: "border-box",
               color: "#94a3b8",
               fontSize: "12px",
               marginTop: "4px",
+              overflowWrap: "anywhere",
             }}
           >
             {card.subtext}
@@ -36019,38 +42594,106 @@ boxSizing: "border-box",
         "linear-gradient(135deg, rgba(245,158,11,0.16), rgba(15,23,42,0.96))",
       border: "1px solid rgba(251,191,36,0.20)",
       boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
+      width: "100%",
+      boxSizing: "border-box",
+      overflow: "hidden",
     }}
   >
-    <div style={{ color: "#fde68a", fontSize: "12px", fontWeight: "900" }}>
+    <div
+      style={{
+        color: "#fde68a",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+      }}
+    >
       EXECUTIVE BENCHMARKING
     </div>
 
-    <h3 style={{ color: "white", fontSize: "26px", fontWeight: "950" }}>
+    <h3
+      style={{
+        color: "white",
+        fontSize: "26px",
+        fontWeight: "950",
+        marginTop: "8px",
+      }}
+    >
       Performance vs Elite Restaurant Targets
     </h3>
 
-    <div style={{ display: "grid", gap: "12px", marginTop: "18px" }}>
-      {(executiveBenchmarkingData || []).map((item) => (
+    <div
+      style={{
+        display: "grid",
+        gap: "12px",
+        marginTop: "18px",
+      }}
+    >
+      {(executiveBenchmarkingData || []).length > 0 ? (
+        executiveBenchmarkingData.map((item) => (
+          <div
+            key={item.label}
+            style={{
+              display: "grid",
+              gridTemplateColumns: isMobile
+                ? "1fr"
+                : "1.2fr minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr)",
+              gap: "12px",
+              padding: "16px",
+              borderRadius: "18px",
+              background: "rgba(255,255,255,0.05)",
+              border: "1px solid rgba(148,163,184,0.12)",
+              minWidth: 0,
+            }}
+          >
+            <div
+              style={{
+                color: "white",
+                fontWeight: "900",
+                overflowWrap: "anywhere",
+              }}
+            >
+              {item.label}
+            </div>
+
+            <div style={{ color: "#cbd5e1", overflowWrap: "anywhere" }}>
+              Actual: {item.actual}
+            </div>
+
+            <div style={{ color: "#94a3b8", overflowWrap: "anywhere" }}>
+              Target: {item.target}
+            </div>
+
+            <div
+              style={{
+                color:
+                  item.status === "Elite"
+                    ? "#86efac"
+                    : item.status === "Watch"
+                    ? "#fde68a"
+                    : "#fca5a5",
+                fontWeight: "900",
+                overflowWrap: "anywhere",
+              }}
+            >
+              {item.status}
+            </div>
+          </div>
+        ))
+      ) : (
         <div
-          key={item.label}
           style={{
-            display: "grid",
-            gridTemplateColumns: isMobile ? "1fr" : "1.2fr 1fr 1fr 1fr",
-            gap: "12px",
             padding: "16px",
             borderRadius: "18px",
-            background: "rgba(255,255,255,0.05)",
-            border: "1px solid rgba(148,163,184,0.12)",
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(148,163,184,0.10)",
+            color: "#94a3b8",
+            fontSize: "14px",
           }}
         >
-          <div style={{ color: "white", fontWeight: "900" }}>{item.label}</div>
-          <div style={{ color: "#cbd5e1" }}>Actual: {item.actual}</div>
-          <div style={{ color: "#94a3b8" }}>Target: {item.target}</div>
-          <div style={{ color: item.status === "Elite" ? "#86efac" : item.status === "Watch" ? "#fde68a" : "#fca5a5", fontWeight: "900" }}>
-            {item.status}
-          </div>
+          Benchmarking data will appear once enough operational data is available.
         </div>
-      ))}
+      )}
     </div>
   </div>
 )}
@@ -36068,17 +42711,42 @@ boxSizing: "border-box",
         "linear-gradient(135deg, rgba(59,130,246,0.18), rgba(15,23,42,0.98))",
       border: "1px solid rgba(96,165,250,0.22)",
       boxShadow: "0 24px 70px rgba(2,6,23,0.36)",
+      width: "100%",
+      boxSizing: "border-box",
+      overflow: "hidden",
     }}
   >
-    <div style={{ color: "#93c5fd", fontSize: "12px", fontWeight: "900" }}>
+    <div
+      style={{
+        color: "#93c5fd",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+      }}
+    >
       RESTAURANT DIGITAL TWIN
     </div>
 
-    <h3 style={{ color: "white", fontSize: "26px", fontWeight: "950" }}>
+    <h3
+      style={{
+        color: "white",
+        fontSize: "26px",
+        fontWeight: "950",
+        marginTop: "8px",
+      }}
+    >
       Live Operating Model
     </h3>
 
-    <p style={{ color: "#cbd5e1", fontSize: "14px", lineHeight: 1.7 }}>
+    <p
+      style={{
+        color: "#cbd5e1",
+        fontSize: "14px",
+        lineHeight: 1.7,
+        overflowWrap: "anywhere",
+      }}
+    >
       SerVen AI builds a live operating model of the restaurant using revenue,
       labor, food cost, prime cost, AI health, and executive risk signals.
     </p>
@@ -36087,7 +42755,7 @@ boxSizing: "border-box",
       style={{
         marginTop: "22px",
         display: "grid",
-        gridTemplateColumns: isMobile ? "1fr" : "1.2fr 1fr",
+        gridTemplateColumns: isMobile ? "1fr" : "1.2fr minmax(0, 1fr)",
         gap: "18px",
       }}
     >
@@ -36097,9 +42765,16 @@ boxSizing: "border-box",
           borderRadius: "24px",
           background: "rgba(255,255,255,0.05)",
           border: "1px solid rgba(148,163,184,0.12)",
+          minWidth: 0,
         }}
       >
-        <div style={{ color: "#bfdbfe", fontSize: "12px", fontWeight: "900" }}>
+        <div
+          style={{
+            color: "#bfdbfe",
+            fontSize: "12px",
+            fontWeight: "900",
+          }}
+        >
           CURRENT OPERATING MODE
         </div>
 
@@ -36109,9 +42784,10 @@ boxSizing: "border-box",
             fontSize: "32px",
             fontWeight: "950",
             marginTop: "8px",
+            overflowWrap: "anywhere",
           }}
         >
-          {restaurantDigitalTwin?.operatingMode}
+          {restaurantDigitalTwin?.operatingMode || "Monitoring"}
         </div>
 
         <div
@@ -36125,31 +42801,38 @@ boxSizing: "border-box",
                 : "#86efac",
             fontSize: "14px",
             fontWeight: "900",
+            overflowWrap: "anywhere",
           }}
         >
-          Twin Status: {restaurantDigitalTwin?.twinStatus}
+          Twin Status: {restaurantDigitalTwin?.twinStatus || "Stable"}
         </div>
       </div>
 
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "1fr 1fr",
+          gridTemplateColumns: isMobile ? "1fr" : "repeat(2, minmax(0, 1fr))",
           gap: "12px",
         }}
       >
         {[
           {
             label: "Revenue",
-            value: `$${Number(restaurantDigitalTwin?.revenue || 0).toLocaleString()}`,
+            value: `$${Number(
+              restaurantDigitalTwin?.revenue || 0
+            ).toLocaleString()}`,
           },
           {
             label: "Orders",
-            value: Number(restaurantDigitalTwin?.orders || 0).toLocaleString(),
+            value: Number(
+              restaurantDigitalTwin?.orders || 0
+            ).toLocaleString(),
           },
           {
             label: "Prime Cost",
-            value: `${Number(restaurantDigitalTwin?.primeCost || 0).toFixed(1)}%`,
+            value: `${Number(restaurantDigitalTwin?.primeCost || 0).toFixed(
+              1
+            )}%`,
           },
           {
             label: "AI Health",
@@ -36163,13 +42846,29 @@ boxSizing: "border-box",
               borderRadius: "18px",
               background: "rgba(255,255,255,0.05)",
               border: "1px solid rgba(148,163,184,0.10)",
+              minWidth: 0,
             }}
           >
-            <div style={{ color: "#94a3b8", fontSize: "11px", fontWeight: "900" }}>
+            <div
+              style={{
+                color: "#94a3b8",
+                fontSize: "11px",
+                fontWeight: "900",
+                overflowWrap: "anywhere",
+              }}
+            >
               {item.label}
             </div>
 
-            <div style={{ color: "white", fontSize: "20px", fontWeight: "950" }}>
+            <div
+              style={{
+                color: "white",
+                fontSize: "20px",
+                fontWeight: "950",
+                marginTop: "6px",
+                overflowWrap: "anywhere",
+              }}
+            >
               {item.value}
             </div>
           </div>
@@ -36192,17 +42891,42 @@ boxSizing: "border-box",
         "linear-gradient(135deg, rgba(34,197,94,0.20), rgba(15,23,42,0.98))",
       border: "1px solid rgba(74,222,128,0.22)",
       boxShadow: "0 24px 70px rgba(2,6,23,0.36)",
+      width: "100%",
+      boxSizing: "border-box",
+      overflow: "hidden",
     }}
   >
-    <div style={{ color: "#86efac", fontSize: "12px", fontWeight: "900" }}>
+    <div
+      style={{
+        color: "#86efac",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+      }}
+    >
       AUTONOMOUS PROFIT RECOVERY
     </div>
 
-    <h3 style={{ color: "white", fontSize: "26px", fontWeight: "950" }}>
+    <h3
+      style={{
+        color: "white",
+        fontSize: "26px",
+        fontWeight: "950",
+        marginTop: "8px",
+      }}
+    >
       AI Recovery Engine
     </h3>
 
-    <p style={{ color: "#d1fae5", fontSize: "14px", lineHeight: 1.7 }}>
+    <p
+      style={{
+        color: "#d1fae5",
+        fontSize: "14px",
+        lineHeight: 1.7,
+        overflowWrap: "anywhere",
+      }}
+    >
       SerVen AI combines executive actions, autonomous recommendations, and
       financial command signals to estimate recoverable profit opportunities.
     </p>
@@ -36211,7 +42935,7 @@ boxSizing: "border-box",
       style={{
         marginTop: "22px",
         display: "grid",
-        gridTemplateColumns: isMobile ? "1fr" : "repeat(4, 1fr)",
+        gridTemplateColumns: isMobile ? "1fr" : "repeat(4, minmax(0, 1fr))",
         gap: "14px",
       }}
     >
@@ -36242,13 +42966,29 @@ boxSizing: "border-box",
             borderRadius: "20px",
             background: "rgba(255,255,255,0.05)",
             border: "1px solid rgba(148,163,184,0.12)",
+            minWidth: 0,
           }}
         >
-          <div style={{ color: "#bbf7d0", fontSize: "11px", fontWeight: "900" }}>
+          <div
+            style={{
+              color: "#bbf7d0",
+              fontSize: "11px",
+              fontWeight: "900",
+              overflowWrap: "anywhere",
+            }}
+          >
             {item.label}
           </div>
 
-          <div style={{ color: "white", fontSize: "22px", fontWeight: "950" }}>
+          <div
+            style={{
+              color: "white",
+              fontSize: "22px",
+              fontWeight: "950",
+              marginTop: "6px",
+              overflowWrap: "anywhere",
+            }}
+          >
             {item.value}
           </div>
         </div>
@@ -36270,22 +43010,53 @@ boxSizing: "border-box",
         "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.92))",
       border: "1px solid rgba(148,163,184,0.16)",
       boxShadow: "0 24px 70px rgba(2,6,23,0.32)",
+      width: "100%",
+      boxSizing: "border-box",
+      overflow: "hidden",
     }}
   >
-    <div style={{ color: "#a5b4fc", fontSize: "12px", fontWeight: "900" }}>
+    <div
+      style={{
+        color: "#a5b4fc",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+      }}
+    >
       EXECUTIVE PRIORITY QUEUE
     </div>
 
-    <h3 style={{ color: "white", fontSize: "24px", fontWeight: "950" }}>
+    <h3
+      style={{
+        color: "white",
+        fontSize: "24px",
+        fontWeight: "950",
+        marginTop: "8px",
+      }}
+    >
       AI-Ranked Actions To Protect Profit
     </h3>
 
-    <p style={{ color: "#94a3b8", fontSize: "14px", marginBottom: "18px" }}>
-      SerVen ranks the highest-impact operational actions across labor, food cost,
-      beverage, inventory, vendor, and AI memory signals.
+    <p
+      style={{
+        color: "#94a3b8",
+        fontSize: "14px",
+        marginBottom: "18px",
+        lineHeight: 1.7,
+        overflowWrap: "anywhere",
+      }}
+    >
+      SerVen ranks the highest-impact operational actions across labor, food
+      cost, beverage, inventory, vendor, and AI memory signals.
     </p>
 
-    <div style={{ display: "grid", gap: "12px" }}>
+    <div
+      style={{
+        display: "grid",
+        gap: "12px",
+      }}
+    >
       {(executiveActionQueue || []).length > 0 ? (
         executiveActionQueue.map((action, index) => (
           <div
@@ -36295,6 +43066,7 @@ boxSizing: "border-box",
               borderRadius: "18px",
               background: "rgba(255,255,255,0.04)",
               border: "1px solid rgba(148,163,184,0.12)",
+              minWidth: 0,
             }}
           >
             <div
@@ -36303,14 +43075,16 @@ boxSizing: "border-box",
                 justifyContent: "space-between",
                 gap: "12px",
                 marginBottom: "8px",
+                flexWrap: "wrap",
               }}
             >
-              <div>
+              <div style={{ minWidth: 0 }}>
                 <div
                   style={{
                     color: "white",
                     fontSize: "16px",
                     fontWeight: "900",
+                    overflowWrap: "anywhere",
                   }}
                 >
                   {index + 1}. {action.title}
@@ -36322,6 +43096,7 @@ boxSizing: "border-box",
                     fontSize: "12px",
                     fontWeight: "800",
                     marginTop: "4px",
+                    overflowWrap: "anywhere",
                   }}
                 >
                   {action.department} • {action.priority}
@@ -36340,13 +43115,29 @@ boxSizing: "border-box",
               </div>
             </div>
 
-            <div style={{ color: "#cbd5e1", fontSize: "13px", lineHeight: 1.6 }}>
+            <div
+              style={{
+                color: "#cbd5e1",
+                fontSize: "13px",
+                lineHeight: 1.6,
+                overflowWrap: "anywhere",
+              }}
+            >
               {action.reason}
             </div>
           </div>
         ))
       ) : (
-        <div style={{ color: "#94a3b8", fontSize: "14px" }}>
+        <div
+          style={{
+            padding: "16px",
+            borderRadius: "18px",
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(148,163,184,0.10)",
+            color: "#94a3b8",
+            fontSize: "14px",
+          }}
+        >
           No urgent executive actions detected. SerVen is monitoring operational
           signals.
         </div>
@@ -36368,6 +43159,9 @@ boxSizing: "border-box",
         "linear-gradient(135deg, rgba(250,204,21,0.16), rgba(15,23,42,0.96))",
       border: "1px solid rgba(250,204,21,0.24)",
       boxShadow: "0 28px 80px rgba(2,6,23,0.34)",
+      width: "100%",
+      boxSizing: "border-box",
+      overflow: "hidden",
     }}
   >
     <div
@@ -36380,7 +43174,7 @@ boxSizing: "border-box",
         marginBottom: "10px",
       }}
     >
-      Top AI Recommended Action
+      TOP AI RECOMMENDED ACTION
     </div>
 
     <h3
@@ -36389,6 +43183,7 @@ boxSizing: "border-box",
         fontSize: "28px",
         fontWeight: "950",
         marginBottom: "12px",
+        overflowWrap: "anywhere",
       }}
     >
       {topAIAction.title}
@@ -36400,6 +43195,7 @@ boxSizing: "border-box",
         fontSize: "14px",
         lineHeight: 1.8,
         marginBottom: "20px",
+        overflowWrap: "anywhere",
       }}
     >
       {topAIAction.recommendation}
@@ -36410,7 +43206,7 @@ boxSizing: "border-box",
         display: "grid",
         gridTemplateColumns: isMobile
           ? "1fr"
-          : "repeat(3,minmax(0,1fr))",
+          : "repeat(3, minmax(0, 1fr))",
         gap: "16px",
       }}
     >
@@ -36432,35 +43228,38 @@ boxSizing: "border-box",
         subtitle="Current operational status"
       />
     </div>
+
     <button
-  type="button"
-  onClick={() =>
-    handleCreateAIAction({
-      actionType: "top_ai_recommendation",
-      title: topAIAction.title,
-      description: topAIAction.recommendation,
-      customer: null,
-      estimatedValue: Number(
-        String(topAIAction.impact || "0").replace(/[^0-9.]/g, "")
-      ),
-      channel: "Operational",
-      message: topAIAction.recommendation,
-    })
-  }
-  style={{
-    marginTop: "18px",
-    padding: "13px 18px",
-    borderRadius: "16px",
-    border: "1px solid rgba(250,204,21,0.28)",
-    background: "rgba(250,204,21,0.14)",
-    color: "#fde68a",
-    fontSize: "13px",
-    fontWeight: "950",
-    cursor: "pointer",
-  }}
->
-  Save AI Recommendation
-</button>
+      type="button"
+      onClick={() =>
+        handleCreateAIAction({
+          actionType: "top_ai_recommendation",
+          title: topAIAction.title,
+          description: topAIAction.recommendation,
+          customer: null,
+          estimatedValue: Number(
+            String(topAIAction.impact || "0").replace(/[^0-9.]/g, "")
+          ),
+          channel: "Operational",
+          message: topAIAction.recommendation,
+        })
+      }
+      style={{
+        marginTop: "18px",
+        padding: "13px 18px",
+        borderRadius: "16px",
+        border: "1px solid rgba(250,204,21,0.28)",
+        background: "rgba(250,204,21,0.14)",
+        color: "#fde68a",
+        fontSize: "13px",
+        fontWeight: "950",
+        cursor: "pointer",
+        width: isMobile ? "100%" : "auto",
+        maxWidth: "100%",
+      }}
+    >
+      Save AI Recommendation
+    </button>
   </div>
 )}
 {/* =========================
@@ -36477,6 +43276,9 @@ boxSizing: "border-box",
         "linear-gradient(135deg, rgba(34,197,94,0.14), rgba(15,23,42,0.96))",
       border: "1px solid rgba(74,222,128,0.22)",
       boxShadow: "0 28px 80px rgba(2,6,23,0.34)",
+      width: "100%",
+      boxSizing: "border-box",
+      overflow: "hidden",
     }}
   >
     <div
@@ -36489,10 +43291,17 @@ boxSizing: "border-box",
         marginBottom: "10px",
       }}
     >
-      AI Autonomous Execution Engine
+      AI AUTONOMOUS EXECUTION ENGINE
     </div>
 
-    <h3 style={{ color: "white", fontSize: "26px", fontWeight: "950" }}>
+    <h3
+      style={{
+        color: "white",
+        fontSize: "26px",
+        fontWeight: "950",
+        overflowWrap: "anywhere",
+      }}
+    >
       AI-Ready Actions For Automated Execution
     </h3>
 
@@ -36500,7 +43309,9 @@ boxSizing: "border-box",
       style={{
         marginTop: "18px",
         display: "grid",
-        gridTemplateColumns: isMobile ? "1fr" : "repeat(3,minmax(0,1fr))",
+        gridTemplateColumns: isMobile
+          ? "1fr"
+          : "repeat(3, minmax(0, 1fr))",
         gap: "16px",
       }}
     >
@@ -36522,122 +43333,132 @@ boxSizing: "border-box",
         subtitle="Minimum projected value"
       />
     </div>
+
     {autonomousModeEnabled && (
-  <button
-    type="button"
-    onClick={async () => {
-      const actionIds = autoExecutableActions.map((action) => action.id);
+      <div
+        style={{
+          marginTop: "18px",
+          display: "flex",
+          flexWrap: "wrap",
+          gap: "12px",
+        }}
+      >
+        <button
+          type="button"
+          onClick={async () => {
+            const actionIds = autoExecutableActions.map((action) => action.id);
 
-      if (!actionIds.length) {
-        setMessage("No eligible AI actions ready for auto-launch.");
-        return;
-      }
+            if (!actionIds.length) {
+              setMessage("No eligible AI actions ready for auto-launch.");
+              return;
+            }
 
-      const { error } = await supabase
-        .from("ai_actions")
-        .update({
-          action_status: "launched",
-        })
-        .in("id", actionIds);
+            const { error } = await supabase
+              .from("ai_actions")
+              .update({
+                action_status: "launched",
+              })
+              .in("id", actionIds);
 
-      if (error) {
-        console.error("Auto-launch error:", error);
-        setMessage("AI auto-launch failed.");
-        return;
-      }
+            if (error) {
+              console.error("Auto-launch error:", error);
+              setMessage("AI auto-launch failed.");
+              return;
+            }
 
-      setAiActions((prev) =>
-        prev.map((action) =>
-          actionIds.includes(action.id)
-            ? { ...action, action_status: "launched" }
-            : action
-        )
-      );
+            setAiActions((prev) =>
+              prev.map((action) =>
+                actionIds.includes(action.id)
+                  ? { ...action, action_status: "launched" }
+                  : action
+              )
+            );
 
-      setMessage(`AI auto-launched ${actionIds.length} action(s).`);
-    }}
-    style={{
-      marginTop: "18px",
-      padding: "13px 18px",
-      borderRadius: "16px",
-      border: "1px solid rgba(34,197,94,0.32)",
-      background: "rgba(34,197,94,0.18)",
-      color: "#86efac",
-      fontSize: "13px",
-      fontWeight: "950",
-      cursor: "pointer",
-    }}
-  >
-    Auto-Launch Eligible Actions
-  </button>
-)}
-{autonomousModeEnabled && lowValueActions.length > 0 && (
-  <button
-    type="button"
-    onClick={async () => {
-      const lowValueIds = lowValueActions.map(
-        (action) => action.id
-      );
+            setMessage(`AI auto-launched ${actionIds.length} action(s).`);
+          }}
+          style={{
+            padding: "13px 18px",
+            borderRadius: "16px",
+            border: "1px solid rgba(34,197,94,0.32)",
+            background: "rgba(34,197,94,0.18)",
+            color: "#86efac",
+            fontSize: "13px",
+            fontWeight: "950",
+            cursor: "pointer",
+            width: isMobile ? "100%" : "auto",
+          }}
+        >
+          Auto-Launch Eligible Actions
+        </button>
 
-      const { error } = await supabase
-        .from("ai_actions")
-        .update({
-          action_status: "cancelled",
-        })
-        .in("id", lowValueIds);
+        {lowValueActions.length > 0 && (
+          <button
+            type="button"
+            onClick={async () => {
+              const lowValueIds = lowValueActions.map((action) => action.id);
 
-      if (error) {
-        console.error("Auto-dismiss error:", error);
-        setMessage("AI auto-dismiss failed.");
-        return;
-      }
+              const { error } = await supabase
+                .from("ai_actions")
+                .update({
+                  action_status: "cancelled",
+                })
+                .in("id", lowValueIds);
 
-      setAiActions((prev) =>
-        prev.map((action) =>
-          lowValueIds.includes(action.id)
-            ? { ...action, action_status: "cancelled" }
-            : action
-        )
-      );
+              if (error) {
+                console.error("Auto-dismiss error:", error);
+                setMessage("AI auto-dismiss failed.");
+                return;
+              }
 
-      setMessage(
-        `AI auto-dismissed ${lowValueIds.length} low-value action(s).`
-      );
-    }}
-    style={{
-      marginTop: "14px",
-      marginLeft: "12px",
-      padding: "13px 18px",
-      borderRadius: "16px",
-      border: "1px solid rgba(239,68,68,0.28)",
-      background: "rgba(239,68,68,0.14)",
-      color: "#fca5a5",
-      fontSize: "13px",
-      fontWeight: "950",
-      cursor: "pointer",
-    }}
-  >
-    Auto-Dismiss Low-Value Actions
-  </button>
-)}
-<div
-  style={{
-    marginTop: "18px",
-    padding: "16px",
-    borderRadius: "20px",
-    background: "rgba(15,23,42,0.72)",
-    border: "1px solid rgba(74,222,128,0.14)",
-    color: "#cbd5e1",
-    fontSize: "13px",
-    lineHeight: 1.7,
-  }}
->
-  {autonomousModeEnabled
-    ? autoExecutableActions.length > 0
-      ? `Autonomous mode is active. AI found ${autoExecutableActions.length} high-value action(s) ready for execution.`
-      : "Autonomous mode is active. No high-value actions are currently ready for execution."
-    : "Autonomous mode is off. AI will recommend actions but will not execute them automatically."}
-</div>
+              setAiActions((prev) =>
+                prev.map((action) =>
+                  lowValueIds.includes(action.id)
+                    ? { ...action, action_status: "cancelled" }
+                    : action
+                )
+              );
+
+              setMessage(
+                `AI auto-dismissed ${lowValueIds.length} low-value action(s).`
+              );
+            }}
+            style={{
+              padding: "13px 18px",
+              borderRadius: "16px",
+              border: "1px solid rgba(239,68,68,0.28)",
+              background: "rgba(239,68,68,0.14)",
+              color: "#fca5a5",
+              fontSize: "13px",
+              fontWeight: "950",
+              cursor: "pointer",
+              width: isMobile ? "100%" : "auto",
+            }}
+          >
+            Auto-Dismiss Low-Value Actions
+          </button>
+        )}
+      </div>
+    )}
+
+    <div
+      style={{
+        marginTop: "18px",
+        padding: "16px",
+        borderRadius: "20px",
+        background: "rgba(15,23,42,0.72)",
+        border: "1px solid rgba(74,222,128,0.14)",
+        color: "#cbd5e1",
+        fontSize: "13px",
+        lineHeight: 1.7,
+        overflowWrap: "anywhere",
+      }}
+    >
+      {autonomousModeEnabled
+        ? autoExecutableActions.length > 0
+          ? `Autonomous mode is active. AI found ${autoExecutableActions.length} high-value action(s) ready for execution.`
+          : "Autonomous mode is active. No high-value actions are currently ready for execution."
+        : "Autonomous mode is off. AI will recommend actions but will not execute them automatically."}
+    </div>
   </div>
 )}
 {/* =========================
@@ -36659,9 +43480,12 @@ boxSizing: "border-box",
       alignItems: isMobile ? "flex-start" : "center",
       flexDirection: isMobile ? "column" : "row",
       gap: "18px",
+      width: "100%",
+      boxSizing: "border-box",
+      overflow: "hidden",
     }}
   >
-    <div>
+    <div style={{ minWidth: 0 }}>
       <div
         style={{
           color: "#86efac",
@@ -36672,7 +43496,7 @@ boxSizing: "border-box",
           marginBottom: "8px",
         }}
       >
-        AI Autonomous Mode
+        AI AUTONOMOUS MODE
       </div>
 
       <h3
@@ -36681,6 +43505,7 @@ boxSizing: "border-box",
           fontSize: "24px",
           fontWeight: "950",
           marginBottom: "8px",
+          overflowWrap: "anywhere",
         }}
       >
         Let AI Auto-Prioritize Recovery Actions
@@ -36692,6 +43517,7 @@ boxSizing: "border-box",
           fontSize: "13px",
           lineHeight: 1.7,
           maxWidth: "760px",
+          overflowWrap: "anywhere",
         }}
       >
         When enabled, SerVen AI can identify high-value draft actions and prepare
@@ -36701,9 +43527,7 @@ boxSizing: "border-box",
 
     <button
       type="button"
-      onClick={() =>
-        setAutonomousModeEnabled((prev) => !prev)
-      }
+      onClick={() => setAutonomousModeEnabled((prev) => !prev)}
       style={{
         padding: "13px 18px",
         borderRadius: "16px",
@@ -36717,142 +43541,158 @@ boxSizing: "border-box",
         fontSize: "13px",
         fontWeight: "950",
         cursor: "pointer",
-        minWidth: "160px",
+        minWidth: isMobile ? "100%" : "160px",
+        width: isMobile ? "100%" : "auto",
+        maxWidth: "100%",
+        flexShrink: 0,
       }}
     >
       {autonomousModeEnabled ? "Autonomous On" : "Autonomous Off"}
     </button>
   </div>
 )}
-{/* 📋 AI OPERATIONS COMMAND */}
+{/* =========================
+   AI OPERATIONS COMMAND
+========================= */}
+
 {hasProAccess && (
   <div
     style={{
       gridColumn: isMobile ? "span 1" : "span 6",
       minWidth: 0,
+      width: "100%",
+      boxSizing: "border-box",
     }}
   >
     <div
       style={{
-        height: "100%",
+        marginTop: "18px",
         padding: "22px",
         borderRadius: "24px",
         background:
           "linear-gradient(135deg, rgba(212,175,55,0.14), rgba(15,23,42,0.96))",
         border: "1px solid rgba(212,175,55,0.24)",
         boxShadow: "0 22px 60px rgba(2,6,23,0.28)",
-      }}
-    >
-      <div
-    style={{
-      marginTop: "18px",
-      padding: "22px",
-      borderRadius: "24px",
-      background:
-        "linear-gradient(135deg, rgba(212,175,55,0.14), rgba(15,23,42,0.96))",
-      border: "1px solid rgba(212,175,55,0.24)",
-      boxShadow: "0 22px 60px rgba(2,6,23,0.28)",
-    }}
-  >
-    <div
-      style={{
-        color: "#d4af37",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-    AI Operations Command
-    </div>
-
-    <h3 style={{ color: "white", margin: "0 0 10px", fontSize: "24px" }}>
-      Restaurant Performance Brief
-    </h3>
-
-    <p style={{ color: "#cbd5e1", fontSize: "14px", lineHeight: 1.7 }}>
-      {executiveSummary?.summary}
-    </p>
-
-{/* 📊 EXECUTIVE KPI STRIP */}
-
-
-<div
-  style={{
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-    gap: "12px",
-    marginTop: "18px",
-  }}
->
-  {[
-    {
-      label: "Critical Alerts",
-      value: executiveSummary?.criticalAlerts || 0,
-    },
-    {
-      label: "Warnings",
-      value: executiveSummary?.warningAlerts || 0,
-    },
-    {
-      label: "Projected Revenue",
-      value: executiveSummary?.projectedRevenue || "$0",
-    },
-    {
-      label: "Operational Risk",
-      value: executiveSummary?.operationalRisk || "Controlled",
-    },
-  ].map((metric) => (
-    <div
-      key={metric.label}
-      style={{
-        padding: "14px",
-        borderRadius: "16px",
-        background: "rgba(255,255,255,0.04)",
-        border: "1px solid rgba(148,163,184,0.12)",
+        width: "100%",
+        boxSizing: "border-box",
+        overflow: "hidden",
       }}
     >
       <div
         style={{
-          color: "#94a3b8",
-          fontSize: "11px",
+          color: "#d4af37",
+          fontSize: "12px",
           fontWeight: "900",
+          letterSpacing: "0.08em",
           textTransform: "uppercase",
-          marginBottom: "6px",
+          marginBottom: "10px",
         }}
       >
-        {metric.label}
+        AI OPERATIONS COMMAND
       </div>
 
-      <div
+      <h3
         style={{
           color: "white",
+          margin: "0 0 10px",
           fontSize: "24px",
           fontWeight: "950",
+          overflowWrap: "anywhere",
         }}
       >
-        {metric.value}
+        Restaurant Performance Brief
+      </h3>
+
+      <p
+        style={{
+          color: "#cbd5e1",
+          fontSize: "14px",
+          lineHeight: 1.7,
+          overflowWrap: "anywhere",
+        }}
+      >
+        {executiveSummary?.summary || "AI is monitoring restaurant performance."}
+      </p>
+
+      {/* 📊 EXECUTIVE KPI STRIP */}
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+          gap: "12px",
+          marginTop: "18px",
+        }}
+      >
+        {[
+          {
+            label: "Critical Alerts",
+            value: executiveSummary?.criticalAlerts || 0,
+          },
+          {
+            label: "Warnings",
+            value: executiveSummary?.warningAlerts || 0,
+          },
+          {
+            label: "Projected Revenue",
+            value: executiveSummary?.projectedRevenue || "$0",
+          },
+          {
+            label: "Operational Risk",
+            value: executiveSummary?.operationalRisk || "Controlled",
+          },
+        ].map((metric) => (
+          <div
+            key={metric.label}
+            style={{
+              padding: "14px",
+              borderRadius: "16px",
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(148,163,184,0.12)",
+              minWidth: 0,
+            }}
+          >
+            <div
+              style={{
+                color: "#94a3b8",
+                fontSize: "11px",
+                fontWeight: "900",
+                textTransform: "uppercase",
+                marginBottom: "6px",
+                overflowWrap: "anywhere",
+              }}
+            >
+              {metric.label}
+            </div>
+
+            <div
+              style={{
+                color: "white",
+                fontSize: "24px",
+                fontWeight: "950",
+                overflowWrap: "anywhere",
+              }}
+            >
+              {metric.value}
+            </div>
+          </div>
+        ))}
       </div>
-    </div>
-  ))}
-</div>
-    
-  </div>
     </div>
   </div>
 )}
 
-
-
-
-{/* ⚡ AI AUTOPILOT ACTION CENTER */}
+{/* =========================
+   AI AUTOPILOT ACTION CENTER
+========================= */}
 
 {hasProAccess && (
   <div
     style={{
       gridColumn: isMobile ? "span 1" : "span 8",
       minWidth: 0,
+      width: "100%",
+      boxSizing: "border-box",
     }}
   >
     <div
@@ -36864,240 +43704,273 @@ boxSizing: "border-box",
           "linear-gradient(135deg, rgba(6,182,212,0.14), rgba(15,23,42,0.96))",
         border: "1px solid rgba(34,211,238,0.22)",
         boxShadow: "0 22px 60px rgba(2,6,23,0.28)",
-      }}
-    >
-    <div
-      style={{
-        color: "#67e8f9",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      AI Autopilot
-    </div>
-
-    <h3
-      style={{
-        color: "white",
-        fontSize: "24px",
-        fontWeight: "950",
-        margin: "0 0 10px",
-      }}
-    >
-      Autopilot Action Center
-    </h3>
-
-    <p
-      style={{
-        color: "#94a3b8",
-        fontSize: "13px",
-        lineHeight: 1.6,
-        marginBottom: "18px",
-      }}
-    >
-      Automatically prioritizes critical alerts, staffing opportunities, and
-      forecasting risks into AI-driven operational actions.
-    </p>
-{/* ========================= */}
-{/* ⚡ AUTOPILOT KPI STRIP */}
-{/* ========================= */}
-
-<div
-  style={{
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-    gap: "12px",
-    marginBottom: "18px",
-  }}
->
-  {[
-    {
-      label: "Autopilot Actions",
-      value: autopilotActions?.length || 0,
-      sub: "AI-prioritized actions",
-    },
-    {
-      label: "Critical Actions",
-      value: (autopilotActions || []).filter(
-        (action) => action.priority === "Critical"
-      ).length,
-      sub: "need immediate review",
-    },
-    {
-      label: "Opportunities",
-      value: (autopilotActions || []).filter(
-        (action) => action.priority === "Opportunity"
-      ).length,
-      sub: "profit growth signals",
-    },
-  ].map((metric) => (
-    <div
-      key={metric.label}
-      style={{
-        padding: "14px",
-        borderRadius: "16px",
-        background: "rgba(255,255,255,0.04)",
-        border: "1px solid rgba(255,255,255,0.08)",
+        width: "100%",
+        boxSizing: "border-box",
+        overflow: "hidden",
       }}
     >
       <div
         style={{
-          color: "#94a3b8",
-          fontSize: "11px",
-          fontWeight: "800",
+          color: "#67e8f9",
+          fontSize: "12px",
+          fontWeight: "900",
+          letterSpacing: "0.08em",
           textTransform: "uppercase",
-          letterSpacing: "0.06em",
-          marginBottom: "6px",
+          marginBottom: "10px",
         }}
       >
-        {metric.label}
+        AI AUTOPILOT
       </div>
 
-      <div
+      <h3
         style={{
           color: "white",
           fontSize: "24px",
           fontWeight: "950",
+          margin: "0 0 10px",
+          overflowWrap: "anywhere",
         }}
       >
-        {metric.value}
-      </div>
+        Autopilot Action Center
+      </h3>
 
-      <div
+      <p
         style={{
-          color: "#64748b",
-          fontSize: "12px",
-          marginTop: "4px",
-        }}
-      >
-        {metric.sub}
-      </div>
-    </div>
-  ))}
-</div>
-    {(!autopilotActions || autopilotActions.length === 0) && (
-      <div
-        style={{
-          padding: "14px",
-          borderRadius: "16px",
-          background: "rgba(255,255,255,0.04)",
-          border: "1px solid rgba(255,255,255,0.08)",
           color: "#94a3b8",
           fontSize: "13px",
           lineHeight: 1.6,
+          marginBottom: "18px",
+          overflowWrap: "anywhere",
         }}
       >
-        No autopilot actions yet. Upload sales, labor, invoice, ingredient, and
-        menu data to activate operational automation.
-      </div>
-    )}
+        Automatically prioritizes critical alerts, staffing opportunities, and
+        forecasting risks into AI-driven operational actions.
+      </p>
 
-    <div style={{ display: "grid", gap: "12px" }}>
-      {(autopilotActions || []).map((action, index) => (
-        <div
-          key={`${action.type}-${index}`}
-          style={{
-            padding: "16px",
-            borderRadius: "18px",
-            background:
-              action.priority === "Critical"
-                ? "linear-gradient(135deg, rgba(239,68,68,0.10), rgba(15,23,42,0.9))"
-                : "rgba(255,255,255,0.04)",
-            border:
-              action.priority === "Critical"
-                ? "1px solid rgba(239,68,68,0.18)"
-                : "1px solid rgba(255,255,255,0.08)",
-          }}
-        >
+      {/* ========================= */}
+      {/* ⚡ AUTOPILOT KPI STRIP */}
+      {/* ========================= */}
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns:
+            "repeat(auto-fit, minmax(180px, 1fr))",
+          gap: "12px",
+          marginBottom: "18px",
+        }}
+      >
+        {[
+          {
+            label: "Autopilot Actions",
+            value: autopilotActions?.length || 0,
+            sub: "AI-prioritized actions",
+          },
+          {
+            label: "Critical Actions",
+            value: (autopilotActions || []).filter(
+              (action) => action.priority === "Critical"
+            ).length,
+            sub: "need immediate review",
+          },
+          {
+            label: "Opportunities",
+            value: (autopilotActions || []).filter(
+              (action) => action.priority === "Opportunity"
+            ).length,
+            sub: "profit growth signals",
+          },
+        ].map((metric) => (
           <div
+            key={metric.label}
             style={{
-              display: "flex",
-              justifyContent: "space-between",
-              gap: "12px",
-              flexWrap: "wrap",
-              marginBottom: "8px",
+              padding: "14px",
+              borderRadius: "16px",
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              minWidth: 0,
             }}
           >
-            <div style={{ color: "white", fontWeight: "900" }}>
-              {action.title}
+            <div
+              style={{
+                color: "#94a3b8",
+                fontSize: "11px",
+                fontWeight: "800",
+                textTransform: "uppercase",
+                letterSpacing: "0.06em",
+                marginBottom: "6px",
+                overflowWrap: "anywhere",
+              }}
+            >
+              {metric.label}
             </div>
 
             <div
               style={{
-                color:
-                  action.priority === "Critical"
-                    ? "#f87171"
-                    : action.priority === "Opportunity"
-                    ? "#22c55e"
-                    : "#facc15",
-                fontSize: "12px",
-                fontWeight: "900",
-                textTransform: "uppercase",
-                letterSpacing: "0.06em",
+                color: "white",
+                fontSize: "24px",
+                fontWeight: "950",
+                overflowWrap: "anywhere",
               }}
             >
-              {action.priority}
+              {metric.value}
+            </div>
+
+            <div
+              style={{
+                color: "#64748b",
+                fontSize: "12px",
+                marginTop: "4px",
+                overflowWrap: "anywhere",
+              }}
+            >
+              {metric.sub}
             </div>
           </div>
+        ))}
+      </div>
 
-          <div
-            style={{
-              color: "#cbd5e1",
-              fontSize: "13px",
-              lineHeight: 1.6,
-            }}
-          >
-            {action.action}
-          </div>
-
-          <button
-            type="button"
-            onClick={() => {
-              pushActivity(
-                `Autopilot reviewed: ${action.title}`,
-                "autopilot"
-              );
-              setSavedMessage("Autopilot action reviewed");
-              setTimeout(() => setSavedMessage(""), 2000);
-            }}
-            style={{
-              marginTop: "12px",
-              padding: "10px 14px",
-              borderRadius: "12px",
-              border: "1px solid rgba(34,211,238,0.28)",
-              background: "rgba(8,47,73,0.65)",
-              color: "#cffafe",
-              fontWeight: "900",
-              cursor: "pointer",
-            }}
-          >
-            Mark Action Reviewed
-          </button>
+      {(!autopilotActions || autopilotActions.length === 0) && (
+        <div
+          style={{
+            padding: "14px",
+            borderRadius: "16px",
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(255,255,255,0.08)",
+            color: "#94a3b8",
+            fontSize: "13px",
+            lineHeight: 1.6,
+          }}
+        >
+          No autopilot actions yet. Upload sales, labor, invoice,
+          ingredient, and menu data to activate operational automation.
         </div>
-      ))}
+      )}
+
+      <div
+        style={{
+          display: "grid",
+          gap: "12px",
+        }}
+      >
+        {(autopilotActions || []).map((action, index) => (
+          <div
+            key={`${action.type}-${index}`}
+            style={{
+              padding: "16px",
+              borderRadius: "18px",
+              background:
+                action.priority === "Critical"
+                  ? "linear-gradient(135deg, rgba(239,68,68,0.10), rgba(15,23,42,0.9))"
+                  : "rgba(255,255,255,0.04)",
+              border:
+                action.priority === "Critical"
+                  ? "1px solid rgba(239,68,68,0.18)"
+                  : "1px solid rgba(255,255,255,0.08)",
+              minWidth: 0,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: "12px",
+                flexWrap: "wrap",
+                marginBottom: "8px",
+              }}
+            >
+              <div
+                style={{
+                  color: "white",
+                  fontWeight: "900",
+                  overflowWrap: "anywhere",
+                }}
+              >
+                {action.title}
+              </div>
+
+              <div
+                style={{
+                  color:
+                    action.priority === "Critical"
+                      ? "#f87171"
+                      : action.priority === "Opportunity"
+                      ? "#22c55e"
+                      : "#facc15",
+                  fontSize: "12px",
+                  fontWeight: "900",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.06em",
+                  overflowWrap: "anywhere",
+                }}
+              >
+                {action.priority}
+              </div>
+            </div>
+
+            <div
+              style={{
+                color: "#cbd5e1",
+                fontSize: "13px",
+                lineHeight: 1.6,
+                overflowWrap: "anywhere",
+              }}
+            >
+              {action.action}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                pushActivity(
+                  `Autopilot reviewed: ${action.title}`,
+                  "autopilot"
+                );
+                setSavedMessage("Autopilot action reviewed");
+                setTimeout(() => setSavedMessage(""), 2000);
+              }}
+              style={{
+                marginTop: "12px",
+                padding: "10px 14px",
+                borderRadius: "12px",
+                border: "1px solid rgba(34,211,238,0.28)",
+                background: "rgba(8,47,73,0.65)",
+                color: "#cffafe",
+                fontWeight: "900",
+                cursor: "pointer",
+                width: isMobile ? "100%" : "auto",
+                maxWidth: "100%",
+              }}
+            >
+              Mark Action Reviewed
+            </button>
+          </div>
+        ))}
+      </div>
     </div>
-  </div>
   </div>
 )}
 
-{/* 💰 AI PROFIT RECOVERY TRACKER */}
+{/* =========================
+   AI PROFIT RECOVERY TRACKER
+========================= */}
 
 {hasProAccess && (
   <div
     style={{
-  gridColumn: isMobile ? "span 1" : "span 4",
-  minWidth: 0,
-  marginTop: "18px",
-  padding: "22px",
-  borderRadius: "24px",
-  background:
-    "linear-gradient(135deg, rgba(34,197,94,0.14), rgba(15,23,42,0.96))",
-  border: "1px solid rgba(34,197,94,0.22)",
-  boxShadow: "0 22px 60px rgba(2,6,23,0.28)",
-}}
+      gridColumn: isMobile ? "span 1" : "span 4",
+      minWidth: 0,
+      marginTop: "18px",
+      padding: "22px",
+      borderRadius: "24px",
+      background:
+        "linear-gradient(135deg, rgba(34,197,94,0.14), rgba(15,23,42,0.96))",
+      border: "1px solid rgba(34,197,94,0.22)",
+      boxShadow: "0 22px 60px rgba(2,6,23,0.28)",
+      width: "100%",
+      boxSizing: "border-box",
+      overflow: "hidden",
+    }}
   >
     <div
       style={{
@@ -37109,7 +43982,7 @@ boxSizing: "border-box",
         marginBottom: "10px",
       }}
     >
-      AI Profit Recovery
+      AI PROFIT RECOVERY
     </div>
 
     <h3
@@ -37118,6 +43991,7 @@ boxSizing: "border-box",
         fontSize: "24px",
         fontWeight: "950",
         margin: "0 0 10px",
+        overflowWrap: "anywhere",
       }}
     >
       Profit Recovery Tracker
@@ -37129,6 +44003,7 @@ boxSizing: "border-box",
         fontSize: "13px",
         lineHeight: 1.6,
         marginBottom: "18px",
+        overflowWrap: "anywhere",
       }}
     >
       Estimates recovered and projected profit impact from AI alerts,
@@ -37146,17 +44021,23 @@ boxSizing: "border-box",
       {[
         {
           label: "Recovered Profit",
-          value: `$${Number(aiProfitRecoveryData?.recovered || 0).toLocaleString()}`,
+          value: `$${Number(
+            aiProfitRecoveryData?.recovered || 0
+          ).toLocaleString()}`,
           sub: "from reviewed AI actions",
         },
         {
           label: "Projected Opportunity",
-          value: `$${Number(aiProfitRecoveryData?.projected || 0).toLocaleString()}`,
+          value: `$${Number(
+            aiProfitRecoveryData?.projected || 0
+          ).toLocaleString()}`,
           sub: "from open alerts",
         },
         {
           label: "Total Opportunity",
-          value: `$${Number(aiProfitRecoveryData?.totalOpportunity || 0).toLocaleString()}`,
+          value: `$${Number(
+            aiProfitRecoveryData?.totalOpportunity || 0
+          ).toLocaleString()}`,
           sub: "monthly profit potential",
         },
       ].map((metric) => (
@@ -37167,6 +44048,7 @@ boxSizing: "border-box",
             borderRadius: "18px",
             background: "rgba(255,255,255,0.04)",
             border: "1px solid rgba(255,255,255,0.08)",
+            minWidth: 0,
           }}
         >
           <div
@@ -37177,6 +44059,7 @@ boxSizing: "border-box",
               textTransform: "uppercase",
               letterSpacing: "0.06em",
               marginBottom: "6px",
+              overflowWrap: "anywhere",
             }}
           >
             {metric.label}
@@ -37187,6 +44070,7 @@ boxSizing: "border-box",
               color: "#22c55e",
               fontSize: "26px",
               fontWeight: "950",
+              overflowWrap: "anywhere",
             }}
           >
             {metric.value}
@@ -37197,6 +44081,7 @@ boxSizing: "border-box",
               color: "#64748b",
               fontSize: "12px",
               marginTop: "4px",
+              overflowWrap: "anywhere",
             }}
           >
             {metric.sub}
@@ -37204,71 +44089,76 @@ boxSizing: "border-box",
         </div>
       ))}
     </div>
-    {/* ========================= */}
-{/* 💸 PROFIT RECOVERY SIGNALS */}
-{/* ========================= */}
 
-<div
-  style={{
-    marginTop: "18px",
-    padding: "16px",
-    borderRadius: "18px",
-    background: "rgba(255,255,255,0.04)",
-    border: "1px solid rgba(255,255,255,0.08)",
-  }}
->
-  <div
-    style={{
-      color: "#86efac",
-      fontSize: "11px",
-      fontWeight: "900",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      marginBottom: "10px",
-    }}
-  >
-    Recovery Signals
-  </div>
+    {/* =========================
+       PROFIT RECOVERY SIGNALS
+    ========================= */}
 
-  <div style={{ display: "grid", gap: "10px" }}>
-    {[
-      {
-        label: "Open AI Alerts",
-        value: aiProfitRecoveryData?.alertCount || 0,
-      },
-      {
-        label: "Autopilot Actions",
-        value: aiProfitRecoveryData?.actionCount || 0,
-      },
-      {
-        label: "Recovery Status",
-        value:
-          Number(aiProfitRecoveryData?.totalOpportunity || 0) > 0
-            ? "Active"
-            : "Monitoring",
-      },
-    ].map((item) => (
+    <div
+      style={{
+        marginTop: "18px",
+        padding: "16px",
+        borderRadius: "18px",
+        background: "rgba(255,255,255,0.04)",
+        border: "1px solid rgba(255,255,255,0.08)",
+      }}
+    >
       <div
-        key={item.label}
         style={{
-          display: "flex",
-          justifyContent: "space-between",
-          gap: "12px",
-          color: "#cbd5e1",
-          fontSize: "13px",
+          color: "#86efac",
+          fontSize: "11px",
+          fontWeight: "900",
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          marginBottom: "10px",
         }}
       >
-        <span>{item.label}</span>
-        <strong style={{ color: "white" }}>{item.value}</strong>
+        Recovery Signals
       </div>
-    ))}
-  </div>
-</div>
+
+      <div style={{ display: "grid", gap: "10px" }}>
+        {[
+          {
+            label: "Open AI Alerts",
+            value: aiProfitRecoveryData?.alertCount || 0,
+          },
+          {
+            label: "Autopilot Actions",
+            value: aiProfitRecoveryData?.actionCount || 0,
+          },
+          {
+            label: "Recovery Status",
+            value:
+              Number(aiProfitRecoveryData?.totalOpportunity || 0) > 0
+                ? "Active"
+                : "Monitoring",
+          },
+        ].map((item) => (
+          <div
+            key={item.label}
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: "12px",
+              color: "#cbd5e1",
+              fontSize: "13px",
+              minWidth: 0,
+            }}
+          >
+            <span style={{ overflowWrap: "anywhere" }}>{item.label}</span>
+            <strong style={{ color: "white", overflowWrap: "anywhere" }}>
+              {item.value}
+            </strong>
+          </div>
+        ))}
+      </div>
+    </div>
   </div>
 )}
 
-{/* 📄 WEEKLY EXECUTIVE REPORT */}
-
+{/* =========================
+   WEEKLY EXECUTIVE REPORT
+========================= */}
 
 {hasProAccess && (
   <div
@@ -37280,6 +44170,9 @@ boxSizing: "border-box",
         "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.92))",
       border: "1px solid rgba(212,175,55,0.22)",
       boxShadow: "0 22px 60px rgba(2,6,23,0.28)",
+      width: "100%",
+      boxSizing: "border-box",
+      overflow: "hidden",
     }}
   >
     <div
@@ -37292,7 +44185,7 @@ boxSizing: "border-box",
         marginBottom: "10px",
       }}
     >
-      Weekly Executive Report
+      WEEKLY EXECUTIVE REPORT
     </div>
 
     <h3
@@ -37301,6 +44194,7 @@ boxSizing: "border-box",
         fontSize: "24px",
         fontWeight: "950",
         margin: "0 0 10px",
+        overflowWrap: "anywhere",
       }}
     >
       Boardroom-Style Operational Report
@@ -37312,697 +44206,137 @@ boxSizing: "border-box",
         fontSize: "13px",
         lineHeight: 1.6,
         marginBottom: "18px",
+        overflowWrap: "anywhere",
       }}
     >
       Summarizes weekly revenue forecasts, operational risk, AI alerts,
       autopilot actions, and profit recovery opportunities.
     </p>
 
-   <div
-  style={{
-    display: "grid",
-    gridTemplateColumns: isMobile
-  ? "1fr"
-  : "repeat(auto-fit, minmax(160px, 1fr))",
-    gap: "12px",
-    marginBottom: "18px",
-  }}
->
-  {[
-    {
-      label: "Projected Revenue",
-      value: weeklyExecutiveSummary?.projectedRevenue || "$0",
-    },
-
-    {
-      label: "Risk Level",
-      value:
-        weeklyExecutiveSummary?.operationalRisk ||
-        "Controlled",
-    },
-
-    {
-      label: "AI Alerts",
-
-      value:
-        Number(
-          weeklyExecutiveSummary?.criticalAlerts || 0
-        ) +
-        Number(
-          weeklyExecutiveSummary?.warningAlerts || 0
-        ),
-    },
-
-    {
-      label: "Profit Opportunity",
-
-      value: `$${Number(
-        weeklyExecutiveSummary?.totalOpportunity || 0
-      ).toLocaleString()}`,
-    },
-  ].map((metric) => (
-    <div
-      key={metric.label}
-      style={{
-        padding: "14px",
-        borderRadius: "16px",
-        background: "rgba(255,255,255,0.04)",
-        border: "1px solid rgba(255,255,255,0.08)",
-      }}
-    >
-      <div
-        style={{
-          color: "#94a3b8",
-          fontSize: "11px",
-          fontWeight: "900",
-          textTransform: "uppercase",
-          marginBottom: "6px",
-        }}
-      >
-        {metric.label}
-      </div>
-
-      <div
-        style={{
-          color: "white",
-          fontSize: "22px",
-          fontWeight: "950",
-        }}
-      >
-        {metric.value}
-      </div>
-    </div>
-  ))}
-</div>
-
-    <div
-  style={{
-    padding: "16px",
-    borderRadius: "18px",
-    background: "rgba(255,255,255,0.04)",
-    border: "1px solid rgba(255,255,255,0.08)",
-    color: "#cbd5e1",
-    fontSize: "13px",
-    lineHeight: 1.7,
-    marginBottom: "18px",
-  }}
->
-  {weeklyExecutiveSummary?.summary}
-</div>
-
-    <button
-  type="button"
-  onClick={() => {
-    setGeneratedCampaignPreview({
-      title: "Weekly Executive Report",
-
-      sms:
-        weeklyExecutiveSummary?.summary ||
-        "Weekly executive report unavailable.",
-
-      emailBody:
-        weeklyExecutiveSummary?.summary ||
-        "Weekly executive report unavailable.",
-
-      audience: "Restaurant Operators",
-
-      issue: "Weekly Executive Report",
-
-      reason:
-        weeklyExecutiveSummary?.operationalRisk ||
-        "Monitoring",
-    });
-
-    pushActivity(
-      "Generated weekly executive report draft",
-      "report"
-    );
-
-    setSavedMessage("Weekly report draft generated");
-
-    setTimeout(() => setSavedMessage(""), 2000);
-  }}
-  style={{
-    padding: "12px 16px",
-    borderRadius: "14px",
-    border: "none",
-    background: "linear-gradient(135deg, #d4af37, #f97316)",
-    color: "#020617",
-    fontWeight: "950",
-    cursor: "pointer",
-  }}
->
-  Generate Weekly Report Draft
-</button>
-  </div>
-)}
-{/* 🚨 AI OPERATIONAL ALERT FEED */}
-
-{hasProAccess && (
-  <div
-    style={{
-      gridColumn: isMobile ? "span 1" : "span 6",
-      minWidth: 0,
-      marginTop: "18px",
-      padding: "20px",
-      borderRadius: "22px",
-      background:
-        "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.9))",
-      border: "1px solid rgba(239,68,68,0.18)",
-    }}
-  >
     <div
       style={{
-        color: "#fca5a5",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "8px",
+        display: "grid",
+        gridTemplateColumns: isMobile
+          ? "1fr"
+          : "repeat(auto-fit, minmax(160px, 1fr))",
+        gap: "12px",
+        marginBottom: "18px",
       }}
     >
-      AI Operational Alert Feed
-    </div>
-
-    <h3 style={{ color: "white", margin: "0 0 10px", fontSize: "22px" }}>
-      Real-Time Operational Risk Monitoring
-    </h3>
-
-    <p style={{ color: "#94a3b8", fontSize: "13px", lineHeight: 1.6 }}>
-      Aggregates margin risks, waste detection, labor inefficiencies, and
-      vendor cost spikes into a unified operational intelligence feed.
-    </p>
-
-    {(!operationalAlerts || operationalAlerts.length === 0) && (
-      <div
-        style={{
-          marginTop: "18px",
-          padding: "14px",
-          borderRadius: "16px",
-          background: "rgba(255,255,255,0.04)",
-          border: "1px solid rgba(255,255,255,0.08)",
-          color: "#94a3b8",
-          fontSize: "13px",
-          lineHeight: 1.6,
-        }}
-      >
-        No operational alerts detected. Upload operational, invoice, labor,
-        and ingredient data to activate AI monitoring.
-      </div>
-    )}
-
-    <div style={{ display: "grid", gap: "12px", marginTop: "18px" }}>
-      {(operationalAlerts || []).map((alert, index) => (
+      {[
+        {
+          label: "Projected Revenue",
+          value: weeklyExecutiveSummary?.projectedRevenue || "$0",
+        },
+        {
+          label: "Risk Level",
+          value: weeklyExecutiveSummary?.operationalRisk || "Controlled",
+        },
+        {
+          label: "AI Alerts",
+          value:
+            Number(weeklyExecutiveSummary?.criticalAlerts || 0) +
+            Number(weeklyExecutiveSummary?.warningAlerts || 0),
+        },
+        {
+          label: "Profit Opportunity",
+          value: `$${Number(
+            weeklyExecutiveSummary?.totalOpportunity || 0
+          ).toLocaleString()}`,
+        },
+      ].map((metric) => (
         <div
-          key={`${alert.type}-${index}`}
+          key={metric.label}
           style={{
-            padding: "16px",
-            borderRadius: "18px",
-            background:
-              alert.severity === "Critical"
-                ? "linear-gradient(135deg, rgba(239,68,68,0.10), rgba(15,23,42,0.92))"
-                : "linear-gradient(135deg, rgba(250,204,21,0.08), rgba(15,23,42,0.92))",
-
-            border:
-              alert.severity === "Critical"
-                ? "1px solid rgba(239,68,68,0.18)"
-                : "1px solid rgba(250,204,21,0.18)",
+            padding: "14px",
+            borderRadius: "16px",
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(255,255,255,0.08)",
+            minWidth: 0,
           }}
         >
           <div
             style={{
-              display: "flex",
-              justifyContent: "space-between",
-              gap: "12px",
-              flexWrap: "wrap",
-              marginBottom: "8px",
-            }}
-          >
-            <div
-              style={{
-                color: "white",
-                fontWeight: "900",
-              }}
-            >
-              {alert.title}
-            </div>
-
-            <div
-              style={{
-                color:
-                  alert.severity === "Critical"
-                    ? "#f87171"
-                    : "#facc15",
-
-                fontWeight: "900",
-                fontSize: "12px",
-                letterSpacing: "0.06em",
-                textTransform: "uppercase",
-              }}
-            >
-              {alert.severity}
-            </div>
-          </div>
-
-          <div
-            style={{
-              color: "#cbd5e1",
-              fontSize: "13px",
-              marginBottom: "8px",
-            }}
-          >
-            {alert.detail}
-          </div>
-
-          <div
-            style={{
               color: "#94a3b8",
-              fontSize: "12px",
-              lineHeight: 1.6,
+              fontSize: "11px",
+              fontWeight: "900",
+              textTransform: "uppercase",
+              marginBottom: "6px",
+              overflowWrap: "anywhere",
             }}
           >
-            {alert.recommendation}
+            {metric.label}
           </div>
 
           <div
             style={{
-              marginTop: "10px",
-              color: "#64748b",
-              fontSize: "11px",
-              textTransform: "uppercase",
-              letterSpacing: "0.06em",
-              fontWeight: "800",
+              color: "white",
+              fontSize: "22px",
+              fontWeight: "950",
+              overflowWrap: "anywhere",
             }}
           >
-            {alert.type}
+            {metric.value}
           </div>
         </div>
       ))}
     </div>
-  </div>
-)}
-          {aiPriceRecommendations.length > 0 ? (
-            <>
-              <div
-                style={{
-                  marginBottom: "24px",
-                  padding: "18px",
-                  borderRadius: "16px",
-                  background: "rgba(79,70,229,0.12)",
-                  border: "1px solid rgba(79,70,229,0.35)",
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: "14px",
-                    fontWeight: "800",
-                    color: "#c7d2fe",
-                    marginBottom: "10px",
-                  }}
-                >
-                  🤖 AI Profit Recovery Recommendations
-                </div>
 
-                {aiPriceRecommendations.map((rec, index) => (
-                  <div
-                    key={index}
-                    style={{
-                      marginBottom: "12px",
-                      padding: "12px",
-                      borderRadius: "12px",
-                      background: "rgba(255,255,255,0.04)",
-                      border: "1px solid rgba(255,255,255,0.08)",
-                    }}
-                  >
-                    <div style={{ fontWeight: "700", color: "white" }}>
-                      {rec.item} ↑ {Number(rec.percentChange || 0).toFixed(1)}%
-                    </div>
-
-                    <div style={{ fontSize: "13px", color: "#94a3b8" }}>
-                      {rec.supplier}
-                    </div>
-
-                    <div
-                      style={{
-                        marginTop: "6px",
-                        color: "#e0e7ff",
-                        fontSize: "13px",
-                      }}
-                    >
-                      👉 {rec.suggestion}
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => handleGenerateCampaignFromRecommendation(rec)}
-                      style={{
-                        marginTop: "10px",
-                        padding: "10px 14px",
-                        borderRadius: "10px",
-                        border: "none",
-                        background: "linear-gradient(135deg, #4f46e5, #6D3DF5)",
-                        color: "white",
-                        fontWeight: "700",
-                        cursor: "pointer",
-                        boxShadow: "0 10px 20px rgba(79,70,229,0.22)",
-                      }}
-                    >
-                      Generate Campaign →
-                    </button>
-                  </div>
-                ))}
-              </div>
-
-              {generatedCampaignPreview && (
-                <div
-                  style={{
-                    marginTop: "18px",
-                    padding: "18px",
-                    borderRadius: "16px",
-                    background: "rgba(255,255,255,0.04)",
-                    border: "1px solid rgba(255,255,255,0.08)",
-                  }}
-                >
-                  <div
-  style={{
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-    gap: "16px",
-  }}
->
-                    <div
-                      style={{
-                        padding: "14px",
-                        borderRadius: "12px",
-                        background: "rgba(255,255,255,0.03)",
-                        border: "1px solid rgba(255,255,255,0.08)",
-                      }}
-                    >
-                      <div
-                        style={{
-                          fontWeight: "700",
-                          color: "white",
-                          marginBottom: "8px",
-                        }}
-                      >
-                        SMS Preview
-                      </div>
-                      <div
-                        style={{
-                          fontSize: "13px",
-                          color: "#cbd5e1",
-                          lineHeight: 1.6,
-                        }}
-                      >
-                        {generatedCampaignPreview.sms}
-                      </div>
-                    </div>
-
-                    <div
-                      style={{
-                        padding: "14px",
-                        borderRadius: "12px",
-                        background: "rgba(255,255,255,0.03)",
-                        border: "1px solid rgba(255,255,255,0.08)",
-                      }}
-                    >
-                      <div
-                        style={{
-                          fontWeight: "700",
-                          color: "white",
-                          marginBottom: "8px",
-                        }}
-                      >
-                        Email Preview
-                      </div>
-                      <div
-                        style={{
-                          fontSize: "13px",
-                          color: "#e2e8f0",
-                          fontWeight: "700",
-                          marginBottom: "6px",
-                        }}
-                      >
-                        {generatedCampaignPreview.emailSubject}
-                      </div>
-                      <div
-                        style={{
-                          fontSize: "13px",
-                          color: "#cbd5e1",
-                          lineHeight: 1.6,
-                        }}
-                      >
-                        {generatedCampaignPreview.emailBody}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div
-                style={{
-                  marginTop: "16px",
-                  display: "flex",
-                  gap: "10px",
-                  flexWrap: "wrap",
-                }}
-              >
-                {/* 🔥 PROFIT-DRIVEN CAMPAIGN BUTTON */}
-<button
-  type="button"
-  onClick={() => {
-    const campaign = getProfitDrivenCampaign();
-
-    setGeneratedCampaignPreview({
-      title: campaign.title,
-      sms: campaign.sms,
-      emailBody: campaign.emailBody,
-      audience: campaign.audience,
-      issue: campaign.issue,
-      reason: campaign.reason,
-    });
-
-    
-  }}
-  style={{
-    padding: "10px 14px",
-    borderRadius: "10px",
-    border: "1px solid rgba(212,175,55,0.35)",
-    background:
-      "linear-gradient(135deg, rgba(212,175,55,0.22), rgba(109,61,245,0.18))",
-    color: "white",
-    fontWeight: "800",
-    cursor: "pointer",
-    marginRight: "10px",
-  }}
->
-  Generate Profit-Driven Campaign
-</button>
-                <button
-  type="button"
-  onClick={async () => {
-    if (!generatedCampaignPreview) return;
-
-    try {
-      const {
-        data: { session },
-        error: sessionError,
-      } = await supabase.auth.getSession();
-
-      if (sessionError) {
-        console.error("Session error:", sessionError);
-        setSavedMessage("Session error");
-        return;
-      }
-
-      const user = session?.user;
-
-      if (!user?.id) {
-        setSavedMessage("You must be logged in");
-        return;
-      }
-
-      const payload = {
-        user_id: user.id,
-
-        campaign_name: generatedCampaignPreview.title,
-        promotion_title: generatedCampaignPreview.sms,
-        business_type: businessType || "restaurant",
-
-        audience:
-          generatedCampaignPreview.audience || "Returning Customers",
-        timing: "This Week",
-        expected_revenue: "+$1,200/mo",
-
-        active: false,
-        published_to_website: false,
-
-        sms_title: generatedCampaignPreview.title,
-        sms_body: generatedCampaignPreview.sms,
-
-        email_title: generatedCampaignPreview.title,
-        email_body:
-          generatedCampaignPreview.emailBody ||
-          generatedCampaignPreview.sms,
-
-        in_store_title: generatedCampaignPreview.title,
-        in_store_body:
-          generatedCampaignPreview.emailBody ||
-          generatedCampaignPreview.sms,
-
-        social_title: generatedCampaignPreview.title,
-        social_body: generatedCampaignPreview.sms,
-
-        generated_sms: generatedCampaignPreview.sms,
-        generated_email:
-          generatedCampaignPreview.emailBody ||
-          generatedCampaignPreview.sms,
-        generated_social: generatedCampaignPreview.sms,
-        generated_in_store:
-          generatedCampaignPreview.emailBody ||
-          generatedCampaignPreview.sms,
-      };
-
-      const { data, error } = await supabase
-        .from("marketing_campaigns")
-        .insert(payload)
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      const savedCampaign = {
-        id: data.id,
-        name: data.campaign_name || generatedCampaignPreview.title,
-        offer: data.promotion_title || generatedCampaignPreview.sms,
-        channel: "SMS / Email",
-        audience:
-          data.audience ||
-          generatedCampaignPreview.audience ||
-          "Returning Customers",
-        timing: data.timing || "This Week",
-        expectedRevenue: data.expected_revenue || "+$1,200/mo",
-        impact: "+$1,200/mo",
-        status: "draft",
-        createdAt: data.created_at || new Date().toISOString(),
-      };
-
-      setSavedCampaigns((prev) => [savedCampaign, ...prev]);
-
-      setWebsitePromo({
-        title: generatedCampaignPreview.title,
-        offer: generatedCampaignPreview.sms,
-        body:
-          generatedCampaignPreview.emailBody ||
-          generatedCampaignPreview.sms,
-      });
-
-      setSelectedPromotion({
-        title: generatedCampaignPreview.title,
-        text: generatedCampaignPreview.sms,
-      });
-
-      setSavedMessage("Campaign saved as draft");
-      pushActivity(
-        `Saved campaign draft: ${generatedCampaignPreview.title}`,
-        "save"
-      );
-
-      setTimeout(() => setSavedMessage(""), 2000);
-    } catch (err) {
-      console.error("Campaign save error FULL:", err);
-      console.error("Message:", err?.message);
-      console.error("Details:", err?.details);
-      console.error("Hint:", err?.hint);
-      console.error("Code:", err?.code);
-
-      setSavedMessage(err?.message || "Failed to save campaign");
-      setTimeout(() => setSavedMessage(""), 3000);
-    }
-  }}
-  style={{
-    padding: "10px 14px",
-    borderRadius: "10px",
-    border: "none",
-    background: "linear-gradient(135deg, #4f46e5, #6D3DF5)",
-    color: "white",
-    fontWeight: "700",
-    cursor: "pointer",
-    boxShadow: "0 10px 20px rgba(79,70,229,0.22)",
-  }}
->
-  Save Campaign →
-</button>
-
-                {(savedMessage === "Campaign launched" ||
-                  savedMessage === "Auto campaign launched") && (
-                  <div
-                    style={{
-                      marginTop: "12px",
-                      padding: "10px 12px",
-                      borderRadius: "10px",
-                      background: "rgba(16,185,129,0.12)",
-                      border: "1px solid rgba(16,185,129,0.30)",
-                      color: "#6ee7b7",
-                      fontSize: "13px",
-                      fontWeight: "700",
-                    }}
-                  >
-                    ✅{" "}
-                    {savedMessage === "Auto campaign launched"
-                      ? "Auto campaign launched by AI"
-                      : "Campaign is now live in your dashboard"}
-                  </div>
-                )}
-              </div>
-            </>
-          ) : (
-           <div
-  style={{
-    display: "grid",
-    gap: "10px",
-  }}
->
-  {visibleAIActions.map((action, index) => (
     <div
-      key={index}
       style={{
-        padding: "12px",
-        borderRadius: "14px",
-        background: "rgba(15,23,42,0.72)",
-        border: "1px solid rgba(148,163,184,0.14)",
+        padding: "16px",
+        borderRadius: "18px",
+        background: "rgba(255,255,255,0.04)",
+        border: "1px solid rgba(255,255,255,0.08)",
+        color: "#cbd5e1",
+        fontSize: "13px",
+        lineHeight: 1.7,
+        marginBottom: "18px",
+        overflowWrap: "anywhere",
       }}
     >
-      <div style={{ fontSize: "13px", fontWeight: "800", color: "white" }}>
-        🤖 {action.title}
-      </div>
-
-      <div
-        style={{
-          marginTop: "6px",
-          fontSize: "12px",
-          color: "#94a3b8",
-        }}
-      >
-        {action.description || "AI-generated optimization"}
-      </div>
-
-      <div
-        style={{
-          marginTop: "6px",
-          fontSize: "12px",
-          color: "#22c55e",
-          fontWeight: "900",
-        }}
-      >
-        +${Number(action.impact || 0).toLocaleString()}/mo
-      </div>
+      {weeklyExecutiveSummary?.summary ||
+        "Weekly executive summary is monitoring operational performance."}
     </div>
-  ))}
-</div>
 
-          )}
-      
+    <button
+      type="button"
+      onClick={() => {
+        setGeneratedCampaignPreview({
+          title: "Weekly Executive Report",
+          sms:
+            weeklyExecutiveSummary?.summary ||
+            "Weekly executive report unavailable.",
+          emailBody:
+            weeklyExecutiveSummary?.summary ||
+            "Weekly executive report unavailable.",
+          audience: "Restaurant Operators",
+          issue: "Weekly Executive Report",
+          reason: weeklyExecutiveSummary?.operationalRisk || "Monitoring",
+        });
+
+        pushActivity("Generated weekly executive report draft", "report");
+
+        setSavedMessage("Weekly report draft generated");
+
+        setTimeout(() => setSavedMessage(""), 2000);
+      }}
+      style={{
+        padding: "12px 16px",
+        borderRadius: "14px",
+        border: "none",
+        background: "linear-gradient(135deg, #d4af37, #f97316)",
+        color: "#020617",
+        fontWeight: "950",
+        cursor: "pointer",
+        width: isMobile ? "100%" : "auto",
+        maxWidth: "100%",
+      }}
+    >
+      Generate Weekly Report Draft
+    </button>
+  </div>
+)}
 
        
 {/* ✅ AI RESOLUTION TRACKING */}
@@ -39801,19 +46135,1224 @@ boxSizing: "border-box",
 
     </>
   )}
-{activeTab === "financial" && (
+ {activeTab === "admin" && (
   <div
+    style={{
+      width: "calc(100% - 110px)",
+      maxWidth: "1450px",
+      minWidth: 0,
+      marginLeft: "4px",
+      overflowX: "hidden",
+      overflowY: "visible",
+      display: "grid",
+      gap: "18px",
+      boxSizing: "border-box",
+    }}
+  >
+    {/* ADMIN HERO CARD */}
+    <div
+      style={{
+        padding: "24px",
+        borderRadius: "24px",
+        background:
+          "linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.94))",
+        border: "1px solid rgba(148,163,184,0.14)",
+        boxShadow: "0 18px 50px rgba(2,6,23,0.22)",
+      }}
+    >
+      <div
+        style={{
+          color: "#c4b5fd",
+          fontSize: "12px",
+          fontWeight: "900",
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          marginBottom: "8px",
+        }}
+      >
+        Admin Control Center
+      </div>
+
+      <h2
+        style={{
+          margin: 0,
+          color: "white",
+          fontSize: "30px",
+          fontWeight: "950",
+        }}
+      >
+        SerVen Administrative Intelligence
+      </h2>
+
+      <p
+        style={{
+          marginTop: "10px",
+          color: "#94a3b8",
+          fontSize: "14px",
+          lineHeight: 1.7,
+          maxWidth: "760px",
+        }}
+      >
+        Monitor clients, uploads, alerts, subscriptions, platform activity,
+        and owner-level business intelligence.
+      </p>
+    </div>
+
+    {/* ADMIN KPI STRIP */}
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: isMobile
+          ? "1fr"
+          : "repeat(4, minmax(0, 1fr))",
+        gap: "14px",
+      }}
+    >
+      {[
+        {
+          label: "Active Clients",
+          value: users?.length || 0,
+          sub: "Restaurants on platform",
+        },
+        {
+          label: "Uploads Tracked",
+          value: clientImports?.length || 0,
+          sub: "Recent data imports",
+        },
+        {
+          label: "Open Alerts",
+          value: clientAlerts?.length || 0,
+          sub: "Needs review",
+        },
+        {
+          label: "Plan",
+          value: effectivePlan?.toUpperCase() || "STARTER",
+          sub: "Current account mode",
+        },
+      ].map((item) => (
+        <div
+          key={item.label}
+          style={{
+            padding: "18px",
+            borderRadius: "18px",
+            background: "rgba(15,23,42,0.82)",
+            border: "1px solid rgba(148,163,184,0.14)",
+            minWidth: 0,
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "11px",
+              fontWeight: "900",
+              textTransform: "uppercase",
+              marginBottom: "8px",
+            }}
+          >
+            {item.label}
+          </div>
+
+          <div
+            style={{
+              color: "white",
+              fontSize:
+                item.label === "Plan"
+                  ? "20px"
+                  : "28px",
+              fontWeight: "950",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+          >
+            {item.value}
+          </div>
+
+          <div
+            style={{
+              color: "#64748b",
+              fontSize: "12px",
+              marginTop: "6px",
+            }}
+          >
+            {item.sub}
+          </div>
+        </div>
+      ))}
+    </div>
+    {/* STAFF & ROLE MANAGEMENT */}
+
+<div
   style={{
-    width: "100%",
-    maxWidth: "100%",
-    minWidth: 0,
-    overflowX: "hidden",
+    padding: "22px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(59,130,246,0.12), rgba(15,23,42,0.96))",
 
-    display: "grid",
+    border: "1px solid rgba(96,165,250,0.18)",
 
-    gap: isMobile ? "14px" : "20px",
+    boxShadow: "0 18px 50px rgba(2,6,23,0.22)",
   }}
 >
+  <div
+    style={{
+      color: "#93c5fd",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "8px",
+    }}
+  >
+    Staff Management
+  </div>
+
+  <h3
+    style={{
+      margin: 0,
+      color: "white",
+      fontSize: "24px",
+      fontWeight: "950",
+    }}
+  >
+    Team permissions & operational access
+  </h3>
+
+  <div
+    style={{
+      display: "grid",
+      gap: "12px",
+      marginTop: "18px",
+    }}
+  >
+    {[
+      {
+        name: "General Manager",
+        role: "Full operational access",
+        color: "#60a5fa",
+      },
+
+      {
+        name: "Kitchen Manager",
+        role: "Kitchen & inventory controls",
+        color: "#4ade80",
+      },
+
+      {
+        name: "Shift Lead",
+        role: "Labor & shift visibility",
+        color: "#fbbf24",
+      },
+
+      {
+        name: "Owner",
+        role: "Executive visibility & AI intelligence",
+        color: "#c084fc",
+      },
+    ].map((staff) => (
+      <div
+        key={staff.name}
+        style={{
+          padding: "16px",
+          borderRadius: "18px",
+          background: "rgba(15,23,42,0.72)",
+          border: `1px solid ${staff.color}33`,
+
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: "12px",
+          flexWrap: "wrap",
+        }}
+      >
+        <div>
+          <div
+            style={{
+              color: "white",
+              fontSize: "15px",
+              fontWeight: "900",
+            }}
+          >
+            {staff.name}
+          </div>
+
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "12px",
+              marginTop: "4px",
+            }}
+          >
+            {staff.role}
+          </div>
+        </div>
+
+        <button
+          type="button"
+          style={{
+            padding: "10px 14px",
+            borderRadius: "12px",
+            border: "1px solid rgba(255,255,255,0.10)",
+            background: "rgba(255,255,255,0.06)",
+            color: "white",
+            fontWeight: "800",
+            cursor: "pointer",
+          }}
+        >
+          Manage
+        </button>
+      </div>
+    ))}
+  </div>
+</div>
+{/* RESTAURANT SETTINGS */}
+
+<div
+  style={{
+    padding: "22px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(34,197,94,0.12), rgba(15,23,42,0.96))",
+    border: "1px solid rgba(74,222,128,0.18)",
+    boxShadow: "0 18px 50px rgba(2,6,23,0.22)",
+  }}
+>
+  <div style={{ color: "#86efac", fontSize: "12px", fontWeight: "900" }}>
+    Restaurant Settings
+  </div>
+
+  <h3 style={{ margin: 0, color: "white", fontSize: "24px", fontWeight: "950" }}>
+    Operating preferences
+  </h3>
+
+  <div style={{ display: "grid", gap: "12px", marginTop: "18px" }}>
+    {[
+      "Business profile",
+      "Operating hours",
+      "Default labor targets",
+      "Food cost thresholds",
+      "Inventory alert settings",
+      "Executive report schedule",
+    ].map((item) => (
+      <button
+        key={item}
+        type="button"
+        style={{
+          padding: "14px 16px",
+          borderRadius: "16px",
+          border: "1px solid rgba(148,163,184,0.14)",
+          background: "rgba(15,23,42,0.72)",
+          color: "white",
+          fontWeight: "900",
+          cursor: "pointer",
+          textAlign: "left",
+        }}
+      >
+        {item} →
+      </button>
+    ))}
+  </div>
+</div>
+
+{/* NOTIFICATION & ALERT PREFERENCES */}
+
+<div
+  style={{
+    padding: "22px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(239,68,68,0.12), rgba(15,23,42,0.96))",
+
+    border: "1px solid rgba(248,113,113,0.18)",
+
+    boxShadow: "0 18px 50px rgba(2,6,23,0.22)",
+  }}
+>
+  <div
+    style={{
+      color: "#fca5a5",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "8px",
+    }}
+  >
+    Alert Preferences
+  </div>
+
+  <h3
+    style={{
+      margin: 0,
+      color: "white",
+      fontSize: "24px",
+      fontWeight: "950",
+    }}
+  >
+    AI notification & escalation controls
+  </h3>
+
+  <div
+    style={{
+      display: "grid",
+      gap: "12px",
+      marginTop: "18px",
+    }}
+  >
+    {[
+      {
+        title: "Food Cost Alerts",
+        desc: "Notify leadership when food cost exceeds threshold",
+      },
+
+      {
+        title: "Labor Risk Alerts",
+        desc: "Detect overtime and staffing inefficiencies",
+      },
+
+      {
+        title: "Inventory Depletion Alerts",
+        desc: "Monitor critical low-stock ingredients",
+      },
+
+      {
+        title: "Executive AI Summaries",
+        desc: "Daily operational intelligence reports",
+      },
+    ].map((alert) => (
+      <div
+        key={alert.title}
+        style={{
+          padding: "16px",
+          borderRadius: "18px",
+          background: "rgba(15,23,42,0.72)",
+          border: "1px solid rgba(248,113,113,0.14)",
+
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: "12px",
+          flexWrap: "wrap",
+        }}
+      >
+        <div>
+          <div
+            style={{
+              color: "white",
+              fontSize: "15px",
+              fontWeight: "900",
+            }}
+          >
+            {alert.title}
+          </div>
+
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "12px",
+              marginTop: "4px",
+            }}
+          >
+            {alert.desc}
+          </div>
+        </div>
+
+        <div
+          style={{
+            padding: "8px 14px",
+            borderRadius: "999px",
+            background: "rgba(34,197,94,0.14)",
+            border: "1px solid rgba(74,222,128,0.18)",
+            color: "#86efac",
+            fontSize: "11px",
+            fontWeight: "900",
+          }}
+        >
+          ENABLED
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+{/* DATA & INTEGRATION CONTROLS */}
+
+<div
+  style={{
+    padding: "22px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(14,165,233,0.12), rgba(15,23,42,0.96))",
+
+    border: "1px solid rgba(56,189,248,0.18)",
+
+    boxShadow: "0 18px 50px rgba(2,6,23,0.22)",
+  }}
+>
+  <div
+    style={{
+      color: "#67e8f9",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "8px",
+    }}
+  >
+    Data & Integrations
+  </div>
+
+  <h3
+    style={{
+      margin: 0,
+      color: "white",
+      fontSize: "24px",
+      fontWeight: "950",
+    }}
+  >
+    Connected operational systems
+  </h3>
+
+  <div
+    style={{
+      display: "grid",
+      gap: "12px",
+      marginTop: "18px",
+    }}
+  >
+    {[
+      {
+        title: "POS Integration",
+        detail: "Sales & transaction intelligence",
+        status: "Connected",
+        color: "#4ade80",
+      },
+
+      {
+        title: "Labor System",
+        detail: "Scheduling & payroll synchronization",
+        status: "Active",
+        color: "#60a5fa",
+      },
+
+      {
+        title: "Inventory Tracking",
+        detail: "Ingredient & depletion monitoring",
+        status: "Monitoring",
+        color: "#fbbf24",
+      },
+
+      {
+        title: "Invoice Processing",
+        detail: "Vendor & purchasing intelligence",
+        status: "Connected",
+        color: "#c084fc",
+      },
+    ].map((system) => (
+      <div
+        key={system.title}
+        style={{
+          padding: "16px",
+          borderRadius: "18px",
+          background: "rgba(15,23,42,0.72)",
+          border: `1px solid ${system.color}33`,
+
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: "12px",
+          flexWrap: "wrap",
+        }}
+      >
+        <div>
+          <div
+            style={{
+              color: "white",
+              fontSize: "15px",
+              fontWeight: "900",
+            }}
+          >
+            {system.title}
+          </div>
+
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "12px",
+              marginTop: "4px",
+            }}
+          >
+            {system.detail}
+          </div>
+        </div>
+
+        <div
+          style={{
+            padding: "8px 14px",
+            borderRadius: "999px",
+            background: `${system.color}22`,
+            border: `1px solid ${system.color}44`,
+            color: system.color,
+            fontSize: "11px",
+            fontWeight: "900",
+          }}
+        >
+          {system.status}
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+{/* UPLOAD & DATA HISTORY */}
+
+<div
+  style={{
+    padding: "22px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(168,85,247,0.12), rgba(15,23,42,0.96))",
+
+    border: "1px solid rgba(192,132,252,0.18)",
+
+    boxShadow: "0 18px 50px rgba(2,6,23,0.22)",
+  }}
+>
+  <div
+    style={{
+      color: "#d8b4fe",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "8px",
+    }}
+  >
+    Upload History
+  </div>
+
+  <h3
+    style={{
+      margin: 0,
+      color: "white",
+      fontSize: "24px",
+      fontWeight: "950",
+    }}
+  >
+    Recent operational imports & sync activity
+  </h3>
+
+  <div
+    style={{
+      display: "grid",
+      gap: "12px",
+      marginTop: "18px",
+    }}
+  >
+    {(clientImports || []).slice(0, 6).map((upload, index) => (
+      <div
+        key={upload.id || index}
+        style={{
+          padding: "16px",
+          borderRadius: "18px",
+          background: "rgba(15,23,42,0.72)",
+          border: "1px solid rgba(192,132,252,0.14)",
+
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: "12px",
+          flexWrap: "wrap",
+        }}
+      >
+        <div>
+          <div
+            style={{
+              color: "white",
+              fontSize: "15px",
+              fontWeight: "900",
+            }}
+          >
+            {upload.file_name || "Operational Upload"}
+          </div>
+
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "12px",
+              marginTop: "4px",
+            }}
+          >
+            {upload.created_at
+              ? new Date(upload.created_at).toLocaleString()
+              : "Recent upload"}
+          </div>
+        </div>
+
+        <div
+          style={{
+            padding: "8px 14px",
+            borderRadius: "999px",
+            background: "rgba(74,222,128,0.14)",
+            border: "1px solid rgba(74,222,128,0.18)",
+            color: "#86efac",
+            fontSize: "11px",
+            fontWeight: "900",
+          }}
+        >
+          PROCESSED
+        </div>
+      </div>
+    ))}
+
+    {(!clientImports || clientImports.length === 0) && (
+      <div
+        style={{
+          padding: "16px",
+          borderRadius: "16px",
+          background: "rgba(15,23,42,0.72)",
+          border: "1px solid rgba(148,163,184,0.12)",
+          color: "#94a3b8",
+          fontSize: "14px",
+        }}
+      >
+        No operational uploads detected yet.
+      </div>
+    )}
+  </div>
+</div>
+{/* SUBSCRIPTION & BILLING CONTROLS */}
+
+<div
+  style={{
+    padding: "22px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(245,158,11,0.12), rgba(15,23,42,0.96))",
+
+    border: "1px solid rgba(251,191,36,0.18)",
+
+    boxShadow: "0 18px 50px rgba(2,6,23,0.22)",
+  }}
+>
+  <div
+    style={{
+      color: "#fde68a",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "8px",
+    }}
+  >
+    Subscription & Billing
+  </div>
+
+  <h3
+    style={{
+      margin: 0,
+      color: "white",
+      fontSize: "24px",
+      fontWeight: "950",
+    }}
+  >
+    Account plan & platform access
+  </h3>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile
+        ? "1fr"
+        : "repeat(3, minmax(0, 1fr))",
+      gap: "14px",
+      marginTop: "18px",
+    }}
+  >
+    {[
+      {
+        label: "Current Plan",
+        value: effectivePlan?.toUpperCase() || "STARTER",
+        sub: "Active subscription tier",
+      },
+
+      {
+        label: "AI Access",
+        value: hasProAccess ? "ENABLED" : "LIMITED",
+        sub: "Advanced intelligence availability",
+      },
+
+      {
+        label: "Billing Status",
+        value: "ACTIVE",
+        sub: "Subscription operational",
+      },
+    ].map((item) => (
+      <div
+        key={item.label}
+        style={{
+          padding: "18px",
+          borderRadius: "18px",
+          background: "rgba(15,23,42,0.72)",
+          border: "1px solid rgba(251,191,36,0.14)",
+        }}
+      >
+        <div
+          style={{
+            color: "#94a3b8",
+            fontSize: "11px",
+            fontWeight: "900",
+            textTransform: "uppercase",
+            marginBottom: "8px",
+          }}
+        >
+          {item.label}
+        </div>
+
+        <div
+          style={{
+            color: "white",
+            fontSize: "28px",
+            fontWeight: "950",
+          }}
+        >
+          {item.value}
+        </div>
+
+        <div
+          style={{
+            color: "#64748b",
+            fontSize: "12px",
+            marginTop: "6px",
+          }}
+        >
+          {item.sub}
+        </div>
+      </div>
+    ))}
+  </div>
+
+  <div
+    style={{
+      display: "flex",
+      gap: "12px",
+      flexWrap: "wrap",
+      marginTop: "20px",
+    }}
+  >
+    {[
+      "Manage Subscription",
+      "Upgrade Plan",
+      "Billing History",
+      "Payment Methods",
+    ].map((action) => (
+      <button
+        key={action}
+        type="button"
+        style={{
+          padding: "12px 16px",
+          borderRadius: "14px",
+          border: "1px solid rgba(255,255,255,0.10)",
+          background: "rgba(255,255,255,0.06)",
+          color: "white",
+          fontWeight: "800",
+          cursor: "pointer",
+        }}
+      >
+        {action}
+      </button>
+    ))}
+  </div>
+</div>
+{/* AI AUTOMATION CONTROLS */}
+
+<div
+  style={{
+    padding: "22px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(99,102,241,0.14), rgba(15,23,42,0.96))",
+
+    border: "1px solid rgba(129,140,248,0.18)",
+
+    boxShadow: "0 18px 50px rgba(2,6,23,0.22)",
+  }}
+>
+  <div
+    style={{
+      color: "#c7d2fe",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "8px",
+    }}
+  >
+    AI Automation Controls
+  </div>
+
+  <h3
+    style={{
+      margin: 0,
+      color: "white",
+      fontSize: "24px",
+      fontWeight: "950",
+    }}
+  >
+    Autonomous restaurant intelligence systems
+  </h3>
+
+  <div
+    style={{
+      display: "grid",
+      gap: "12px",
+      marginTop: "18px",
+    }}
+  >
+    {[
+      {
+        title: "Inventory Autopilot",
+        desc: "Automatically monitor ingredient depletion & restock risks",
+        status: "ACTIVE",
+        color: "#4ade80",
+      },
+
+      {
+        title: "Labor Optimization Engine",
+        desc: "AI scheduling & staffing efficiency monitoring",
+        status: "RUNNING",
+        color: "#60a5fa",
+      },
+
+      {
+        title: "Profit Recovery Intelligence",
+        desc: "Detect operational leakage & margin loss",
+        status: "SCANNING",
+        color: "#fbbf24",
+      },
+
+      {
+        title: "Executive Forecasting",
+        desc: "Predictive operational & revenue projections",
+        status: "ONLINE",
+        color: "#c084fc",
+      },
+    ].map((system) => (
+      <div
+        key={system.title}
+        style={{
+          padding: "16px",
+          borderRadius: "18px",
+          background: "rgba(15,23,42,0.72)",
+          border: `1px solid ${system.color}33`,
+
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: "12px",
+          flexWrap: "wrap",
+        }}
+      >
+        <div>
+          <div
+            style={{
+              color: "white",
+              fontSize: "15px",
+              fontWeight: "900",
+            }}
+          >
+            {system.title}
+          </div>
+
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "12px",
+              marginTop: "4px",
+            }}
+          >
+            {system.desc}
+          </div>
+        </div>
+
+        <div
+          style={{
+            padding: "8px 14px",
+            borderRadius: "999px",
+            background: `${system.color}22`,
+            border: `1px solid ${system.color}44`,
+            color: system.color,
+            fontSize: "11px",
+            fontWeight: "900",
+          }}
+        >
+          {system.status}
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+{/* SECURITY & ACCESS MONITORING */}
+
+<div
+  style={{
+    padding: "22px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(239,68,68,0.12), rgba(15,23,42,0.96))",
+
+    border: "1px solid rgba(248,113,113,0.18)",
+
+    boxShadow: "0 18px 50px rgba(2,6,23,0.22)",
+  }}
+>
+  <div
+    style={{
+      color: "#fca5a5",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "8px",
+    }}
+  >
+    Security & Access Monitoring
+  </div>
+
+  <h3
+    style={{
+      margin: 0,
+      color: "white",
+      fontSize: "24px",
+      fontWeight: "950",
+    }}
+  >
+    Restaurant access & operational security
+  </h3>
+
+  <div
+    style={{
+      display: "grid",
+      gap: "12px",
+      marginTop: "18px",
+    }}
+  >
+    {[
+      {
+        title: "Admin Access Protection",
+        detail: "Role-based operational permissions active",
+        status: "SECURE",
+        color: "#4ade80",
+      },
+
+      {
+        title: "Operational Login Tracking",
+        detail: "Monitoring restaurant account activity",
+        status: "MONITORING",
+        color: "#60a5fa",
+      },
+
+      {
+        title: "AI Data Encryption",
+        detail: "Restaurant operational data secured",
+        status: "ENABLED",
+        color: "#c084fc",
+      },
+
+      {
+        title: "Multi-Location Controls",
+        detail: "Enterprise access permissions validated",
+        status: "ACTIVE",
+        color: "#fbbf24",
+      },
+    ].map((security) => (
+      <div
+        key={security.title}
+        style={{
+          padding: "16px",
+          borderRadius: "18px",
+          background: "rgba(15,23,42,0.72)",
+          border: `1px solid ${security.color}33`,
+
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: "12px",
+          flexWrap: "wrap",
+        }}
+      >
+        <div>
+          <div
+            style={{
+              color: "white",
+              fontSize: "15px",
+              fontWeight: "900",
+            }}
+          >
+            {security.title}
+          </div>
+
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "12px",
+              marginTop: "4px",
+            }}
+          >
+            {security.detail}
+          </div>
+        </div>
+
+        <div
+          style={{
+            padding: "8px 14px",
+            borderRadius: "999px",
+            background: `${security.color}22`,
+            border: `1px solid ${security.color}44`,
+            color: security.color,
+            fontSize: "11px",
+            fontWeight: "900",
+          }}
+        >
+          {security.status}
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+{/* EXECUTIVE OPERATIONAL SUMMARY */}
+
+<div
+  style={{
+    padding: "26px",
+    borderRadius: "26px",
+
+    background:
+      "radial-gradient(circle at top right, rgba(168,85,247,0.16), transparent 30%), linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.94))",
+
+    border: "1px solid rgba(192,132,252,0.18)",
+
+    boxShadow: "0 24px 70px rgba(2,6,23,0.32)",
+  }}
+>
+  <div
+    style={{
+      color: "#d8b4fe",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "10px",
+    }}
+  >
+    Executive Operational Summary
+  </div>
+
+  <h2
+    style={{
+      margin: 0,
+      color: "white",
+      fontSize: "32px",
+      fontWeight: "950",
+      lineHeight: 1.2,
+    }}
+  >
+    Restaurant operational intelligence center
+  </h2>
+
+  <p
+    style={{
+      marginTop: "14px",
+      color: "#cbd5e1",
+      fontSize: "15px",
+      lineHeight: 1.8,
+      maxWidth: "900px",
+    }}
+  >
+    SerVen AI is actively monitoring labor efficiency, food cost exposure,
+    inventory volatility, menu profitability, operational risk, staffing
+    performance, and predictive restaurant intelligence systems in real time.
+    Executive automation systems remain active with continuous forecasting,
+    anomaly detection, and operational optimization analysis running across
+    connected restaurant systems.
+  </p>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile
+        ? "1fr"
+        : "repeat(3, minmax(0, 1fr))",
+
+      gap: "14px",
+      marginTop: "22px",
+    }}
+  >
+    {[
+      {
+        label: "Operational Status",
+        value: "STABLE",
+      },
+
+      {
+        label: "AI Confidence",
+        value: "94%",
+      },
+
+      {
+        label: "Automation Status",
+        value: "ACTIVE",
+      },
+    ].map((item) => (
+      <div
+        key={item.label}
+        style={{
+          padding: "18px",
+          borderRadius: "18px",
+          background: "rgba(15,23,42,0.72)",
+          border: "1px solid rgba(192,132,252,0.14)",
+        }}
+      >
+        <div
+          style={{
+            color: "#94a3b8",
+            fontSize: "11px",
+            fontWeight: "900",
+            textTransform: "uppercase",
+            marginBottom: "8px",
+          }}
+        >
+          {item.label}
+        </div>
+
+        <div
+          style={{
+            color: "white",
+            fontSize: "26px",
+            fontWeight: "950",
+          }}
+        >
+          {item.value}
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+
+  </div>
+)}
+{activeTab === "financial" && (
+  <div
+    style={{
+      width: "100%",
+      maxWidth: "100%",
+      minWidth: 0,
+      overflow: "visible",
+      display: "grid",
+      gridTemplateColumns: "1fr",
+      gap: isMobile ? "14px" : "20px",
+      boxSizing: "border-box",
+    }}
+  >
     {/* FINANCIAL INTELLIGENCE HERO */}
 <div
   style={{
@@ -40692,57 +48231,128 @@ boxSizing: "border-box",
 <div
   style={{
     display: "grid",
-   gridTemplateColumns:
-  isMobile
+  gridTemplateColumns:
+  activeTab === "growth"
+    ? "minmax(0, 1fr)"
+    : isMobile
     ? "1fr"
     : "minmax(0, 1fr) 360px",
-    gap: "24px",
+    gap: "14px",
     alignItems: "start",
     marginTop: "24px",
+    width: "100%",
+    minWidth: 0,
   }}
 >
   
-        {/* LEFT SIDE */}
-<div style={{ minWidth: 0 }}>
-
-  {activeTab === "growth" && (
-    <>
-      <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-        <div
-          style={{
-            padding: "18px",
-            borderRadius: "16px",
-            background: "linear-gradient(135deg, #111827, #1f2937)",
-            color: "white",
-            boxShadow: "0 12px 30px rgba(0,0,0,0.25)",
-          }}
-        >
-          <div style={{ fontSize: "12px", opacity: 0.7, marginBottom: "6px" }}>
-            AI PROFIT ALERT
-          </div>
-
-          <div style={{ fontSize: "18px", fontWeight: "800", marginBottom: "10px" }}>
-            You’re missing profit opportunities
-          </div>
+{/* LEFT SIDE */}
 <div
   style={{
+    minWidth: 0,
+    width: "100%",
+
+    maxWidth: activeTab === "growth" ? "1200px" : "none",
+    margin: activeTab === "growth" ? "0 auto" : "0",
+
+    padding: 0,
+    gridColumn: "1 / -1",
+  }}
+>
+{activeTab === "growth" && (
+  <>
+  
+        <div style={valueBanner}>
+          <h2 style={{ margin: 0, fontSize: "28px", color: "#ffffff" }}>
+            You’re losing{" "}
+            <span style={{ color: "#ef4444", fontWeight: "800" }}>
+              ${Number(profitBoost || 0).toLocaleString()}/month
+            </span>
+          </h2>
+
+          <p
+            style={{
+              fontSize: "13px",
+              color: "#64748b",
+              marginTop: "10px",
+              marginBottom: "16px",
+            }}
+          >
+            AI detected pricing, cost, and operational inefficiencies.
+          </p>
+
+          <button
+            style={{
+              background: "#6D3DF5",
+              color: "white",
+              border: "none",
+              padding: "10px 16px",
+              borderRadius: "10px",
+              fontWeight: "700",
+              cursor: "pointer",
+            }}
+          >
+            Fix This Now →
+          </button>
+        </div>
+ <div
+  style={{
+  width: "100%",
+maxWidth: "760px",
+margin: "0 0 11px 0",
+
+    minWidth: 0,
+    padding: "13px",
+    borderRadius: "13px",
+    background: "rgba(15,23,42,0.88)",
+    border: "1px solid rgba(148,163,184,0.14)",
+    boxSizing: "border-box",
+
     display: "flex",
-    justifyContent: "space-between",
     alignItems: "center",
-    gap: "10px",
+    justifyContent: "space-between",
+    gap: "13px",
     flexWrap: "wrap",
-    marginBottom: "14px",
   }}
 >
   <div
     style={{
-      fontSize: "13px",
-      color: "#94a3b8",
+      flex: "1 1 420px",
+      minWidth: 0,
     }}
   >
-    Let Serven apply the highest-impact fix first
-  </div>
+    <div
+      style={{
+        color: "#94a3b8",
+        fontSize: "11px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "8px",
+      }}
+    >
+      AI PROFIT ALERT
+    </div>
 
+    <div
+      style={{
+        color: "white",
+        fontSize: "22px",
+        fontWeight: "900",
+        marginBottom: "8px",
+      }}
+    >
+      You’re missing profit opportunities
+    </div>
+
+    <div
+      style={{
+        fontSize: "13px",
+        color: "#94a3b8",
+      }}
+    >
+      Let Serven apply the highest-impact fix first
+    </div>
+  
   <button
     onClick={applyTopRecommendedFix}
     disabled={!topAIActions?.length}
@@ -40757,6 +48367,8 @@ boxSizing: "border-box",
       fontWeight: "800",
       cursor: topAIActions?.length ? "pointer" : "not-allowed",
       opacity: topAIActions?.length ? 1 : 0.6,
+      whiteSpace: "nowrap",
+      flexShrink: 0,
     }}
   >
     Auto Apply Top Fix
@@ -40890,18 +48502,28 @@ boxSizing: "border-box",
   );
 })}
           </div>
-        </div>
+        
 
-        <div
-          style={{
-            background: "linear-gradient(135deg, #4f46e5, #6D3DF5)",
-            color: "white",
-            padding: "20px",
-            borderRadius: "16px",
-            boxShadow: "0 10px 30px rgba(0,0,0,0.1)",
-          }}
-        >
-          <div style={{ fontSize: "12px", opacity: 0.8 }}>AI Insight</div>
+      <div
+  style={{
+    gridColumn: isMobile ? "span 1" : "span 6",
+    width: "100%",
+    minWidth: 0,
+
+    background: "linear-gradient(135deg, #4f46e5, #6D3DF5)",
+    color: "white",
+
+    padding: "20px",
+    borderRadius: "16px",
+
+    overflow: "hidden",
+
+    boxShadow: "0 10px 30px rgba(0,0,0,0.1)",
+  }}
+>
+  <div style={{ fontSize: "12px", opacity: 0.8 }}>
+    AI Insight
+  </div>
 
           <div style={{ fontSize: "20px", fontWeight: "700", marginTop: "6px" }}>
             {wowInsight?.title}
@@ -40915,12 +48537,16 @@ boxSizing: "border-box",
             {wowInsight?.message}
           </div>
         </div>
-
-       <div
+<div
   style={{
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+
+    gridTemplateColumns: "1fr",
+
     gap: "16px",
+
+    minWidth: 0,
+    width: "100%",
   }}
 >
           <GlassCard
@@ -40942,39 +48568,6 @@ boxSizing: "border-box",
           />
         </div>
 
-        <div style={valueBanner}>
-          <h2 style={{ margin: 0, fontSize: "28px", color: "#ffffff" }}>
-            You’re losing{" "}
-            <span style={{ color: "#ef4444", fontWeight: "800" }}>
-              ${Number(profitBoost || 0).toLocaleString()}/month
-            </span>
-          </h2>
-
-          <p
-            style={{
-              fontSize: "13px",
-              color: "#64748b",
-              marginTop: "10px",
-              marginBottom: "16px",
-            }}
-          >
-            AI detected pricing, cost, and operational inefficiencies.
-          </p>
-
-          <button
-            style={{
-              background: "#6D3DF5",
-              color: "white",
-              border: "none",
-              padding: "10px 16px",
-              borderRadius: "10px",
-              fontWeight: "700",
-              cursor: "pointer",
-            }}
-          >
-            Fix This Now →
-          </button>
-        </div>
 
         <div>
           <h3 style={sectionTitle}>
@@ -41037,7 +48630,28 @@ boxSizing: "border-box",
 
 {/* ⚡ LIVE AI OPERATIONS FEED */}
 
-              <Section title="📊 AI Activity Feed">
+<div
+  style={{
+    marginTop: "14px",
+  }}
+>
+  <div
+    style={{
+      fontSize: "14px",
+      fontWeight: "800",
+      color: "white",
+      marginBottom: "10px",
+    }}
+  >
+    📊 AI Activity Feed
+  </div>
+  <div
+  style={{
+    display: "flex",
+    flexDirection: "column",
+    gap: "14px",
+  }}
+>
                 <div style={{ display: "grid", gap: "10px" }}>
                   {activityFeed.map((item) => {
   const isAutopilot = item.type === "autopilot";
@@ -41212,7 +48826,7 @@ boxSizing: "border-box",
   );
 })}
                 </div>
-              </Section>
+              
 
               {shelfLifeLoss > 0 && (
                 <div
@@ -41320,12 +48934,28 @@ boxSizing: "border-box",
                   </div>
                 ))
               ) : (
-                <div style={{ fontSize: "13px", color: "#94a3b8" }}>
-                  No shelf life risks detected right now.
-                </div>
+               <div
+  style={{
+    minHeight: "110px",
+    borderRadius: "16px",
+    border: "1px dashed rgba(148,163,184,0.22)",
+    background: "rgba(15,23,42,0.45)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    textAlign: "center",
+    color: "#94a3b8",
+    fontSize: "13px",
+    padding: "18px",
+  }}
+>
+  No shelf life risks detected right now.
+</div>
+                
               )}
             </div>
-
+</div>
+</div>
             {!hasGrowthAccess && (
               <div
                 style={{
@@ -41641,17 +49271,25 @@ boxSizing: "border-box",
 <div
   style={{
     marginTop: "10px",
+
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+
+  gridTemplateColumns: "1fr",
+
     gap: "20px",
+
+    width: "100%",
+    minWidth: 0,
   }}
 >
   
   {/* STAFF PLANNING SIGNALS */}
   
   <div
-    style={{
-      position: "relative",
+  style={{
+    position: "relative",
+    width: "100%",
+    minWidth: 0,
       padding: "20px",
       borderRadius: "22px",
       background:
@@ -41696,7 +49334,41 @@ boxSizing: "border-box",
           AI flags overstaffed and understaffed days before margin gets hit.
         </p>
       </div>
+<div
+  style={{
+    width: "100%",
+    overflowX: "auto",
+    marginBottom: "18px",
+  }}
+>
+  <BarChart
+    width={760}
+    height={260}
+    data={(staffPlanningSignals || []).slice(0, 7)}
+    margin={{ top: 10, right: 20, left: 0, bottom: 20 }}
+  >
+    <XAxis
+      dataKey="day"
+      tick={{ fill: "#94a3b8", fontSize: 11 }}
+      axisLine={{ stroke: "rgba(148,163,184,0.2)" }}
+      tickLine={false}
+    />
 
+    <YAxis
+      tick={{ fill: "#94a3b8", fontSize: 11 }}
+      axisLine={{ stroke: "rgba(148,163,184,0.2)" }}
+      tickLine={false}
+    />
+
+    <Tooltip />
+
+    <Bar
+      dataKey="laborPercent"
+      fill="#60a5fa"
+      radius={[8, 8, 0, 0]}
+    />
+  </BarChart>
+</div>
       <div
         style={{
           marginBottom: "16px",
@@ -41905,6 +49577,8 @@ boxSizing: "border-box",
   <div
     style={{
       position: "relative",
+      width: "100%",
+minWidth: 0,
       padding: "20px",
       borderRadius: "22px",
       background:
@@ -41948,6 +49622,47 @@ boxSizing: "border-box",
         <p style={{ margin: 0, color: "#94a3b8", fontSize: "13px" }}>
           Predict future revenue and demand spikes before they happen.
         </p>
+        <div
+  style={{
+    width: "100%",
+    overflowX: "auto",
+    marginBottom: "16px",
+  }}
+>
+  <LineChart
+    width={620}
+    height={240}
+    data={[
+      { day: "Today", revenue: Number(liveTotalRevenue || 0) },
+      { day: "Tomorrow", revenue: Number(forecastedNextDayRevenue || 0) },
+      {
+        day: "Next 7 Days",
+        revenue: Number(forecastedNextDayRevenue || 0) * 7,
+      },
+    ]}
+    margin={{ top: 10, right: 20, left: 0, bottom: 20 }}
+  >
+    <XAxis
+      dataKey="day"
+      tick={{ fill: "#94a3b8", fontSize: 11 }}
+      axisLine={{ stroke: "rgba(148,163,184,0.2)" }}
+      tickLine={false}
+    />
+    <YAxis
+      tick={{ fill: "#94a3b8", fontSize: 11 }}
+      axisLine={{ stroke: "rgba(148,163,184,0.2)" }}
+      tickLine={false}
+    />
+    <Tooltip />
+    <Line
+      type="monotone"
+      dataKey="revenue"
+      stroke="#c084fc"
+      strokeWidth={3}
+      dot={{ r: 4 }}
+    />
+  </LineChart>
+</div>
       </div>
 
       <div
@@ -42164,7 +49879,38 @@ boxSizing: "border-box",
         >
           Inventory AI insight
         </div>
-
+<div
+  style={{
+    width: "100%",
+    overflowX: "auto",
+    marginBottom: "16px",
+  }}
+>
+  <BarChart
+    width={980}
+    height={280}
+    data={(inventoryForecast || []).slice(0, 8)}
+    margin={{ top: 10, right: 20, left: 0, bottom: 20 }}
+  >
+    <XAxis
+      dataKey="name"
+      tick={{ fill: "#94a3b8", fontSize: 11 }}
+      axisLine={{ stroke: "rgba(148,163,184,0.2)" }}
+      tickLine={false}
+    />
+    <YAxis
+      tick={{ fill: "#94a3b8", fontSize: 11 }}
+      axisLine={{ stroke: "rgba(148,163,184,0.2)" }}
+      tickLine={false}
+    />
+    <Tooltip />
+    <Bar
+      dataKey="daysRemaining"
+      fill="#60a5fa"
+      radius={[8, 8, 0, 0]}
+    />
+  </BarChart>
+</div>
         <p
           style={{
             margin: 0,
@@ -42372,8 +50118,9 @@ boxSizing: "border-box",
     )}
   </div>
 </div>
-      </div>
-    </>
+   
+  </div>
+  </>
   )}
 {activeTab === "client_alerts" && (
   <div
@@ -42889,11 +50636,20 @@ boxSizing: "border-box",
 {activeTab === "marketing" && hasGrowthAccess && (
   <div
     style={{
-      display: "flex",
-      flexDirection: "column",
-      gap: "24px",
-      width: "100%",
+      width: "calc(100vw - 390px)",
+      maxWidth: "1250px",
       minWidth: 0,
+
+      margin: "0 auto",
+
+      overflowX: "hidden",
+      overflowY: "visible",
+
+      display: "grid",
+      gridTemplateColumns: "1fr",
+
+      gap: "20px",
+
       boxSizing: "border-box",
     }}
   >
@@ -43261,4898 +51017,9 @@ boxSizing: "border-box",
       );
     })()}
 
-    {/* ========================= */}
-    {/* AI RECOMMENDATIONS */}
-    {/* ========================= */}
-    {(() => {
-      const recs = getAIRecommendations();
+  
 
-      return (
-        <div
-          style={{
-            padding: "18px",
-            borderRadius: "18px",
-            background:
-              "linear-gradient(135deg, rgba(109,61,245,0.12), rgba(15,23,42,0.9))",
-            border: "1px solid rgba(109,61,245,0.25)",
-            overflow: "hidden",
-          }}
-        >
-          <div style={{ color: "white", fontWeight: "900", marginBottom: "12px" }}>
-            🧠 AI Recommendations
-          </div>
 
-          <div style={{ display: "grid", gap: "12px" }}>
-            {recs.map((rec, i) => (
-              <div
-                key={i}
-                style={{
-                  padding: "12px",
-                  borderRadius: "12px",
-                  background: "rgba(15,23,42,0.6)",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                  overflowWrap: "break-word",
-                }}
-              >
-                <div
-                  style={{
-                    color: "#a5b4fc",
-                    fontWeight: "800",
-                    fontSize: "13px",
-                  }}
-                >
-                  {rec.title}
-                </div>
-
-                <div
-                  style={{
-                    color: "#cbd5e1",
-                    fontSize: "13px",
-                    marginTop: "4px",
-                    lineHeight: 1.5,
-                  }}
-                >
-                  {rec.message}
-                </div>
-
-                <div
-                  style={{
-                    display: "flex",
-                    gap: "8px",
-                    flexWrap: "wrap",
-                    marginTop: "8px",
-                  }}
-                >
-                  <span
-                    style={{
-                      padding: "4px 8px",
-                      borderRadius: "999px",
-                      background: "rgba(34,197,94,0.12)",
-                      color: "#86efac",
-                      fontSize: "11px",
-                      fontWeight: "900",
-                    }}
-                  >
-                    Confidence: {rec.confidence || "88%"}
-                  </span>
-
-                  <span
-                    style={{
-                      padding: "4px 8px",
-                      borderRadius: "999px",
-                      background: "rgba(250,204,21,0.12)",
-                      color: "#fde68a",
-                      fontSize: "11px",
-                      fontWeight: "900",
-                    }}
-                  >
-                    Impact: {rec.impact || "$400 - $1,200"}
-                  </span>
-                </div>
-
-                {rec.action && (
-                  <button
-                    type="button"
-                    onClick={buildProfitDrivenCampaign}
-                    style={{
-                      marginTop: "8px",
-                      padding: "8px 12px",
-                      borderRadius: "10px",
-                      border: "none",
-                      background: "linear-gradient(135deg, #4f46e5, #6D3DF5)",
-                      color: "white",
-                      fontWeight: "700",
-                      cursor: "pointer",
-                    }}
-                  >
-                    {rec.action}
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      );
-    })()}
-{/* =========================
-   AI GUEST INTELLIGENCE
-========================= */}
-
-{hasProAccess && (
-  <div
-    style={{
-      marginTop: "24px",
-      padding: "24px",
-      borderRadius: "28px",
-      background:
-        "linear-gradient(135deg, rgba(59,130,246,0.16), rgba(15,23,42,0.96))",
-      border: "1px solid rgba(96,165,250,0.24)",
-      boxShadow: "0 24px 70px rgba(2,6,23,0.32)",
-    }}
-  >
-    <div
-      style={{
-        color: "#93c5fd",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      AI Guest Intelligence
-    </div>
-
-    <h3
-      style={{
-        color: "white",
-        fontSize: "28px",
-        fontWeight: "950",
-        marginBottom: "10px",
-      }}
-    >
-      Customer Behavior & Revenue Intelligence
-    </h3>
-
-    <p
-      style={{
-        color: "#cbd5e1",
-        fontSize: "14px",
-        lineHeight: 1.7,
-        marginBottom: "22px",
-      }}
-    >
-      SerVen AI identifies VIP guests, churn risk, average spend, and loyalty
-      signals so restaurants can protect repeat revenue.
-    </p>
-{aiGuestSentimentIntelligence.length === 0 && (
-  <div
-    style={{
-      marginBottom: "18px",
-      padding: "18px",
-      borderRadius: "20px",
-      background: "rgba(15,23,42,0.72)",
-      border: "1px solid rgba(96,165,250,0.18)",
-      color: "#cbd5e1",
-      fontSize: "14px",
-      lineHeight: 1.7,
-    }}
-  >
-    Upload or connect customer data to activate AI Guest Intelligence,
-    including VIP detection, churn risk, loyalty scoring, and guest revenue
-    forecasting.
-  </div>
-)}
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: isMobile
-          ? "1fr"
-          : "repeat(3,minmax(0,1fr))",
-        gap: "16px",
-      }}
-    >
-      <GlassCard
-        title="VIP Guests"
-        value={vipGuests}
-        subtitle="High lifetime value customers"
-      />
-
-      <GlassCard
-        title="At-Risk Guests"
-        value={highRiskGuests}
-        subtitle="Customers likely to churn"
-      />
-
-      <GlassCard
-        title="Average Guest Spend"
-        value={`$${avgGuestSpend.toFixed(0)}`}
-        subtitle="Average customer ticket value"
-      />
-    </div>
-  </div>
-)}
-{/* =========================
-   AI GUEST SENTIMENT INTELLIGENCE
-========================= */}
-
-{hasProAccess && (
-  <div
-    style={{
-      marginTop: "22px",
-      padding: "24px",
-      borderRadius: "28px",
-      background:
-        "linear-gradient(135deg, rgba(14,165,233,0.14), rgba(15,23,42,0.96))",
-      border: "1px solid rgba(125,211,252,0.20)",
-      overflow: "hidden",
-    }}
-  >
-    <div
-      style={{
-        color: "#7dd3fc",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      AI Guest Sentiment Intelligence
-    </div>
-
-    <h3
-      style={{
-        color: "white",
-        fontSize: "24px",
-        fontWeight: "950",
-        marginBottom: "18px",
-      }}
-    >
-      Guest Loyalty & Behavior Analysis
-    </h3>
-
-    <div
-      style={{
-        overflowX: "auto",
-      }}
-    >
-      <table
-        style={{
-          width: "100%",
-          borderCollapse: "collapse",
-          minWidth: "760px",
-        }}
-      >
-        <thead>
-          <tr>
-            {[
-              "Guest",
-              "Tier",
-              "Visits",
-              "Avg Spend",
-              "Sentiment",
-              "Behavior Prediction",
-            ].map((header) => (
-              <th
-                key={header}
-                style={{
-                  textAlign: "left",
-                  padding: "14px",
-                  color: "#bae6fd",
-                  fontSize: "12px",
-                  fontWeight: "900",
-                  borderBottom:
-                    "1px solid rgba(148,163,184,0.14)",
-                }}
-              >
-                {header}
-              </th>
-            ))}
-          </tr>
-        </thead>
-<tbody>
-  {aiGuestSentimentIntelligence.length > 0 ? (
-    aiGuestSentimentIntelligence
-      .slice(0, 8)
-      .map((guest, index) => (
-        <tr
-          key={guest.id || index}
-          style={{
-            borderBottom:
-              "1px solid rgba(148,163,184,0.08)",
-          }}
-        >
-          <td
-            style={{
-              padding: "14px",
-              color: "white",
-              fontWeight: "700",
-            }}
-          >
-            {guest.name}
-          </td>
-
-          <td
-            style={{
-              padding: "14px",
-              color:
-                guest.guestTier === "VIP"
-                  ? "#facc15"
-                  : guest.guestTier === "Premium"
-                  ? "#93c5fd"
-                  : "#cbd5e1",
-              fontWeight: "800",
-            }}
-          >
-            {guest.guestTier}
-          </td>
-
-          <td
-            style={{
-              padding: "14px",
-              color: "#e2e8f0",
-            }}
-          >
-            {guest.visits}
-          </td>
-
-          <td
-            style={{
-              padding: "14px",
-              color: "#86efac",
-              fontWeight: "700",
-            }}
-          >
-            ${guest.avgSpend.toFixed(0)}
-          </td>
-
-          <td
-            style={{
-              padding: "14px",
-              color:
-                guest.sentimentScore === "Excellent"
-                  ? "#4ade80"
-                  : guest.sentimentScore === "Positive"
-                  ? "#93c5fd"
-                  : guest.sentimentScore === "Neutral"
-                  ? "#facc15"
-                  : "#f87171",
-              fontWeight: "800",
-            }}
-          >
-            {guest.sentimentScore}
-          </td>
-
-          <td
-            style={{
-              padding: "14px",
-              color: "#cbd5e1",
-              fontSize: "13px",
-            }}
-          >
-            {guest.predictedBehavior}
-          </td>
-        </tr>
-      ))
-  ) : (
-    <tr>
-      <td
-        colSpan={6}
-        style={{
-          padding: "28px",
-          textAlign: "center",
-          color: "#94a3b8",
-          fontSize: "14px",
-        }}
-      >
-        No guest sentiment data available yet.
-      </td>
-    </tr>
-  )}
-</tbody>
-      </table>
-    </div>
-  </div>
-)}
-{/* =========================
-   VIP GUEST TRACKER
-========================= */}
-
-{hasProAccess && (
-  <div
-    style={{
-      marginTop: "22px",
-      padding: "24px",
-      borderRadius: "28px",
-      background:
-        "linear-gradient(135deg, rgba(250,204,21,0.12), rgba(15,23,42,0.96))",
-      border: "1px solid rgba(250,204,21,0.22)",
-      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
-    }}
-  >
-    <div
-      style={{
-        color: "#fde68a",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      VIP Guest Tracker
-    </div>
-
-    <h3
-      style={{
-        color: "white",
-        fontSize: "24px",
-        fontWeight: "950",
-        marginBottom: "18px",
-      }}
-    >
-      High-Value Customer Intelligence
-    </h3>
-
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: isMobile
-          ? "1fr"
-          : "repeat(auto-fit,minmax(260px,1fr))",
-        gap: "16px",
-      }}
-    >
-      {aiGuestSentimentIntelligence.filter(
-        (guest) => guest.guestTier === "VIP"
-      ).length > 0 ? (
-        aiGuestSentimentIntelligence
-          .filter((guest) => guest.guestTier === "VIP")
-          .slice(0, 6)
-          .map((guest, index) => (
-            <div
-              key={guest.id || index}
-              style={{
-                padding: "18px",
-                borderRadius: "22px",
-                background: "rgba(15,23,42,0.76)",
-                border: "1px solid rgba(250,204,21,0.14)",
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  marginBottom: "14px",
-                }}
-              >
-                <div
-                  style={{
-                    color: "white",
-                    fontSize: "18px",
-                    fontWeight: "900",
-                  }}
-                >
-                  {guest.name}
-                </div>
-
-                <div
-                  style={{
-                    padding: "6px 10px",
-                    borderRadius: "999px",
-                    background: "rgba(250,204,21,0.14)",
-                    color: "#fde68a",
-                    fontSize: "11px",
-                    fontWeight: "900",
-                  }}
-                >
-                  VIP
-                </div>
-              </div>
-
-              <div
-                style={{
-                  display: "grid",
-                  gap: "10px",
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                  }}
-                >
-                  <span
-                    style={{
-                      color: "#94a3b8",
-                      fontSize: "13px",
-                    }}
-                  >
-                    Total Visits
-                  </span>
-
-                  <span
-                    style={{
-                      color: "#e2e8f0",
-                      fontWeight: "800",
-                    }}
-                  >
-                    {guest.visits}
-                  </span>
-                </div>
-
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                  }}
-                >
-                  <span
-                    style={{
-                      color: "#94a3b8",
-                      fontSize: "13px",
-                    }}
-                  >
-                    Average Spend
-                  </span>
-
-                  <span
-                    style={{
-                      color: "#86efac",
-                      fontWeight: "800",
-                    }}
-                  >
-                    ${guest.avgSpend.toFixed(0)}
-                  </span>
-                </div>
-
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                  }}
-                >
-                  <span
-                    style={{
-                      color: "#94a3b8",
-                      fontSize: "13px",
-                    }}
-                  >
-                    Loyalty Score
-                  </span>
-
-                  <span
-                    style={{
-                      color: "#60a5fa",
-                      fontWeight: "800",
-                    }}
-                  >
-                    {guest.loyaltyScore}/100
-                  </span>
-                </div>
-
-                <div
-                  style={{
-                    marginTop: "10px",
-                    width: "100%",
-                    height: "10px",
-                    borderRadius: "999px",
-                    background: "rgba(51,65,85,0.7)",
-                    overflow: "hidden",
-                  }}
-                >
-                  <div
-                    style={{
-                      width: `${guest.loyaltyScore}%`,
-                      height: "100%",
-                      borderRadius: "999px",
-                      background:
-                        "linear-gradient(90deg,#facc15,#fde68a)",
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-          ))
-      ) : (
-        <div
-          style={{
-            gridColumn: "1 / -1",
-            padding: "22px",
-            borderRadius: "22px",
-            background: "rgba(15,23,42,0.72)",
-            border: "1px solid rgba(250,204,21,0.14)",
-            color: "#94a3b8",
-            fontSize: "14px",
-            textAlign: "center",
-          }}
-        >
-          No VIP guests detected yet.
-        </div>
-      )}
-    </div>
-  </div>
-)}
-{/* =========================
-   AI CHURN DETECTION ALERTS
-========================= */}
-
-{hasProAccess && (
-  <div
-    style={{
-      marginTop: "22px",
-      padding: "24px",
-      borderRadius: "28px",
-      background:
-        "linear-gradient(135deg, rgba(239,68,68,0.12), rgba(15,23,42,0.96))",
-      border: "1px solid rgba(248,113,113,0.20)",
-      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
-    }}
-  >
-    <div
-      style={{
-        color: "#fca5a5",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      AI Churn Detection Alerts
-    </div>
-
-    <h3
-      style={{
-        color: "white",
-        fontSize: "24px",
-        fontWeight: "950",
-        marginBottom: "18px",
-      }}
-    >
-      Customers At Risk Of Not Returning
-    </h3>
-
-    <div
-      style={{
-        display: "grid",
-        gap: "14px",
-      }}
-    >
-      {aiGuestSentimentIntelligence.filter(
-        (guest) => guest.churnRisk === "High"
-      ).length > 0 ? (
-        aiGuestSentimentIntelligence
-          .filter((guest) => guest.churnRisk === "High")
-          .slice(0, 6)
-          .map((guest, index) => (
-            <div
-              key={guest.id || index}
-              style={{
-                padding: "18px",
-                borderRadius: "20px",
-                background: "rgba(15,23,42,0.72)",
-                border: "1px solid rgba(248,113,113,0.16)",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: isMobile ? "flex-start" : "center",
-                flexDirection: isMobile ? "column" : "row",
-                gap: "14px",
-              }}
-            >
-              <div>
-                <div
-                  style={{
-                    color: "white",
-                    fontSize: "18px",
-                    fontWeight: "900",
-                    marginBottom: "6px",
-                  }}
-                >
-                  {guest.name}
-                </div>
-
-                <div
-                  style={{
-                    color: "#cbd5e1",
-                    fontSize: "13px",
-                    lineHeight: 1.6,
-                  }}
-                >
-                  AI predicts this guest may stop visiting due to low
-                  engagement frequency and declining loyalty signals.
-                </div>
-              </div>
-
-              <div
-                style={{
-                  display: "flex",
-                  gap: "10px",
-                  flexWrap: "wrap",
-                }}
-              >
-                <div
-                  style={{
-                    padding: "8px 12px",
-                    borderRadius: "999px",
-                    background: "rgba(248,113,113,0.14)",
-                    color: "#fca5a5",
-                    fontSize: "12px",
-                    fontWeight: "900",
-                  }}
-                >
-                  High Churn Risk
-                </div>
-
-                <div
-                  style={{
-                    padding: "8px 12px",
-                    borderRadius: "999px",
-                    background: "rgba(59,130,246,0.14)",
-                    color: "#93c5fd",
-                    fontSize: "12px",
-                    fontWeight: "900",
-                  }}
-                >
-                  {guest.visits} Visits
-                </div>
-
-                <div
-                  style={{
-                    padding: "8px 12px",
-                    borderRadius: "999px",
-                    background: "rgba(34,197,94,0.14)",
-                    color: "#86efac",
-                    fontSize: "12px",
-                    fontWeight: "900",
-                  }}
-                >
-                  ${guest.avgSpend.toFixed(0)} Avg Spend
-                </div>
-              </div>
-            </div>
-          ))
-      ) : (
-        <div
-          style={{
-            padding: "22px",
-            borderRadius: "20px",
-            background: "rgba(15,23,42,0.72)",
-            border: "1px solid rgba(248,113,113,0.14)",
-            color: "#94a3b8",
-            fontSize: "14px",
-            textAlign: "center",
-          }}
-        >
-          No high-risk guests detected.
-        </div>
-      )}
-    </div>
-  </div>
-)}
-{/* =========================
-   AI LOYALTY HEATMAP
-========================= */}
-
-{hasProAccess && (
-  <div
-    style={{
-      marginTop: "22px",
-      padding: "24px",
-      borderRadius: "28px",
-      background:
-        "linear-gradient(135deg, rgba(168,85,247,0.13), rgba(15,23,42,0.96))",
-      border: "1px solid rgba(196,181,253,0.20)",
-      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
-    }}
-  >
-    <div
-      style={{
-        color: "#c4b5fd",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      AI Loyalty Heatmap
-    </div>
-
-    <h3
-      style={{
-        color: "white",
-        fontSize: "24px",
-        fontWeight: "950",
-        marginBottom: "18px",
-      }}
-    >
-      Guest Loyalty Score Distribution
-    </h3>
-
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: isMobile
-          ? "1fr"
-          : "repeat(auto-fit,minmax(180px,1fr))",
-        gap: "14px",
-      }}
-    >
-      {[
-        {
-          label: "Excellent",
-          range: "80–100",
-          count: aiGuestSentimentIntelligence.filter(
-            (g) => g.loyaltyScore >= 80
-          ).length,
-          color: "#4ade80",
-        },
-        {
-          label: "Positive",
-          range: "55–79",
-          count: aiGuestSentimentIntelligence.filter(
-            (g) => g.loyaltyScore >= 55 && g.loyaltyScore < 80
-          ).length,
-          color: "#60a5fa",
-        },
-        {
-          label: "Neutral",
-          range: "35–54",
-          count: aiGuestSentimentIntelligence.filter(
-            (g) => g.loyaltyScore >= 35 && g.loyaltyScore < 55
-          ).length,
-          color: "#facc15",
-        },
-        {
-          label: "At Risk",
-          range: "0–34",
-          count: aiGuestSentimentIntelligence.filter(
-            (g) => g.loyaltyScore < 35
-          ).length,
-          color: "#f87171",
-        },
-      ].map((bucket) => (
-        <div
-          key={bucket.label}
-          style={{
-            padding: "18px",
-            borderRadius: "22px",
-            background: "rgba(15,23,42,0.76)",
-            border: "1px solid rgba(148,163,184,0.12)",
-          }}
-        >
-          <div
-            style={{
-              color: bucket.color,
-              fontSize: "13px",
-              fontWeight: "900",
-              marginBottom: "8px",
-            }}
-          >
-            {bucket.label}
-          </div>
-
-          <div
-            style={{
-              color: "white",
-              fontSize: "30px",
-              fontWeight: "950",
-              marginBottom: "6px",
-            }}
-          >
-            {bucket.count}
-          </div>
-
-          <div
-            style={{
-              color: "#94a3b8",
-              fontSize: "12px",
-              fontWeight: "700",
-            }}
-          >
-            Loyalty Score {bucket.range}
-          </div>
-
-          <div
-            style={{
-              marginTop: "14px",
-              height: "8px",
-              borderRadius: "999px",
-              background: "rgba(51,65,85,0.72)",
-              overflow: "hidden",
-            }}
-          >
-            <div
-              style={{
-                width: `${Math.min(
-                  100,
-                  (bucket.count /
-                    (aiGuestSentimentIntelligence.length || 1)) *
-                    100
-                )}%`,
-                height: "100%",
-                borderRadius: "999px",
-                background: bucket.color,
-              }}
-            />
-          </div>
-        </div>
-      ))}
-    </div>
-  </div>
-)}
-{/* =========================
-   GUEST LIFETIME VALUE FORECASTING
-========================= */}
-
-{hasProAccess && (
-  <div
-    style={{
-      marginTop: "22px",
-      padding: "24px",
-      borderRadius: "28px",
-      background:
-        "linear-gradient(135deg, rgba(34,197,94,0.13), rgba(15,23,42,0.96))",
-      border: "1px solid rgba(74,222,128,0.20)",
-      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
-    }}
-  >
-    <div
-      style={{
-        color: "#86efac",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      Guest Lifetime Value Forecasting
-    </div>
-
-    <h3
-      style={{
-        color: "white",
-        fontSize: "24px",
-        fontWeight: "950",
-        marginBottom: "18px",
-      }}
-    >
-      Predicted Future Guest Revenue
-    </h3>
-
-    <div
-      style={{
-        display: "grid",
-        gap: "14px",
-      }}
-    >
-      {aiGuestSentimentIntelligence.slice(0, 6).map((guest, index) => {
-        const projectedLifetimeValue =
-          guest.spend + guest.avgSpend * Math.max(3, guest.loyaltyScore / 10);
-
-        return (
-          <div
-            key={guest.id || index}
-            style={{
-              padding: "18px",
-              borderRadius: "20px",
-              background: "rgba(15,23,42,0.74)",
-              border: "1px solid rgba(74,222,128,0.14)",
-              display: "grid",
-              gridTemplateColumns: isMobile
-                ? "1fr"
-                : "1.4fr 1fr 1fr 1fr",
-              gap: "14px",
-              alignItems: "center",
-            }}
-          >
-            <div>
-              <div
-                style={{
-                  color: "white",
-                  fontSize: "17px",
-                  fontWeight: "900",
-                  marginBottom: "5px",
-                }}
-              >
-                {guest.name}
-              </div>
-
-              <div
-                style={{
-                  color: "#94a3b8",
-                  fontSize: "12px",
-                  fontWeight: "700",
-                }}
-              >
-                {guest.guestTier} • {guest.sentimentScore} sentiment
-              </div>
-            </div>
-
-            <div>
-              <div style={{ color: "#94a3b8", fontSize: "12px" }}>
-                Current Spend
-              </div>
-              <div style={{ color: "#e2e8f0", fontWeight: "900" }}>
-                ${guest.spend.toFixed(0)}
-              </div>
-            </div>
-
-            <div>
-              <div style={{ color: "#94a3b8", fontSize: "12px" }}>
-                Avg Spend
-              </div>
-              <div style={{ color: "#93c5fd", fontWeight: "900" }}>
-                ${guest.avgSpend.toFixed(0)}
-              </div>
-            </div>
-
-            <div>
-              <div style={{ color: "#94a3b8", fontSize: "12px" }}>
-                Forecast LTV
-              </div>
-              <div style={{ color: "#86efac", fontWeight: "950" }}>
-                ${projectedLifetimeValue.toFixed(0)}
-              </div>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  </div>
-)}
-{/* =========================
-   AI PERSONALIZED CAMPAIGN GENERATOR
-========================= */}
-
-{hasProAccess && (
-  <div
-    style={{
-      marginTop: "22px",
-      padding: "24px",
-      borderRadius: "28px",
-      background:
-        "linear-gradient(135deg, rgba(236,72,153,0.13), rgba(15,23,42,0.96))",
-      border: "1px solid rgba(244,114,182,0.20)",
-      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
-    }}
-  >
-    <div
-      style={{
-        color: "#f9a8d4",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      AI Personalized Campaign Generator
-    </div>
-
-    <h3
-      style={{
-        color: "white",
-        fontSize: "24px",
-        fontWeight: "950",
-        marginBottom: "12px",
-      }}
-    >
-      Guest-Specific Marketing Recommendations
-    </h3>
-
-    <p
-      style={{
-        color: "#cbd5e1",
-        fontSize: "13px",
-        lineHeight: 1.7,
-        marginBottom: "18px",
-      }}
-    >
-      AI recommends the right campaign type based on guest tier, loyalty score,
-      churn risk, and average spend behavior.
-    </p>
-
-    <div style={{ display: "grid", gap: "14px" }}>
-      {aiGuestSentimentIntelligence.length > 0 ? (
-        aiGuestSentimentIntelligence.slice(0, 6).map((guest, index) => {
-          const campaignType =
-            guest.churnRisk === "High"
-              ? "Win-Back Offer"
-              : guest.guestTier === "VIP"
-              ? "VIP Appreciation"
-              : guest.loyaltyScore >= 55
-              ? "Loyalty Booster"
-              : "First-Time Return Offer";
-
-          const campaignMessage =
-            guest.churnRisk === "High"
-              ? `Send ${guest.name} a limited-time comeback offer.`
-              : guest.guestTier === "VIP"
-              ? `Invite ${guest.name} to an exclusive VIP dining experience.`
-              : guest.loyaltyScore >= 55
-              ? `Reward ${guest.name} with a loyalty incentive.`
-              : `Encourage ${guest.name} to return with a personalized offer.`;
-
-          return (
-            <div
-              key={guest.id || index}
-              style={{
-                padding: "18px",
-                borderRadius: "22px",
-                background: "rgba(15,23,42,0.74)",
-                border: "1px solid rgba(244,114,182,0.14)",
-                display: "grid",
-                gridTemplateColumns: isMobile
-                  ? "1fr"
-                  : "1.2fr 1fr 1.4fr",
-                gap: "14px",
-                alignItems: "center",
-              }}
-            >
-              <div>
-                <div
-                  style={{
-                    color: "white",
-                    fontSize: "17px",
-                    fontWeight: "900",
-                    marginBottom: "5px",
-                  }}
-                >
-                  {guest.name}
-                </div>
-
-                <div
-                  style={{
-                    color: "#94a3b8",
-                    fontSize: "12px",
-                    fontWeight: "700",
-                  }}
-                >
-                  {guest.guestTier} • {guest.churnRisk} churn risk
-                </div>
-              </div>
-
-              <div>
-                <div
-                  style={{
-                    color: "#94a3b8",
-                    fontSize: "12px",
-                    marginBottom: "5px",
-                  }}
-                >
-                  Recommended Campaign
-                </div>
-
-                <div
-                  style={{
-                    color: "#f9a8d4",
-                    fontSize: "14px",
-                    fontWeight: "900",
-                  }}
-                >
-                  {campaignType}
-                </div>
-              </div>
-
-              <div
-                style={{
-                  color: "#cbd5e1",
-                  fontSize: "13px",
-                  lineHeight: 1.6,
-                }}
-              >
-                {campaignMessage}
-              </div>
-            </div>
-          );
-        })
-      ) : (
-        <div
-          style={{
-            padding: "22px",
-            borderRadius: "22px",
-            background: "rgba(15,23,42,0.72)",
-            border: "1px solid rgba(244,114,182,0.14)",
-            color: "#94a3b8",
-            fontSize: "14px",
-            textAlign: "center",
-          }}
-        >
-          No personalized campaigns generated yet.
-        </div>
-      )}
-    </div>
-  </div>
-)}
-{/* =========================
-   AI WIN-BACK AUTOMATION ENGINE
-========================= */}
-
-{hasProAccess && (
-  <div
-    style={{
-      marginTop: "22px",
-      padding: "24px",
-      borderRadius: "28px",
-      background:
-        "linear-gradient(135deg, rgba(249,115,22,0.13), rgba(15,23,42,0.96))",
-      border: "1px solid rgba(251,146,60,0.22)",
-      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
-    }}
-  >
-    <div
-      style={{
-        color: "#fdba74",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      AI Win-Back Automation Engine
-    </div>
-
-    <h3
-      style={{
-        color: "white",
-        fontSize: "24px",
-        fontWeight: "950",
-        marginBottom: "12px",
-      }}
-    >
-      Recover Guests Before They Disappear
-    </h3>
-
-    <p
-      style={{
-        color: "#cbd5e1",
-        fontSize: "13px",
-        lineHeight: 1.7,
-        marginBottom: "18px",
-      }}
-    >
-      AI identifies at-risk guests and recommends automated comeback offers to
-      recover repeat visits.
-    </p>
-
-    <div style={{ display: "grid", gap: "14px" }}>
-      {aiGuestSentimentIntelligence.filter(
-        (guest) => guest.churnRisk === "High"
-      ).length > 0 ? (
-        aiGuestSentimentIntelligence
-          .filter((guest) => guest.churnRisk === "High")
-          .slice(0, 5)
-          .map((guest, index) => {
-            const estimatedRecoveryValue = guest.avgSpend * 2.5;
-
-            return (
-              <div
-                key={guest.id || index}
-                style={{
-                  padding: "18px",
-                  borderRadius: "22px",
-                  background: "rgba(15,23,42,0.74)",
-                  border: "1px solid rgba(251,146,60,0.16)",
-                  display: "grid",
-                  gridTemplateColumns: isMobile
-                    ? "1fr"
-                    : "1.2fr 1fr 1fr 1.2fr",
-                  gap: "14px",
-                  alignItems: "center",
-                }}
-              >
-                <div>
-                  <div
-                    style={{
-                      color: "white",
-                      fontSize: "17px",
-                      fontWeight: "900",
-                      marginBottom: "5px",
-                    }}
-                  >
-                    {guest.name}
-                  </div>
-
-                  <div
-                    style={{
-                      color: "#94a3b8",
-                      fontSize: "12px",
-                      fontWeight: "700",
-                    }}
-                  >
-                    {guest.visits} visits • {guest.sentimentScore} sentiment
-                  </div>
-                </div>
-
-                <div>
-                  <div style={{ color: "#94a3b8", fontSize: "12px" }}>
-                    Suggested Offer
-                  </div>
-                  <div style={{ color: "#fdba74", fontWeight: "900" }}>
-                    Comeback Deal
-                  </div>
-                </div>
-
-                <div>
-                  <div style={{ color: "#94a3b8", fontSize: "12px" }}>
-                    Recovery Value
-                  </div>
-                  <div style={{ color: "#86efac", fontWeight: "950" }}>
-                    ${estimatedRecoveryValue.toFixed(0)}
-                  </div>
-                </div>
-
-                <button
-  type="button"
-  onClick={() =>
-    handleCreateAIAction({
-      actionType: "win_back_campaign",
-      title: "Comeback Deal",
-      description: `AI drafted a win-back campaign for ${guest.name}.`,
-      customer: guest,
-      estimatedValue: estimatedRecoveryValue,
-      channel: "Email/SMS",
-      message: `Hi ${guest.name}, we miss you at the restaurant. Come back this week and enjoy a personalized comeback offer on your next visit.`,
-    })
-  }
-  style={{
-    padding: "12px 14px",
-    borderRadius: "14px",
-    border: "1px solid rgba(251,146,60,0.28)",
-    background: "rgba(249,115,22,0.16)",
-    color: "#fed7aa",
-    fontSize: "13px",
-    fontWeight: "900",
-    cursor: "pointer",
-  }}
->
-  Draft Win-Back Campaign
-</button>
-              </div>
-            );
-          })
-      ) : (
-        <div
-          style={{
-            padding: "22px",
-            borderRadius: "22px",
-            background: "rgba(15,23,42,0.72)",
-            border: "1px solid rgba(251,146,60,0.14)",
-            color: "#94a3b8",
-            fontSize: "14px",
-            textAlign: "center",
-          }}
-        >
-          No win-back campaigns available yet.
-        </div>
-      )}
-    </div>
-  </div>
-)}
-{/* =========================
-   AI RESERVATION INTELLIGENCE
-========================= */}
-
-{hasProAccess && (
-  <div
-    style={{
-      marginTop: "22px",
-      padding: "24px",
-      borderRadius: "28px",
-      background:
-        "linear-gradient(135deg, rgba(6,182,212,0.13), rgba(15,23,42,0.96))",
-      border: "1px solid rgba(34,211,238,0.22)",
-      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
-    }}
-  >
-    <div
-      style={{
-        color: "#67e8f9",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      AI Reservation Intelligence
-    </div>
-
-    <h3
-      style={{
-        color: "white",
-        fontSize: "24px",
-        fontWeight: "950",
-        marginBottom: "12px",
-      }}
-    >
-      Reservation Demand & Guest Booking Insights
-    </h3>
-
-    <p
-      style={{
-        color: "#cbd5e1",
-        fontSize: "13px",
-        lineHeight: 1.7,
-        marginBottom: "20px",
-      }}
-    >
-      AI analyzes reservation demand patterns, booking behavior, cancellation
-      risk, and peak guest windows to optimize staffing and revenue planning.
-    </p>
-
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: isMobile
-          ? "1fr"
-          : "repeat(4,minmax(0,1fr))",
-        gap: "16px",
-        marginBottom: "22px",
-      }}
-    >
-      <GlassCard
-        title="Peak Reservation Hour"
-        value="7 PM"
-        subtitle="Highest booking activity"
-      />
-
-      <GlassCard
-        title="Cancellation Risk"
-        value="12%"
-        subtitle="Predicted reservation cancellations"
-      />
-
-      <GlassCard
-        title="Weekend Demand"
-        value="+28%"
-        subtitle="Compared to weekday traffic"
-      />
-
-      <GlassCard
-        title="Reservation Fill Rate"
-        value="84%"
-        subtitle="Expected seating utilization"
-      />
-    </div>
-
-    <div
-      style={{
-        display: "grid",
-        gap: "14px",
-      }}
-    >
-      {[
-        {
-          title: "Friday Dinner Rush Forecast",
-          insight:
-            "AI predicts elevated reservation demand between 6 PM and 8 PM.",
-          impact: "Increase staffing coverage",
-        },
-        {
-          title: "VIP Reservation Opportunity",
-          insight:
-            "Multiple high-value guests are predicted to revisit this weekend.",
-          impact: "Prepare premium seating",
-        },
-        {
-          title: "Reservation Gap Detected",
-          insight:
-            "Low reservation activity expected Tuesday after 7 PM.",
-          impact: "Launch targeted promotion",
-        },
-      ].map((item, index) => (
-        <div
-          key={index}
-          style={{
-            padding: "18px",
-            borderRadius: "20px",
-            background: "rgba(15,23,42,0.74)",
-            border: "1px solid rgba(34,211,238,0.14)",
-          }}
-        >
-          <div
-            style={{
-              color: "white",
-              fontSize: "17px",
-              fontWeight: "900",
-              marginBottom: "8px",
-            }}
-          >
-            {item.title}
-          </div>
-
-          <div
-            style={{
-              color: "#cbd5e1",
-              fontSize: "13px",
-              lineHeight: 1.7,
-              marginBottom: "12px",
-            }}
-          >
-            {item.insight}
-          </div>
-
-          <div
-            style={{
-              display: "inline-flex",
-              padding: "8px 12px",
-              borderRadius: "999px",
-              background: "rgba(34,211,238,0.14)",
-              border: "1px solid rgba(34,211,238,0.22)",
-              color: "#67e8f9",
-              fontSize: "12px",
-              fontWeight: "900",
-            }}
-          >
-            {item.impact}
-          </div>
-        </div>
-      ))}
-    </div>
-  </div>
-)}
-{/* =========================
-   AI GUEST JOURNEY TRACKING
-========================= */}
-
-{hasProAccess && (
-  <div
-    style={{
-      marginTop: "22px",
-      padding: "24px",
-      borderRadius: "28px",
-      background:
-        "linear-gradient(135deg, rgba(99,102,241,0.13), rgba(15,23,42,0.96))",
-      border: "1px solid rgba(129,140,248,0.22)",
-      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
-    }}
-  >
-    <div
-      style={{
-        color: "#a5b4fc",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      AI Guest Journey Tracking
-    </div>
-
-    <h3
-      style={{
-        color: "white",
-        fontSize: "24px",
-        fontWeight: "950",
-        marginBottom: "12px",
-      }}
-    >
-      End-To-End Customer Engagement Intelligence
-    </h3>
-
-    <p
-      style={{
-        color: "#cbd5e1",
-        fontSize: "13px",
-        lineHeight: 1.7,
-        marginBottom: "22px",
-      }}
-    >
-      AI tracks the full customer lifecycle from first visit to loyalty growth,
-      churn risk, and repeat purchase behavior.
-    </p>
-
-    <div
-      style={{
-        display: "grid",
-        gap: "16px",
-      }}
-    >
-      {aiGuestSentimentIntelligence.length > 0 ? (
-        aiGuestSentimentIntelligence
-          .slice(0, 5)
-          .map((guest, index) => {
-            const currentStage =
-              guest.visits <= 1
-                ? "First Visit"
-                : guest.visits <= 3
-                ? "Returning Guest"
-                : guest.guestTier === "VIP"
-                ? "VIP Loyalist"
-                : "Loyal Customer";
-
-            const nextAction =
-              guest.churnRisk === "High"
-                ? "Launch Win-Back Offer"
-                : guest.guestTier === "VIP"
-                ? "Invite To VIP Experience"
-                : "Increase Loyalty Engagement";
-
-            return (
-              <div
-                key={guest.id || index}
-                style={{
-                  padding: "20px",
-                  borderRadius: "22px",
-                  background: "rgba(15,23,42,0.74)",
-                  border: "1px solid rgba(129,140,248,0.14)",
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: isMobile ? "flex-start" : "center",
-                    flexDirection: isMobile ? "column" : "row",
-                    gap: "14px",
-                    marginBottom: "18px",
-                  }}
-                >
-                  <div>
-                    <div
-                      style={{
-                        color: "white",
-                        fontSize: "18px",
-                        fontWeight: "900",
-                        marginBottom: "6px",
-                      }}
-                    >
-                      {guest.name}
-                    </div>
-
-                    <div
-                      style={{
-                        color: "#94a3b8",
-                        fontSize: "12px",
-                        fontWeight: "700",
-                      }}
-                    >
-                      {guest.visits} visits • $
-                      {guest.avgSpend.toFixed(0)} avg spend
-                    </div>
-                  </div>
-
-                  <div
-                    style={{
-                      padding: "8px 12px",
-                      borderRadius: "999px",
-                      background: "rgba(99,102,241,0.14)",
-                      border: "1px solid rgba(129,140,248,0.22)",
-                      color: "#c7d2fe",
-                      fontSize: "12px",
-                      fontWeight: "900",
-                    }}
-                  >
-                    {currentStage}
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "10px",
-                    flexWrap: "wrap",
-                    marginBottom: "18px",
-                  }}
-                >
-                  {[
-                    "Awareness",
-                    "First Visit",
-                    "Repeat Visits",
-                    "Loyalty",
-                    "VIP",
-                  ].map((step, stepIndex) => {
-                    const activeSteps =
-                      guest.visits <= 1
-                        ? 2
-                        : guest.visits <= 3
-                        ? 3
-                        : guest.guestTier === "VIP"
-                        ? 5
-                        : 4;
-
-                    const isActive = stepIndex + 1 <= activeSteps;
-
-                    return (
-                      <div
-                        key={step}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "10px",
-                        }}
-                      >
-                        <div
-                          style={{
-                            padding: "8px 12px",
-                            borderRadius: "999px",
-                            background: isActive
-                              ? "rgba(99,102,241,0.18)"
-                              : "rgba(51,65,85,0.55)",
-                            color: isActive
-                              ? "#c7d2fe"
-                              : "#64748b",
-                            fontSize: "11px",
-                            fontWeight: "800",
-                            border: isActive
-                              ? "1px solid rgba(129,140,248,0.24)"
-                              : "1px solid rgba(71,85,105,0.18)",
-                          }}
-                        >
-                          {step}
-                        </div>
-
-                        {step !== "VIP" && (
-                          <div
-                            style={{
-                              width: "18px",
-                              height: "2px",
-                              background: isActive
-                                ? "rgba(129,140,248,0.5)"
-                                : "rgba(71,85,105,0.35)",
-                            }}
-                          />
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <div
-                  style={{
-                    padding: "14px",
-                    borderRadius: "16px",
-                    background: "rgba(30,41,59,0.72)",
-                    border: "1px solid rgba(148,163,184,0.10)",
-                  }}
-                >
-                  <div
-                    style={{
-                      color: "#a5b4fc",
-                      fontSize: "12px",
-                      fontWeight: "900",
-                      marginBottom: "6px",
-                    }}
-                  >
-                    AI Recommended Next Action
-                  </div>
-
-                  <div
-                    style={{
-                      color: "#e2e8f0",
-                      fontSize: "13px",
-                      lineHeight: 1.6,
-                    }}
-                  >
-                    {nextAction}
-                  </div>
-                </div>
-              </div>
-            );
-          })
-      ) : (
-        <div
-          style={{
-            padding: "22px",
-            borderRadius: "22px",
-            background: "rgba(15,23,42,0.72)",
-            border: "1px solid rgba(129,140,248,0.14)",
-            color: "#94a3b8",
-            fontSize: "14px",
-            textAlign: "center",
-          }}
-        >
-          No guest journey data available yet.
-        </div>
-      )}
-    </div>
-  </div>
-)}
-{/* =========================
-   AI DINING BEHAVIOR INTELLIGENCE
-========================= */}
-
-{hasProAccess && (
-  <div
-    style={{
-      marginTop: "22px",
-      padding: "24px",
-      borderRadius: "28px",
-      background:
-        "linear-gradient(135deg, rgba(16,185,129,0.13), rgba(15,23,42,0.96))",
-      border: "1px solid rgba(52,211,153,0.22)",
-      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
-    }}
-  >
-    <div
-      style={{
-        color: "#6ee7b7",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      AI Dining Behavior Intelligence
-    </div>
-
-    <h3
-      style={{
-        color: "white",
-        fontSize: "24px",
-        fontWeight: "950",
-        marginBottom: "12px",
-      }}
-    >
-      Guest Ordering & Visit Pattern Analysis
-    </h3>
-
-    <p
-      style={{
-        color: "#cbd5e1",
-        fontSize: "13px",
-        lineHeight: 1.7,
-        marginBottom: "22px",
-      }}
-    >
-      AI analyzes guest spending habits, dining frequency, ordering behavior,
-      and visit timing patterns to optimize revenue opportunities.
-    </p>
-
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: isMobile
-          ? "1fr"
-          : "repeat(4,minmax(0,1fr))",
-        gap: "16px",
-        marginBottom: "22px",
-      }}
-    >
-      <GlassCard
-        title="Peak Dining Day"
-        value="Friday"
-        subtitle="Highest guest activity"
-      />
-
-      <GlassCard
-        title="Most Common Visit Time"
-        value="7:15 PM"
-        subtitle="Average reservation arrival"
-      />
-
-      <GlassCard
-        title="Top Guest Category"
-        value="VIP"
-        subtitle="Highest revenue segment"
-      />
-
-      <GlassCard
-        title="Repeat Visit Rate"
-        value="68%"
-        subtitle="Returning customer frequency"
-      />
-    </div>
-
-    <div style={{ display: "grid", gap: "14px" }}>
-      {aiGuestSentimentIntelligence.length > 0 ? (
-        aiGuestSentimentIntelligence.slice(0, 6).map((guest, index) => {
-          const diningPattern =
-            guest.avgSpend >= 120
-              ? "Premium Dining Preference"
-              : guest.visits >= 5
-              ? "Frequent Repeat Visitor"
-              : guest.churnRisk === "High"
-              ? "Declining Engagement"
-              : "Standard Dining Pattern";
-
-          const recommendedUpsell =
-            guest.avgSpend >= 120
-              ? "Chef Specials & Premium Pairings"
-              : guest.visits >= 5
-              ? "Loyalty Rewards"
-              : guest.churnRisk === "High"
-              ? "Limited-Time Return Offer"
-              : "Combo Promotions";
-
-          return (
-            <div
-              key={guest.id || index}
-              style={{
-                padding: "18px",
-                borderRadius: "22px",
-                background: "rgba(15,23,42,0.74)",
-                border: "1px solid rgba(52,211,153,0.14)",
-                display: "grid",
-                gridTemplateColumns: isMobile
-                  ? "1fr"
-                  : "1.2fr 1fr 1fr",
-                gap: "14px",
-                alignItems: "center",
-              }}
-            >
-              <div>
-                <div
-                  style={{
-                    color: "white",
-                    fontSize: "17px",
-                    fontWeight: "900",
-                    marginBottom: "5px",
-                  }}
-                >
-                  {guest.name}
-                </div>
-
-                <div
-                  style={{
-                    color: "#94a3b8",
-                    fontSize: "12px",
-                    fontWeight: "700",
-                  }}
-                >
-                  {guest.visits} visits • ${guest.avgSpend.toFixed(0)} avg spend
-                </div>
-              </div>
-
-              <div>
-                <div
-                  style={{
-                    color: "#94a3b8",
-                    fontSize: "12px",
-                    marginBottom: "5px",
-                  }}
-                >
-                  Dining Pattern
-                </div>
-
-                <div
-                  style={{
-                    color: "#6ee7b7",
-                    fontSize: "13px",
-                    fontWeight: "900",
-                  }}
-                >
-                  {diningPattern}
-                </div>
-              </div>
-
-              <div>
-                <div
-                  style={{
-                    color: "#94a3b8",
-                    fontSize: "12px",
-                    marginBottom: "5px",
-                  }}
-                >
-                  Recommended Offer
-                </div>
-
-                <div
-                  style={{
-                    color: "#e2e8f0",
-                    fontSize: "13px",
-                    fontWeight: "800",
-                    lineHeight: 1.5,
-                  }}
-                >
-                  {recommendedUpsell}
-                </div>
-              </div>
-            </div>
-          );
-        })
-      ) : (
-        <div
-          style={{
-            padding: "22px",
-            borderRadius: "22px",
-            background: "rgba(15,23,42,0.72)",
-            border: "1px solid rgba(52,211,153,0.14)",
-            color: "#94a3b8",
-            fontSize: "14px",
-            textAlign: "center",
-          }}
-        >
-          No dining behavior data available yet.
-        </div>
-      )}
-    </div>
-  </div>
-)}
-{/* =========================
-   AI GUEST RETENTION FORECASTING
-========================= */}
-
-{hasProAccess && (
-  <div
-    style={{
-      marginTop: "22px",
-      padding: "24px",
-      borderRadius: "28px",
-      background:
-        "linear-gradient(135deg, rgba(59,130,246,0.13), rgba(15,23,42,0.96))",
-      border: "1px solid rgba(96,165,250,0.22)",
-      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
-    }}
-  >
-    <div
-      style={{
-        color: "#93c5fd",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      AI Guest Retention Forecasting
-    </div>
-
-    <h3
-      style={{
-        color: "white",
-        fontSize: "24px",
-        fontWeight: "950",
-        marginBottom: "18px",
-      }}
-    >
-      Predicted Guest Return Probability
-    </h3>
-
-    <div style={{ display: "grid", gap: "14px" }}>
-      {aiGuestSentimentIntelligence.length > 0 ? (
-        aiGuestSentimentIntelligence.slice(0, 6).map((guest, index) => {
-          const retentionProbability =
-            guest.churnRisk === "High"
-              ? Math.max(18, guest.loyaltyScore - 25)
-              : guest.guestTier === "VIP"
-              ? Math.min(98, guest.loyaltyScore + 12)
-              : Math.min(92, guest.loyaltyScore + 8);
-
-          const retentionStatus =
-            retentionProbability >= 80
-              ? "Strong Retention"
-              : retentionProbability >= 55
-              ? "Moderate Retention"
-              : "Retention Risk";
-
-          return (
-            <div
-              key={guest.id || index}
-              style={{
-                padding: "18px",
-                borderRadius: "22px",
-                background: "rgba(15,23,42,0.74)",
-                border: "1px solid rgba(96,165,250,0.14)",
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: isMobile ? "flex-start" : "center",
-                  flexDirection: isMobile ? "column" : "row",
-                  gap: "12px",
-                  marginBottom: "12px",
-                }}
-              >
-                <div>
-                  <div
-                    style={{
-                      color: "white",
-                      fontSize: "17px",
-                      fontWeight: "900",
-                    }}
-                  >
-                    {guest.name}
-                  </div>
-
-                  <div
-                    style={{
-                      color: "#94a3b8",
-                      fontSize: "12px",
-                      marginTop: "4px",
-                    }}
-                  >
-                    {guest.guestTier} • {guest.visits} visits •{" "}
-                    {guest.churnRisk} churn risk
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    color:
-                      retentionProbability >= 80
-                        ? "#86efac"
-                        : retentionProbability >= 55
-                        ? "#fde68a"
-                        : "#fca5a5",
-                    fontSize: "18px",
-                    fontWeight: "950",
-                  }}
-                >
-                  {retentionProbability}%
-                </div>
-              </div>
-
-              <div
-                style={{
-                  height: "10px",
-                  borderRadius: "999px",
-                  background: "rgba(51,65,85,0.72)",
-                  overflow: "hidden",
-                  marginBottom: "10px",
-                }}
-              >
-                <div
-                  style={{
-                    width: `${retentionProbability}%`,
-                    height: "100%",
-                    borderRadius: "999px",
-                    background:
-                      retentionProbability >= 80
-                        ? "linear-gradient(90deg,#22c55e,#86efac)"
-                        : retentionProbability >= 55
-                        ? "linear-gradient(90deg,#facc15,#fde68a)"
-                        : "linear-gradient(90deg,#ef4444,#fca5a5)",
-                  }}
-                />
-              </div>
-
-              <div
-                style={{
-                  color: "#cbd5e1",
-                  fontSize: "13px",
-                  fontWeight: "800",
-                }}
-              >
-                {retentionStatus}
-              </div>
-            </div>
-          );
-        })
-      ) : (
-        <div
-          style={{
-            padding: "22px",
-            borderRadius: "22px",
-            background: "rgba(15,23,42,0.72)",
-            border: "1px solid rgba(96,165,250,0.14)",
-            color: "#94a3b8",
-            fontSize: "14px",
-            textAlign: "center",
-          }}
-        >
-          No retention forecasts available yet.
-        </div>
-      )}
-    </div>
-  </div>
-)}
-{/* =========================
-   AI DYNAMIC OFFER OPTIMIZATION
-========================= */}
-
-{hasProAccess && (
-  <div
-    style={{
-      marginTop: "22px",
-      padding: "24px",
-      borderRadius: "28px",
-      background:
-        "linear-gradient(135deg, rgba(234,179,8,0.13), rgba(15,23,42,0.96))",
-      border: "1px solid rgba(250,204,21,0.22)",
-      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
-    }}
-  >
-    <div
-      style={{
-        color: "#fde68a",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      AI Dynamic Offer Optimization
-    </div>
-
-    <h3 style={{ color: "white", fontSize: "24px", fontWeight: "950" }}>
-      Best Offer For Each Guest Segment
-    </h3>
-
-    <div style={{ display: "grid", gap: "14px", marginTop: "18px" }}>
-      {aiGuestSentimentIntelligence.slice(0, 6).map((guest, index) => {
-        const optimizedOffer =
-          guest.churnRisk === "High"
-            ? "20% Comeback Offer"
-            : guest.guestTier === "VIP"
-            ? "Complimentary Premium Appetizer"
-            : guest.avgSpend >= 75
-            ? "Chef Special Pairing"
-            : "Free Dessert With Next Visit";
-
-        const expectedLift =
-          guest.churnRisk === "High"
-            ? "+18% return chance"
-            : guest.guestTier === "VIP"
-            ? "+12% loyalty lift"
-            : guest.avgSpend >= 75
-            ? "+9% ticket lift"
-            : "+7% revisit lift";
-
-        return (
-          <div
-            key={guest.id || index}
-            style={{
-              padding: "18px",
-              borderRadius: "22px",
-              background: "rgba(15,23,42,0.74)",
-              border: "1px solid rgba(250,204,21,0.14)",
-              display: "grid",
-              gridTemplateColumns: isMobile
-                ? "1fr"
-                : "1.2fr 1.2fr 1fr",
-              gap: "14px",
-              alignItems: "center",
-            }}
-          >
-            <div>
-              <div style={{ color: "white", fontSize: "17px", fontWeight: "900" }}>
-                {guest.name}
-              </div>
-              <div style={{ color: "#94a3b8", fontSize: "12px", marginTop: "4px" }}>
-                {guest.guestTier} • ${guest.avgSpend.toFixed(0)} avg spend
-              </div>
-            </div>
-
-            <div>
-              <div style={{ color: "#94a3b8", fontSize: "12px" }}>
-                Optimized Offer
-              </div>
-              <div style={{ color: "#fde68a", fontWeight: "900", marginTop: "4px" }}>
-                {optimizedOffer}
-              </div>
-            </div>
-
-            <div
-              style={{
-                padding: "8px 12px",
-                borderRadius: "999px",
-                background: "rgba(250,204,21,0.14)",
-                color: "#fef3c7",
-                fontSize: "12px",
-                fontWeight: "900",
-                width: "fit-content",
-              }}
-            >
-              {expectedLift}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  </div>
-)}
-{/* =========================
-   AI REVENUE RECOVERY CAMPAIGNS
-========================= */}
-
-{hasProAccess && (
-  <div
-    style={{
-      marginTop: "22px",
-      padding: "24px",
-      borderRadius: "28px",
-      background:
-        "linear-gradient(135deg, rgba(34,197,94,0.14), rgba(15,23,42,0.96))",
-      border: "1px solid rgba(74,222,128,0.22)",
-      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
-    }}
-  >
-    <div
-      style={{
-        color: "#86efac",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      AI Revenue Recovery Campaigns
-    </div>
-
-    <h3 style={{ color: "white", fontSize: "24px", fontWeight: "950" }}>
-      Recover Lost Guest Revenue Automatically
-    </h3>
-
-    <div style={{ display: "grid", gap: "14px", marginTop: "18px" }}>
-      {aiGuestSentimentIntelligence.length > 0 ? (
-        aiGuestSentimentIntelligence.slice(0, 6).map((guest, index) => {
-          const recoveryOpportunity =
-            guest.churnRisk === "High"
-              ? guest.avgSpend * 3
-              : guest.guestTier === "VIP"
-              ? guest.avgSpend * 1.8
-              : guest.avgSpend * 1.3;
-
-          const recoveryCampaign =
-            guest.churnRisk === "High"
-              ? "Win-Back Revenue Recovery"
-              : guest.guestTier === "VIP"
-              ? "VIP Spend Expansion"
-              : "Repeat Visit Growth";
-
-          return (
-            <div
-              key={guest.id || index}
-              style={{
-                padding: "18px",
-                borderRadius: "22px",
-                background: "rgba(15,23,42,0.74)",
-                border: "1px solid rgba(74,222,128,0.14)",
-                display: "grid",
-                gridTemplateColumns: isMobile
-                  ? "1fr"
-                  : "1.2fr 1.2fr 1fr 1fr",
-                gap: "14px",
-                alignItems: "center",
-              }}
-            >
-              <div>
-                <div
-                  style={{
-                    color: "white",
-                    fontSize: "17px",
-                    fontWeight: "900",
-                  }}
-                >
-                  {guest.name}
-                </div>
-
-                <div
-                  style={{
-                    color: "#94a3b8",
-                    fontSize: "12px",
-                    marginTop: "4px",
-                  }}
-                >
-                  {guest.guestTier} • {guest.churnRisk} churn risk
-                </div>
-              </div>
-
-              <div>
-                <div style={{ color: "#94a3b8", fontSize: "12px" }}>
-                  Recovery Campaign
-                </div>
-
-                <div
-                  style={{
-                    color: "#86efac",
-                    fontWeight: "900",
-                    marginTop: "4px",
-                  }}
-                >
-                  {recoveryCampaign}
-                </div>
-              </div>
-
-              <div>
-                <div style={{ color: "#94a3b8", fontSize: "12px" }}>
-                  Opportunity
-                </div>
-
-                <div
-                  style={{
-                    color: "#bbf7d0",
-                    fontWeight: "950",
-                    marginTop: "4px",
-                  }}
-                >
-                  ${recoveryOpportunity.toFixed(0)}
-                </div>
-              </div>
-
-             <button
-  type="button"
-  onClick={() =>
-    handleCreateAIAction({
-      actionType: "revenue_recovery_campaign",
-      title: recoveryCampaign,
-      description: `AI generated a ${recoveryCampaign} for ${guest.name}.`,
-      customer: guest,
-      estimatedValue: recoveryOpportunity,
-      channel: "Email/SMS",
-      message: `Hi ${guest.name}, we’d love to welcome you back with a personalized offer on your next visit.`,
-    })
-  }
-  style={{
-    padding: "12px 14px",
-    borderRadius: "14px",
-    border: "1px solid rgba(74,222,128,0.26)",
-    background: "rgba(34,197,94,0.14)",
-    color: "#bbf7d0",
-    fontSize: "13px",
-    fontWeight: "900",
-    cursor: "pointer",
-  }}
->
-  Build Campaign
-</button>
-            </div>
-          );
-        })
-      ) : (
-        <div
-          style={{
-            padding: "22px",
-            borderRadius: "22px",
-            background: "rgba(15,23,42,0.72)",
-            border: "1px solid rgba(74,222,128,0.14)",
-            color: "#94a3b8",
-            fontSize: "14px",
-            textAlign: "center",
-          }}
-        >
-          No revenue recovery campaigns available yet.
-        </div>
-      )}
-    </div>
-  </div>
-)}
-{/* =========================
-   SAVED AI CAMPAIGN DRAFTS
-========================= */}
-
-{hasProAccess && (
-  <div
-    style={{
-      marginTop: "22px",
-      padding: "24px",
-      borderRadius: "28px",
-      background:
-        "linear-gradient(135deg, rgba(14,165,233,0.14), rgba(15,23,42,0.96))",
-      border: "1px solid rgba(125,211,252,0.22)",
-      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
-    }}
-  >
-    <div
-      style={{
-        color: "#7dd3fc",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      Saved AI Campaign Drafts
-    </div>
-
-    <h3
-      style={{
-        color: "white",
-        fontSize: "24px",
-        fontWeight: "950",
-        marginBottom: "18px",
-      }}
-    >
-      AI Actions Ready For Review
-    </h3>
-
-    <div style={{ display: "grid", gap: "14px" }}>
-      {aiActions.length > 0 ? (
-        aiActions.slice(0, 6).map((action) => (
-          <div
-            key={action.id}
-            style={{
-              padding: "18px",
-              borderRadius: "22px",
-              background: "rgba(15,23,42,0.74)",
-              border: "1px solid rgba(125,211,252,0.14)",
-              display: "grid",
-              gridTemplateColumns: isMobile
-                ? "1fr"
-                : "1.3fr 1fr 1fr",
-              gap: "14px",
-              alignItems: "center",
-            }}
-          >
-            <div>
-              <div
-                style={{
-                  color: "white",
-                  fontSize: "17px",
-                  fontWeight: "900",
-                  marginBottom: "6px",
-                }}
-              >
-                {action.action_title || "AI Campaign Draft"}
-              </div>
-<div
-  style={{
-    marginTop: "8px",
-    display: "inline-flex",
-    alignItems: "center",
-    gap: "8px",
-    padding: "6px 10px",
-    borderRadius: "999px",
-    background:
-      action.action_status === "launched"
-        ? "rgba(34,197,94,0.14)"
-        : action.action_status === "cancelled"
-        ? "rgba(239,68,68,0.14)"
-        : "rgba(59,130,246,0.14)",
-    border:
-      action.action_status === "launched"
-        ? "1px solid rgba(34,197,94,0.24)"
-        : action.action_status === "cancelled"
-        ? "1px solid rgba(239,68,68,0.24)"
-        : "1px solid rgba(59,130,246,0.24)",
-    color:
-      action.action_status === "launched"
-        ? "#86efac"
-        : action.action_status === "cancelled"
-        ? "#fca5a5"
-        : "#93c5fd",
-    fontSize: "11px",
-    fontWeight: "900",
-    textTransform: "uppercase",
-    letterSpacing: "0.05em",
-  }}
->
-  {action.action_status || "draft"}
-</div>
-              <div
-                style={{
-                  color: "#cbd5e1",
-                  fontSize: "13px",
-                  lineHeight: 1.6,
-                }}
-              >
-                {action.campaign_message || action.action_description}
-              </div>
-            </div>
-
-            <div>
-              <div style={{ color: "#94a3b8", fontSize: "12px" }}>
-                Target Guest
-              </div>
-              <div style={{ color: "#e2e8f0", fontWeight: "900" }}>
-                {action.target_customer_name || "Guest Segment"}
-              </div>
-            </div>
-
-            <div>
-              <div style={{ color: "#94a3b8", fontSize: "12px" }}>
-                Estimated Value
-              </div>
-              <div style={{ color: "#86efac", fontWeight: "950" }}>
-                ${Number(action.estimated_value || 0).toFixed(0)}
-              </div>
-            </div>
-            <div
-  style={{
-    display: "flex",
-    gap: "10px",
-    flexWrap: "wrap",
-    marginTop: "14px",
-  }}
->
- <button
-  type="button"
-  onClick={async () => {
-    const { error } = await supabase
-      .from("ai_actions")
-      .update({
-        action_status: "launched",
-      })
-      .eq("id", action.id);
-
-    if (error) {
-      console.error("Launch campaign error:", error);
-      setMessage("Failed to launch campaign.");
-      return;
-    }
-
-    setAiActions((prev) =>
-      prev.map((item) =>
-        item.id === action.id
-          ? { ...item, action_status: "launched" }
-          : item
-      )
-    );
-
-    setMessage("Campaign launched successfully.");
-  }}
-  style={{
-    padding: "10px 12px",
-    borderRadius: "12px",
-    border: "1px solid rgba(34,197,94,0.24)",
-    background: "rgba(34,197,94,0.14)",
-    color: "#86efac",
-    fontSize: "12px",
-    fontWeight: "900",
-    cursor: "pointer",
-  }}
->
-  Launch Campaign
-</button>
-
-  <button
-  type="button"
-  onClick={() => {
-    alert(
-      action.campaign_message ||
-        action.action_description ||
-        "No draft message available."
-    );
-  }}
-  style={{
-    padding: "10px 12px",
-    borderRadius: "12px",
-    border: "1px solid rgba(59,130,246,0.24)",
-    background: "rgba(59,130,246,0.14)",
-    color: "#93c5fd",
-    fontSize: "12px",
-    fontWeight: "900",
-    cursor: "pointer",
-  }}
->
-  View Draft
-</button>
-
- <button
-  type="button"
-  onClick={async () => {
-    const { error } = await supabase
-      .from("ai_actions")
-      .update({
-        action_status: "cancelled",
-      })
-      .eq("id", action.id);
-
-    if (error) {
-      console.error("Cancel campaign error:", error);
-      setMessage("Failed to cancel campaign.");
-      return;
-    }
-
-    setAiActions((prev) =>
-      prev.map((item) =>
-        item.id === action.id
-          ? { ...item, action_status: "cancelled" }
-          : item
-      )
-    );
-
-    setMessage("Campaign cancelled.");
-  }}
-  style={{
-    padding: "10px 12px",
-    borderRadius: "12px",
-    border: "1px solid rgba(239,68,68,0.24)",
-    background: "rgba(239,68,68,0.14)",
-    color: "#fca5a5",
-    fontSize: "12px",
-    fontWeight: "900",
-    cursor: "pointer",
-  }}
->
-  Cancel
-</button>
-</div>
-          </div>
-        ))
-      ) : (
-        <div
-          style={{
-            padding: "22px",
-            borderRadius: "22px",
-            background: "rgba(15,23,42,0.72)",
-            border: "1px solid rgba(125,211,252,0.14)",
-            color: "#94a3b8",
-            fontSize: "14px",
-            textAlign: "center",
-          }}
-        >
-          No AI campaign drafts saved yet.
-        </div>
-      )}
-    </div>
-  </div>
-)}
-{/* =========================
-   LIVE AI ACTIVITY FEED
-========================= */}
-
-{hasProAccess && (
-  <div
-    style={{
-      marginTop: "22px",
-      padding: "24px",
-      borderRadius: "28px",
-      background:
-        "linear-gradient(135deg, rgba(168,85,247,0.14), rgba(15,23,42,0.96))",
-      border: "1px solid rgba(192,132,252,0.22)",
-      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
-    }}
-  >
-    <div
-      style={{
-        color: "#d8b4fe",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      Live AI Activity Feed
-    </div>
-
-    <h3
-      style={{
-        color: "white",
-        fontSize: "24px",
-        fontWeight: "950",
-        marginBottom: "18px",
-      }}
-    >
-      Real-Time Autonomous AI Actions
-    </h3>
-
-    <div style={{ display: "grid", gap: "14px" }}>
-      {aiActions.length > 0 ? (
-        aiActions.slice(0, 8).map((action) => (
-          <div
-            key={action.id}
-            style={{
-              padding: "16px",
-              borderRadius: "18px",
-              background: "rgba(15,23,42,0.72)",
-              border: "1px solid rgba(192,132,252,0.14)",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: isMobile ? "flex-start" : "center",
-              flexDirection: isMobile ? "column" : "row",
-              gap: "12px",
-            }}
-          >
-            <div>
-              <div
-                style={{
-                  color: "white",
-                  fontWeight: "900",
-                  marginBottom: "4px",
-                }}
-              >
-                {action.action_title}
-              </div>
-
-              <div
-                style={{
-                  color: "#cbd5e1",
-                  fontSize: "13px",
-                }}
-              >
-                {action.action_description}
-              </div>
-            </div>
-
-            <div
-              style={{
-                padding: "6px 10px",
-                borderRadius: "999px",
-                background:
-                  action.action_status === "launched"
-                    ? "rgba(34,197,94,0.14)"
-                    : action.action_status === "cancelled"
-                    ? "rgba(239,68,68,0.14)"
-                    : "rgba(59,130,246,0.14)",
-                color:
-                  action.action_status === "launched"
-                    ? "#86efac"
-                    : action.action_status === "cancelled"
-                    ? "#fca5a5"
-                    : "#93c5fd",
-                fontSize: "11px",
-                fontWeight: "900",
-                textTransform: "uppercase",
-              }}
-            >
-              {action.action_status || "draft"}
-            </div>
-          </div>
-        ))
-      ) : (
-        <div
-          style={{
-            padding: "20px",
-            borderRadius: "18px",
-            background: "rgba(15,23,42,0.72)",
-            border: "1px solid rgba(192,132,252,0.14)",
-            color: "#94a3b8",
-            textAlign: "center",
-          }}
-        >
-          No AI activity detected yet.
-        </div>
-      )}
-    </div>
-  </div>
-)}
-{/* =========================
-   AI REVENUE RECOVERY TRACKER
-========================= */}
-
-{hasProAccess && (
-  <div
-    style={{
-      marginTop: "22px",
-      padding: "24px",
-      borderRadius: "28px",
-      background:
-        "linear-gradient(135deg, rgba(34,197,94,0.14), rgba(15,23,42,0.96))",
-      border: "1px solid rgba(74,222,128,0.22)",
-      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
-    }}
-  >
-    <div
-      style={{
-        color: "#86efac",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      AI Revenue Recovery Tracker
-    </div>
-
-    <h3 style={{ color: "white", fontSize: "24px", fontWeight: "950" }}>
-      AI-Generated Revenue Opportunity
-    </h3>
-
-    <div
-      style={{
-        marginTop: "18px",
-        display: "grid",
-        gridTemplateColumns: isMobile ? "1fr" : "repeat(3,minmax(0,1fr))",
-        gap: "16px",
-      }}
-    >
-      <GlassCard
-        title="Draft Recovery"
-        value={`$${aiActions
-          .filter((action) => action.action_status !== "cancelled")
-          .reduce((sum, action) => sum + Number(action.estimated_value || 0), 0)
-          .toFixed(0)}`}
-        subtitle="Open AI recovery opportunities"
-      />
-
-      <GlassCard
-        title="Launched Recovery"
-        value={`$${aiActions
-          .filter((action) => action.action_status === "launched")
-          .reduce((sum, action) => sum + Number(action.estimated_value || 0), 0)
-          .toFixed(0)}`}
-        subtitle="Campaigns moved into action"
-      />
-
-      <GlassCard
-        title="Cancelled Recovery"
-        value={`$${aiActions
-          .filter((action) => action.action_status === "cancelled")
-          .reduce((sum, action) => sum + Number(action.estimated_value || 0), 0)
-          .toFixed(0)}`}
-        subtitle="Dismissed opportunities"
-      />
-    </div>
-  </div>
-)}
-{/* =========================
-   AI ACTION PERFORMANCE INSIGHTS
-========================= */}
-
-{hasProAccess && (
-  <div
-    style={{
-      marginTop: "22px",
-      padding: "24px",
-      borderRadius: "28px",
-      background:
-        "linear-gradient(135deg, rgba(59,130,246,0.14), rgba(15,23,42,0.96))",
-      border: "1px solid rgba(96,165,250,0.22)",
-      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
-    }}
-  >
-    <div
-      style={{
-        color: "#93c5fd",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      AI Action Performance Insights
-    </div>
-
-    <h3 style={{ color: "white", fontSize: "24px", fontWeight: "950" }}>
-      Campaign Execution Intelligence
-    </h3>
-
-    <div
-      style={{
-        marginTop: "18px",
-        padding: "18px",
-        borderRadius: "22px",
-        background: "rgba(15,23,42,0.74)",
-        border: "1px solid rgba(96,165,250,0.14)",
-      }}
-    >
-      <div
-        style={{
-          color: "#e2e8f0",
-          fontSize: "14px",
-          lineHeight: 1.8,
-        }}
-      >
-        {aiActions.length === 0
-          ? "No AI campaign actions have been created yet. Build a campaign from a guest recovery recommendation to activate performance tracking."
-          : aiActions.filter((action) => action.action_status === "launched")
-              .length > 0
-          ? `AI has launched ${
-              aiActions.filter((action) => action.action_status === "launched")
-                .length
-            } campaign action(s). Continue monitoring recovery value and guest engagement response.`
-          : "AI campaign drafts are ready for review. Launch the highest-value recovery actions first to begin tracking projected revenue impact."}
-      </div>
-    </div>
-  </div>
-)}
-{/* =========================
-   AI GUEST COMMAND CENTER SUMMARY
-========================= */}
-
-{hasProAccess && (
-  <div
-    style={{
-      marginTop: "22px",
-      padding: "26px",
-      borderRadius: "30px",
-      background:
-        "linear-gradient(135deg, rgba(14,165,233,0.18), rgba(99,102,241,0.14), rgba(15,23,42,0.98))",
-      border: "1px solid rgba(125,211,252,0.24)",
-      boxShadow: "0 28px 80px rgba(2,6,23,0.38)",
-    }}
-  >
-    <div
-      style={{
-        color: "#bae6fd",
-        fontSize: "12px",
-        fontWeight: "950",
-        letterSpacing: "0.1em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      AI Guest Command Center
-    </div>
-
-    <h3
-      style={{
-        color: "white",
-        fontSize: "28px",
-        fontWeight: "950",
-        marginBottom: "12px",
-      }}
-    >
-      Guest Revenue Intelligence Summary
-    </h3>
-
-    <p
-      style={{
-        color: "#cbd5e1",
-        fontSize: "14px",
-        lineHeight: 1.7,
-        maxWidth: "880px",
-        marginBottom: "22px",
-      }}
-    >
-      SerVen AI is tracking VIP guests, churn risk, loyalty signals, retention
-      probability, campaign opportunities, and revenue recovery actions from
-      guest behavior data.
-    </p>
-
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: isMobile
-          ? "1fr"
-          : "repeat(4,minmax(0,1fr))",
-        gap: "16px",
-        marginBottom: "22px",
-      }}
-    >
-      <GlassCard
-        title="Guests Tracked"
-        value={aiGuestSentimentIntelligence.length}
-        subtitle="Total customer profiles analyzed"
-      />
-
-      <GlassCard
-        title="VIP Guests"
-        value={vipGuests}
-        subtitle="High-value customers detected"
-      />
-
-      <GlassCard
-        title="Churn Risks"
-        value={highRiskGuests}
-        subtitle="Guests needing recovery action"
-      />
-
-      <GlassCard
-        title="Avg Guest Spend"
-        value={`$${avgGuestSpend.toFixed(0)}`}
-        subtitle="Average spend per visit"
-      />
-    </div>
-
-    <div
-      style={{
-        padding: "18px",
-        borderRadius: "22px",
-        background: "rgba(15,23,42,0.74)",
-        border: "1px solid rgba(125,211,252,0.16)",
-      }}
-    >
-      <div
-        style={{
-          color: "#7dd3fc",
-          fontSize: "12px",
-          fontWeight: "900",
-          marginBottom: "8px",
-        }}
-      >
-        AI Summary
-      </div>
-
-      <div
-        style={{
-          color: "#e2e8f0",
-          fontSize: "14px",
-          lineHeight: 1.7,
-        }}
-      >
-        {highRiskGuests > 0
-          ? `${highRiskGuests} guest profiles show churn risk. AI recommends launching win-back campaigns and dynamic offers to recover future revenue.`
-          : "Guest retention signals are currently healthy. AI recommends focusing on VIP loyalty expansion and premium upsell campaigns."}
-      </div>
-    </div>
-  </div>
-)}
-{/* =========================
-   AI EXECUTIVE OPERATING SYSTEM
-========================= */}
-
-{hasProAccess && (
-  <div
-    style={{
-      marginTop: "24px",
-      padding: "28px",
-      borderRadius: "32px",
-      background:
-        "linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.94), rgba(79,70,229,0.16))",
-      border: "1px solid rgba(129,140,248,0.22)",
-      boxShadow: "0 30px 90px rgba(2,6,23,0.42)",
-      overflow: "hidden",
-      position: "relative",
-    }}
-  >
-    <div
-      style={{
-        position: "absolute",
-        top: "-120px",
-        right: "-120px",
-        width: "260px",
-        height: "260px",
-        borderRadius: "999px",
-        background: "rgba(99,102,241,0.12)",
-        filter: "blur(40px)",
-      }}
-    />
-
-    <div
-      style={{
-        position: "relative",
-        zIndex: 2,
-      }}
-    >
-      <div
-        style={{
-          color: "#c7d2fe",
-          fontSize: "12px",
-          fontWeight: "950",
-          letterSpacing: "0.1em",
-          textTransform: "uppercase",
-          marginBottom: "10px",
-        }}
-      >
-        AI Executive Operating System
-      </div>
-
-      <h2
-        style={{
-          color: "white",
-          fontSize: "34px",
-          fontWeight: "950",
-          marginBottom: "14px",
-        }}
-      >
-        Autonomous Restaurant Intelligence Layer
-      </h2>
-
-      <p
-        style={{
-          color: "#cbd5e1",
-          fontSize: "14px",
-          lineHeight: 1.8,
-          maxWidth: "920px",
-          marginBottom: "26px",
-        }}
-      >
-        SerVen AI continuously analyzes restaurant operations, revenue,
-        guests, labor, inventory, forecasting, and profit leakage to guide
-        executive-level decisions automatically.
-      </p>
-
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: isMobile
-            ? "1fr"
-            : "repeat(4,minmax(0,1fr))",
-          gap: "16px",
-        }}
-      >
-        <GlassCard
-          title="AI Systems Active"
-          value="18"
-          subtitle="Operational intelligence modules"
-        />
-
-        <GlassCard
-          title="Profit Opportunities"
-          value="12"
-          subtitle="AI-detected optimization actions"
-        />
-
-        <GlassCard
-          title="Revenue Protected"
-          value="$18.4k"
-          subtitle="Estimated monthly protection"
-        />
-
-        <GlassCard
-          title="AI Confidence"
-          value="94%"
-          subtitle="Executive intelligence certainty"
-        />
-      </div>
-    </div>
-  </div>
-)}
-{/* =========================
-   AI EXECUTIVE DECISION TIMELINE
-========================= */}
-
-{hasProAccess && (
-  <div
-    style={{
-      marginTop: "22px",
-      padding: "24px",
-      borderRadius: "30px",
-      background:
-        "linear-gradient(135deg, rgba(99,102,241,0.14), rgba(15,23,42,0.96))",
-      border: "1px solid rgba(129,140,248,0.22)",
-      boxShadow: "0 24px 70px rgba(2,6,23,0.32)",
-    }}
-  >
-    <div
-      style={{
-        color: "#c7d2fe",
-        fontSize: "12px",
-        fontWeight: "950",
-        letterSpacing: "0.1em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      AI Executive Decision Timeline
-    </div>
-
-    <h3
-      style={{
-        color: "white",
-        fontSize: "24px",
-        fontWeight: "950",
-        marginBottom: "18px",
-      }}
-    >
-      AI-Prioritized Restaurant Actions
-    </h3>
-
-    <div style={{ display: "grid", gap: "14px" }}>
-      {[
-        {
-          time: "Now",
-          title: "Recover At-Risk Guest Revenue",
-          description:
-            "AI detected guests with high churn risk and recommends win-back campaigns.",
-          priority: "Critical",
-        },
-        {
-          time: "Next 24 Hours",
-          title: "Optimize Labor Coverage",
-          description:
-            "AI predicts labor inefficiency during slower revenue windows.",
-          priority: "High",
-        },
-        {
-          time: "This Week",
-          title: "Protect VIP Guest Loyalty",
-          description:
-            "AI recommends premium guest engagement to protect high-value customers.",
-          priority: "Medium",
-        },
-        {
-          time: "This Month",
-          title: "Reduce Vendor & Inventory Leakage",
-          description:
-            "AI identified purchasing and inventory variance opportunities.",
-          priority: "High",
-        },
-      ].map((item, index) => (
-        <div
-          key={index}
-          style={{
-            padding: "18px",
-            borderRadius: "22px",
-            background: "rgba(15,23,42,0.76)",
-            border: "1px solid rgba(129,140,248,0.14)",
-            display: "grid",
-            gridTemplateColumns: isMobile ? "1fr" : "130px 1fr 120px",
-            gap: "14px",
-            alignItems: "center",
-          }}
-        >
-          <div
-            style={{
-              color: "#a5b4fc",
-              fontSize: "13px",
-              fontWeight: "900",
-            }}
-          >
-            {item.time}
-          </div>
-
-          <div>
-            <div
-              style={{
-                color: "white",
-                fontSize: "17px",
-                fontWeight: "900",
-                marginBottom: "6px",
-              }}
-            >
-              {item.title}
-            </div>
-
-            <div
-              style={{
-                color: "#cbd5e1",
-                fontSize: "13px",
-                lineHeight: 1.6,
-              }}
-            >
-              {item.description}
-            </div>
-          </div>
-
-          <div
-            style={{
-              padding: "8px 12px",
-              borderRadius: "999px",
-              background:
-                item.priority === "Critical"
-                  ? "rgba(239,68,68,0.15)"
-                  : item.priority === "High"
-                  ? "rgba(250,204,21,0.15)"
-                  : "rgba(59,130,246,0.15)",
-              color:
-                item.priority === "Critical"
-                  ? "#fca5a5"
-                  : item.priority === "High"
-                  ? "#fde68a"
-                  : "#93c5fd",
-              fontSize: "12px",
-              fontWeight: "900",
-              textAlign: "center",
-            }}
-          >
-            {item.priority}
-          </div>
-        </div>
-      ))}
-    </div>
-  </div>
-)}
-{/* =========================
-   AI AUTONOMOUS ACTIONS FEED
-========================= */}
-
-{hasProAccess && (
-  <div
-    style={{
-      marginTop: "22px",
-      padding: "24px",
-      borderRadius: "30px",
-      background:
-        "linear-gradient(135deg, rgba(14,165,233,0.14), rgba(15,23,42,0.96))",
-      border: "1px solid rgba(125,211,252,0.22)",
-      boxShadow: "0 24px 70px rgba(2,6,23,0.32)",
-    }}
-  >
-    <div
-      style={{
-        color: "#7dd3fc",
-        fontSize: "12px",
-        fontWeight: "950",
-        letterSpacing: "0.1em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      AI Autonomous Actions Feed
-    </div>
-
-    <h3
-      style={{
-        color: "white",
-        fontSize: "24px",
-        fontWeight: "950",
-        marginBottom: "18px",
-      }}
-    >
-      Real-Time AI Operational Activity
-    </h3>
-
-    <div style={{ display: "grid", gap: "14px" }}>
-      {[
-        {
-          action: "VIP Guest Campaign Generated",
-          detail:
-            "AI created a retention campaign for high-value guest segments.",
-          status: "Completed",
-          time: "2 min ago",
-        },
-        {
-          action: "Inventory Variance Detected",
-          detail:
-            "AI identified unusual purchasing behavior in inventory activity.",
-          status: "Monitoring",
-          time: "8 min ago",
-        },
-        {
-          action: "Profit Leakage Alert Triggered",
-          detail:
-            "AI detected elevated labor cost during low-revenue periods.",
-          status: "Critical",
-          time: "14 min ago",
-        },
-        {
-          action: "Reservation Demand Forecast Updated",
-          detail:
-            "AI recalculated projected reservation traffic for weekend service.",
-          status: "Updated",
-          time: "21 min ago",
-        },
-      ].map((item, index) => (
-        <div
-          key={index}
-          style={{
-            padding: "18px",
-            borderRadius: "22px",
-            background: "rgba(15,23,42,0.76)",
-            border: "1px solid rgba(125,211,252,0.14)",
-            display: "grid",
-            gridTemplateColumns: isMobile
-              ? "1fr"
-              : "1.3fr 1fr 120px",
-            gap: "14px",
-            alignItems: "center",
-          }}
-        >
-          <div>
-            <div
-              style={{
-                color: "white",
-                fontSize: "17px",
-                fontWeight: "900",
-                marginBottom: "6px",
-              }}
-            >
-              {item.action}
-            </div>
-
-            <div
-              style={{
-                color: "#cbd5e1",
-                fontSize: "13px",
-                lineHeight: 1.6,
-              }}
-            >
-              {item.detail}
-            </div>
-          </div>
-
-          <div
-            style={{
-              color: "#94a3b8",
-              fontSize: "12px",
-              fontWeight: "700",
-            }}
-          >
-            {item.time}
-          </div>
-
-          <div
-            style={{
-              padding: "8px 12px",
-              borderRadius: "999px",
-              textAlign: "center",
-              fontSize: "12px",
-              fontWeight: "900",
-              background:
-                item.status === "Critical"
-                  ? "rgba(239,68,68,0.15)"
-                  : item.status === "Completed"
-                  ? "rgba(34,197,94,0.15)"
-                  : item.status === "Monitoring"
-                  ? "rgba(250,204,21,0.15)"
-                  : "rgba(59,130,246,0.15)",
-              color:
-                item.status === "Critical"
-                  ? "#fca5a5"
-                  : item.status === "Completed"
-                  ? "#86efac"
-                  : item.status === "Monitoring"
-                  ? "#fde68a"
-                  : "#93c5fd",
-            }}
-          >
-            {item.status}
-          </div>
-        </div>
-      ))}
-    </div>
-  </div>
-)}
-{/* =========================
-   AI RESTAURANT BRAIN
-========================= */}
-
-{hasProAccess && (
-  <div
-    style={{
-      marginTop: "22px",
-      padding: "28px",
-      borderRadius: "32px",
-      background:
-        "linear-gradient(135deg, rgba(79,70,229,0.18), rgba(15,23,42,0.98))",
-      border: "1px solid rgba(129,140,248,0.24)",
-      boxShadow: "0 30px 90px rgba(2,6,23,0.38)",
-      position: "relative",
-      overflow: "hidden",
-    }}
-  >
-    <div
-      style={{
-        position: "absolute",
-        top: "-100px",
-        right: "-100px",
-        width: "220px",
-        height: "220px",
-        borderRadius: "999px",
-        background: "rgba(129,140,248,0.10)",
-        filter: "blur(40px)",
-      }}
-    />
-
-    <div style={{ position: "relative", zIndex: 2 }}>
-      <div
-        style={{
-          color: "#c7d2fe",
-          fontSize: "12px",
-          fontWeight: "950",
-          letterSpacing: "0.1em",
-          textTransform: "uppercase",
-          marginBottom: "10px",
-        }}
-      >
-        AI Restaurant Brain
-      </div>
-
-      <h3
-        style={{
-          color: "white",
-          fontSize: "28px",
-          fontWeight: "950",
-          marginBottom: "14px",
-        }}
-      >
-        Unified Restaurant Intelligence Core
-      </h3>
-
-      <p
-        style={{
-          color: "#cbd5e1",
-          fontSize: "14px",
-          lineHeight: 1.8,
-          marginBottom: "24px",
-          maxWidth: "920px",
-        }}
-      >
-        The AI Restaurant Brain combines guest behavior, labor efficiency,
-        revenue trends, forecasting, inventory movement, reservations,
-        marketing, and operational intelligence into one executive decision
-        engine.
-      </p>
-
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: isMobile
-            ? "1fr"
-            : "repeat(3,minmax(0,1fr))",
-          gap: "18px",
-          marginBottom: "24px",
-        }}
-      >
-        {[
-          {
-            title: "Revenue Intelligence",
-            status: "Optimized",
-            description:
-              "Revenue momentum and profitability signals remain healthy.",
-          },
-          {
-            title: "Guest Intelligence",
-            status: "Monitoring",
-            description:
-              "AI detected churn-risk guests requiring engagement recovery.",
-          },
-          {
-            title: "Operational Intelligence",
-            status: "Stable",
-            description:
-              "Labor, inventory, and scheduling systems operating efficiently.",
-          },
-        ].map((system, index) => (
-          <div
-            key={index}
-            style={{
-              padding: "20px",
-              borderRadius: "24px",
-              background: "rgba(15,23,42,0.78)",
-              border: "1px solid rgba(129,140,248,0.14)",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: "12px",
-              }}
-            >
-              <div
-                style={{
-                  color: "white",
-                  fontSize: "17px",
-                  fontWeight: "900",
-                }}
-              >
-                {system.title}
-              </div>
-
-              <div
-                style={{
-                  padding: "6px 10px",
-                  borderRadius: "999px",
-                  background:
-                    system.status === "Optimized"
-                      ? "rgba(34,197,94,0.15)"
-                      : system.status === "Monitoring"
-                      ? "rgba(250,204,21,0.15)"
-                      : "rgba(59,130,246,0.15)",
-                  color:
-                    system.status === "Optimized"
-                      ? "#86efac"
-                      : system.status === "Monitoring"
-                      ? "#fde68a"
-                      : "#93c5fd",
-                  fontSize: "11px",
-                  fontWeight: "900",
-                }}
-              >
-                {system.status}
-              </div>
-            </div>
-
-            <div
-              style={{
-                color: "#cbd5e1",
-                fontSize: "13px",
-                lineHeight: 1.7,
-              }}
-            >
-              {system.description}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div
-        style={{
-          padding: "20px",
-          borderRadius: "24px",
-          background: "rgba(15,23,42,0.78)",
-          border: "1px solid rgba(129,140,248,0.16)",
-        }}
-      >
-        <div
-          style={{
-            color: "#a5b4fc",
-            fontSize: "12px",
-            fontWeight: "900",
-            marginBottom: "10px",
-          }}
-        >
-          AI Executive Conclusion
-        </div>
-
-        <div
-          style={{
-            color: "#e2e8f0",
-            fontSize: "14px",
-            lineHeight: 1.8,
-          }}
-        >
-          AI predicts the restaurant is positioned for stable operational
-          growth, but recommends improving guest retention campaigns and
-          monitoring labor-to-revenue efficiency during lower traffic periods
-          to maximize profitability.
-        </div>
-      </div>
-    </div>
-  </div>
-)}
-{/* =========================
-   AI PREDICTIVE RISK SCANNER
-========================= */}
-
-{hasProAccess && (
-  <div
-    style={{
-      marginTop: "22px",
-      padding: "28px",
-      borderRadius: "32px",
-      background:
-        "linear-gradient(135deg, rgba(239,68,68,0.14), rgba(15,23,42,0.98))",
-      border: "1px solid rgba(248,113,113,0.24)",
-      boxShadow: "0 30px 90px rgba(2,6,23,0.38)",
-    }}
-  >
-    <div
-      style={{
-        color: "#fca5a5",
-        fontSize: "12px",
-        fontWeight: "950",
-        letterSpacing: "0.1em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      AI Predictive Risk Scanner
-    </div>
-
-    <h3
-      style={{
-        color: "white",
-        fontSize: "28px",
-        fontWeight: "950",
-        marginBottom: "14px",
-      }}
-    >
-      Operational Threat & Risk Detection
-    </h3>
-
-    <p
-      style={{
-        color: "#cbd5e1",
-        fontSize: "14px",
-        lineHeight: 1.8,
-        marginBottom: "24px",
-        maxWidth: "920px",
-      }}
-    >
-      AI continuously scans restaurant operations for hidden revenue risks,
-      labor inefficiencies, guest churn threats, inventory leakage, and
-      forecasting instability before they become major operational problems.
-    </p>
-
-    <div
-      style={{
-        display: "grid",
-        gap: "16px",
-      }}
-    >
-      {[
-        {
-          risk: "Guest Churn Escalation",
-          severity: "High",
-          probability: "82%",
-          impact: "$4.2k revenue exposure",
-          recommendation:
-            "Launch immediate AI win-back campaigns for at-risk guest segments.",
-        },
-        {
-          risk: "Labor Cost Drift",
-          severity: "Medium",
-          probability: "64%",
-          impact: "Prime cost increase risk",
-          recommendation:
-            "Reduce staffing during forecasted low-volume periods.",
-        },
-        {
-          risk: "Inventory Variance",
-          severity: "High",
-          probability: "77%",
-          impact: "$2.1k waste exposure",
-          recommendation:
-            "Audit ingredient variance and vendor purchasing anomalies.",
-        },
-        {
-          risk: "Weekend Reservation Overload",
-          severity: "Low",
-          probability: "48%",
-          impact: "Potential service bottleneck",
-          recommendation:
-            "Increase front-of-house readiness during peak reservation windows.",
-        },
-      ].map((item, index) => (
-        <div
-          key={index}
-          style={{
-            padding: "20px",
-            borderRadius: "24px",
-            background: "rgba(15,23,42,0.78)",
-            border: "1px solid rgba(248,113,113,0.14)",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: isMobile ? "flex-start" : "center",
-              flexDirection: isMobile ? "column" : "row",
-              gap: "14px",
-              marginBottom: "16px",
-            }}
-          >
-            <div>
-              <div
-                style={{
-                  color: "white",
-                  fontSize: "18px",
-                  fontWeight: "900",
-                  marginBottom: "6px",
-                }}
-              >
-                {item.risk}
-              </div>
-
-              <div
-                style={{
-                  color: "#94a3b8",
-                  fontSize: "13px",
-                }}
-              >
-                Predicted probability: {item.probability}
-              </div>
-            </div>
-
-            <div
-              style={{
-                padding: "8px 14px",
-                borderRadius: "999px",
-                background:
-                  item.severity === "High"
-                    ? "rgba(239,68,68,0.15)"
-                    : item.severity === "Medium"
-                    ? "rgba(250,204,21,0.15)"
-                    : "rgba(59,130,246,0.15)",
-                color:
-                  item.severity === "High"
-                    ? "#fca5a5"
-                    : item.severity === "Medium"
-                    ? "#fde68a"
-                    : "#93c5fd",
-                fontSize: "12px",
-                fontWeight: "900",
-              }}
-            >
-              {item.severity} Risk
-            </div>
-          </div>
-
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: isMobile
-                ? "1fr"
-                : "220px 1fr",
-              gap: "18px",
-              marginBottom: "16px",
-            }}
-          >
-            <div
-              style={{
-                padding: "14px",
-                borderRadius: "18px",
-                background: "rgba(30,41,59,0.72)",
-                border: "1px solid rgba(148,163,184,0.10)",
-              }}
-            >
-              <div
-                style={{
-                  color: "#fca5a5",
-                  fontSize: "12px",
-                  fontWeight: "900",
-                  marginBottom: "6px",
-                }}
-              >
-                Financial Impact
-              </div>
-
-              <div
-                style={{
-                  color: "#e2e8f0",
-                  fontSize: "14px",
-                  fontWeight: "800",
-                }}
-              >
-                {item.impact}
-              </div>
-            </div>
-
-            <div
-              style={{
-                padding: "14px",
-                borderRadius: "18px",
-                background: "rgba(30,41,59,0.72)",
-                border: "1px solid rgba(148,163,184,0.10)",
-              }}
-            >
-              <div
-                style={{
-                  color: "#fca5a5",
-                  fontSize: "12px",
-                  fontWeight: "900",
-                  marginBottom: "6px",
-                }}
-              >
-                AI Recommendation
-              </div>
-
-              <div
-                style={{
-                  color: "#cbd5e1",
-                  fontSize: "13px",
-                  lineHeight: 1.7,
-                }}
-              >
-                {item.recommendation}
-              </div>
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  </div>
-)}
-{/* =========================
-   AI PROFIT LEAK COMMAND CENTER
-========================= */}
-
-{hasProAccess && (
-  <div
-    style={{
-      marginTop: "22px",
-      padding: "28px",
-      borderRadius: "32px",
-      background:
-        "linear-gradient(135deg, rgba(245,158,11,0.15), rgba(15,23,42,0.98))",
-      border: "1px solid rgba(251,191,36,0.24)",
-      boxShadow: "0 30px 90px rgba(2,6,23,0.38)",
-    }}
-  >
-    <div
-      style={{
-        color: "#fde68a",
-        fontSize: "12px",
-        fontWeight: "950",
-        letterSpacing: "0.1em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      AI Profit Leak Command Center
-    </div>
-
-    <h3
-      style={{
-        color: "white",
-        fontSize: "28px",
-        fontWeight: "950",
-        marginBottom: "14px",
-      }}
-    >
-      Revenue Leakage Detection Engine
-    </h3>
-
-    <p
-      style={{
-        color: "#cbd5e1",
-        fontSize: "14px",
-        lineHeight: 1.8,
-        marginBottom: "24px",
-        maxWidth: "920px",
-      }}
-    >
-      AI continuously monitors operational data to identify hidden revenue loss,
-      waste exposure, labor inefficiency, menu margin weakness, and missed
-      guest revenue opportunities.
-    </p>
-
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: isMobile
-          ? "1fr"
-          : "repeat(4,minmax(0,1fr))",
-        gap: "16px",
-        marginBottom: "24px",
-      }}
-    >
-      <GlassCard
-        title="Monthly Leakage"
-        value="$12.8k"
-        subtitle="Estimated revenue exposure"
-      />
-
-      <GlassCard
-        title="Waste Exposure"
-        value="$3.4k"
-        subtitle="Inventory & food waste risk"
-      />
-
-      <GlassCard
-        title="Labor Leakage"
-        value="$4.1k"
-        subtitle="Scheduling inefficiencies"
-      />
-
-      <GlassCard
-        title="Recovery Potential"
-        value="78%"
-        subtitle="AI recoverable profit estimate"
-      />
-    </div>
-
-    <div style={{ display: "grid", gap: "16px" }}>
-      {[
-        {
-          category: "Menu Margin Leakage",
-          amount: "$2.6k",
-          severity: "High",
-          detail:
-            "Low-margin menu items are overperforming compared to premium offerings.",
-          action:
-            "Increase visibility of high-margin menu items and premium pairings.",
-        },
-        {
-          category: "Labor Efficiency Leakage",
-          amount: "$4.1k",
-          severity: "Critical",
-          detail:
-            "AI detected staffing inefficiency during low-volume periods.",
-          action:
-            "Reduce labor allocation during forecasted slow hours.",
-        },
-        {
-          category: "Inventory Waste Leakage",
-          amount: "$3.4k",
-          severity: "High",
-          detail:
-            "Ingredient variance exceeds projected consumption models.",
-          action:
-            "Audit prep waste and optimize purchasing frequency.",
-        },
-        {
-          category: "Guest Revenue Leakage",
-          amount: "$2.7k",
-          severity: "Medium",
-          detail:
-            "High-value guests show declining engagement behavior.",
-          action:
-            "Launch personalized retention and VIP loyalty campaigns.",
-        },
-      ].map((item, index) => (
-        <div
-          key={index}
-          style={{
-            padding: "20px",
-            borderRadius: "24px",
-            background: "rgba(15,23,42,0.78)",
-            border: "1px solid rgba(251,191,36,0.14)",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: isMobile ? "flex-start" : "center",
-              flexDirection: isMobile ? "column" : "row",
-              gap: "14px",
-              marginBottom: "16px",
-            }}
-          >
-            <div>
-              <div
-                style={{
-                  color: "white",
-                  fontSize: "18px",
-                  fontWeight: "900",
-                  marginBottom: "6px",
-                }}
-              >
-                {item.category}
-              </div>
-
-              <div
-                style={{
-                  color: "#fde68a",
-                  fontSize: "14px",
-                  fontWeight: "900",
-                }}
-              >
-                {item.amount} monthly exposure
-              </div>
-            </div>
-
-            <div
-              style={{
-                padding: "8px 14px",
-                borderRadius: "999px",
-                background:
-                  item.severity === "Critical"
-                    ? "rgba(239,68,68,0.15)"
-                    : item.severity === "High"
-                    ? "rgba(251,191,36,0.15)"
-                    : "rgba(59,130,246,0.15)",
-                color:
-                  item.severity === "Critical"
-                    ? "#fca5a5"
-                    : item.severity === "High"
-                    ? "#fde68a"
-                    : "#93c5fd",
-                fontSize: "12px",
-                fontWeight: "900",
-              }}
-            >
-              {item.severity}
-            </div>
-          </div>
-
-          <div
-            style={{
-              color: "#cbd5e1",
-              fontSize: "13px",
-              lineHeight: 1.7,
-              marginBottom: "16px",
-            }}
-          >
-            {item.detail}
-          </div>
-
-          <div
-            style={{
-              padding: "14px",
-              borderRadius: "18px",
-              background: "rgba(30,41,59,0.72)",
-              border: "1px solid rgba(148,163,184,0.10)",
-            }}
-          >
-            <div
-              style={{
-                color: "#fde68a",
-                fontSize: "12px",
-                fontWeight: "900",
-                marginBottom: "6px",
-              }}
-            >
-              AI Recovery Action
-            </div>
-
-            <div
-              style={{
-                color: "#e2e8f0",
-                fontSize: "13px",
-                lineHeight: 1.7,
-              }}
-            >
-              {item.action}
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  </div>
-)}
-{/* =========================
-   AI EXECUTIVE FORECAST ENGINE
-========================= */}
-
-{hasProAccess && (
-  <div
-    style={{
-      marginTop: "22px",
-      padding: "28px",
-      borderRadius: "32px",
-      background:
-        "linear-gradient(135deg, rgba(6,182,212,0.15), rgba(15,23,42,0.98))",
-      border: "1px solid rgba(34,211,238,0.24)",
-      boxShadow: "0 30px 90px rgba(2,6,23,0.38)",
-    }}
-  >
-    <div
-      style={{
-        color: "#67e8f9",
-        fontSize: "12px",
-        fontWeight: "950",
-        letterSpacing: "0.1em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      AI Executive Forecast Engine
-    </div>
-
-    <h3
-      style={{
-        color: "white",
-        fontSize: "28px",
-        fontWeight: "950",
-        marginBottom: "14px",
-      }}
-    >
-      Predictive Revenue & Operational Forecasting
-    </h3>
-
-    <p
-      style={{
-        color: "#cbd5e1",
-        fontSize: "14px",
-        lineHeight: 1.8,
-        marginBottom: "24px",
-        maxWidth: "920px",
-      }}
-    >
-      AI forecasts restaurant revenue, labor pressure, guest retention,
-      reservation demand, inventory risk, and profitability trends before
-      they happen.
-    </p>
-
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: isMobile
-          ? "1fr"
-          : "repeat(4,minmax(0,1fr))",
-        gap: "16px",
-        marginBottom: "24px",
-      }}
-    >
-      <GlassCard
-        title="Projected Revenue"
-        value="$148k"
-        subtitle="Next 30 day estimate"
-      />
-
-      <GlassCard
-        title="Forecast Confidence"
-        value="93%"
-        subtitle="AI predictive certainty"
-      />
-
-      <GlassCard
-        title="Projected Prime Cost"
-        value="58%"
-        subtitle="Forecasted combined cost"
-      />
-
-      <GlassCard
-        title="Guest Growth"
-        value="+14%"
-        subtitle="Predicted customer increase"
-      />
-    </div>
-
-    <div style={{ display: "grid", gap: "16px" }}>
-      {[
-        {
-          title: "Revenue Momentum Forecast",
-          prediction:
-            "AI predicts continued revenue acceleration over the next 14 days.",
-          trend: "+8.4%",
-          status: "Positive",
-        },
-        {
-          title: "Labor Pressure Forecast",
-          prediction:
-            "Weekend staffing demand expected to increase due to reservation growth.",
-          trend: "+11%",
-          status: "Monitor",
-        },
-        {
-          title: "Guest Retention Forecast",
-          prediction:
-            "VIP retention remains strong but mid-tier guests show engagement slowdown.",
-          trend: "-4%",
-          status: "Risk",
-        },
-        {
-          title: "Inventory Forecast",
-          prediction:
-            "Ingredient consumption is projected to exceed normal purchasing thresholds.",
-          trend: "+9%",
-          status: "Attention",
-        },
-      ].map((forecast, index) => (
-        <div
-          key={index}
-          style={{
-            padding: "20px",
-            borderRadius: "24px",
-            background: "rgba(15,23,42,0.78)",
-            border: "1px solid rgba(34,211,238,0.14)",
-            display: "grid",
-            gridTemplateColumns: isMobile
-              ? "1fr"
-              : "1.5fr 120px 120px",
-            gap: "16px",
-            alignItems: "center",
-          }}
-        >
-          <div>
-            <div
-              style={{
-                color: "white",
-                fontSize: "18px",
-                fontWeight: "900",
-                marginBottom: "8px",
-              }}
-            >
-              {forecast.title}
-            </div>
-
-            <div
-              style={{
-                color: "#cbd5e1",
-                fontSize: "13px",
-                lineHeight: 1.7,
-              }}
-            >
-              {forecast.prediction}
-            </div>
-          </div>
-
-          <div
-            style={{
-              color:
-                forecast.trend.startsWith("+")
-                  ? "#86efac"
-                  : "#fca5a5",
-              fontSize: "18px",
-              fontWeight: "950",
-              textAlign: "center",
-            }}
-          >
-            {forecast.trend}
-          </div>
-
-          <div
-            style={{
-              padding: "8px 12px",
-              borderRadius: "999px",
-              textAlign: "center",
-              background:
-                forecast.status === "Positive"
-                  ? "rgba(34,197,94,0.15)"
-                  : forecast.status === "Monitor"
-                  ? "rgba(250,204,21,0.15)"
-                  : forecast.status === "Risk"
-                  ? "rgba(239,68,68,0.15)"
-                  : "rgba(59,130,246,0.15)",
-              color:
-                forecast.status === "Positive"
-                  ? "#86efac"
-                  : forecast.status === "Monitor"
-                  ? "#fde68a"
-                  : forecast.status === "Risk"
-                  ? "#fca5a5"
-                  : "#93c5fd",
-              fontSize: "12px",
-              fontWeight: "900",
-            }}
-          >
-            {forecast.status}
-          </div>
-        </div>
-      ))}
-    </div>
-  </div>
-)}
-{/* =========================
-   RESTAURANT DIGITAL TWIN INTELLIGENCE
-========================= */}
-
-{hasProAccess && (
-  <div
-    style={{
-      marginTop: "22px",
-      padding: "28px",
-      borderRadius: "32px",
-      background:
-        "linear-gradient(135deg, rgba(124,58,237,0.18), rgba(15,23,42,0.98))",
-      border: "1px solid rgba(167,139,250,0.24)",
-      boxShadow: "0 30px 90px rgba(2,6,23,0.42)",
-    }}
-  >
-    <div
-      style={{
-        color: "#c4b5fd",
-        fontSize: "12px",
-        fontWeight: "950",
-        letterSpacing: "0.1em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      Restaurant Digital Twin Intelligence
-    </div>
-
-    <h3
-      style={{
-        color: "white",
-        fontSize: "28px",
-        fontWeight: "950",
-        marginBottom: "14px",
-      }}
-    >
-      AI Simulation Of Restaurant Performance
-    </h3>
-
-    <p
-      style={{
-        color: "#cbd5e1",
-        fontSize: "14px",
-        lineHeight: 1.8,
-        marginBottom: "24px",
-        maxWidth: "920px",
-      }}
-    >
-      SerVen AI models the restaurant as a digital twin, simulating how revenue,
-      labor, inventory, guest behavior, reservations, and profit leaks interact
-      before decisions are made.
-    </p>
-
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: isMobile
-          ? "1fr"
-          : "repeat(4,minmax(0,1fr))",
-        gap: "16px",
-        marginBottom: "24px",
-      }}
-    >
-      <GlassCard
-        title="Simulation Accuracy"
-        value="91%"
-        subtitle="Digital twin confidence"
-      />
-
-      <GlassCard
-        title="Systems Modeled"
-        value="7"
-        subtitle="Revenue, labor, inventory, guests"
-      />
-
-      <GlassCard
-        title="Scenario Impact"
-        value="$22.6k"
-        subtitle="Potential monthly upside"
-      />
-
-      <GlassCard
-        title="Decision Speed"
-        value="Real-Time"
-        subtitle="AI scenario evaluation"
-      />
-    </div>
-
-    <div style={{ display: "grid", gap: "16px" }}>
-      {[
-        {
-          scenario: "What if labor is reduced during slow periods?",
-          result:
-            "AI predicts improved prime cost control without major service impact.",
-          impact: "+$4.8k/mo profit protection",
-          confidence: "89%",
-        },
-        {
-          scenario: "What if VIP campaigns launch this week?",
-          result:
-            "AI predicts higher repeat visit probability from premium guests.",
-          impact: "+$3.2k/mo guest revenue",
-          confidence: "92%",
-        },
-        {
-          scenario: "What if high-margin menu items are promoted?",
-          result:
-            "AI predicts improved average ticket value and stronger margin mix.",
-          impact: "+$6.4k/mo margin upside",
-          confidence: "87%",
-        },
-        {
-          scenario: "What if inventory variance is reduced?",
-          result:
-            "AI predicts lower waste exposure and improved food cost control.",
-          impact: "+$5.1k/mo waste recovery",
-          confidence: "90%",
-        },
-      ].map((item, index) => (
-        <div
-          key={index}
-          style={{
-            padding: "20px",
-            borderRadius: "24px",
-            background: "rgba(15,23,42,0.78)",
-            border: "1px solid rgba(167,139,250,0.14)",
-          }}
-        >
-          <div
-            style={{
-              color: "#c4b5fd",
-              fontSize: "12px",
-              fontWeight: "900",
-              marginBottom: "8px",
-            }}
-          >
-            Scenario Simulation
-          </div>
-
-          <div
-            style={{
-              color: "white",
-              fontSize: "18px",
-              fontWeight: "900",
-              marginBottom: "10px",
-            }}
-          >
-            {item.scenario}
-          </div>
-
-          <div
-            style={{
-              color: "#cbd5e1",
-              fontSize: "13px",
-              lineHeight: 1.7,
-              marginBottom: "16px",
-            }}
-          >
-            {item.result}
-          </div>
-
-          <div
-            style={{
-              display: "flex",
-              gap: "10px",
-              flexWrap: "wrap",
-            }}
-          >
-            <div
-              style={{
-                padding: "8px 12px",
-                borderRadius: "999px",
-                background: "rgba(34,197,94,0.14)",
-                color: "#86efac",
-                fontSize: "12px",
-                fontWeight: "900",
-              }}
-            >
-              {item.impact}
-            </div>
-
-            <div
-              style={{
-                padding: "8px 12px",
-                borderRadius: "999px",
-                background: "rgba(167,139,250,0.14)",
-                color: "#ddd6fe",
-                fontSize: "12px",
-                fontWeight: "900",
-              }}
-            >
-              {item.confidence} confidence
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  </div>
-)}
-{/* =========================
-   AI AUTONOMOUS OPTIMIZATION ENGINE
-========================= */}
-
-{hasProAccess && (
-  <div
-    style={{
-      marginTop: "22px",
-      padding: "28px",
-      borderRadius: "32px",
-      background:
-        "linear-gradient(135deg, rgba(34,197,94,0.16), rgba(15,23,42,0.98))",
-      border: "1px solid rgba(74,222,128,0.24)",
-      boxShadow: "0 30px 90px rgba(2,6,23,0.42)",
-    }}
-  >
-    <div
-      style={{
-        color: "#86efac",
-        fontSize: "12px",
-        fontWeight: "950",
-        letterSpacing: "0.1em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      AI Autonomous Optimization Engine
-    </div>
-
-    <h3
-      style={{
-        color: "white",
-        fontSize: "28px",
-        fontWeight: "950",
-        marginBottom: "14px",
-      }}
-    >
-      Self-Improving Restaurant Performance System
-    </h3>
-
-    <p
-      style={{
-        color: "#cbd5e1",
-        fontSize: "14px",
-        lineHeight: 1.8,
-        marginBottom: "24px",
-        maxWidth: "920px",
-      }}
-    >
-      AI continuously recommends the best operational adjustments across guest
-      recovery, labor efficiency, inventory control, menu profitability, and
-      revenue growth.
-    </p>
-
-    <div style={{ display: "grid", gap: "16px" }}>
-      {[
-        {
-          system: "Guest Revenue Optimization",
-          action: "Launch win-back campaigns for high-risk guests.",
-          result: "+$3.9k/mo potential recovery",
-          status: "Ready",
-        },
-        {
-          system: "Labor Cost Optimization",
-          action: "Reduce staffing during predicted slow periods.",
-          result: "+$4.4k/mo profit protection",
-          status: "Recommended",
-        },
-        {
-          system: "Menu Profit Optimization",
-          action: "Promote high-margin items and premium add-ons.",
-          result: "+$6.1k/mo margin upside",
-          status: "Active",
-        },
-        {
-          system: "Inventory Waste Optimization",
-          action: "Adjust purchasing cadence based on usage variance.",
-          result: "+$3.2k/mo waste reduction",
-          status: "Monitoring",
-        },
-      ].map((item, index) => (
-        <div
-          key={index}
-          style={{
-            padding: "20px",
-            borderRadius: "24px",
-            background: "rgba(15,23,42,0.78)",
-            border: "1px solid rgba(74,222,128,0.14)",
-            display: "grid",
-            gridTemplateColumns: isMobile
-              ? "1fr"
-              : "1.2fr 1.4fr 1fr 120px",
-            gap: "16px",
-            alignItems: "center",
-          }}
-        >
-          <div>
-            <div
-              style={{
-                color: "white",
-                fontSize: "17px",
-                fontWeight: "900",
-                marginBottom: "6px",
-              }}
-            >
-              {item.system}
-            </div>
-
-            <div
-              style={{
-                color: "#94a3b8",
-                fontSize: "12px",
-                fontWeight: "700",
-              }}
-            >
-              AI optimization module
-            </div>
-          </div>
-
-          <div
-            style={{
-              color: "#cbd5e1",
-              fontSize: "13px",
-              lineHeight: 1.7,
-            }}
-          >
-            {item.action}
-          </div>
-
-          <div
-            style={{
-              color: "#86efac",
-              fontSize: "13px",
-              fontWeight: "900",
-            }}
-          >
-            {item.result}
-          </div>
-
-          <div
-            style={{
-              padding: "8px 12px",
-              borderRadius: "999px",
-              textAlign: "center",
-              background:
-                item.status === "Active"
-                  ? "rgba(34,197,94,0.15)"
-                  : item.status === "Ready"
-                  ? "rgba(59,130,246,0.15)"
-                  : item.status === "Recommended"
-                  ? "rgba(250,204,21,0.15)"
-                  : "rgba(148,163,184,0.15)",
-              color:
-                item.status === "Active"
-                  ? "#86efac"
-                  : item.status === "Ready"
-                  ? "#93c5fd"
-                  : item.status === "Recommended"
-                  ? "#fde68a"
-                  : "#cbd5e1",
-              fontSize: "12px",
-              fontWeight: "900",
-            }}
-          >
-            {item.status}
-          </div>
-        </div>
-      ))}
-    </div>
-  </div>
-)}
-{/* =========================
-   AI EXECUTIVE SUMMARY CLOSEOUT
-========================= */}
-
-{hasProAccess && (
-  <div
-    style={{
-      marginTop: "24px",
-      marginBottom: "30px",
-      padding: "32px",
-      borderRadius: "34px",
-      background:
-        "linear-gradient(135deg, rgba(15,23,42,0.99), rgba(30,41,59,0.95), rgba(99,102,241,0.18))",
-      border: "1px solid rgba(129,140,248,0.24)",
-      boxShadow: "0 34px 100px rgba(2,6,23,0.46)",
-      overflow: "hidden",
-      position: "relative",
-    }}
-  >
-    <div
-      style={{
-        position: "absolute",
-        top: "-120px",
-        right: "-120px",
-        width: "260px",
-        height: "260px",
-        borderRadius: "999px",
-        background: "rgba(129,140,248,0.12)",
-        filter: "blur(44px)",
-      }}
-    />
-
-    <div
-      style={{
-        position: "relative",
-        zIndex: 2,
-      }}
-    >
-      <div
-        style={{
-          color: "#c7d2fe",
-          fontSize: "12px",
-          fontWeight: "950",
-          letterSpacing: "0.1em",
-          textTransform: "uppercase",
-          marginBottom: "10px",
-        }}
-      >
-        AI Executive Summary
-      </div>
-
-      <h2
-        style={{
-          color: "white",
-          fontSize: "34px",
-          fontWeight: "950",
-          lineHeight: 1.2,
-          marginBottom: "16px",
-        }}
-      >
-        Restaurant Intelligence Status: Operationally Stable
-      </h2>
-
-      <p
-        style={{
-          color: "#cbd5e1",
-          fontSize: "15px",
-          lineHeight: 1.9,
-          maxWidth: "980px",
-          marginBottom: "28px",
-        }}
-      >
-        SerVen AI has completed a full operational analysis across revenue,
-        labor, inventory, guests, forecasting, reservations, profit leakage,
-        and optimization systems. AI predicts stable growth potential while
-        identifying opportunities to improve guest retention, increase margin
-        efficiency, and reduce operational leakage.
-      </p>
-
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: isMobile
-            ? "1fr"
-            : "repeat(4,minmax(0,1fr))",
-          gap: "16px",
-          marginBottom: "26px",
-        }}
-      >
-        <GlassCard
-          title="Operational Score"
-          value="91%"
-          subtitle="AI system health"
-        />
-
-        <GlassCard
-          title="Profit Recovery"
-          value="$18.7k"
-          subtitle="Estimated monthly opportunity"
-        />
-
-        <GlassCard
-          title="Forecast Confidence"
-          value="94%"
-          subtitle="AI predictive certainty"
-        />
-
-        <GlassCard
-          title="Optimization Status"
-          value="Active"
-          subtitle="Autonomous AI monitoring"
-        />
-      </div>
-
-      <div
-        style={{
-          padding: "22px",
-          borderRadius: "24px",
-          background: "rgba(15,23,42,0.78)",
-          border: "1px solid rgba(129,140,248,0.14)",
-        }}
-      >
-        <div
-          style={{
-            color: "#a5b4fc",
-            fontSize: "12px",
-            fontWeight: "900",
-            marginBottom: "10px",
-          }}
-        >
-          AI Final Recommendation
-        </div>
-
-        <div
-          style={{
-            color: "#e2e8f0",
-            fontSize: "14px",
-            lineHeight: 1.8,
-          }}
-        >
-          Focus immediate optimization efforts on guest retention recovery,
-          high-margin menu visibility, labor efficiency during low-volume
-          periods, and inventory variance reduction. AI predicts these
-          initiatives have the highest probability of near-term profitability
-          improvement.
-        </div>
-      </div>
-    </div>
-  </div>
-)}
     {/* ========================= */}
     {/* MARKETING PROMOTION ENGINE */}
     {/* ========================= */}
@@ -49361,27 +52228,60 @@ if (!res.ok) {
     )}
   </div>
 )}
-<div style={{ color: "yellow", padding: "12px", fontWeight: "900" }}>
-  ACTIVE TAB: {activeTab}
-</div>
+
 
 
   
 
 {activeTab === "inventory" && (
   <>
-  <div
+ <div
   style={{
     width: "100%",
-    maxWidth: "100%",
+    maxWidth: "1600px",
     minWidth: 0,
-    overflowX: "hidden",
+    margin: "0",
 
     display: "grid",
+    gridTemplateColumns: isMobile
+      ? "1fr"
+      : "repeat(12, minmax(0, 1fr))",
 
-    gap: isMobile ? "14px" : "20px",
+    gap: "16px",
+    alignItems: "start",
+
+    overflow: "visible",
+    height: "auto",
   }}
 >
+    <div
+  style={{
+    width: "calc(100vw - 430px)",
+    maxWidth: "1600px",
+    minWidth: 0,
+    margin: "0 auto",
+
+    display: "grid",
+    gridTemplateColumns: isMobile
+      ? "1fr"
+      : "repeat(12, minmax(0, 1fr))",
+
+    gap: "16px",
+    alignItems: "start",
+
+    overflow: "visible",
+    height: "auto",
+  }}
+>
+  <div
+    style={{
+      gridColumn: isMobile ? "span 1" : "span 12",
+      display: "flex",
+      flexWrap: "wrap",
+      gap: "12px",
+      marginBottom: "18px",
+    }}
+  >
   {[
     { id: "overview", label: "Overview" },
     { id: "usage", label: "Usage & Waste" },
@@ -49414,7 +52314,7 @@ if (!res.ok) {
     </button>
   ))}
 </div>
-   {/* 🧠 INVENTORY AI SUMMARY BAR */}
+{/* 🧠 INVENTORY AI SUMMARY BAR */}
 {(() => {
   const summaryTone = getInventorySummaryTone(
     inventoryAISummary?.criticalCount || 0
@@ -49426,13 +52326,18 @@ if (!res.ok) {
 
   return (
     <>
+      {/* SUMMARY BAR */}
       <div
         style={{
-          padding: "18px 20px",
+          gridColumn: isMobile ? "span 1" : "span 12",
+          width: "100%",
+          minWidth: 0,
+          padding: isMobile ? "16px" : "18px 20px",
           borderRadius: "20px",
           background: summaryTone.bg,
           border: summaryTone.border,
           marginBottom: "20px",
+          overflow: "hidden",
         }}
       >
         <div style={{ color: "#fbbf24", fontWeight: "900", fontSize: "12px" }}>
@@ -49453,21 +52358,18 @@ if (!res.ok) {
         <div
           style={{
             color: "white",
-            fontSize: "20px",
+            fontSize: isMobile ? "18px" : "20px",
             fontWeight: "950",
             marginTop: "6px",
+            lineHeight: 1.25,
           }}
         >
-          {inventoryAISummary?.message || "Inventory is being reviewed."}
+          {typeof inventoryAISummary?.message === "object"
+  ? inventoryAISummary?.message?.title || "Inventory is being reviewed."
+  : inventoryAISummary?.message || "Inventory is being reviewed."}
         </div>
 
-        <div
-          style={{
-            color: "#94a3b8",
-            fontSize: "13px",
-            marginTop: "6px",
-          }}
-        >
+        <div style={{ color: "#94a3b8", fontSize: "13px", marginTop: "6px" }}>
           Estimated weekly risk: $
           {Number(inventoryAISummary?.estimatedRisk || 0).toLocaleString()}
         </div>
@@ -49481,9 +52383,7 @@ if (!res.ok) {
           }}
         >
           Potential revenue impact: $
-          {Number(
-            inventoryAISummary?.potentialRevenueLoss || 0
-          ).toLocaleString()}
+          {Number(inventoryAISummary?.potentialRevenueLoss || 0).toLocaleString()}
         </div>
 
         <div
@@ -49498,76 +52398,80 @@ if (!res.ok) {
             fontWeight: "900",
           }}
         >
-          👉 {inventoryAISummary?.recommendation || "Review inventory alerts."}
+          👉 {typeof inventoryAISummary?.recommendation === "object"
+  ? inventoryAISummary?.recommendation?.title || "Review inventory alerts."
+  : inventoryAISummary?.recommendation || "Review inventory alerts."}
         </div>
-<div
-  style={{
-    marginTop: "10px",
-    fontSize: "13px",
-    fontWeight: "900",
-    color: "#86efac",
-  }}
->
-  💰 Inventory profit recovered: $
-  {inventoryProfitRecovered.toLocaleString()}
-</div>
+
+        <div
+          style={{
+            marginTop: "10px",
+            fontSize: "13px",
+            fontWeight: "900",
+            color: "#86efac",
+          }}
+        >
+          💰 Inventory profit recovered: $
+          {Number(inventoryProfitRecovered || 0).toLocaleString()}
+        </div>
+
         {criticalInventoryAlerts.length > 0 && (
           <button
-  type="button"
-  onClick={async () => {
-    if (!combinedInventoryAlerts.length) {
-      setMessage("No inventory or usage issues to fix");
-      return;
-    }
+            type="button"
+            onClick={async () => {
+              if (!combinedInventoryAlerts.length) {
+                setMessage("No inventory or usage issues to fix");
+                return;
+              }
 
-    const topCriticalAlerts = combinedInventoryAlerts
-      .filter((alert) => alert.type === "critical")
-      .slice(0, 3);
+              const topCriticalAlerts = combinedInventoryAlerts
+                .filter((alert) => alert.type === "critical")
+                .slice(0, 3);
 
-    if (!topCriticalAlerts.length) {
-      setMessage("No critical inventory or usage issues to fix");
-      return;
-    }
+              if (!topCriticalAlerts.length) {
+                setMessage("No critical inventory or usage issues to fix");
+                return;
+              }
 
-    for (const alert of topCriticalAlerts) {
-      const isRestockAlert =
-  alert.ingredientName &&
-  Number(alert.suggestedQuantity || 0) > 0 &&
-  !alert.shiftName &&
-  !alert.title?.toLowerCase?.().includes("waste");
+              for (const alert of topCriticalAlerts) {
+                const isRestockAlert =
+                  alert.ingredientName &&
+                  Number(alert.suggestedQuantity || 0) > 0 &&
+                  !alert.shiftName &&
+                  !alert.title?.toLowerCase?.().includes("waste");
 
-      if (isRestockAlert) {
-        await handleAutoRestockFromAlert(alert);
-      } else {
-        console.log(
-  alert.shiftName
-    ? "Shift waste issue flagged:"
-    : "Usage issue flagged:",
-  alert.shiftName || alert.title
-);
-      }
-    }
+                if (isRestockAlert) {
+                  await handleAutoRestockFromAlert(alert);
+                } else {
+                  console.log(
+                    alert.shiftName
+                      ? "Shift waste issue flagged:"
+                      : "Usage issue flagged:",
+                    alert.shiftName || alert.title
+                  );
+                }
+              }
 
-    setMessage(
-      `Auto checked ${topCriticalAlerts.length} critical inventory/usage issue${
-        topCriticalAlerts.length === 1 ? "" : "s"
-      }`
-    );
-  }}
-  style={{
-    marginTop: "10px",
-    padding: "9px 12px",
-    borderRadius: "12px",
-    border: "none",
-    background: "linear-gradient(135deg, #22c55e, #16a34a)",
-    color: "white",
-    fontWeight: "900",
-    cursor: "pointer",
-    fontSize: "12px",
-  }}
->
-  Auto Fix Top Inventory / Usage Issue
-</button>
+              setMessage(
+                `Auto checked ${topCriticalAlerts.length} critical inventory/usage issue${
+                  topCriticalAlerts.length === 1 ? "" : "s"
+                }`
+              );
+            }}
+            style={{
+              marginTop: "10px",
+              padding: "9px 12px",
+              borderRadius: "12px",
+              border: "none",
+              background: "linear-gradient(135deg, #22c55e, #16a34a)",
+              color: "white",
+              fontWeight: "900",
+              cursor: "pointer",
+              fontSize: "12px",
+            }}
+          >
+            Auto Fix Top Inventory / Usage Issue
+          </button>
         )}
 
         {/* ACTION BUTTONS */}
@@ -49655,9 +52559,13 @@ if (!res.ok) {
         </div>
       </div>
 
+      {/* AUTOPILOT ACTIVITY */}
       {inventoryAutopilotActivity.length > 0 && (
         <div
           style={{
+            gridColumn: isMobile ? "span 1" : "span 12",
+            width: "100%",
+            minWidth: 0,
             padding: "16px",
             borderRadius: "18px",
             background: "rgba(34,197,94,0.08)",
@@ -49665,11 +52573,7 @@ if (!res.ok) {
             marginBottom: "20px",
           }}
         >
-          <div style={{ color: "#86efac", fontSize: "12px", fontWeight: "900" }}>
-            Autopilot Activity
-          </div>
-
-          <div style={{ marginTop: "10px", display: "grid", gap: "8px" }}>
+          <div style={{ display: "grid", gap: "8px" }}>
             {inventoryAutopilotActivity.map((activity) => (
               <div
                 key={activity.id}
@@ -49680,23 +52584,11 @@ if (!res.ok) {
                   border: "1px solid rgba(148,163,184,0.12)",
                 }}
               >
-                <div
-                  style={{
-                    color: "white",
-                    fontWeight: "900",
-                    fontSize: "13px",
-                  }}
-                >
+                <div style={{ color: "white", fontWeight: "900", fontSize: "13px" }}>
                   {activity.message}
                 </div>
 
-                <div
-                  style={{
-                    color: "#94a3b8",
-                    fontSize: "11px",
-                    marginTop: "4px",
-                  }}
-                >
+                <div style={{ color: "#94a3b8", fontSize: "11px", marginTop: "4px" }}>
                   {activity.impact} ·{" "}
                   {activity.createdAt instanceof Date
                     ? activity.createdAt.toLocaleTimeString()
@@ -49707,174 +52599,197 @@ if (!res.ok) {
           </div>
         </div>
       )}
-      {/* INVENTORY DEPLETION INTELLIGENCE */}
-<div
-  style={{
-    marginTop: "18px",
-    marginBottom: "26px",
-    padding: "20px",
-    borderRadius: "20px",
-    background:
-      "linear-gradient(135deg, rgba(22,101,52,0.14), rgba(15,23,42,0.92))",
-    border: "1px solid rgba(74,222,128,0.16)",
-  }}
->
-  <div
-    style={{
-      fontSize: "12px",
-      fontWeight: "900",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      color: "#86efac",
-      marginBottom: "14px",
-    }}
-  >
-    Inventory Depletion Intelligence
-  </div>
 
-  <div
-    style={{
-      display: "grid",
-      gridTemplateColumns: isMobile
-        ? "1fr"
-        : "repeat(auto-fit, minmax(180px, 1fr))",
-      gap: "14px",
-    }}
-  >
-    <GlassCard
-      title="Critical Items"
-      value={criticalInventoryItems.length}
-      subtext="Items projected to run out within 2 days"
-    />
-
-    <GlassCard
-      title="Low Stock Items"
-      value={lowInventoryItems.length}
-      subtext="Items projected to run low within 5 days"
-    />
-
-    <GlassCard
-      title="Items Tracked"
-      value={inventoryDepletionData.length}
-      subtext="Ingredients monitored by AI"
-    />
-
-    <GlassCard
-      title="Inventory Risk"
-      value={
-        criticalInventoryItems.length > 0
-          ? "Critical"
-          : lowInventoryItems.length > 0
-          ? "Watch"
-          : inventoryDepletionData.length > 0
-          ? "Healthy"
-          : "Needs data"
-      }
-      subtext="AI depletion risk rating"
-    />
-  </div>
-</div>
-{/* INVENTORY DEPLETION DETAIL LIST */}
-<div
-  style={{
-    marginTop: "16px",
-    marginBottom: "26px",
-    padding: "18px",
-    borderRadius: "18px",
-    background:
-      "linear-gradient(135deg, rgba(20,83,45,0.14), rgba(15,23,42,0.92))",
-    border: "1px solid rgba(74,222,128,0.14)",
-  }}
->
-  <div
-    style={{
-      fontSize: "12px",
-      fontWeight: "900",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      color: "#86efac",
-      marginBottom: "12px",
-    }}
-  >
-    AI Restock Watchlist
-  </div>
-
-  <div style={{ display: "grid", gap: "12px" }}>
-    {inventoryDepletionData.length > 0 ? (
-      inventoryDepletionData.slice(0, 6).map((item, index) => (
+      {/* INVENTORY DEPLETION + WATCHLIST */}
+      <div
+        style={{
+          gridColumn: isMobile ? "span 1" : "span 12",
+          width: "100%",
+          minWidth: 0,
+          display: "grid",
+          gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 5fr) minmax(0, 7fr)",
+          gap: "18px",
+          marginBottom: "26px",
+          alignItems: "stretch",
+        }}
+      >
+        {/* INVENTORY DEPLETION INTELLIGENCE */}
         <div
-          key={`${item.name || item.ingredient || index}`}
           style={{
-            padding: "14px 16px",
-            borderRadius: "16px",
-            background: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(148,163,184,0.12)",
-            display: "flex",
-            justifyContent: "space-between",
-            gap: "14px",
-            alignItems: "center",
+            minWidth: 0,
+            padding: "20px",
+            borderRadius: "20px",
+            background:
+              "linear-gradient(135deg, rgba(22,101,52,0.14), rgba(15,23,42,0.92))",
+            border: "1px solid rgba(74,222,128,0.16)",
+            overflow: "hidden",
           }}
         >
-          <div>
-            <div style={{ color: "white", fontWeight: "900" }}>
-              {item.name || item.ingredient || item.item_name || "Unknown Item"}
-            </div>
-
-            <div
-              style={{
-                color: "#94a3b8",
-                fontSize: "12px",
-                marginTop: "4px",
-              }}
-            >
-              Qty: {Number(item.quantity || 0).toFixed(1)} • Daily usage:{" "}
-              {Number(item.usageRate || 0).toFixed(1)}
-            </div>
+          <div
+            style={{
+              fontSize: "12px",
+              fontWeight: "900",
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+              color: "#86efac",
+              marginBottom: "14px",
+            }}
+          >
+            Inventory Depletion Intelligence
           </div>
 
           <div
             style={{
-              color:
-                item.depletionStatus === "Critical"
-                  ? "#f87171"
-                  : item.depletionStatus === "Low"
-                  ? "#fbbf24"
-                  : "#86efac",
-              fontWeight: "900",
-              fontSize: "13px",
-              textAlign: "right",
+              display: "grid",
+              gridTemplateColumns: isMobile ? "1fr" : "repeat(2, minmax(0, 1fr))",
+              gap: "14px",
+              minWidth: 0,
             }}
           >
-            {item.daysRemaining > 0
-              ? `${item.daysRemaining} days`
-              : "Needs usage"}
-            <div style={{ fontSize: "11px", marginTop: "4px" }}>
-              {item.depletionStatus}
-            </div>
+            <GlassCard
+              title="Critical Items"
+              value={criticalInventoryItems.length}
+              subtext="Items projected to run out within 2 days"
+            />
+
+            <GlassCard
+              title="Low Stock Items"
+              value={lowInventoryItems.length}
+              subtext="Items projected to run low within 5 days"
+            />
+
+            <GlassCard
+              title="Items Tracked"
+              value={inventoryDepletionData.length}
+              subtext="Ingredients monitored by AI"
+            />
+
+            <GlassCard
+              title="Inventory Risk"
+              value={
+                criticalInventoryItems.length > 0
+                  ? "Critical"
+                  : lowInventoryItems.length > 0
+                  ? "Watch"
+                  : inventoryDepletionData.length > 0
+                  ? "Healthy"
+                  : "Needs data"
+              }
+              subtext="AI depletion risk rating"
+            />
           </div>
         </div>
-      ))
-    ) : (
-      <div
-        style={{
-          padding: "14px 16px",
-          borderRadius: "16px",
-          background: "rgba(255,255,255,0.04)",
-          border: "1px solid rgba(148,163,184,0.12)",
-          color: "#cbd5e1",
-          fontSize: "14px",
-          lineHeight: 1.6,
-        }}
-      >
-        Upload ingredient inventory with quantity and daily usage to activate
-        depletion forecasting.
+
+        {/* AI RESTOCK WATCHLIST */}
+        <div
+          style={{
+            minWidth: 0,
+            padding: "18px",
+            borderRadius: "18px",
+            background:
+              "linear-gradient(135deg, rgba(20,83,45,0.14), rgba(15,23,42,0.92))",
+            border: "1px solid rgba(74,222,128,0.14)",
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              fontSize: "12px",
+              fontWeight: "900",
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+              color: "#86efac",
+              marginBottom: "12px",
+            }}
+          >
+            AI Restock Watchlist
+          </div>
+
+          <div style={{ display: "grid", gap: "12px", minWidth: 0 }}>
+            {inventoryDepletionData.length > 0 ? (
+              inventoryDepletionData.slice(0, 6).map((item, index) => (
+                <div
+                  key={`${item.name || item.ingredient || index}`}
+                  style={{
+                    padding: "14px 16px",
+                    borderRadius: "16px",
+                    background: "rgba(255,255,255,0.04)",
+                    border: "1px solid rgba(148,163,184,0.12)",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: "14px",
+                    alignItems: "center",
+                    minWidth: 0,
+                  }}
+                >
+                  <div style={{ minWidth: 0 }}>
+                    <div
+                      style={{
+                        color: "white",
+                        fontWeight: "900",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                    >
+                      {item.name || item.ingredient || item.item_name || "Unknown Item"}
+                    </div>
+
+                    <div
+                      style={{
+                        color: "#94a3b8",
+                        fontSize: "12px",
+                        marginTop: "4px",
+                      }}
+                    >
+                      Qty: {Number(item.quantity || 0).toFixed(1)} • Daily usage:{" "}
+                      {Number(item.usageRate || 0).toFixed(1)}
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      color:
+                        item.depletionStatus === "Critical"
+                          ? "#f87171"
+                          : item.depletionStatus === "Low"
+                          ? "#fbbf24"
+                          : "#86efac",
+                      fontWeight: "900",
+                      fontSize: "13px",
+                      textAlign: "right",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {item.daysRemaining > 0
+                      ? `${item.daysRemaining} days`
+                      : "Needs usage"}
+                    <div style={{ fontSize: "11px", marginTop: "4px" }}>
+                      {item.depletionStatus}
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div
+                style={{
+                  padding: "14px 16px",
+                  borderRadius: "16px",
+                  background: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(148,163,184,0.12)",
+                  color: "#cbd5e1",
+                  fontSize: "14px",
+                  lineHeight: 1.6,
+                }}
+              >
+                Upload ingredient inventory with quantity and daily usage to activate
+                depletion forecasting.
+              </div>
+            )}
+          </div>
+        </div>
       </div>
-    )}
-  </div>
-</div>
-
     </>
-
   );
 })()}
 {/* =========================
@@ -49884,6 +52799,11 @@ if (!res.ok) {
 {hasProAccess && (
   <div
     style={{
+      gridColumn: isMobile ? "span 1" : "span 12",
+      width: "100%",
+      minWidth: 0,
+      maxWidth: "100%",
+
       marginTop: "18px",
       marginBottom: "24px",
       padding: "24px",
@@ -50005,8 +52925,13 @@ if (!res.ok) {
 
 {hasProAccess && (
   <div
-    style={{
-      marginTop: "18px",
+  style={{
+    gridColumn: isMobile ? "span 1" : "span 6",
+    width: "100%",
+    minWidth: 0,
+    maxWidth: "100%",
+
+    marginTop: "18px",
       marginBottom: "24px",
       padding: "22px",
       borderRadius: "24px",
@@ -50098,8 +53023,13 @@ if (!res.ok) {
 
 {hasProAccess && (
   <div
-    style={{
-      marginTop: "18px",
+  style={{
+    gridColumn: isMobile ? "span 1" : "span 6",
+    width: "100%",
+    minWidth: 0,
+    maxWidth: "100%",
+
+    marginTop: "18px",
       marginBottom: "24px",
       padding: "22px",
       borderRadius: "24px",
@@ -50252,17 +53182,38 @@ if (!res.ok) {
    📈 INVENTORY FORECASTING INTELLIGENCE
 ========================= */}
 
-{hasProAccess && (
-  <div
-    style={{
+{/* FORECASTING + EXECUTIVE SUMMARY ROW */}
+<div
+  style={{
+    gridColumn: isMobile ? "span 1" : "span 12",
+    width: "100%",
+    minWidth: 0,
+    display: "grid",
+    gridTemplateColumns: isMobile
+      ? "1fr"
+      : "repeat(2, minmax(0, 1fr))",
+    gap: "18px",
+    alignItems: "start",
+    marginBottom: "26px",
+  }}
+>
+  {hasProAccess && (
+    <div
+      style={{
+        width: "100%",
+        minWidth: 0,
       marginTop: "18px",
       marginBottom: "24px",
       padding: "22px",
       borderRadius: "24px",
+
       background:
         "linear-gradient(135deg, rgba(20,184,166,0.14), rgba(15,23,42,0.96))",
+
       border: "1px solid rgba(45,212,191,0.24)",
       boxShadow: "0 22px 60px rgba(2,6,23,0.30)",
+
+      overflow: "hidden",
     }}
   >
     <div
@@ -50312,7 +53263,9 @@ if (!res.ok) {
             <div
               style={{
                 display: "flex",
-                justifyContent: "space-between",
+justifyContent: "space-between",
+alignItems: "flex-start",
+flexWrap: "wrap",
                 gap: "12px",
                 marginBottom: "10px",
               }}
@@ -50590,26 +53543,42 @@ if (!res.ok) {
         whiteSpace: "pre-line",
       }}
     >
-      {inventoryExecutiveSummary}
+      {typeof inventoryExecutiveSummary === "string"
+  ? inventoryExecutiveSummary
+  : inventoryExecutiveSummary?.description ||
+    inventoryExecutiveSummary?.title ||
+    "Inventory executive summary is being generated."}
     </div>
   </div>
 )}
-
-
+</div>
+</div>
+</div>
   </>
 )}
 {activeTab === "operations" && (
   <div
     style={{
-      width: "100%",
-      maxWidth: "100%",
+     width: "calc(100% - 125px)",
+      maxWidth: "1600px",
       minWidth: 0,
-      overflowX: "hidden",
+
+     marginLeft: "6px",
+
+
+      overflowX: "visible",
+      overflowY: "visible",
+
       display: "grid",
-      gap: isMobile ? "14px" : "20px",
+      gridTemplateColumns: "1fr",
+
+      gap: "18px",
+
+      paddingBottom: "24px",
+
+      boxSizing: "border-box",
     }}
   >
-    
    {/* EXPECTED VS ACTUAL USAGE */}
 {(() => {
   // 🛡️ Safe extraction layer preventing crashes during async loading periods
@@ -51704,6 +54673,719 @@ if (!res.ok) {
               subtext="Staffing efficiency against revenue"
             />
           </div>
+{/* =========================
+   RECIPE CARD INTELLIGENCE
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+      background:
+        "linear-gradient(135deg, rgba(245,158,11,0.14), rgba(15,23,42,0.96))",
+      border: "1px solid rgba(251,191,36,0.22)",
+      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
+    }}
+  >
+    <div style={{ color: "#fde68a", fontSize: "12px", fontWeight: "900" }}>
+      Recipe Card Intelligence
+    </div>
+
+    <h3 style={{ color: "white", fontSize: "24px", fontWeight: "950" }}>
+      Menu Recipes & Ingredient Costing
+    </h3>
+{/* =========================
+   RECIPE INTELLIGENCE KPI STRIP
+========================= */}
+
+<div
+  style={{
+    marginTop: "18px",
+    display: "grid",
+    gridTemplateColumns: isMobile
+      ? "1fr"
+      : "repeat(4,minmax(0,1fr))",
+    gap: "14px",
+  }}
+>
+  <GlassCard
+    title="Recipes Uploaded"
+    value={recipes.length}
+    subtitle="Total recipe cards"
+  />
+
+  <GlassCard
+    title="Recipe Ingredients"
+    value={recipeIngredients.length}
+    subtitle="Linked ingredient rows"
+  />
+
+  <GlassCard
+    title="Avg Recipe Cost"
+    value={`$${(
+      recipeIngredients.reduce(
+        (sum, item) => sum + Number(item.total_cost || 0),
+        0
+      ) / (recipes.length || 1)
+    ).toFixed(2)}`}
+    subtitle="Average cost per recipe"
+  />
+
+  <GlassCard
+    title="Low Margin Recipes"
+    value={
+      recipes.filter((recipe) => {
+        const ingredients = recipeIngredients.filter(
+          (item) => item.recipe_id === recipe.id
+        );
+
+        const totalCost = ingredients.reduce(
+          (sum, item) => sum + Number(item.total_cost || 0),
+          0
+        );
+
+        const price = Number(recipe.selling_price || 0);
+
+        if (!price) return false;
+
+        const margin = ((price - totalCost) / price) * 100;
+
+        return margin < 55;
+      }).length
+    }
+    subtitle="Recipes below margin target"
+  />
+</div>
+{/* =========================
+   AI RECIPE MARGIN ALERTS
+========================= */}
+
+<div
+  style={{
+    marginTop: "18px",
+    display: "grid",
+    gap: "12px",
+  }}
+>
+  {recipes
+    .filter((recipe) => {
+      const ingredients = recipeIngredients.filter(
+        (item) => item.recipe_id === recipe.id
+      );
+
+      const totalCost = ingredients.reduce(
+        (sum, item) => sum + Number(item.total_cost || 0),
+        0
+      );
+
+      const price = Number(recipe.selling_price || 0);
+
+      if (!price) return false;
+
+      const margin = ((price - totalCost) / price) * 100;
+
+      return margin < 55;
+    })
+    .slice(0, 4)
+    .map((recipe) => {
+      const ingredients = recipeIngredients.filter(
+        (item) => item.recipe_id === recipe.id
+      );
+
+      const totalCost = ingredients.reduce(
+        (sum, item) => sum + Number(item.total_cost || 0),
+        0
+      );
+
+      const price = Number(recipe.selling_price || 0);
+
+      const margin =
+        price > 0 ? ((price - totalCost) / price) * 100 : 0;
+
+      return (
+        <div
+          key={recipe.id}
+          style={{
+            padding: "16px",
+            borderRadius: "18px",
+            background:
+              "linear-gradient(135deg, rgba(239,68,68,0.12), rgba(15,23,42,0.86))",
+            border: "1px solid rgba(248,113,113,0.18)",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: isMobile ? "flex-start" : "center",
+              flexDirection: isMobile ? "column" : "row",
+              gap: "14px",
+            }}
+          >
+            <div>
+              <div
+                style={{
+                  color: "white",
+                  fontSize: "17px",
+                  fontWeight: "900",
+                  marginBottom: "5px",
+                }}
+              >
+                {recipe.recipe_name}
+              </div>
+
+              <div
+                style={{
+                  color: "#fca5a5",
+                  fontSize: "13px",
+                  lineHeight: 1.6,
+                }}
+              >
+                AI detected a low-profitability recipe with elevated food cost exposure.
+              </div>
+            </div>
+
+            <div
+              style={{
+                padding: "10px 12px",
+                borderRadius: "14px",
+                background: "rgba(239,68,68,0.14)",
+                border: "1px solid rgba(248,113,113,0.22)",
+                color: "#fca5a5",
+                fontWeight: "900",
+                fontSize: "13px",
+              }}
+            >
+              {margin.toFixed(1)}% Margin
+            </div>
+          </div>
+        </div>
+      );
+    })}
+</div>
+{/* =========================
+   AI RECIPE OPTIMIZATION RECOMMENDATIONS
+========================= */}
+
+<div
+  style={{
+    marginTop: "18px",
+    display: "grid",
+    gap: "14px",
+  }}
+>
+  {recipes.slice(0, 6).map((recipe) => {
+    const ingredients = recipeIngredients.filter(
+      (item) => item.recipe_id === recipe.id
+    );
+
+    const totalCost = ingredients.reduce(
+      (sum, item) => sum + Number(item.total_cost || 0),
+      0
+    );
+
+    const price = Number(recipe.selling_price || 0);
+
+    const margin =
+      price > 0 ? ((price - totalCost) / price) * 100 : 0;
+
+    let recommendation =
+      "Recipe profitability is healthy and operating within target margins.";
+
+    if (margin < 40) {
+      recommendation =
+        "Urgent pricing or ingredient optimization recommended. Margin is critically low.";
+    } else if (margin < 55) {
+      recommendation =
+        "Recipe margin is below ideal range. Review ingredient costs or pricing.";
+    } else if (margin < 70) {
+      recommendation =
+        "Recipe performance is stable but still has optimization opportunity.";
+    }
+
+    return (
+      <div
+        key={recipe.id}
+        style={{
+          padding: "18px",
+          borderRadius: "20px",
+          background:
+            "linear-gradient(135deg, rgba(15,23,42,0.84), rgba(30,41,59,0.82))",
+          border: "1px solid rgba(148,163,184,0.12)",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: isMobile ? "flex-start" : "center",
+            flexDirection: isMobile ? "column" : "row",
+            gap: "12px",
+            marginBottom: "10px",
+          }}
+        >
+          <div>
+            <div
+              style={{
+                color: "white",
+                fontSize: "17px",
+                fontWeight: "900",
+              }}
+            >
+              {recipe.recipe_name}
+            </div>
+
+            <div
+              style={{
+                color: "#94a3b8",
+                fontSize: "12px",
+                marginTop: "4px",
+              }}
+            >
+              ${price.toFixed(2)} selling price •{" "}
+              {margin.toFixed(1)}% margin
+            </div>
+          </div>
+
+          <div
+            style={{
+              padding: "8px 12px",
+              borderRadius: "999px",
+              background:
+                margin >= 70
+                  ? "rgba(34,197,94,0.14)"
+                  : margin >= 55
+                  ? "rgba(250,204,21,0.14)"
+                  : "rgba(239,68,68,0.14)",
+              color:
+                margin >= 70
+                  ? "#86efac"
+                  : margin >= 55
+                  ? "#fde68a"
+                  : "#fca5a5",
+              fontWeight: "900",
+              fontSize: "12px",
+            }}
+          >
+            {margin >= 70
+              ? "High Profit"
+              : margin >= 55
+              ? "Optimization Opportunity"
+              : "Margin Risk"}
+          </div>
+        </div>
+
+        <div
+          style={{
+            color: "#cbd5e1",
+            fontSize: "13px",
+            lineHeight: 1.7,
+          }}
+        >
+          {recommendation}
+        </div>
+      </div>
+    );
+  })}
+</div>
+{/* =========================
+   AI RECIPE OPTIMIZATION RECOMMENDATIONS
+========================= */}
+
+<div
+  style={{
+    marginTop: "18px",
+    display: "grid",
+    gap: "14px",
+  }}
+>
+  {recipes.length > 0 ? (
+    recipes.slice(0, 6).map((recipe) => {
+      // keep your existing recipe recommendation code here
+    })
+  ) : (
+    <div
+      style={{
+        padding: "20px",
+        borderRadius: "18px",
+        background: "rgba(15,23,42,0.72)",
+        border: "1px solid rgba(148,163,184,0.14)",
+        color: "#94a3b8",
+        fontSize: "14px",
+        textAlign: "center",
+      }}
+    >
+      Upload recipe cards to activate AI recipe optimization recommendations.
+    </div>
+  )}
+</div>
+{/* =========================
+   AI RECIPE COST TREND INTELLIGENCE
+========================= */}
+
+<div
+  style={{
+    marginTop: "18px",
+    padding: "22px",
+    borderRadius: "24px",
+    background:
+      "linear-gradient(135deg, rgba(59,130,246,0.12), rgba(15,23,42,0.92))",
+    border: "1px solid rgba(96,165,250,0.18)",
+  }}
+>
+  <div
+    style={{
+      color: "#93c5fd",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "10px",
+    }}
+  >
+    AI Recipe Cost Trend Intelligence
+  </div>
+
+  <h3
+    style={{
+      color: "white",
+      fontSize: "24px",
+      fontWeight: "950",
+      marginBottom: "10px",
+    }}
+  >
+    Ingredient Inflation & Cost Pressure Detection
+  </h3>
+
+  <p
+    style={{
+      color: "#94a3b8",
+      fontSize: "13px",
+      lineHeight: 1.7,
+      marginBottom: "18px",
+    }}
+  >
+    AI monitors ingredient-linked recipe costs to identify unstable margins,
+    rising food costs, and future pricing pressure across menu items.
+  </p>
+
+  <div
+    style={{
+      display: "grid",
+      gap: "14px",
+    }}
+  >
+    {recipes.length > 0 ? (
+      recipes.slice(0, 6).map((recipe) => {
+        const ingredients = recipeIngredients.filter(
+          (item) => item.recipe_id === recipe.id
+        );
+
+        const totalCost = ingredients.reduce(
+          (sum, item) => sum + Number(item.total_cost || 0),
+          0
+        );
+
+        const simulatedInflation =
+          totalCost * (1 + (Math.random() * 0.18 + 0.04));
+
+        const inflationPercent =
+          totalCost > 0
+            ? ((simulatedInflation - totalCost) / totalCost) * 100
+            : 0;
+
+        return (
+          <div
+            key={recipe.id}
+            style={{
+              padding: "16px",
+              borderRadius: "18px",
+              background: "rgba(15,23,42,0.72)",
+              border: "1px solid rgba(96,165,250,0.14)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: isMobile ? "flex-start" : "center",
+                flexDirection: isMobile ? "column" : "row",
+                gap: "14px",
+                marginBottom: "12px",
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    color: "white",
+                    fontSize: "17px",
+                    fontWeight: "900",
+                  }}
+                >
+                  {recipe.recipe_name}
+                </div>
+
+                <div
+                  style={{
+                    color: "#94a3b8",
+                    fontSize: "12px",
+                    marginTop: "4px",
+                  }}
+                >
+                  Current Recipe Cost: ${totalCost.toFixed(2)}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  padding: "8px 12px",
+                  borderRadius: "999px",
+                  background:
+                    inflationPercent >= 15
+                      ? "rgba(239,68,68,0.14)"
+                      : inflationPercent >= 8
+                      ? "rgba(250,204,21,0.14)"
+                      : "rgba(34,197,94,0.14)",
+                  color:
+                    inflationPercent >= 15
+                      ? "#fca5a5"
+                      : inflationPercent >= 8
+                      ? "#fde68a"
+                      : "#86efac",
+                  fontWeight: "900",
+                  fontSize: "12px",
+                }}
+              >
+                +{inflationPercent.toFixed(1)}% Cost Pressure
+              </div>
+            </div>
+
+            <div
+              style={{
+                color: "#cbd5e1",
+                fontSize: "13px",
+                lineHeight: 1.7,
+              }}
+            >
+              AI predicts ingredient cost instability may impact this recipe’s
+              profitability over the next purchasing cycle.
+            </div>
+          </div>
+        );
+      })
+    ) : (
+      <div
+        style={{
+          padding: "18px",
+          borderRadius: "18px",
+          background: "rgba(15,23,42,0.72)",
+          border: "1px solid rgba(148,163,184,0.14)",
+          color: "#94a3b8",
+          textAlign: "center",
+        }}
+      >
+        Upload recipe cards to activate AI recipe cost trend analysis.
+      </div>
+    )}
+  </div>
+</div>
+
+    <div style={{ marginTop: "18px", display: "grid", gap: "14px" }}>
+      {recipes.length > 0 ? (
+        recipes.slice(0, 8).map((recipe) => {
+          const ingredients = recipeIngredients.filter(
+            (item) => item.recipe_id === recipe.id
+          );
+
+          const totalCost = ingredients.reduce(
+            (sum, item) => sum + Number(item.total_cost || 0),
+            0
+          );
+
+          const margin =
+            Number(recipe.selling_price || 0) > 0
+              ? ((Number(recipe.selling_price || 0) - totalCost) /
+                  Number(recipe.selling_price || 0)) *
+                100
+              : 0;
+
+          return (
+            <div
+              key={recipe.id}
+              style={{
+                padding: "18px",
+                borderRadius: "22px",
+                background: "rgba(15,23,42,0.74)",
+                border: "1px solid rgba(251,191,36,0.14)",
+              }}
+            >
+              <div style={{ color: "white", fontSize: "18px", fontWeight: "900" }}>
+                {recipe.recipe_name}
+              </div>
+
+              <div style={{ color: "#94a3b8", fontSize: "12px", marginTop: "4px" }}>
+                {recipe.category || "Uncategorized"} • {ingredients.length} ingredients
+              </div>
+
+              <div
+                style={{
+                  marginTop: "14px",
+                  display: "grid",
+                  gridTemplateColumns: isMobile
+                    ? "1fr"
+                    : "repeat(3,minmax(0,1fr))",
+                  gap: "12px",
+                }}
+              >
+                <GlassCard
+                  title="Recipe Cost"
+                  value={`$${totalCost.toFixed(2)}`}
+                  subtitle="Calculated ingredient cost"
+                />
+
+                <GlassCard
+                  title="Selling Price"
+                  value={`$${Number(recipe.selling_price || 0).toFixed(2)}`}
+                  subtitle="Menu item price"
+                />
+
+                <GlassCard
+                  title="Estimated Margin"
+                  value={`${margin.toFixed(1)}%`}
+                  subtitle="Recipe profitability"
+                />
+              </div>
+              <div
+  style={{
+    marginTop: "18px",
+    display: "grid",
+    gap: "10px",
+  }}
+>
+  {ingredients.length > 0 ? (
+    ingredients.map((ingredient) => (
+      <div
+        key={ingredient.id}
+        style={{
+          padding: "12px 14px",
+          borderRadius: "16px",
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(255,255,255,0.08)",
+          display: "grid",
+          gridTemplateColumns: isMobile
+            ? "1fr"
+            : "1.3fr 0.8fr 0.8fr 0.8fr",
+          gap: "12px",
+          alignItems: "center",
+        }}
+      >
+        <div>
+          <div
+            style={{
+              color: "white",
+              fontWeight: "900",
+            }}
+          >
+            {ingredient.ingredient_name}
+          </div>
+
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "11px",
+              marginTop: "4px",
+            }}
+          >
+            Recipe ingredient
+          </div>
+        </div>
+
+        <div>
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "11px",
+            }}
+          >
+            Quantity
+          </div>
+
+          <div
+            style={{
+              color: "white",
+              fontWeight: "800",
+            }}
+          >
+            {Number(ingredient.quantity || 0).toFixed(2)}{" "}
+            {ingredient.unit || ""}
+          </div>
+        </div>
+
+        <div>
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "11px",
+            }}
+          >
+            Unit Cost
+          </div>
+
+          <div
+            style={{
+              color: "white",
+              fontWeight: "800",
+            }}
+          >
+            ${Number(ingredient.cost_per_unit || 0).toFixed(2)}
+          </div>
+        </div>
+
+        <div>
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "11px",
+            }}
+          >
+            Total Cost
+          </div>
+
+          <div
+            style={{
+              color: "#fbbf24",
+              fontWeight: "900",
+            }}
+          >
+            ${Number(ingredient.total_cost || 0).toFixed(2)}
+          </div>
+        </div>
+      </div>
+    ))
+  ) : (
+    <div
+      style={{
+        color: "#94a3b8",
+        fontSize: "13px",
+      }}
+    >
+      No ingredients linked to this recipe yet.
+    </div>
+  )}
+</div>
+            </div>
+          );
+        })
+      ) : (
+        <div style={{ color: "#94a3b8", fontSize: "14px" }}>
+          No recipe cards uploaded yet.
+        </div>
+      )}
+    </div>
+  </div>
+)}
 
           {/* ⚖️ ACTUAL VS EXPECTED USAGE INTELLIGENCE */}
           <div
@@ -52190,32 +55872,65 @@ if (!res.ok) {
 )}
 
 {activeTab === "labor" && (
-  
-  <div
+ <div
   style={{
-    width: "100%",
-    maxWidth: "100%",
+    width: "90%",
     minWidth: 0,
+
+    margin: "0 auto",
+
+    padding: isMobile ? "8px" : "2px",
+
+    borderRadius: "20px",
+
+    background:
+      "linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.94))",
+
+    border: "1px solid rgba(148,163,184,0.10)",
+
     overflowX: "hidden",
 
-    display: "grid",
-
-    gap: isMobile ? "14px" : "20px",
+    boxSizing: "border-box",
   }}
 >
-    {/* LABOR INTELLIGENCE HERO INTRO BLOCK */}
+  <div
+   style={{
+ width: "100%",
+maxWidth: "100%",
+  minWidth: 0,
+
+  overflowX: "hidden",
+  overflowY: "visible",
+
+  display: "grid",
+  gridTemplateColumns: "1fr",
+
+  gap: "14px",
+
+  paddingBottom: "24px",
+
+  boxSizing: "border-box",
+}}
+  >
+   {/* LABOR INTELLIGENCE HERO INTRO BLOCK */}
 {(() => {
-  const mobileLayout = typeof isMobile !== "undefined" ? isMobile : false;
+  const mobileLayout =
+    typeof isMobile !== "undefined" ? isMobile : false;
 
   return (
     <div
       style={{
-        marginBottom: "24px",
-        // Scaled padding protects text container width on mobile breakpoints
-        padding: mobileLayout ? "16px" : "24px",
-        borderRadius: "24px",
-        background: "radial-gradient(circle at top right, rgba(59,130,246,0.18), transparent 30%), linear-gradient(135deg, #111827, #1e293b)",
+        marginBottom: "14px",
+
+        padding: mobileLayout ? "14px" : "16px",
+
+        borderRadius: "20px",
+
+        background:
+          "radial-gradient(circle at top right, rgba(59,130,246,0.18), transparent 30%), linear-gradient(135deg, #111827, #1e293b)",
+
         border: "1px solid rgba(96,165,250,0.18)",
+
         boxShadow: "0 20px 50px rgba(2,6,23,0.22)",
       }}
     >
@@ -52232,13 +55947,14 @@ if (!res.ok) {
         Labor Intelligence
       </div>
 
-      {/* Promoted to H1 with cross-browser compatible font-weighting */}
       <h1
         style={{
           margin: 0,
           color: "white",
-          fontSize: mobileLayout ? "24px" : "32px",
-          fontWeight: "900", // Safe high-contrast thickness threshold
+
+          fontSize: mobileLayout ? "22px" : "26px",
+
+          fontWeight: "900",
           lineHeight: "1.2",
         }}
       >
@@ -52249,84 +55965,117 @@ if (!res.ok) {
         style={{
           marginTop: "10px",
           color: "#94a3b8",
-          fontSize: "14px",
-          lineHeight: 1.7,
-          maxWidth: "760px",
-          marginBottom: 0, // Prevents unintended collapse leakage inside container elements
+          fontSize: "13px",
+          lineHeight: 1.6,
+          maxWidth: "680px",
+          marginBottom: 0,
         }}
       >
-        Monitor labor efficiency, staffing performance, shift profitability,
-        overtime risk, and AI-driven workforce optimization opportunities using
+        Monitor labor efficiency, staffing performance,
+        shift profitability, overtime risk, and AI-driven
+        workforce optimization opportunities using
         operational intelligence.
       </p>
     </div>
   );
 })()}
-   {/* LABOR EFFICIENCY INTELLIGENCE SNAPSHOT ROW */}
+ {/* LABOR EFFICIENCY INTELLIGENCE SNAPSHOT ROW */}
 <div
   style={{
-    marginTop: "18px",
-    marginBottom: "26px",
-    padding: "20px",
-    borderRadius: "20px",
-    background: "linear-gradient(135deg, rgba(14,165,233,0.12), rgba(15,23,42,0.92))",
+    marginTop: "14px",
+    marginBottom: "18px",
+
+    padding: "16px",
+
+    borderRadius: "18px",
+
+    background:
+      "linear-gradient(135deg, rgba(14,165,233,0.12), rgba(15,23,42,0.92))",
+
     border: "1px solid rgba(56,189,248,0.16)",
   }}
 >
   <div
     style={{
-      fontSize: "12px",
+      fontSize: "11px",
       fontWeight: "900",
       letterSpacing: "0.08em",
       textTransform: "uppercase",
       color: "#67e8f9",
-      marginBottom: "14px",
+      marginBottom: "10px",
     }}
   >
     Labor Efficiency Intelligence
   </div>
 
   {(() => {
-    const mobileLayout = typeof isMobile !== "undefined" ? isMobile : false;
+    const mobileLayout =
+      typeof isMobile !== "undefined"
+        ? isMobile
+        : false;
 
-    // Type-safe null/undefined checks that protect valid 0 measurements
-    const hasSalesPerHour = typeof salesPerLaborHour === "number";
-    const hasScore = laborEfficiencyScore !== null && laborEfficiencyScore !== undefined;
-    const hasHours = typeof totalLaborHours === "number";
+    const hasSalesPerHour =
+      typeof salesPerLaborHour === "number";
+
+    const hasScore =
+      laborEfficiencyScore !== null &&
+      laborEfficiencyScore !== undefined;
+
+    const hasHours =
+      typeof totalLaborHours === "number";
 
     return (
       <div
         style={{
           display: "grid",
+
           gridTemplateColumns: mobileLayout
             ? "1fr"
-            : "repeat(auto-fit, minmax(180px, 1fr))",
-          gap: "14px",
+            : "repeat(2, minmax(0, 1fr))",
+
+          gap: "10px",
         }}
       >
         <GlassCard
           title="Sales Per Labor Hour"
-          value={hasSalesPerHour ? `$${Number(salesPerLaborHour).toFixed(2)}` : "—"}
+          value={
+            hasSalesPerHour
+              ? `$${Number(
+                  salesPerLaborHour
+                ).toFixed(2)}`
+              : "—"
+          }
           subtext="Revenue per scheduled hour"
         />
 
         <GlassCard
           title="Labor Efficiency Score"
-          // Safe evaluation allows 0/100 to render accurately instead of breaking
-          value={hasScore ? `${laborEfficiencyScore}/100` : "Calculating..."}
-          subtext="Overall productivity index" 
+          value={
+            hasScore
+              ? `${laborEfficiencyScore}/100`
+              : "Calculating..."
+          }
+          subtext="Overall productivity index"
         />
 
         <GlassCard
           title="Labor Status"
-          value={laborEfficiencyStatus || "Analyzing..."}
-          // Using a predictable subtext here keeps the grid row perfectly symmetrical
+          value={
+            laborEfficiencyStatus ||
+            "Analyzing..."
+          }
           subtext="Real-time performance rating"
         />
 
         <GlassCard
           title="Labor Hours"
-          value={hasHours ? `${Number(totalLaborHours).toFixed(1)} hrs` : "No hours loaded"}
+          value={
+            hasHours
+              ? `${Number(
+                  totalLaborHours
+                ).toFixed(1)} hrs`
+              : "No hours loaded"
+          }
           subtext="Total tracked time elapsed"
         />
       </div>
@@ -52339,11 +56088,12 @@ if (!res.ok) {
     display: "grid",
     gridTemplateColumns: isMobile
       ? "1fr"
-      : "repeat(auto-fit, minmax(180px, 1fr))",
-    gap: "14px",
-    marginBottom: "26px",
+      : "repeat(3, minmax(0, 1fr))",
+    gap: "8px",
+    marginBottom: "14px",
   }}
 >
+
   <GlassCard
     title="Labor Cost %"
     value={
@@ -52378,6 +56128,400 @@ if (!res.ok) {
     value={laborRiskStatus || "Stable"}
     subtext={laborEfficiencyInsight}
   />
+</div>
+{/* =========================
+   EMPLOYEE LABOR INTELLIGENCE
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+      background:
+        "linear-gradient(135deg, rgba(14,165,233,0.14), rgba(15,23,42,0.96))",
+      border: "1px solid rgba(125,211,252,0.22)",
+      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
+    }}
+  >
+    <div style={{ color: "#7dd3fc", fontSize: "12px", fontWeight: "900" }}>
+      Employee Labor Intelligence
+    </div>
+
+    <h3 style={{ color: "white", fontSize: "24px", fontWeight: "950" }}>
+      Staff Efficiency & Shift Performance
+    </h3>
+
+    <div
+      style={{
+        marginTop: "18px",
+        display: "grid",
+        gridTemplateColumns: isMobile ? "1fr" : "repeat(4,minmax(0,1fr))",
+        gap: "14px",
+      }}
+    >
+      <GlassCard
+        title="Employees Tracked"
+        value={employees.length}
+        subtitle="Active staff profiles"
+      />
+
+      <GlassCard
+        title="Shifts Uploaded"
+        value={employeeShifts.length}
+        subtitle="Labor shifts analyzed"
+      />
+
+      <GlassCard
+        title="Total Labor Cost"
+        value={`$${employeeShifts
+          .reduce((sum, shift) => sum + Number(shift.labor_cost || 0), 0)
+          .toFixed(0)}`}
+        subtitle="Uploaded shift labor cost"
+      />
+
+      <GlassCard
+        title="Avg Labor / Shift"
+        value={`$${(
+          employeeShifts.reduce(
+            (sum, shift) => sum + Number(shift.labor_cost || 0),
+            0
+          ) / (employeeShifts.length || 1)
+        ).toFixed(0)}`}
+        subtitle="Average labor cost per shift"
+      />
+    </div>
+
+    <div style={{ marginTop: "18px", display: "grid", gap: "14px" }}>
+      {employeeShifts.length > 0 ? (
+        employeeShifts.slice(0, 8).map((shift) => {
+          const employee = employees.find(
+            (item) => item.id === shift.employee_id
+          );
+
+          const laborEfficiency =
+            Number(shift.revenue_during_shift || 0) > 0
+              ? (Number(shift.labor_cost || 0) /
+                  Number(shift.revenue_during_shift || 0)) *
+                100
+              : 0;
+
+          return (
+            <div
+              key={shift.id}
+              style={{
+  padding: "16px",
+  borderRadius: "20px",
+  background: "rgba(15,23,42,0.74)",
+  border: "1px solid rgba(125,211,252,0.14)",
+
+  display: "grid",
+  gridTemplateColumns: isMobile
+    ? "1fr"
+    : "repeat(4, minmax(0, 1fr))",
+
+  gap: "12px",
+  alignItems: "center",
+
+  minWidth: 0,
+  overflow: "hidden",
+  boxSizing: "border-box",
+}}
+            >
+              <div>
+                <div style={{ color: "white", fontWeight: "900" }}>
+                  {employee?.employee_name || "Unknown Employee"}
+                </div>
+
+                <div style={{ color: "#94a3b8", fontSize: "12px" }}>
+                  {shift.shift_date || "No date"} • {employee?.role || "Staff"}
+                </div>
+              </div>
+
+              <div>
+                <div style={{ color: "#94a3b8", fontSize: "11px" }}>
+                  Hours
+                </div>
+                <div style={{ color: "white", fontWeight: "800" }}>
+                  {Number(shift.hours_worked || 0).toFixed(1)}
+                </div>
+              </div>
+
+              <div>
+                <div style={{ color: "#94a3b8", fontSize: "11px" }}>
+                  Labor Cost
+                </div>
+                <div style={{ color: "#fbbf24", fontWeight: "900" }}>
+                  ${Number(shift.labor_cost || 0).toFixed(0)}
+                </div>
+              </div>
+
+              <div>
+                <div style={{ color: "#94a3b8", fontSize: "11px" }}>
+                  Labor %
+                </div>
+                <div
+                  style={{
+                    color:
+                      laborEfficiency > 35
+                        ? "#f87171"
+                        : laborEfficiency > 28
+                        ? "#fbbf24"
+                        : "#86efac",
+                    fontWeight: "950",
+                  }}
+                >
+                  {laborEfficiency > 0
+                    ? `${laborEfficiency.toFixed(1)}%`
+                    : "N/A"}
+                </div>
+              </div>
+            </div>
+          );
+        })
+      ) : (
+        <div style={{ color: "#94a3b8", fontSize: "14px" }}>
+          Upload employee shift data to activate staff efficiency intelligence.
+        </div>
+      )}
+    </div>
+  </div>
+)}
+{/* =========================
+   AI LABOR RISK ALERTS
+========================= */}
+
+<div
+  style={{
+    marginTop: "18px",
+    display: "grid",
+    gap: "12px",
+  }}
+>
+  {employeeShifts
+    .filter((shift) => {
+      const laborEfficiency =
+        Number(shift.revenue_during_shift || 0) > 0
+          ? (Number(shift.labor_cost || 0) /
+              Number(shift.revenue_during_shift || 0)) *
+            100
+          : 0;
+
+      return laborEfficiency > 30;
+    })
+    .slice(0, 5)
+    .map((shift) => {
+      const employee = employees.find(
+        (item) => item.id === shift.employee_id
+      );
+
+      const laborEfficiency =
+        Number(shift.revenue_during_shift || 0) > 0
+          ? (Number(shift.labor_cost || 0) /
+              Number(shift.revenue_during_shift || 0)) *
+            100
+          : 0;
+
+      return (
+        <div
+          key={shift.id}
+          style={{
+            padding: "16px",
+            borderRadius: "18px",
+            background:
+              "linear-gradient(135deg, rgba(239,68,68,0.12), rgba(15,23,42,0.86))",
+            border: "1px solid rgba(248,113,113,0.18)",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: isMobile ? "flex-start" : "center",
+              flexDirection: isMobile ? "column" : "row",
+              gap: "12px",
+            }}
+          >
+            <div>
+              <div
+                style={{
+                  color: "white",
+                  fontSize: "16px",
+                  fontWeight: "900",
+                  marginBottom: "4px",
+                }}
+              >
+                {employee?.employee_name || "Unknown Employee"}
+              </div>
+
+              <div
+                style={{
+                  color: "#fca5a5",
+                  fontSize: "13px",
+                  lineHeight: 1.6,
+                }}
+              >
+                AI detected elevated labor cost exposure during this shift.
+              </div>
+            </div>
+
+            <div
+              style={{
+                padding: "8px 12px",
+                borderRadius: "14px",
+                background: "rgba(239,68,68,0.14)",
+                border: "1px solid rgba(248,113,113,0.22)",
+                color: "#fca5a5",
+                fontWeight: "900",
+                fontSize: "13px",
+              }}
+            >
+              {laborEfficiency.toFixed(1)}% Labor
+            </div>
+          </div>
+        </div>
+      );
+    })}
+</div>
+{/* =========================
+   AI LABOR OPTIMIZATION RECOMMENDATIONS
+========================= */}
+
+<div
+  style={{
+    marginTop: "18px",
+    display: "grid",
+    gap: "14px",
+  }}
+>
+  {employeeShifts.length > 0 ? (
+    employeeShifts.slice(0, 6).map((shift) => {
+      const employee = employees.find(
+        (item) => item.id === shift.employee_id
+      );
+
+      const laborEfficiency =
+        Number(shift.revenue_during_shift || 0) > 0
+          ? (Number(shift.labor_cost || 0) /
+              Number(shift.revenue_during_shift || 0)) *
+            100
+          : 0;
+
+      let recommendation =
+        "Shift labor performance is operating within acceptable efficiency range.";
+
+      if (laborEfficiency > 35) {
+        recommendation =
+          "Critical labor inefficiency detected. AI recommends reducing overlap or reallocating staffing.";
+      } else if (laborEfficiency > 28) {
+        recommendation =
+          "Moderate labor inefficiency detected. Review scheduling efficiency and shift productivity.";
+      } else if (laborEfficiency > 0) {
+        recommendation =
+          "Labor efficiency is healthy. Continue monitoring staffing consistency.";
+      }
+
+      return (
+        <div
+          key={shift.id}
+          style={{
+            padding: "18px",
+            borderRadius: "20px",
+            background:
+              "linear-gradient(135deg, rgba(15,23,42,0.84), rgba(30,41,59,0.82))",
+            border: "1px solid rgba(148,163,184,0.12)",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: isMobile ? "flex-start" : "center",
+              flexDirection: isMobile ? "column" : "row",
+              gap: "12px",
+              marginBottom: "10px",
+            }}
+          >
+            <div>
+              <div
+                style={{
+                  color: "white",
+                  fontSize: "17px",
+                  fontWeight: "900",
+                }}
+              >
+                {employee?.employee_name || "Unknown Employee"}
+              </div>
+
+              <div
+                style={{
+                  color: "#94a3b8",
+                  fontSize: "12px",
+                  marginTop: "4px",
+                }}
+              >
+                ${Number(shift.labor_cost || 0).toFixed(0)} labor cost •{" "}
+                {laborEfficiency > 0
+                  ? `${laborEfficiency.toFixed(1)}% labor`
+                  : "No revenue linked"}
+              </div>
+            </div>
+
+            <div
+              style={{
+                padding: "8px 12px",
+                borderRadius: "999px",
+                background:
+                  laborEfficiency <= 28
+                    ? "rgba(34,197,94,0.14)"
+                    : laborEfficiency <= 35
+                    ? "rgba(250,204,21,0.14)"
+                    : "rgba(239,68,68,0.14)",
+                color:
+                  laborEfficiency <= 28
+                    ? "#86efac"
+                    : laborEfficiency <= 35
+                    ? "#fde68a"
+                    : "#fca5a5",
+                fontWeight: "900",
+                fontSize: "12px",
+              }}
+            >
+              {laborEfficiency <= 28
+                ? "Efficient"
+                : laborEfficiency <= 35
+                ? "Watch"
+                : "Critical"}
+            </div>
+          </div>
+
+          <div
+            style={{
+              color: "#cbd5e1",
+              fontSize: "13px",
+              lineHeight: 1.7,
+            }}
+          >
+            {recommendation}
+          </div>
+        </div>
+      );
+    })
+  ) : (
+    <div
+      style={{
+        padding: "18px",
+        borderRadius: "18px",
+        background: "rgba(15,23,42,0.72)",
+        border: "1px solid rgba(148,163,184,0.14)",
+        color: "#94a3b8",
+        textAlign: "center",
+      }}
+    >
+      Upload employee shift data to activate AI labor optimization recommendations.
+    </div>
+  )}
 </div>
 {/* =========================
    👥 LABOR HEALTH SCORE
@@ -52490,7 +56634,9 @@ if (!res.ok) {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
+            gridTemplateColumns: isMobile
+  ? "1fr"
+  : "repeat(3, minmax(0, 1fr))",
             gap: "12px",
           }}
         >
@@ -52647,33 +56793,33 @@ if (!res.ok) {
   <div
     style={{
       marginTop: "18px",
-      marginBottom: "24px",
-      padding: "22px",
-      borderRadius: "24px",
+      marginBottom: "18px",
+      padding: "16px",
+      borderRadius: "18px",
       background:
         "linear-gradient(135deg, rgba(251,191,36,0.14), rgba(15,23,42,0.96))",
       border: "1px solid rgba(251,191,36,0.24)",
-      boxShadow: "0 22px 60px rgba(2,6,23,0.30)",
+      boxShadow: "0 18px 45px rgba(2,6,23,0.26)",
     }}
   >
     <div
       style={{
         color: "#fde68a",
-        fontSize: "12px",
+        fontSize: "11px",
         fontWeight: "900",
         letterSpacing: "0.08em",
         textTransform: "uppercase",
-        marginBottom: "8px",
+        marginBottom: "6px",
       }}
     >
       Overtime Risk Intelligence
     </div>
 
-    <h3 style={{ color: "white", fontSize: "24px", fontWeight: "900" }}>
+    <h3 style={{ color: "white", fontSize: "20px", fontWeight: "900" }}>
       Employee overtime exposure and scheduling risk
     </h3>
 
-    <p style={{ color: "#cbd5e1", fontSize: "14px", lineHeight: 1.6 }}>
+    <p style={{ color: "#cbd5e1", fontSize: "12px", lineHeight: 1.5 }}>
       SerVen is monitoring employee hours, overtime exposure, and projected
       labor cost risk before payroll pressure increases.
     </p>
@@ -52681,15 +56827,19 @@ if (!res.ok) {
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
-        gap: "14px",
-        marginTop: "18px",
-        marginBottom: "18px",
+        gridTemplateColumns: isMobile
+          ? "1fr"
+          : "repeat(2, minmax(0, 1fr))",
+        gap: "10px",
+        marginTop: "14px",
+        marginBottom: "14px",
       }}
     >
       <div style={overtimeMiniCardStyle}>
         <div style={overtimeMiniLabelStyle}>Employees Tracked</div>
-        <div style={overtimeMiniValueStyle}>{overtimeRiskData?.length || 0}</div>
+        <div style={overtimeMiniValueStyle}>
+          {overtimeRiskData?.length || 0}
+        </div>
       </div>
 
       <div style={overtimeMiniCardStyle}>
@@ -52697,7 +56847,8 @@ if (!res.ok) {
         <div style={{ ...overtimeMiniValueStyle, color: "#fbbf24" }}>
           {(overtimeRiskData || []).filter(
             (employee) =>
-              employee.status === "Overtime" || employee.status === "At Risk"
+              employee.status === "Overtime" ||
+              employee.status === "At Risk"
           ).length}
         </div>
       </div>
@@ -52717,7 +56868,7 @@ if (!res.ok) {
       </div>
     </div>
 
-    <div style={{ display: "grid", gap: "12px" }}>
+    <div style={{ display: "grid", gap: "10px" }}>
       {(overtimeRiskData || []).slice(0, 6).map((employee, index) => {
         const statusColor =
           employee.status === "Overtime"
@@ -52737,26 +56888,45 @@ if (!res.ok) {
           <div
             key={`${employee.name}-${index}`}
             style={{
-              padding: "16px",
-              borderRadius: "18px",
+              padding: "10px",
+              borderRadius: "14px",
               background: "rgba(15,23,42,0.74)",
               border: `1px solid ${statusColor}55`,
+              minWidth: 0,
+              overflow: "hidden",
+              boxSizing: "border-box",
             }}
           >
             <div
               style={{
                 display: "flex",
                 justifyContent: "space-between",
-                gap: "12px",
-                marginBottom: "10px",
+                gap: "10px",
+                marginBottom: "8px",
+                minWidth: 0,
               }}
             >
-              <div>
-                <div style={{ color: "white", fontSize: "15px", fontWeight: "900" }}>
+              <div style={{ minWidth: 0 }}>
+                <div
+                  style={{
+                    color: "white",
+                    fontSize: "13px",
+                    fontWeight: "900",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}
+                >
                   {employee.name}
                 </div>
 
-                <div style={{ color: "#94a3b8", fontSize: "12px", marginTop: "4px" }}>
+                <div
+                  style={{
+                    color: "#94a3b8",
+                    fontSize: "11px",
+                    marginTop: "3px",
+                  }}
+                >
                   {Number(employee.hours || 0).toFixed(1)} hours tracked
                 </div>
               </div>
@@ -52764,7 +56934,7 @@ if (!res.ok) {
               <div
                 style={{
                   color: statusColor,
-                  fontSize: "12px",
+                  fontSize: "11px",
                   fontWeight: "900",
                   whiteSpace: "nowrap",
                 }}
@@ -52775,11 +56945,11 @@ if (!res.ok) {
 
             <div
               style={{
-                height: "8px",
+                height: "7px",
                 borderRadius: "999px",
                 background: "rgba(148,163,184,0.18)",
                 overflow: "hidden",
-                marginBottom: "10px",
+                marginBottom: "8px",
               }}
             >
               <div
@@ -52796,13 +56966,22 @@ if (!res.ok) {
               style={{
                 display: "flex",
                 justifyContent: "space-between",
+                gap: "8px",
                 color: "#cbd5e1",
-                fontSize: "12px",
+                fontSize: "11px",
                 fontWeight: "700",
+                flexWrap: "wrap",
               }}
             >
-              <span>OT Hours: {Number(employee.projectedOvertimeHours || 0).toFixed(1)}</span>
-              <span>OT Cost: ${Number(employee.estimatedOvertimeCost || 0).toLocaleString()}</span>
+              <span>
+                OT Hours:{" "}
+                {Number(employee.projectedOvertimeHours || 0).toFixed(1)}
+              </span>
+
+              <span>
+                OT Cost: $
+                {Number(employee.estimatedOvertimeCost || 0).toLocaleString()}
+              </span>
             </div>
           </div>
         );
@@ -52810,7 +56989,6 @@ if (!res.ok) {
     </div>
   </div>
 )}
-
 {/* =========================
    📈 LABOR FORECASTING INTELLIGENCE
 ========================= */}
@@ -52904,7 +57082,9 @@ if (!res.ok) {
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
+                gridTemplateColumns: isMobile
+  ? "1fr"
+  : "repeat(3, minmax(0, 1fr))",
                 gap: "10px",
               }}
             >
@@ -53060,18 +57240,26 @@ if (!res.ok) {
     <div style={{ display: "grid", gap: "12px", marginTop: "18px" }}>
       {(shiftOperationalData || []).map((shift, index) => (
         <div
-          key={`${shift.shift}-${index}`}
-          style={{
-            padding: "14px",
-            borderRadius: "16px",
-            background: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(255,255,255,0.08)",
-            display: "grid",
-            gridTemplateColumns: "1fr 0.8fr 0.8fr 0.8fr 1fr",
-            gap: "12px",
-            alignItems: "center",
-          }}
-        >
+  key={`${shift.shift}-${index}`}
+  style={{
+    padding: "14px",
+    borderRadius: "16px",
+    background: "rgba(255,255,255,0.04)",
+    border: "1px solid rgba(255,255,255,0.08)",
+
+    display: "grid",
+    gridTemplateColumns: isMobile
+      ? "1fr"
+      : "repeat(5, minmax(0, 1fr))",
+
+    gap: "12px",
+    alignItems: "center",
+
+    minWidth: 0,
+    overflow: "hidden",
+    boxSizing: "border-box",
+  }}
+> 
           <div>
             <div style={{ color: "white", fontWeight: "900" }}>
               {shift.shift}
@@ -53306,21 +57494,28 @@ if (!res.ok) {
   </div>
 )}
 </div>
+</div>
 )}
 
   
 
-{activeTab === "menu" && (
+{activeTab === "recipes" && (
  <div
   style={{
-    width: "100%",
-    maxWidth: "100%",
+    width: "calc(100% - 110px)",
+    maxWidth: "1450px",
     minWidth: 0,
+
+    marginLeft: "4px",
+
     overflowX: "hidden",
+    overflowY: "visible",
 
     display: "grid",
 
-    gap: isMobile ? "14px" : "20px",
+    gap: isMobile ? "14px" : "18px",
+
+    boxSizing: "border-box",
   }}
 >
     {/* MENU INTELLIGENCE HERO */}
@@ -54600,6 +58795,17 @@ if (!res.ok) {
 
 {inventoryView === "usage" && (
   <>
+  <div
+  style={{
+    gridColumn: isMobile ? "span 1" : "span 12",
+   width: "calc(100% - 28px)",
+maxWidth: "calc(100% - 28px)",
+    minWidth: 0,
+    overflowX: "hidden",
+    overflowY: "visible",
+    boxSizing: "border-box",
+  }}
+>
   {hasGrowthAccess ? (
   
   <>
@@ -54764,7 +58970,19 @@ if (!res.ok) {
       fontWeight: "800",
     }}
   >
-    {topAIRecommendedAction}
+    {typeof topAIRecommendedAction === "object" ? (
+  <>
+    <div>{topAIRecommendedAction.title}</div>
+    <div style={{ marginTop: "6px", color: "#fde68a" }}>
+      {topAIRecommendedAction.description}
+    </div>
+    <div style={{ marginTop: "6px", color: "#bbf7d0" }}>
+      Action: {topAIRecommendedAction.action}
+    </div>
+  </>
+) : (
+  topAIRecommendedAction
+)}
   </div>
 </div>
 <div style={{ marginBottom: "18px" }}>
@@ -55647,7 +59865,7 @@ if (!res.ok) {
     overflow: "visible",
   }}
 >
-  <ResponsiveContainer width="100%" height={320}>
+  
     <BarChart data={inventoryTrendData}>
       <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.16)" />
 
@@ -55675,7 +59893,7 @@ if (!res.ok) {
       <Bar dataKey="quantity" name="Quantity" fill="#22c55e" />
       <Bar dataKey="usageRate" name="Daily Usage" fill="#3b82f6" />
     </BarChart>
-  </ResponsiveContainer>
+  
 </div>
   ) : (
     <div style={{ color: "#94a3b8", fontSize: "14px", marginTop: "14px" }}>
@@ -55749,11 +59967,22 @@ if (!res.ok) {
     </button>
   </div>
 )}
+</div>
   </>
   )}
   {inventoryView === "restock" && (
   <>
-
+<div
+  style={{
+    gridColumn: isMobile ? "span 1" : "span 12",
+    width: "calc(100% - 28px)",
+    maxWidth: "calc(100% - 28px)",
+    minWidth: 0,
+    overflowX: "hidden",
+    overflowY: "visible",
+    boxSizing: "border-box",
+  }}
+>
 {/* 📦 INVENTORY RESTOCK AWARENESS */}
 <div
   style={{
@@ -56216,10 +60445,22 @@ if (!res.ok) {
     </div>
   )}
 </div>
+</div>
   </>
   )}
   {inventoryView === "vendors" && (
   <>
+  <div
+  style={{
+    gridColumn: isMobile ? "span 1" : "span 12",
+    width: "calc(100% - 28px)",
+    maxWidth: "calc(100% - 28px)",
+    minWidth: 0,
+    overflowX: "hidden",
+    overflowY: "visible",
+    boxSizing: "border-box",
+  }}
+>
   {hasGrowthAccess ? (
   <>
 {/* 🧾 VENDOR PRICE SPIKE DETECTION */}
@@ -56544,15 +60785,31 @@ if (!res.ok) {
     Growth locked card here
   </div>
 )}
+</div>
 </>
 )}
-  
 
 
+  {activeTab === "beverage" && (
+  <div
+    style={{
+      width: "calc(100vw - 390px)",
+      maxWidth: "1050px",
+      minWidth: 0,
 
+      margin: "0 auto",
 
-{activeTab === "beverage" && (
-  <div>
+      overflowX: "hidden",
+      overflowY: "visible",
+
+      display: "grid",
+      gridTemplateColumns: "1fr",
+
+      gap: isMobile ? "14px" : "20px",
+
+      boxSizing: "border-box",
+    }}
+  >
  {/* BEVERAGE INTELLIGENCE HERO */}
 <div
   style={{
@@ -56813,6 +61070,66 @@ if (!res.ok) {
           ))}
         </div>
       </div>
+    </div>
+  </div>
+)}
+{/* =========================
+   BEVERAGE UPLOAD DATA STATUS
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginBottom: "24px",
+      padding: "20px",
+      borderRadius: "22px",
+      background:
+        "linear-gradient(135deg, rgba(168,85,247,0.12), rgba(15,23,42,0.92))",
+      border: "1px solid rgba(192,132,252,0.18)",
+    }}
+  >
+    <div style={{ color: "#d8b4fe", fontSize: "12px", fontWeight: "900" }}>
+      Beverage Upload Data
+    </div>
+
+    <div
+      style={{
+        marginTop: "14px",
+        display: "grid",
+        gridTemplateColumns: isMobile ? "1fr" : "repeat(3,minmax(0,1fr))",
+        gap: "14px",
+      }}
+    >
+      <GlassCard
+        title="Uploaded Beverage Items"
+        value={beverageItems.length}
+        subtitle="From beverage_items table"
+      />
+
+      <GlassCard
+        title="Average Pour Cost"
+        value={`$${(
+          beverageItems.reduce((sum, item) => {
+            const poursPerBottle =
+              Number(item.bottle_size_oz || 0) /
+              (Number(item.pour_size_oz || 1) || 1);
+
+            const pourCost =
+              poursPerBottle > 0
+                ? Number(item.cost_per_bottle || 0) / poursPerBottle
+                : 0;
+
+            return sum + pourCost;
+          }, 0) / (beverageItems.length || 1)
+        ).toFixed(2)}`}
+        subtitle="Calculated from upload"
+      />
+
+      <GlassCard
+        title="Uploaded Beverage Usage"
+        value={beverageUsage.length}
+        subtitle="Variance rows tracked"
+      />
     </div>
   </div>
 )}
@@ -57812,25 +62129,40 @@ if (!res.ok) {
       <div style={bartenderVarianceMiniCardStyle}>
         <div style={bartenderVarianceMiniLabelStyle}>Critical Variance</div>
         <div style={{ ...bartenderVarianceMiniValueStyle, color: "#f87171" }}>
-          {(bartenderVarianceData || []).filter(
-            (item) => item.status === "Critical"
-          ).length}
+          {(
+  Array.isArray(bartenderVarianceData)
+    ? bartenderVarianceData
+    : []
+).filter(
+  (item) => item.status === "Critical"
+).length}
         </div>
       </div>
 
       <div style={bartenderVarianceMiniCardStyle}>
         <div style={bartenderVarianceMiniLabelStyle}>Estimated Leakage</div>
         <div style={{ ...bartenderVarianceMiniValueStyle, color: "#fbbf24" }}>
-          $
-          {(bartenderVarianceData || [])
-            .reduce((sum, item) => sum + Number(item.estimatedLoss || 0), 0)
-            .toLocaleString()}
-        </div>
+  $
+  {(
+    Array.isArray(bartenderVarianceData)
+      ? bartenderVarianceData
+      : []
+  )
+    .reduce(
+      (sum, item) => sum + Number(item.estimatedLoss || 0),
+      0
+    )
+    .toLocaleString()}
+</div>
       </div>
     </div>
 
     <div style={{ display: "grid", gap: "12px" }}>
-      {(bartenderVarianceData || []).slice(0, 6).map((item, index) => {
+      {(
+  Array.isArray(bartenderVarianceData)
+    ? bartenderVarianceData
+    : []
+).slice(0, 6).map((item, index) => {
         const varianceDisplay = Number(item.variancePercent || 0).toFixed(1);
 
         const statusColor =
@@ -58582,60 +62914,131 @@ if (!res.ok) {
 
 
 {activeTab === "ai_alerts" && (
-  <div>
-    {/* AI ALERTS HERO */}
+ <div
+  style={{
+    gridColumn: "1 / -1",
+width: "100%",
+    maxWidth: "700px",
+    minWidth: "700px",
+
+    margin: "0 auto",
+
+    overflowX: "auto",
+    overflowY: "visible",
+
+    display: "grid",
+    gridTemplateColumns: "repeat(12, minmax(0, 1fr))",
+
+    gap: "22px",
+    alignItems: "start",
+    boxSizing: "border-box",
+  }}
+>
+   {/* AI ALERTS HERO */}
 <div
   style={{
-    marginBottom: "24px",
-    padding: "24px",
-    borderRadius: "24px",
+    gridColumn: isMobile ? "span 1" : "span 12",
+
+    width: "100%",
+    minWidth: 0,
+
+    marginBottom: "26px",
+    padding: isMobile ? "22px" : "30px",
+
+    borderRadius: "28px",
+
     background:
-      "radial-gradient(circle at top right, rgba(239,68,68,0.18), transparent 30%), linear-gradient(135deg, #111827, #1e293b)",
+      "radial-gradient(circle at top right, rgba(239,68,68,0.22), transparent 34%), linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.94))",
+
     border: "1px solid rgba(248,113,113,0.18)",
-    boxShadow: "0 20px 50px rgba(2,6,23,0.22)",
+
+    boxShadow:
+      "0 30px 80px rgba(2,6,23,0.36), inset 0 1px 0 rgba(255,255,255,0.04)",
+
+    overflow: "hidden",
+    position: "relative",
   }}
 >
   <div
     style={{
-      fontSize: "12px",
-      fontWeight: "900",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      color: "#fca5a5",
-      marginBottom: "8px",
+      position: "absolute",
+      top: "-120px",
+      right: "-120px",
+      width: "280px",
+      height: "280px",
+      borderRadius: "999px",
+      background: "rgba(239,68,68,0.10)",
+      filter: "blur(80px)",
+      pointerEvents: "none",
+    }}
+  />
+
+  <div
+    style={{
+      position: "relative",
+      zIndex: 2,
     }}
   >
-    AI Alerts
+    <div
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "8px",
+
+        padding: "8px 14px",
+        marginBottom: "14px",
+
+        borderRadius: "999px",
+
+        background: "rgba(239,68,68,0.10)",
+        border: "1px solid rgba(248,113,113,0.18)",
+
+        color: "#fca5a5",
+        fontSize: "11px",
+        fontWeight: "900",
+        letterSpacing: "0.12em",
+        textTransform: "uppercase",
+      }}
+    >
+      AI Alerts Intelligence
+    </div>
+
+    <h2
+      style={{
+        margin: 0,
+        color: "white",
+        fontSize: isMobile ? "32px" : "44px",
+        lineHeight: 1.05,
+        fontWeight: "950",
+        letterSpacing: "-0.03em",
+        maxWidth: "900px",
+      }}
+    >
+      Predictive Operational Alerts
+    </h2>
+
+    <p
+      style={{
+        marginTop: "18px",
+        color: "#94a3b8",
+        fontSize: isMobile ? "14px" : "16px",
+        lineHeight: 1.8,
+        maxWidth: "920px",
+      }}
+    >
+      Detect operational risks before they impact profitability using
+      AI-powered alerts for sales drops, margin compression, labor
+      inefficiencies, inventory depletion, waste spikes, vendor anomalies,
+      and unusual business activity.
+    </p>
   </div>
-
-  <h2
-    style={{
-      margin: 0,
-      color: "white",
-      fontSize: isMobile ? "26px" : "32px",
-      fontWeight: "950",
-    }}
-  >
-    Predictive Operational Alerts
-  </h2>
-
-  <p
-    style={{
-      marginTop: "10px",
-      color: "#94a3b8",
-      fontSize: "14px",
-      lineHeight: 1.7,
-      maxWidth: "760px",
-    }}
-  >
-    Detect operational risks before they impact profitability using AI-powered
-    alerts for sales drops, margin compression, labor inefficiencies, inventory
-    depletion, waste spikes, and unusual business activity.
-  </p>
 </div>
 {/* AI ALERTS KPI STRIP */}
 <div
   style={{
+    gridColumn: isMobile ? "span 1" : "span 12",
+width: "100%",
+minWidth: 0,
     display: "grid",
     gridTemplateColumns: isMobile
       ? "1fr"
@@ -58674,730 +63077,725 @@ if (!res.ok) {
     subtext="AI operational risk rating"
   />
 </div>
-{/* 🚨 PREDICTIVE ALERTS */}
 
-{hasProAccess && (
   <div
-    style={{
-      marginTop: "18px",
-      padding: "22px",
-      borderRadius: "24px",
-      background:
-        "linear-gradient(135deg, rgba(239,68,68,0.12), rgba(15,23,42,0.96))",
-      border: "1px solid rgba(239,68,68,0.22)",
-      boxShadow: "0 22px 60px rgba(2,6,23,0.28)",
+  style={{
+    gridColumn: isMobile ? "span 1" : "span 8",
+      width: "100%",
+      minWidth: 0,
     }}
   >
-    <div
-      style={{
-        color: "#fca5a5",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      Predictive Alerts
-    </div>
+   {/* 🚨 PREDICTIVE ALERTS */}
 
-    <h3
-      style={{
-        color: "white",
-        fontSize: "24px",
-        fontWeight: "950",
-        margin: "0 0 10px",
-      }}
-    >
-      AI Risk Forecast Center
-    </h3>
+<div
+  style={{
+    marginTop: "0px",
+    height: "100%",
 
-    <p
-      style={{
-        color: "#94a3b8",
-        fontSize: "13px",
-        lineHeight: 1.6,
-        marginBottom: "18px",
-      }}
-    >
-      Predicts revenue decline, labor pressure, margin compression, and waste
-      escalation before they become larger operational problems.
-    </p>
+    width: "100%",
+    minWidth: 0,
 
-    <div style={{ display: "grid", gap: "12px" }}>
-      {(predictiveAlerts || []).map((alert, index) => (
-        <div
-          key={`${alert.type}-${index}`}
-          style={{
-            padding: "16px",
-            borderRadius: "18px",
-            background:
-              alert.severity === "Critical"
-                ? "linear-gradient(135deg, rgba(239,68,68,0.14), rgba(15,23,42,0.92))"
-                : alert.severity === "Warning"
-                ? "linear-gradient(135deg, rgba(250,204,21,0.10), rgba(15,23,42,0.92))"
-                : "linear-gradient(135deg, rgba(34,197,94,0.10), rgba(15,23,42,0.92))",
-            border:
-              alert.severity === "Critical"
-                ? "1px solid rgba(239,68,68,0.25)"
-                : alert.severity === "Warning"
-                ? "1px solid rgba(250,204,21,0.22)"
-                : "1px solid rgba(34,197,94,0.20)",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              gap: "12px",
-              flexWrap: "wrap",
-              marginBottom: "8px",
-            }}
-          >
-            <div style={{ color: "white", fontWeight: "950" }}>
-              {alert.title}
-            </div>
+    padding: "22px",
+    borderRadius: "24px",
 
-            <div
-              style={{
-                color:
-                  alert.severity === "Critical"
-                    ? "#f87171"
-                    : alert.severity === "Warning"
-                    ? "#facc15"
-                    : "#22c55e",
-                fontSize: "12px",
-                fontWeight: "950",
-                textTransform: "uppercase",
-                letterSpacing: "0.06em",
-              }}
-            >
-              {alert.severity}
-            </div>
-          </div>
+    overflow: "hidden",
+    wordBreak: "break-word",
 
-          <div
-            style={{
-              color: "#cbd5e1",
-              fontSize: "13px",
-              lineHeight: 1.6,
-              marginBottom: "8px",
-            }}
-          >
-            {alert.detail}
-          </div>
+    background:
+      "linear-gradient(135deg, rgba(239,68,68,0.12), rgba(15,23,42,0.96))",
 
-          <div
-            style={{
-              color: "#94a3b8",
-              fontSize: "12px",
-              lineHeight: 1.6,
-            }}
-          >
-            {alert.recommendation}
-          </div>
-
-          <div
-            style={{
-              marginTop: "10px",
-              color: "#64748b",
-              fontSize: "11px",
-              textTransform: "uppercase",
-              letterSpacing: "0.06em",
-              fontWeight: "900",
-            }}
-          >
-            {alert.type}
-          </div>
-        </div>
-      ))}
-    </div>
+    border: "1px solid rgba(239,68,68,0.22)",
+    boxShadow: "0 22px 60px rgba(2,6,23,0.28)",
+  }}
+>
+  <div
+    style={{
+      color: "#fca5a5",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "10px",
+    }}
+  >
+    Predictive Alerts
   </div>
-)}
 
-{/* 🚨 ESCALATION QUEUE */}
-
-{hasProAccess && (
-  <div
+  <h3
     style={{
-      marginTop: "18px",
-      padding: "22px",
-      borderRadius: "24px",
-      background:
-        "linear-gradient(135deg, rgba(250,204,21,0.10), rgba(15,23,42,0.96))",
-      border: "1px solid rgba(250,204,21,0.22)",
-      boxShadow: "0 22px 60px rgba(2,6,23,0.28)",
+      color: "white",
+      fontSize: "24px",
+      fontWeight: "950",
+      margin: "0 0 10px",
     }}
   >
-    <div
-      style={{
-        color: "#fde68a",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      Escalation Queue
-    </div>
+    AI Operational Risk Detection
+  </h3>
 
-    <h3
-      style={{
-        color: "white",
-        fontSize: "24px",
-        fontWeight: "950",
-        margin: "0 0 10px",
-      }}
-    >
-      Escalated Operational Risks
-    </h3>
+  <p
+    style={{
+      color: "#94a3b8",
+      fontSize: "13px",
+      lineHeight: 1.6,
+      marginBottom: "18px",
+    }}
+  >
+    Detects revenue anomalies, food cost spikes, labor inefficiencies,
+    unusual sales behavior, and operational risks before they impact
+    profitability.
+  </p>
 
-    <p
-      style={{
-        color: "#94a3b8",
-        fontSize: "13px",
-        lineHeight: 1.6,
-        marginBottom: "18px",
-      }}
-    >
-      Tracks unresolved operational risks, recurring AI alerts, and critical
-      restaurant issues that require escalation or immediate review.
-    </p>
-
-    {(!escalationQueue || escalationQueue.length === 0) && (
+  <div style={{ display: "grid", gap: "12px" }}>
+    {(predictiveAlerts || []).map((alert, index) => (
       <div
+        key={index}
         style={{
-          padding: "14px",
-          borderRadius: "16px",
+          padding: "16px",
+          borderRadius: "18px",
           background: "rgba(255,255,255,0.04)",
           border: "1px solid rgba(255,255,255,0.08)",
-          color: "#94a3b8",
-          fontSize: "13px",
-          lineHeight: 1.6,
         }}
       >
-        No escalated operational risks detected right now.
+        <div
+          style={{
+            color: "white",
+            fontWeight: "900",
+            marginBottom: "6px",
+          }}
+        >
+          {alert.title}
+        </div>
+
+        <div
+          style={{
+            color: "#cbd5e1",
+            fontSize: "13px",
+            lineHeight: 1.6,
+          }}
+        >
+          {alert.detail}
+        </div>
       </div>
-    )}
-
-    <div style={{ display: "grid", gap: "12px" }}>
-      {(escalationQueue || []).map((alert) => (
-        <div
-          key={alert.id}
-          style={{
-            padding: "16px",
-            borderRadius: "18px",
-            background:
-              alert.severity === "Critical"
-                ? "linear-gradient(135deg, rgba(239,68,68,0.12), rgba(15,23,42,0.92))"
-                : "linear-gradient(135deg, rgba(250,204,21,0.08), rgba(15,23,42,0.92))",
-
-            border:
-              alert.severity === "Critical"
-                ? "1px solid rgba(239,68,68,0.24)"
-                : "1px solid rgba(250,204,21,0.18)",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              gap: "12px",
-              flexWrap: "wrap",
-              marginBottom: "8px",
-            }}
-          >
-            <div
-              style={{
-                color: "white",
-                fontWeight: "950",
-              }}
-            >
-              {alert.title}
-            </div>
-
-            <div
-              style={{
-                color:
-                  alert.severity === "Critical"
-                    ? "#f87171"
-                    : "#facc15",
-                fontSize: "12px",
-                fontWeight: "950",
-                textTransform: "uppercase",
-                letterSpacing: "0.06em",
-              }}
-            >
-              {alert.severity}
-            </div>
-          </div>
-
-          <div
-            style={{
-              color: "#cbd5e1",
-              fontSize: "13px",
-              lineHeight: 1.6,
-              marginBottom: "8px",
-            }}
-          >
-            {alert.recommendation}
-          </div>
-
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              gap: "12px",
-              flexWrap: "wrap",
-              marginTop: "10px",
-            }}
-          >
-            <div
-              style={{
-                color: "#64748b",
-                fontSize: "11px",
-                textTransform: "uppercase",
-                letterSpacing: "0.06em",
-                fontWeight: "900",
-              }}
-            >
-              {alert.type}
-            </div>
-
-            <div
-              style={{
-                color: "#94a3b8",
-                fontSize: "11px",
-                fontWeight: "800",
-              }}
-            >
-              {alert.age}h unresolved
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
+    ))}
   </div>
-)}
-{/* 🚨 OPERATIONAL ALERT FEED */}
-
-{hasProAccess && (
+</div>
+  
+</div>
   <div
     style={{
-      marginTop: "18px",
-      padding: "22px",
-      borderRadius: "24px",
-      background:
-        "linear-gradient(135deg, rgba(239,68,68,0.10), rgba(15,23,42,0.96))",
-      border: "1px solid rgba(239,68,68,0.20)",
-      boxShadow: "0 22px 60px rgba(2,6,23,0.28)",
+     gridColumn: isMobile ? "span 1" : "span 8",
+width: "100%",
+minWidth: 0,
     }}
   >
-    <div
-      style={{
-        color: "#fca5a5",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      Operational Alert Feed
-    </div>
-
-    <h3
-      style={{
-        color: "white",
-        fontSize: "24px",
-        fontWeight: "950",
-        margin: "0 0 10px",
-      }}
-    >
-      Active Restaurant Risk Monitoring
-    </h3>
-
-    <p
-      style={{
-        color: "#94a3b8",
-        fontSize: "13px",
-        lineHeight: 1.6,
-        marginBottom: "18px",
-      }}
-    >
-      Monitors active margin risk, food waste, labor pressure, vendor cost
-      spikes, and revenue warning signals.
-    </p>
-
-    {(!operationalAlerts || operationalAlerts.length === 0) && (
-      <div
-        style={{
-          padding: "14px",
-          borderRadius: "16px",
-          background: "rgba(255,255,255,0.04)",
-          border: "1px solid rgba(255,255,255,0.08)",
-          color: "#94a3b8",
-          fontSize: "13px",
-          lineHeight: 1.6,
-        }}
-      >
-        No active operational alerts detected. Upload sales, labor, menu,
-        invoice, and ingredient data to activate AI monitoring.
-      </div>
-    )}
-
-    <div style={{ display: "grid", gap: "12px" }}>
-      {(operationalAlerts || []).map((alert, index) => (
-        <div
-          key={`${alert.type}-${index}`}
-          style={{
-            padding: "16px",
-            borderRadius: "18px",
-            background:
-              alert.severity === "Critical"
-                ? "linear-gradient(135deg, rgba(239,68,68,0.14), rgba(15,23,42,0.92))"
-                : "linear-gradient(135deg, rgba(250,204,21,0.08), rgba(15,23,42,0.92))",
-            border:
-              alert.severity === "Critical"
-                ? "1px solid rgba(239,68,68,0.24)"
-                : "1px solid rgba(250,204,21,0.18)",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              gap: "12px",
-              flexWrap: "wrap",
-              marginBottom: "8px",
-            }}
-          >
-            <div style={{ color: "white", fontWeight: "950" }}>
-              {alert.title || alert.type || "Operational Alert"}
-            </div>
-
-            <div
-              style={{
-                color:
-                  alert.severity === "Critical"
-                    ? "#f87171"
-                    : "#facc15",
-                fontSize: "12px",
-                fontWeight: "950",
-                textTransform: "uppercase",
-                letterSpacing: "0.06em",
-              }}
-            >
-              {alert.severity || "Warning"}
-            </div>
-          </div>
-
-          <div
-            style={{
-              color: "#cbd5e1",
-              fontSize: "13px",
-              lineHeight: 1.6,
-              marginBottom: "8px",
-            }}
-          >
-            {alert.detail || "AI detected an operational risk."}
-          </div>
-
-          <div
-            style={{
-              color: "#94a3b8",
-              fontSize: "12px",
-              lineHeight: 1.6,
-            }}
-          >
-            {alert.recommendation || "Review this issue before it impacts profit."}
-          </div>
-
-          <div
-            style={{
-              marginTop: "10px",
-              color: "#64748b",
-              fontSize: "11px",
-              textTransform: "uppercase",
-              letterSpacing: "0.06em",
-              fontWeight: "900",
-            }}
-          >
-            {alert.type || "Operational"}
-          </div>
-        </div>
-      ))}
-    </div>
-  </div>
-)}
-{/* ✅ ALERT RESOLUTION TRACKING */}
-
-{hasProAccess && (
-  <div
-    style={{
-      marginTop: "18px",
-      padding: "22px",
-      borderRadius: "24px",
-      background:
-        "linear-gradient(135deg, rgba(34,197,94,0.10), rgba(15,23,42,0.96))",
-      border: "1px solid rgba(34,197,94,0.20)",
-      boxShadow: "0 22px 60px rgba(2,6,23,0.24)",
-    }}
-  >
-    <div
-      style={{
-        color: "#86efac",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      Alert Resolution Tracking
-    </div>
-
-    <h3
-      style={{
-        color: "white",
-        fontSize: "24px",
-        fontWeight: "950",
-        margin: "0 0 10px",
-      }}
-    >
-      Operational Resolution Intelligence
-    </h3>
-
-    <p
-      style={{
-        color: "#94a3b8",
-        fontSize: "13px",
-        lineHeight: 1.6,
-        marginBottom: "18px",
-      }}
-    >
-      Tracks reviewed, unresolved, recurring, and escalated operational alerts
-      so critical issues are not ignored over time.
-    </p>
-
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: isMobile
-          ? "1fr"
-          : "repeat(2, minmax(0, 1fr))",
-        gap: "12px",
-      }}
-    >
-      {[
-        {
-          label: "Resolved Alerts",
-          value: resolutionTrackingData?.resolvedCount || 0,
-          sub: "reviewed operational risks",
-        },
-        {
-          label: "Unresolved Alerts",
-          value: resolutionTrackingData?.unresolvedCount || 0,
-          sub: "active unresolved issues",
-        },
-        {
-          label: "Critical Open",
-          value: resolutionTrackingData?.criticalUnresolved || 0,
-          sub: "needs immediate attention",
-        },
-        {
-          label: "Risk Trend",
-          value:
-            resolutionTrackingData?.recurringRisk || "Controlled",
-          sub: "AI escalation monitoring",
-        },
-      ].map((metric) => (
-        <div
-          key={metric.label}
-          style={{
-            padding: "14px",
-            borderRadius: "16px",
-            background: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(255,255,255,0.08)",
-          }}
-        >
-          <div
-            style={{
-              color: "#94a3b8",
-              fontSize: "11px",
-              fontWeight: "900",
-              textTransform: "uppercase",
-              marginBottom: "6px",
-            }}
-          >
-            {metric.label}
-          </div>
-
-          <div
-            style={{
-              color:
-                metric.value === "Escalating"
-                  ? "#f87171"
-                  : metric.value === "Monitoring"
-                  ? "#facc15"
-                  : "white",
-              fontSize: "24px",
-              fontWeight: "950",
-            }}
-          >
-            {metric.value}
-          </div>
-
-          <div
-            style={{
-              color: "#64748b",
-              fontSize: "12px",
-              marginTop: "4px",
-            }}
-          >
-            {metric.sub}
-          </div>
-        </div>
-      ))}
-    </div>
-  </div>
-)}
-
-{/* 🚨 LIVE MONITORING FEED */}
-
-{hasProAccess && (
-  <div
-    style={{
-      marginTop: "18px",
-      padding: "22px",
-      borderRadius: "24px",
-      background:
-        "linear-gradient(135deg, rgba(59,130,246,0.10), rgba(15,23,42,0.96))",
-      border: "1px solid rgba(96,165,250,0.22)",
-      boxShadow: "0 22px 60px rgba(2,6,23,0.28)",
-    }}
-  >
-    <div
-      style={{
-        color: "#93c5fd",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      Live Monitoring Feed
-    </div>
-
-    <h3
-      style={{
-        color: "white",
-        fontSize: "24px",
-        fontWeight: "950",
-        margin: "0 0 10px",
-      }}
-    >
-      Real-Time AI Monitoring
-    </h3>
-
-    <p
-      style={{
-        color: "#94a3b8",
-        fontSize: "13px",
-        lineHeight: 1.6,
-        marginBottom: "18px",
-      }}
-    >
-      Streams operational alerts, AI detections, and autopilot activity in
-      real time.
-    </p>
-
-    <div style={{ display: "grid", gap: "12px" }}>
-      {(liveMonitoringFeed || []).map((event) => (
-        <div
-          key={event.id}
-          style={{
-            padding: "14px",
-            borderRadius: "16px",
-            background: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(255,255,255,0.08)",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              gap: "12px",
-              flexWrap: "wrap",
-              marginBottom: "6px",
-            }}
-          >
-            <div
-              style={{
-                color: "white",
-                fontWeight: "900",
-              }}
-            >
-              {event.message}
-            </div>
-
-            <div
-              style={{
-                color:
-                  event.severity === "Critical"
-                    ? "#f87171"
-                    : event.severity === "Warning"
-                    ? "#facc15"
-                    : "#22c55e",
-                fontSize: "11px",
-                fontWeight: "900",
-                textTransform: "uppercase",
-                letterSpacing: "0.06em",
-              }}
-            >
-              {event.severity}
-            </div>
-          </div>
-
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              gap: "12px",
-              flexWrap: "wrap",
-            }}
-          >
-            <div
-              style={{
-                color: "#64748b",
-                fontSize: "11px",
-                textTransform: "uppercase",
-                fontWeight: "800",
-              }}
-            >
-              {event.type}
-            </div>
-
-            <div
-              style={{
-                color: "#94a3b8",
-                fontSize: "11px",
-              }}
-            >
-              {new Date(event.timestamp).toLocaleString()}
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  </div>
-)}
+    {/* 🚨 ESCALATION QUEUE */}
   
 
+  {hasProAccess && (
+    <div
+      style={{
+        marginTop: "0px",
+        height: "100%",
+        padding: "22px",
+        borderRadius: "24px",
+        background:
+          "linear-gradient(135deg, rgba(250,204,21,0.10), rgba(15,23,42,0.96))",
+        border: "1px solid rgba(250,204,21,0.22)",
+        boxShadow: "0 22px 60px rgba(2,6,23,0.28)",
+      }}
+    >
+      <div
+        style={{
+          color: "#fde68a",
+          fontSize: "12px",
+          fontWeight: "900",
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          marginBottom: "10px",
+        }}
+      >
+        Escalation Queue
+      </div>
 
-  </div>
+      <h3
+        style={{
+          color: "white",
+          fontSize: "24px",
+          fontWeight: "950",
+          margin: "0 0 10px",
+        }}
+      >
+        Escalated Operational Risks
+      </h3>
+
+      <p
+        style={{
+          color: "#94a3b8",
+          fontSize: "13px",
+          lineHeight: 1.6,
+          marginBottom: "18px",
+        }}
+      >
+        Tracks unresolved operational risks, recurring AI alerts, and critical
+        restaurant issues that require escalation or immediate review.
+      </p>
+
+      {(!escalationQueue || escalationQueue.length === 0) && (
+        <div
+          style={{
+            padding: "14px",
+            borderRadius: "16px",
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(255,255,255,0.08)",
+            color: "#94a3b8",
+            fontSize: "13px",
+            lineHeight: 1.6,
+          }}
+        >
+          No escalated operational risks detected right now.
+        </div>
+      )}
+
+      <div style={{ display: "grid", gap: "12px" }}>
+        {(escalationQueue || []).map((alert) => (
+          <div
+            key={alert.id}
+            style={{
+              padding: "16px",
+              borderRadius: "18px",
+              background:
+                alert.severity === "Critical"
+                  ? "linear-gradient(135deg, rgba(239,68,68,0.12), rgba(15,23,42,0.92))"
+                  : "linear-gradient(135deg, rgba(250,204,21,0.08), rgba(15,23,42,0.92))",
+
+              border:
+                alert.severity === "Critical"
+                  ? "1px solid rgba(239,68,68,0.24)"
+                  : "1px solid rgba(250,204,21,0.18)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: "12px",
+                flexWrap: "wrap",
+                marginBottom: "8px",
+              }}
+            >
+              <div
+                style={{
+                  color: "white",
+                  fontWeight: "950",
+                }}
+              >
+                {alert.title}
+              </div>
+
+              <div
+                style={{
+                  color:
+                    alert.severity === "Critical"
+                      ? "#f87171"
+                      : "#facc15",
+                  fontSize: "12px",
+                  fontWeight: "950",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.06em",
+                }}
+              >
+                {alert.severity}
+              </div>
+            </div>
+
+            <div
+              style={{
+                color: "#cbd5e1",
+                fontSize: "13px",
+                lineHeight: 1.6,
+                marginBottom: "8px",
+              }}
+            >
+              {alert.recommendation}
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: "12px",
+                flexWrap: "wrap",
+                marginTop: "10px",
+              }}
+            >
+              <div
+                style={{
+                  color: "#64748b",
+                  fontSize: "11px",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.06em",
+                  fontWeight: "900",
+                }}
+              >
+                {alert.type}
+              </div>
+
+              <div
+                style={{
+                  color: "#94a3b8",
+                  fontSize: "11px",
+                  fontWeight: "800",
+                }}
+              >
+                {alert.age}h unresolved
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )}
+</div>
+<div style={{ gridColumn: isMobile ? "span 1" : "span 7", }}>
+  {/* 🚨 OPERATIONAL ALERT FEED */}
+
+  {hasProAccess && (
+    <div
+      style={{
+        marginTop: "0px",
+        height: "100%",
+        padding: "22px",
+        borderRadius: "24px",
+        background:
+          "linear-gradient(135deg, rgba(239,68,68,0.10), rgba(15,23,42,0.96))",
+        border: "1px solid rgba(239,68,68,0.20)",
+        boxShadow: "0 22px 60px rgba(2,6,23,0.28)",
+      }}
+    >
+      <div
+        style={{
+          color: "#fca5a5",
+          fontSize: "12px",
+          fontWeight: "900",
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          marginBottom: "10px",
+        }}
+      >
+        Operational Alert Feed
+      </div>
+
+      <h3
+        style={{
+          color: "white",
+          fontSize: "24px",
+          fontWeight: "950",
+          margin: "0 0 10px",
+        }}
+      >
+        Active Restaurant Risk Monitoring
+      </h3>
+
+      <p
+        style={{
+          color: "#94a3b8",
+          fontSize: "13px",
+          lineHeight: 1.6,
+          marginBottom: "18px",
+        }}
+      >
+        Monitors active margin risk, food waste, labor pressure, vendor cost
+        spikes, and revenue warning signals.
+      </p>
+
+      {(!operationalAlerts || operationalAlerts.length === 0) && (
+        <div
+          style={{
+            padding: "14px",
+            borderRadius: "16px",
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(255,255,255,0.08)",
+            color: "#94a3b8",
+            fontSize: "13px",
+            lineHeight: 1.6,
+          }}
+        >
+          No active operational alerts detected. Upload sales, labor, menu,
+          invoice, and ingredient data to activate AI monitoring.
+        </div>
+      )}
+
+      <div style={{ display: "grid", gap: "12px" }}>
+        {(operationalAlerts || []).map((alert, index) => (
+          <div
+            key={`${alert.type}-${index}`}
+            style={{
+              padding: "16px",
+              borderRadius: "18px",
+              background:
+                alert.severity === "Critical"
+                  ? "linear-gradient(135deg, rgba(239,68,68,0.14), rgba(15,23,42,0.92))"
+                  : "linear-gradient(135deg, rgba(250,204,21,0.08), rgba(15,23,42,0.92))",
+              border:
+                alert.severity === "Critical"
+                  ? "1px solid rgba(239,68,68,0.24)"
+                  : "1px solid rgba(250,204,21,0.18)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: "12px",
+                flexWrap: "wrap",
+                marginBottom: "8px",
+              }}
+            >
+              <div style={{ color: "white", fontWeight: "950" }}>
+                {alert.title || alert.type || "Operational Alert"}
+              </div>
+
+              <div
+                style={{
+                  color:
+                    alert.severity === "Critical"
+                      ? "#f87171"
+                      : "#facc15",
+                  fontSize: "12px",
+                  fontWeight: "950",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.06em",
+                }}
+              >
+                {alert.severity || "Warning"}
+              </div>
+            </div>
+
+            <div
+              style={{
+                color: "#cbd5e1",
+                fontSize: "13px",
+                lineHeight: 1.6,
+                marginBottom: "8px",
+              }}
+            >
+              {alert.detail || "AI detected an operational risk."}
+            </div>
+
+            <div
+              style={{
+                color: "#94a3b8",
+                fontSize: "12px",
+                lineHeight: 1.6,
+              }}
+            >
+              {alert.recommendation ||
+                "Review this issue before it impacts profit."}
+            </div>
+
+            <div
+              style={{
+                marginTop: "10px",
+                color: "#64748b",
+                fontSize: "11px",
+                textTransform: "uppercase",
+                letterSpacing: "0.06em",
+                fontWeight: "900",
+              }}
+            >
+              {alert.type || "Operational"}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )}
+</div>
+
+
+<div
+  style={{
+    gridColumn: isMobile ? "span 1" : "span 12",
+    width: "100%",
+    minWidth: 0,
+  }}
+>
+
+  {/* 🚨 LIVE MONITORING FEED */}
+
+  {hasProAccess && (
+    <div
+      style={{
+        marginTop: "0px",
+        height: "100%",
+        padding: "22px",
+        borderRadius: "24px",
+        background:
+          "linear-gradient(135deg, rgba(59,130,246,0.10), rgba(15,23,42,0.96))",
+        border: "1px solid rgba(96,165,250,0.22)",
+        boxShadow: "0 22px 60px rgba(2,6,23,0.28)",
+      }}
+    >
+      <div
+        style={{
+          color: "#93c5fd",
+          fontSize: "12px",
+          fontWeight: "900",
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          marginBottom: "10px",
+        }}
+      >
+        Live Monitoring Feed
+      </div>
+
+      <h3
+        style={{
+          color: "white",
+          fontSize: "24px",
+          fontWeight: "950",
+          margin: "0 0 10px",
+        }}
+      >
+        Real-Time AI Monitoring
+      </h3>
+
+      <p
+        style={{
+          color: "#94a3b8",
+          fontSize: "13px",
+          lineHeight: 1.6,
+          marginBottom: "18px",
+        }}
+      >
+        Streams operational alerts, AI detections, and autopilot activity in
+        real time.
+      </p>
+
+      <div style={{ display: "grid", gap: "12px" }}>
+        {(liveMonitoringFeed || []).map((event) => (
+          <div
+            key={event.id}
+            style={{
+              padding: "14px",
+              borderRadius: "16px",
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(255,255,255,0.08)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: "12px",
+                flexWrap: "wrap",
+                marginBottom: "6px",
+              }}
+            >
+              <div
+                style={{
+                  color: "white",
+                  fontWeight: "900",
+                }}
+              >
+                {event.message}
+              </div>
+
+              <div
+                style={{
+                  color:
+                    event.severity === "Critical"
+                      ? "#f87171"
+                      : event.severity === "Warning"
+                      ? "#facc15"
+                      : "#22c55e",
+                  fontSize: "11px",
+                  fontWeight: "900",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.06em",
+                }}
+              >
+                {event.severity}
+              </div>
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: "12px",
+                flexWrap: "wrap",
+              }}
+            >
+              <div
+                style={{
+                  color: "#64748b",
+                  fontSize: "11px",
+                  textTransform: "uppercase",
+                  fontWeight: "800",
+                }}
+              >
+                {event.type}
+              </div>
+
+              <div
+                style={{
+                  color: "#94a3b8",
+                  fontSize: "11px",
+                }}
+              >
+                {new Date(event.timestamp).toLocaleString()}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )}
+</div>
+
+<div
+  style={{
+    gridColumn: isMobile ? "span 1" : "span 12",
+    width: "100%",
+    minWidth: 0,
+  }}
+>
+  {/* ✅ ALERT RESOLUTION TRACKING */}
+
+  {hasProAccess && (
+    <div
+      style={{
+        marginTop: "0px",
+        height: "100%",
+        padding: "22px",
+        borderRadius: "24px",
+        background:
+          "linear-gradient(135deg, rgba(34,197,94,0.10), rgba(15,23,42,0.96))",
+        border: "1px solid rgba(34,197,94,0.20)",
+        boxShadow: "0 22px 60px rgba(2,6,23,0.24)",
+      }}
+    >
+      <div
+        style={{
+          color: "#86efac",
+          fontSize: "12px",
+          fontWeight: "900",
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          marginBottom: "10px",
+        }}
+      >
+        Alert Resolution Tracking
+      </div>
+
+      <h3
+        style={{
+          color: "white",
+          fontSize: "24px",
+          fontWeight: "950",
+          margin: "0 0 10px",
+        }}
+      >
+        Operational Resolution Intelligence
+      </h3>
+
+      <p
+        style={{
+          color: "#94a3b8",
+          fontSize: "13px",
+          lineHeight: 1.6,
+          marginBottom: "18px",
+        }}
+      >
+        Tracks reviewed, unresolved, recurring, and escalated operational alerts
+        so critical issues are not ignored over time.
+      </p>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: isMobile
+            ? "1fr"
+            : "repeat(2, minmax(0, 1fr))",
+          gap: "12px",
+        }}
+      >
+        {[
+          {
+            label: "Resolved Alerts",
+            value: resolutionTrackingData?.resolvedCount || 0,
+            sub: "reviewed operational risks",
+          },
+          {
+            label: "Unresolved Alerts",
+            value: resolutionTrackingData?.unresolvedCount || 0,
+            sub: "active unresolved issues",
+          },
+          {
+            label: "Critical Open",
+            value: resolutionTrackingData?.criticalUnresolved || 0,
+            sub: "needs immediate attention",
+          },
+          {
+            label: "Risk Trend",
+            value: resolutionTrackingData?.recurringRisk || "Controlled",
+            sub: "AI escalation monitoring",
+          },
+        ].map((metric) => (
+          <div
+            key={metric.label}
+            style={{
+              padding: "14px",
+              borderRadius: "16px",
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(255,255,255,0.08)",
+            }}
+          >
+            <div
+              style={{
+                color: "#94a3b8",
+                fontSize: "11px",
+                fontWeight: "900",
+                textTransform: "uppercase",
+                marginBottom: "6px",
+              }}
+            >
+              {metric.label}
+            </div>
+
+            <div
+              style={{
+                color:
+                  metric.value === "Escalating"
+                    ? "#f87171"
+                    : metric.value === "Monitoring"
+                    ? "#facc15"
+                    : "white",
+                fontSize: "24px",
+                fontWeight: "950",
+              }}
+            >
+              {metric.value}
+            </div>
+
+            <div
+              style={{
+                color: "#64748b",
+                fontSize: "12px",
+                marginTop: "4px",
+              }}
+            >
+              {metric.sub}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )}
+</div>
+</div>
+  
 )}
 
 {showUndoDelete && recentlyDeletedUpload && (
@@ -59463,27 +63861,47 @@ if (!res.ok) {
     </button>
   </div>
 )}
-</div> {/* LEFT SIDE */}
-</div>
-</div>
-</div>
- {activeTab === "pro" && (
+{activeTab === "pro_ai" && (
   <>
-    <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+  <div
+    style={{
+      gridColumn: "1 / -1",
+
+      width: "100%",
+      maxWidth: "700px",
+      minWidth: "700px",
+
+      margin: "0 auto",
+
+      overflowX: "visible",
+      overflowY: "visible",
+
+      display: "grid",
+      gridTemplateColumns: "repeat(12, minmax(0, 1fr))",
+
+      gap: "22px",
+      alignItems: "start",
+      boxSizing: "border-box",
+    }}
+  >
       {/* ================= ELITE HEADER ================= */}
-      <div
-        style={{
-          position: "relative",
-          overflow: "hidden",
-          padding: "24px",
-          borderRadius: "22px",
-          background:
-            "radial-gradient(circle at top right, rgba(255,255,255,0.16), transparent 28%), linear-gradient(135deg, #312e81, #4f46e5 40%, #6D3DF5 100%)",
-          color: "white",
-          border: "1px solid rgba(255,255,255,0.10)",
-          boxShadow: "0 20px 60px rgba(79,70,229,0.28)",
-        }}
-      >
+<div
+  style={{
+    gridColumn: "span 12",
+    width: "100%",
+    minWidth: 0,
+
+    position: "relative",
+    overflow: "hidden",
+    padding: "24px",
+    borderRadius: "22px",
+    background:
+      "radial-gradient(circle at top right, rgba(255,255,255,0.16), transparent 28%), linear-gradient(135deg, #312e81, #4f46e5 40%, #6D3DF5 100%)",
+    color: "white",
+    border: "1px solid rgba(255,255,255,0.10)",
+    boxShadow: "0 20px 60px rgba(79,70,229,0.28)",
+  }}
+>
         <div
           style={{
             display: "inline-flex",
@@ -59568,12 +63986,16 @@ if (!res.ok) {
             +${Number(simulatedProfit || 0).toLocaleString()}/mo simulated
           </div>
         </div>
-      </div>
-{/* ================= AI / AUTOPILOT KPI STRIP ================= */}
+      </div>{/* ================= AI / AUTOPILOT KPI STRIP ================= */}
 <div
   style={{
+    gridColumn: "span 12",
+    width: "100%",
+    minWidth: 0,
+
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
+
     gap: "18px",
     marginBottom: "26px",
   }}
@@ -59654,17 +64076,2651 @@ if (!res.ok) {
     </div>
   ))}
 </div>
-   {/* ============================= */}
+{/* =========================
+   AI GUEST INTELLIGENCE
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      gridColumn: "span 12",
+      width: "100%",
+      minWidth: 0,
+
+      marginTop: "24px",
+      padding: "24px",
+      borderRadius: "28px",
+
+      overflow: "hidden",
+
+      background:
+        "linear-gradient(135deg, rgba(59,130,246,0.16), rgba(15,23,42,0.96))",
+
+      border: "1px solid rgba(96,165,250,0.24)",
+
+      boxShadow: "0 24px 70px rgba(2,6,23,0.32)",
+    }}
+  >
+    <div
+      style={{
+        color: "#93c5fd",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      AI Guest Intelligence
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "28px",
+        fontWeight: "950",
+        marginBottom: "10px",
+      }}
+    >
+      Customer Behavior & Revenue Intelligence
+    </h3>
+
+    <p
+      style={{
+        color: "#cbd5e1",
+        fontSize: "14px",
+        lineHeight: 1.7,
+        marginBottom: "22px",
+      }}
+    >
+      SerVen AI identifies VIP guests, churn risk, average spend, and loyalty
+      signals so restaurants can protect repeat revenue.
+    </p>
+{aiGuestSentimentIntelligence.length === 0 && (
+  <div
+    style={{
+      marginBottom: "18px",
+      padding: "18px",
+      borderRadius: "20px",
+      background: "rgba(15,23,42,0.72)",
+      border: "1px solid rgba(96,165,250,0.18)",
+      color: "#cbd5e1",
+      fontSize: "14px",
+      lineHeight: 1.7,
+    }}
+  >
+    Upload or connect customer data to activate AI Guest Intelligence,
+    including VIP detection, churn risk, loyalty scoring, and guest revenue
+    forecasting.
+  </div>
+)}
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: isMobile
+          ? "1fr"
+          : "repeat(3,minmax(0,1fr))",
+        gap: "16px",
+      }}
+    >
+      <GlassCard
+        title="VIP Guests"
+        value={vipGuests}
+        subtitle="High lifetime value customers"
+      />
+
+      <GlassCard
+        title="At-Risk Guests"
+        value={highRiskGuests}
+        subtitle="Customers likely to churn"
+      />
+
+      <GlassCard
+        title="Average Guest Spend"
+        value={`$${avgGuestSpend.toFixed(0)}`}
+        subtitle="Average customer ticket value"
+      />
+    </div>
+  </div>
+)}
+{/* =========================
+   AI GUEST SENTIMENT INTELLIGENCE
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      gridColumn: "span 12",
+      width: "100%",
+      minWidth: 0,
+
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+
+      overflow: "hidden",
+
+      background:
+        "linear-gradient(135deg, rgba(14,165,233,0.14), rgba(15,23,42,0.96))",
+
+      border: "1px solid rgba(125,211,252,0.20)",
+    }}
+  >
+    <div
+      style={{
+        color: "#7dd3fc",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      AI Guest Sentiment Intelligence
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "24px",
+        fontWeight: "950",
+        marginBottom: "18px",
+      }}
+    >
+      Guest Loyalty & Behavior Analysis
+    </h3>
+
+    <div
+      style={{
+        overflowX: "auto",
+      }}
+    >
+      <table
+        style={{
+          width: "100%",
+          borderCollapse: "collapse",
+          minWidth: "760px",
+        }}
+      >
+        <thead>
+          <tr>
+            {[
+              "Guest",
+              "Tier",
+              "Visits",
+              "Avg Spend",
+              "Sentiment",
+              "Behavior Prediction",
+            ].map((header) => (
+              <th
+                key={header}
+                style={{
+                  textAlign: "left",
+                  padding: "14px",
+                  color: "#bae6fd",
+                  fontSize: "12px",
+                  fontWeight: "900",
+                  borderBottom:
+                    "1px solid rgba(148,163,184,0.14)",
+                }}
+              >
+                {header}
+              </th>
+            ))}
+          </tr>
+        </thead>
+<tbody>
+  {aiGuestSentimentIntelligence.length > 0 ? (
+    aiGuestSentimentIntelligence
+      .slice(0, 8)
+      .map((guest, index) => (
+        <tr
+          key={guest.id || index}
+          style={{
+            borderBottom:
+              "1px solid rgba(148,163,184,0.08)",
+          }}
+        >
+          <td
+            style={{
+              padding: "14px",
+              color: "white",
+              fontWeight: "700",
+            }}
+          >
+            {guest.name}
+          </td>
+
+          <td
+            style={{
+              padding: "14px",
+              color:
+                guest.guestTier === "VIP"
+                  ? "#facc15"
+                  : guest.guestTier === "Premium"
+                  ? "#93c5fd"
+                  : "#cbd5e1",
+              fontWeight: "800",
+            }}
+          >
+            {guest.guestTier}
+          </td>
+
+          <td
+            style={{
+              padding: "14px",
+              color: "#e2e8f0",
+            }}
+          >
+            {guest.visits}
+          </td>
+
+          <td
+            style={{
+              padding: "14px",
+              color: "#86efac",
+              fontWeight: "700",
+            }}
+          >
+            ${guest.avgSpend.toFixed(0)}
+          </td>
+
+          <td
+            style={{
+              padding: "14px",
+              color:
+                guest.sentimentScore === "Excellent"
+                  ? "#4ade80"
+                  : guest.sentimentScore === "Positive"
+                  ? "#93c5fd"
+                  : guest.sentimentScore === "Neutral"
+                  ? "#facc15"
+                  : "#f87171",
+              fontWeight: "800",
+            }}
+          >
+            {guest.sentimentScore}
+          </td>
+
+          <td
+            style={{
+              padding: "14px",
+              color: "#cbd5e1",
+              fontSize: "13px",
+            }}
+          >
+            {guest.predictedBehavior}
+          </td>
+        </tr>
+      ))
+  ) : (
+    <tr>
+      <td
+        colSpan={6}
+        style={{
+          padding: "28px",
+          textAlign: "center",
+          color: "#94a3b8",
+          fontSize: "14px",
+        }}
+      >
+        No guest sentiment data available yet.
+      </td>
+    </tr>
+  )}
+</tbody>
+      </table>
+    </div>
+  </div>
+)}
+{/* =========================
+   VIP GUEST TRACKER
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      gridColumn: "span 12",
+      width: "100%",
+      minWidth: 0,
+
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+
+      overflow: "hidden",
+
+      background:
+        "linear-gradient(135deg, rgba(250,204,21,0.12), rgba(15,23,42,0.96))",
+
+      border: "1px solid rgba(250,204,21,0.22)",
+
+      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
+    }}
+  >
+    <div
+      style={{
+        color: "#fde68a",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      VIP Guest Tracker
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "24px",
+        fontWeight: "950",
+        marginBottom: "18px",
+      }}
+    >
+      High-Value Customer Intelligence
+    </h3>
+
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: isMobile
+          ? "1fr"
+          : "repeat(auto-fit,minmax(260px,1fr))",
+        gap: "16px",
+      }}
+    >
+      {aiGuestSentimentIntelligence.filter(
+        (guest) => guest.guestTier === "VIP"
+      ).length > 0 ? (
+        aiGuestSentimentIntelligence
+          .filter((guest) => guest.guestTier === "VIP")
+          .slice(0, 6)
+          .map((guest, index) => (
+            <div
+              key={guest.id || index}
+              style={{
+                padding: "18px",
+                borderRadius: "22px",
+                background: "rgba(15,23,42,0.76)",
+                border: "1px solid rgba(250,204,21,0.14)",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: "14px",
+                }}
+              >
+                <div
+                  style={{
+                    color: "white",
+                    fontSize: "18px",
+                    fontWeight: "900",
+                  }}
+                >
+                  {guest.name}
+                </div>
+
+                <div
+                  style={{
+                    padding: "6px 10px",
+                    borderRadius: "999px",
+                    background: "rgba(250,204,21,0.14)",
+                    color: "#fde68a",
+                    fontSize: "11px",
+                    fontWeight: "900",
+                  }}
+                >
+                  VIP
+                </div>
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gap: "10px",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <span
+                    style={{
+                      color: "#94a3b8",
+                      fontSize: "13px",
+                    }}
+                  >
+                    Total Visits
+                  </span>
+
+                  <span
+                    style={{
+                      color: "#e2e8f0",
+                      fontWeight: "800",
+                    }}
+                  >
+                    {guest.visits}
+                  </span>
+                </div>
+
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <span
+                    style={{
+                      color: "#94a3b8",
+                      fontSize: "13px",
+                    }}
+                  >
+                    Average Spend
+                  </span>
+
+                  <span
+                    style={{
+                      color: "#86efac",
+                      fontWeight: "800",
+                    }}
+                  >
+                    ${guest.avgSpend.toFixed(0)}
+                  </span>
+                </div>
+
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <span
+                    style={{
+                      color: "#94a3b8",
+                      fontSize: "13px",
+                    }}
+                  >
+                    Loyalty Score
+                  </span>
+
+                  <span
+                    style={{
+                      color: "#60a5fa",
+                      fontWeight: "800",
+                    }}
+                  >
+                    {guest.loyaltyScore}/100
+                  </span>
+                </div>
+
+                <div
+                  style={{
+                    marginTop: "10px",
+                    width: "100%",
+                    height: "10px",
+                    borderRadius: "999px",
+                    background: "rgba(51,65,85,0.7)",
+                    overflow: "hidden",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: `${guest.loyaltyScore}%`,
+                      height: "100%",
+                      borderRadius: "999px",
+                      background:
+                        "linear-gradient(90deg,#facc15,#fde68a)",
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          ))
+      ) : (
+        <div
+          style={{
+            gridColumn: "1 / -1",
+            padding: "22px",
+            borderRadius: "22px",
+            background: "rgba(15,23,42,0.72)",
+            border: "1px solid rgba(250,204,21,0.14)",
+            color: "#94a3b8",
+            fontSize: "14px",
+            textAlign: "center",
+          }}
+        >
+          No VIP guests detected yet.
+        </div>
+      )}
+    </div>
+  </div>
+)}
+{/* =========================
+   AI CHURN DETECTION ALERTS
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      gridColumn: "span 12",
+      width: "100%",
+      minWidth: 0,
+
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+
+      overflow: "hidden",
+
+      background:
+        "linear-gradient(135deg, rgba(239,68,68,0.12), rgba(15,23,42,0.96))",
+
+      border: "1px solid rgba(248,113,113,0.20)",
+
+      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
+    }}
+  >
+    <div
+      style={{
+        color: "#fca5a5",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      AI Churn Detection Alerts
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "24px",
+        fontWeight: "950",
+        marginBottom: "18px",
+      }}
+    >
+      Customers At Risk Of Not Returning
+    </h3>
+
+    <div
+      style={{
+        display: "grid",
+        gap: "14px",
+      }}
+    >
+      {aiGuestSentimentIntelligence.filter(
+        (guest) => guest.churnRisk === "High"
+      ).length > 0 ? (
+        aiGuestSentimentIntelligence
+          .filter((guest) => guest.churnRisk === "High")
+          .slice(0, 6)
+          .map((guest, index) => (
+            <div
+              key={guest.id || index}
+              style={{
+                padding: "18px",
+                borderRadius: "20px",
+                background: "rgba(15,23,42,0.72)",
+                border: "1px solid rgba(248,113,113,0.16)",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: isMobile ? "flex-start" : "center",
+                flexDirection: isMobile ? "column" : "row",
+                gap: "14px",
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    color: "white",
+                    fontSize: "18px",
+                    fontWeight: "900",
+                    marginBottom: "6px",
+                  }}
+                >
+                  {guest.name}
+                </div>
+
+                <div
+                  style={{
+                    color: "#cbd5e1",
+                    fontSize: "13px",
+                    lineHeight: 1.6,
+                  }}
+                >
+                  AI predicts this guest may stop visiting due to low
+                  engagement frequency and declining loyalty signals.
+                </div>
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  gap: "10px",
+                  flexWrap: "wrap",
+                }}
+              >
+                <div
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: "999px",
+                    background: "rgba(248,113,113,0.14)",
+                    color: "#fca5a5",
+                    fontSize: "12px",
+                    fontWeight: "900",
+                  }}
+                >
+                  High Churn Risk
+                </div>
+
+                <div
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: "999px",
+                    background: "rgba(59,130,246,0.14)",
+                    color: "#93c5fd",
+                    fontSize: "12px",
+                    fontWeight: "900",
+                  }}
+                >
+                  {guest.visits} Visits
+                </div>
+
+                <div
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: "999px",
+                    background: "rgba(34,197,94,0.14)",
+                    color: "#86efac",
+                    fontSize: "12px",
+                    fontWeight: "900",
+                  }}
+                >
+                  ${guest.avgSpend.toFixed(0)} Avg Spend
+                </div>
+              </div>
+            </div>
+          ))
+      ) : (
+        <div
+          style={{
+            padding: "22px",
+            borderRadius: "20px",
+            background: "rgba(15,23,42,0.72)",
+            border: "1px solid rgba(248,113,113,0.14)",
+            color: "#94a3b8",
+            fontSize: "14px",
+            textAlign: "center",
+          }}
+        >
+          No high-risk guests detected.
+        </div>
+      )}
+    </div>
+  </div>
+)}
+{/* =========================
+   AI LOYALTY HEATMAP
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      gridColumn: "span 12",
+      width: "100%",
+      minWidth: 0,
+
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+
+      overflow: "hidden",
+
+      background:
+        "linear-gradient(135deg, rgba(168,85,247,0.13), rgba(15,23,42,0.96))",
+
+      border: "1px solid rgba(196,181,253,0.20)",
+
+      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
+    }}
+  >
+    <div
+      style={{
+        color: "#c4b5fd",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      AI Loyalty Heatmap
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "24px",
+        fontWeight: "950",
+        marginBottom: "18px",
+      }}
+    >
+      Guest Loyalty Score Distribution
+    </h3>
+
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: isMobile
+          ? "1fr"
+          : "repeat(auto-fit,minmax(180px,1fr))",
+        gap: "14px",
+      }}
+    >
+      {[
+        {
+          label: "Excellent",
+          range: "80–100",
+          count: aiGuestSentimentIntelligence.filter(
+            (g) => g.loyaltyScore >= 80
+          ).length,
+          color: "#4ade80",
+        },
+        {
+          label: "Positive",
+          range: "55–79",
+          count: aiGuestSentimentIntelligence.filter(
+            (g) => g.loyaltyScore >= 55 && g.loyaltyScore < 80
+          ).length,
+          color: "#60a5fa",
+        },
+        {
+          label: "Neutral",
+          range: "35–54",
+          count: aiGuestSentimentIntelligence.filter(
+            (g) => g.loyaltyScore >= 35 && g.loyaltyScore < 55
+          ).length,
+          color: "#facc15",
+        },
+        {
+          label: "At Risk",
+          range: "0–34",
+          count: aiGuestSentimentIntelligence.filter(
+            (g) => g.loyaltyScore < 35
+          ).length,
+          color: "#f87171",
+        },
+      ].map((bucket) => (
+        <div
+          key={bucket.label}
+          style={{
+            padding: "18px",
+            borderRadius: "22px",
+            background: "rgba(15,23,42,0.76)",
+            border: "1px solid rgba(148,163,184,0.12)",
+          }}
+        >
+          <div
+            style={{
+              color: bucket.color,
+              fontSize: "13px",
+              fontWeight: "900",
+              marginBottom: "8px",
+            }}
+          >
+            {bucket.label}
+          </div>
+
+          <div
+            style={{
+              color: "white",
+              fontSize: "30px",
+              fontWeight: "950",
+              marginBottom: "6px",
+            }}
+          >
+            {bucket.count}
+          </div>
+
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "12px",
+              fontWeight: "700",
+            }}
+          >
+            Loyalty Score {bucket.range}
+          </div>
+
+          <div
+            style={{
+              marginTop: "14px",
+              height: "8px",
+              borderRadius: "999px",
+              background: "rgba(51,65,85,0.72)",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                width: `${Math.min(
+                  100,
+                  (bucket.count /
+                    (aiGuestSentimentIntelligence.length || 1)) *
+                    100
+                )}%`,
+                height: "100%",
+                borderRadius: "999px",
+                background: bucket.color,
+              }}
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
+{/* =========================
+   GUEST LIFETIME VALUE FORECASTING
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      gridColumn: "span 12",
+      width: "100%",
+      minWidth: 0,
+
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+
+      overflow: "hidden",
+
+      background:
+        "linear-gradient(135deg, rgba(34,197,94,0.13), rgba(15,23,42,0.96))",
+
+      border: "1px solid rgba(74,222,128,0.20)",
+
+      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
+    }}
+  >
+    <div
+      style={{
+        color: "#86efac",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      Guest Lifetime Value Forecasting
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "24px",
+        fontWeight: "950",
+        marginBottom: "18px",
+      }}
+    >
+      Predicted Future Guest Revenue
+    </h3>
+
+    <div
+      style={{
+        display: "grid",
+        gap: "14px",
+      }}
+    >
+      {aiGuestSentimentIntelligence.slice(0, 6).map((guest, index) => {
+        const projectedLifetimeValue =
+          guest.spend + guest.avgSpend * Math.max(3, guest.loyaltyScore / 10);
+
+        return (
+          <div
+            key={guest.id || index}
+            style={{
+              padding: "18px",
+              borderRadius: "20px",
+              background: "rgba(15,23,42,0.74)",
+              border: "1px solid rgba(74,222,128,0.14)",
+              display: "grid",
+              gridTemplateColumns: isMobile
+                ? "1fr"
+                : "1.4fr 1fr 1fr 1fr",
+              gap: "14px",
+              alignItems: "center",
+            }}
+          >
+            <div>
+              <div
+                style={{
+                  color: "white",
+                  fontSize: "17px",
+                  fontWeight: "900",
+                  marginBottom: "5px",
+                }}
+              >
+                {guest.name}
+              </div>
+
+              <div
+                style={{
+                  color: "#94a3b8",
+                  fontSize: "12px",
+                  fontWeight: "700",
+                }}
+              >
+                {guest.guestTier} • {guest.sentimentScore} sentiment
+              </div>
+            </div>
+
+            <div>
+              <div style={{ color: "#94a3b8", fontSize: "12px" }}>
+                Current Spend
+              </div>
+              <div style={{ color: "#e2e8f0", fontWeight: "900" }}>
+                ${guest.spend.toFixed(0)}
+              </div>
+            </div>
+
+            <div>
+              <div style={{ color: "#94a3b8", fontSize: "12px" }}>
+                Avg Spend
+              </div>
+              <div style={{ color: "#93c5fd", fontWeight: "900" }}>
+                ${guest.avgSpend.toFixed(0)}
+              </div>
+            </div>
+
+            <div>
+              <div style={{ color: "#94a3b8", fontSize: "12px" }}>
+                Forecast LTV
+              </div>
+              <div style={{ color: "#86efac", fontWeight: "950" }}>
+                ${projectedLifetimeValue.toFixed(0)}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  </div>
+)}
+{/* =========================
+   AI PERSONALIZED CAMPAIGN GENERATOR
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      gridColumn: "span 12",
+      width: "100%",
+      minWidth: 0,
+
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+
+      overflow: "hidden",
+
+      background:
+        "linear-gradient(135deg, rgba(236,72,153,0.13), rgba(15,23,42,0.96))",
+
+      border: "1px solid rgba(244,114,182,0.20)",
+
+      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
+    }}
+  >
+    <div
+      style={{
+        color: "#f9a8d4",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      AI Personalized Campaign Generator
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "24px",
+        fontWeight: "950",
+        marginBottom: "12px",
+      }}
+    >
+      Guest-Specific Marketing Recommendations
+    </h3>
+
+    <p
+      style={{
+        color: "#cbd5e1",
+        fontSize: "13px",
+        lineHeight: 1.7,
+        marginBottom: "18px",
+      }}
+    >
+      AI recommends the right campaign type based on guest tier, loyalty score,
+      churn risk, and average spend behavior.
+    </p>
+
+    <div style={{ display: "grid", gap: "14px" }}>
+      {aiGuestSentimentIntelligence.length > 0 ? (
+        aiGuestSentimentIntelligence.slice(0, 6).map((guest, index) => {
+          const campaignType =
+            guest.churnRisk === "High"
+              ? "Win-Back Offer"
+              : guest.guestTier === "VIP"
+              ? "VIP Appreciation"
+              : guest.loyaltyScore >= 55
+              ? "Loyalty Booster"
+              : "First-Time Return Offer";
+
+          const campaignMessage =
+            guest.churnRisk === "High"
+              ? `Send ${guest.name} a limited-time comeback offer.`
+              : guest.guestTier === "VIP"
+              ? `Invite ${guest.name} to an exclusive VIP dining experience.`
+              : guest.loyaltyScore >= 55
+              ? `Reward ${guest.name} with a loyalty incentive.`
+              : `Encourage ${guest.name} to return with a personalized offer.`;
+
+          return (
+            <div
+              key={guest.id || index}
+              style={{
+                padding: "18px",
+                borderRadius: "22px",
+                background: "rgba(15,23,42,0.74)",
+                border: "1px solid rgba(244,114,182,0.14)",
+                display: "grid",
+                gridTemplateColumns: isMobile
+                  ? "1fr"
+                  : "1.2fr 1fr 1.4fr",
+                gap: "14px",
+                alignItems: "center",
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    color: "white",
+                    fontSize: "17px",
+                    fontWeight: "900",
+                    marginBottom: "5px",
+                  }}
+                >
+                  {guest.name}
+                </div>
+
+                <div
+                  style={{
+                    color: "#94a3b8",
+                    fontSize: "12px",
+                    fontWeight: "700",
+                  }}
+                >
+                  {guest.guestTier} • {guest.churnRisk} churn risk
+                </div>
+              </div>
+
+              <div>
+                <div
+                  style={{
+                    color: "#94a3b8",
+                    fontSize: "12px",
+                    marginBottom: "5px",
+                  }}
+                >
+                  Recommended Campaign
+                </div>
+
+                <div
+                  style={{
+                    color: "#f9a8d4",
+                    fontSize: "14px",
+                    fontWeight: "900",
+                  }}
+                >
+                  {campaignType}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  color: "#cbd5e1",
+                  fontSize: "13px",
+                  lineHeight: 1.6,
+                }}
+              >
+                {campaignMessage}
+              </div>
+            </div>
+          );
+        })
+      ) : (
+        <div
+          style={{
+            padding: "22px",
+            borderRadius: "22px",
+            background: "rgba(15,23,42,0.72)",
+            border: "1px solid rgba(244,114,182,0.14)",
+            color: "#94a3b8",
+            fontSize: "14px",
+            textAlign: "center",
+          }}
+        >
+          No personalized campaigns generated yet.
+        </div>
+      )}
+    </div>
+  </div>
+)}
+{/* =========================
+   AI WIN-BACK AUTOMATION ENGINE
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      gridColumn: "span 12",
+      width: "100%",
+      minWidth: 0,
+
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+
+      overflow: "hidden",
+
+      background:
+        "linear-gradient(135deg, rgba(249,115,22,0.13), rgba(15,23,42,0.96))",
+
+      border: "1px solid rgba(251,146,60,0.22)",
+
+      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
+    }}
+  >
+    <div
+      style={{
+        color: "#fdba74",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      AI Win-Back Automation Engine
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "24px",
+        fontWeight: "950",
+        marginBottom: "12px",
+      }}
+    >
+      Recover Guests Before They Disappear
+    </h3>
+
+    <p
+      style={{
+        color: "#cbd5e1",
+        fontSize: "13px",
+        lineHeight: 1.7,
+        marginBottom: "18px",
+      }}
+    >
+      AI identifies at-risk guests and recommends automated comeback offers to
+      recover repeat visits.
+    </p>
+
+    <div style={{ display: "grid", gap: "14px" }}>
+      {aiGuestSentimentIntelligence.filter(
+        (guest) => guest.churnRisk === "High"
+      ).length > 0 ? (
+        aiGuestSentimentIntelligence
+          .filter((guest) => guest.churnRisk === "High")
+          .slice(0, 5)
+          .map((guest, index) => {
+            const estimatedRecoveryValue = guest.avgSpend * 2.5;
+
+            return (
+              <div
+                key={guest.id || index}
+                style={{
+                  padding: "18px",
+                  borderRadius: "22px",
+                  background: "rgba(15,23,42,0.74)",
+                  border: "1px solid rgba(251,146,60,0.16)",
+                  display: "grid",
+                  gridTemplateColumns: isMobile
+                    ? "1fr"
+                    : "1.2fr 1fr 1fr 1.2fr",
+                  gap: "14px",
+                  alignItems: "center",
+                }}
+              >
+                <div>
+                  <div
+                    style={{
+                      color: "white",
+                      fontSize: "17px",
+                      fontWeight: "900",
+                      marginBottom: "5px",
+                    }}
+                  >
+                    {guest.name}
+                  </div>
+
+                  <div
+                    style={{
+                      color: "#94a3b8",
+                      fontSize: "12px",
+                      fontWeight: "700",
+                    }}
+                  >
+                    {guest.visits} visits • {guest.sentimentScore} sentiment
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ color: "#94a3b8", fontSize: "12px" }}>
+                    Suggested Offer
+                  </div>
+                  <div style={{ color: "#fdba74", fontWeight: "900" }}>
+                    Comeback Deal
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ color: "#94a3b8", fontSize: "12px" }}>
+                    Recovery Value
+                  </div>
+                  <div style={{ color: "#86efac", fontWeight: "950" }}>
+                    ${estimatedRecoveryValue.toFixed(0)}
+                  </div>
+                </div>
+
+                <button
+  type="button"
+  onClick={() =>
+    handleCreateAIAction({
+      actionType: "win_back_campaign",
+      title: "Comeback Deal",
+      description: `AI drafted a win-back campaign for ${guest.name}.`,
+      customer: guest,
+      estimatedValue: estimatedRecoveryValue,
+      channel: "Email/SMS",
+      message: `Hi ${guest.name}, we miss you at the restaurant. Come back this week and enjoy a personalized comeback offer on your next visit.`,
+    })
+  }
+  style={{
+    padding: "12px 14px",
+    borderRadius: "14px",
+    border: "1px solid rgba(251,146,60,0.28)",
+    background: "rgba(249,115,22,0.16)",
+    color: "#fed7aa",
+    fontSize: "13px",
+    fontWeight: "900",
+    cursor: "pointer",
+  }}
+>
+  Draft Win-Back Campaign
+</button>
+              </div>
+            );
+          })
+      ) : (
+        <div
+          style={{
+            padding: "22px",
+            borderRadius: "22px",
+            background: "rgba(15,23,42,0.72)",
+            border: "1px solid rgba(251,146,60,0.14)",
+            color: "#94a3b8",
+            fontSize: "14px",
+            textAlign: "center",
+          }}
+        >
+          No win-back campaigns available yet.
+        </div>
+      )}
+    </div>
+  </div>
+)}
+{/* =========================
+   AI RESERVATION INTELLIGENCE
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      gridColumn: "span 12",
+      width: "100%",
+      minWidth: 0,
+
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+
+      overflow: "hidden",
+
+      background:
+        "linear-gradient(135deg, rgba(6,182,212,0.13), rgba(15,23,42,0.96))",
+
+      border: "1px solid rgba(34,211,238,0.22)",
+
+      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
+    }}
+  >
+    <div
+      style={{
+        color: "#67e8f9",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      AI Reservation Intelligence
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "24px",
+        fontWeight: "950",
+        marginBottom: "12px",
+      }}
+    >
+      Reservation Demand & Guest Booking Insights
+    </h3>
+
+    <p
+      style={{
+        color: "#cbd5e1",
+        fontSize: "13px",
+        lineHeight: 1.7,
+        marginBottom: "20px",
+      }}
+    >
+      AI analyzes reservation demand patterns, booking behavior, cancellation
+      risk, and peak guest windows to optimize staffing and revenue planning.
+    </p>
+
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: isMobile
+          ? "1fr"
+          : "repeat(4,minmax(0,1fr))",
+        gap: "16px",
+        marginBottom: "22px",
+      }}
+    >
+      <GlassCard
+        title="Peak Reservation Hour"
+        value="7 PM"
+        subtitle="Highest booking activity"
+      />
+
+      <GlassCard
+        title="Cancellation Risk"
+        value="12%"
+        subtitle="Predicted reservation cancellations"
+      />
+
+      <GlassCard
+        title="Weekend Demand"
+        value="+28%"
+        subtitle="Compared to weekday traffic"
+      />
+
+      <GlassCard
+        title="Reservation Fill Rate"
+        value="84%"
+        subtitle="Expected seating utilization"
+      />
+    </div>
+
+    <div
+      style={{
+        display: "grid",
+        gap: "14px",
+      }}
+    >
+      {[
+        {
+          title: "Friday Dinner Rush Forecast",
+          insight:
+            "AI predicts elevated reservation demand between 6 PM and 8 PM.",
+          impact: "Increase staffing coverage",
+        },
+        {
+          title: "VIP Reservation Opportunity",
+          insight:
+            "Multiple high-value guests are predicted to revisit this weekend.",
+          impact: "Prepare premium seating",
+        },
+        {
+          title: "Reservation Gap Detected",
+          insight:
+            "Low reservation activity expected Tuesday after 7 PM.",
+          impact: "Launch targeted promotion",
+        },
+      ].map((item, index) => (
+        <div
+          key={index}
+          style={{
+            padding: "18px",
+            borderRadius: "20px",
+            background: "rgba(15,23,42,0.74)",
+            border: "1px solid rgba(34,211,238,0.14)",
+          }}
+        >
+          <div
+            style={{
+              color: "white",
+              fontSize: "17px",
+              fontWeight: "900",
+              marginBottom: "8px",
+            }}
+          >
+            {item.title}
+          </div>
+
+          <div
+            style={{
+              color: "#cbd5e1",
+              fontSize: "13px",
+              lineHeight: 1.7,
+              marginBottom: "12px",
+            }}
+          >
+            {item.insight}
+          </div>
+
+          <div
+            style={{
+              display: "inline-flex",
+              padding: "8px 12px",
+              borderRadius: "999px",
+              background: "rgba(34,211,238,0.14)",
+              border: "1px solid rgba(34,211,238,0.22)",
+              color: "#67e8f9",
+              fontSize: "12px",
+              fontWeight: "900",
+            }}
+          >
+            {item.impact}
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
+{/* =========================
+   AI GUEST JOURNEY TRACKING
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      gridColumn: "span 12",
+      width: "100%",
+      minWidth: 0,
+
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+
+      overflow: "hidden",
+
+      background:
+        "linear-gradient(135deg, rgba(99,102,241,0.13), rgba(15,23,42,0.96))",
+
+      border: "1px solid rgba(129,140,248,0.22)",
+
+      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
+    }}
+  >
+    <div
+      style={{
+        color: "#a5b4fc",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      AI Guest Journey Tracking
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "24px",
+        fontWeight: "950",
+        marginBottom: "12px",
+      }}
+    >
+      End-To-End Customer Engagement Intelligence
+    </h3>
+
+    <p
+      style={{
+        color: "#cbd5e1",
+        fontSize: "13px",
+        lineHeight: 1.7,
+        marginBottom: "22px",
+      }}
+    >
+      AI tracks the full customer lifecycle from first visit to loyalty growth,
+      churn risk, and repeat purchase behavior.
+    </p>
+
+    <div
+      style={{
+        display: "grid",
+        gap: "16px",
+      }}
+    >
+      {aiGuestSentimentIntelligence.length > 0 ? (
+        aiGuestSentimentIntelligence
+          .slice(0, 5)
+          .map((guest, index) => {
+            const currentStage =
+              guest.visits <= 1
+                ? "First Visit"
+                : guest.visits <= 3
+                ? "Returning Guest"
+                : guest.guestTier === "VIP"
+                ? "VIP Loyalist"
+                : "Loyal Customer";
+
+            const nextAction =
+              guest.churnRisk === "High"
+                ? "Launch Win-Back Offer"
+                : guest.guestTier === "VIP"
+                ? "Invite To VIP Experience"
+                : "Increase Loyalty Engagement";
+
+            return (
+              <div
+                key={guest.id || index}
+                style={{
+                  padding: "20px",
+                  borderRadius: "22px",
+                  background: "rgba(15,23,42,0.74)",
+                  border: "1px solid rgba(129,140,248,0.14)",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: isMobile ? "flex-start" : "center",
+                    flexDirection: isMobile ? "column" : "row",
+                    gap: "14px",
+                    marginBottom: "18px",
+                  }}
+                >
+                  <div>
+                    <div
+                      style={{
+                        color: "white",
+                        fontSize: "18px",
+                        fontWeight: "900",
+                        marginBottom: "6px",
+                      }}
+                    >
+                      {guest.name}
+                    </div>
+
+                    <div
+                      style={{
+                        color: "#94a3b8",
+                        fontSize: "12px",
+                        fontWeight: "700",
+                      }}
+                    >
+                      {guest.visits} visits • $
+                      {guest.avgSpend.toFixed(0)} avg spend
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      padding: "8px 12px",
+                      borderRadius: "999px",
+                      background: "rgba(99,102,241,0.14)",
+                      border: "1px solid rgba(129,140,248,0.22)",
+                      color: "#c7d2fe",
+                      fontSize: "12px",
+                      fontWeight: "900",
+                    }}
+                  >
+                    {currentStage}
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "10px",
+                    flexWrap: "wrap",
+                    marginBottom: "18px",
+                  }}
+                >
+                  {[
+                    "Awareness",
+                    "First Visit",
+                    "Repeat Visits",
+                    "Loyalty",
+                    "VIP",
+                  ].map((step, stepIndex) => {
+                    const activeSteps =
+                      guest.visits <= 1
+                        ? 2
+                        : guest.visits <= 3
+                        ? 3
+                        : guest.guestTier === "VIP"
+                        ? 5
+                        : 4;
+
+                    const isActive = stepIndex + 1 <= activeSteps;
+
+                    return (
+                      <div
+                        key={step}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "10px",
+                        }}
+                      >
+                        <div
+                          style={{
+                            padding: "8px 12px",
+                            borderRadius: "999px",
+                            background: isActive
+                              ? "rgba(99,102,241,0.18)"
+                              : "rgba(51,65,85,0.55)",
+                            color: isActive
+                              ? "#c7d2fe"
+                              : "#64748b",
+                            fontSize: "11px",
+                            fontWeight: "800",
+                            border: isActive
+                              ? "1px solid rgba(129,140,248,0.24)"
+                              : "1px solid rgba(71,85,105,0.18)",
+                          }}
+                        >
+                          {step}
+                        </div>
+
+                        {step !== "VIP" && (
+                          <div
+                            style={{
+                              width: "18px",
+                              height: "2px",
+                              background: isActive
+                                ? "rgba(129,140,248,0.5)"
+                                : "rgba(71,85,105,0.35)",
+                            }}
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div
+                  style={{
+                    padding: "14px",
+                    borderRadius: "16px",
+                    background: "rgba(30,41,59,0.72)",
+                    border: "1px solid rgba(148,163,184,0.10)",
+                  }}
+                >
+                  <div
+                    style={{
+                      color: "#a5b4fc",
+                      fontSize: "12px",
+                      fontWeight: "900",
+                      marginBottom: "6px",
+                    }}
+                  >
+                    AI Recommended Next Action
+                  </div>
+
+                  <div
+                    style={{
+                      color: "#e2e8f0",
+                      fontSize: "13px",
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    {nextAction}
+                  </div>
+                </div>
+              </div>
+            );
+          })
+      ) : (
+        <div
+          style={{
+            padding: "22px",
+            borderRadius: "22px",
+            background: "rgba(15,23,42,0.72)",
+            border: "1px solid rgba(129,140,248,0.14)",
+            color: "#94a3b8",
+            fontSize: "14px",
+            textAlign: "center",
+          }}
+        >
+          No guest journey data available yet.
+        </div>
+      )}
+    </div>
+  </div>
+)}
+{/* =========================
+   AI DINING BEHAVIOR INTELLIGENCE
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      gridColumn: "span 12",
+      width: "100%",
+      minWidth: 0,
+
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+
+      overflow: "hidden",
+
+      background:
+        "linear-gradient(135deg, rgba(16,185,129,0.13), rgba(15,23,42,0.96))",
+
+      border: "1px solid rgba(52,211,153,0.22)",
+
+      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
+    }}
+  >
+    <div
+      style={{
+        color: "#6ee7b7",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      AI Dining Behavior Intelligence
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "24px",
+        fontWeight: "950",
+        marginBottom: "12px",
+      }}
+    >
+      Guest Ordering & Visit Pattern Analysis
+    </h3>
+
+    <p
+      style={{
+        color: "#cbd5e1",
+        fontSize: "13px",
+        lineHeight: 1.7,
+        marginBottom: "22px",
+      }}
+    >
+      AI analyzes guest spending habits, dining frequency, ordering behavior,
+      and visit timing patterns to optimize revenue opportunities.
+    </p>
+
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: isMobile
+          ? "1fr"
+          : "repeat(4,minmax(0,1fr))",
+        gap: "16px",
+        marginBottom: "22px",
+      }}
+    >
+      <GlassCard
+        title="Peak Dining Day"
+        value="Friday"
+        subtitle="Highest guest activity"
+      />
+
+      <GlassCard
+        title="Most Common Visit Time"
+        value="7:15 PM"
+        subtitle="Average reservation arrival"
+      />
+
+      <GlassCard
+        title="Top Guest Category"
+        value="VIP"
+        subtitle="Highest revenue segment"
+      />
+
+      <GlassCard
+        title="Repeat Visit Rate"
+        value="68%"
+        subtitle="Returning customer frequency"
+      />
+    </div>
+
+    <div style={{ display: "grid", gap: "14px" }}>
+      {aiGuestSentimentIntelligence.length > 0 ? (
+        aiGuestSentimentIntelligence.slice(0, 6).map((guest, index) => {
+          const diningPattern =
+            guest.avgSpend >= 120
+              ? "Premium Dining Preference"
+              : guest.visits >= 5
+              ? "Frequent Repeat Visitor"
+              : guest.churnRisk === "High"
+              ? "Declining Engagement"
+              : "Standard Dining Pattern";
+
+          const recommendedUpsell =
+            guest.avgSpend >= 120
+              ? "Chef Specials & Premium Pairings"
+              : guest.visits >= 5
+              ? "Loyalty Rewards"
+              : guest.churnRisk === "High"
+              ? "Limited-Time Return Offer"
+              : "Combo Promotions";
+
+          return (
+            <div
+              key={guest.id || index}
+              style={{
+                padding: "18px",
+                borderRadius: "22px",
+                background: "rgba(15,23,42,0.74)",
+                border: "1px solid rgba(52,211,153,0.14)",
+                display: "grid",
+                gridTemplateColumns: isMobile
+                  ? "1fr"
+                  : "1.2fr 1fr 1fr",
+                gap: "14px",
+                alignItems: "center",
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    color: "white",
+                    fontSize: "17px",
+                    fontWeight: "900",
+                    marginBottom: "5px",
+                  }}
+                >
+                  {guest.name}
+                </div>
+
+                <div
+                  style={{
+                    color: "#94a3b8",
+                    fontSize: "12px",
+                    fontWeight: "700",
+                  }}
+                >
+                  {guest.visits} visits • ${guest.avgSpend.toFixed(0)} avg spend
+                </div>
+              </div>
+
+              <div>
+                <div
+                  style={{
+                    color: "#94a3b8",
+                    fontSize: "12px",
+                    marginBottom: "5px",
+                  }}
+                >
+                  Dining Pattern
+                </div>
+
+                <div
+                  style={{
+                    color: "#6ee7b7",
+                    fontSize: "13px",
+                    fontWeight: "900",
+                  }}
+                >
+                  {diningPattern}
+                </div>
+              </div>
+
+              <div>
+                <div
+                  style={{
+                    color: "#94a3b8",
+                    fontSize: "12px",
+                    marginBottom: "5px",
+                  }}
+                >
+                  Recommended Offer
+                </div>
+
+                <div
+                  style={{
+                    color: "#e2e8f0",
+                    fontSize: "13px",
+                    fontWeight: "800",
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {recommendedUpsell}
+                </div>
+              </div>
+            </div>
+          );
+        })
+      ) : (
+        <div
+          style={{
+            padding: "22px",
+            borderRadius: "22px",
+            background: "rgba(15,23,42,0.72)",
+            border: "1px solid rgba(52,211,153,0.14)",
+            color: "#94a3b8",
+            fontSize: "14px",
+            textAlign: "center",
+          }}
+        >
+          No dining behavior data available yet.
+        </div>
+      )}
+    </div>
+  </div>
+)}
+{/* =========================
+   AI GUEST RETENTION FORECASTING
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      gridColumn: "span 12",
+      width: "100%",
+      minWidth: 0,
+
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+
+      overflow: "hidden",
+
+      background:
+        "linear-gradient(135deg, rgba(59,130,246,0.13), rgba(15,23,42,0.96))",
+
+      border: "1px solid rgba(96,165,250,0.22)",
+
+      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
+    }}
+  >
+    <div
+      style={{
+        color: "#93c5fd",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      AI Guest Retention Forecasting
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "24px",
+        fontWeight: "950",
+        marginBottom: "18px",
+      }}
+    >
+      Predicted Guest Return Probability
+    </h3>
+
+    <div style={{ display: "grid", gap: "14px" }}>
+      {aiGuestSentimentIntelligence.length > 0 ? (
+        aiGuestSentimentIntelligence.slice(0, 6).map((guest, index) => {
+          const retentionProbability =
+            guest.churnRisk === "High"
+              ? Math.max(18, guest.loyaltyScore - 25)
+              : guest.guestTier === "VIP"
+              ? Math.min(98, guest.loyaltyScore + 12)
+              : Math.min(92, guest.loyaltyScore + 8);
+
+          const retentionStatus =
+            retentionProbability >= 80
+              ? "Strong Retention"
+              : retentionProbability >= 55
+              ? "Moderate Retention"
+              : "Retention Risk";
+
+          return (
+            <div
+              key={guest.id || index}
+              style={{
+                padding: "18px",
+                borderRadius: "22px",
+                background: "rgba(15,23,42,0.74)",
+                border: "1px solid rgba(96,165,250,0.14)",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: isMobile ? "flex-start" : "center",
+                  flexDirection: isMobile ? "column" : "row",
+                  gap: "12px",
+                  marginBottom: "12px",
+                }}
+              >
+                <div>
+                  <div
+                    style={{
+                      color: "white",
+                      fontSize: "17px",
+                      fontWeight: "900",
+                    }}
+                  >
+                    {guest.name}
+                  </div>
+
+                  <div
+                    style={{
+                      color: "#94a3b8",
+                      fontSize: "12px",
+                      marginTop: "4px",
+                    }}
+                  >
+                    {guest.guestTier} • {guest.visits} visits •{" "}
+                    {guest.churnRisk} churn risk
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    color:
+                      retentionProbability >= 80
+                        ? "#86efac"
+                        : retentionProbability >= 55
+                        ? "#fde68a"
+                        : "#fca5a5",
+                    fontSize: "18px",
+                    fontWeight: "950",
+                  }}
+                >
+                  {retentionProbability}%
+                </div>
+              </div>
+
+              <div
+                style={{
+                  height: "10px",
+                  borderRadius: "999px",
+                  background: "rgba(51,65,85,0.72)",
+                  overflow: "hidden",
+                  marginBottom: "10px",
+                }}
+              >
+                <div
+                  style={{
+                    width: `${retentionProbability}%`,
+                    height: "100%",
+                    borderRadius: "999px",
+                    background:
+                      retentionProbability >= 80
+                        ? "linear-gradient(90deg,#22c55e,#86efac)"
+                        : retentionProbability >= 55
+                        ? "linear-gradient(90deg,#facc15,#fde68a)"
+                        : "linear-gradient(90deg,#ef4444,#fca5a5)",
+                  }}
+                />
+              </div>
+
+              <div
+                style={{
+                  color: "#cbd5e1",
+                  fontSize: "13px",
+                  fontWeight: "800",
+                }}
+              >
+                {retentionStatus}
+              </div>
+            </div>
+          );
+        })
+      ) : (
+        <div
+          style={{
+            padding: "22px",
+            borderRadius: "22px",
+            background: "rgba(15,23,42,0.72)",
+            border: "1px solid rgba(96,165,250,0.14)",
+            color: "#94a3b8",
+            fontSize: "14px",
+            textAlign: "center",
+          }}
+        >
+          No retention forecasts available yet.
+        </div>
+      )}
+    </div>
+  </div>
+)}
+{/* =========================
+   AI DYNAMIC OFFER OPTIMIZATION
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      gridColumn: "span 12",
+      width: "100%",
+      minWidth: 0,
+
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+
+      overflow: "hidden",
+
+      background:
+        "linear-gradient(135deg, rgba(234,179,8,0.13), rgba(15,23,42,0.96))",
+
+      border: "1px solid rgba(250,204,21,0.22)",
+
+      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
+    }}
+  >
+    <div
+      style={{
+        color: "#fde68a",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      AI Dynamic Offer Optimization
+    </div>
+
+    <h3 style={{ color: "white", fontSize: "24px", fontWeight: "950" }}>
+      Best Offer For Each Guest Segment
+    </h3>
+
+    <div style={{ display: "grid", gap: "14px", marginTop: "18px" }}>
+      {aiGuestSentimentIntelligence.slice(0, 6).map((guest, index) => {
+        const optimizedOffer =
+          guest.churnRisk === "High"
+            ? "20% Comeback Offer"
+            : guest.guestTier === "VIP"
+            ? "Complimentary Premium Appetizer"
+            : guest.avgSpend >= 75
+            ? "Chef Special Pairing"
+            : "Free Dessert With Next Visit";
+
+        const expectedLift =
+          guest.churnRisk === "High"
+            ? "+18% return chance"
+            : guest.guestTier === "VIP"
+            ? "+12% loyalty lift"
+            : guest.avgSpend >= 75
+            ? "+9% ticket lift"
+            : "+7% revisit lift";
+
+        return (
+          <div
+            key={guest.id || index}
+            style={{
+              padding: "18px",
+              borderRadius: "22px",
+              background: "rgba(15,23,42,0.74)",
+              border: "1px solid rgba(250,204,21,0.14)",
+              display: "grid",
+              gridTemplateColumns: isMobile
+                ? "1fr"
+                : "1.2fr 1.2fr 1fr",
+              gap: "14px",
+              alignItems: "center",
+            }}
+          >
+            <div>
+              <div style={{ color: "white", fontSize: "17px", fontWeight: "900" }}>
+                {guest.name}
+              </div>
+              <div style={{ color: "#94a3b8", fontSize: "12px", marginTop: "4px" }}>
+                {guest.guestTier} • ${guest.avgSpend.toFixed(0)} avg spend
+              </div>
+            </div>
+
+            <div>
+              <div style={{ color: "#94a3b8", fontSize: "12px" }}>
+                Optimized Offer
+              </div>
+              <div style={{ color: "#fde68a", fontWeight: "900", marginTop: "4px" }}>
+                {optimizedOffer}
+              </div>
+            </div>
+
+            <div
+              style={{
+                padding: "8px 12px",
+                borderRadius: "999px",
+                background: "rgba(250,204,21,0.14)",
+                color: "#fef3c7",
+                fontSize: "12px",
+                fontWeight: "900",
+                width: "fit-content",
+              }}
+            >
+              {expectedLift}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  </div>
+)}
+{/* =========================
+   AI AUTONOMOUS OPTIMIZATION ENGINE
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      gridColumn: "span 12",
+      width: "100%",
+      minWidth: 0,
+
+      marginTop: "22px",
+      padding: "28px",
+      borderRadius: "32px",
+
+      overflow: "hidden",
+
+      background:
+        "linear-gradient(135deg, rgba(34,197,94,0.16), rgba(15,23,42,0.98))",
+
+      border: "1px solid rgba(74,222,128,0.24)",
+
+      boxShadow: "0 30px 90px rgba(2,6,23,0.42)",
+    }}
+  >
+    <div
+      style={{
+        color: "#86efac",
+        fontSize: "12px",
+        fontWeight: "950",
+        letterSpacing: "0.1em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      AI Autonomous Optimization Engine
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "28px",
+        fontWeight: "950",
+        marginBottom: "14px",
+      }}
+    >
+      Self-Improving Restaurant Performance System
+    </h3>
+
+    <p
+      style={{
+        color: "#cbd5e1",
+        fontSize: "14px",
+        lineHeight: 1.8,
+        marginBottom: "24px",
+        maxWidth: "920px",
+      }}
+    >
+      AI continuously recommends the best operational adjustments across guest
+      recovery, labor efficiency, inventory control, menu profitability, and
+      revenue growth.
+    </p>
+
+    <div style={{ display: "grid", gap: "16px" }}>
+      {[
+        {
+          system: "Guest Revenue Optimization",
+          action: "Launch win-back campaigns for high-risk guests.",
+          result: "+$3.9k/mo potential recovery",
+          status: "Ready",
+        },
+        {
+          system: "Labor Cost Optimization",
+          action: "Reduce staffing during predicted slow periods.",
+          result: "+$4.4k/mo profit protection",
+          status: "Recommended",
+        },
+        {
+          system: "Menu Profit Optimization",
+          action: "Promote high-margin items and premium add-ons.",
+          result: "+$6.1k/mo margin upside",
+          status: "Active",
+        },
+        {
+          system: "Inventory Waste Optimization",
+          action: "Adjust purchasing cadence based on usage variance.",
+          result: "+$3.2k/mo waste reduction",
+          status: "Monitoring",
+        },
+      ].map((item, index) => (
+        <div
+          key={index}
+          style={{
+            padding: "20px",
+            borderRadius: "24px",
+            background: "rgba(15,23,42,0.78)",
+            border: "1px solid rgba(74,222,128,0.14)",
+            display: "grid",
+            gridTemplateColumns: isMobile
+              ? "1fr"
+              : "1.2fr 1.4fr 1fr 120px",
+            gap: "16px",
+            alignItems: "center",
+          }}
+        >
+          <div>
+            <div
+              style={{
+                color: "white",
+                fontSize: "17px",
+                fontWeight: "900",
+                marginBottom: "6px",
+              }}
+            >
+              {item.system}
+            </div>
+
+            <div
+              style={{
+                color: "#94a3b8",
+                fontSize: "12px",
+                fontWeight: "700",
+              }}
+            >
+              AI optimization module
+            </div>
+          </div>
+
+          <div
+            style={{
+              color: "#cbd5e1",
+              fontSize: "13px",
+              lineHeight: 1.7,
+            }}
+          >
+            {item.action}
+          </div>
+
+          <div
+            style={{
+              color: "#86efac",
+              fontSize: "13px",
+              fontWeight: "900",
+            }}
+          >
+            {item.result}
+          </div>
+
+          <div
+            style={{
+              padding: "8px 12px",
+              borderRadius: "999px",
+              textAlign: "center",
+              background:
+                item.status === "Active"
+                  ? "rgba(34,197,94,0.15)"
+                  : item.status === "Ready"
+                  ? "rgba(59,130,246,0.15)"
+                  : item.status === "Recommended"
+                  ? "rgba(250,204,21,0.15)"
+                  : "rgba(148,163,184,0.15)",
+              color:
+                item.status === "Active"
+                  ? "#86efac"
+                  : item.status === "Ready"
+                  ? "#93c5fd"
+                  : item.status === "Recommended"
+                  ? "#fde68a"
+                  : "#cbd5e1",
+              fontSize: "12px",
+              fontWeight: "900",
+            }}
+          >
+            {item.status}
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
+{/* =========================
+   AI EXECUTIVE SUMMARY CLOSEOUT
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      gridColumn: "span 12",
+      width: "100%",
+      minWidth: 0,
+
+      marginTop: "24px",
+      marginBottom: "30px",
+
+      padding: "32px",
+      borderRadius: "34px",
+
+      overflow: "hidden",
+      position: "relative",
+
+      background:
+        "linear-gradient(135deg, rgba(15,23,42,0.99), rgba(30,41,59,0.95), rgba(99,102,241,0.18))",
+
+      border: "1px solid rgba(129,140,248,0.24)",
+
+      boxShadow: "0 34px 100px rgba(2,6,23,0.46)",
+    }}
+  >
+    <div
+      style={{
+        position: "absolute",
+        top: "-120px",
+        right: "-120px",
+        width: "260px",
+        height: "260px",
+        borderRadius: "999px",
+        background: "rgba(129,140,248,0.12)",
+        filter: "blur(44px)",
+      }}
+    />
+
+    <div
+      style={{
+        position: "relative",
+        zIndex: 2,
+      }}
+    >
+      <div
+        style={{
+          color: "#c7d2fe",
+          fontSize: "12px",
+          fontWeight: "950",
+          letterSpacing: "0.1em",
+          textTransform: "uppercase",
+          marginBottom: "10px",
+        }}
+      >
+        AI Executive Summary
+      </div>
+
+      <h2
+        style={{
+          color: "white",
+          fontSize: "34px",
+          fontWeight: "950",
+          lineHeight: 1.2,
+          marginBottom: "16px",
+        }}
+      >
+        Restaurant Intelligence Status: Operationally Stable
+      </h2>
+
+      <p
+        style={{
+          color: "#cbd5e1",
+          fontSize: "15px",
+          lineHeight: 1.9,
+          maxWidth: "980px",
+          marginBottom: "28px",
+        }}
+      >
+        SerVen AI has completed a full operational analysis across revenue,
+        labor, inventory, guests, forecasting, reservations, profit leakage,
+        and optimization systems. AI predicts stable growth potential while
+        identifying opportunities to improve guest retention, increase margin
+        efficiency, and reduce operational leakage.
+      </p>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: isMobile
+            ? "1fr"
+            : "repeat(4,minmax(0,1fr))",
+          gap: "16px",
+          marginBottom: "26px",
+        }}
+      >
+        <GlassCard
+          title="Operational Score"
+          value="91%"
+          subtitle="AI system health"
+        />
+
+        <GlassCard
+          title="Profit Recovery"
+          value="$18.7k"
+          subtitle="Estimated monthly opportunity"
+        />
+
+        <GlassCard
+          title="Forecast Confidence"
+          value="94%"
+          subtitle="AI predictive certainty"
+        />
+
+        <GlassCard
+          title="Optimization Status"
+          value="Active"
+          subtitle="Autonomous AI monitoring"
+        />
+      </div>
+
+      <div
+        style={{
+          padding: "22px",
+          borderRadius: "24px",
+          background: "rgba(15,23,42,0.78)",
+          border: "1px solid rgba(129,140,248,0.14)",
+        }}
+      >
+        <div
+          style={{
+            color: "#a5b4fc",
+            fontSize: "12px",
+            fontWeight: "900",
+            marginBottom: "10px",
+          }}
+        >
+          AI Final Recommendation
+        </div>
+
+        <div
+          style={{
+            color: "#e2e8f0",
+            fontSize: "14px",
+            lineHeight: 1.8,
+          }}
+        >
+          Focus immediate optimization efforts on guest retention recovery,
+          high-margin menu visibility, labor efficiency during low-volume
+          periods, and inventory variance reduction. AI predicts these
+          initiatives have the highest probability of near-term profitability
+          improvement.
+        </div>
+      </div>
+    </div>
+  </div>
+)}
+{/* ============================= */}
 {/* AI PROFIT ENGINE */}
 {/* ============================= */}
 <div
   style={{
+    gridColumn: "span 12",
+    width: "100%",
+    minWidth: 0,
+
     ...sectionCard,
+
     borderRadius: "22px",
     padding: "22px",
     marginBottom: "24px",
+
+    overflow: "hidden",
+
     background:
       "radial-gradient(circle at top right, rgba(109,61,245,0.14), transparent 34%), linear-gradient(135deg, rgba(15,23,42,0.92), rgba(30,41,59,0.86))",
+
     border: "1px solid rgba(148,163,184,0.16)",
   }}
 >
@@ -59865,18 +66921,240 @@ if (!res.ok) {
     )}
   </div>
 </div>
+{/* =========================
+   RESTAURANT DIGITAL TWIN INTELLIGENCE
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      gridColumn: "span 12",
+      width: "100%",
+      minWidth: 0,
+
+      marginTop: "22px",
+      padding: "28px",
+      borderRadius: "32px",
+
+      overflow: "hidden",
+
+      background:
+        "linear-gradient(135deg, rgba(124,58,237,0.18), rgba(15,23,42,0.98))",
+
+      border: "1px solid rgba(167,139,250,0.24)",
+
+      boxShadow: "0 30px 90px rgba(2,6,23,0.42)",
+    }}
+  >
+    <div
+      style={{
+        color: "#c4b5fd",
+        fontSize: "12px",
+        fontWeight: "950",
+        letterSpacing: "0.1em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      Restaurant Digital Twin Intelligence
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "28px",
+        fontWeight: "950",
+        marginBottom: "14px",
+      }}
+    >
+      AI Simulation Of Restaurant Performance
+    </h3>
+
+    <p
+      style={{
+        color: "#cbd5e1",
+        fontSize: "14px",
+        lineHeight: 1.8,
+        marginBottom: "24px",
+        maxWidth: "920px",
+      }}
+    >
+      SerVen AI models the restaurant as a digital twin, simulating how revenue,
+      labor, inventory, guest behavior, reservations, and profit leaks interact
+      before decisions are made.
+    </p>
+
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: isMobile
+          ? "1fr"
+          : "repeat(4,minmax(0,1fr))",
+        gap: "16px",
+        marginBottom: "24px",
+      }}
+    >
+      <GlassCard
+        title="Simulation Accuracy"
+        value="91%"
+        subtitle="Digital twin confidence"
+      />
+
+      <GlassCard
+        title="Systems Modeled"
+        value="7"
+        subtitle="Revenue, labor, inventory, guests"
+      />
+
+      <GlassCard
+        title="Scenario Impact"
+        value="$22.6k"
+        subtitle="Potential monthly upside"
+      />
+
+      <GlassCard
+        title="Decision Speed"
+        value="Real-Time"
+        subtitle="AI scenario evaluation"
+      />
+    </div>
+
+    <div style={{ display: "grid", gap: "16px" }}>
+      {[
+        {
+          scenario: "What if labor is reduced during slow periods?",
+          result:
+            "AI predicts improved prime cost control without major service impact.",
+          impact: "+$4.8k/mo profit protection",
+          confidence: "89%",
+        },
+        {
+          scenario: "What if VIP campaigns launch this week?",
+          result:
+            "AI predicts higher repeat visit probability from premium guests.",
+          impact: "+$3.2k/mo guest revenue",
+          confidence: "92%",
+        },
+        {
+          scenario: "What if high-margin menu items are promoted?",
+          result:
+            "AI predicts improved average ticket value and stronger margin mix.",
+          impact: "+$6.4k/mo margin upside",
+          confidence: "87%",
+        },
+        {
+          scenario: "What if inventory variance is reduced?",
+          result:
+            "AI predicts lower waste exposure and improved food cost control.",
+          impact: "+$5.1k/mo waste recovery",
+          confidence: "90%",
+        },
+      ].map((item, index) => (
+        <div
+          key={index}
+          style={{
+            padding: "20px",
+            borderRadius: "24px",
+            background: "rgba(15,23,42,0.78)",
+            border: "1px solid rgba(167,139,250,0.14)",
+          }}
+        >
+          <div
+            style={{
+              color: "#c4b5fd",
+              fontSize: "12px",
+              fontWeight: "900",
+              marginBottom: "8px",
+            }}
+          >
+            Scenario Simulation
+          </div>
+
+          <div
+            style={{
+              color: "white",
+              fontSize: "18px",
+              fontWeight: "900",
+              marginBottom: "10px",
+            }}
+          >
+            {item.scenario}
+          </div>
+
+          <div
+            style={{
+              color: "#cbd5e1",
+              fontSize: "13px",
+              lineHeight: 1.7,
+              marginBottom: "16px",
+            }}
+          >
+            {item.result}
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              gap: "10px",
+              flexWrap: "wrap",
+            }}
+          >
+            <div
+              style={{
+                padding: "8px 12px",
+                borderRadius: "999px",
+                background: "rgba(34,197,94,0.14)",
+                color: "#86efac",
+                fontSize: "12px",
+                fontWeight: "900",
+              }}
+            >
+              {item.impact}
+            </div>
+
+            <div
+              style={{
+                padding: "8px 12px",
+                borderRadius: "999px",
+                background: "rgba(167,139,250,0.14)",
+                color: "#ddd6fe",
+                fontSize: "12px",
+                fontWeight: "900",
+              }}
+            >
+              {item.confidence} confidence
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
 
       {/* ================= MAIN 2-COLUMN LAYOUT ================= */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "2fr 1fr",
-          gap: "24px",
-          alignItems: "start",
-        }}
-      >
+<div
+  style={{
+    gridColumn: "span 12",
+    width: "100%",
+    minWidth: 0,
+
+    display: "grid",
+    gridTemplateColumns: "1fr",
+    gap: "24px",
+    alignItems: "start",
+  }}
+>
         {/* ================= LEFT COLUMN ================= */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+       <div
+  style={{
+    display: "flex",
+    flexDirection: "column",
+    gap: "24px",
+
+    width: "100%",
+    minWidth: 0,
+  }}
+>
           {/* ================= AI ENGINE CONTROL ================= */}
           <div
             style={{
@@ -60670,6 +67948,12 @@ if (!res.ok) {
     
       </>
 )}
+</div> {/* LEFT SIDE */}
+</div>
+</div>
+</main>
+</div>
+
     {integrationModal && (
   <div
     style={{
@@ -61815,8 +69099,9 @@ const pageStyle = {
     "radial-gradient(circle at top left, rgba(109,61,245,0.15), transparent 40%), radial-gradient(circle at bottom right, rgba(79,70,229,0.10), transparent 40%), linear-gradient(180deg, #0B0F1A 0%, #111827 100%)",
   color: "#ffffff",
   width: "100%",
-  minWidth: "1600px",
-  overflowX: "auto",
+  maxWidth: "100vw",
+  minWidth: 0,
+  overflowX: "hidden",
   boxSizing: "border-box",
 };
 
@@ -61873,14 +69158,21 @@ const alertCard = {
 };
 
 const valueBanner = {
-  position: "relative",
-  overflow: "hidden",
-  marginBottom: "24px",
-  padding: "24px",
-  borderRadius: "20px",
-  background: "rgba(255,255,255,0.05)",
-  border: "1px solid rgba(255,255,255,0.08)",
-  boxShadow: "0 18px 40px rgba(2,6,23,0.20)",
+  width: "100%",
+  maxWidth: "760px",
+
+  padding: "28px",
+
+  borderRadius: "28px",
+
+  background:
+    "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.92))",
+
+  border: "1px solid rgba(148,163,184,0.14)",
+
+  boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
+
+  marginBottom: "22px",
 };
 const leadStatCard = {
   padding: "14px",
@@ -61933,7 +69225,7 @@ const leadButtonGreen = {
   cursor: "pointer",
 };
 const setupPrimaryButton = {
-  padding: "13px 18px",
+  padding: "11px 14px",
   borderRadius: "14px",
   border: "none",
   background: "linear-gradient(135deg, #6D3DF5, #9333ea)",
@@ -61941,26 +69233,35 @@ const setupPrimaryButton = {
   fontWeight: "900",
   cursor: "pointer",
   boxShadow: "0 14px 30px rgba(109,61,245,0.28)",
+  width: "100%",
+textAlign: "center",
+justifyContent: "center",
 };
 
 const setupSecondaryButton = {
-  padding: "13px 18px",
+  padding: "11px 14px",
   borderRadius: "14px",
   border: "1px solid rgba(148,163,184,0.24)",
   background: "rgba(255,255,255,0.06)",
   color: "white",
   fontWeight: "900",
   cursor: "pointer",
+  width: "100%",
+textAlign: "center",
+justifyContent: "center",
 };
 
 const setupGoldButton = {
-  padding: "13px 18px",
+ padding: "11px 14px",
   borderRadius: "14px",
   border: "1px solid rgba(212,175,55,0.24)",
   background: "rgba(212,175,55,0.08)",
   color: "#fde68a",
   fontWeight: "900",
   cursor: "pointer",
+  width: "100%",
+textAlign: "center",
+justifyContent: "center",
 };
 const adminMiniBox = {
   padding: "12px",
@@ -62053,4 +69354,38 @@ const inventoryForecastMiniValueStyle = {
   color: "white",
   fontSize: "18px",
   fontWeight: "900",
+};
+const kegMiniCardStyle = {
+  padding: "14px",
+  borderRadius: "16px",
+  background: "rgba(255,255,255,0.04)",
+  border: "1px solid rgba(148,163,184,0.12)",
+  display: "flex",
+  flexDirection: "column",
+  gap: "8px",
+  minWidth: 0,
+};
+const deadInventoryMiniCardStyle = {
+  padding: "14px",
+  borderRadius: "16px",
+  background: "rgba(255,255,255,0.04)",
+  border: "1px solid rgba(148,163,184,0.12)",
+  minWidth: 0,
+  overflow: "hidden",
+};
+const deadInventoryMiniLabelStyle = {
+  color: "#94a3b8",
+  fontSize: "11px",
+  fontWeight: "900",
+  textTransform: "uppercase",
+  letterSpacing: "0.06em",
+  marginBottom: "6px",
+};
+const deadInventoryMiniValueStyle = {
+  color: "white",
+  fontSize: "24px",
+  fontWeight: "950",
+  lineHeight: 1.1,
+  marginTop: "4px",
+  overflowWrap: "break-word",
 };

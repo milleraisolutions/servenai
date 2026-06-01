@@ -1,5 +1,34 @@
 export default function DashboardTabs({ data }) {
-  const tabs = ["overview", "ai", "labor", "marketing"];
+  const tabs = data.isKitchenManagerRole
+  ? [
+      "kitchen_manager",
+      "recipes",
+      "inventory",
+      "labor",
+    ]
+  : data.isGMRole
+  ? [
+      "overview",
+      "ai",
+      "analytics",
+      "labor",
+      "inventory",
+      "recipes",
+      "marketing",
+      "kitchen_manager",
+    ]
+  : [
+      "overview",
+      "ai",
+      "analytics",
+      "labor",
+      "inventory",
+      "recipes",
+      "marketing",
+      "kitchen_manager",
+      "multi_location",
+      "admin",
+    ];
 
   return (
     <div style={{ display: "flex", gap: "10px", margin: "20px 0" }}>
