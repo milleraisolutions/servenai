@@ -370,13 +370,21 @@ const normalizedStatus = String(
   .trim()
   .toLowerCase();
 
+const normalizedPlan = String(
+  userProfile?.plan ||
+    userProfile?.subscription_plan ||
+    userProfile?.tier ||
+    "none"
+)
+  .trim()
+  .toLowerCase();
+
 const hasPaidAccess =
   isOwner ||
   (
     ["active", "paid", "trialing"].includes(normalizedStatus) &&
     ["starter", "growth", "pro"].includes(normalizedPlan)
   );
-
 const hasStarterAccess = hasPaidAccess;
 
 const hasGrowthAccess =
@@ -439,9 +447,7 @@ const effectivePlan = String(
 )
   .trim()
   .toLowerCase();
-const normalizedPlan = String(effectivePlan || "")
-  .trim()
-  .toLowerCase();
+
 const filteredCustomPlanLeads =
   leadStatusFilter === "all"
     ? customPlanLeads
@@ -22259,7 +22265,13 @@ const renderSafeText = (value, fallback = "") => {
   return value;
 };
 
-
+console.log("ACCESS DEBUG:", {
+  email: user?.email,
+  userProfile,
+  normalizedStatus,
+  normalizedPlan,
+  hasPaidAccess,
+});
 
 
 if (!hasPaidAccess) {

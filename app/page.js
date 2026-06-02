@@ -972,15 +972,15 @@ textAlign: "center",
 <section style={{ padding: isMobile ? "45px 0" : "80px 0", position: "relative", overflow: "hidden" }}>
   <div style={containerStyle}>
     <div
-      style={{
-        ...glassCard,
-        padding: isMobile ? "24px 16px" : "48px 40px",
-        position: "relative",
-        overflow: "visible",
-        background: "rgba(15, 23, 42, 0.4)",
-        border: "1px solid rgba(255, 255, 255, 0.05)"
-      }}
-    >
+  style={{
+    ...glassCard,
+    padding: isMobile ? "24px 16px" : "48px 40px",
+    position: "relative",
+    overflow: "hidden",
+    background: "rgba(15, 23, 42, 0.4)",
+    border: "1px solid rgba(255, 255, 255, 0.05)"
+  }}
+>
       {/* Decorative Blur Vectors */}
       <div
         style={{
@@ -1934,13 +1934,15 @@ revenue volume, operational complexity, locations, and reporting needs.
       <section style={{ padding: isMobile ? "70px 0" : "120px 0" }}>
         <div style={containerStyle}>
           <div
-            style={{
-              ...glassCard,
-              padding: isMobile ? "22px" : "44px",
-              textAlign: "center",
-              position: "relative",
-            }}
-          >
+  style={{
+    ...glassCard,
+    padding: isMobile ? "22px" : "44px",
+    textAlign: "center",
+    position: "relative",
+
+    overflow: "hidden",
+  }}
+>
             <div
               style={{
                 position: "absolute",
