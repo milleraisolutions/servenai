@@ -282,7 +282,11 @@ const [kitchenStationPerformance, setKitchenStationPerformance] = useState([]);c
 const [recentUploads, setRecentUploads] = useState([]);
 const [yesterdayPrepData, setYesterdayPrepData] = useState([]);
 const [customPlanRequests, setCustomPlanRequests] = useState([]);
-
+const [teamMembers, setTeamMembers] = useState([]);
+const [inviteName, setInviteName] = useState("");
+const [inviteEmail, setInviteEmail] = useState("");
+const [inviteRole, setInviteRole] = useState("gm");
+const [inviteLocation, setInviteLocation] = useState("");
 const loadAdminData = async () => {
   const { data: usersData, error: usersError } = await supabase
     .from("users")
@@ -13184,7 +13188,8 @@ const sidebarTabs = isKitchenManagerRole
       { key: "pro_ai", label: "Pro AI", icon: "⚡" },
       { key: "kitchen_manager", label: "Kitchen", icon: "🍳" },
       { key: "multi_location", label: "Enterprise", icon: "🏢" },
-      { key: "admin", label: "Admin", icon: "⚙️" },
+      { key: "admin", label: "Account Center", icon: "⚙️" },
+      { key: "team_management", label: "Team", icon: "👥" },
     ]
 
   : [];
@@ -22264,6 +22269,54 @@ const renderSafeText = (value, fallback = "") => {
 
   return value;
 };
+
+const handleCreateTeamInvite = async () => {
+  if (!inviteEmail.trim()) {
+    alert("Enter an email address.");
+    return;
+  }
+
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user?.id) {
+    alert("You must be logged in.");
+    return;
+  }
+
+  const { error } = await supabase.from("team_invites").insert([
+    {
+      owner_user_id: user.id,
+      name: inviteName,
+      email: inviteEmail.trim().toLowerCase(),
+      role: inviteRole,
+      location_name: inviteLocation,
+      status: "pending",
+    },
+  ]);
+
+  if (error) {
+    console.error("Team invite failed:", error);
+    alert(error.message);
+    return;
+  }
+
+  alert("Invite created successfully.");
+
+  setInviteName("");
+  setInviteEmail("");
+  setInviteRole("gm");
+  setInviteLocation("");
+};
+
+
+
+
+
+
+
+
+
+
 
 console.log("ACCESS DEBUG:", {
   email: user?.email,
@@ -46150,6 +46203,112 @@ borderRadius: "14px",
 
     </>
   )}
+  {activeTab === "team_management" && (
+  <div
+    style={{
+      width: "100%",
+      minWidth: 0,
+      display: "grid",
+      gap: "18px",
+    }}
+  >
+    <div
+      style={{
+        padding: "24px",
+        borderRadius: "24px",
+        background:
+          "linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.94))",
+        border: "1px solid rgba(148,163,184,0.14)",
+      }}
+    >
+      <div style={{ color: "#93c5fd", fontSize: "12px", fontWeight: "900" }}>
+        Team Management
+      </div>
+
+      <h2 style={{ color: "white", fontSize: "30px", fontWeight: "950" }}>
+        Invite GMs & Kitchen Managers
+      </h2>
+
+      <p style={{ color: "#94a3b8", fontSize: "14px", lineHeight: 1.7 }}>
+        Create team accounts, assign roles, and control operational access.
+      </p>
+    </div>
+ <div
+  style={{
+    padding: "24px",
+    borderRadius: "24px",
+    background:
+      "linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.94))",
+    border: "1px solid rgba(148,163,184,0.14)",
+  }}
+>
+  <div
+    style={{
+      color: "#c4b5fd",
+      fontSize: "12px",
+      fontWeight: "900",
+      marginBottom: "14px",
+    }}
+  >
+    Invite Team Member
+  </div>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile
+        ? "1fr"
+        : "repeat(2, minmax(0, 1fr))",
+      gap: "14px",
+    }}
+  >
+    <input
+      placeholder="Full Name"
+      value={inviteName}
+      onChange={(e) => setInviteName(e.target.value)}
+    />
+
+    <input
+      placeholder="Email"
+      value={inviteEmail}
+      onChange={(e) => setInviteEmail(e.target.value)}
+    />
+
+    <select
+      value={inviteRole}
+      onChange={(e) => setInviteRole(e.target.value)}
+    >
+      <option value="gm">General Manager</option>
+      <option value="kitchen_manager">Kitchen Manager</option>
+    </select>
+
+    <input
+      placeholder="Assigned Location"
+      value={inviteLocation}
+      onChange={(e) => setInviteLocation(e.target.value)}
+    />
+  </div>
+
+<button
+  type="button"
+  onClick={handleCreateTeamInvite}
+  style={{
+    marginTop: "18px",
+    padding: "14px 20px",
+    borderRadius: "14px",
+    border: "none",
+    background: "#4f46e5",
+    color: "white",
+    fontWeight: "800",
+    cursor: "pointer",
+  }}
+>
+  Send Invite
+</button>
+</div>
+
+  </div>
+)}
  {activeTab === "admin" && (
   <div
     style={{
@@ -47355,6 +47514,7 @@ borderRadius: "14px",
 
   </div>
 )}
+
 {activeTab === "financial" && (
   <div
     style={{
