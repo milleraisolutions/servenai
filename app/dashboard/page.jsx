@@ -283,7 +283,7 @@ const [recentUploads, setRecentUploads] = useState([]);
 const [yesterdayPrepData, setYesterdayPrepData] = useState([]);
 const [customPlanRequests, setCustomPlanRequests] = useState([]);
 const [teamMembers, setTeamMembers] = useState([]);
-
+const [sendingInvite, setSendingInvite] = useState(false);
 const [inviteName, setInviteName] = useState("");
 const [inviteEmail, setInviteEmail] = useState("");
 const [inviteRole, setInviteRole] = useState("gm");
@@ -22307,8 +22307,10 @@ const renderSafeText = (value, fallback = "") => {
   return value;
 };
 const handleCreateTeamInvite = async () => {
+  setSendingInvite(true);
   if (!inviteName.trim() || !inviteEmail.trim()) {
     alert("Please enter a name and email.");
+    setSendingInvite(false);
     return;
   }
 const inviteToken = crypto.randomUUID();
@@ -22318,6 +22320,7 @@ const inviteToken = crypto.randomUUID();
 
   if (!user?.id) {
     alert("You must be logged in.");
+    setSendingInvite(false);
     return;
   }
 
@@ -22336,6 +22339,7 @@ const inviteToken = crypto.randomUUID();
   if (error) {
     console.error("Team invite failed:", error);
     alert(error.message);
+    setSendingInvite(false);
     return;
   }
 
@@ -22356,12 +22360,13 @@ await fetch("/api/send-team-invite", {
 
   await loadTeamInvites();
 
-  alert("Invite created successfully.");
+ alert("Invite sent successfully.");
 
   setInviteName("");
   setInviteEmail("");
   setInviteRole("gm");
   setInviteLocation("");
+  setSendingInvite(false);
 };
 
 useEffect(() => {
