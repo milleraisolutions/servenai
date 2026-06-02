@@ -22323,7 +22323,7 @@ const inviteToken = crypto.randomUUID();
     setSendingInvite(false);
     return;
   }
-
+console.log("INVITE EMAIL:", inviteEmail);
  const { error } = await supabase.from("team_invites").insert([
   {
     owner_user_id: user.id,
