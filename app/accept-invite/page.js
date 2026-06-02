@@ -42,7 +42,7 @@ const handleAcceptInvite = async () => {
   }
 
   setCreating(true);
-
+await supabase.auth.signOut();
   const { data, error } = await supabase.auth.signUp({
     email: invite.email,
     password,
