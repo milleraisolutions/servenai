@@ -354,6 +354,7 @@ const isOwnerRole = userRole === "owner";
 const isExecutiveRole = userRole === "executive";
 const isGMRole = userRole === "gm";
 const isKitchenManagerRole = userRole === "kitchen_manager";
+const dataOwnerId = userProfile?.owner_user_id || user?.id;
 const isStaffRole = userRole === "staff";
 const isOwner =
   userProfile?.role === "owner" ||
@@ -1286,7 +1287,7 @@ const getTabButtonStyle = (isActive, locked) => {
       const { error } = await supabase
         .from("marketing_campaigns")
         .update({ active: false })
-        .eq("user_id", user.id)
+        .eq("user_id", dataOwnerId)
         .eq("active", true);
 
       if (error) throw error;
@@ -2237,15 +2238,15 @@ useEffect(() => {
         return;
       }
 
-      const { data, error } = await supabase
-        .from("marketing_campaigns")
-        .select("*")
-        .eq("user_id", currentUser.id)
-        .eq("active", true)
-        .eq("published_to_website", true)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+     const { data, error } = await supabase
+  .from("marketing_campaigns")
+  .select("*")
+  .eq("user_id", dataOwnerId)
+  .eq("active", true)
+  .eq("published_to_website", true)
+  .order("created_at", { ascending: false })
+  .limit(1)
+  .maybeSingle();
 
       if (error) {
         console.error("Website promo load error:", error);
@@ -2972,7 +2973,7 @@ const loadClientAlerts = async () => {
   const { data, error } = await supabase
     .from("client_alerts")
     .select("*")
-    .eq("user_id", user.id)
+    .eq("user_id", dataOwnerId)
     .order("triggered_at", { ascending: false });
 
   console.log("CLIENT ALERTS DATA:", data);
@@ -5562,7 +5563,7 @@ const handleImportMenuItems = async () => {
     const { data: existingRows, error: existingError } = await supabase
       .from("menu_items")
       .select("*")
-      .eq("user_id", user.id);
+      .eq("user_id", dataOwnerId)
 
     if (existingError) throw existingError;
 
@@ -5641,7 +5642,7 @@ const isFullMenuSync = cleanedRows.length >= 20;
     const { data: refreshedMenuItems, error: refreshError } = await supabase
       .from("menu_items")
       .select("*")
-      .eq("user_id", user.id)
+     .eq("user_id", dataOwnerId)
       .eq("is_active", true)
       .order("created_at", { ascending: false });
 
@@ -6287,13 +6288,13 @@ const loadUploadComparison = async () => {
     const { data: menuItems } = await supabase
       .from("menu_items")
       .select("*")
-      .eq("user_id", user.id)
+      .eq("user_id", dataOwnerId)
       .order("last_seen_at", { ascending: false });
 
     const { data: ingredients } = await supabase
       .from("ingredients")
       .select("*")
-      .eq("user_id", user.id)
+      .eq("user_id", dataOwnerId)
       .order("last_seen_at", { ascending: false });
 
     const activeMenuItems = (menuItems || []).filter((i) => i.is_active);
@@ -7153,7 +7154,7 @@ const loadSalesFromDatabase = async () => {
     const { data, error } = await supabase
       .from("sales")
       .select("*")
-      .eq("user_id", user.id)
+      .eq("user_id", dataOwnerId)
       .order("sale_date", { ascending: true });
 
     if (error) {
@@ -9616,7 +9617,7 @@ useEffect(() => {
     const { data, error } = await supabase
       .from("menu_items")
       .select("*")
-      .eq("user_id", user.id)
+      .eq("user_id", dataOwnerId)
       .eq("is_active", true);
 
     if (error) {
@@ -9642,7 +9643,7 @@ useEffect(() => {
       const { data, error } = await supabase
         .from("labor_uploads")
         .select("*")
-        .eq("user_id", user.id)
+       .eq("user_id", dataOwnerId)
         .order("created_at", { ascending: false })
         .limit(500);
 
@@ -10061,7 +10062,7 @@ const fetchClientImports = async () => {
     const { data, error } = await supabase
       .from("client_data_uploads")
       .select("*")
-      .eq("user_id", user.id)
+      .eq("user_id", dataOwnerId)
       .order("created_at", { ascending: false });
 
     if (error) {
