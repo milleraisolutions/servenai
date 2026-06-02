@@ -385,11 +385,17 @@ const normalizedPlan = String(
   .trim()
   .toLowerCase();
 
+const hasTeamAccess =
+  ["gm", "kitchen_manager", "executive"].includes(
+    userProfile?.role
+  );
+
 const hasPaidAccess =
   isOwner ||
+  hasTeamAccess ||
   (
     ["active", "paid", "trialing"].includes(normalizedStatus) &&
-    ["starter", "growth", "pro"].includes(normalizedPlan)
+    ["starter", "growth", "pro", "team"].includes(normalizedPlan)
   );
 const hasStarterAccess = hasPaidAccess;
 
