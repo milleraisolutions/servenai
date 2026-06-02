@@ -355,6 +355,10 @@ const isExecutiveRole = userRole === "executive";
 const isGMRole = userRole === "gm";
 const isKitchenManagerRole = userRole === "kitchen_manager";
 const dataOwnerId = userProfile?.owner_user_id || user?.id;
+const assignedLocation = userProfile?.location_name || null;
+
+const shouldFilterByLocation =
+  ["gm", "kitchen_manager"].includes(userRole) && assignedLocation;
 const isStaffRole = userRole === "staff";
 const isOwner =
   userProfile?.role === "owner" ||
@@ -1285,10 +1289,11 @@ const getTabButtonStyle = (isActive, locked) => {
       if (!user) return;
 
       const { error } = await supabase
-        .from("marketing_campaigns")
-        .update({ active: false })
-        .eq("user_id", dataOwnerId)
-        .eq("active", true);
+  .from("marketing_campaigns")
+  .update({ active: false })
+  .eq("user_id", dataOwnerId)
+  .eq("active", true)
+  .eq("location_name", assignedLocation);
 
       if (error) throw error;
 
@@ -2238,12 +2243,21 @@ useEffect(() => {
         return;
       }
 
-     const { data, error } = await supabase
+   let marketingQuery = supabase
   .from("marketing_campaigns")
   .select("*")
   .eq("user_id", dataOwnerId)
   .eq("active", true)
-  .eq("published_to_website", true)
+  .eq("published_to_website", true);
+
+if (shouldFilterByLocation) {
+  marketingQuery = marketingQuery.eq(
+    "location_name",
+    assignedLocation
+  );
+}
+
+const { data, error } = await marketingQuery
   .order("created_at", { ascending: false })
   .limit(1)
   .maybeSingle();
@@ -2970,11 +2984,19 @@ const loadClientAlerts = async () => {
 
   setAlertsLoading(true);
 
-  const { data, error } = await supabase
-    .from("client_alerts")
-    .select("*")
-    .eq("user_id", dataOwnerId)
-    .order("triggered_at", { ascending: false });
+let alertsQuery = supabase
+  .from("client_alerts")
+  .select("*")
+  .eq("user_id", dataOwnerId);
+
+if (shouldFilterByLocation) {
+  alertsQuery = alertsQuery.eq(
+    "location_name",
+    assignedLocation
+  );
+}
+
+const { data, error } = await alertsQuery;
 
   console.log("CLIENT ALERTS DATA:", data);
   console.log("CLIENT ALERTS ERROR:", error);
@@ -7151,11 +7173,18 @@ const loadSalesFromDatabase = async () => {
 
     if (!user?.id) return;
 
-    const { data, error } = await supabase
-      .from("sales")
-      .select("*")
-      .eq("user_id", dataOwnerId)
-      .order("sale_date", { ascending: true });
+    let salesQuery = supabase
+  .from("sales")
+  .select("*")
+  .eq("user_id", dataOwnerId);
+
+if (shouldFilterByLocation) {
+  salesQuery = salesQuery.eq("location_name", assignedLocation);
+}
+
+const { data, error } = await salesQuery.order("sale_date", {
+  ascending: true,
+});
 
     if (error) {
       console.error("Sales error:", error);
@@ -9614,11 +9643,20 @@ useEffect(() => {
 
     if (!user?.id) return;
 
-    const { data, error } = await supabase
-      .from("menu_items")
-      .select("*")
-      .eq("user_id", dataOwnerId)
-      .eq("is_active", true);
+    let menuItemsQuery = supabase
+  .from("menu_items")
+  .select("*")
+  .eq("user_id", dataOwnerId)
+  .eq("is_active", true);
+
+if (shouldFilterByLocation) {
+  menuItemsQuery = menuItemsQuery.eq(
+    "location_name",
+    assignedLocation
+  );
+}
+
+const { data, error } = await menuItemsQuery;
 
     if (error) {
       console.error("Failed to load menu items:", error);
@@ -9640,13 +9678,21 @@ useEffect(() => {
 
       if (!user?.id) return;
 
-      const { data, error } = await supabase
-        .from("labor_uploads")
-        .select("*")
-       .eq("user_id", dataOwnerId)
-        .order("created_at", { ascending: false })
-        .limit(500);
+      let laborQuery = supabase
+  .from("labor_uploads")
+  .select("*")
+  .eq("user_id", dataOwnerId);
 
+if (shouldFilterByLocation) {
+  laborQuery = laborQuery.eq(
+    "location_name",
+    assignedLocation
+  );
+}
+
+const { data, error } = await laborQuery
+  .order("created_at", { ascending: false })
+  .limit(500);
       if (error) {
         console.error("Failed to load labor data:", error);
         return;
@@ -10059,11 +10105,22 @@ const fetchClientImports = async () => {
       return;
     }
 
-    const { data, error } = await supabase
-      .from("client_data_uploads")
-      .select("*")
-      .eq("user_id", dataOwnerId)
-      .order("created_at", { ascending: false });
+   let clientDataQuery = supabase
+  .from("client_data_uploads")
+  .select("*")
+  .eq("user_id", dataOwnerId);
+
+if (shouldFilterByLocation) {
+  clientDataQuery = clientDataQuery.eq(
+    "location_name",
+    assignedLocation
+  );
+}
+
+const { data, error } = await clientDataQuery.order(
+  "created_at",
+  { ascending: false }
+);
 
     if (error) {
       console.error("CLIENT IMPORTS LOAD ERROR:", error);
