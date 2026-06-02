@@ -48,12 +48,20 @@ await supabase.auth.signOut();
     password,
   });
 
-  if (error) {
-    console.error("Signup error:", error);
-    alert(error.message);
+ if (error) {
+  console.error("Signup error:", error);
+
+  if (error.message.toLowerCase().includes("already registered")) {
+    alert("This email already has a Serven account. Please log in instead.");
     setCreating(false);
+    window.location.href = "/login";
     return;
   }
+
+  alert(error.message);
+  setCreating(false);
+  return;
+}
 
   const newUserId = data?.user?.id;
 
