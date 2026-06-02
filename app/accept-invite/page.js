@@ -51,12 +51,45 @@ await supabase.auth.signOut();
  if (error) {
   console.error("Signup error:", error);
 
-  if (error.message.toLowerCase().includes("already registered")) {
-    alert("This email already has a Serven account. Please log in instead.");
+ if (error.message.toLowerCase().includes("already registered")) {
+  const { data: loginData, error: loginError } =
+    await supabase.auth.signInWithPassword({
+      email: invite.email,
+      password,
+    });
+
+  if (loginError) {
+    alert("This email already exists. Log in with the correct password.");
     setCreating(false);
     window.location.href = "/login";
     return;
   }
+
+  const existingUserId = loginData?.user?.id;
+
+  const acceptResponse = await fetch("/api/accept-team-invite", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      inviteId: invite.id,
+      userId: existingUserId,
+    }),
+  });
+
+  const acceptResult = await acceptResponse.json();
+
+  if (!acceptResult.success) {
+    alert(acceptResult.error || "Invite acceptance failed.");
+    setCreating(false);
+    return;
+  }
+
+  alert("Invite accepted. You can now access Serven.");
+  window.location.href = "/dashboard";
+  return;
+}
 
   alert(error.message);
   setCreating(false);
