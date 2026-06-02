@@ -63,7 +63,7 @@ await supabase.auth.signOut();
     return;
   }
 
-  const { error: userInsertError } = await supabase.from("users").insert([
+  const { error: userInsertError } = await supabase.from("users").upsert([
     {
       id: newUserId,
       email: invite.email,
