@@ -283,10 +283,12 @@ const [recentUploads, setRecentUploads] = useState([]);
 const [yesterdayPrepData, setYesterdayPrepData] = useState([]);
 const [customPlanRequests, setCustomPlanRequests] = useState([]);
 const [teamMembers, setTeamMembers] = useState([]);
+
 const [inviteName, setInviteName] = useState("");
 const [inviteEmail, setInviteEmail] = useState("");
 const [inviteRole, setInviteRole] = useState("gm");
 const [inviteLocation, setInviteLocation] = useState("");
+const [teamInvites, setTeamInvites] = useState([]);
 const loadAdminData = async () => {
   const { data: usersData, error: usersError } = await supabase
     .from("users")
@@ -13150,6 +13152,41 @@ const canSeeOwnerDashboard =
 
 const canSeeManagerDashboard =
   isManager && !canSeeOwnerDashboard;
+  
+
+const allowedTabsByRole = {
+  owner: null,
+
+  gm: [
+    "overview",
+    "ai_insights",
+    "client_alerts",
+    "analytics",
+    "inventory",
+    "financial",
+    "labor",
+    "operations",
+    "menu",
+    "beverage",
+    "growth",
+    "marketing",
+  ],
+
+  kitchen_manager: [
+    "overview",
+    "inventory",
+    "operations",
+    "menu",
+    "beverage",
+    "ai_alerts",
+    "kitchen",
+  ],
+};
+
+const canViewTab = (tabId) => {
+  if (userRole === "owner") return true;
+  return allowedTabsByRole[userRole]?.includes(tabId);
+};
 const sidebarTabs = isKitchenManagerRole
   ? [
       { key: "kitchen_manager", label: "Kitchen Manager", icon: "🍳" },
@@ -22269,36 +22306,55 @@ const renderSafeText = (value, fallback = "") => {
 
   return value;
 };
-
 const handleCreateTeamInvite = async () => {
-  if (!inviteEmail.trim()) {
-    alert("Enter an email address.");
+  if (!inviteName.trim() || !inviteEmail.trim()) {
+    alert("Please enter a name and email.");
     return;
   }
-
-  const { data: { user } } = await supabase.auth.getUser();
+const inviteToken = crypto.randomUUID();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   if (!user?.id) {
     alert("You must be logged in.");
     return;
   }
 
-  const { error } = await supabase.from("team_invites").insert([
-    {
-      owner_user_id: user.id,
-      name: inviteName,
-      email: inviteEmail.trim().toLowerCase(),
-      role: inviteRole,
-      location_name: inviteLocation,
-      status: "pending",
-    },
-  ]);
+ const { error } = await supabase.from("team_invites").insert([
+  {
+    owner_user_id: user.id,
+    name: inviteName.trim(),
+    email: inviteEmail.trim().toLowerCase(),
+    role: inviteRole,
+    location_name: inviteLocation.trim() || null,
+    status: "pending",
+    invite_token: inviteToken,
+  },
+]);
 
   if (error) {
     console.error("Team invite failed:", error);
     alert(error.message);
     return;
   }
+
+await fetch("/api/send-team-invite", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+  },
+
+  body: JSON.stringify({
+    inviteEmail,
+    inviteName,
+    inviteRole,
+    inviteLocation,
+    inviteToken,
+  }),
+});
+
+  await loadTeamInvites();
 
   alert("Invite created successfully.");
 
@@ -22307,6 +22363,47 @@ const handleCreateTeamInvite = async () => {
   setInviteRole("gm");
   setInviteLocation("");
 };
+
+useEffect(() => {
+  loadTeamInvites();
+}, []);
+
+const loadTeamInvites = async () => {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user?.id) return;
+
+  const { data, error } = await supabase
+    .from("team_invites")
+    .select("*")
+    .eq("owner_user_id", user.id)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("Failed loading team invites:", error);
+    return;
+  }
+
+  setTeamInvites(data || []);
+};
+
+const handleUpdateTeamInviteStatus = async (inviteId, newStatus) => {
+  const { error } = await supabase
+    .from("team_invites")
+    .update({ status: newStatus })
+    .eq("id", inviteId);
+
+  if (error) {
+    console.error("Team invite status update failed:", error);
+    alert(error.message);
+    return;
+  }
+
+  await loadTeamInvites();
+};
+
 
 
 
@@ -46306,6 +46403,203 @@ borderRadius: "14px",
   Send Invite
 </button>
 </div>
+{/* INVITED TEAM MEMBERS */}
+<div
+  style={{
+    padding: "24px",
+    borderRadius: "24px",
+    background:
+      "linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.94))",
+    border: "1px solid rgba(148,163,184,0.14)",
+  }}
+>
+  <div
+    style={{
+      color: "#93c5fd",
+      fontSize: "12px",
+      fontWeight: "900",
+      marginBottom: "14px",
+    }}
+  >
+    Invited Team Members
+  </div>
+
+  {teamInvites.length === 0 ? (
+    <p style={{ color: "#94a3b8", fontSize: "14px" }}>
+      No team invites sent yet.
+    </p>
+  ) : (
+    <div style={{ display: "grid", gap: "12px" }}>
+      {teamInvites.map((member) => (
+  <div
+    key={member.id}
+    style={{
+      padding: "16px",
+      borderRadius: "18px",
+      background: "rgba(15,23,42,0.72)",
+      border: "1px solid rgba(148,163,184,0.12)",
+    }}
+  >
+    <div style={{ color: "white", fontWeight: "900" }}>
+      {member.name}
+    </div>
+
+    <div style={{ color: "#94a3b8", fontSize: "13px" }}>
+      {member.email}
+    </div>
+
+    <div
+      style={{
+        marginTop: "8px",
+        color: "#c4b5fd",
+        fontSize: "12px",
+        fontWeight: "800",
+      }}
+    >
+      {member.role === "gm"
+        ? "General Manager"
+        : "Kitchen Manager"}{" "}
+      • {member.location_name} • {member.status}
+    </div>
+
+    <div
+      style={{
+        display: "flex",
+        gap: "10px",
+        marginTop: "12px",
+        flexWrap: "wrap",
+      }}
+    >
+      <button
+        type="button"
+        onClick={() =>
+          handleUpdateTeamInviteStatus(member.id, "accepted")
+        }
+        style={{
+          padding: "10px 12px",
+          borderRadius: "12px",
+          border: "1px solid rgba(34,197,94,0.25)",
+          background: "rgba(34,197,94,0.12)",
+          color: "#86efac",
+          fontWeight: "800",
+          cursor: "pointer",
+        }}
+      >
+        Mark Accepted
+      </button>
+
+      <button
+        type="button"
+        onClick={() =>
+          handleUpdateTeamInviteStatus(member.id, "revoked")
+        }
+        style={{
+          padding: "10px 12px",
+          borderRadius: "12px",
+          border: "1px solid rgba(248,113,113,0.25)",
+          background: "rgba(248,113,113,0.12)",
+          color: "#fca5a5",
+          fontWeight: "800",
+          cursor: "pointer",
+        }}
+      >
+        Revoke
+      </button>
+    </div>
+  </div>
+))}
+    </div>
+  )}
+</div>
+{/* ROLE ACCESS CONTROL */}
+<div
+  style={{
+    padding: "24px",
+    borderRadius: "24px",
+    background:
+      "linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.94))",
+    border: "1px solid rgba(148,163,184,0.14)",
+  }}
+>
+  <div
+    style={{
+      color: "#facc15",
+      fontSize: "12px",
+      fontWeight: "900",
+      marginBottom: "16px",
+    }}
+  >
+    Role Access Control
+  </div>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile
+        ? "1fr"
+        : "repeat(2, minmax(0, 1fr))",
+      gap: "16px",
+    }}
+  >
+    {[
+      {
+        title: "General Manager",
+        permissions: [
+          "View Financial Intelligence",
+          "Manage Labor",
+          "Approve Inventory Actions",
+          "View AI Insights",
+        ],
+      },
+
+      {
+        title: "Kitchen Manager",
+        permissions: [
+          "Inventory Access",
+          "Recipe Costing",
+          "Waste Tracking",
+          "Kitchen Performance",
+        ],
+      },
+    ].map((role, index) => (
+      <div
+        key={index}
+        style={{
+          padding: "20px",
+          borderRadius: "20px",
+          background: "rgba(15,23,42,0.72)",
+          border: "1px solid rgba(148,163,184,0.12)",
+        }}
+      >
+        <div
+          style={{
+            color: "white",
+            fontSize: "18px",
+            fontWeight: "900",
+            marginBottom: "14px",
+          }}
+        >
+          {role.title}
+        </div>
+
+        <div style={{ display: "grid", gap: "10px" }}>
+          {role.permissions.map((permission, i) => (
+            <div
+              key={i}
+              style={{
+                color: "#cbd5e1",
+                fontSize: "14px",
+              }}
+            >
+              ✓ {permission}
+            </div>
+          ))}
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+
 
   </div>
 )}
