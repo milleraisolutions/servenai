@@ -35,12 +35,6 @@ const [creating, setCreating] = useState(false);
     setInvite(data || null);
     setLoading(false);
   };
-
-  if (loading) return <div style={{ padding: 40 }}>Loading invite...</div>;
-
-  if (!invite) {
-    return <div style={{ padding: 40 }}>Invite not found or expired.</div>;
-  }
 const handleAcceptInvite = async () => {
   if (!password.trim()) {
     alert("Create a password first.");
@@ -96,6 +90,12 @@ const handleAcceptInvite = async () => {
 
   window.location.href = "/login";
 };
+  if (loading) return <div style={{ padding: 40 }}>Loading invite...</div>;
+
+  if (!invite) {
+    return <div style={{ padding: 40 }}>Invite not found or expired.</div>;
+  }
+
 
 
 
@@ -128,10 +128,12 @@ const handleAcceptInvite = async () => {
 
 <button
   type="button"
-  onClick={handleCreateTeamInvite}
+  onClick={handleAcceptInvite}
+  disabled={creating}
   style={{
     marginTop: "22px",
     width: "100%",
+    maxWidth: "360px",
     padding: "16px 20px",
     borderRadius: "16px",
     border: "2px solid rgba(129,140,248,0.6)",
@@ -139,13 +141,13 @@ const handleAcceptInvite = async () => {
     color: "white",
     fontSize: "15px",
     fontWeight: "900",
-    cursor: "pointer",
+    cursor: creating ? "not-allowed" : "pointer",
     display: "block",
     position: "relative",
     zIndex: 20,
   }}
 >
-  Send Invite
+  {creating ? "Creating Account..." : "Create Account"}
 </button>
 
     </div>
