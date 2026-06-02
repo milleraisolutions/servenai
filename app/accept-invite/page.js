@@ -71,29 +71,24 @@ await supabase.auth.signOut();
     return;
   }
 
-  const { error: userInsertError } = await supabase.from("users").upsert([
-    {
-      id: newUserId,
-      email: invite.email,
-      role: invite.role,
-      owner_user_id: invite.owner_user_id,
-      location_name: invite.location_name,
-      plan: "team",
-    },
-  ]);
+  const acceptResponse = await fetch("/api/accept-team-invite", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    inviteId: invite.id,
+    userId: newUserId,
+  }),
+});
 
-  if (userInsertError) {
-    console.error("Team user insert failed:", userInsertError);
-    console.log("UPSERT ERROR FULL:", JSON.stringify(userInsertError));
-    alert(userInsertError.message);
-    setCreating(false);
-    return;
-  }
+const acceptResult = await acceptResponse.json();
 
-  await supabase
-    .from("team_invites")
-    .update({ status: "accepted", accepted_user_id: newUserId })
-    .eq("id", invite.id);
+if (!acceptResult.success) {
+  alert(acceptResult.error || "Invite acceptance failed.");
+  setCreating(false);
+  return;
+}
 
   alert("Account created. You can now log in.");
 
