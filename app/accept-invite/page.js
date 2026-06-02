@@ -119,7 +119,9 @@ await supabase.auth.signOut();
         You were invited as <strong>{invite.role}</strong>
         {invite.location_name ? ` for ${invite.location_name}` : ""}.
       </p>
-
+<p style={{ color: "#64748b", marginTop: "10px" }}>
+  Invited email: <strong>{invite.email}</strong>
+</p>
       <input
   type="password"
   placeholder="Create password"
