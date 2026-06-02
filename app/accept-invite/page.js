@@ -84,6 +84,7 @@ await supabase.auth.signOut();
 
   if (userInsertError) {
     console.error("Team user insert failed:", userInsertError);
+    console.log("UPSERT ERROR FULL:", JSON.stringify(userInsertError));
     alert(userInsertError.message);
     setCreating(false);
     return;
