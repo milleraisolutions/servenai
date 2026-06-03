@@ -406,11 +406,11 @@ const hasStarterAccess = hasPaidAccess;
 
 const hasGrowthAccess =
   isOwner ||
+  hasTeamAccess ||
   (
     ["active", "paid", "trialing"].includes(normalizedStatus) &&
-    ["growth", "pro"].includes(normalizedPlan)
+    ["growth", "pro", "team"].includes(normalizedPlan)
   );
-
 const hasProAccess =
   isOwner ||
   (
