@@ -8012,7 +8012,7 @@ if (unusualDropDetected || revenueDrop > 10) {
     timing: "This Week",
     goal: "Increase Repeat Visits",
     channel: "SMS",
-    expectedRevenue: "$800 - $2,000",
+    expectedRevenue: liveCampaignImpactRange,
     cost: "175",
   };
 
@@ -22691,6 +22691,32 @@ const expansionReadiness =
     : realEnterpriseHealth >= 55
     ? "Moderate"
     : "At Risk";
+
+const liveMonthlyImpact =
+  Number(totalAIRecoveryOpportunity || 0) +
+  Number(estimatedRecoverableProfit || 0);
+
+const liveCampaignImpactLow = Math.round(
+  Math.max(
+    250,
+    Number(totalAIRecoveryOpportunity || 0) * 0.25 +
+      Number(estimatedRecoverableProfit || 0) * 0.25
+  )
+);
+
+const liveCampaignImpactHigh = Math.round(
+  Math.max(
+    750,
+    Number(totalAIRecoveryOpportunity || 0) * 0.65 +
+      Number(estimatedRecoverableProfit || 0) * 0.65
+  )
+);
+
+const liveCampaignImpactRange = `$${liveCampaignImpactLow.toLocaleString()} - $${liveCampaignImpactHigh.toLocaleString()}`;
+
+
+
+
 
 
 
