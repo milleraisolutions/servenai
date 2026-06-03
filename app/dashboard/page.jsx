@@ -1158,8 +1158,12 @@ const wowInsight = (() => {
 
   return {
     title: "Profit Leakage Detected",
-    value: "$3,000/month",
-    message: "Menu pricing inefficiencies detected",
+    {hasOperationalData
+  ? `$${Number(totalAIRecoveryOpportunity || 0).toLocaleString()}/month`
+  : "Awaiting Data"}
+    {hasOperationalData
+  ? aiRecoveryInsight
+  : "Upload sales, labor, inventory, and invoice data to activate live AI recovery analysis."}
   };
 })();
 const dashboardCopy = {
@@ -1420,42 +1424,101 @@ const handleGeneratePromotions = () => {
 const fallbackProfitOpportunities = [
   {
     id: 1,
+
     title: "Menu Price Optimization",
-    description: "Increase prices on underpriced high-demand items",
-    impact: 3200,
-    difficulty: "Easy",
+
+    description: hasOperationalData
+      ? "Increase prices on underpriced high-demand items"
+      : "Upload menu and sales mix data to activate pricing optimization AI.",
+
+    impact: hasOperationalData
+      ? Number(menuRecoveryValue || 0)
+      : null,
+
+    difficulty: hasOperationalData
+      ? "Easy"
+      : "Simulation",
+
     category: "Revenue Boost",
   },
+
   {
     id: 2,
+
     title: "Reduce Ingredient Waste",
-    description: "Optimize portion sizes and prep tracking",
-    impact: 1800,
-    difficulty: "Medium",
+
+    description: hasOperationalData
+      ? "Optimize portion sizes and prep tracking"
+      : "Upload inventory and invoice data to activate waste reduction intelligence.",
+
+    impact: hasOperationalData
+      ? Number(inventoryRecoveryValue || 0)
+      : null,
+
+    difficulty: hasOperationalData
+      ? "Medium"
+      : "Simulation",
+
     category: "Cost Reduction",
   },
+
   {
     id: 3,
+
     title: "Upsell Optimization",
-    description: "Improve add-on attach rates (drinks, sides)",
-    impact: 2500,
-    difficulty: "Easy",
+
+    description: hasOperationalData
+      ? "Improve add-on attach rates (drinks, sides)"
+      : "Upload guest purchase data to activate upsell intelligence.",
+
+    impact: hasOperationalData
+      ? Number(upsellRecoveryValue || 0)
+      : null,
+
+    difficulty: hasOperationalData
+      ? "Easy"
+      : "Simulation",
+
     category: "Revenue Boost",
   },
+
   {
     id: 4,
+
     title: "Supplier Cost Adjustment",
-    description: "Switch suppliers or renegotiate pricing",
-    impact: 1400,
-    difficulty: "Medium",
+
+    description: hasOperationalData
+      ? "Switch suppliers or renegotiate pricing"
+      : "Upload vendor and invoice data to activate supplier optimization AI.",
+
+    impact: hasOperationalData
+      ? Number(vendorRecoveryValue || 0)
+      : null,
+
+    difficulty: hasOperationalData
+      ? "Medium"
+      : "Simulation",
+
     category: "Cost Reduction",
   },
+
   {
     id: 5,
+
     title: "Labor Efficiency Fix",
-    description: "Adjust staffing on low-efficiency days",
-    impact: 2100,
-    difficulty: "Hard",
+
+    description: hasOperationalData
+      ? "Adjust staffing on low-efficiency days"
+      : "Upload labor and revenue data to activate staffing optimization AI.",
+
+    impact: hasOperationalData
+      ? Number(laborRecoveryValue || 0)
+      : null,
+
+    difficulty: hasOperationalData
+      ? "Hard"
+      : "Simulation",
+
     category: "Labor Optimization",
   },
 ];
@@ -1504,7 +1567,7 @@ const aiProfitOpportunities = useMemo(() => {
         id: index + 1,
         title: item.title || `AI Opportunity ${index + 1}`,
         description: actionText,
-        impact: parsedImpact || 0,
+        impact: hasOperationalData ? parsedImpact || 0 : null,
         difficulty,
         category,
       };
@@ -1658,9 +1721,11 @@ offer: data?.body || "Generated campaign content",
       channel,
       audience: campaignForm.audience || "All Customers",
       timing: campaignForm.timing || "This Week",
-      impact: campaignForm.expectedRevenue
-        ? `+$${campaignForm.expectedRevenue}/month`
-        : "+$1,200/mo",
+      impact: hasOperationalData
+  ? campaignForm.expectedRevenue
+    ? `+$${campaignForm.expectedRevenue}/month`
+    : "AI Calculating"
+  : "Simulation Mode",
       status: "Draft",
     };
 
@@ -17981,7 +18046,10 @@ const aiStrategicRecommendations = useMemo(() => {
       priority: beverageHealthScoreData.score < 60 ? "Critical" : "High",
       recommendation:
         "Review pour variance, bartender leakage, keg pressure, and happy hour profitability.",
-      impact: 1200,
+     impact: Math.round(
+  Number(totalAlcoholVarianceLoss || 0) +
+  Number(happyHourProfitLoss || 0)
+),
     });
   }
 
@@ -22832,6 +22900,130 @@ const executiveHealthLabel =
     ? "Watch"
     : "Critical";
 
+const peakDiningHour = (() => {
+  const rows = salesData?.length ? salesData : locationSalesData || [];
+
+  const hourCounts = {};
+
+  rows.forEach((sale) => {
+    const rawDate =
+      sale.created_at ||
+      sale.sale_date ||
+      sale.date ||
+      sale.order_time ||
+      sale.timestamp;
+
+    if (!rawDate) return;
+
+    const hour = new Date(rawDate).getHours();
+
+    if (Number.isNaN(hour)) return;
+
+    hourCounts[hour] = (hourCounts[hour] || 0) + 1;
+  });
+
+  const peakHour = Object.entries(hourCounts).sort(
+    (a, b) => b[1] - a[1]
+  )[0]?.[0];
+
+  if (!peakHour) return null;
+
+  const hourNumber = Number(peakHour);
+  const displayHour =
+    hourNumber === 0
+      ? "12 AM"
+      : hourNumber === 12
+      ? "12 PM"
+      : hourNumber > 12
+      ? `${hourNumber - 12} PM`
+      : `${hourNumber} AM`;
+
+  return displayHour;
+})();
+
+const peakDiningDay = (() => {
+  const rows = salesData?.length ? salesData : locationSalesData || [];
+
+  const dayCounts = {};
+
+  rows.forEach((sale) => {
+    const rawDate =
+      sale.created_at ||
+      sale.sale_date ||
+      sale.date ||
+      sale.order_time ||
+      sale.timestamp;
+
+    if (!rawDate) return;
+
+    const day = new Date(rawDate).toLocaleDateString("en-US", {
+      weekday: "long",
+    });
+
+    if (!day || day === "Invalid Date") return;
+
+    dayCounts[day] = (dayCounts[day] || 0) + 1;
+  });
+
+  return Object.entries(dayCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+})();
+
+const topCustomerSegment = (() => {
+  const rows = salesData?.length ? salesData : locationSalesData || [];
+
+  const segmentCounts = {};
+
+  rows.forEach((sale) => {
+    const segment =
+      sale.customer_segment ||
+      sale.guest_category ||
+      sale.customer_type ||
+      sale.segment ||
+      sale.category;
+
+    if (!segment) return;
+
+    segmentCounts[segment] = (segmentCounts[segment] || 0) + 1;
+  });
+
+  return (
+    Object.entries(segmentCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || null
+  );
+})();
+
+const repeatVisitRate = (() => {
+  const rows = salesData?.length ? salesData : locationSalesData || [];
+
+  const guestVisits = {};
+
+  rows.forEach((sale) => {
+    const guestId =
+      sale.customer_id ||
+      sale.guest_id ||
+      sale.customer_email ||
+      sale.email ||
+      sale.phone;
+
+    if (!guestId) return;
+
+    guestVisits[guestId] = (guestVisits[guestId] || 0) + 1;
+  });
+
+  const guests = Object.values(guestVisits);
+
+  if (!guests.length) return null;
+
+  const repeatGuests = guests.filter((count) => count > 1).length;
+
+  return Math.round((repeatGuests / guests.length) * 100);
+})();
+
+const enterpriseRecoverableProfit =
+  (locationPerformanceData || []).reduce(
+    (sum, location) =>
+      sum + Number(location.revenue || 0) * 0.08,
+    0
+  );
 
 
 
@@ -24103,13 +24295,13 @@ borderRadius: "14px",
     >
       <GlassCard
         title="Action Category"
-        value={aiAutopilotActionEngine.category}
+        value={aiAutopilotActionEngine.category || "Beverage"}
         subtext="AI-selected operational area"
       />
 
       <GlassCard
         title="Priority"
-        value={aiAutopilotActionEngine.priority}
+        value={aiAutopilotActionEngine.priority || "High"}
         subtext="Autopilot urgency level"
       />
 
@@ -29650,18 +29842,25 @@ borderRadius: "14px",
         }}
       >
         {[
-          {
-            label: "Locations",
-            value: "0",
-          },
-          {
-            label: "Top Location",
-            value: "N/A",
-          },
-          {
-            label: "Enterprise Health",
-            value: "--",
-          },
+          [
+  {
+    label: "Locations",
+    value: (locationPerformanceData || []).length,
+  },
+  {
+    label: "Top Location",
+    value:
+      (locationPerformanceData || []).length
+        ? [...locationPerformanceData].sort(
+            (a, b) => Number(b.revenue || 0) - Number(a.revenue || 0)
+          )[0]?.name || "Unknown"
+        : "Awaiting Data",
+  },
+  {
+    label: "Enterprise Health",
+    value: `${realEnterpriseHealth}/100`,
+  },
+]
         ].map((item) => (
           <div
             key={item.label}
@@ -30131,21 +30330,21 @@ borderRadius: "14px",
   >
     {[
       {
-        label: "Labor Optimization",
-        value: "28%",
-      },
-      {
-        label: "Inventory Recovery",
-        value: "21%",
-      },
-      {
-        label: "Vendor Savings",
-        value: "17%",
-      },
-      {
-        label: "AI Automation",
-        value: "34%",
-      },
+  label: "Labor Optimization",
+  value: `$${Math.round(enterpriseRecoverableProfit * 0.28).toLocaleString()}`,
+},
+{
+  label: "Inventory Recovery",
+  value: `$${Math.round(enterpriseRecoverableProfit * 0.21).toLocaleString()}`,
+},
+{
+  label: "Vendor Savings",
+  value: `$${Math.round(enterpriseRecoverableProfit * 0.17).toLocaleString()}`,
+},
+{
+  label: "AI Automation",
+  value: `$${Math.round(enterpriseRecoverableProfit * 0.34).toLocaleString()}`,
+},
     ].map((item) => (
       <div
         key={item.label}
@@ -30323,21 +30522,53 @@ borderRadius: "14px",
     }}
   >
     {[
-      {
-        title: "Review lowest-performing location",
-        impact: "$1,850/mo",
-        priority: "High",
-      },
-      {
-        title: "Compare labor % across stores",
-        impact: "$1,240/mo",
-        priority: "Medium",
-      },
-      {
-        title: "Audit inventory variance by location",
-        impact: "$980/mo",
-        priority: "Medium",
-      },
+      [
+  {
+    title:
+      (locationPerformanceData || []).length
+        ? `Review ${
+            [...locationPerformanceData].sort(
+              (a, b) => Number(a.revenue || 0) - Number(b.revenue || 0)
+            )[0]?.name || "Lowest Performing Location"
+          }`
+        : "Upload Multi-Location Data",
+
+    impact:
+      (locationPerformanceData || []).length
+        ? `$${Math.round(
+            enterpriseRecoverableProfit * 0.4
+          ).toLocaleString()}/mo`
+        : "Awaiting Data",
+
+    priority: "High",
+  },
+
+  {
+    title: "Compare Labor Performance Across Locations",
+
+    impact:
+      (locationPerformanceData || []).length
+        ? `$${Math.round(
+            enterpriseRecoverableProfit * 0.3
+          ).toLocaleString()}/mo`
+        : "Awaiting Data",
+
+    priority: "Medium",
+  },
+
+  {
+    title: "Audit Inventory Variance Across Locations",
+
+    impact:
+      (locationPerformanceData || []).length
+        ? `$${Math.round(
+            enterpriseRecoverableProfit * 0.3
+          ).toLocaleString()}/mo`
+        : "Awaiting Data",
+
+    priority: "Medium",
+  },
+]
     ].map((item) => (
       <div
         key={item.title}
@@ -31072,14 +31303,40 @@ borderRadius: "14px",
     }}
   >
     {[
-      { label: "Labor", score: 72 },
-      { label: "Inventory", score: 64 },
-      { label: "Vendor", score: 81 },
-      { label: "Food Cost", score: 59 },
-      { label: "Waste", score: 67 },
-      { label: "Beverage", score: 74 },
-      { label: "Sales", score: 88 },
-      { label: "Forecast", score: 79 },
+      [
+  {
+    label: "Labor",
+    score: Number(laborHealthScore || 0),
+  },
+  {
+    label: "Inventory",
+    score: Number(inventoryHealthScore || 0),
+  },
+  {
+    label: "Vendor",
+    score: Number(vendorHealthScore || 0),
+  },
+  {
+    label: "Food Cost",
+    score: Number(financialHealthScore || 0),
+  },
+  {
+    label: "Waste",
+    score: Number(wasteHealthScore || 0),
+  },
+  {
+    label: "Beverage",
+    score: Number(beverageHealthScoreData?.score || 0),
+  },
+  {
+    label: "Sales",
+    score: Number(scoreRevenue || 0),
+  },
+  {
+    label: "Forecast",
+    score: Number(forecastStability || 0),
+  },
+]
     ].map((item) => {
       const color =
         item.score >= 80
@@ -31189,26 +31446,36 @@ borderRadius: "14px",
     }}
   >
     {[
-      {
-        title: "Labor spike detected at Location 2",
-        time: "2 min ago",
-        severity: "High",
-      },
-      {
-        title: "Food cost improved 4% at Location 1",
-        time: "18 min ago",
-        severity: "Positive",
-      },
-      {
-        title: "Inventory variance detected across 3 stores",
-        time: "42 min ago",
-        severity: "Medium",
-      },
-      {
-        title: "Revenue momentum accelerating enterprise-wide",
-        time: "1 hour ago",
-        severity: "Positive",
-      },
+     [
+  {
+    title: (locationPerformanceData || []).length
+      ? "Enterprise location data analyzed"
+      : "Upload multi-location data to activate enterprise alerts",
+    time: (locationPerformanceData || []).length ? "Live" : "Awaiting Data",
+    severity: (locationPerformanceData || []).length ? "Positive" : "Medium",
+  },
+  {
+    title: (locationPerformanceData || []).length
+      ? "AI is monitoring labor performance across locations"
+      : "Upload labor data by location to detect staffing spikes",
+    time: (locationPerformanceData || []).length ? "Live" : "Awaiting Data",
+    severity: "Medium",
+  },
+  {
+    title: (locationPerformanceData || []).length
+      ? "AI is monitoring food cost and inventory variance"
+      : "Upload inventory and invoice data by location to detect variance",
+    time: (locationPerformanceData || []).length ? "Live" : "Awaiting Data",
+    severity: "Medium",
+  },
+  {
+    title: (locationPerformanceData || []).length
+      ? "Enterprise revenue momentum is being tracked"
+      : "Upload timestamped POS data to activate revenue momentum alerts",
+    time: (locationPerformanceData || []).length ? "Live" : "Awaiting Data",
+    severity: (locationPerformanceData || []).length ? "Positive" : "Medium",
+  },
+]
     ].map((item) => {
       const color =
         item.severity === "High"
@@ -33459,9 +33726,13 @@ borderRadius: "14px",
     Cook Time Intelligence
   </div>
 
-  <h3 style={{ color: "white", fontSize: "26px", fontWeight: "950" }}>
-    Kitchen Speed Score: {kitchenSpeedScore}/100
-  </h3>
+   <h3 style={{ color: "white", fontSize: "26px", fontWeight: "950" }}>
+  Kitchen Speed Score:{" "}
+  {hasOperationalData
+    ? `${Number(kitchenSpeedScore || 0)}/100`
+    : "Awaiting Data"}
+</h3>
+  
 
   <p style={{ color: "#94a3b8", fontSize: "14px" }}>
     Average cook time: {avgCookTime.toFixed(1)} minutes
@@ -49624,7 +49895,9 @@ borderRadius: "14px",
         marginBottom: "8px",
       }}
     >
-      You’re missing profit opportunities
+     {hasOperationalData
+  ? "AI detected operational profit opportunities"
+  : "Unlock AI profit recovery intelligence"}
     </div>
 
     <div
@@ -49834,7 +50107,11 @@ borderRadius: "14px",
 >
           <GlassCard
             title="AI Score"
-            value={`${Number(score || 0)}/100`}
+           value={
+  hasOperationalData
+    ? `${Number(restaurantAIHealthScore || 0)}/100`
+    : "Awaiting Data"
+}
             subtext="AI-rated business health"
           />
 
@@ -55115,124 +55392,280 @@ flexWrap: "wrap",
   );
 })()}
 
-    {/* ⏱️ CULINARY COMPONENTS & PREP TIME BOTTLENECK ANALYSIS */}
+ {/* ⏱️ CULINARY COMPONENTS & PREP TIME BOTTLENECK ANALYSIS */}
+<div
+  style={{
+    marginTop: "20px",
+    padding: "22px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.92))",
+    border: "1px solid rgba(99, 102, 241, 0.22)",
+  }}
+>
+  <div
+    style={{
+      color: "#818cf8",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "4px",
+    }}
+  >
+    Operations Prep Intelligence
+  </div>
+
+  <h3
+    style={{
+      color: "white",
+      fontSize: "22px",
+      fontWeight: "950",
+      margin: "0 0 6px 0",
+    }}
+  >
+    Station Prep Times & Modifications
+  </h3>
+
+  <p
+    style={{
+      color: "#94a3b8",
+      fontSize: "13px",
+      marginTop: 0,
+      marginBottom: "18px",
+      lineHeight: 1.6,
+    }}
+  >
+    Track station execution times factoring in parallel assembly items
+    to calculate real ticket completion estimates instead of simple
+    linear prep sums.
+  </p>
+
+  {!hasOperationalData && (
     <div
       style={{
-        marginTop: "20px",
-        padding: "22px",
-        borderRadius: "22px",
-        background: "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.92))",
-        border: "1px solid rgba(99, 102, 241, 0.22)",
+        marginBottom: "18px",
+        padding: "12px 14px",
+        borderRadius: "14px",
+        background: "rgba(251,191,36,0.10)",
+        border: "1px solid rgba(251,191,36,0.24)",
+        color: "#fbbf24",
+        fontSize: "12px",
+        fontWeight: "800",
+        letterSpacing: "0.05em",
+        textTransform: "uppercase",
       }}
     >
-      <div style={{ color: "#818cf8", fontSize: "12px", fontWeight: "900", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "4px" }}>
-        Operations Prep Intelligence
-      </div>
+      Demo Simulation • Upload kitchen execution or POS timing data to
+      activate live station intelligence
+    </div>
+  )}
 
-      <h3 style={{ color: "white", fontSize: "22px", fontWeight: "950", margin: "0 0 6px 0" }}>
-        Station Prep Times & Modifications
-      </h3>
-      
-      <p style={{ color: "#94a3b8", fontSize: "13px", marginTop: 0, marginBottom: "18px", lineHeight: 1.6 }}>
-        Track station execution times factoring in parallel assembly items (salads, side vegetables, fruit garnishes) to calculate real ticket times instead of linear sums.
-      </p>
+  <div style={{ display: "grid", gap: "14px" }}>
+    {(
+      hasOperationalData
+        ? []
+        : [
+            {
+              name: "Grilled Salmon Platter",
+              basePrep: 8,
+              station: "Grill",
+              components: [
+                {
+                  name: "Sautéed Broccoli (Veggie)",
+                  station: "Sauté",
+                  prep: 4,
+                  type: "Vegetable",
+                },
+                {
+                  name: "Side House Salad",
+                  station: "Garde Manger",
+                  prep: 2,
+                  type: "Salad",
+                },
+              ],
+            },
 
-      <div style={{ display: "grid", gap: "14px" }}>
-        {[
-          {
-            name: "Grilled Salmon Platter",
-            basePrep: 8,
-            station: "Grill",
-            components: [
-              { name: "Sautéed Broccoli (Veggie)", station: "Sauté", prep: 4, type: "Vegetable" },
-              { name: "Side House Salad", station: "Garde Manger", prep: 2, type: "Salad" }
-            ]
-          },
-          {
-            name: "Prime New York Strip",
-            basePrep: 12,
-            station: "Grill",
-            components: [
-              { name: "Asparagus Spears", station: "Sauté", prep: 3, type: "Vegetable" },
-              { name: "Sliced Avocado Top", station: "Pantry", prep: 1.5, type: "Fruit Mod" }
-            ]
-          },
-          {
-            name: "Artisanal Acai Bowl",
-            basePrep: 3,
-            station: "Pantry",
-            components: [
-              { name: "Sliced Strawberries & Bananas", station: "Prep Table", prep: 2, type: "Fruit" },
-              { name: "Mint Garnish Leaf", station: "Prep Table", prep: 0.5, type: "Garnish" }
-            ]
-          }
-        ].map((item, index) => {
-          const componentMaxParallel = item.components.reduce((max, c) => Math.max(max, c.prep), 0);
-          const computedTotalTicketPrep = Math.max(item.basePrep, componentMaxParallel) + 1;
+            {
+              name: "Prime New York Strip",
+              basePrep: 12,
+              station: "Grill",
+              components: [
+                {
+                  name: "Asparagus Spears",
+                  station: "Sauté",
+                  prep: 3,
+                  type: "Vegetable",
+                },
+                {
+                  name: "Sliced Avocado Top",
+                  station: "Pantry",
+                  prep: 1.5,
+                  type: "Fruit Mod",
+                },
+              ],
+            },
 
-          return (
-            <div
-              key={index}
-              style={{
-                padding: "16px",
-                borderRadius: "18px",
-                background: "rgba(255,255,255,0.03)",
-                border: "1px solid rgba(255,255,255,0.06)",
-              }}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", flexWrap: "wrap", gap: "10px" }}>
-                <div>
-                  <span style={{ color: "white", fontWeight: "900", fontSize: "16px" }}>{item.name}</span>
-                  <span style={{ marginLeft: "10px", padding: "3px 8px", borderRadius: "6px", background: "rgba(99,102,241,0.15)", color: "#a5b4fc", fontSize: "11px", fontWeight: "700" }}>
-                    Primary: {item.station} ({item.basePrep}m)
-                  </span>
-                </div>
-                
-                <div style={{ textAlign: "right" }}>
-                  <div style={{ color: "#6366f1", fontWeight: "950", fontSize: "16px" }}>
-                    ⏱️ {computedTotalTicketPrep} mins
-                  </div>
-                  <div style={{ color: "#64748b", fontSize: "11px", fontWeight: "600", textTransform: "uppercase" }}>
-                    AI Estimated Ticket Time
-                  </div>
-                </div>
+            {
+              name: "Artisanal Acai Bowl",
+              basePrep: 3,
+              station: "Pantry",
+              components: [
+                {
+                  name: "Sliced Strawberries & Bananas",
+                  station: "Prep Table",
+                  prep: 2,
+                  type: "Fruit",
+                },
+                {
+                  name: "Mint Garnish Leaf",
+                  station: "Prep Table",
+                  prep: 0.5,
+                  type: "Garnish",
+                },
+              ],
+            },
+          ]
+    ).map((item, index) => {
+      const componentMaxParallel = item.components.reduce(
+        (max, c) => Math.max(max, c.prep),
+        0
+      );
+
+      const computedTotalTicketPrep =
+        Math.max(item.basePrep, componentMaxParallel) + 1;
+
+      return (
+        <div
+          key={index}
+          style={{
+            padding: "18px",
+            borderRadius: "18px",
+            background: "rgba(15,23,42,0.74)",
+            border: "1px solid rgba(148,163,184,0.14)",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: "12px",
+              flexWrap: "wrap",
+              marginBottom: "12px",
+            }}
+          >
+            <div>
+              <div
+                style={{
+                  color: "white",
+                  fontSize: "18px",
+                  fontWeight: "900",
+                }}
+              >
+                {item.name}
               </div>
 
-              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", borderTop: "1px solid rgba(255,255,255,0.05)", paddingTop: "10px" }}>
-                {item.components.map((comp, cIdx) => (
-                  <div
-                    key={cIdx}
-                    style={{
-                      padding: "6px 12px",
-                      borderRadius: "10px",
-                      background: "rgba(255,255,255,0.02)",
-                      border: "1px solid rgba(255,255,255,0.06)",
-                      fontSize: "12px",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "6px"
-                    }}
-                  >
-                    <span style={{
-                      color: comp.type === "Vegetable" ? "#22c55e" : comp.type === "Salad" ? "#4ade80" : "#fbbf24"
-                    }}>
-                      {comp.type === "Vegetable" ? "🥦" : comp.type === "Salad" ? "🥗" : "🍓"}
-                    </span>
-                    
-                    <div>
-                      <span style={{ color: "#e2e8f0", fontWeight: "700" }}>{comp.name}</span>
-                      <span style={{ color: "#64748b", marginLeft: "6px" }}>
-                        {comp.station} (+{comp.prep}m)
-                      </span>
-                    </div>
-                  </div>
-                ))}
+              <div
+                style={{
+                  color: "#94a3b8",
+                  fontSize: "12px",
+                  marginTop: "4px",
+                }}
+              >
+                Primary Station: {item.station}
               </div>
             </div>
-          );
-        })}
-      </div>
-    </div>
+
+            <div
+              style={{
+                padding: "10px 14px",
+                borderRadius: "14px",
+                background: "rgba(99,102,241,0.14)",
+                border: "1px solid rgba(129,140,248,0.20)",
+                textAlign: "center",
+              }}
+            >
+              <div
+                style={{
+                  color: "#c7d2fe",
+                  fontSize: "11px",
+                  fontWeight: "900",
+                  textTransform: "uppercase",
+                }}
+              >
+                Estimated Ticket Time
+              </div>
+
+              <div
+                style={{
+                  color: "white",
+                  fontSize: "20px",
+                  fontWeight: "950",
+                  marginTop: "2px",
+                }}
+              >
+                {computedTotalTicketPrep.toFixed(1)}m
+              </div>
+            </div>
+          </div>
+
+          <div
+            style={{
+              display: "grid",
+              gap: "10px",
+            }}
+          >
+            {item.components.map((component, componentIndex) => (
+              <div
+                key={componentIndex}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: "12px",
+                  padding: "10px 12px",
+                  borderRadius: "12px",
+                  background: "rgba(255,255,255,0.03)",
+                }}
+              >
+                <div>
+                  <div
+                    style={{
+                      color: "#e2e8f0",
+                      fontSize: "13px",
+                      fontWeight: "700",
+                    }}
+                  >
+                    {component.name}
+                  </div>
+
+                  <div
+                    style={{
+                      color: "#94a3b8",
+                      fontSize: "11px",
+                      marginTop: "2px",
+                    }}
+                  >
+                    {component.station} • {component.type}
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    color: "#c7d2fe",
+                    fontSize: "13px",
+                    fontWeight: "900",
+                  }}
+                >
+                  {component.prep}m
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    })}
+  </div>
+</div>
 {/* INVENTORY + WASTE INTELLIGENCE */}
 <div
   style={{
@@ -66795,23 +67228,46 @@ minWidth: 0,
     >
       {[
         {
-          title: "Friday Dinner Rush Forecast",
-          insight:
-            "AI predicts elevated reservation demand between 6 PM and 8 PM.",
-          impact: "Increase staffing coverage",
-        },
-        {
-          title: "VIP Reservation Opportunity",
-          insight:
-            "Multiple high-value guests are predicted to revisit this weekend.",
-          impact: "Prepare premium seating",
-        },
-        {
-          title: "Reservation Gap Detected",
-          insight:
-            "Low reservation activity expected Tuesday after 7 PM.",
-          impact: "Launch targeted promotion",
-        },
+  title: hasOperationalData
+    ? "Friday Dinner Rush Forecast"
+    : "AI Reservation Simulation",
+
+  insight: hasOperationalData
+    ? "AI predicts elevated reservation demand between 6 PM and 8 PM."
+    : "Upload reservation or guest activity data to activate live booking forecasts.",
+
+  impact: hasOperationalData
+    ? "Increase staffing coverage"
+    : "Awaiting Live Data",
+},
+
+{
+  title: hasOperationalData
+    ? "VIP Reservation Opportunity"
+    : "Guest Retention Intelligence",
+
+  insight: hasOperationalData
+    ? "Multiple high-value guests are predicted to revisit this weekend."
+    : "AI guest revisit predictions will activate after customer behavior data is connected.",
+
+  impact: hasOperationalData
+    ? "Prepare premium seating"
+    : "Simulation Mode",
+},
+
+{
+  title: hasOperationalData
+    ? "Reservation Gap Detected"
+    : "Demand Gap Forecasting",
+
+  insight: hasOperationalData
+    ? "Low reservation activity expected Tuesday after 7 PM."
+    : "AI will identify slow reservation windows and promotion opportunities after uploads.",
+
+  impact: hasOperationalData
+    ? "Launch targeted promotion"
+    : "Awaiting Reservation Data",
+},
       ].map((item, index) => (
         <div
           key={index}
@@ -67202,29 +67658,33 @@ minWidth: 0,
         marginBottom: "22px",
       }}
     >
-      <GlassCard
-        title="Peak Dining Day"
-        value="Friday"
-        subtitle="Highest guest activity"
-      />
+     <GlassCard
+  title="Peak Dining Day"
+  value={peakDiningDay || "Awaiting Data"}
+  subtitle="Calculated from uploaded POS/customer timestamps"
+/>
 
-      <GlassCard
-        title="Most Common Visit Time"
-        value="7:15 PM"
-        subtitle="Average reservation arrival"
-      />
+<GlassCard
+  title="Most Common Visit Time"
+  value={peakDiningHour || "Awaiting Data"}
+  subtitle="Calculated from uploaded POS/customer timestamps"
+/>
 
-      <GlassCard
-        title="Top Guest Category"
-        value="VIP"
-        subtitle="Highest revenue segment"
-      />
+<GlassCard
+  title="Top Guest Category"
+  value={topCustomerSegment || "Awaiting Data"}
+  subtitle="Calculated from uploaded customer or POS segment data"
+/>
 
-      <GlassCard
-        title="Repeat Visit Rate"
-        value="68%"
-        subtitle="Returning customer frequency"
-      />
+<GlassCard
+  title="Repeat Visit Rate"
+  value={
+    repeatVisitRate !== null
+      ? `${repeatVisitRate}%`
+      : "Awaiting Data"
+  }
+  subtitle="Calculated from repeat customer identifiers"
+/>
     </div>
 
     <div style={{ display: "grid", gap: "14px" }}>
@@ -67711,30 +68171,65 @@ minWidth: 0,
 
     <div style={{ display: "grid", gap: "16px" }}>
       {[
-        {
-          system: "Guest Revenue Optimization",
-          action: "Launch win-back campaigns for high-risk guests.",
-          result: "+$3.9k/mo potential recovery",
-          status: "Ready",
-        },
-        {
-          system: "Labor Cost Optimization",
-          action: "Reduce staffing during predicted slow periods.",
-          result: "+$4.4k/mo profit protection",
-          status: "Recommended",
-        },
-        {
-          system: "Menu Profit Optimization",
-          action: "Promote high-margin items and premium add-ons.",
-          result: "+$6.1k/mo margin upside",
-          status: "Active",
-        },
-        {
-          system: "Inventory Waste Optimization",
-          action: "Adjust purchasing cadence based on usage variance.",
-          result: "+$3.2k/mo waste reduction",
-          status: "Monitoring",
-        },
+       {
+  system: "Guest Revenue Optimization",
+  action: hasOperationalData
+    ? "Launch win-back campaigns for high-risk guests."
+    : "Upload guest activity and customer data to activate retention intelligence.",
+
+  result: hasOperationalData
+    ? `+$${Number(guestRecoveryValue || 0).toLocaleString()}/mo potential recovery`
+    : "Simulation Mode",
+
+  status: hasOperationalData
+    ? "Ready"
+    : "Awaiting Data",
+},
+
+{
+  system: "Labor Cost Optimization",
+  action: hasOperationalData
+    ? "Reduce staffing during predicted slow periods."
+    : "Upload labor and sales data to activate staffing optimization.",
+
+  result: hasOperationalData
+    ? `+$${Number(laborRecoveryValue || 0).toLocaleString()}/mo profit protection`
+    : "Simulation Mode",
+
+  status: hasOperationalData
+    ? "Recommended"
+    : "Awaiting Data",
+},
+
+{
+  system: "Menu Profit Optimization",
+  action: hasOperationalData
+    ? "Promote high-margin items and premium add-ons."
+    : "Upload menu and sales mix data to activate menu profitability AI.",
+
+  result: hasOperationalData
+    ? `+$${Number(menuRecoveryValue || 0).toLocaleString()}/mo margin upside`
+    : "Simulation Mode",
+
+  status: hasOperationalData
+    ? "Active"
+    : "Awaiting Data",
+},
+
+{
+  system: "Inventory Waste Optimization",
+  action: hasOperationalData
+    ? "Adjust purchasing cadence based on usage variance."
+    : "Upload inventory and invoice data to activate waste optimization intelligence.",
+
+  result: hasOperationalData
+    ? `+$${Number(inventoryRecoveryValue || 0).toLocaleString()}/mo waste reduction`
+    : "Simulation Mode",
+
+  status: hasOperationalData
+    ? "Monitoring"
+    : "Awaiting Data",
+},
       ].map((item, index) => (
         <div
           key={index}
@@ -67924,29 +68419,45 @@ minWidth: 0,
           marginBottom: "26px",
         }}
       >
-        <GlassCard
-          title="Operational Score"
-          value="91%"
-          subtitle="AI system health"
-        />
+       <GlassCard
+  title="Operational Score"
+  value={
+    hasOperationalData
+      ? `${Number(restaurantAIHealthScore || 0)}%`
+      : "Awaiting Data"
+  }
+  subtitle="AI system health"
+/>
 
-        <GlassCard
-          title="Profit Recovery"
-          value="$18.7k"
-          subtitle="Estimated monthly opportunity"
-        />
+<GlassCard
+  title="Profit Recovery"
+  value={
+    hasOperationalData
+      ? `$${Number(totalAIRecoveryOpportunity || 0).toLocaleString()}`
+      : "Awaiting Data"
+  }
+  subtitle="Estimated monthly opportunity"
+/>
 
-        <GlassCard
-          title="Forecast Confidence"
-          value="94%"
-          subtitle="AI predictive certainty"
-        />
+<GlassCard
+  title="Forecast Confidence"
+  value={
+    hasOperationalData
+      ? `${Number(realForecastConfidence || 0)}%`
+      : "Simulation"
+  }
+  subtitle="AI predictive certainty"
+/>
 
-        <GlassCard
-          title="Optimization Status"
-          value="Active"
-          subtitle="Autonomous AI monitoring"
-        />
+<GlassCard
+  title="Optimization Status"
+  value={
+    hasOperationalData
+      ? aiOptimizationStatus || "Monitoring"
+      : "Awaiting Data"
+  }
+  subtitle="Autonomous AI monitoring"
+/>
       </div>
 
       <div
@@ -68279,60 +68790,119 @@ minWidth: 0,
       }}
     >
       <GlassCard
-        title="Simulation Accuracy"
-        value="91%"
-        subtitle="Digital twin confidence"
-      />
+  title="Simulation Accuracy"
+  value={
+    hasOperationalData
+      ? `${Number(simulationAccuracy || realForecastConfidence || 0)}%`
+      : "Simulation"
+  }
+  subtitle="Digital twin confidence"
+/>
 
-      <GlassCard
-        title="Systems Modeled"
-        value="7"
-        subtitle="Revenue, labor, inventory, guests"
-      />
+<GlassCard
+  title="Systems Modeled"
+  value={
+    hasOperationalData
+      ? Number(modeledSystemsCount || 0)
+      : "Simulation"
+  }
+  subtitle="Revenue, labor, inventory, guests"
+/>
 
-      <GlassCard
-        title="Scenario Impact"
-        value="$22.6k"
-        subtitle="Potential monthly upside"
-      />
+<GlassCard
+  title="Scenario Impact"
+  value={
+    hasOperationalData
+      ? `$${Number(totalAIRecoveryOpportunity || 0).toLocaleString()}`
+      : "Awaiting Data"
+  }
+  subtitle="Potential monthly upside"
+/>
 
-      <GlassCard
-        title="Decision Speed"
-        value="Real-Time"
-        subtitle="AI scenario evaluation"
-      />
+<GlassCard
+  title="Decision Speed"
+  value={
+    hasOperationalData
+      ? "Real-Time"
+      : "Simulation"
+  }
+  subtitle="AI scenario evaluation"
+/>
     </div>
 
     <div style={{ display: "grid", gap: "16px" }}>
       {[
-        {
-          scenario: "What if labor is reduced during slow periods?",
-          result:
-            "AI predicts improved prime cost control without major service impact.",
-          impact: "+$4.8k/mo profit protection",
-          confidence: "89%",
-        },
-        {
-          scenario: "What if VIP campaigns launch this week?",
-          result:
-            "AI predicts higher repeat visit probability from premium guests.",
-          impact: "+$3.2k/mo guest revenue",
-          confidence: "92%",
-        },
-        {
-          scenario: "What if high-margin menu items are promoted?",
-          result:
-            "AI predicts improved average ticket value and stronger margin mix.",
-          impact: "+$6.4k/mo margin upside",
-          confidence: "87%",
-        },
-        {
-          scenario: "What if inventory variance is reduced?",
-          result:
-            "AI predicts lower waste exposure and improved food cost control.",
-          impact: "+$5.1k/mo waste recovery",
-          confidence: "90%",
-        },
+       {
+  scenario: hasOperationalData
+    ? "What if labor is reduced during slow periods?"
+    : "Labor Efficiency Simulation",
+
+  result: hasOperationalData
+    ? "AI predicts improved prime cost control without major service impact."
+    : "Upload labor and revenue data to activate live labor scenario modeling.",
+
+  impact: hasOperationalData
+    ? `+$${Number(laborRecoveryValue || 0).toLocaleString()}/mo profit protection`
+    : "Simulation Mode",
+
+  confidence: hasOperationalData
+    ? `${Number(realForecastConfidence || 0)}%`
+    : "Awaiting Data",
+},
+
+{
+  scenario: hasOperationalData
+    ? "What if VIP campaigns launch this week?"
+    : "Guest Revenue Simulation",
+
+  result: hasOperationalData
+    ? "AI predicts higher repeat visit probability from premium guests."
+    : "Upload guest activity or customer data to activate retention simulations.",
+
+  impact: hasOperationalData
+    ? `+$${Number(guestRecoveryValue || 0).toLocaleString()}/mo guest revenue`
+    : "Simulation Mode",
+
+  confidence: hasOperationalData
+    ? `${Number(realForecastConfidence || 0)}%`
+    : "Awaiting Data",
+},
+
+{
+  scenario: hasOperationalData
+    ? "What if high-margin menu items are promoted?"
+    : "Menu Profit Simulation",
+
+  result: hasOperationalData
+    ? "AI predicts improved average ticket value and stronger margin mix."
+    : "Upload menu and sales mix data to activate live menu profitability simulations.",
+
+  impact: hasOperationalData
+    ? `+$${Number(menuRecoveryValue || 0).toLocaleString()}/mo margin upside`
+    : "Simulation Mode",
+
+  confidence: hasOperationalData
+    ? `${Number(realForecastConfidence || 0)}%`
+    : "Awaiting Data",
+},
+
+{
+  scenario: hasOperationalData
+    ? "What if inventory variance is reduced?"
+    : "Inventory Waste Simulation",
+
+  result: hasOperationalData
+    ? "AI predicts lower waste exposure and improved food cost control."
+    : "Upload inventory, usage, and invoice data to activate waste recovery simulations.",
+
+  impact: hasOperationalData
+    ? `+$${Number(inventoryRecoveryValue || 0).toLocaleString()}/mo waste recovery`
+    : "Simulation Mode",
+
+  confidence: hasOperationalData
+    ? `${Number(realForecastConfidence || 0)}%`
+    : "Awaiting Data",
+},
       ].map((item, index) => (
         <div
           key={index}
@@ -69068,7 +69638,9 @@ minWidth: 0,
                     fontWeight: "800",
                   }}
                 >
-                  Estimated impact: +$2,100/mo
+                  {hasOperationalData
+  ? `Estimated impact: +$${Number(menuRecoveryValue || 0).toLocaleString()}/mo`
+  : "Estimated impact: Awaiting Data"}
                 </div>
 
                 <div
@@ -69079,7 +69651,7 @@ minWidth: 0,
                     fontWeight: "700",
                   }}
                 >
-                  High priority
+                 {hasOperationalData ? "High priority" : "Simulation"}
                 </div>
               </div>
 
@@ -69120,7 +69692,9 @@ minWidth: 0,
                     fontWeight: "800",
                   }}
                 >
-                  Estimated impact: +$1,600/mo
+                  {hasOperationalData
+  ? `Estimated impact: +$${Number(menuRecoveryValue || 0).toLocaleString()}/mo`
+  : "Estimated impact: Awaiting Data"}
                 </div>
 
                 <div
@@ -69131,7 +69705,7 @@ minWidth: 0,
                     fontWeight: "700",
                   }}
                 >
-                  Medium priority
+                 {hasOperationalData ? "Medium priority" : "Simulation"}
                 </div>
               </div>
             </div>
