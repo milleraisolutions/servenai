@@ -23018,6 +23018,28 @@ const enterpriseRecoverableProfit =
     0
   );
 
+const handleDeleteImport = async (importId) => {
+  const confirmed = window.confirm(
+    "Delete this import and remove it from Recent Imports?"
+  );
+
+  if (!confirmed) return;
+
+  try {
+    const { error } = await supabase
+      .from("client_data_uploads")
+      .delete()
+      .eq("id", importId);
+
+    if (error) throw error;
+
+    setClientImports((prev) =>
+      prev.filter((item) => item.id !== importId)
+    );
+  } catch (error) {
+    console.error("Delete import error:", error);
+  }
+};
 
 
 
@@ -23907,24 +23929,48 @@ return (
               </div>
             </div>
 
-            {canSeeOwnerDashboard && (
-              <button
-                onClick={() => archiveImport(item.id)}
-                style={{
-                  marginTop: "12px",
-                  padding: "8px 12px",
-                  borderRadius: "10px",
-                  border: "1px solid rgba(148,163,184,0.16)",
-                  background: "rgba(255,255,255,0.04)",
-                  color: "#cbd5e1",
-                  fontSize: "12px",
-                  fontWeight: "900",
-                  cursor: "pointer",
-                }}
-              >
-                Archive Import
-              </button>
-            )}
+          {(isOwnerRole || isExecutiveRole || isGMRole) && (
+  <div
+    style={{
+      marginTop: "12px",
+      display: "flex",
+      gap: "10px",
+      flexWrap: "wrap",
+    }}
+  >
+    <button
+      onClick={() => archiveImport(item.id)}
+      style={{
+        padding: "8px 12px",
+        borderRadius: "10px",
+        border: "1px solid rgba(148,163,184,0.16)",
+        background: "rgba(255,255,255,0.04)",
+        color: "#cbd5e1",
+        fontSize: "12px",
+        fontWeight: "900",
+        cursor: "pointer",
+      }}
+    >
+      Archive
+    </button>
+
+    <button
+      onClick={() => handleDeleteImport(item.id)}
+      style={{
+        padding: "8px 12px",
+        borderRadius: "10px",
+        border: "1px solid rgba(239,68,68,0.20)",
+        background: "rgba(239,68,68,0.08)",
+        color: "#fca5a5",
+        fontSize: "12px",
+        fontWeight: "900",
+        cursor: "pointer",
+      }}
+    >
+      ✕ Delete
+    </button>
+  </div>
+)}
           </div>
         ))}
     </div>
