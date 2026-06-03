@@ -17646,12 +17646,47 @@ const unifiedAIAlertsFeed = useMemo(() => {
 ]);
 
 const executiveBusinessHealth = useMemo(() => {
-  const laborScore = Number(laborHealthScoreData?.score || 0);
-  const inventoryScore = Number(inventoryHealthScoreData?.score || 0);
-  const financialScore = Number(financialHealthScoreData?.score || 0);
+ const laborScore = Math.max(
+  40,
+  Math.round(
+    100 -
+      Math.max(
+        0,
+        Number(liveLaborIntelligence?.laborPercent || 0) - 20
+      ) *
+        2
+  )
+);
 
-  const beverageScore =
-    Number(beverageHealthScoreData?.score || 0) || 85;
+const inventoryScore = Math.max(
+  35,
+  Math.round(
+    100 -
+      Number(criticalInventoryItems?.length || 0) * 8 -
+      Number(wasteDetectionData?.length || 0) * 3
+  )
+);
+
+const financialScore = Math.max(
+  40,
+  Math.min(
+    100,
+    Math.round(
+      Number(avgMargin || 0) +
+        Number(revenueTrend?.growthPercent || 0)
+    )
+  )
+);
+
+const beverageScore = Math.max(
+  45,
+  Math.min(
+    100,
+    Math.round(
+      100 - Number(totalAlcoholVariancePercent || 0) * 2
+    )
+  )
+);
 
   const total =
     laborScore * 0.25 +
@@ -17709,10 +17744,12 @@ const executiveBusinessHealth = useMemo(() => {
     categories,
   };
 }, [
-  laborHealthScoreData,
-  inventoryHealthScoreData,
-  financialHealthScoreData,
-  beverageHealthScoreData,
+  liveLaborIntelligence,
+  criticalInventoryItems,
+  wasteDetectionData,
+  avgMargin,
+  revenueTrend,
+  totalAlcoholVariancePercent,
 ]);
 
 const aiAutopilotActionEngine = useMemo(() => {
@@ -22714,9 +22751,52 @@ const liveCampaignImpactHigh = Math.round(
 
 const liveCampaignImpactRange = `$${liveCampaignImpactLow.toLocaleString()} - $${liveCampaignImpactHigh.toLocaleString()}`;
 
+const laborHealthScore = Math.max(
+  40,
+  Math.round(
+    100 - Math.max(0, Number(liveLaborIntelligence?.laborPercent || 0) - 20) * 2
+  )
+);
+const inventoryHealthScore = Math.max(
+  35,
+  Math.round(
+    100 -
+      Number(criticalInventoryItems?.length || 0) * 8 -
+      Number(wasteDetectionData?.length || 0) * 3
+  )
+);
 
+const financialHealthScore = Math.max(
+  40,
+  Math.round(
+    Number(avgMargin || 0) +
+      Number(revenueTrend?.growthPercent || 0)
+  )
+);
+const beverageHealthScore = Math.max(
+  45,
+  Math.round(
+    100 -
+      Number(totalAlcoholVariancePercent || 0) * 2
+  )
+);
 
-
+const executiveHealthScore = Math.round(
+  (
+    laborHealthScore +
+    inventoryHealthScore +
+    financialHealthScore +
+    beverageHealthScore
+  ) / 4
+);
+const executiveHealthLabel =
+  executiveHealthScore >= 85
+    ? "Excellent"
+    : executiveHealthScore >= 70
+    ? "Healthy"
+    : executiveHealthScore >= 55
+    ? "Watch"
+    : "Critical";
 
 
 
