@@ -1139,33 +1139,8 @@ const currentShelfLifeCopy =
       ? "Estimated monthly waste-related margin pressure"
       : "Low-margin menu items needing attention",
 };
-const wowInsight = (() => {
-  if (businessType === "coffee") {
-    return {
-      title: "Missed Revenue Opportunity",
-      value: "$2,300/month",
-      message: "Low add-on rates are limiting revenue",
-    };
-  }
 
-  if (businessType === "smoothie") {
-    return {
-      title: "Ingredient Waste Impact",
-      value: "$1,200/month",
-      message: "Waste is reducing profitability",
-    };
-  }
 
-  return {
-    title: "Profit Leakage Detected",
-    {hasOperationalData
-  ? `$${Number(totalAIRecoveryOpportunity || 0).toLocaleString()}/month`
-  : "Awaiting Data"}
-    {hasOperationalData
-  ? aiRecoveryInsight
-  : "Upload sales, labor, inventory, and invoice data to activate live AI recovery analysis."}
-  };
-})();
 const dashboardCopy = {
   coffee: {
     title: "Coffee Shop Dashboard",
@@ -1421,107 +1396,7 @@ const handleGeneratePromotions = () => {
    🤖 AI PROFIT OPPORTUNITIES (PRO)
 ================================= */
 
-const fallbackProfitOpportunities = [
-  {
-    id: 1,
 
-    title: "Menu Price Optimization",
-
-    description: hasOperationalData
-      ? "Increase prices on underpriced high-demand items"
-      : "Upload menu and sales mix data to activate pricing optimization AI.",
-
-    impact: hasOperationalData
-      ? Number(menuRecoveryValue || 0)
-      : null,
-
-    difficulty: hasOperationalData
-      ? "Easy"
-      : "Simulation",
-
-    category: "Revenue Boost",
-  },
-
-  {
-    id: 2,
-
-    title: "Reduce Ingredient Waste",
-
-    description: hasOperationalData
-      ? "Optimize portion sizes and prep tracking"
-      : "Upload inventory and invoice data to activate waste reduction intelligence.",
-
-    impact: hasOperationalData
-      ? Number(inventoryRecoveryValue || 0)
-      : null,
-
-    difficulty: hasOperationalData
-      ? "Medium"
-      : "Simulation",
-
-    category: "Cost Reduction",
-  },
-
-  {
-    id: 3,
-
-    title: "Upsell Optimization",
-
-    description: hasOperationalData
-      ? "Improve add-on attach rates (drinks, sides)"
-      : "Upload guest purchase data to activate upsell intelligence.",
-
-    impact: hasOperationalData
-      ? Number(upsellRecoveryValue || 0)
-      : null,
-
-    difficulty: hasOperationalData
-      ? "Easy"
-      : "Simulation",
-
-    category: "Revenue Boost",
-  },
-
-  {
-    id: 4,
-
-    title: "Supplier Cost Adjustment",
-
-    description: hasOperationalData
-      ? "Switch suppliers or renegotiate pricing"
-      : "Upload vendor and invoice data to activate supplier optimization AI.",
-
-    impact: hasOperationalData
-      ? Number(vendorRecoveryValue || 0)
-      : null,
-
-    difficulty: hasOperationalData
-      ? "Medium"
-      : "Simulation",
-
-    category: "Cost Reduction",
-  },
-
-  {
-    id: 5,
-
-    title: "Labor Efficiency Fix",
-
-    description: hasOperationalData
-      ? "Adjust staffing on low-efficiency days"
-      : "Upload labor and revenue data to activate staffing optimization AI.",
-
-    impact: hasOperationalData
-      ? Number(laborRecoveryValue || 0)
-      : null,
-
-    difficulty: hasOperationalData
-      ? "Hard"
-      : "Simulation",
-
-    category: "Labor Optimization",
-  },
-];
 
 const aiProfitOpportunities = useMemo(() => {
   if (generatedOpportunities?.length) {
@@ -1567,14 +1442,14 @@ const aiProfitOpportunities = useMemo(() => {
         id: index + 1,
         title: item.title || `AI Opportunity ${index + 1}`,
         description: actionText,
-        impact: hasOperationalData ? parsedImpact || 0 : null,
+        impact: parsedImpact || 0,
         difficulty,
         category,
       };
     });
   }
 
-  return fallbackProfitOpportunities;
+  return [];
 }, [generatedOpportunities]);
   function runABTest(campaign, businessType) {
     const versionA = {
@@ -1714,20 +1589,16 @@ const handleSaveCampaign = async (campaign) => {
 };
 
   const handleSaveGeneratedCampaign = (channel, data = {}) => {
-    const newCampaign = {
-      id: Date.now(),
-      name: data?.title || `${channel} Campaign`,
-offer: data?.body || "Generated campaign content",
-      channel,
-      audience: campaignForm.audience || "All Customers",
-      timing: campaignForm.timing || "This Week",
-      impact: hasOperationalData
-  ? campaignForm.expectedRevenue
-    ? `+$${campaignForm.expectedRevenue}/month`
-    : "AI Calculating"
-  : "Simulation Mode",
-      status: "Draft",
-    };
+   const newCampaign = {
+  id: Date.now(),
+  name: data?.title || `${channel} Campaign`,
+  offer: data?.body || "Generated campaign content",
+  channel,
+  audience: campaignForm.audience || "All Customers",
+  timing: campaignForm.timing || "This Week",
+  impact: "Simulation Mode",
+  status: "Draft",
+};
 
     setSavedCampaigns((prev) => [newCampaign, ...prev]);
    
@@ -11412,8 +11283,113 @@ const totalAIRecoveryOpportunity =
   estimatedLaborRecovery +
   operationalEstimatedWasteRecovery +
   estimatedAlcoholRecovery;
+  const hasOperationalData =
+  (salesData || []).length > 0 ||
+  (laborData || []).length > 0 ||
+  (menuItemsData || []).length > 0 ||
+  (invoicesData || []).length > 0;
+const fallbackProfitOpportunities = [
+  {
+    id: 1,
 
-const aiRecoveryStatus =
+    title: "Menu Price Optimization",
+
+    description: hasOperationalData
+      ? "Increase prices on underpriced high-demand items"
+      : "Upload menu and sales mix data to activate pricing optimization AI.",
+
+    impact: hasOperationalData
+      ? Number(menuRecoveryValue || 0)
+      : null,
+
+    difficulty: hasOperationalData
+      ? "Easy"
+      : "Simulation",
+
+    category: "Revenue Boost",
+  },
+
+  {
+    id: 2,
+
+    title: "Reduce Ingredient Waste",
+
+    description: hasOperationalData
+      ? "Optimize portion sizes and prep tracking"
+      : "Upload inventory and invoice data to activate waste reduction intelligence.",
+
+    impact: hasOperationalData
+      ? Number(inventoryRecoveryValue || 0)
+      : null,
+
+    difficulty: hasOperationalData
+      ? "Medium"
+      : "Simulation",
+
+    category: "Cost Reduction",
+  },
+
+  {
+    id: 3,
+
+    title: "Upsell Optimization",
+
+    description: hasOperationalData
+      ? "Improve add-on attach rates (drinks, sides)"
+      : "Upload guest purchase data to activate upsell intelligence.",
+
+    impact: hasOperationalData
+      ? Number(upsellRecoveryValue || 0)
+      : null,
+
+    difficulty: hasOperationalData
+      ? "Easy"
+      : "Simulation",
+
+    category: "Revenue Boost",
+  },
+
+  {
+    id: 4,
+
+    title: "Supplier Cost Adjustment",
+
+    description: hasOperationalData
+      ? "Switch suppliers or renegotiate pricing"
+      : "Upload vendor and invoice data to activate supplier optimization AI.",
+
+    impact: hasOperationalData
+      ? Number(vendorRecoveryValue || 0)
+      : null,
+
+    difficulty: hasOperationalData
+      ? "Medium"
+      : "Simulation",
+
+    category: "Cost Reduction",
+  },
+
+  {
+    id: 5,
+
+    title: "Labor Efficiency Fix",
+
+    description: hasOperationalData
+      ? "Adjust staffing on low-efficiency days"
+      : "Upload labor and revenue data to activate staffing optimization AI.",
+
+    impact: hasOperationalData
+      ? Number(laborRecoveryValue || 0)
+      : null,
+
+    difficulty: hasOperationalData
+      ? "Hard"
+      : "Simulation",
+
+    category: "Labor Optimization",
+  },
+];
+  const aiRecoveryStatus =
   totalAIRecoveryOpportunity <= 0
     ? "Optimized"
     : totalAIRecoveryOpportunity <= 2000
@@ -11428,7 +11404,29 @@ const aiRecoveryInsight =
     : `AI has identified approximately $${Number(
         totalAIRecoveryOpportunity
       ).toLocaleString()} in potential operational recovery opportunities.`;
+const wowInsight = (() => {
+  if (businessType === "coffee") {
+    return {
+      title: "Missed Revenue Opportunity",
+      value: "$2,300/month",
+      message: "Low add-on rates are limiting revenue",
+    };
+  }
 
+  if (businessType === "smoothie") {
+    return {
+      title: "Ingredient Waste Impact",
+      value: "$1,200/month",
+      message: "Waste is reducing profitability",
+    };
+  }
+
+  return {
+    title: "Profit Leakage Detected",
+    value: `$${Number(totalAIRecoveryOpportunity || 0).toLocaleString()}/month`,
+    message: "Estimated monthly opportunity",
+  };
+})();
 console.log("AI RECOVERY DEBUG:", {
   estimatedFoodRecovery,
   estimatedLaborRecovery,
@@ -13104,12 +13102,7 @@ const operationalTrendColor =
     ? "#fca5a5"
     : "#cbd5e1";
 
-const hasOperationalData =
-  (salesData || []).length > 0 ||
-  (laborData || []).length > 0 ||
-  (inventoryData || []).length > 0 ||
-  (menuItemsData || []).length > 0 ||
-  (invoicesData || []).length > 0;
+
 const aiPriorityQueue = [
   {
     title: "Prime Cost Pressure",
