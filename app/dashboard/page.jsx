@@ -22625,9 +22625,9 @@ if (
 
 const realEnterpriseHealth = Math.round(
   (
-    Number(operationalScore || 0) +
     Number(kitchenSpeedScore || 0) +
-    Number(aiConfidenceScore || 0)
+    Number(aiConfidenceScore || 0) +
+    Number(100 - Math.min(50, Number(criticalInventoryItems?.length || 0) * 5))
   ) / 3
 );
 
@@ -22637,7 +22637,7 @@ const realForecastConfidence = Math.round(
     Math.max(
       55,
       100 -
-        Math.abs(Number(revenueGrowthPercent || 0)) -
+       Math.abs(Number(revenueTrend?.growthPercent || 0)) -
         Number(criticalInventoryItems?.length || 0) * 3
     )
   )
