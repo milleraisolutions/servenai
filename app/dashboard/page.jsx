@@ -359,6 +359,11 @@ const assignedLocation = userProfile?.location_name || null;
 
 const shouldFilterByLocation =
   ["gm", "kitchen_manager"].includes(userRole) && assignedLocation;
+  const applyLocationFilter = (query) => {
+  if (!shouldFilterByLocation) return query;
+
+  return query.eq("location_name", assignedLocation);
+};
 const isStaffRole = userRole === "staff";
 const isOwner =
   userProfile?.role === "owner" ||
@@ -2250,12 +2255,7 @@ useEffect(() => {
   .eq("active", true)
   .eq("published_to_website", true);
 
-if (shouldFilterByLocation) {
-  marketingQuery = marketingQuery.eq(
-    "location_name",
-    assignedLocation
-  );
-}
+marketingQuery = applyLocationFilter(marketingQuery);
 
 const { data, error } = await marketingQuery
   .order("created_at", { ascending: false })
@@ -2989,12 +2989,7 @@ let alertsQuery = supabase
   .select("*")
   .eq("user_id", dataOwnerId);
 
-if (shouldFilterByLocation) {
-  alertsQuery = alertsQuery.eq(
-    "location_name",
-    assignedLocation
-  );
-}
+alertsQuery = applyLocationFilter(alertsQuery);
 
 const { data, error } = await alertsQuery;
 
@@ -7178,9 +7173,7 @@ const loadSalesFromDatabase = async () => {
   .select("*")
   .eq("user_id", dataOwnerId);
 
-if (shouldFilterByLocation) {
-  salesQuery = salesQuery.eq("location_name", assignedLocation);
-}
+salesQuery = applyLocationFilter(salesQuery);
 
 const { data, error } = await salesQuery.order("sale_date", {
   ascending: true,
@@ -9649,12 +9642,7 @@ useEffect(() => {
   .eq("user_id", dataOwnerId)
   .eq("is_active", true);
 
-if (shouldFilterByLocation) {
-  menuItemsQuery = menuItemsQuery.eq(
-    "location_name",
-    assignedLocation
-  );
-}
+menuItemsQuery = applyLocationFilter(menuItemsQuery);
 
 const { data, error } = await menuItemsQuery;
 
@@ -9683,12 +9671,7 @@ useEffect(() => {
   .select("*")
   .eq("user_id", dataOwnerId);
 
-if (shouldFilterByLocation) {
-  laborQuery = laborQuery.eq(
-    "location_name",
-    assignedLocation
-  );
-}
+laborQuery = applyLocationFilter(laborQuery);
 
 const { data, error } = await laborQuery
   .order("created_at", { ascending: false })
@@ -10110,12 +10093,7 @@ const fetchClientImports = async () => {
   .select("*")
   .eq("user_id", dataOwnerId);
 
-if (shouldFilterByLocation) {
-  clientDataQuery = clientDataQuery.eq(
-    "location_name",
-    assignedLocation
-  );
-}
+clientDataQuery = applyLocationFilter(clientDataQuery);
 
 const { data, error } = await clientDataQuery.order(
   "created_at",
