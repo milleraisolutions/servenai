@@ -21657,72 +21657,7 @@ const gmShiftChecklist = useMemo(() => {
   ];
 }, []);
 
-const gmRiskRadar = useMemo(() => {
-  const risks = [];
 
-  if (Number(liveMomentumPercent || 0) < 0) {
-    risks.push({
-      label: "Revenue Risk",
-      value: "High",
-      detail: "Sales momentum is trending down.",
-    });
-  }
-
-  if (Number(liveLaborIntelligence?.laborPercent || 0) > 30) {
-    risks.push({
-      label: "Labor Risk",
-      value: "Medium",
-      detail: "Labor cost is above ideal range.",
-    });
-  }
-
-  if (Number(foodCostPercentage || 0) > 32) {
-    risks.push({
-      label: "Food Cost Risk",
-      value: "Medium",
-      detail: "Food cost is above target.",
-    });
-  }
-
-  if ((profitLeakSignals || []).length > 0) {
-    risks.push({
-      label: "Margin Risk",
-      value: "High",
-      detail: `${profitLeakSignals.length} profit leak(s) detected.`,
-    });
-  }
-if ((criticalInventoryItems || []).length > 0) {
-  risks.push({
-    label: "Inventory Risk",
-    value: "High",
-    detail: `${criticalInventoryItems.length} critical inventory item(s) detected.`,
-  });
-}
-
-if ((kitchenDelayAlerts || []).length > 0) {
-  risks.push({
-    label: "Kitchen Risk",
-    value: "Medium",
-    detail: `${kitchenDelayAlerts.length} cook-time delay alert(s) detected.`,
-  });
-}
-  if (!risks.length) {
-    risks.push({
-      label: "Operational Risk",
-      value: "Low",
-      detail: "No major operational risks detected right now.",
-    });
-  }
-
-  return risks.slice(0, 4);
- }, [
-  liveMomentumPercent,
-  liveLaborIntelligence,
-  foodCostPercentage,
-  profitLeakSignals,
-  criticalInventoryItems,
-  kitchenDelayAlerts,
-]);
 
 const gmStaffingInsights = useMemo(() => {
   const laborPercent = Number(
@@ -22571,6 +22506,72 @@ const kitchenSpeedScore =
       )} minutes. Consider prep adjustments or menu timing review.`,
     })),
 ].slice(0, 5);
+const gmRiskRadar = useMemo(() => {
+  const risks = [];
+
+  if (Number(liveMomentumPercent || 0) < 0) {
+    risks.push({
+      label: "Revenue Risk",
+      value: "High",
+      detail: "Sales momentum is trending down.",
+    });
+  }
+
+  if (Number(liveLaborIntelligence?.laborPercent || 0) > 30) {
+    risks.push({
+      label: "Labor Risk",
+      value: "Medium",
+      detail: "Labor cost is above ideal range.",
+    });
+  }
+
+  if (Number(foodCostPercentage || 0) > 32) {
+    risks.push({
+      label: "Food Cost Risk",
+      value: "Medium",
+      detail: "Food cost is above target.",
+    });
+  }
+
+  if ((profitLeakSignals || []).length > 0) {
+    risks.push({
+      label: "Margin Risk",
+      value: "High",
+      detail: `${profitLeakSignals.length} profit leak(s) detected.`,
+    });
+  }
+if ((criticalInventoryItems || []).length > 0) {
+  risks.push({
+    label: "Inventory Risk",
+    value: "High",
+    detail: `${criticalInventoryItems.length} critical inventory item(s) detected.`,
+  });
+}
+
+if ((kitchenDelayAlerts || []).length > 0) {
+  risks.push({
+    label: "Kitchen Risk",
+    value: "Medium",
+    detail: `${kitchenDelayAlerts.length} cook-time delay alert(s) detected.`,
+  });
+}
+  if (!risks.length) {
+    risks.push({
+      label: "Operational Risk",
+      value: "Low",
+      detail: "No major operational risks detected right now.",
+    });
+  }
+
+  return risks.slice(0, 4);
+ }, [
+  liveMomentumPercent,
+  liveLaborIntelligence,
+  foodCostPercentage,
+  profitLeakSignals,
+  criticalInventoryItems,
+  kitchenDelayAlerts,
+]);
 const rushHourCookImpact = Object.values(
   cookTimeData.reduce((acc, item) => {
     const hour = new Date(
