@@ -22623,7 +22623,25 @@ if (
   });
 }
 
+const realEnterpriseHealth = Math.round(
+  (
+    Number(operationalScore || 0) +
+    Number(kitchenSpeedScore || 0) +
+    Number(aiConfidenceScore || 0)
+  ) / 3
+);
 
+const realForecastConfidence = Math.round(
+  Math.min(
+    98,
+    Math.max(
+      55,
+      100 -
+        Math.abs(Number(revenueGrowthPercent || 0)) -
+        Number(criticalInventoryItems?.length || 0) * 3
+    )
+  )
+);
 
 
 
@@ -29328,6 +29346,7 @@ borderRadius: "14px",
 ).toLocaleString(undefined, {
   maximumFractionDigits: 0,
 })}`,
+
         },
         {
           label: "Locations",
@@ -29337,11 +29356,11 @@ borderRadius: "14px",
         },
         {
           label: "Enterprise Health",
-          value: "72/100",
+          value: `${realEnterpriseHealth}/100`,
         },
         {
           label: "AI Forecast Confidence",
-          value: "92%",
+          value: `${realForecastConfidence}%`,
         },
       ].map((item) => (
         <div
