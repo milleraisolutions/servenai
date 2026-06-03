@@ -22708,7 +22708,7 @@ const realForecastConfidence = Math.max(
   Math.min(
     98,
     Math.round(
-      92 -
+      85 -
         Number(criticalInventoryItems?.length || 0) * 6 -
         Number(profitLeakSignals?.length || 0) * 4 -
         Math.abs(Number(revenueTrend?.growthPercent || 0)) * 1.2 -
@@ -22716,7 +22716,13 @@ const realForecastConfidence = Math.max(
     )
   )
 );
-
+console.log("FORECAST CONFIDENCE DEBUG:", {
+  realForecastConfidence,
+  criticalInventoryItems: criticalInventoryItems?.length,
+  profitLeakSignals: profitLeakSignals?.length,
+  revenueGrowth: revenueTrend?.growthPercent,
+  kitchenDelayAlerts: kitchenDelayAlerts?.length,
+});
 const liveAIConfidence = Math.round(
   Math.min(
     98,
@@ -68525,7 +68531,11 @@ minWidth: 0,
                         fontSize: "14px",
                       }}
                     >
-                      High Confidence (92%)
+                      {realForecastConfidence >= 85
+  ? "High Confidence"
+  : realForecastConfidence >= 65
+  ? "Moderate Confidence"
+  : "Low Confidence"} ({realForecastConfidence}%)
                     </div>
                   </div>
 
