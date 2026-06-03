@@ -22672,7 +22672,25 @@ const liveAIConfidence = Math.round(
   )
 );
 
+const projectedGrowthLive =
+  Number(revenueTrend?.growthPercent || 0) > 0
+    ? `+${Math.round(
+        Number(revenueTrend?.growthPercent || 0)
+      )}%`
+    : `${Math.round(
+        Number(revenueTrend?.growthPercent || 0)
+      )}%`;
 
+const forecastConfidenceLive = `${realForecastConfidence}%`;
+
+const expansionReadiness =
+  realEnterpriseHealth >= 85
+    ? "Excellent"
+    : realEnterpriseHealth >= 70
+    ? "Strong"
+    : realEnterpriseHealth >= 55
+    ? "Moderate"
+    : "At Risk";
 
 
 
@@ -30815,17 +30833,17 @@ borderRadius: "14px",
   >
     {[
       {
-        label: "Projected Growth",
-        value: "+24%",
-      },
+  label: "Projected Growth",
+  value: projectedGrowthLive,
+},
       {
-        label: "Forecast Confidence",
-        value: "92%",
-      },
+  label: "Forecast Confidence",
+  value: forecastConfidenceLive,
+},
       {
-        label: "Expansion Readiness",
-        value: "Strong",
-      },
+  label: "Expansion Readiness",
+  value: expansionReadiness,
+},
     ].map((item) => (
       <div
         key={item.label}
