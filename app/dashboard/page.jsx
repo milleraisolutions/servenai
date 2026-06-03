@@ -17658,12 +17658,22 @@ const executiveBusinessHealth = useMemo(() => {
   )
 );
 
+const inventoryWasteSignal =
+  Array.isArray(ingredientUsageAnomalies)
+    ? ingredientUsageAnomalies.length
+    : Array.isArray(inventoryAlerts)
+    ? inventoryAlerts.length
+    : 0;
+
 const inventoryScore = Math.max(
-  35,
-  Math.round(
-    100 -
-      Number(criticalInventoryItems?.length || 0) * 8 -
-      Number(wasteDetectionData?.length || 0) * 3
+  20,
+  Math.min(
+    100,
+    Math.round(
+      100 -
+        Number(criticalInventoryItems?.length || 0) * 15 -
+        Number(inventoryWasteSignal || 0) * 6
+    )
   )
 );
 
@@ -17679,11 +17689,16 @@ const financialScore = Math.max(
 );
 
 const beverageScore = Math.max(
-  45,
+  30,
   Math.min(
     100,
     Math.round(
-      100 - Number(totalAlcoholVariancePercent || 0) * 2
+      100 -
+        Number(
+          bartenderVarianceSummary?.totalVariancePercent ||
+            alcoholVariancePercent ||
+            0
+        ) * 4
     )
   )
 );
@@ -17746,10 +17761,12 @@ const beverageScore = Math.max(
 }, [
   liveLaborIntelligence,
   criticalInventoryItems,
-  wasteDetectionData,
+ingredientUsageAnomalies,
+inventoryAlerts,
   avgMargin,
   revenueTrend,
-  totalAlcoholVariancePercent,
+  bartenderVarianceSummary,
+alcoholVariancePercent,
 ]);
 
 const aiAutopilotActionEngine = useMemo(() => {
