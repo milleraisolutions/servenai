@@ -289,6 +289,7 @@ const [inviteEmail, setInviteEmail] = useState("");
 const [inviteRole, setInviteRole] = useState("gm");
 const [inviteLocation, setInviteLocation] = useState("");
 const [teamInvites, setTeamInvites] = useState([]);
+const [cookTimeLogs, setCookTimeLogs] = useState([]);
 const loadAdminData = async () => {
   const { data: usersData, error: usersError } = await supabase
     .from("users")
