@@ -21691,7 +21691,21 @@ const gmRiskRadar = useMemo(() => {
       detail: `${profitLeakSignals.length} profit leak(s) detected.`,
     });
   }
+if ((criticalInventoryItems || []).length > 0) {
+  risks.push({
+    label: "Inventory Risk",
+    value: "High",
+    detail: `${criticalInventoryItems.length} critical inventory item(s) detected.`,
+  });
+}
 
+if ((kitchenDelayAlerts || []).length > 0) {
+  risks.push({
+    label: "Kitchen Risk",
+    value: "Medium",
+    detail: `${kitchenDelayAlerts.length} cook-time delay alert(s) detected.`,
+  });
+}
   if (!risks.length) {
     risks.push({
       label: "Operational Risk",
@@ -21701,11 +21715,13 @@ const gmRiskRadar = useMemo(() => {
   }
 
   return risks.slice(0, 4);
-}, [
+ }, [
   liveMomentumPercent,
   liveLaborIntelligence,
   foodCostPercentage,
   profitLeakSignals,
+  criticalInventoryItems,
+  kitchenDelayAlerts,
 ]);
 
 const gmStaffingInsights = useMemo(() => {
@@ -22643,6 +22659,17 @@ const realForecastConfidence = Math.round(
   )
 );
 
+const liveAIConfidence = Math.round(
+  Math.min(
+    98,
+    Math.max(
+      65,
+      100 -
+        Number(criticalInventoryItems?.length || 0) * 2 -
+        Math.abs(Number(revenueTrend?.growthPercent || 0))
+    )
+  )
+);
 
 
 
@@ -48375,20 +48402,29 @@ borderRadius: "14px",
     }}
   >
     {[
-      {
-        label: "Operational Status",
-        value: "STABLE",
-      },
+     {
+  label: "Operational Status",
+  value:
+    criticalInventoryItems?.length > 5
+      ? "HIGH RISK"
+      : kitchenDelayAlerts?.length > 2
+      ? "WATCH"
+      : "STABLE",
+},
+     {
+  label: "AI Confidence",
+  value: `${liveAIConfidence}%`,
+},
 
       {
-        label: "AI Confidence",
-        value: "94%",
-      },
-
-      {
-        label: "Automation Status",
-        value: "ACTIVE",
-      },
+  label: "Automation Status",
+  value:
+    autoPilotEnabled ||
+    aiAutopilotEnabled ||
+    hasProAccess
+      ? "ACTIVE"
+      : "MANUAL",
+},
     ].map((item) => (
       <div
         key={item.label}
