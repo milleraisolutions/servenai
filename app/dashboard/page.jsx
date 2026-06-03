@@ -17688,18 +17688,20 @@ const financialScore = Math.max(
   )
 );
 
+const beverageVarianceSignal =
+  Array.isArray(bartenderVarianceData)
+    ? bartenderVarianceData.reduce(
+        (sum, item) =>
+          sum + Math.abs(Number(item.variancePercent || 0)),
+        0
+      ) / Math.max(bartenderVarianceData.length, 1)
+    : 0;
+
 const beverageScore = Math.max(
   30,
   Math.min(
     100,
-    Math.round(
-      100 -
-        Number(
-          bartenderVarianceSummary?.totalVariancePercent ||
-            alcoholVariancePercent ||
-            0
-        ) * 4
-    )
+    Math.round(100 - Number(beverageVarianceSignal || 0) * 4)
   )
 );
 
@@ -17761,12 +17763,11 @@ const beverageScore = Math.max(
 }, [
   liveLaborIntelligence,
   criticalInventoryItems,
-ingredientUsageAnomalies,
-inventoryAlerts,
+  ingredientUsageAnomalies,
+  inventoryAlerts,
   avgMargin,
   revenueTrend,
-  bartenderVarianceSummary,
-alcoholVariancePercent,
+  bartenderVarianceData,
 ]);
 
 const aiAutopilotActionEngine = useMemo(() => {
