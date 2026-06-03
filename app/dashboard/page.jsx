@@ -22780,7 +22780,7 @@ const inventoryHealthScore = Math.max(
   Math.round(
     100 -
       Number(criticalInventoryItems?.length || 0) * 8 -
-      Number(wasteDetectionData?.length || 0) * 3
+      Number(inventoryAlerts?.length || 0) * 3
   )
 );
 
@@ -22795,7 +22795,15 @@ const beverageHealthScore = Math.max(
   45,
   Math.round(
     100 -
-      Number(totalAlcoholVariancePercent || 0) * 2
+      Number(
+  Array.isArray(bartenderVarianceData)
+    ? bartenderVarianceData.reduce(
+        (sum, item) =>
+          sum + Math.abs(Number(item.variancePercent || 0)),
+        0
+      ) / Math.max(bartenderVarianceData.length, 1)
+    : 0
+) * 2
   )
 );
 
