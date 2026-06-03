@@ -22703,14 +22703,16 @@ const realEnterpriseHealth = Math.round(
   ) / 3
 );
 
-const realForecastConfidence = Math.round(
+const realForecastConfidence = Math.max(
+  35,
   Math.min(
     98,
-    Math.max(
-      55,
-      100 -
-       Math.abs(Number(revenueTrend?.growthPercent || 0)) -
-        Number(criticalInventoryItems?.length || 0) * 3
+    Math.round(
+      92 -
+        Number(criticalInventoryItems?.length || 0) * 6 -
+        Number(profitLeakSignals?.length || 0) * 4 -
+        Math.abs(Number(revenueTrend?.growthPercent || 0)) * 1.2 -
+        Number(kitchenDelayAlerts?.length || 0) * 3
     )
   )
 );
