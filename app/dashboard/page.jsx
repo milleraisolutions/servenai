@@ -22451,7 +22451,176 @@ const handleUpdateTeamInviteStatus = async (inviteId, newStatus) => {
   await loadTeamInvites();
 };
 
+const cookTimeData = (cookTimeLogs || []).map((item) => ({
+  ...item,
+  cookMinutes:
+    item.cook_minutes ||
+    (
+      (new Date(item.completed_time) - new Date(item.start_time)) /
+      60000
+    ),
+}));
+const avgCookTime =
+  cookTimeData.length > 0
+    ? cookTimeData.reduce(
+        (sum, item) => sum + Number(item.cookMinutes || 0),
+        0
+      ) / cookTimeData.length
+    : 0;
 
+const kitchenSpeedScore =
+  avgCookTime <= 12
+    ? 96
+    : avgCookTime <= 16
+    ? 88
+    : avgCookTime <= 20
+    ? 74
+    : 58;
+    const slowestCookItems = Object.values(
+  cookTimeData.reduce((acc, item) => {
+    const name = item.menu_item || "Unknown Item";
+
+    if (!acc[name]) {
+      acc[name] = {
+        name,
+        totalMinutes: 0,
+        count: 0,
+      };
+    }
+
+    acc[name].totalMinutes += Number(item.cookMinutes || 0);
+    acc[name].count += 1;
+
+    return acc;
+  }, {})
+)
+  .map((item) => ({
+    ...item,
+    avgMinutes:
+      item.count > 0 ? item.totalMinutes / item.count : 0,
+  }))
+  .sort((a, b) => b.avgMinutes - a.avgMinutes)
+  .slice(0, 5);
+  const stationBottlenecks = Object.values(
+  cookTimeData.reduce((acc, item) => {
+    const station = item.station || "Unassigned Station";
+
+    if (!acc[station]) {
+      acc[station] = {
+        station,
+        totalMinutes: 0,
+        count: 0,
+      };
+    }
+
+    acc[station].totalMinutes += Number(item.cookMinutes || 0);
+    acc[station].count += 1;
+
+    return acc;
+  }, {})
+)
+  .map((station) => ({
+    ...station,
+    avgMinutes:
+      station.count > 0 ? station.totalMinutes / station.count : 0,
+    status:
+      station.count === 0
+        ? "No Data"
+        : station.totalMinutes / station.count > 18
+        ? "Bottleneck"
+        : station.totalMinutes / station.count > 14
+        ? "Watch"
+        : "Healthy",
+  }))
+  .sort((a, b) => b.avgMinutes - a.avgMinutes);
+  const kitchenDelayAlerts = [
+  ...stationBottlenecks
+    .filter((station) => station.status === "Bottleneck")
+    .map((station) => ({
+      title: `${station.station} is slowing ticket times`,
+      severity: "High",
+      detail: `Average cook time is ${station.avgMinutes.toFixed(
+        1
+      )} minutes. Review station staffing, prep readiness, and item load.`,
+    })),
+
+  ...slowestCookItems
+    .filter((item) => item.avgMinutes > 18)
+    .map((item) => ({
+      title: `${item.name} has high cook-time variance`,
+      severity: "Medium",
+      detail: `Average cook time is ${item.avgMinutes.toFixed(
+        1
+      )} minutes. Consider prep adjustments or menu timing review.`,
+    })),
+].slice(0, 5);
+const rushHourCookImpact = Object.values(
+  cookTimeData.reduce((acc, item) => {
+    const hour = new Date(
+      item.completed_time || item.start_time || item.created_at
+    ).getHours();
+
+    const label =
+      hour >= 17 && hour <= 21
+        ? "Dinner Rush"
+        : hour >= 11 && hour <= 14
+        ? "Lunch Rush"
+        : hour >= 6 && hour <= 10
+        ? "Breakfast"
+        : "Off Peak";
+
+    if (!acc[label]) {
+      acc[label] = {
+        period: label,
+        totalMinutes: 0,
+        count: 0,
+      };
+    }
+
+    acc[label].totalMinutes += Number(item.cookMinutes || 0);
+    acc[label].count += 1;
+
+    return acc;
+  }, {})
+)
+  .map((period) => ({
+    ...period,
+    avgMinutes:
+      period.count > 0 ? period.totalMinutes / period.count : 0,
+  }))
+  .sort((a, b) => b.avgMinutes - a.avgMinutes);
+
+const kitchenAIRecommendations = [];
+
+if (avgCookTime > 18) {
+  kitchenAIRecommendations.push({
+    title: "Reduce ticket congestion during peak periods",
+    detail:
+      "Kitchen ticket times are exceeding optimal service thresholds. Consider staggered firing or adding support staff during rush periods.",
+  });
+}
+
+if (
+  stationBottlenecks.some(
+    (station) => station.status === "Bottleneck"
+  )
+) {
+  kitchenAIRecommendations.push({
+    title: "Rebalance station workload",
+    detail:
+      "One or more stations are creating kitchen bottlenecks. Review prep allocation and station staffing.",
+  });
+}
+
+if (
+  slowestCookItems.some((item) => item.avgMinutes > 18)
+) {
+  kitchenAIRecommendations.push({
+    title: "Review high-delay menu items",
+    detail:
+      "Certain menu items are significantly increasing ticket times and may require prep optimization.",
+  });
+}
 
 
 
@@ -33070,6 +33239,302 @@ borderRadius: "14px",
     <p style={{ color: "#94a3b8", marginBottom: "22px" }}>
       Prep, station performance, waste, ticket time, and kitchen execution.
     </p>
+    {/* COOK TIME INTELLIGENCE */}
+<div
+  style={{
+    padding: "24px",
+    borderRadius: "24px",
+    background:
+      "linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.94))",
+    border: "1px solid rgba(148,163,184,0.14)",
+  }}
+>
+  <div style={{ color: "#f97316", fontSize: "12px", fontWeight: "900" }}>
+    Cook Time Intelligence
+  </div>
+
+  <h3 style={{ color: "white", fontSize: "26px", fontWeight: "950" }}>
+    Kitchen Speed Score: {kitchenSpeedScore}/100
+  </h3>
+
+  <p style={{ color: "#94a3b8", fontSize: "14px" }}>
+    Average cook time: {avgCookTime.toFixed(1)} minutes
+  </p>
+<div
+  style={{
+    marginTop: "18px",
+    display: "grid",
+    gridTemplateColumns: isMobile
+      ? "1fr"
+      : "repeat(3, minmax(0, 1fr))",
+    gap: "12px",
+  }}
+>
+  <div
+    style={{
+      padding: "16px",
+      borderRadius: "18px",
+      background: "rgba(15,23,42,0.72)",
+      border: "1px solid rgba(34,197,94,0.18)",
+    }}
+  >
+    <div style={{ color: "#86efac", fontSize: "12px", fontWeight: "900" }}>
+      Kitchen Speed
+    </div>
+
+    <div style={{ color: "white", fontSize: "24px", fontWeight: "950" }}>
+      {kitchenSpeedScore}/100
+    </div>
+  </div>
+
+  <div
+    style={{
+      padding: "16px",
+      borderRadius: "18px",
+      background: "rgba(15,23,42,0.72)",
+      border: "1px solid rgba(249,115,22,0.18)",
+    }}
+  >
+    <div style={{ color: "#fdba74", fontSize: "12px", fontWeight: "900" }}>
+      Avg Ticket Time
+    </div>
+
+    <div style={{ color: "white", fontSize: "24px", fontWeight: "950" }}>
+      {avgCookTime.toFixed(1)}m
+    </div>
+  </div>
+
+  <div
+    style={{
+      padding: "16px",
+      borderRadius: "18px",
+      background: "rgba(15,23,42,0.72)",
+      border: "1px solid rgba(248,113,113,0.18)",
+    }}
+  >
+    <div style={{ color: "#fca5a5", fontSize: "12px", fontWeight: "900" }}>
+      Active Bottlenecks
+    </div>
+
+    <div style={{ color: "white", fontSize: "24px", fontWeight: "950" }}>
+      {
+        stationBottlenecks.filter(
+          (station) => station.status === "Bottleneck"
+        ).length
+      }
+    </div>
+  </div>
+</div>
+  <div style={{ display: "grid", gap: "12px", marginTop: "18px" }}>
+    {kitchenDelayAlerts.length === 0 ? (
+      <div style={{ color: "#94a3b8" }}>
+        No cook time delays detected yet.
+      </div>
+    ) : (
+      kitchenDelayAlerts.map((alert, index) => (
+        <div
+          key={index}
+          style={{
+            padding: "16px",
+            borderRadius: "18px",
+            background: "rgba(15,23,42,0.72)",
+            border: "1px solid rgba(248,113,113,0.18)",
+          }}
+        >
+          <div style={{ color: "white", fontWeight: "900" }}>
+            {alert.title}
+          </div>
+          <div style={{ color: "#94a3b8", fontSize: "13px", marginTop: "6px" }}>
+            {alert.detail}
+          </div>
+        </div>
+      ))
+    )}
+  </div>
+</div>
+<div style={{ marginTop: "22px" }}>
+  <div
+    style={{
+      color: "#f97316",
+      fontSize: "12px",
+      fontWeight: "900",
+      marginBottom: "12px",
+    }}
+  >
+    Slowest Menu Items
+  </div>
+
+  <div style={{ display: "grid", gap: "10px" }}>
+    {slowestCookItems.map((item, index) => (
+      <div
+        key={index}
+        style={{
+          padding: "14px",
+          borderRadius: "16px",
+          background: "rgba(15,23,42,0.72)",
+          border: "1px solid rgba(148,163,184,0.12)",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
+        <div>
+          <div style={{ color: "white", fontWeight: "800" }}>
+            {item.name}
+          </div>
+
+          <div style={{ color: "#94a3b8", fontSize: "12px" }}>
+            {item.count} tracked orders
+          </div>
+        </div>
+
+        <div
+          style={{
+            color: "#fb923c",
+            fontWeight: "900",
+            fontSize: "15px",
+          }}
+        >
+          {item.avgMinutes.toFixed(1)} min
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+<div style={{ marginTop: "22px" }}>
+  <div
+    style={{
+      color: "#f97316",
+      fontSize: "12px",
+      fontWeight: "900",
+      marginBottom: "12px",
+    }}
+  >
+    Station Bottlenecks
+  </div>
+
+  <div style={{ display: "grid", gap: "10px" }}>
+    {stationBottlenecks.map((station, index) => (
+      <div
+        key={index}
+        style={{
+          padding: "14px",
+          borderRadius: "16px",
+          background: "rgba(15,23,42,0.72)",
+          border: "1px solid rgba(148,163,184,0.12)",
+          display: "flex",
+          justifyContent: "space-between",
+          gap: "12px",
+          flexWrap: "wrap",
+        }}
+      >
+        <div>
+          <div style={{ color: "white", fontWeight: "800" }}>
+            {station.station}
+          </div>
+
+          <div style={{ color: "#94a3b8", fontSize: "12px" }}>
+            {station.count} tracked tickets
+          </div>
+        </div>
+
+        <div style={{ textAlign: "right" }}>
+          <div style={{ color: "#fb923c", fontWeight: "900" }}>
+            {station.avgMinutes.toFixed(1)} min
+          </div>
+
+          <div style={{ color: "#cbd5e1", fontSize: "12px" }}>
+            {station.status}
+          </div>
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+<div style={{ marginTop: "22px" }}>
+  <div
+    style={{
+      color: "#f97316",
+      fontSize: "12px",
+      fontWeight: "900",
+      marginBottom: "12px",
+    }}
+  >
+    Rush Hour Kitchen Impact
+  </div>
+
+  <div style={{ display: "grid", gap: "10px" }}>
+    {rushHourCookImpact.map((period, index) => (
+      <div
+        key={index}
+        style={{
+          padding: "14px",
+          borderRadius: "16px",
+          background: "rgba(15,23,42,0.72)",
+          border: "1px solid rgba(148,163,184,0.12)",
+          display: "flex",
+          justifyContent: "space-between",
+          gap: "12px",
+          flexWrap: "wrap",
+        }}
+      >
+        <div>
+          <div style={{ color: "white", fontWeight: "800" }}>
+            {period.period}
+          </div>
+
+          <div style={{ color: "#94a3b8", fontSize: "12px" }}>
+            {period.count} tracked tickets
+          </div>
+        </div>
+
+        <div style={{ color: "#fb923c", fontWeight: "900" }}>
+          {period.avgMinutes.toFixed(1)} min avg
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+<div style={{ marginTop: "22px" }}>
+  <div
+    style={{
+      color: "#f97316",
+      fontSize: "12px",
+      fontWeight: "900",
+      marginBottom: "12px",
+    }}
+  >
+    AI Kitchen Recommendations
+  </div>
+
+  <div style={{ display: "grid", gap: "10px" }}>
+    {kitchenAIRecommendations.length === 0 ? (
+      <div style={{ color: "#94a3b8" }}>
+        No AI kitchen actions needed right now.
+      </div>
+    ) : (
+      kitchenAIRecommendations.map((item, index) => (
+        <div
+          key={index}
+          style={{
+            padding: "16px",
+            borderRadius: "18px",
+            background: "rgba(15,23,42,0.72)",
+            border: "1px solid rgba(249,115,22,0.18)",
+          }}
+        >
+          <div style={{ color: "white", fontWeight: "900" }}>
+            {item.title}
+          </div>
+
+          <div style={{ color: "#94a3b8", fontSize: "13px", marginTop: "6px" }}>
+            {item.detail}
+          </div>
+        </div>
+      ))
+    )}
+  </div>
+</div>
     <div
   style={{
     display: "grid",
@@ -43474,6 +43939,43 @@ borderRadius: "14px",
     </button>
   </div>
 )}
+{/* KITCHEN COOK TIME SUMMARY */}
+<div
+  style={{
+    marginTop: "18px",
+    padding: "22px",
+    borderRadius: "24px",
+    background:
+      "linear-gradient(135deg, rgba(249,115,22,0.12), rgba(15,23,42,0.96))",
+    border: "1px solid rgba(249,115,22,0.22)",
+  }}
+>
+  <div style={{ color: "#fdba74", fontSize: "12px", fontWeight: "900" }}>
+    Kitchen Cook Time Summary
+  </div>
+
+  <h3 style={{ color: "white", fontSize: "24px", fontWeight: "950" }}>
+    {avgCookTime.toFixed(1)} min average ticket time
+  </h3>
+
+  <p style={{ color: "#94a3b8", fontSize: "14px" }}>
+    Kitchen speed score is {kitchenSpeedScore}/100 with{" "}
+    {
+      stationBottlenecks.filter(
+        (station) => station.status === "Bottleneck"
+      ).length
+    }{" "}
+    active bottleneck
+    {
+      stationBottlenecks.filter(
+        (station) => station.status === "Bottleneck"
+      ).length === 1
+        ? ""
+        : "s"
+    }
+    .
+  </p>
+</div>
 {/* =========================
    AI AUTONOMOUS EXECUTION ENGINE
 ========================= */}
