@@ -49363,11 +49363,11 @@ borderRadius: "14px",
             Fix This Now →
           </button>
         </div>
- <div
+<div
   style={{
-  width: "100%",
-maxWidth: "760px",
-margin: "0 0 11px 0",
+    width: "100%",
+    maxWidth: "calc(100vw - 320px)",
+    margin: 0,
 
     minWidth: 0,
     padding: "13px",
@@ -63986,11 +63986,12 @@ maxWidth: "calc(100% - 28px)",
  <div
   style={{
     gridColumn: "1 / -1",
-width: "100%",
-    maxWidth: "700px",
-    minWidth: "700px",
 
-    margin: "0 auto",
+    width: "100%",
+    maxWidth: "calc(100vw - 260px)",
+    minWidth: 0,
+
+    margin: 0,
 
     overflowX: "auto",
     overflowY: "visible",
@@ -64932,27 +64933,27 @@ minWidth: 0,
 )}
 {activeTab === "pro_ai" && (
   <>
-  <div
-    style={{
-      gridColumn: "1 / -1",
+    <div
+      style={{
+        gridColumn: "1 / -1",
 
-      width: "100%",
-      maxWidth: "700px",
-      minWidth: "700px",
+        width: "100%",
+        maxWidth: "calc(100vw - 260px)",
+        minWidth: 0,
 
-      margin: "0 auto",
+        margin: 0,
 
-      overflowX: "visible",
-      overflowY: "visible",
+        overflowX: "visible",
+        overflowY: "visible",
 
-      display: "grid",
-      gridTemplateColumns: "repeat(12, minmax(0, 1fr))",
+        display: "grid",
+        gridTemplateColumns: "repeat(12, minmax(0, 1fr))",
 
-      gap: "22px",
-      alignItems: "start",
-      boxSizing: "border-box",
-    }}
-  >
+        gap: "22px",
+        alignItems: "start",
+        boxSizing: "border-box",
+      }}
+    >
       {/* ================= ELITE HEADER ================= */}
 <div
   style={{
