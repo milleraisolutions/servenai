@@ -22994,7 +22994,7 @@ return (
       activeTab === "labor" ||
       activeTab === "operations"
         ? "calc(100vw - 260px)"
-        : "760px",
+        : "1200px",
 
     margin: "0 0 0 -24px",
     minWidth: 0,
@@ -34164,7 +34164,7 @@ borderRadius: "14px",
 
   </div>
 )}
-  {activeTab === "analytics" && (
+ {activeTab === "analytics" && (
   <div
     style={{
       width: "100%",
@@ -34172,19 +34172,24 @@ borderRadius: "14px",
       minWidth: 0,
       overflow: "visible",
       display: "grid",
-      gridTemplateColumns: "1fr",
+      gridTemplateColumns: isMobile
+        ? "1fr"
+        : "repeat(2, minmax(0, 1fr))",
       gap: "24px",
       boxSizing: "border-box",
       paddingBottom: "24px",
     }}
   >
-     {/* PRIMARY CHART */}
-   <div
+   {/* PRIMARY CHART */}
+<div
   style={{
     ...sectionCard,
     width: "100%",
     maxWidth: "100%",
     minWidth: 0,
+
+    gridColumn: isMobile ? "span 1" : "span 2",
+
     borderRadius: "20px",
     padding: "22px",
     overflow: "hidden",
