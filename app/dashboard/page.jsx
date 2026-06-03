@@ -33366,7 +33366,21 @@ borderRadius: "14px",
   </div>
 
   <div style={{ display: "grid", gap: "10px" }}>
-    {slowestCookItems.map((item, index) => (
+  {slowestCookItems.length === 0 ? (
+    <div
+      style={{
+        padding: "14px",
+        borderRadius: "16px",
+        background: "rgba(15,23,42,0.72)",
+        border: "1px solid rgba(148,163,184,0.12)",
+        color: "#94a3b8",
+        fontSize: "13px",
+      }}
+    >
+      No cook-time item data available yet.
+    </div>
+  ) : (
+    slowestCookItems.map((item, index) => (
       <div
         key={index}
         style={{
@@ -33399,8 +33413,9 @@ borderRadius: "14px",
           {item.avgMinutes.toFixed(1)} min
         </div>
       </div>
-    ))}
-  </div>
+    ))
+  )}
+</div>
 </div>
 <div style={{ marginTop: "22px" }}>
   <div
@@ -33415,7 +33430,21 @@ borderRadius: "14px",
   </div>
 
   <div style={{ display: "grid", gap: "10px" }}>
-    {stationBottlenecks.map((station, index) => (
+  {stationBottlenecks.length === 0 ? (
+    <div
+      style={{
+        padding: "14px",
+        borderRadius: "16px",
+        background: "rgba(15,23,42,0.72)",
+        border: "1px solid rgba(148,163,184,0.12)",
+        color: "#94a3b8",
+        fontSize: "13px",
+      }}
+    >
+      No station bottleneck data available yet.
+    </div>
+  ) : (
+    stationBottlenecks.map((station, index) => (
       <div
         key={index}
         style={{
@@ -33449,8 +33478,9 @@ borderRadius: "14px",
           </div>
         </div>
       </div>
-    ))}
-  </div>
+    ))
+  )}
+</div>
 </div>
 <div style={{ marginTop: "22px" }}>
   <div
@@ -33465,7 +33495,21 @@ borderRadius: "14px",
   </div>
 
   <div style={{ display: "grid", gap: "10px" }}>
-    {rushHourCookImpact.map((period, index) => (
+  {rushHourCookImpact.length === 0 ? (
+    <div
+      style={{
+        padding: "14px",
+        borderRadius: "16px",
+        background: "rgba(15,23,42,0.72)",
+        border: "1px solid rgba(148,163,184,0.12)",
+        color: "#94a3b8",
+        fontSize: "13px",
+      }}
+    >
+      No rush-hour cook-time data available yet.
+    </div>
+  ) : (
+    rushHourCookImpact.map((period, index) => (
       <div
         key={index}
         style={{
@@ -33493,8 +33537,9 @@ borderRadius: "14px",
           {period.avgMinutes.toFixed(1)} min avg
         </div>
       </div>
-    ))}
-  </div>
+    ))
+  )}
+</div>
 </div>
 <div style={{ marginTop: "22px" }}>
   <div
