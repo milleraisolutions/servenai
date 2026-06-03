@@ -48842,8 +48842,8 @@ borderRadius: "14px",
       {
   label: "Automation Status",
   value:
-    autoPilotEnabled ||
-    aiAutopilotEnabled ||
+    autopilotEnabled ||
+    false ||
     hasProAccess
       ? "ACTIVE"
       : "MANUAL",
