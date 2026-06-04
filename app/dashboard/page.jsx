@@ -4947,7 +4947,7 @@ console.log("SALES ROWS TO INSERT:", salesRows);
 alert(`Sales save failed: ${salesError.message}`);
             setMessage("POS file loaded, but sales history failed to save.");
          } else {
-  await supabase.from("uploads").insert({
+await supabase.from("uploads").insert({
   user_id: user.id,
   file_name: file.name,
   source_name: "Manual Upload",
@@ -7177,8 +7177,9 @@ const { data, error } = await salesQuery.order("sale_date", {
   }
 };
 useEffect(() => {
+  if (!dataOwnerId) return;
   loadSalesFromDatabase();
-}, []);
+}, [dataOwnerId, activeLocation]);
 const realSalesMetrics = useMemo(() => {
   const rows = dbSalesRows || [];
 
@@ -10101,8 +10102,9 @@ setRecentUploads(data || []);
   }
 };
 useEffect(() => {
+  if (!dataOwnerId) return;
   fetchClientImports();
-}, []);
+}, [dataOwnerId, activeLocation]);
 
 const getCampaignROIStats = () => {
   const campaigns = savedCampaigns || [];
