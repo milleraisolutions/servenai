@@ -724,7 +724,7 @@ const formatExecutiveDate = (value) => {
 <div
   style={{
     width: "100%",
-    height: isMobile ? "340px" : "430px",
+    height: isMobile ? "640px" : "730px",
     marginTop: "10px",
     overflow: "hidden",
   }}
