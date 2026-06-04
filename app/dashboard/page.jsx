@@ -4939,11 +4939,33 @@ console.log("SALES ROWS TO INSERT:", salesRows);
        console.error("Sales save failed:", salesError);
 alert(`Sales save failed: ${salesError.message}`);
             setMessage("POS file loaded, but sales history failed to save.");
-          } else {
-            setMessage(
-              `POS / Sales file loaded and saved: ${salesRows.length} sales rows stored.`
-            );
-          }
+         } else {
+  await supabase.from("client_data_uploads").insert({
+    user_id: user.id,
+    file_name: file.name,
+    row_count: salesRows.length,
+    metrics: {
+      type: "pos",
+      source: "POS Data",
+      rows: salesRows.length,
+      uploaded_at: new Date().toISOString(),
+    },
+  });
+
+  setRecentUploads((prev) => [
+    {
+      file_name: file.name,
+      row_count: salesRows.length,
+      type: "POS Data",
+      created_at: new Date().toISOString(),
+    },
+    ...(prev || []),
+  ]);
+
+  setMessage(
+    `POS / Sales file loaded and saved: ${salesRows.length} sales rows stored.`
+  );
+}
         }
       }
 setPendingUploadSummary({
