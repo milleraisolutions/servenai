@@ -124,6 +124,39 @@ useEffect(() => {
   return () =>
     window.removeEventListener("resize", checkMobile);
 }, []);
+
+const formatExecutiveDate = (value) => {
+  if (!value) return "";
+
+  const text = String(value);
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
+    const [year, month, day] = text.split("-").map(Number);
+
+    return new Date(year, month - 1, day).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    });
+  }
+
+  return text;
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   return (
     <div
   style={{
@@ -688,28 +721,27 @@ useEffect(() => {
       {revenueChartData?.length || 0} data points
     </div>
   </div>
-
- <div
+<div
   style={{
     width: "100%",
-    height: isMobile ? "240px" : "270px",
+    height: isMobile ? "340px" : "430px",
     marginTop: "10px",
     overflow: "hidden",
   }}
 >
   {revenueChartData?.length > 0 ? (
     <LineChart
-  width={isMobile ? 900 : 1200}
-  height={isMobile ? 220 : 250}
+  width={isMobile ? 900 : 1400}
+  height={isMobile ? 320 : 380}
       data={revenueChartData}
-      margin={{ top: 20, right: 30, left: 10, bottom: 70 }}
+     margin={{ top: 24, right: 35, left: 10, bottom: 85 }}
     >
       <CartesianGrid
         strokeDasharray="3 3"
         stroke="rgba(148,163,184,0.14)"
       />
 
-      <XAxis
+     <XAxis
   dataKey="day"
   tick={{ fill: "#94a3b8", fontSize: 10 }}
   axisLine={false}
@@ -717,24 +749,9 @@ useEffect(() => {
   interval={4}
   angle={-35}
   textAnchor="end"
-  height={60}
-  tickMargin={12}
-  tickFormatter={(value) => {
-    if (!value) return "";
-
-    const [year, month, day] = String(value)
-      .split("-")
-      .map(Number);
-
-    return new Date(
-      year,
-      month - 1,
-      day
-    ).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-    });
-  }}
+  height={75}
+  tickMargin={14}
+  tickFormatter={formatExecutiveDate}
 />
 
       <YAxis
