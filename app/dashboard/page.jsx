@@ -35305,14 +35305,14 @@ borderRadius: "14px",
 >
   {revenueChartData?.length > 0 ? (
     <LineChart
-      width={isMobile ? 760 : 900}
+      width={isMobile ? 900 : 1200}
       height={340}
       data={revenueChartData}
       margin={{ top: 20, right: 30, left: 10, bottom: 24 }}
     >
       <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.18)" />
 
-    <XAxis
+   <XAxis
   dataKey="day"
   tick={{ fill: "#94a3b8", fontSize: 10 }}
   axisLine={false}
