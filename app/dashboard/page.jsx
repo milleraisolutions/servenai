@@ -4945,17 +4945,15 @@ console.log("SALES ROWS TO INSERT:", salesRows);
 alert(`Sales save failed: ${salesError.message}`);
             setMessage("POS file loaded, but sales history failed to save.");
          } else {
-  await supabase.from("client_data_uploads").insert({
-    user_id: user.id,
-    file_name: file.name,
-    row_count: salesRows.length,
-    metrics: {
-      type: "pos",
-      source: "POS Data",
-      rows: salesRows.length,
-      uploaded_at: new Date().toISOString(),
-    },
-  });
+  await supabase.from("uploads").insert({
+  user_id: user.id,
+  file_name: file.name,
+  source_name: "Manual Upload",
+  row_count: salesRows.length,
+  upload_type: "pos",
+  status: "completed",
+  location_id: selectedUploadLocationId || null,
+});
 
   setRecentUploads((prev) => [
     {
@@ -4980,13 +4978,7 @@ setPendingUploadSummary({
   uploadedAt: Date.now(),
   rows: safeRows,
 });
-setPendingUploadSummary({
-  fileName: file.name,
-  rowCount: safeRows.length,
-  uploadType: "pos",
-  uploadedAt: Date.now(),
-  rows: safeRows,
-});
+
 
 setPendingUploadRows(safeRows);
 setDbSalesRows(safeRows);
