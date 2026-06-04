@@ -5247,10 +5247,7 @@ const handleImportMappedSales = async () => {
       return;
     }
 
-    if (!mapping?.date || !mapping?.revenue) {
-      setMessage("Please confirm your POS column mapping first");
-      return;
-    }
+  
 
     const { data: uploadedFileRow, error: uploadInsertError } = await supabase
       .from("uploads")
@@ -5278,24 +5275,54 @@ const handleImportMappedSales = async () => {
       return;
     }
 
-    const salesRows = rows
-      .map((row) => ({
-        user_id: user.id,
-        upload_id: uploadedFileRow?.id || null,
-        sale_date: row[mapping.date]
-          ? new Date(row[mapping.date]).toISOString().slice(0, 10)
-          : null,
-        revenue: Number(String(row[mapping.revenue] || 0).replace(/[$,]/g, "")),
-        orders_count: mapping.orders
-          ? Number(String(row[mapping.orders] || 0).replace(/[,]/g, ""))
-          : 0,
-        labor: mapping.labor
-          ? Number(String(row[mapping.labor] || 0).replace(/[$,]/g, ""))
-          : 0,
-        source_name: selectedDataSource || "Manual Upload",
-        location_id: selectedUploadLocationId || null,
-      }))
-      .filter((row) => row.sale_date && row.revenue > 0);
+  const salesRows = rows
+  .map((row) => {
+    const rawDate =
+      row.sale_date ||
+      row.date ||
+      row.Date ||
+      row["Sale Date"] ||
+      row["Business Date"] ||
+      row.day ||
+      row.Day ||
+      null;
+
+    const rawRevenue =
+      row.revenue ||
+      row.Revenue ||
+      row.sales ||
+      row.Sales ||
+      row["Net Sales"] ||
+      row["Gross Sales"] ||
+      0;
+
+    const rawOrders =
+      row.orders_count ||
+      row.orders ||
+      row.Orders ||
+      row["Order Count"] ||
+      row["Guest Count"] ||
+      0;
+
+    const rawLabor =
+      row.labor ||
+      row.labor_cost ||
+      row.Labor ||
+      row["Labor Cost"] ||
+      0;
+
+    return {
+      user_id: user.id,
+      upload_id: uploadedFileRow?.id || null,
+      sale_date: rawDate ? new Date(rawDate).toISOString().slice(0, 10) : null,
+      revenue: Number(String(rawRevenue).replace(/[$,]/g, "") || 0),
+      orders_count: Number(String(rawOrders).replace(/[,]/g, "") || 0),
+      labor: Number(String(rawLabor).replace(/[$,]/g, "") || 0),
+      source_name: selectedDataSource || "Manual Upload",
+      location_id: selectedUploadLocationId || null,
+    };
+  })
+  .filter((row) => row.sale_date && row.revenue > 0);
 
     console.log("POS SALES ROWS TO INSERT:", salesRows);
 
@@ -23195,7 +23222,24 @@ const batchPrepIntelligence = (batchPrepData || []).map((batch) => {
   };
 });
 
+const handleConfirmMapping = () => {
+  const columns = rows?.[0] ? Object.keys(rows[0]) : [];
 
+  const autoMapping = {
+    name: columns.find((c) => ["name", "item", "menu_item", "Item"].includes(c)) || "",
+    category: columns.find((c) => ["category", "Category"].includes(c)) || "",
+    quantity: columns.find((c) => ["quantity", "quantity_sold", "qty_sold", "qty", "Quantity"].includes(c)) || "",
+    revenue: columns.find((c) => ["revenue", "Revenue", "sales", "Sales"].includes(c)) || "",
+    date: columns.find((c) => ["sale_date", "date", "Date", "Business Date"].includes(c)) || "",
+    price: columns.find((c) => ["price", "Price"].includes(c)) || "",
+    cost: columns.find((c) => ["cost", "Cost"].includes(c)) || "",
+    labor: columns.find((c) => ["labor", "labor_cost", "Labor"].includes(c)) || "",
+    orders: columns.find((c) => ["orders_count", "orders", "Orders"].includes(c)) || "",
+  };
+
+  setMapping(autoMapping);
+  setMessage("Column mapping confirmed.");
+};
 
 
 
