@@ -1939,18 +1939,24 @@ const liveScore =
 
   return sum + (cost > 0 ? cost : hours * rate);
 }, 0);
-
+const laborRecoveryOpportunity =
+    Math.max(
+      0,
+      Number(totalLaborCost || 0) -
+        Number(liveTotalRevenue || 0) * 0.28
+    ) || 0;
   const laborPercent =
     liveTotalRevenue > 0 && totalLaborCost > 0
       ? (totalLaborCost / liveTotalRevenue) * 100
       : 0;
 
   return {
-    totalLaborCost,
-    laborPercent,
-    rows: laborData || [],
-  };
-}, [laborData, liveTotalRevenue]);
+  totalLaborCost,
+  laborPercent,
+  laborRecoveryOpportunity,
+  rows: laborData || [],
+};
+}, [locationLaborData, laborData, liveTotalRevenue]);
 console.log("LABOR DATA CHECK:", laborData);
 console.log("LABOR FIRST ROW:", laborData?.[0]);
 console.log("LABOR TOTAL COST:", liveLaborIntelligence?.totalLaborCost);
@@ -12732,7 +12738,7 @@ const inventoryTrendData = useMemo(() => {
       value,
     };
   });
-}, [uploadComparison, ingredientsData]);
+}, [uploadComparison, locationIngredientsData]);
 
 const alcoholPourVarianceData = useMemo(() => {
   const salesRows =
@@ -17960,8 +17966,8 @@ const aiAutopilotActionEngine = useMemo(() => {
   const impactByCategory = {
     Financial: Number(estimatedRecoverableProfit || 0),
     Inventory: Number(inventoryHealthScoreData?.revenueLoss || 0),
-    Labor: Number(laborRecoveryOpportunity || 0),
-    Beverage: Number(beverageRecoveryOpportunity || 0),
+    Labor: Number(liveLaborIntelligence?.laborRecoveryOpportunity || 0),
+    Beverage: 0,
   };
 
   const impact = Number(impactByCategory[topAlert.category] || 0);
@@ -17977,8 +17983,7 @@ const aiAutopilotActionEngine = useMemo(() => {
   unifiedAIAlertsFeed,
   estimatedRecoverableProfit,
   inventoryHealthScoreData,
-  laborRecoveryOpportunity,
-  beverageRecoveryOpportunity,
+ liveLaborIntelligence,
 ]);
 
 const aiProfitRecoveryLog = useMemo(() => {
