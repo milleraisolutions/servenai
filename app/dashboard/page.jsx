@@ -292,6 +292,7 @@ const [inviteLocation, setInviteLocation] = useState("");
 const [teamInvites, setTeamInvites] = useState([]);
 const [cookTimeLogs, setCookTimeLogs] = useState([]);
 const [batchPrepData, setBatchPrepData] = useState([]);
+const importLockRef = useRef(false);
 const [importingPOS, setImportingPOS] = useState(false);
 
 
@@ -4951,15 +4952,7 @@ console.log("SALES ROWS TO INSERT:", salesRows);
 alert(`Sales save failed: ${salesError.message}`);
             setMessage("POS file loaded, but sales history failed to save.");
          } else {
-await supabase.from("uploads").insert({
-  user_id: user.id,
-  file_name: file.name,
-  source_name: "Manual Upload",
-  row_count: salesRows.length,
-  upload_type: "pos",
-  status: "completed",
-  location_id: selectedUploadLocationId || null,
-});
+
 
   setRecentUploads((prev) => [
     {
@@ -5230,7 +5223,8 @@ e.target.value = "";
 }
 };
 const handleImportMappedSales = async () => {
-  if (importingPOS) return;
+  if (importLockRef.current) return;
+  importLockRef.current = true;
 
   try {
     setImportingPOS(true);
@@ -5364,17 +5358,18 @@ const handleImportMappedSales = async () => {
       ]);
     }
 
-    setMessage(`POS sales imported: ${finalSalesRows.length} rows`);
-    setPendingUploadSummary(null);
-    setRows([]);
-    setPendingUploadRows([]);
-  } catch (error) {
-    console.error("Import failed:", error);
-    alert(`Import failed: ${error.message}`);
-    setMessage("Import failed");
-  } finally {
-    setImportingPOS(false);
-  }
+   setMessage(`POS sales imported: ${finalSalesRows.length} rows`);
+setPendingUploadSummary(null);
+setRows([]);
+setPendingUploadRows([]);
+} catch (error) {
+  console.error("Import failed:", error);
+  alert(`Import failed: ${error.message}`);
+  setMessage("Import failed");
+} finally {
+  importLockRef.current = false;
+  setImportingPOS(false);
+}
 };
 const handleImportMenuItems = async () => {
   try {
