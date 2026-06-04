@@ -35529,11 +35529,27 @@ borderRadius: "14px",
       <span style={{ color: "white", fontWeight: "950" }}>
         Revenue insight:
       </span>{" "}
-      {revenueTracker?.bestDay?.day || "Your strongest day"} is currently your
-      top-performing sales day, generating{" "}
-      <span style={{ color: "#c4b5fd", fontWeight: "950" }}>
-        ${Number(revenueTracker?.bestDay?.revenue || 0).toLocaleString()}
-      </span>
+      {new Date(
+  revenueChartData.reduce((best, current) =>
+    Number(current.revenue || 0) > Number(best.revenue || 0)
+      ? current
+      : best
+  ).day
+).toLocaleDateString("en-US", {
+  month: "short",
+  day: "numeric",
+})}{" "}
+is currently your top-performing sales day, generating{" "}
+<span style={{ color: "#c4b5fd", fontWeight: "950" }}>
+  $
+  {Number(
+    revenueChartData.reduce((best, current) =>
+      Number(current.revenue || 0) > Number(best.revenue || 0)
+        ? current
+        : best
+    ).revenue || 0
+  ).toLocaleString()}
+</span>
       . Review slower days for promo, staffing, or menu opportunities.
     </div>
   )}
