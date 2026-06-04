@@ -35286,13 +35286,16 @@ borderRadius: "14px",
     >
       <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.18)" />
 
-      <XAxis
+    <XAxis
   dataKey="day"
-  tick={{ fill: "#94a3b8", fontSize: 11 }}
+  tick={{ fill: "#94a3b8", fontSize: 10 }}
   axisLine={false}
   tickLine={false}
-  minTickGap={24}
-  interval={2}
+  interval={4}
+  angle={-35}
+  textAnchor="end"
+  height={60}
+  tickMargin={12}
   tickFormatter={(value) =>
     new Date(value).toLocaleDateString("en-US", {
       month: "short",
@@ -35432,7 +35435,7 @@ borderRadius: "14px",
         width={isMobile ? 900 : 980}
         height={isMobile ? 340 : 420}
         data={revenueChartData}
-        margin={{ top: 24, right: 35, left: 10, bottom: 36 }}
+        margin={{ top: 24, right: 35, left: 10, bottom: 70 }}
         barCategoryGap="18%"
       >
         <CartesianGrid
@@ -35441,12 +35444,16 @@ borderRadius: "14px",
           vertical={false}
         />
 
-       <XAxis
+      <XAxis
   dataKey="day"
   tick={{ fill: "#94a3b8", fontSize: 10 }}
   axisLine={false}
   tickLine={false}
-  interval={2}
+  interval={4}
+  angle={-35}
+  textAnchor="end"
+  height={60}
+  tickMargin={12}
   tickFormatter={(value) =>
     new Date(value).toLocaleDateString("en-US", {
       month: "short",
@@ -38459,7 +38466,7 @@ borderRadius: "14px",
           width={isMobile ? 900 : 760}
           height={isMobile ? 340 : 420}
           data={aiProfitTrendData}
-          margin={{ top: 24, right: 35, left: 10, bottom: 36 }}
+         margin={{ top: 24, right: 35, left: 10, bottom: 70 }}
         >
           <CartesianGrid
             strokeDasharray="3 3"
@@ -38467,13 +38474,22 @@ borderRadius: "14px",
           />
 
           <XAxis
-            dataKey="date"
-            tick={{ fill: "#94a3b8", fontSize: 10 }}
-            axisLine={{ stroke: "rgba(148,163,184,0.18)" }}
-            tickLine={false}
-            interval={1}
-          />
-
+  dataKey="date"
+  tick={{ fill: "#94a3b8", fontSize: 10 }}
+  axisLine={{ stroke: "rgba(148,163,184,0.18)" }}
+  tickLine={false}
+  interval={4}
+  angle={-35}
+  textAnchor="end"
+  height={60}
+  tickMargin={12}
+  tickFormatter={(value) =>
+    new Date(value).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    })
+  }
+/>
           <YAxis
             tickFormatter={(value) =>
               isMobile
