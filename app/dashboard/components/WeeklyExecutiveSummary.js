@@ -731,11 +731,11 @@ const formatExecutiveDate = (value) => {
 >
   {revenueChartData?.length > 0 ? (
     <LineChart
-      width={isMobile ? 900 : 1400}
-      height={isMobile ? 420 : 500}
-      data={revenueChartData}
-      margin={{ top: 30, right: 35, left: 10, bottom: 85 }}
-    >
+  width={isMobile ? 1100 : 1650}
+  height={isMobile ? 520 : 650}
+  data={revenueChartData}
+  margin={{ top: 20, right: 40, left: 10, bottom: 80 }}
+>
       <CartesianGrid
         strokeDasharray="3 3"
         stroke="rgba(148,163,184,0.14)"
