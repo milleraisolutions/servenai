@@ -11296,9 +11296,9 @@ const fallbackProfitOpportunities = [
       ? "Optimize portion sizes and prep tracking"
       : "Upload inventory and invoice data to activate waste reduction intelligence.",
 
-    impact: hasOperationalData
-      ? Number(inventoryRecoveryValue || 0)
-      : null,
+   impact: hasOperationalData
+  ? 0
+  : null,
 
     difficulty: hasOperationalData
       ? "Medium"
@@ -68660,8 +68660,8 @@ minWidth: 0,
     : "Upload inventory and invoice data to activate waste optimization intelligence.",
 
   result: hasOperationalData
-    ? `+$${Number(inventoryRecoveryValue || 0).toLocaleString()}/mo waste reduction`
-    : "Simulation Mode",
+  ? "+$0/mo waste reduction"
+  : "Simulation Mode",
 
   status: hasOperationalData
     ? "Monitoring"
@@ -69332,9 +69332,9 @@ minWidth: 0,
     ? "AI predicts lower waste exposure and improved food cost control."
     : "Upload inventory, usage, and invoice data to activate waste recovery simulations.",
 
-  impact: hasOperationalData
-    ? `+$${Number(inventoryRecoveryValue || 0).toLocaleString()}/mo waste recovery`
-    : "Simulation Mode",
+impact: hasOperationalData
+  ? "+$0/mo waste recovery"
+  : "Simulation Mode",
 
   confidence: hasOperationalData
     ? `${Number(realForecastConfidence || 0)}%`
