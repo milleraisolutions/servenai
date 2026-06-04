@@ -11317,7 +11317,7 @@ const fallbackProfitOpportunities = [
       : "Upload guest purchase data to activate upsell intelligence.",
 
     impact: hasOperationalData
-      ? Number(upsellRecoveryValue || 0)
+      ? 0
       : null,
 
     difficulty: hasOperationalData
@@ -11337,7 +11337,7 @@ const fallbackProfitOpportunities = [
       : "Upload vendor and invoice data to activate supplier optimization AI.",
 
     impact: hasOperationalData
-      ? Number(vendorRecoveryValue || 0)
+      ? 0
       : null,
 
     difficulty: hasOperationalData
@@ -11357,7 +11357,7 @@ const fallbackProfitOpportunities = [
       : "Upload labor and revenue data to activate staffing optimization AI.",
 
     impact: hasOperationalData
-      ? Number(laborRecoveryValue || 0)
+      ? 0
       : null,
 
     difficulty: hasOperationalData
@@ -68615,7 +68615,7 @@ minWidth: 0,
     : "Upload guest activity and customer data to activate retention intelligence.",
 
   result: hasOperationalData
-    ? `+$${Number(guestRecoveryValue || 0).toLocaleString()}/mo potential recovery`
+    ? "+$0/mo potential recovery"
     : "Simulation Mode",
 
   status: hasOperationalData
@@ -68630,7 +68630,7 @@ minWidth: 0,
     : "Upload labor and sales data to activate staffing optimization.",
 
   result: hasOperationalData
-    ? `+$${Number(laborRecoveryValue || 0).toLocaleString()}/mo profit protection`
+    ? "+$0/mo profit protection"
     : "Simulation Mode",
 
   status: hasOperationalData
@@ -69279,7 +69279,7 @@ minWidth: 0,
     : "Upload labor and revenue data to activate live labor scenario modeling.",
 
   impact: hasOperationalData
-    ? `+$${Number(laborRecoveryValue || 0).toLocaleString()}/mo profit protection`
+    ? "+$0/mo profit protection"
     : "Simulation Mode",
 
   confidence: hasOperationalData
@@ -69297,7 +69297,7 @@ minWidth: 0,
     : "Upload guest activity or customer data to activate retention simulations.",
 
   impact: hasOperationalData
-    ? `+$${Number(guestRecoveryValue || 0).toLocaleString()}/mo guest revenue`
+   ? "+$0/mo potential recovery"
     : "Simulation Mode",
 
   confidence: hasOperationalData
