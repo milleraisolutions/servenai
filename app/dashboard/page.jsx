@@ -303,10 +303,12 @@ const loadAdminData = async () => {
     setUsers(usersData || []);
   }
 
-  const { data: importData, error: importError } = await supabase
-    .from("client_data_uploads")
-    .select("*")
-    .order("created_at", { ascending: false });
+ const { data: importData, error: importError } = await supabase
+  .from("uploads")
+  .select("*")
+  .eq("user_id", user.id)
+  .or("archived.is.false,archived.is.null")
+  .order("created_at", { ascending: false });
 
   if (!importError) {
     setClientImports(importData || []);
