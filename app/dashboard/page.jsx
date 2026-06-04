@@ -16628,9 +16628,33 @@ const shiftLevelBeverageData = useMemo(() => {
 ]);
 
 const beverageHealthScoreData = useMemo(() => {
-  let score = 100;
-
   const pourVariance = Number(alcoholVariancePercent || 0);
+
+const hasBeverageData =
+  pourVariance > 0 ||
+  (beverageRestockData || []).length > 0 ||
+  (kegIntelligenceData || []).length > 0 ||
+  (bartenderVarianceArray || []).length > 0 ||
+  Number(happyHourProfitabilityData?.marginPercent || 0) > 0 ||
+  (lowMarginCocktails || []).length > 0 ||
+  (cocktailRecipeCostingData || []).length > 0;
+
+if (!hasBeverageData) {
+  return {
+    score: 0,
+    status: "Waiting for data",
+    color: "#94a3b8",
+    insight: "Upload beverage, alcohol inventory, or sales data to generate health insights.",
+    criticalRestocks: 0,
+    reorderSoon: 0,
+    criticalKegs: 0,
+    lowKegs: 0,
+    bartenderIssues: 0,
+    lowMarginCocktailCount: 0,
+  };
+}
+
+let score = 100;
 
   if (pourVariance > 12) score -= 22;
   else if (pourVariance > 8) score -= 14;
@@ -17528,14 +17552,40 @@ Recommended focus areas include reducing stockout exposure, improving restock ti
 ]);
 
 const financialHealthScoreData = useMemo(() => {
-  let score = 100;
-
   const primeCost = Number(livePrimeCost || 0);
   const foodCost = Number(effectiveFoodCostPercent || 0);
   const laborCost = Number(effectiveLaborCostPercent || 0);
   const invoiceMismatchCount = Number(invoiceMismatchItems?.length || 0);
   const reviewCount = Number(invoiceReviewItems?.length || 0);
   const recoverableProfit = Number(estimatedRecoverableProfit || 0);
+
+  const hasFinancialData =
+    primeCost > 0 ||
+    foodCost > 0 ||
+    laborCost > 0 ||
+    invoiceMismatchCount > 0 ||
+    reviewCount > 0 ||
+    recoverableProfit > 0 ||
+    (vendorCostInsights || []).length > 0;
+
+  if (!hasFinancialData) {
+    return {
+      score: 0,
+      status: "Waiting for data",
+      color: "#94a3b8",
+      insight: "Upload financial, invoice, or sales data to generate health insights.",
+      primeCost: 0,
+      foodCost: 0,
+      laborCost: 0,
+      invoiceMismatchCount: 0,
+      reviewCount: 0,
+      recoverableProfit: 0,
+      criticalVendorSpikes: 0,
+      risingVendorCosts: 0,
+    };
+  }
+
+  let score = 100;
 
   score -= invoiceMismatchCount * 6;
   score -= reviewCount * 3;
@@ -18195,10 +18245,7 @@ const aiStrategicRecommendations = useMemo(() => {
       priority: beverageHealthScoreData.score < 60 ? "Critical" : "High",
       recommendation:
         "Review pour variance, bartender leakage, keg pressure, and happy hour profitability.",
-     impact: Math.round(
-  Number(totalAlcoholVarianceLoss || 0) +
-  Number(happyHourProfitLoss || 0)
-),
+    impact: 0,
     });
   }
 
