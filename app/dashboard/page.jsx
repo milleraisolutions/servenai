@@ -4867,27 +4867,6 @@ const handleFileUpload = async (e) => {
       } = await supabase.auth.getUser();
 console.log("AUTH USER:", user);
 
-      if (user?.id && safeRows.length) {
-        const { data: uploadRow, error: uploadError } = await supabase
-          .from("uploads")
-          .insert([
-            {
-              user_id: user.id,
-              file_name: file.name,
-              source_name: "Manual Upload",
-              row_count: safeRows.length,
-              upload_type: "pos",
-              status: "completed",
-location_id: selectedUploadLocationId,
-            },
-          ])
-          .select()
-          .single();
-
-      if (uploadError) {
-  console.error("POS upload save failed:", uploadError);
-  alert(`POS upload log failed: ${uploadError.message}`);
-}
 
         const salesRows = safeRows
           .map((row) => {
@@ -4936,7 +4915,7 @@ const rawOrders =
               revenue: Number(String(rawRevenue).replace(/[$,]/g, "") || 0),
               orders_count: Number(String(rawOrders).replace(/[,]/g, "") || 0),
               source_name: "Manual Upload",
-              upload_id: uploadRow?.id || null,
+              upload_id: null,
 location_id: selectedUploadLocationId,
             };
           })
