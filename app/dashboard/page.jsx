@@ -10072,18 +10072,17 @@ const fetchClientImports = async () => {
       console.log("No user found for imports");
       return;
     }
-
-   let clientDataQuery = supabase
-  .from("client_data_uploads")
+let uploadsQuery = supabase
+  .from("uploads")
   .select("*")
-  .eq("user_id", dataOwnerId);
+  .eq("user_id", dataOwnerId)
+  .or("archived.is.false,archived.is.null");
 
-clientDataQuery = applyLocationFilter(clientDataQuery);
+uploadsQuery = applyLocationFilter(uploadsQuery);
 
-const { data, error } = await clientDataQuery.order(
-  "created_at",
-  { ascending: false }
-);
+const { data, error } = await uploadsQuery.order("created_at", {
+  ascending: false,
+});
 
     if (error) {
       console.error("CLIENT IMPORTS LOAD ERROR:", error);
@@ -10092,6 +10091,7 @@ const { data, error } = await clientDataQuery.order(
 
     console.log("CLIENT IMPORTS:", data);
     setClientImports(data || []);
+setRecentUploads(data || []);
   } catch (err) {
     console.error("fetchClientImports crashed:", err);
   } finally {
