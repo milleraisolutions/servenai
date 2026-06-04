@@ -4846,7 +4846,11 @@ const handleFileUpload = async (e) => {
     pendingUploadRowsRef.current = safeRows;
     setPendingUploadRows(safeRows);
 
-    
+    console.log("ATTEMPTING UPLOAD LOG INSERT", {
+  userId: user.id,
+  fileName: file.name,
+  locationId: selectedUploadLocationId,
+});
 
     if (activeUploadType === "pos") {
       setRows(safeRows);
@@ -23882,22 +23886,28 @@ return (
   selectedUploadTypeRef.current ||
   uploadType;
 
-    if (currentType === "menu_items") {
-      handleImportMenuItems();
+  if (currentType === "menu_items") {
+  await handleImportMenuItems();
 
-    } else if (currentType === "ingredients") {
-      handleImportIngredients();
+} else if (currentType === "ingredients") {
+  await handleImportIngredients();
 
-    } else if (currentType === "labor") {
-      handleImportLabor();
+} else if (currentType === "labor") {
+  await handleImportLabor();
 
-    } else if (currentType === "invoices") {
-      handleImportInvoices();
+} else if (currentType === "invoices") {
+  await handleImportInvoices();
+
 } else if (currentType === "batch_prep") {
-  handleImportBatchPrep();
-   } else if (currentType === "pos") {
-  handleImportMappedSales();
-}else {
+  await handleImportBatchPrep();
+
+} else if (currentType === "pos") {
+  await handleImportMappedSales();
+
+} else {
+  setMessage("No matched upload type.");
+}
+else {
       setMessage("No matched upload type.");
     }
   }}
