@@ -724,17 +724,17 @@ const formatExecutiveDate = (value) => {
 <div
   style={{
     width: "100%",
-    height: isMobile ? "640px" : "730px",
     marginTop: "10px",
-    overflow: "hidden",
+    overflowX: "auto",
+    overflowY: "visible",
   }}
 >
   {revenueChartData?.length > 0 ? (
     <LineChart
-  width={isMobile ? 900 : 1400}
-  height={isMobile ? 320 : 380}
+      width={isMobile ? 900 : 1400}
+      height={isMobile ? 420 : 500}
       data={revenueChartData}
-     margin={{ top: 24, right: 35, left: 10, bottom: 85 }}
+      margin={{ top: 30, right: 35, left: 10, bottom: 85 }}
     >
       <CartesianGrid
         strokeDasharray="3 3"
