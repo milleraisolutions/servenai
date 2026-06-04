@@ -222,6 +222,7 @@ const [employees, setEmployees] = useState([]);
 const [employeeShifts, setEmployeeShifts] = useState([]);
 const [beverageItems, setBeverageItems] = useState([]);
 const [beverageUsage, setBeverageUsage] = useState([]);
+
 const [mapping, setMapping] = useState({
   name: "",
   category: "",
@@ -290,6 +291,9 @@ const [inviteRole, setInviteRole] = useState("gm");
 const [inviteLocation, setInviteLocation] = useState("");
 const [teamInvites, setTeamInvites] = useState([]);
 const [cookTimeLogs, setCookTimeLogs] = useState([]);
+const [batchPrepData, setBatchPrepData] = useState([]);
+
+
 const loadAdminData = async () => {
   const { data: usersData, error: usersError } = await supabase
     .from("users")
@@ -307,7 +311,14 @@ const loadAdminData = async () => {
   if (!importError) {
     setClientImports(importData || []);
   }
+const { data: batchPrepRows, error: batchPrepError } = await supabase
+  .from("batch_prep_data")
+  .select("*")
+  .order("prep_date", { ascending: false });
 
+if (!batchPrepError) {
+  setBatchPrepData(batchPrepRows || []);
+}
   const { data: alertData, error: alertError } = await supabase
     .from("client_alerts")
     .select("*")
@@ -11830,7 +11841,98 @@ setClientImports((prev) => [newLaborUpload, ...(prev || [])]);
     setMessage("Labor import failed. Check console for details.");
   }
 };
+const handleImportBatchPrep = async () => {
+  try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
+    if (!user?.id) {
+      setMessage("You must be logged in to import batch prep data.");
+      return;
+    }
+
+    const rows = pendingUploadSummary?.rows || parsedRows || [];
+
+    if (!rows.length) {
+      setMessage("No batch prep rows found.");
+      return;
+    }
+
+    const rowsToInsert = rows.map((row) => ({
+      user_id: user.id,
+
+      batch_name:
+        row.batch_name ||
+        row["Batch Name"] ||
+        row.name ||
+        row.item ||
+        "Unnamed Batch",
+
+      prep_date:
+        row.prep_date ||
+        row["Prep Date"] ||
+        row.date ||
+        null,
+
+      station:
+        row.station ||
+        row["Station"] ||
+        "Prep",
+
+      prepared_by:
+        row.prepared_by ||
+        row["Prepared By"] ||
+        row.employee ||
+        row.staff ||
+        "",
+
+      batch_yield: Number(
+        row.batch_yield ||
+          row["Batch Yield"] ||
+          row.yield ||
+          0
+      ),
+
+      portions_sold: Number(
+        row.portions_sold ||
+          row["Portions Sold"] ||
+          row.sold ||
+          0
+      ),
+
+      portions_left: Number(
+        row.portions_left ||
+          row["Portions Left"] ||
+          row.left ||
+          row.remaining ||
+          0
+      ),
+
+      waste_portions: Number(
+        row.waste_portions ||
+          row["Waste Portions"] ||
+          row.waste ||
+          0
+      ),
+
+      notes: row.notes || row["Notes"] || "",
+    }));
+
+    const { error } = await supabase
+      .from("batch_prep_data")
+      .insert(rowsToInsert);
+
+    if (error) throw error;
+
+    setBatchPrepData((prev) => [...rowsToInsert, ...prev]);
+
+    setMessage(`Imported ${rowsToInsert.length} batch prep rows.`);
+  } catch (error) {
+    console.error("Batch prep import error:", error);
+    setMessage(error?.message || "Failed to import batch prep data.");
+  }
+};
 const laborRiskStatus =
   liveLaborIntelligence?.laborPercent > 35
     ? "Critical"
@@ -23043,6 +23145,43 @@ const handleDeleteImport = async (importId) => {
 
 
 
+const batchPrepIntelligence = (batchPrepData || []).map((batch) => {
+  const batchYield = Number(batch.batch_yield || 0);
+  const portionsSold = Number(batch.portions_sold || 0);
+  const portionsLeft = Number(batch.portions_left || 0);
+
+  const wastePortions =
+    Number(batch.waste_portions || 0) ||
+    Math.max(batchYield - portionsSold - portionsLeft, 0);
+
+  const wastePercent =
+    batchYield > 0 ? Math.round((wastePortions / batchYield) * 100) : 0;
+
+  const usagePercent =
+    batchYield > 0 ? Math.round((portionsSold / batchYield) * 100) : 0;
+
+  return {
+    ...batch,
+    batchYield,
+    portionsSold,
+    portionsLeft,
+    wastePortions,
+    wastePercent,
+    usagePercent,
+    status:
+      wastePercent >= 20
+        ? "High Waste"
+        : wastePercent >= 10
+        ? "Review"
+        : "Healthy",
+  };
+});
+
+
+
+
+
+
 console.log("ACCESS DEBUG:", {
   email: user?.email,
   userProfile,
@@ -23624,6 +23763,16 @@ return (
 </button>
 <button
   onClick={() => {
+    selectedUploadTypeRef.current = "batch_prep";
+    setUploadType("batch_prep");
+    document.getElementById("csvUpload")?.click();
+  }}
+  style={setupGoldButton}
+>
+  Upload Batch Prep
+</button>
+<button
+  onClick={() => {
     document.getElementById("employeeShiftUpload")?.click();
   }}
   style={setupSecondaryButton}
@@ -23721,7 +23870,8 @@ return (
 
     } else if (currentType === "invoices") {
       handleImportInvoices();
-
+} else if (currentType === "batch_prep") {
+  handleImportBatchPrep();
    } else if (currentType === "pos") {
   handleImportMappedSales();
 }else {
@@ -34233,6 +34383,75 @@ borderRadius: "14px",
     </div>
   )}
 </div>
+{/* =========================
+   🍲 BATCH PREP INTELLIGENCE
+========================= */}
+
+<div
+  style={{
+    marginTop: "20px",
+    padding: "22px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.92))",
+    border: "1px solid rgba(148,163,184,0.14)",
+  }}
+>
+  <div style={{ color: "#fbbf24", fontSize: "12px", fontWeight: "900" }}>
+    Batch Prep Intelligence
+  </div>
+
+  <h3 style={{ color: "white", fontSize: "24px", fontWeight: "950" }}>
+    Batch Cooking Yield & Waste Tracking
+  </h3>
+
+  <p style={{ color: "#94a3b8", fontSize: "14px", lineHeight: 1.7 }}>
+    Track batch recipes like mac & cheese, pasta, sauces, soups, and prep bases by yield, sold portions, remaining portions, and waste.
+  </p>
+
+  {!batchPrepIntelligence.length ? (
+    <div
+      style={{
+        marginTop: "16px",
+        padding: "18px",
+        borderRadius: "16px",
+        background: "rgba(255,255,255,0.03)",
+        border: "1px solid rgba(148,163,184,0.10)",
+        color: "#94a3b8",
+        textAlign: "center",
+      }}
+    >
+      Awaiting batch prep data. Upload batch recipes with yield, portions sold, portions left, and waste.
+    </div>
+  ) : (
+    <div style={{ marginTop: "18px", display: "grid", gap: "12px" }}>
+      {batchPrepIntelligence.map((batch, index) => (
+        <div
+          key={index}
+          style={{
+            padding: "16px",
+            borderRadius: "18px",
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(148,163,184,0.12)",
+          }}
+        >
+          <div style={{ color: "white", fontWeight: "900", fontSize: "16px" }}>
+            {batch.name}
+          </div>
+
+          <div style={{ color: "#94a3b8", fontSize: "13px", marginTop: "8px" }}>
+            Yield: {batch.yield} portions • Sold: {batch.sold} • Left: {batch.left} • Waste: {batch.waste}
+          </div>
+
+          <div style={{ marginTop: "10px", color: "#fbbf24", fontWeight: "900" }}>
+            Waste: {batch.wastePercent}% • Usage: {batch.usagePercent}% • {batch.status}
+          </div>
+        </div>
+      ))}
+    </div>
+  )}
+</div>
+
 {/* =========================
    KM STATION PERFORMANCE INTELLIGENCE
 ========================= */}
