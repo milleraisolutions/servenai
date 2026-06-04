@@ -2632,36 +2632,43 @@ const safeSalesRows =
     : [];
 
 const revenueChartData = useMemo(() => {
-  return (safeSalesRows || [])
-    .map((sale, index) => {
-      const date =
-        sale?.sale_date ||
-        sale?.date ||
-        sale?.Date ||
-        sale?.created_at ||
-        sale?.uploaded_at ||
-        `Row ${index + 1}`;
+  const sourceRows =
+    dbSalesRows?.length
+      ? dbSalesRows
+      : locationSalesData?.length
+      ? locationSalesData
+      : [];
 
-      const revenue = Number(
-        sale?.revenue ??
-          sale?.total ??
-          sale?.amount ??
-          sale?.sales ??
-          sale?.total_sales ??
-          sale?.net_sales ??
-          sale?.gross_sales ??
-          sale?.value ??
-          0
-      );
+  const grouped = {};
 
-      return {
-        date,
-        day: String(date),
-        revenue,
-      };
-    })
-    .filter((row) => Number(row.revenue || 0) > 0);
-}, [safeSalesRows]);
+  sourceRows.forEach((row) => {
+    const rawDate = row.sale_date || row.date || row.day;
+    const dateObj = rawDate ? new Date(rawDate) : null;
+
+    if (!dateObj || Number.isNaN(dateObj.getTime())) return;
+
+    const key = dateObj.toISOString().slice(0, 10);
+
+    const revenue = Number(
+      row.revenue ||
+        row.sales ||
+        row.total ||
+        row["Net Sales"] ||
+        row["Gross Sales"] ||
+        0
+    );
+
+    grouped[key] = (grouped[key] || 0) + revenue;
+  });
+
+  return Object.entries(grouped)
+    .map(([date, revenue]) => ({
+      date,
+      day: date,
+      revenue,
+    }))
+    .sort((a, b) => new Date(a.date) - new Date(b.date));
+}, [dbSalesRows, locationSalesData]);
 const aiProfitTrendData =
   revenueChartData?.length > 0
     ? revenueChartData.map((row, index) => ({
