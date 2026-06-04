@@ -13524,7 +13524,7 @@ const loadClientImports = async () => {
   .from("uploads")
   .select("*")
   .eq("user_id", user.id)
-  .eq("archived", false)
+  .or("archived.is.false,archived.is.null")
   .order("created_at", { ascending: false })
   .limit(10);
     if (error) {
@@ -23157,27 +23157,32 @@ const enterpriseRecoverableProfit =
     0
   );
 
-const handleDeleteImport = async (importId) => {
-  const confirmed = window.confirm(
-    "Delete this import and remove it from Recent Imports?"
+const handleDeleteUpload = async (uploadId) => {
+  if (!uploadId) {
+    alert("Missing upload id");
+    return;
+  }
+
+  const { error } = await supabase
+    .from("uploads")
+    .delete()
+    .eq("id", uploadId);
+
+  if (error) {
+    console.error("Upload delete failed:", error);
+    alert(`Upload delete failed: ${error.message}`);
+    return;
+  }
+
+  setRecentUploads((prev) =>
+    (prev || []).filter((upload) => upload.id !== uploadId)
   );
 
-  if (!confirmed) return;
+  setClientImports((prev) =>
+    (prev || []).filter((upload) => upload.id !== uploadId)
+  );
 
-  try {
-    const { error } = await supabase
-      .from("client_data_uploads")
-      .delete()
-      .eq("id", importId);
-
-    if (error) throw error;
-
-    setClientImports((prev) =>
-      prev.filter((item) => item.id !== importId)
-    );
-  } catch (error) {
-    console.error("Delete import error:", error);
-  }
+  setMessage("Upload deleted.");
 };
 
 
