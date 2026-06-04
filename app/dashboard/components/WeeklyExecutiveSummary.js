@@ -699,10 +699,10 @@ useEffect(() => {
 >
   {revenueChartData?.length > 0 ? (
     <LineChart
-  width={isMobile ? 620 : 820}
+  width={isMobile ? 900 : 1200}
   height={isMobile ? 220 : 250}
       data={revenueChartData}
-      margin={{ top: 20, right: 30, left: 10, bottom: 30 }}
+      margin={{ top: 20, right: 30, left: 10, bottom: 70 }}
     >
       <CartesianGrid
         strokeDasharray="3 3"
@@ -710,12 +710,32 @@ useEffect(() => {
       />
 
       <XAxis
-        dataKey="day"
-        tick={{ fill: "#94a3b8", fontSize: 11 }}
-        axisLine={false}
-        tickLine={false}
-        interval={isMobile ? 1 : 0}
-      />
+  dataKey="day"
+  tick={{ fill: "#94a3b8", fontSize: 10 }}
+  axisLine={false}
+  tickLine={false}
+  interval={4}
+  angle={-35}
+  textAnchor="end"
+  height={60}
+  tickMargin={12}
+  tickFormatter={(value) => {
+    if (!value) return "";
+
+    const [year, month, day] = String(value)
+      .split("-")
+      .map(Number);
+
+    return new Date(
+      year,
+      month - 1,
+      day
+    ).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    });
+  }}
+/>
 
       <YAxis
         tick={{ fill: "#94a3b8", fontSize: 11 }}
