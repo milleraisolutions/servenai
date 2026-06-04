@@ -13577,30 +13577,69 @@ const archiveImport = async (uploadId) => {
   setClientImports((prev) =>
     (prev || []).filter((item) => item.id !== uploadId)
   );
-setRecentUploads((prev) =>
-  (prev || []).filter((item) => item.id !== uploadId)
-);
+
+  setRecentUploads((prev) =>
+    (prev || []).filter((item) => item.id !== uploadId)
+  );
+
+  setMessage("Import archived.");
   await loadClientImports();
 };
+const deleteImport = async (uploadId) => {
+  if (!uploadId) {
+    alert("Missing upload ID.");
+    return;
+  }
 
-const restoreImport = async (uploadId) => {
-  if (!uploadId) return;
+  const confirmed = window.confirm(
+    "Are you sure you want to permanently delete this import?"
+  );
+
+  if (!confirmed) return;
 
   const { error } = await supabase
     .from("uploads")
-    .update({
-      archived: false,
-    })
+    .delete()
+    .eq("id", uploadId);
+
+  if (error) {
+    console.error("Delete failed:", error);
+    alert(`Delete failed: ${error.message}`);
+    return;
+  }
+
+  setClientImports((prev) =>
+    (prev || []).filter((item) => item.id !== uploadId)
+  );
+
+  setRecentUploads((prev) =>
+    (prev || []).filter((item) => item.id !== uploadId)
+  );
+
+  setMessage("Import deleted.");
+};
+const restoreImport = async (uploadId) => {
+  if (!uploadId) {
+    alert("Missing upload ID.");
+    return;
+  }
+
+  console.log("RESTORING IMPORT:", uploadId);
+
+  const { error } = await supabase
+    .from("uploads")
+    .update({ archived: false })
     .eq("id", uploadId);
 
   if (error) {
     console.error("Restore failed:", error);
+    alert(`Restore failed: ${error.message}`);
     return;
   }
 
+  setMessage("Import restored.");
   await loadClientImports();
 };
-
 
 
 const isServenAdmin =
@@ -24178,7 +24217,7 @@ if (currentType === "menu_items") {
     </button>
 
     <button
-      onClick={() => handleDeleteImport(item.id)}
+      onClick={() => handleDeleteUpload(item.id)}
       style={{
         padding: "8px 12px",
         borderRadius: "10px",
