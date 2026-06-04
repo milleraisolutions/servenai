@@ -23269,28 +23269,39 @@ const handleDeleteUpload = async (uploadId) => {
     return;
   }
 
-  const { error } = await supabase
-    .from("uploads")
-    .delete()
-    .eq("id", uploadId);
+  try {
+    await supabase.from("sales").delete().eq("upload_id", uploadId);
+    await supabase.from("menu_items").delete().eq("upload_id", uploadId);
 
-  if (error) {
-    console.error("Upload delete failed:", error);
-    alert(`Upload delete failed: ${error.message}`);
-    return;
+    const { error } = await supabase
+      .from("uploads")
+      .delete()
+      .eq("id", uploadId);
+
+    if (error) throw error;
+
+    setRecentUploads((prev) =>
+      (prev || []).filter((upload) => upload.id !== uploadId)
+    );
+
+    setClientImports((prev) =>
+      (prev || []).filter((upload) => upload.id !== uploadId)
+    );
+
+    setMenuItemsData((prev) =>
+      (prev || []).filter((item) => item.upload_id !== uploadId)
+    );
+
+    setDbSalesRows((prev) =>
+      (prev || []).filter((sale) => sale.upload_id !== uploadId)
+    );
+
+    setMessage("Upload and imported data deleted.");
+  } catch (err) {
+    console.error("Full upload delete failed:", err);
+    alert(`Delete failed: ${err.message}`);
   }
-
-  setRecentUploads((prev) =>
-    (prev || []).filter((upload) => upload.id !== uploadId)
-  );
-
-  setClientImports((prev) =>
-    (prev || []).filter((upload) => upload.id !== uploadId)
-  );
-
-  setMessage("Upload deleted.");
 };
-
 
 
 const batchPrepIntelligence = (batchPrepData || []).map((batch) => {
