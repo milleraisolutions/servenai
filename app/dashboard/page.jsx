@@ -11277,7 +11277,7 @@ const fallbackProfitOpportunities = [
       : "Upload menu and sales mix data to activate pricing optimization AI.",
 
     impact: hasOperationalData
-      ? Number(menuRecoveryValue || 0)
+      ? 0
       : null,
 
     difficulty: hasOperationalData
@@ -68645,8 +68645,8 @@ minWidth: 0,
     : "Upload menu and sales mix data to activate menu profitability AI.",
 
   result: hasOperationalData
-    ? `+$${Number(menuRecoveryValue || 0).toLocaleString()}/mo margin upside`
-    : "Simulation Mode",
+  ? "+$0/mo margin upside"
+  : "Simulation Mode",
 
   status: hasOperationalData
     ? "Active"
@@ -69315,8 +69315,8 @@ minWidth: 0,
     : "Upload menu and sales mix data to activate live menu profitability simulations.",
 
   impact: hasOperationalData
-    ? `+$${Number(menuRecoveryValue || 0).toLocaleString()}/mo margin upside`
-    : "Simulation Mode",
+  ? "+$0/mo margin upside"
+  : "Simulation Mode",
 
   confidence: hasOperationalData
     ? `${Number(realForecastConfidence || 0)}%`
@@ -70076,7 +70076,7 @@ minWidth: 0,
                   }}
                 >
                   {hasOperationalData
-  ? `Estimated impact: +$${Number(menuRecoveryValue || 0).toLocaleString()}/mo`
+  ? "Estimated impact: +$0/mo"
   : "Estimated impact: Awaiting Data"}
                 </div>
 
@@ -70129,8 +70129,8 @@ minWidth: 0,
                     fontWeight: "800",
                   }}
                 >
-                  {hasOperationalData
-  ? `Estimated impact: +$${Number(menuRecoveryValue || 0).toLocaleString()}/mo`
+                 {hasOperationalData
+  ? "Estimated impact: +$0/mo"
   : "Estimated impact: Awaiting Data"}
                 </div>
 
