@@ -16910,7 +16910,23 @@ const laborHealthScoreData = useMemo(() => {
   const laborPercent = Number(effectiveLaborCostPercent || 0);
   const efficiencyScore = Number(laborEfficiencyScore || 0);
   const salesPerHour = Number(salesPerLaborHour || 0);
+const hasLaborData =
+  laborPercent > 0 ||
+  efficiencyScore > 0 ||
+  salesPerHour > 0 ||
+  (shiftOperationalData || []).length > 0;
 
+if (!hasLaborData) {
+  return {
+    score: 0,
+    status: "Waiting for data",
+    color: "#94a3b8",
+    insight: "Upload labor data to generate health insights.",
+    laborPercent: 0,
+    overstaffedShifts: 0,
+    salesPerHour: 0,
+  };
+}
   if (laborPercent > 40) score -= 24;
   else if (laborPercent > 35) score -= 16;
   else if (laborPercent > 30) score -= 8;
@@ -17213,13 +17229,34 @@ Recommended focus areas include reducing overstaffed periods, protecting high-pe
 ]);
 
 const inventoryHealthScoreData = useMemo(() => {
-  let score = 100;
-
   const criticalCount = Number(criticalInventoryItems?.length || 0);
   const lowStockCount = Number(lowInventoryItems?.length || 0);
   const alertCount = Number(combinedInventoryAlerts?.length || 0);
   const estimatedRisk = Number(inventoryAISummary?.estimatedRisk || 0);
   const revenueLoss = Number(inventoryAISummary?.potentialRevenueLoss || 0);
+
+  const hasInventoryData =
+    criticalCount > 0 ||
+    lowStockCount > 0 ||
+    alertCount > 0 ||
+    estimatedRisk > 0 ||
+    revenueLoss > 0;
+
+  if (!hasInventoryData) {
+    return {
+      score: 0,
+      status: "Waiting for data",
+      color: "#94a3b8",
+      insight: "Upload inventory data to generate health insights.",
+      criticalCount: 0,
+      lowStockCount: 0,
+      alertCount: 0,
+      estimatedRisk: 0,
+      revenueLoss: 0,
+    };
+  }
+
+  let score = 100;
 
   score -= criticalCount * 10;
   score -= lowStockCount * 5;
@@ -18093,7 +18130,7 @@ const autopilotCategoryActions = useMemo(() => {
 
     {
       label: "Beverage",
-      score: beverageHealthScoreData?.score || 85,
+      score: beverageHealthScoreData?.score || 0,
       route: "beverage",
       insight:
         beverageHealthScoreData?.insight ||
@@ -24750,14 +24787,17 @@ borderRadius: "14px",
       }}
     >
       {(autopilotCategoryActions || []).map((item) => {
-        const color =
-          item.score < 60
-            ? "#f87171"
-            : item.score < 75
-            ? "#fbbf24"
-            : item.score < 88
-            ? "#38bdf8"
-            : "#22c55e";
+       const hasScore = Number(item.score || 0) > 0;
+
+const color = !hasScore
+  ? "#94a3b8"
+  : item.score < 60
+  ? "#f87171"
+  : item.score < 75
+  ? "#fbbf24"
+  : item.score < 88
+  ? "#38bdf8"
+  : "#22c55e";
 
         return (
           <div
@@ -24796,7 +24836,7 @@ borderRadius: "14px",
                     marginTop: "4px",
                   }}
                 >
-                  {item.score}/100
+                  {Number(item.score || 0) > 0 ? `${item.score}/100` : "Waiting for data"}
                 </div>
               </div>
 
@@ -26095,7 +26135,7 @@ borderRadius: "14px",
               fontWeight: "1000",
             }}
           >
-            {item.score}/100
+            {Number(item.score || 0) > 0 ? `${item.score}/100` : "Waiting for data"}
           </div>
 
           <div
@@ -26281,7 +26321,7 @@ borderRadius: "14px",
               fontWeight: "1000",
             }}
           >
-            {item.score}/100
+           {Number(item.score || 0) > 0 ? `${item.score}/100` : "Waiting for data"}
           </div>
         </div>
       );
