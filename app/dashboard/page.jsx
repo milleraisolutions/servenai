@@ -17938,7 +17938,6 @@ const beverageScore = Math.max(
   revenueTrend,
   bartenderVarianceData,
 ]);
-
 const aiAutopilotActionEngine = useMemo(() => {
   const alerts = unifiedAIAlertsFeed || [];
 
@@ -17959,23 +17958,27 @@ const aiAutopilotActionEngine = useMemo(() => {
   }
 
   const impactByCategory = {
-    Financial: estimatedRecoverableProfit || 2500,
-    Inventory: inventoryHealthScoreData?.revenueLoss || 1800,
-    Labor: 1500,
-    Beverage: 1200,
+    Financial: Number(estimatedRecoverableProfit || 0),
+    Inventory: Number(inventoryHealthScoreData?.revenueLoss || 0),
+    Labor: Number(laborRecoveryOpportunity || 0),
+    Beverage: Number(beverageRecoveryOpportunity || 0),
   };
+
+  const impact = Number(impactByCategory[topAlert.category] || 0);
 
   return {
     title: topAlert.title,
     category: topAlert.category || "Operations",
     priority: topAlert.priority || "High",
     action: topAlert.detail,
-    impact: Number(impactByCategory[topAlert.category] || 1000),
+    impact,
   };
 }, [
   unifiedAIAlertsFeed,
   estimatedRecoverableProfit,
   inventoryHealthScoreData,
+  laborRecoveryOpportunity,
+  beverageRecoveryOpportunity,
 ]);
 
 const aiProfitRecoveryLog = useMemo(() => {
