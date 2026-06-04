@@ -5247,12 +5247,11 @@ const handleImportMappedSales = async () => {
       return;
     }
 
-    if (!mapping?.name || !mapping?.quantity || !mapping?.revenue) {
-      setMessage("Please confirm your column mapping first");
+    if (!mapping?.date || !mapping?.revenue) {
+      setMessage("Please confirm your POS column mapping first");
       return;
     }
 
-    // 1) Create upload record
     const { data: uploadedFileRow, error: uploadInsertError } = await supabase
       .from("uploads")
       .insert([
@@ -5266,7 +5265,7 @@ const handleImportMappedSales = async () => {
           row_count: Number(rows.length || 0),
           upload_type: "pos",
           status: "completed",
-          location_id: selectedUploadLocationId,
+          location_id: selectedUploadLocationId || null,
         },
       ])
       .select()
@@ -5274,23 +5273,31 @@ const handleImportMappedSales = async () => {
 
     if (uploadInsertError) {
       console.error("Uploads insert failed:", uploadInsertError);
+      alert(`POS upload log failed: ${uploadInsertError.message}`);
       setMessage(uploadInsertError?.message || "Upload failed");
       return;
     }
 
-    // 2) Insert sales rows
-    const salesRows = rows.map((row) => ({
-      user_id: user.id,
-      upload_id: uploadedFileRow?.id || null,
-      name: row[mapping.name] || "Unknown",
-      category: mapping.category
-        ? row[mapping.category] || "Uncategorized"
-        : "Uncategorized",
-      quantity: Number(row[mapping.quantity] || 0),
-      revenue: Number(row[mapping.revenue] || 0),
-      date: mapping.date ? row[mapping.date] || null : null,
-      labor: mapping.labor ? Number(row[mapping.labor] || 0) : 0,
-    }));
+    const salesRows = rows
+      .map((row) => ({
+        user_id: user.id,
+        upload_id: uploadedFileRow?.id || null,
+        sale_date: row[mapping.date]
+          ? new Date(row[mapping.date]).toISOString().slice(0, 10)
+          : null,
+        revenue: Number(String(row[mapping.revenue] || 0).replace(/[$,]/g, "")),
+        orders_count: mapping.orders
+          ? Number(String(row[mapping.orders] || 0).replace(/[,]/g, ""))
+          : 0,
+        labor: mapping.labor
+          ? Number(String(row[mapping.labor] || 0).replace(/[$,]/g, ""))
+          : 0,
+        source_name: selectedDataSource || "Manual Upload",
+        location_id: selectedUploadLocationId || null,
+      }))
+      .filter((row) => row.sale_date && row.revenue > 0);
+
+    console.log("POS SALES ROWS TO INSERT:", salesRows);
 
     const { error: salesInsertError } = await supabase
       .from("sales")
@@ -5298,38 +5305,22 @@ const handleImportMappedSales = async () => {
 
     if (salesInsertError) {
       console.error("Sales insert failed:", salesInsertError);
+      alert(`Sales insert failed: ${salesInsertError.message}`);
       setMessage("Failed to import sales");
       return;
     }
 
-    // 🎯 FIX 1: Add the new upload file record to your Activity List UI instantly!
     if (uploadedFileRow) {
-      setClientImports((prev) => [uploadedFileRow, ...prev]);
+      setClientImports((prev) => [uploadedFileRow, ...(prev || [])]);
+      setRecentUploads((prev) => [uploadedFileRow, ...(prev || [])]);
     }
 
-    // 🎯 FIX 2: Format the sales data for your Kitchen UI and update performance state instantly
-    const formattedKitchenData = salesRows.map((sale, idx) => {
-      const orderDate = sale.date ? new Date(sale.date) : new Date();
-      
-      return {
-        id: `upload_${idx}`,
-        item_name: sale.name,
-        station: sale.category || "Line", 
-        target_prep_time: 10, 
-        created_at: orderDate.toISOString(),
-        completed_at: null, 
-      };
-    });
-
-    setYesterdayPrepData(formattedKitchenData);
-
-    // 4) Clean up UI states
-    setMessage(`Sales imported: ${salesRows.length} rows`);
+    setMessage(`POS sales imported: ${salesRows.length} rows`);
     setPendingUploadSummary(null);
     setRows([]);
-
   } catch (error) {
     console.error("Import failed:", error);
+    alert(`Import failed: ${error.message}`);
     setMessage("Import failed");
   }
 };
