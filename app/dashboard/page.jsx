@@ -4873,9 +4873,10 @@ location_id: selectedUploadLocationId,
           .select()
           .single();
 
-        if (uploadError) {
-          console.error("POS upload save failed:", uploadError);
-        }
+      if (uploadError) {
+  console.error("POS upload save failed:", uploadError);
+  alert(`POS upload log failed: ${uploadError.message}`);
+}
 
         const salesRows = safeRows
           .map((row) => {
