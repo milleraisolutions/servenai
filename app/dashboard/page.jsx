@@ -23877,30 +23877,27 @@ return (
   selectedUploadTypeRef.current ||
   uploadType;
 
-  if (currentType === "menu_items") {
-  await handleImportMenuItems();
+if (currentType === "menu_items") {
+  handleImportMenuItems();
 
 } else if (currentType === "ingredients") {
-  await handleImportIngredients();
+  handleImportIngredients();
 
 } else if (currentType === "labor") {
-  await handleImportLabor();
+  handleImportLabor();
 
 } else if (currentType === "invoices") {
-  await handleImportInvoices();
+  handleImportInvoices();
 
 } else if (currentType === "batch_prep") {
-  await handleImportBatchPrep();
+  handleImportBatchPrep();
 
 } else if (currentType === "pos") {
-  await handleImportMappedSales();
+  handleImportMappedSales();
 
 } else {
   setMessage("No matched upload type.");
 }
-else {
-      setMessage("No matched upload type.");
-    }
   }}
   style={{
     marginTop: "12px",
