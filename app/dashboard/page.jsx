@@ -4859,117 +4859,25 @@ const handleFileUpload = async (e) => {
   locationId: selectedUploadLocationId,
 });
 
-    if (activeUploadType === "pos") {
-      setRows(safeRows);
+ if (activeUploadType === "pos") {
+  setRows(safeRows);
 
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-console.log("AUTH USER:", user);
+  setPendingUploadSummary({
+    fileName: file.name,
+    rowCount: safeRows.length,
+    uploadType: "pos",
+    uploadedAt: Date.now(),
+    rows: safeRows,
+  });
 
-
-        const salesRows = safeRows
-          .map((row) => {
-            const rawDate =
-              row.date ||
-              row.Date ||
-              row.sale_date ||
-              row["Sale Date"] ||
-              row["Business Date"] ||
-              row.day ||
-              row.Day ||
-              null;
-
-            const rawRevenue =
-  row.revenue ||
-  row.Revenue ||
-  row.sales ||
-  row.Sales ||
-  row.total ||
-  row.Total ||
-  row.total_sales ||
-  row["Total Sales"] ||
-  row["Net Sales"] ||
-  row["Gross Sales"] ||
-  row.amount ||
-  row.Amount ||
-  row.price ||
-  row.Price ||
-  0;
-const rawOrders =
-  row.orders ||
-  row.Orders ||
-  row.order_count ||
-  row["Order Count"] ||
-  row.transactions ||
-  row.Transactions ||
-  row.quantity ||
-  row.Quantity ||
-  row.qty ||
-  row.Qty ||
-  1;
-
-            return {
-              user_id: user.id,
-              sale_date: rawDate ? new Date(rawDate).toISOString().slice(0, 10) : null,
-              revenue: Number(String(rawRevenue).replace(/[$,]/g, "") || 0),
-              orders_count: Number(String(rawOrders).replace(/[,]/g, "") || 0),
-              source_name: "Manual Upload",
-              upload_id: null,
-location_id: selectedUploadLocationId,
-            };
-          })
-          .filter((row) => row.sale_date && row.revenue > 0);
-console.log("SALES ROWS TO INSERT:", salesRows);
-        if (salesRows.length) {
-          const { error: salesError } = await supabase
-            .from("sales")
-            .insert(salesRows);
-
-          if (salesError) {
-       console.error("Sales save failed:", salesError);
-alert(`Sales save failed: ${salesError.message}`);
-            setMessage("POS file loaded, but sales history failed to save.");
-         } else {
-
-
-  setRecentUploads((prev) => [
-    {
-      file_name: file.name,
-      row_count: salesRows.length,
-      type: "POS Data",
-      created_at: new Date().toISOString(),
-    },
-    ...(prev || []),
-  ]);
+  setPendingUploadRows(safeRows);
+  setShowSourcePicker(false);
 
   setMessage(
-    `POS / Sales file loaded and saved: ${salesRows.length} sales rows stored.`
+    `POS data loaded: ${safeRows.length} rows ready to import.`
   );
-}
-        }
-      }
-setPendingUploadSummary({
-  fileName: file.name,
-  rowCount: safeRows.length,
-  uploadType: "pos",
-  uploadedAt: Date.now(),
-  rows: safeRows,
-});
 
-
-setPendingUploadRows(safeRows);
-setDbSalesRows(safeRows);
-setShowSourcePicker(false);
-
-await loadClientUploads?.();
-await loadUploadComparison?.();
-
-setMessage(
-  `POS data uploaded successfully: ${safeRows.length} rows processed.`
-);
-
-    } else if (activeUploadType === "menu_items") {
+} else if (activeUploadType === "menu_items") {
   const {
     data: { user },
   } = await supabase.auth.getUser();
