@@ -13517,26 +13517,33 @@ const loadClientImports = async () => {
 
     if (!user?.id) {
       setClientImports([]);
+      setRecentUploads([]);
       return;
     }
 
     const { data, error } = await supabase
-  .from("uploads")
-  .select("*")
-  .eq("user_id", user.id)
-  .or("archived.is.false,archived.is.null")
-  .order("created_at", { ascending: false })
-  .limit(10);
+      .from("uploads")
+      .select("*")
+      .eq("user_id", user.id)
+      .or("archived.is.false,archived.is.null")
+      .order("created_at", { ascending: false })
+      .limit(10);
+
     if (error) {
       console.error("Recent imports fetch error:", error);
       setClientImports([]);
+      setRecentUploads([]);
       return;
     }
 
+    console.log("UPLOADS LOADED FROM SUPABASE:", data);
+
     setClientImports(data || []);
+    setRecentUploads(data || []);
   } catch (error) {
     console.error("Recent imports load failed:", error);
     setClientImports([]);
+    setRecentUploads([]);
   } finally {
     setImportsLoading(false);
   }
@@ -13568,7 +13575,9 @@ const archiveImport = async (uploadId) => {
   setClientImports((prev) =>
     (prev || []).filter((item) => item.id !== uploadId)
   );
-
+setRecentUploads((prev) =>
+  (prev || []).filter((item) => item.id !== uploadId)
+);
   await loadClientImports();
 };
 
