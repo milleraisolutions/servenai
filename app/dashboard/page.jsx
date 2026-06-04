@@ -24306,13 +24306,6 @@ if (currentType === "menu_items") {
 
 
  
-<input
-  id="csvUpload"
-  type="file"
-  accept=".csv,.xlsx,.xls"
-  onChange={handleFileUpload}
-  style={{ display: "none" }}
-/>
 
 <input
   id="invoiceUpload"
