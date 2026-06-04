@@ -292,6 +292,10 @@ const [inviteLocation, setInviteLocation] = useState("");
 const [teamInvites, setTeamInvites] = useState([]);
 const [cookTimeLogs, setCookTimeLogs] = useState([]);
 const [batchPrepData, setBatchPrepData] = useState([]);
+const [importingPOS, setImportingPOS] = useState(false);
+
+
+
 
 
 const loadAdminData = async () => {
@@ -5226,7 +5230,12 @@ e.target.value = "";
 }
 };
 const handleImportMappedSales = async () => {
+  if (importingPOS) return;
+
   try {
+    setImportingPOS(true);
+    setMessage("Importing POS data...");
+
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -5241,7 +5250,60 @@ const handleImportMappedSales = async () => {
       return;
     }
 
-  
+    const salesRows = rows
+      .map((row) => {
+        const rawDate =
+          row.sale_date ||
+          row.date ||
+          row.Date ||
+          row["Sale Date"] ||
+          row["Business Date"] ||
+          row.day ||
+          row.Day ||
+          null;
+
+        const rawRevenue =
+          row.revenue ||
+          row.Revenue ||
+          row.sales ||
+          row.Sales ||
+          row["Net Sales"] ||
+          row["Gross Sales"] ||
+          0;
+
+        const rawOrders =
+          row.orders_count ||
+          row.orders ||
+          row.Orders ||
+          row["Order Count"] ||
+          row["Guest Count"] ||
+          0;
+
+        const rawLabor =
+          row.labor ||
+          row.labor_cost ||
+          row.Labor ||
+          row["Labor Cost"] ||
+          0;
+
+        return {
+          user_id: user.id,
+          sale_date: rawDate
+            ? new Date(rawDate).toISOString().slice(0, 10)
+            : null,
+          revenue: Number(String(rawRevenue).replace(/[$,]/g, "") || 0),
+          orders_count: Number(String(rawOrders).replace(/[,]/g, "") || 0),
+          labor: Number(String(rawLabor).replace(/[$,]/g, "") || 0),
+          source_name: selectedDataSource || "Manual Upload",
+          location_id: selectedUploadLocationId || null,
+        };
+      })
+      .filter((row) => row.sale_date && row.revenue > 0);
+
+    if (!salesRows.length) {
+      setMessage("No valid sales rows found. Check your date/revenue mapping.");
+      return;
+    }
 
     const { data: uploadedFileRow, error: uploadInsertError } = await supabase
       .from("uploads")
@@ -5253,7 +5315,7 @@ const handleImportMappedSales = async () => {
             pendingUploadSummary?.fileName ||
             "POS Upload",
           source_name: selectedDataSource || "Manual Upload",
-          row_count: Number(rows.length || 0),
+          row_count: Number(salesRows.length || 0),
           upload_type: "pos",
           status: "completed",
           location_id: selectedUploadLocationId || null,
@@ -5269,60 +5331,17 @@ const handleImportMappedSales = async () => {
       return;
     }
 
-  const salesRows = rows
-  .map((row) => {
-    const rawDate =
-      row.sale_date ||
-      row.date ||
-      row.Date ||
-      row["Sale Date"] ||
-      row["Business Date"] ||
-      row.day ||
-      row.Day ||
-      null;
-
-    const rawRevenue =
-      row.revenue ||
-      row.Revenue ||
-      row.sales ||
-      row.Sales ||
-      row["Net Sales"] ||
-      row["Gross Sales"] ||
-      0;
-
-    const rawOrders =
-      row.orders_count ||
-      row.orders ||
-      row.Orders ||
-      row["Order Count"] ||
-      row["Guest Count"] ||
-      0;
-
-    const rawLabor =
-      row.labor ||
-      row.labor_cost ||
-      row.Labor ||
-      row["Labor Cost"] ||
-      0;
-
-    return {
-      user_id: user.id,
+    const finalSalesRows = salesRows.map((row) => ({
+      ...row,
       upload_id: uploadedFileRow?.id || null,
-      sale_date: rawDate ? new Date(rawDate).toISOString().slice(0, 10) : null,
-      revenue: Number(String(rawRevenue).replace(/[$,]/g, "") || 0),
-      orders_count: Number(String(rawOrders).replace(/[,]/g, "") || 0),
-      labor: Number(String(rawLabor).replace(/[$,]/g, "") || 0),
-      source_name: selectedDataSource || "Manual Upload",
-      location_id: selectedUploadLocationId || null,
-    };
-  })
-  .filter((row) => row.sale_date && row.revenue > 0);
+    }));
 
-    console.log("POS SALES ROWS TO INSERT:", salesRows);
+    console.log("POS SALES ROWS TO INSERT:", finalSalesRows);
 
-    const { error: salesInsertError } = await supabase
+    const { data: insertedSales, error: salesInsertError } = await supabase
       .from("sales")
-      .insert(salesRows);
+      .insert(finalSalesRows)
+      .select("*");
 
     if (salesInsertError) {
       console.error("Sales insert failed:", salesInsertError);
@@ -5331,18 +5350,30 @@ const handleImportMappedSales = async () => {
       return;
     }
 
+    setDbSalesRows((prev) => [...(insertedSales || []), ...(prev || [])]);
+
     if (uploadedFileRow) {
-      setClientImports((prev) => [uploadedFileRow, ...(prev || [])]);
-      setRecentUploads((prev) => [uploadedFileRow, ...(prev || [])]);
+      setClientImports((prev) => [
+        uploadedFileRow,
+        ...(prev || []).filter((upload) => upload.id !== uploadedFileRow.id),
+      ]);
+
+      setRecentUploads((prev) => [
+        uploadedFileRow,
+        ...(prev || []).filter((upload) => upload.id !== uploadedFileRow.id),
+      ]);
     }
 
-    setMessage(`POS sales imported: ${salesRows.length} rows`);
+    setMessage(`POS sales imported: ${finalSalesRows.length} rows`);
     setPendingUploadSummary(null);
     setRows([]);
+    setPendingUploadRows([]);
   } catch (error) {
     console.error("Import failed:", error);
     alert(`Import failed: ${error.message}`);
     setMessage("Import failed");
+  } finally {
+    setImportingPOS(false);
   }
 };
 const handleImportMenuItems = async () => {
