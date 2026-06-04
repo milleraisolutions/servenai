@@ -5449,15 +5449,57 @@ const handleImportMenuItems = async () => {
             : price > 0
             ? ((price - cost) / price) * 100
             : 0;
+const posRows =
+  dbSalesRows?.length
+    ? dbSalesRows
+    : locationSalesData?.length
+    ? locationSalesData
+    : salesData || [];
 
+const matchingPOSRows = (posRows || []).filter((sale) => {
+  const saleItemName = String(
+    sale.name ||
+      sale.item ||
+      sale.menu_item ||
+      sale.item_name ||
+      sale.product ||
+      sale.product_name ||
+      sale.description ||
+      ""
+  )
+    .trim()
+    .toLowerCase();
+
+  return saleItemName === String(name || "").trim().toLowerCase();
+});
+
+const posQuantitySold = matchingPOSRows.reduce(
+  (sum, sale) =>
+    sum +
+    Number(
+      sale.quantity ||
+        sale.qty ||
+        sale.quantity_sold ||
+        sale.units_sold ||
+        sale.orders ||
+        0
+    ),
+  0
+);
+
+const finalQuantitySold =
+  quantitySold > 0 ? quantitySold : posQuantitySold;
+
+const finalRevenue =
+  revenue > 0 ? revenue : price * finalQuantitySold;
         return {
           user_id: user.id,
           name,
           category: category || "Uncategorized",
           price,
           cost,
-          quantity_sold: quantitySold,
-          revenue,
+          quantity_sold: finalQuantitySold,
+          revenue: finalRevenue,
           margin,
           is_active: true,
           last_seen_at: now,
