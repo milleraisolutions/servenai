@@ -35287,12 +35287,19 @@ borderRadius: "14px",
       <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.18)" />
 
       <XAxis
-        dataKey="day"
-        tick={{ fill: "#94a3b8", fontSize: 11 }}
-        axisLine={false}
-        tickLine={false}
-        minTickGap={18}
-      />
+  dataKey="day"
+  tick={{ fill: "#94a3b8", fontSize: 11 }}
+  axisLine={false}
+  tickLine={false}
+  minTickGap={24}
+  interval={2}
+  tickFormatter={(value) =>
+    new Date(value).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    })
+  }
+/>
 
       <YAxis
         tick={{ fill: "#94a3b8", fontSize: 11 }}
@@ -35434,13 +35441,19 @@ borderRadius: "14px",
           vertical={false}
         />
 
-        <XAxis
-          dataKey="day"
-          tick={{ fill: "#94a3b8", fontSize: 10 }}
-          axisLine={false}
-          tickLine={false}
-          interval={2}
-        />
+       <XAxis
+  dataKey="day"
+  tick={{ fill: "#94a3b8", fontSize: 10 }}
+  axisLine={false}
+  tickLine={false}
+  interval={2}
+  tickFormatter={(value) =>
+    new Date(value).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    })
+  }
+/>
 
         <YAxis
           tick={{ fill: "#94a3b8", fontSize: 10 }}
