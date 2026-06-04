@@ -23210,6 +23210,25 @@ const handleConfirmMapping = () => {
   setMessage("Column mapping confirmed.");
 };
 
+const formatChartDate = (value) => {
+  if (!value) return "N/A";
+
+  const [year, month, day] = String(value).split("-").map(Number);
+
+  if (!year || !month || !day) return String(value);
+
+  return new Date(year, month - 1, day).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+};
+
+
+
+
+
+
+
 
 
 
@@ -35451,23 +35470,18 @@ borderRadius: "14px",
           vertical={false}
         />
 
-      <XAxis
-  dataKey="day"
-  tick={{ fill: "#94a3b8", fontSize: 10 }}
-  axisLine={false}
-  tickLine={false}
-  interval={4}
-  angle={-35}
-  textAnchor="end"
-  height={60}
-  tickMargin={12}
-  tickFormatter={(value) =>
-    new Date(value).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-    })
-  }
-/>
+        <XAxis
+          dataKey="day"
+          tick={{ fill: "#94a3b8", fontSize: 10 }}
+          axisLine={false}
+          tickLine={false}
+          interval={4}
+          angle={-35}
+          textAnchor="end"
+          height={60}
+          tickMargin={12}
+          tickFormatter={formatChartDate}
+        />
 
         <YAxis
           tick={{ fill: "#94a3b8", fontSize: 10 }}
@@ -35488,6 +35502,7 @@ borderRadius: "14px",
             `$${Number(value || 0).toLocaleString()}`,
             "Revenue",
           ]}
+          labelFormatter={formatChartDate}
           contentStyle={{
             background: "#020617",
             border: "1px solid rgba(148,163,184,0.24)",
@@ -35529,27 +35544,24 @@ borderRadius: "14px",
       <span style={{ color: "white", fontWeight: "950" }}>
         Revenue insight:
       </span>{" "}
-      {new Date(
-  revenueChartData.reduce((best, current) =>
-    Number(current.revenue || 0) > Number(best.revenue || 0)
-      ? current
-      : best
-  ).day
-).toLocaleDateString("en-US", {
-  month: "short",
-  day: "numeric",
-})}{" "}
-is currently your top-performing sales day, generating{" "}
-<span style={{ color: "#c4b5fd", fontWeight: "950" }}>
-  $
-  {Number(
-    revenueChartData.reduce((best, current) =>
-      Number(current.revenue || 0) > Number(best.revenue || 0)
-        ? current
-        : best
-    ).revenue || 0
-  ).toLocaleString()}
-</span>
+      {formatChartDate(
+        revenueChartData.reduce((best, current) =>
+          Number(current.revenue || 0) > Number(best.revenue || 0)
+            ? current
+            : best
+        ).day
+      )}{" "}
+      is currently your top-performing sales day, generating{" "}
+      <span style={{ color: "#c4b5fd", fontWeight: "950" }}>
+        $
+        {Number(
+          revenueChartData.reduce((best, current) =>
+            Number(current.revenue || 0) > Number(best.revenue || 0)
+              ? current
+              : best
+          ).revenue || 0
+        ).toLocaleString()}
+      </span>
       . Review slower days for promo, staffing, or menu opportunities.
     </div>
   )}
