@@ -743,7 +743,7 @@ const formatExecutiveDate = (value) => {
 
      <XAxis
   dataKey="day"
-  tick={{ fill: "#94a3b8", fontSize: 10 }}
+  tick={{ fill: "#94a3b8", fontSize: 16 }}
   axisLine={false}
   tickLine={false}
   interval={4}
@@ -755,7 +755,7 @@ const formatExecutiveDate = (value) => {
 />
 
       <YAxis
-        tick={{ fill: "#94a3b8", fontSize: 11 }}
+        tick={{ fill: "#94a3b8", fontSize: 16 }}
         axisLine={false}
         tickLine={false}
         width={65}
