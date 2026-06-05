@@ -59875,7 +59875,11 @@ maxWidth: "100%",
 >
   <GlassCard
     title="Highest Margin Item"
-    value={topMarginItem?.name || "Needs menu data"}
+    value={
+  topMarginItem?.name ||
+  topMarginItem?.itemName ||
+  "Needs menu data"
+}
     subtext={
       topMarginItem?.margin
         ? `${Number(topMarginItem.margin).toFixed(1)}% margin`
@@ -59885,7 +59889,11 @@ maxWidth: "100%",
 
   <GlassCard
     title="Lowest Margin Item"
-    value={lowestMarginItem?.name || "Needs menu data"}
+    value={
+  lowestMarginItem?.name ||
+  lowestMarginItem?.itemName ||
+  "Needs menu data"
+}
     subtext={
       lowestMarginItem?.margin
         ? `${Number(lowestMarginItem.margin).toFixed(1)}% margin`
