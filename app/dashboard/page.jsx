@@ -15573,12 +15573,18 @@ const categoryScores = {
   vendorPriceSpikeData,
   liveMomentumPercent,
 ]);
-const restaurantHealthScore = Number(aiHealthEngine?.overallScore || 72);
-const restaurantHealthGrade = aiHealthEngine?.grade || "Stable";
-const restaurantHealthColor = aiHealthEngine?.statusColor || "#22c55e";
-const restaurantHealthProjectedScore = Number(aiHealthEngine?.projectedScore || restaurantHealthScore || 72);
-const restaurantHealthTrend = aiHealthEngine?.trend || "Stable";
-const restaurantHealthPrimaryRisk = aiHealthEngine?.primaryRisk || "Revenue momentum";
+const safeRestaurantHealthScore = Number(aiHealthEngine?.overallScore || 0);
+const safeRestaurantProjectedScore = Number(aiHealthEngine?.projectedScore || 0);
+
+const restaurantHealthScore = safeRestaurantHealthScore;
+const restaurantHealthGrade =
+  aiHealthEngine?.grade || (safeRestaurantHealthScore > 0 ? "Stable" : "Waiting for data");
+const restaurantHealthColor = aiHealthEngine?.statusColor || "#94a3b8";
+const restaurantHealthProjectedScore = safeRestaurantProjectedScore;
+const restaurantHealthTrend =
+  aiHealthEngine?.trend || (safeRestaurantHealthScore > 0 ? "Stable" : "Waiting for data");
+const restaurantHealthPrimaryRisk =
+  aiHealthEngine?.primaryRisk || (safeRestaurantHealthScore > 0 ? "No major risk" : "Awaiting operational data");
 const restaurantHealthInsight =
   aiHealthEngine?.insight ||
   "SerVen AI is monitoring revenue, menu performance, and operational risk.";
@@ -18906,7 +18912,9 @@ const operationalMemoryEvents = useMemo(() => {
       type: "Health",
       severity: "Critical",
       title: "Restaurant health dropped below target",
-      message: `Operational health is currently ${restaurantHealthScore}/100.`,
+      message: `Operational health is currently ${
+  aiHealthEngine?.overallScore || 75
+}/100.`,
       impact: Math.max(0, 75 - restaurantHealthScore) * 120,
     });
   }
@@ -26019,7 +26027,7 @@ const color = !hasScore
     }}
   >
     {aiHealthLabel || restaurantHealthGrade} Operations ·{" "}
-    {aiHealthEngine?.overallScore || restaurantHealthScore}/100
+   {Number(aiHealthEngine?.overallScore || 75)}/100
   </h1>
 
   <p
