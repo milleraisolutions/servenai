@@ -23306,13 +23306,17 @@ const handleDeleteUpload = async (uploadId) => {
     (prev || []).filter((upload) => upload.id !== uploadId)
   );
 
-  setSalesData((prev) =>
-    (prev || []).filter((row) => row.upload_id !== uploadId)
-  );
+ setSalesData((prev) =>
+  (prev || []).filter((row) => row.upload_id !== uploadId)
+);
 
-  setMenuItemsData((prev) =>
-    (prev || []).filter((row) => row.upload_id !== uploadId)
-  );
+setDbSalesRows((prev) =>
+  (prev || []).filter((row) => row.upload_id !== uploadId)
+);
+
+setMenuItemsData((prev) =>
+  (prev || []).filter((row) => row.upload_id !== uploadId)
+);
 
   setMessage("Upload deleted.");
 };
