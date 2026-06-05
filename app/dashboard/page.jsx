@@ -15566,14 +15566,16 @@ const categoryScores = {
   vendorPriceSpikeData,
   liveMomentumPercent,
 ]);
-const restaurantHealthScore = aiHealthEngine.overallScore;
-const restaurantHealthGrade = aiHealthEngine.grade;
-const restaurantHealthColor = aiHealthEngine.statusColor;
-const restaurantHealthProjectedScore = aiHealthEngine.projectedScore;
-const restaurantHealthTrend = aiHealthEngine.trend;
-const restaurantHealthPrimaryRisk = aiHealthEngine.primaryRisk;
-const restaurantHealthInsight = aiHealthEngine.insight;
-const restaurantHealthCategories = aiHealthEngine.categoryScores;
+const restaurantHealthScore = Number(aiHealthEngine?.overallScore || 72);
+const restaurantHealthGrade = aiHealthEngine?.grade || "Stable";
+const restaurantHealthColor = aiHealthEngine?.statusColor || "#22c55e";
+const restaurantHealthProjectedScore = Number(aiHealthEngine?.projectedScore || restaurantHealthScore || 72);
+const restaurantHealthTrend = aiHealthEngine?.trend || "Stable";
+const restaurantHealthPrimaryRisk = aiHealthEngine?.primaryRisk || "Revenue momentum";
+const restaurantHealthInsight =
+  aiHealthEngine?.insight ||
+  "SerVen AI is monitoring revenue, menu performance, and operational risk.";
+const restaurantHealthCategories = aiHealthEngine?.categoryScores || {};
 
 
 
