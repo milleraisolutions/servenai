@@ -11692,6 +11692,8 @@ const lowestMarginItem =
   [...menuProfitRows]
     .sort((a, b) => Number(a.margin || 0) - Number(b.margin || 0))[0] || null;
 
+    console.log("TOP MARGIN ITEM DEBUG:", topMarginItem);
+console.log("LOWEST MARGIN ITEM DEBUG:", lowestMarginItem);
 const lowMarginMenuItems = menuProfitRows.filter(
   (item) => Number(item.margin || 0) < 65
 );
