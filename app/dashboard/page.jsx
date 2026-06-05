@@ -5052,34 +5052,104 @@ const handleFileUpload = async (e) => {
   setMessage(
     `Ingredients file loaded: ${cleanedIngredientRows.length} rows ready to import.`
   );
-
 } else if (activeUploadType === "labor") {
-  const cleanedLaborRows = safeRows.map((row) => ({
-    ...row,
-
-    hours:
+  const cleanedLaborRows = safeRows.map((row) => {
+    const hours =
       Number(
         row.hours ||
           row.Hours ||
           row.total_hours ||
           row["Total Hours"] ||
+          row.regular_hours ||
+          row["Regular Hours"] ||
           0
-      ) || 0,
+      ) || 0;
 
-    labor_cost:
+    const rate =
+      Number(
+        row.rate ||
+          row.Rate ||
+          row.hourly_rate ||
+          row.hourlyRate ||
+          row["Hourly Rate"] ||
+          row.pay_rate ||
+          row["Pay Rate"] ||
+          0
+      ) || 0;
+
+    const laborCost =
       Number(
         row.labor_cost ||
           row.laborCost ||
           row.cost ||
+          row.Cost ||
           row.payroll ||
           row["Labor Cost"] ||
           row["Payroll Cost"] ||
+          row.wages ||
+          row.Wages ||
           0
-      ) || 0,
-  }));
+      ) || hours * rate || 0;
+
+    return {
+      ...row,
+
+      employee:
+        row.employee ||
+        row.Employee ||
+        row.employee_name ||
+        row["Employee Name"] ||
+        row.name ||
+        row.Name ||
+        null,
+
+      role:
+        row.role ||
+        row.Role ||
+        row.position ||
+        row.Position ||
+        row.job ||
+        row.Job ||
+        "Staff",
+
+      work_date:
+        row.work_date ||
+        row.workDate ||
+        row.date ||
+        row.Date ||
+        row.shift_date ||
+        row["Shift Date"] ||
+        null,
+
+      hours,
+      rate,
+      hourly_rate: rate,
+      labor_cost: laborCost,
+
+      location:
+        row.location ||
+        row.Location ||
+        row.store ||
+        row.Store ||
+        row.restaurant ||
+        row.Restaurant ||
+        null,
+
+      shift:
+        row.shift ||
+        row.Shift ||
+        row.daypart ||
+        row.Daypart ||
+        null,
+    };
+  });
+
+  console.log("CLEANED LABOR ROWS:", cleanedLaborRows);
+  console.log("CLEANED LABOR FIRST ROW:", cleanedLaborRows?.[0]);
 
   setLaborData(cleanedLaborRows);
-localStorage.setItem("serven_labor_rows", JSON.stringify(cleanedLaborRows));
+  localStorage.setItem("serven_labor_rows", JSON.stringify(cleanedLaborRows));
+
   setPendingUploadSummary({
     fileName: file.name,
     rowCount: cleanedLaborRows.length,
@@ -5091,7 +5161,7 @@ localStorage.setItem("serven_labor_rows", JSON.stringify(cleanedLaborRows));
   setMessage(
     `Labor file loaded: ${cleanedLaborRows.length} rows ready to import.`
   );
-
+}
 } else if (activeUploadType === "invoices") {
   setPendingUploadSummary({
     fileName: file.name,
@@ -11784,61 +11854,88 @@ const rowsToInsert = laborRows.map((row) => {
         else if (hour >= 15 && hour < 22) detectedShift = "Dinner";
         else detectedShift = "Late Night";
       }
+return {
+  user_id: user.id,
 
-      return {
-        user_id: user.id,
+  employee_name:
+    row.employee_name ||
+    row.employee ||
+    row.Employee ||
+    row["Employee Name"] ||
+    row.name ||
+    row.Name ||
+    "Unknown Employee",
 
-        employee_name:
-          row.employee_name ||
-          row.Employee ||
-          row["Employee Name"] ||
-          row.name ||
-          row.Name ||
-          "Unknown Employee",
+  role:
+    row.role ||
+    row.Role ||
+    row.position ||
+    row.Position ||
+    row.job ||
+    row.Job ||
+    "Staff",
 
-        role:
-          row.role ||
-          row.Role ||
-          row.position ||
-          row.Position ||
-          "Staff",
+  work_date: cleanDate(
+    row.work_date ||
+      row.workDate ||
+      row.date ||
+      row.Date ||
+      row["Work Date"] ||
+      row.shift_date ||
+      row.shiftDate ||
+      row["Shift Date"] ||
+      null
+  ),
 
-        work_date: cleanDate(
-          row.work_date ||
-            row.date ||
-            row.Date ||
-            row["Work Date"]
-        ),
+  hours_worked: Number(
+    row.hours_worked ||
+      row.hoursWorked ||
+      row.hours ||
+      row.Hours ||
+      row["Hours Worked"] ||
+      row.total_hours ||
+      row["Total Hours"] ||
+      0
+  ),
 
-        hours_worked: Number(
-          row.hours_worked ||
-            row.hours ||
-            row.Hours ||
-            row["Hours Worked"] ||
-            0
-        ),
+  hourly_rate: Number(
+    row.hourly_rate ||
+      row.hourlyRate ||
+      row.rate ||
+      row.Rate ||
+      row["Hourly Rate"] ||
+      row.pay_rate ||
+      row["Pay Rate"] ||
+      0
+  ),
 
-        hourly_rate: Number(
-          row.hourly_rate ||
-            row.rate ||
-            row.Rate ||
-            row["Hourly Rate"] ||
-            0
-        ),
+  labor_cost: Number(
+    row.labor_cost ||
+      row.laborCost ||
+      row.cost ||
+      row.Cost ||
+      row["Labor Cost"] ||
+      row.payroll ||
+      row["Payroll Cost"] ||
+      row.wages ||
+      row.Wages ||
+      0
+  ),
 
-        labor_cost: Number(
-          row.labor_cost ||
-            row.cost ||
-            row.Cost ||
-            row["Labor Cost"] ||
-            0
-        ),
+  location:
+    row.location ||
+    row.Location ||
+    row.store ||
+    row.Store ||
+    row.restaurant ||
+    row.Restaurant ||
+    null,
 
-        shift: detectedShift,
+  shift: detectedShift,
 
-        file_name: pendingUploadSummary?.fileName || null,
-        source_name: "labor_upload",
-      };
+  file_name: pendingUploadSummary?.fileName || null,
+  source_name: "labor_upload",
+};
     });
 
     if (!rowsToInsert.length) {
