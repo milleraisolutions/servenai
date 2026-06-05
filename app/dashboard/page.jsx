@@ -5252,7 +5252,7 @@ const handleImportMappedSales = async () => {
       ]);
     }
 
-   setMessage(`POS sales imported: ${finalSalesRows.length} rows`);
+  setMessage(`DONE: POS sales imported ${finalSalesRows.length} rows`);
 setPendingUploadSummary(null);
 setRows([]);
 setPendingUploadRows([]);
@@ -5261,6 +5261,7 @@ setPendingUploadRows([]);
   alert(`Import failed: ${error.message}`);
   setMessage("Import failed");
 } finally {
+   console.log("POS IMPORT FINALLY - unlocked");
   importLockRef.current = false;
   setImportingPOS(false);
 }
