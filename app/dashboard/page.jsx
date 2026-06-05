@@ -1658,14 +1658,7 @@ const getSaleDate = (sale = {}) => {
    💰 REVENUE TRACKER
 ================================= */
 const revenueTracker = useMemo(() => {
- const rawSales =
-  dbSalesRows?.length
-    ? dbSalesRows
-    : locationSalesData?.length
-    ? locationSalesData
-    : pendingUploadRows?.length
-    ? pendingUploadRows
-    : [];
+const rawSales = Array.isArray(salesData) ? salesData : [];
 
   const safeSales = rawSales
     .map((sale) => {
@@ -1773,14 +1766,7 @@ const revenueTracker = useMemo(() => {
 
 
 const revenueTrend = useMemo(() => {
-  const rawSales =
-  dbSalesRows?.length
-    ? dbSalesRows
-    : locationSalesData?.length
-    ? locationSalesData
-    : pendingUploadRows?.length
-    ? pendingUploadRows
-    : [];
+const rawSales = Array.isArray(salesData) ? salesData : [];
 
   const safeSales = rawSales
     .map((sale) => {
@@ -23264,62 +23250,63 @@ const enterpriseRecoverableProfit =
   );
 
 const handleDeleteUpload = async (uploadId) => {
-  console.log("DELETE CLICKED uploadId:", uploadId);
-
   if (!uploadId) {
     alert("Missing upload id");
     return;
   }
 
-  try {
-    setMessage("Deleting upload...");
+  console.log("DELETE CLICKED uploadId:", uploadId);
 
-    const salesDelete = await supabase
-      .from("sales")
-      .delete()
-      .eq("upload_id", uploadId);
+  const { error: salesDeleteError } = await supabase
+    .from("sales")
+    .delete()
+    .eq("upload_id", uploadId);
 
-    console.log("sales delete:", salesDelete);
-
-    const menuDelete = await supabase
-      .from("menu_items")
-      .delete()
-      .eq("upload_id", uploadId);
-
-    console.log("menu delete:", menuDelete);
-
-    const uploadDelete = await supabase
-      .from("uploads")
-      .delete()
-      .eq("id", uploadId);
-
-    console.log("upload delete:", uploadDelete);
-
-    if (salesDelete.error) throw salesDelete.error;
-    if (menuDelete.error) throw menuDelete.error;
-    if (uploadDelete.error) throw uploadDelete.error;
-
-    setRecentUploads((prev) =>
-      (prev || []).filter((upload) => upload.id !== uploadId)
-    );
-
-    setClientImports((prev) =>
-      (prev || []).filter((upload) => upload.id !== uploadId)
-    );
-
-    setMenuItemsData((prev) =>
-      (prev || []).filter((item) => item.upload_id !== uploadId)
-    );
-
-    setDbSalesRows((prev) =>
-      (prev || []).filter((sale) => sale.upload_id !== uploadId)
-    );
-
-    setMessage("Upload and imported data deleted.");
-  } catch (err) {
-    console.error("Full upload delete failed:", err);
-    alert(`Delete failed: ${err.message}`);
+  if (salesDeleteError) {
+    console.error("Sales delete failed:", salesDeleteError);
+    alert(`Sales delete failed: ${salesDeleteError.message}`);
+    return;
   }
+
+  const { error: menuDeleteError } = await supabase
+    .from("menu_items")
+    .delete()
+    .eq("upload_id", uploadId);
+
+  if (menuDeleteError) {
+    console.error("Menu items delete failed:", menuDeleteError);
+    alert(`Menu delete failed: ${menuDeleteError.message}`);
+    return;
+  }
+
+  const { error: uploadDeleteError } = await supabase
+    .from("uploads")
+    .delete()
+    .eq("id", uploadId);
+
+  if (uploadDeleteError) {
+    console.error("Upload delete failed:", uploadDeleteError);
+    alert(`Upload delete failed: ${uploadDeleteError.message}`);
+    return;
+  }
+
+  setRecentUploads((prev) =>
+    (prev || []).filter((upload) => upload.id !== uploadId)
+  );
+
+  setClientImports((prev) =>
+    (prev || []).filter((upload) => upload.id !== uploadId)
+  );
+
+  setSalesData((prev) =>
+    (prev || []).filter((row) => row.upload_id !== uploadId)
+  );
+
+  setMenuItemsData((prev) =>
+    (prev || []).filter((row) => row.upload_id !== uploadId)
+  );
+
+  setMessage("Upload deleted.");
 };
 
 const batchPrepIntelligence = (batchPrepData || []).map((batch) => {
