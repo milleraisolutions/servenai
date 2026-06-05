@@ -3295,8 +3295,9 @@ useEffect(() => {
   loadAIRevenue();
 }, []);
 useEffect(() => {
+  if (!isOwnerRole) return;
   loadClientUploads();
-}, []);
+}, [isOwnerRole]);
 const top3AIActions = useMemo(() => {
   const source = aiProfitOpportunities?.length
     ? aiProfitOpportunities
