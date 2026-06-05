@@ -12661,13 +12661,13 @@ const vendorPriceSpikeData = useMemo(() => {
 
 const recipeCostingData = useMemo(() => {
   const rules = recipeUsageRules || [];
-  const ingredients =
-  uploadComparison?.activeIngredients ||
-  locationIngredientsData ||
-  [];
 
-const menuItems = locationMenuItemsData || [];
-  
+  const ingredients =
+    uploadComparison?.activeIngredients ||
+    locationIngredientsData ||
+    [];
+
+  const menuItems = locationMenuItemsData || [];
 
   return menuItems.map((menuItem) => {
     const itemName =
@@ -12685,15 +12685,27 @@ const menuItems = locationMenuItemsData || [];
 
     const linkedRules = rules.filter(
       (rule) =>
-        String(rule.menu_item || rule.menuItem || "").toLowerCase().trim() ===
-        String(itemName || "").toLowerCase().trim()
+        String(rule.menu_item || rule.menuItem || "")
+          .toLowerCase()
+          .trim() ===
+        String(itemName || "")
+          .toLowerCase()
+          .trim()
     );
 
-    const recipeCost = linkedRules.reduce((sum, rule) => {
+    const calculatedRecipeCost = linkedRules.reduce((sum, rule) => {
       const ingredient = ingredients.find(
         (ing) =>
-          String(ing.name || ing.ingredient_name || "").toLowerCase().trim() ===
-          String(rule.ingredient || "").toLowerCase().trim()
+          String(
+            ing.name ||
+              ing.ingredient_name ||
+              ""
+          )
+            .toLowerCase()
+            .trim() ===
+          String(rule.ingredient || "")
+            .toLowerCase()
+            .trim()
       );
 
       const costPerUnit = Number(
@@ -12701,30 +12713,63 @@ const menuItems = locationMenuItemsData || [];
           ingredient?.costPerUnit ||
           ingredient?.unit_cost ||
           ingredient?.price_per_unit ||
+          ingredient?.cost ||
           0
       );
 
-      return sum + Number(rule.quantity_used || rule.amountUsed || 0) * costPerUnit;
+      return (
+        sum +
+        Number(
+          rule.quantity_used ||
+            rule.amountUsed ||
+            0
+        ) *
+          costPerUnit
+      );
     }, 0);
 
+    const uploadedCost = Number(
+      menuItem.cost ||
+        menuItem.recipe_cost ||
+        menuItem.food_cost ||
+        menuItem["Food Cost"] ||
+        menuItem["Cost"] ||
+        0
+    );
+
+    const recipeCost =
+      calculatedRecipeCost > 0
+        ? calculatedRecipeCost
+        : uploadedCost;
+
     const profit = price - recipeCost;
-    const margin = price > 0 ? (profit / price) * 100 : 0;
+
+    const margin =
+      price > 0
+        ? (profit / price) * 100
+        : 0;
 
     let status = "Needs Price Data";
-    let recommendation = "Add menu price and recipe rules to calculate true margin.";
+
+    let recommendation =
+      "Add menu price and recipe rules to calculate true margin.";
 
     if (price > 0 && margin >= 70) {
       status = "High Profit";
-      recommendation = "Promote this item. It has strong recipe profitability.";
+      recommendation =
+        "Promote this item. It has strong recipe profitability.";
     } else if (price > 0 && margin >= 60) {
       status = "Healthy";
-      recommendation = "Margin is healthy. Monitor ingredient cost changes.";
+      recommendation =
+        "Margin is healthy. Monitor ingredient cost changes.";
     } else if (price > 0 && margin >= 50) {
       status = "Watch";
-      recommendation = "Review pricing or ingredient portions.";
+      recommendation =
+        "Review pricing or ingredient portions.";
     } else if (price > 0) {
       status = "Low Margin";
-      recommendation = "Adjust price, reduce portion cost, or renegotiate ingredients.";
+      recommendation =
+        "Adjust price, reduce portion cost, or renegotiate ingredients.";
     }
 
     return {
@@ -12744,7 +12789,6 @@ const menuItems = locationMenuItemsData || [];
   locationIngredientsData,
   locationMenuItemsData,
 ]);
-
 const inventoryTrendData = useMemo(() => {
   const items =
     uploadComparison?.activeIngredients ||
