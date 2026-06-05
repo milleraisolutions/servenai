@@ -60761,8 +60761,10 @@ maxWidth: "100%",
   {[
     {
       label: "Mapped Items",
-      value: recipeCostingData.filter((item) => item.ingredientCount > 0).length,
-      sub: "items with recipe rules",
+      value: recipeCostingData.filter(
+  (item) => item.ingredientCount > 0 || Number(item.recipeCost || 0) > 0
+).length,
+sub: "items with recipe rules or uploaded cost",
     },
     {
       label: "Avg Recipe Margin",
@@ -60776,7 +60778,7 @@ maxWidth: "100%",
             ).toFixed(1)
           : "0.0"
       }%`,
-      sub: "based on linked costs",
+      sub: "based on recipe rules or uploaded cost",
     },
     {
       label: "Low Margin Items",
