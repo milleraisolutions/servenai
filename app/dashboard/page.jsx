@@ -15542,6 +15542,13 @@ const categoryScores = {
       ? `Restaurant health is ${grade}. AI detected pressure from ${primaryRisk.toLowerCase()} and recommends action this week.`
       : `Restaurant health is ${grade}. AI detected serious operational risk driven by ${primaryRisk.toLowerCase()}. Immediate review is recommended.`;
 
+      console.log("AI HEALTH ENGINE DEBUG", {
+  overallScore,
+  grade,
+  projectedScore,
+  trend,
+  primaryRisk,
+});
   return {
     overallScore,
     grade,
