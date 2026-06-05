@@ -11664,21 +11664,45 @@ if (
   });
 }
 
+const menuProfitRows = (locationMenuItemsData?.length
+  ? locationMenuItemsData
+  : menuItemsData || []
+).map((item) => {
+  const price = Number(item.price || item.menu_price || 0);
+  const cost = Number(item.cost || item.recipe_cost || item.food_cost || 0);
+  const profit = price - cost;
+  const margin = price > 0 ? (profit / price) * 100 : 0;
+
+  return {
+    ...item,
+    itemName: item.name || item.item_name || "Menu Item",
+    name: item.name || item.item_name || "Menu Item",
+    price,
+    recipeCost: cost,
+    profit,
+    margin,
+  };
+});
+
 const topMarginItem =
-  [...menuItemsData]
+  [...menuProfitRows]
     .sort((a, b) => Number(b.margin || 0) - Number(a.margin || 0))[0] || null;
 
 const lowestMarginItem =
-  [...menuItemsData]
+  [...menuProfitRows]
     .sort((a, b) => Number(a.margin || 0) - Number(b.margin || 0))[0] || null;
 
-const lowMarginMenuItems = menuItemsData.filter(
-  (item) => Number(item.margin || 0) < 60
+const lowMarginMenuItems = menuProfitRows.filter(
+  (item) => Number(item.margin || 0) < 65
 );
 
 const menuOptimizationOpportunity =
   lowMarginMenuItems.reduce(
-    (sum, item) => sum + Number(item.revenue || 0) * 0.08,
+    (sum, item) =>
+      sum +
+      Math.max(0, (65 - Number(item.margin || 0)) / 100) *
+        Number(item.price || 0) *
+        100,
     0
   );
 
