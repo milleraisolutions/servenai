@@ -18912,7 +18912,7 @@ const operationalMemoryEvents = useMemo(() => {
       severity: "Critical",
       title: "Restaurant health dropped below target",
       message: `Operational health is currently ${
-  aiHealthEngine?.overallScore || 75
+  aiHealthEngine?.overallScore || restaurantHealthScore || 0
 }/100.`,
       impact: Math.max(0, 75 - restaurantHealthScore) * 120,
     });
@@ -26087,7 +26087,9 @@ const color = !hasScore
     }}
   >
     {aiHealthLabel || restaurantHealthGrade} Operations ·{" "}
-   {Number(aiHealthEngine?.overallScore || 75)}/100
+  {Number(aiHealthEngine?.overallScore || restaurantHealthScore || 0) > 0
+  ? `${Number(aiHealthEngine?.overallScore || restaurantHealthScore)}/100`
+  : "Waiting for data"}
   </h1>
 
   <p
@@ -26217,13 +26219,9 @@ const color = !hasScore
           lineHeight: 1,
         }}
       >
-        {Number(
-  aiHealthEngine?.overallScore ||
-    restaurantHealthScore ||
-    overallAIHealthScore ||
-    liveScore ||
-    75
-)}
+        {Number(aiHealthEngine?.overallScore || restaurantHealthScore || 0) > 0
+  ? Number(aiHealthEngine?.overallScore || restaurantHealthScore)
+  : "Waiting"}
       </div>
 
       <div
@@ -26250,13 +26248,9 @@ const color = !hasScore
           fontWeight: "950",
         }}
       >
-        {restaurantHealthTrend} • 30-Day Projection:{" "}
-       {Number(
-  restaurantHealthProjectedScore ||
-    aiHealthEngine?.projectedScore ||
-    restaurantHealthScore ||
-    75
-)}/100
+        {Number(aiHealthEngine?.projectedScore || restaurantHealthProjectedScore || 0) > 0
+  ? `${Number(aiHealthEngine?.projectedScore || restaurantHealthProjectedScore)}/100`
+  : "Waiting for data"}
       </div>
     </div>
 
