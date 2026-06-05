@@ -5054,95 +5054,156 @@ const handleFileUpload = async (e) => {
   );
 } else if (activeUploadType === "labor") {
   const cleanedLaborRows = safeRows.map((row) => {
-    const hours =
-      Number(
-        row.hours ||
-          row.Hours ||
-          row.total_hours ||
-          row["Total Hours"] ||
-          row.regular_hours ||
-          row["Regular Hours"] ||
-          0
-      ) || 0;
+  const hours =
+    Number(
+      row.hours ||
+        row.Hours ||
+        row.hrs ||
+        row.Hrs ||
+        row.HRS ||
+        row.hours_worked ||
+        row.hoursWorked ||
+        row["Hours Worked"] ||
+        row.total_hours ||
+        row.totalHours ||
+        row["Total Hours"] ||
+        row.regular_hours ||
+        row.regularHours ||
+        row["Regular Hours"] ||
+        row["Regular Hrs"] ||
+        row.shift_hours ||
+        row.shiftHours ||
+        row["Shift Hours"] ||
+        0
+    ) || 0;
 
-    const rate =
-      Number(
-        row.rate ||
-          row.Rate ||
-          row.hourly_rate ||
-          row.hourlyRate ||
-          row["Hourly Rate"] ||
-          row.pay_rate ||
-          row["Pay Rate"] ||
-          0
-      ) || 0;
+  const rate =
+    Number(
+      row.rate ||
+        row.Rate ||
+        row.hourly_rate ||
+        row.hourlyRate ||
+        row["Hourly Rate"] ||
+        row.pay_rate ||
+        row.payRate ||
+        row["Pay Rate"] ||
+        row.wage ||
+        row.Wage ||
+        row["Hourly Wage"] ||
+        row.base_rate ||
+        row.baseRate ||
+        row["Base Rate"] ||
+        0
+    ) || 0;
 
-    const laborCost =
-      Number(
-        row.labor_cost ||
-          row.laborCost ||
-          row.cost ||
-          row.Cost ||
-          row.payroll ||
-          row["Labor Cost"] ||
-          row["Payroll Cost"] ||
-          row.wages ||
-          row.Wages ||
-          0
-      ) || hours * rate || 0;
+  const laborCost =
+    Number(
+      row.labor_cost ||
+        row.laborCost ||
+        row.cost ||
+        row.Cost ||
+        row["Labor Cost"] ||
+        row.payroll ||
+        row["Payroll Cost"] ||
+        row.wages ||
+        row.Wages ||
+        row.total_pay ||
+        row.totalPay ||
+        row["Total Pay"] ||
+        row.gross_pay ||
+        row.grossPay ||
+        row["Gross Pay"] ||
+        row.pay ||
+        row.Pay ||
+        0
+    ) ||
+    hours * rate ||
+    0;
 
-    return {
-      ...row,
+  return {
+    ...row,
 
-      employee:
-        row.employee ||
-        row.Employee ||
-        row.employee_name ||
-        row["Employee Name"] ||
-        row.name ||
-        row.Name ||
-        null,
+    employee:
+      row.employee ||
+      row.Employee ||
+      row.employee_name ||
+      row.employeeName ||
+      row["Employee Name"] ||
+      row.staff_name ||
+      row.staffName ||
+      row["Staff Name"] ||
+      row.name ||
+      row.Name ||
+      null,
 
-      role:
-        row.role ||
-        row.Role ||
-        row.position ||
-        row.Position ||
-        row.job ||
-        row.Job ||
-        "Staff",
+    role:
+      row.role ||
+      row.Role ||
+      row.position ||
+      row.Position ||
+      row.job ||
+      row.Job ||
+      row.job_title ||
+      row.jobTitle ||
+      row["Job Title"] ||
+      row.department ||
+      row.Department ||
+      "Staff",
 
-      work_date:
-        row.work_date ||
-        row.workDate ||
-        row.date ||
-        row.Date ||
-        row.shift_date ||
-        row["Shift Date"] ||
-        null,
+    work_date:
+      row.work_date ||
+      row.workDate ||
+      row.date ||
+      row.Date ||
+      row.shift_date ||
+      row.shiftDate ||
+      row["Shift Date"] ||
+      row.business_date ||
+      row.businessDate ||
+      row["Business Date"] ||
+      row.clock_date ||
+      row.clockDate ||
+      row["Clock Date"] ||
+      null,
 
-      hours,
-      rate,
-      hourly_rate: rate,
-      labor_cost: laborCost,
+    hours,
+    hours_worked: hours,
 
-      location:
-        row.location ||
-        row.Location ||
-        row.store ||
-        row.Store ||
-        row.restaurant ||
-        row.Restaurant ||
-        null,
+    rate,
+    hourly_rate: rate,
 
-      shift:
-        row.shift ||
-        row.Shift ||
-        row.daypart ||
-        row.Daypart ||
-        null,
-    };
-  });
+    labor_cost: laborCost,
+
+    location:
+      row.location ||
+      row.Location ||
+      row.store ||
+      row.Store ||
+      row.store_name ||
+      row.storeName ||
+      row["Store Name"] ||
+      row.restaurant ||
+      row.Restaurant ||
+      row.location_name ||
+      row.locationName ||
+      row["Location Name"] ||
+      null,
+
+    shift:
+      row.shift ||
+      row.Shift ||
+      row.shift_name ||
+      row.shiftName ||
+      row["Shift Name"] ||
+      row.daypart ||
+      row.Daypart ||
+      row.period ||
+      row.Period ||
+      row.service ||
+      row.Service ||
+      null,
+  };
+});
 
   console.log("CLEANED LABOR ROWS:", cleanedLaborRows);
   console.log("CLEANED LABOR FIRST ROW:", cleanedLaborRows?.[0]);
@@ -11886,42 +11947,11 @@ return {
       row["Shift Date"] ||
       null
   ),
+hours_worked: Number(row.hours_worked || row.hours || 0),
 
-  hours_worked: Number(
-    row.hours_worked ||
-      row.hoursWorked ||
-      row.hours ||
-      row.Hours ||
-      row["Hours Worked"] ||
-      row.total_hours ||
-      row["Total Hours"] ||
-      0
-  ),
+hourly_rate: Number(row.hourly_rate || row.rate || 0),
 
-  hourly_rate: Number(
-    row.hourly_rate ||
-      row.hourlyRate ||
-      row.rate ||
-      row.Rate ||
-      row["Hourly Rate"] ||
-      row.pay_rate ||
-      row["Pay Rate"] ||
-      0
-  ),
-
-  labor_cost: Number(
-    row.labor_cost ||
-      row.laborCost ||
-      row.cost ||
-      row.Cost ||
-      row["Labor Cost"] ||
-      row.payroll ||
-      row["Payroll Cost"] ||
-      row.wages ||
-      row.Wages ||
-      0
-  ),
-
+labor_cost: Number(row.labor_cost || 0),
   location:
     row.location ||
     row.Location ||
@@ -11942,7 +11972,7 @@ return {
       setMessage("No labor rows found to import.");
       return;
     }
-
+console.log("LABOR FIRST ROW TO INSERT:", rowsToInsert?.[0]);
     const { data: insertedLaborRows, error } = await supabase
       .from("labor_uploads")
       .insert(rowsToInsert)
