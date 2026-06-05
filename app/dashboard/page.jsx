@@ -24432,6 +24432,60 @@ if (currentType === "menu_items") {
     </div>
   )}
 </div>
+{/* ✅ AI ONBOARDING PROGRESS */}
+<div
+  style={{
+    marginBottom: "22px",
+    padding: "20px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.92))",
+    border: "1px solid rgba(148,163,184,0.14)",
+  }}
+>
+  <div style={{ color: "#86efac", fontSize: "12px", fontWeight: "900" }}>
+    AI ONBOARDING PROGRESS
+  </div>
+
+  <div style={{ marginTop: "14px", display: "grid", gap: "10px" }}>
+    {[
+      
+  { label: "POS Sales", complete: (salesData || []).length > 0 },
+  { label: "Labor Data", complete: (laborData || []).length > 0 },
+  { label: "Inventory Data", complete: (inventoryData || []).length > 0 },
+  { label: "Menu Items", complete: (menuItemsData || []).length > 0 },
+  { label: "Invoices", complete: (invoicesData || []).length > 0 },
+
+    ].map((item) => (
+      <div
+        key={item.label}
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          padding: "12px",
+          borderRadius: "14px",
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(148,163,184,0.12)",
+        }}
+      >
+        <div style={{ color: "white", fontWeight: "900", fontSize: "13px" }}>
+          {item.label}
+        </div>
+
+        <div
+          style={{
+            color: item.complete ? "#86efac" : "#fbbf24",
+            fontWeight: "900",
+            fontSize: "12px",
+          }}
+        >
+          {item.complete ? "Connected" : "Needed"}
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
 
    {/* OVERVIEW HERO */}
 <div
@@ -27755,60 +27809,6 @@ const color = !hasScore
     </div>
   </div>
 )}
-{/* ✅ AI ONBOARDING PROGRESS */}
-<div
-  style={{
-    marginBottom: "22px",
-    padding: "20px",
-    borderRadius: "22px",
-    background:
-      "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.92))",
-    border: "1px solid rgba(148,163,184,0.14)",
-  }}
->
-  <div style={{ color: "#86efac", fontSize: "12px", fontWeight: "900" }}>
-    AI ONBOARDING PROGRESS
-  </div>
-
-  <div style={{ marginTop: "14px", display: "grid", gap: "10px" }}>
-    {[
-      
-  { label: "POS Sales", complete: (salesData || []).length > 0 },
-  { label: "Labor Data", complete: (laborData || []).length > 0 },
-  { label: "Inventory Data", complete: (inventoryData || []).length > 0 },
-  { label: "Menu Items", complete: (menuItemsData || []).length > 0 },
-  { label: "Invoices", complete: (invoicesData || []).length > 0 },
-
-    ].map((item) => (
-      <div
-        key={item.label}
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          padding: "12px",
-          borderRadius: "14px",
-          background: "rgba(255,255,255,0.04)",
-          border: "1px solid rgba(148,163,184,0.12)",
-        }}
-      >
-        <div style={{ color: "white", fontWeight: "900", fontSize: "13px" }}>
-          {item.label}
-        </div>
-
-        <div
-          style={{
-            color: item.complete ? "#86efac" : "#fbbf24",
-            fontWeight: "900",
-            fontSize: "12px",
-          }}
-        >
-          {item.complete ? "Connected" : "Needed"}
-        </div>
-      </div>
-    ))}
-  </div>
-</div>
 
 
 {/* 🚨 AI PRIORITY QUEUE */}
