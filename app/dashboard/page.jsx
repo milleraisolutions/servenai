@@ -24450,7 +24450,14 @@ if (currentType === "menu_items") {
   <div style={{ marginTop: "14px", display: "grid", gap: "10px" }}>
     {[
       
-  { label: "POS Sales", complete: (salesData || []).length > 0 },
+  {
+  label: "POS Sales",
+  complete:
+    (dbSalesRows || []).length > 0 ||
+    (salesData || []).length > 0 ||
+    Number(realSalesMetrics?.totalRevenueFromDb || 0) > 0 ||
+    Number(liveTotalRevenue || 0) > 0,
+},
   { label: "Labor Data", complete: (laborData || []).length > 0 },
   { label: "Inventory Data", complete: (inventoryData || []).length > 0 },
   { label: "Menu Items", complete: (menuItemsData || []).length > 0 },
