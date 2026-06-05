@@ -23264,21 +23264,40 @@ const enterpriseRecoverableProfit =
   );
 
 const handleDeleteUpload = async (uploadId) => {
+  console.log("DELETE CLICKED uploadId:", uploadId);
+
   if (!uploadId) {
     alert("Missing upload id");
     return;
   }
 
   try {
-    await supabase.from("sales").delete().eq("upload_id", uploadId);
-    await supabase.from("menu_items").delete().eq("upload_id", uploadId);
+    setMessage("Deleting upload...");
 
-    const { error } = await supabase
+    const salesDelete = await supabase
+      .from("sales")
+      .delete()
+      .eq("upload_id", uploadId);
+
+    console.log("sales delete:", salesDelete);
+
+    const menuDelete = await supabase
+      .from("menu_items")
+      .delete()
+      .eq("upload_id", uploadId);
+
+    console.log("menu delete:", menuDelete);
+
+    const uploadDelete = await supabase
       .from("uploads")
       .delete()
       .eq("id", uploadId);
 
-    if (error) throw error;
+    console.log("upload delete:", uploadDelete);
+
+    if (salesDelete.error) throw salesDelete.error;
+    if (menuDelete.error) throw menuDelete.error;
+    if (uploadDelete.error) throw uploadDelete.error;
 
     setRecentUploads((prev) =>
       (prev || []).filter((upload) => upload.id !== uploadId)
@@ -23302,7 +23321,6 @@ const handleDeleteUpload = async (uploadId) => {
     alert(`Delete failed: ${err.message}`);
   }
 };
-
 
 const batchPrepIntelligence = (batchPrepData || []).map((batch) => {
   const batchYield = Number(batch.batch_yield || 0);
