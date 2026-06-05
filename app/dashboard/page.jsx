@@ -86,15 +86,17 @@ function GlassCard({ title, value, subtext, featured = false }) {
       <div style={{ fontSize: "12px", color: "#94a3b8" }}>{title}</div>
 
       <div style={{ fontSize: "30px", fontWeight: "800", color: "white" }}>
-        {String(value).includes("/") ? (
-          value
-        ) : (
-          <>
-            {String(value).includes("$") && "$"}
-            <AnimatedNumber value={numericValue || 0} />
-            {String(value).includes("%") && "%"}
-          </>
-        )}
+        {Number.isNaN(numericValue) || !String(value).match(/[0-9]/) ? (
+  value
+) : String(value).includes("/") ? (
+  value
+) : (
+  <>
+    {String(value).includes("$") && "$"}
+    <AnimatedNumber value={numericValue || 0} />
+    {String(value).includes("%") && "%"}
+  </>
+)}
       </div>
 
       {subtext && (
