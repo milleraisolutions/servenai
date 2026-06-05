@@ -1658,7 +1658,11 @@ const getSaleDate = (sale = {}) => {
    💰 REVENUE TRACKER
 ================================= */
 const revenueTracker = useMemo(() => {
-const rawSales = Array.isArray(salesData) ? salesData : [];
+const rawSales = Array.isArray(locationSalesData) && locationSalesData.length
+  ? locationSalesData
+  : Array.isArray(dbSalesRows)
+  ? dbSalesRows
+  : [];
 
   const safeSales = rawSales
     .map((sale) => {
@@ -1766,7 +1770,11 @@ const rawSales = Array.isArray(salesData) ? salesData : [];
 
 
 const revenueTrend = useMemo(() => {
-const rawSales = Array.isArray(salesData) ? salesData : [];
+const rawSales = Array.isArray(locationSalesData) && locationSalesData.length
+  ? locationSalesData
+  : Array.isArray(dbSalesRows)
+  ? dbSalesRows
+  : [];
 
   const safeSales = rawSales
     .map((sale) => {
