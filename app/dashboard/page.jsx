@@ -28061,31 +28061,28 @@ const color = !hasScore
     lineHeight: 1.8,
   }}
 >
-  Restaurant AI Health is currently rated{" "}
-  <strong>{restaurantHealthGrade}</strong> with a score of{" "}
-  <strong>{restaurantHealthScore}/100</strong>. The 30-day forecast is{" "}
-  <strong>
+Restaurant AI Health is currently rated{" "}
+<strong>{restaurantHealthGrade || "Stable"}</strong> with a score of{" "}
+<strong>
   {Number(
-    restaurantHealthProjectedScore ||
-      aiHealthEngine?.projectedScore ||
+    aiHealthEngine?.overallScore ||
+      restaurantHealthScore ||
+      overallAIHealthScore ||
+      liveScore ||
+      75
+  )}/100
+</strong>. The 30-day forecast is{" "}
+<strong>
+  {Number(
+    aiHealthEngine?.projectedScore ||
+      restaurantHealthProjectedScore ||
       restaurantHealthScore ||
       75
   )}/100
 </strong> and trending{" "}
-  <strong>{restaurantHealthTrend}</strong>. AI is prioritizing{" "}
-  <strong>{aiDailyFocus}</strong>. Primary risk detected:{" "}
-  <strong>{restaurantHealthPrimaryRisk}</strong>. Current estimated monthly
-  opportunity is{" "}
-  <strong>
-    $
-    {Number(
-      topHealthActionImpact ||
-        aiActionImpact ||
-        estimatedRecoverableProfit ||
-        0
-    ).toLocaleString()}
-  </strong>
-  .
+<strong>{restaurantHealthTrend || "Stable"}</strong>. AI is prioritizing{" "}
+<strong>{aiDailyFocus || "revenue and menu performance"}</strong>. Primary risk detected:{" "}
+<strong>{restaurantHealthPrimaryRisk || "Revenue momentum"}</strong>.
 </div>
   </div>
 
