@@ -11993,7 +11993,7 @@ console.log("LABOR FIRST ROW TO INSERT:", rowsToInsert?.[0]);
   rows: insertedLaborRows || rowsToInsert,
 };
 setClientImports((prev) => [newLaborUpload, ...(prev || [])]);
-    
+    setRecentUploads((prev) => [newLaborUpload, ...(prev || [])]);
 
     setMessage(`Imported ${rowsToInsert.length} labor rows successfully.`);
     setPendingUploadSummary(null);
@@ -13688,7 +13688,7 @@ const loadClientImports = async () => {
       return;
     }
 
-    const { data, error } = await supabase
+    const { data: uploadsData, error: uploadsError } = await supabase
       .from("uploads")
       .select("*")
       .eq("user_id", user.id)
@@ -13696,17 +13696,38 @@ const loadClientImports = async () => {
       .order("created_at", { ascending: false })
       .limit(10);
 
-    if (error) {
-      console.error("Recent imports fetch error:", error);
-      setClientImports([]);
-      setRecentUploads([]);
-      return;
-    }
+    const { data: laborData, error: laborError } = await supabase
+      .from("labor_uploads")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(50);
 
-    console.log("UPLOADS LOADED FROM SUPABASE:", data);
+    if (uploadsError) throw uploadsError;
+    if (laborError) throw laborError;
 
-    setClientImports(data || []);
-    setRecentUploads(data || []);
+    const normalizedLaborImports = (laborData || []).map((row) => ({
+      id: `labor-${row.id}`,
+      file_name: row.file_name || "Labor Upload",
+      upload_type: "labor",
+      source_name: "labor_upload",
+      row_count: 1,
+      created_at: row.created_at,
+    }));
+
+    const combinedImports = [
+      ...(uploadsData || []),
+      ...normalizedLaborImports,
+    ].sort(
+      (a, b) =>
+        new Date(b.created_at || 0) -
+        new Date(a.created_at || 0)
+    );
+
+    console.log("COMBINED IMPORTS LOADED:", combinedImports);
+
+    setClientImports(combinedImports);
+    setRecentUploads(combinedImports);
   } catch (error) {
     console.error("Recent imports load failed:", error);
     setClientImports([]);
