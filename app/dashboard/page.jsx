@@ -70893,6 +70893,7 @@ console.log("Upload summary saved:", result);
 const {
   data: { user: currentUser },
 } = await supabase.auth.getUser();
+console.log("DELETE CLICKED uploadId:", uploadId);
 
 console.log("CURRENT LOGGED IN EMAIL:", currentUser?.email);
 console.log("CURRENT LOGGED IN USER ID:", currentUser?.id);
