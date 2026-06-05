@@ -40864,7 +40864,13 @@ const color = !hasScore
       {[
         {
           label: "AI Health",
-          value: `${aiHealthEngine?.overallScore || restaurantHealthScore || 0}/100`,
+          value: `${Number(
+  aiHealthEngine?.overallScore ||
+    restaurantHealthScore ||
+    overallAIHealthScore ||
+    liveScore ||
+    75
+)}/100`,
         },
         {
           label: "Recovery Opportunity",
@@ -43579,7 +43585,13 @@ const color = !hasScore
       {[
         {
           label: "AI Health",
-          value: `${aiHealthEngine?.overallScore || restaurantHealthScore || 0}/100`,
+          value: `${Number(
+  aiHealthEngine?.overallScore ||
+    restaurantHealthScore ||
+    overallAIHealthScore ||
+    liveScore ||
+    75
+)}/100`,
           subtext: aiHealthEngine?.grade || "Monitoring",
         },
         {
