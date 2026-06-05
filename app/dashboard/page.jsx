@@ -17463,8 +17463,24 @@ const inventoryHealthScoreData = useMemo(() => {
   inventoryAISummary,
   inventoryAutopilotEnabled,
 ]);
-
 const inventoryExecutiveAlertsFeed = useMemo(() => {
+  const hasInventoryData =
+    (inventoryData || []).length > 0 ||
+    (ingredientsData || []).length > 0 ||
+    (inventoryDepletionData || []).length > 0 ||
+    (locationIngredientsData || []).length > 0;
+
+  if (!hasInventoryData) {
+    return [
+      {
+        title: "Inventory data needed",
+        detail:
+          "Upload inventory or ingredient data to activate inventory health, depletion risk, restock pressure, and revenue exposure alerts.",
+        priority: "Waiting",
+      },
+    ];
+  }
+
   const alerts = [];
 
   if (inventoryHealthScoreData?.score < 60) {
@@ -17536,6 +17552,10 @@ const inventoryExecutiveAlertsFeed = useMemo(() => {
   criticalInventoryItems,
   lowInventoryItems,
   inventoryAISummary,
+  inventoryData,
+  ingredientsData,
+  inventoryDepletionData,
+  locationIngredientsData,
 ]);
 
 const deadInventoryData = useMemo(() => {
