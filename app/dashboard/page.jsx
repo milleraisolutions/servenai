@@ -9589,13 +9589,13 @@ useEffect(() => {
 
     if (!user?.id) return;
 
-    let menuItemsQuery = supabase
+  let menuItemsQuery = supabase
   .from("menu_items")
   .select("*")
-  .eq("user_id", dataOwnerId)
+  .eq("user_id", user.id)
   .eq("is_active", true);
 
-menuItemsQuery = applyLocationFilter(menuItemsQuery);
+// menuItemsQuery = applyLocationFilter(menuItemsQuery);
 
 const { data, error } = await menuItemsQuery;
 
