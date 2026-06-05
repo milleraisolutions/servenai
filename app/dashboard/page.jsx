@@ -13428,9 +13428,7 @@ const isManager =
   userRole === "kitchen_manager" ||
   userRole === "gm" ||
   userRole === "executive";
-const canSeeOwnerDashboard =
-  isOwnerRole ||
-  isRestaurantOwner;
+const canSeeOwnerDashboard = isOwnerRole;
 
 const canSeeManagerDashboard =
   isManager && !canSeeOwnerDashboard;
@@ -23867,7 +23865,7 @@ return (
 {/* ================================ */}
 {activeTab === "overview" && (
   <>
-  {(canSeeOwnerDashboard || canSeeManagerDashboard) && (
+  {canSeeManagerDashboard && (
   <>
     {/* WELCOME / UPLOAD SECTION HERE */}
   
