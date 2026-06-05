@@ -11848,6 +11848,9 @@ const menuEngineeringInsight =
     : "Menu profitability looks healthy based on current menu engineering analysis.";
 
 const handleImportLabor = async () => {
+   console.log("LABOR CONFIRM CLICKED");
+  console.log("PENDING SUMMARY:", pendingUploadSummary);
+  console.log("LABOR DATA STATE:", laborData);
   try {
     const {
       data: { user },
@@ -11877,6 +11880,7 @@ const handleImportLabor = async () => {
     : laborData || [];
 
 console.log("LABOR ROWS FOUND:", laborRows);
+console.log("LABOR FIRST ROW FOUND:", laborRows?.[0]);
 
 const rowsToInsert = laborRows.map((row) => {
       const rawShift =
