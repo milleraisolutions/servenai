@@ -40805,6 +40805,11 @@ const color = !hasScore
    AI COMMAND CENTER HEADER
 ========================= */}
 
+
+{console.log("AI COMMAND HEALTH:", {
+  overallScore: aiHealthEngine?.overallScore,
+  restaurantHealthScore,
+})}
 {hasProAccess && (
   <div
     style={{
