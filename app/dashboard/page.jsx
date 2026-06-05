@@ -16873,6 +16873,24 @@ let score = 100;
 ]);
 
 const beverageAlertsFeed = useMemo(() => {
+  const hasBeverageData =
+    (beverageItems || []).length > 0 ||
+    (beverageUsage || []).length > 0 ||
+    (beverageSalesData || []).length > 0 ||
+    (alcoholInventoryData || []).length > 0 ||
+    (shiftLevelBeverageData || []).length > 0;
+
+  if (!hasBeverageData) {
+    return [
+      {
+        title: "Beverage data needed",
+        detail:
+          "Upload beverage sales, alcohol inventory, or bartender variance data to activate beverage alerts.",
+        priority: "Waiting",
+      },
+    ];
+  }
+
   const alerts = [];
 
   if (Number(alcoholVariancePercent || 0) > 8) {
@@ -16958,6 +16976,11 @@ const beverageAlertsFeed = useMemo(() => {
   kegIntelligenceData,
   bartenderVarianceData,
   happyHourProfitabilityData,
+  beverageItems,
+  beverageUsage,
+  beverageSalesData,
+  alcoholInventoryData,
+  shiftLevelBeverageData,
 ]);
 
 const shiftLevelBeverageInsight = useMemo(() => {
