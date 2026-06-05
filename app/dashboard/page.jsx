@@ -5161,7 +5161,7 @@ const handleFileUpload = async (e) => {
   setMessage(
     `Labor file loaded: ${cleanedLaborRows.length} rows ready to import.`
   );
-}
+
 } else if (activeUploadType === "invoices") {
   setPendingUploadSummary({
     fileName: file.name,
