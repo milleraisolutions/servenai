@@ -17491,8 +17491,12 @@ const laborAlertsFeed = useMemo(() => {
 ]);
 
 const overtimeRiskData = useMemo(() => {
+  console.log("OVERTIME USEMEMO RUNNING");
+  console.log("OVERTIME LABOR DATA COUNT:", laborData?.length);
+
   const rows = laborData || [];
-console.log("OVERTIME SAMPLE ROW:", rows?.[0]);
+
+  console.log("OVERTIME SAMPLE ROW:", rows?.[0]);
   const employeeMap = rows.reduce((acc, row, index) => {
     const name =
       row.employee_name ||
