@@ -10200,9 +10200,8 @@ const { data, error } = await uploadsQuery.order("created_at", {
       return;
     }
 
-    console.log("CLIENT IMPORTS:", data);
-    setClientImports(data || []);
-setRecentUploads(data || []);
+    console.log("CLIENT IMPORTS SKIPPED:", data);
+await loadClientImports();
   } catch (err) {
     console.error("fetchClientImports crashed:", err);
   } finally {
