@@ -12234,6 +12234,7 @@ source_name: "labor_upload",
       return;
     }
 console.log("LABOR FIRST ROW TO INSERT:", rowsToInsert?.[0]);
+console.log("LABOR SAMPLE ROWS:", rowsToInsert?.slice(0, 5));
     const { data: insertedLaborRows, error } = await supabase
       .from("labor_uploads")
       .insert(rowsToInsert)
