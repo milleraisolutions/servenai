@@ -10849,7 +10849,8 @@ const shiftOperationalData = shiftPerformanceArray.map((shift) => {
     status,
   };
 });
-
+console.log("SHIFT PERFORMANCE ARRAY FINAL:", shiftPerformanceArray);
+console.log("SHIFT OPERATIONAL DATA FINAL:", shiftOperationalData);
 const weakestShift =
   [...shiftOperationalData]
     .filter((shift) => Number(shift.revenue || 0) > 0)
@@ -17611,7 +17612,7 @@ const laborForecastingData = useMemo(() => {
     };
   });
 }, [shiftOperationalData]);
-
+console.log("LABOR FORECASTING DATA FINAL:", laborForecastingData);
 const laborExecutiveSummary = useMemo(() => {
   const healthScore = laborHealthScoreData?.score || 0;
 
