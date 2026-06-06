@@ -23904,19 +23904,26 @@ const createdAtFromId = uploadIdString.includes("-2026-")
     }
 
 
+const {
+  data: { user },
+} = await supabase.auth.getUser();
 
-let laborDeleteQuery = supabase.from("labor_uploads").delete();
-
-if (fileName) {
-  laborDeleteQuery = laborDeleteQuery.eq("file_name", fileName);
-}
 console.log("LABOR DELETE DEBUG", {
   fileName,
   createdAtFromId,
+  userId: user?.id,
+  dataOwnerId,
 });
 
-const { error: laborFileDeleteError } = await laborDeleteQuery;
-console.log("LABOR DELETE RESULT", laborFileDeleteError);
+const { data: deletedLaborRows, error: laborFileDeleteError } = await supabase
+  .from("labor_uploads")
+  .delete()
+  .eq("user_id", dataOwnerId || user?.id)
+  .eq("file_name", fileName)
+  .select("id,file_name,created_at,user_id");
+
+console.log("DELETED LABOR ROWS:", deletedLaborRows);
+console.log("LABOR DELETE ERROR:", laborFileDeleteError);
     if (laborFileDeleteError) {
       console.error("Labor file delete failed:", laborFileDeleteError);
       alert(`Labor delete failed: ${laborFileDeleteError.message}`);
@@ -23931,14 +23938,8 @@ console.log("LABOR DELETE RESULT", laborFileDeleteError);
       (prev || []).filter((item) => item.id !== uploadId)
     );
 
-    setLaborData((prev) =>
-  (prev || []).filter((row) => {
-    if (createdAtFromId) {
-      return row.created_at !== createdAtFromId;
-    }
-
-    return row.file_name !== fileName;
-  })
+setLaborData((prev) =>
+  (prev || []).filter((row) => row.file_name !== fileName)
 );
 
     setMessage("Labor import deleted.");
