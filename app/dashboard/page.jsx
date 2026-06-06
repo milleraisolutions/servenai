@@ -58819,35 +58819,53 @@ maxWidth: "100%",
       }}
     >
       <GlassCard
-        title="Employees Tracked"
-        value={employees.length}
-        subtitle="Active staff profiles"
+        title="Labor Rows"
+value={(laborData || []).length}
+subtitle="Labor records imported"
       />
 
       <GlassCard
-        title="Shifts Uploaded"
-        value={employeeShifts.length}
-        subtitle="Labor shifts analyzed"
+       title="Shifts Tracked"
+value={(laborData || []).length}
+subtitle="Labor shifts analyzed"
       />
 
       <GlassCard
         title="Total Labor Cost"
-        value={`$${employeeShifts
-          .reduce((sum, shift) => sum + Number(shift.labor_cost || 0), 0)
-          .toFixed(0)}`}
+        value={`$${(laborData || [])
+  .reduce(
+    (sum, row) =>
+      sum +
+      Number(
+        row.labor_cost ||
+          row["labor cost"] ||
+          row.cost ||
+          0
+      ),
+    0
+  )
+  .toLocaleString()}`}
         subtitle="Uploaded shift labor cost"
       />
 
-      <GlassCard
-        title="Avg Labor / Shift"
-        value={`$${(
-          employeeShifts.reduce(
-            (sum, shift) => sum + Number(shift.labor_cost || 0),
+     <GlassCard
+  title="Avg Labor / Shift"
+  value={`$${(
+    (laborData || []).reduce(
+      (sum, row) =>
+        sum +
+        Number(
+          row.labor_cost ||
+            row["labor cost"] ||
+            row.cost ||
             0
-          ) / (employeeShifts.length || 1)
-        ).toFixed(0)}`}
-        subtitle="Average labor cost per shift"
-      />
+        ),
+      0
+    ) /
+    ((laborData || []).length || 1)
+  ).toFixed(0)}`}
+  subtitle="Average labor cost per shift"
+/>
     </div>
 
     <div style={{ marginTop: "18px", display: "grid", gap: "14px" }}>
