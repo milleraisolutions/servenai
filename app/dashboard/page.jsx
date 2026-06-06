@@ -13718,18 +13718,34 @@ const loadClientImports = async () => {
     if (uploadsError) throw uploadsError;
     if (laborError) throw laborError;
 
-    const normalizedLaborImports = (laborData || []).map((row) => ({
-      id: `labor-${row.id}`,
-      file_name: row.file_name || "Labor Upload",
-      upload_type: "labor",
-      source_name: "labor_upload",
-      row_count: 1,
-      created_at: row.created_at,
-    }));
+   const laborGroupedByFile = Object.values(
+  (laborData || []).reduce((acc, row) => {
+    const key = row.file_name || "Labor Upload";
+
+    if (!acc[key]) {
+      acc[key] = {
+        id: `labor-file-${key}-${row.created_at}`,
+        file_name: row.file_name || "Labor Upload",
+        upload_type: "labor",
+        source_name: "labor_upload",
+        row_count: 0,
+        created_at: row.created_at,
+      };
+    }
+
+    acc[key].row_count += 1;
+
+    if (new Date(row.created_at) > new Date(acc[key].created_at)) {
+      acc[key].created_at = row.created_at;
+    }
+
+    return acc;
+  }, {})
+);
 
     const combinedImports = [
       ...(uploadsData || []),
-      ...normalizedLaborImports,
+     ...laborGroupedByFile,
     ].sort(
       (a, b) =>
         new Date(b.created_at || 0) -
@@ -24502,7 +24518,16 @@ if (currentType === "menu_items") {
         fontWeight: "900",
       }}
     >
-      {clientImports.length} Total Imports
+     {[
+  ...new Map(
+    (clientImports || []).map((item) => [
+      item.source_name === "labor_upload"
+        ? `labor-${item.file_name || "Labor Upload"}`
+        : item.id,
+      item,
+    ])
+  ).values(),
+].length} Total Imports
     </div>
   </div>
 
@@ -24547,8 +24572,17 @@ if (currentType === "menu_items") {
         gap: "12px",
       }}
     >
-      {clientImports
-        .sort(
+      {[
+  ...new Map(
+    (clientImports || []).map((item) => [
+      item.source_name === "labor_upload"
+        ? `labor-${item.file_name || "Labor Upload"}`
+        : item.id,
+      item,
+    ])
+  ).values(),
+]
+  .sort(
           (a, b) =>
             new Date(b.created_at || 0) -
             new Date(a.created_at || 0)
