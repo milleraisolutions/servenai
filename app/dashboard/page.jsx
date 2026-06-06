@@ -10716,10 +10716,7 @@ const laborEfficiencyInsight =
 /* =========================
    SHIFT PERFORMANCE INTELLIGENCE
 ========================= */
-console.log("SHIFT SALES ROWS COUNT:", shiftSalesRows.length);
-console.log("SHIFT SALES FIRST ROW:", shiftSalesRows?.[0]);
-console.log("SHIFT LABOR ROWS COUNT:", (locationLaborData || laborData || []).length);
-console.log("SHIFT LABOR FIRST ROW:", (locationLaborData || laborData || [])?.[0]);
+
 const shiftPerformanceData = (locationSalesData || []).reduce(
   (acc, sale) => {
     const saleHour =
@@ -10768,6 +10765,10 @@ const shiftSalesRows =
   (locationSalesData || []).length > 0
     ? locationSalesData
     : salesData || [];
+    console.log("SHIFT SALES ROWS COUNT:", shiftSalesRows.length);
+console.log("SHIFT SALES FIRST ROW:", shiftSalesRows?.[0]);
+console.log("SHIFT LABOR ROWS COUNT:", (locationLaborData || laborData || []).length);
+console.log("SHIFT LABOR FIRST ROW:", (locationLaborData || laborData || [])?.[0]);
 const shiftPerformanceArray =
   Object.values(shiftPerformanceData);
 
