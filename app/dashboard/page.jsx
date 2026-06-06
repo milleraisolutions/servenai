@@ -10743,8 +10743,7 @@ const totalShiftRevenue = shiftSalesRows.reduce(
     ),
   0
 );
-console.log("SHIFT TOTAL REVENUE DEBUG:", totalShiftRevenue);
-console.log("SHIFT SALES ROW SAMPLE:", shiftSalesRows?.slice(0, 3));
+
 const totalShiftLaborCost = shiftLaborRows.reduce(
   (sum, row) =>
     sum +
@@ -10758,6 +10757,7 @@ const totalShiftLaborCost = shiftLaborRows.reduce(
     ),
   0
 );
+
 
 const shiftPerformanceData = shiftLaborRows.reduce((acc, row) => {
   const shiftLabel =
