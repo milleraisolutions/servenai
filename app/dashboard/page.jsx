@@ -17492,7 +17492,7 @@ const laborAlertsFeed = useMemo(() => {
 
 const overtimeRiskData = useMemo(() => {
   const rows = laborData || [];
-
+console.log("OVERTIME SAMPLE ROW:", rows?.[0]);
   const employeeMap = rows.reduce((acc, row, index) => {
     const name =
       row.employee_name ||
