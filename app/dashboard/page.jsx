@@ -3465,30 +3465,50 @@ const projectedRevenueLift = useMemo(() => {
   };
 }, [totalRevenue, topAiActions, appliedFixes, revenueScenario]);
 const weeklyChangeSummary = useMemo(() => {
-  const currentWeekRevenue = Number(revenueTrend?.currentWeekRevenue || 0);
+  const currentWeekRevenue =
+  Number(revenueTrend?.currentWeekRevenue || 0) ||
+  Number(revenueTracker?.weekRevenue || 0) ||
+  Number(liveTotalRevenue || 0);
+
   const lastWeekRevenue = Number(revenueTrend?.lastWeekRevenue || 0);
+
   const revenueDelta = currentWeekRevenue - lastWeekRevenue;
+
   const revenueDeltaPercent =
     lastWeekRevenue > 0 ? (revenueDelta / lastWeekRevenue) * 100 : 0;
 
   const marginNow = Number(avgMargin || 0);
   const foodCostNow = Number(foodCostPercentage || 0);
+  const laborCostNow = 0;
 
   let headline = "Operations are holding steady this week.";
-  let focus = "Maintain current performance and keep monitoring AI opportunities.";
+  let focus =
+    "Maintain current performance and keep monitoring AI opportunities.";
 
-  if (revenueDelta > 0 && marginNow >= 60) {
+  if (laborCostNow > 28) {
+    headline = "Labor cost pressure is the biggest operational risk this week.";
+    focus = `Labor is running at ${laborCostNow.toFixed(
+      1
+    )}% of weekly revenue. Review staffing levels, overtime exposure, and schedule coverage first.`;
+  } else if (revenueDelta > 0 && marginNow >= 60) {
     headline = "Revenue and margins improved this week.";
-    focus = "AI is seeing healthy momentum. Focus on scaling top-performing actions.";
+    focus =
+      "AI is seeing healthy momentum. Focus on scaling top-performing actions.";
   } else if (revenueDelta > 0 && foodCostNow > 30) {
     headline = "Revenue is up, but food cost pressure is rising.";
-    focus = "Protect gains by tightening purchasing, waste, and portion control.";
+    focus =
+      "Protect gains by tightening purchasing, waste, and portion control.";
   } else if (revenueDelta < 0 && marginNow < 60) {
     headline = "Revenue softened and margin is under pressure.";
     focus = "Prioritize pricing corrections and low-margin item fixes first.";
   } else if (foodCostNow > 30) {
     headline = "Food cost is the biggest drag on this week’s performance.";
-    focus = "Supplier monitoring and food cost controls should be your top priority.";
+    focus =
+      "Supplier monitoring and food cost controls should be your top priority.";
+  } else if (laborCostNow > 0) {
+    focus = `Labor cost is currently ${laborCostNow.toFixed(
+      1
+    )}% of weekly revenue. SerVen is monitoring labor efficiency, sales per labor hour, and staffing risk.`;
   }
 
   return {
@@ -3498,10 +3518,17 @@ const weeklyChangeSummary = useMemo(() => {
     revenueDeltaPercent,
     marginNow,
     foodCostNow,
+    laborCostNow,
     headline,
     focus,
   };
-}, [revenueTrend, avgMargin, foodCostPercentage]);
+}, [
+  revenueTrend,
+  revenueTracker,
+  avgMargin,
+  foodCostPercentage,
+  liveTotalRevenue,
+]);
 const topRisksThisWeek = useMemo(() => {
   const risks = [];
 
@@ -10539,7 +10566,6 @@ const effectiveLaborCostPercent =
     : 0;
 console.log("LABOR COST % DEBUG", {
   totalLaborCost,
-  laborRevenueBase,
   liveTotalRevenue,
   weekRevenue: revenueTracker?.weekRevenue,
   effectiveLaborCostPercent,
