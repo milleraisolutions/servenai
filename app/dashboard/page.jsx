@@ -10762,8 +10762,12 @@ const shiftPerformanceData = (locationSalesData || []).reduce(
   {}
 );
 const shiftSalesRows =
-  (locationSalesData || []).length > 0
+  dbSalesRows?.length
+    ? dbSalesRows
+    : locationSalesData?.length
     ? locationSalesData
+    : pendingUploadRows?.length
+    ? pendingUploadRows
     : salesData || [];
     console.log("SHIFT SALES ROWS COUNT:", shiftSalesRows.length);
 console.log("SHIFT SALES FIRST ROW:", shiftSalesRows?.[0]);
