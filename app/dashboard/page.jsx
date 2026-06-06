@@ -17582,9 +17582,8 @@ const laborForecastingData = useMemo(() => {
     const laborCost = Number(shift.laborCost || 0);
     const laborPercent = Number(shift.laborPercent || 0);
     const orders = Number(shift.orders || 0);
-
-    const projectedRevenue = revenue * 1.08;
-    const projectedLaborCost = laborCost * 1.06;
+const projectedRevenue = revenue;
+const projectedLaborCost = laborCost * 1.06;
 
     const projectedLaborPercent =
       projectedRevenue > 0 ? (projectedLaborCost / projectedRevenue) * 100 : 0;
