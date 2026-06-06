@@ -17695,7 +17695,10 @@ const laborAlertsFeed = useMemo(() => {
 ]);
 
 const overtimeRiskData = useMemo(() => {
-  const rows = laborData || [];
+  const rows =
+  locationLaborData?.length
+    ? locationLaborData
+    : laborData || [];
 
   const overtimeRows = rows
     .map((row, index) => {
@@ -17754,7 +17757,7 @@ const overtimeRiskData = useMemo(() => {
       Number(b.estimatedOvertimeCost || 0) -
       Number(a.estimatedOvertimeCost || 0)
   );
-}, [laborData]);
+}, [laborData, locationLaborData]);
 
 const laborForecastingData = useMemo(() => {
   const shifts = shiftOperationalData || [];
