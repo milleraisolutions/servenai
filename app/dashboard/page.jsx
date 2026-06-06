@@ -13786,7 +13786,35 @@ const deleteImport = async (uploadId) => {
   );
 
   if (!confirmed) return;
+if (String(uploadId).startsWith("labor-")) {
+  const laborId = String(uploadId).replace("labor-", "");
 
+  const { error } = await supabase
+    .from("labor_uploads")
+    .delete()
+    .eq("id", laborId);
+
+  if (error) {
+    console.error("Labor delete failed:", error);
+    alert(`Labor delete failed: ${error.message}`);
+    return;
+  }
+
+  setClientImports((prev) =>
+    (prev || []).filter((item) => item.id !== uploadId)
+  );
+
+  setRecentUploads((prev) =>
+    (prev || []).filter((item) => item.id !== uploadId)
+  );
+
+  setLaborData((prev) =>
+    (prev || []).filter((row) => row.id !== laborId)
+  );
+
+  setMessage("Labor import deleted.");
+  return;
+}
   const { error } = await supabase
     .from("uploads")
     .delete()
