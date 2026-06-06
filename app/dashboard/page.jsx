@@ -58874,11 +58874,11 @@ subtitle="Labor shifts analyzed"
     </div>
 
     <div style={{ marginTop: "18px", display: "grid", gap: "14px" }}>
-      {employeeShifts.length > 0 ? (
-        employeeShifts.slice(0, 8).map((shift) => {
-          const employee = employees.find(
-            (item) => item.id === shift.employee_id
-          );
+  {false && employeeShifts.length > 0 ? (
+    employeeShifts.slice(0, 8).map((shift) => {
+      const employee = employees.find(
+        (item) => item.id === shift.employee_id
+      );
 
           const laborEfficiency =
             Number(shift.revenue_during_shift || 0) > 0
@@ -59075,11 +59075,11 @@ subtitle="Labor shifts analyzed"
     gap: "14px",
   }}
 >
-  {employeeShifts.length > 0 ? (
-    employeeShifts.slice(0, 6).map((shift) => {
-      const employee = employees.find(
-        (item) => item.id === shift.employee_id
-      );
+ {false && employeeShifts.length > 0 ? (
+  employeeShifts.slice(0, 6).map((shift) => {
+    const employee = employees.find(
+      (item) => item.id === shift.employee_id
+    );
 
       const laborEfficiency =
         Number(shift.revenue_during_shift || 0) > 0
