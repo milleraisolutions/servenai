@@ -10524,8 +10524,7 @@ const totalLaborCost = (locationLaborData || []).reduce(
 
 const laborRevenueBase =
   Number(revenueTracker?.weekRevenue || 0) ||
-  Number(thisWeekRevenue || 0) ||
-  Number(currentWeekRevenue || 0) ||
+  Number(revenueTrend?.currentWeekRevenue || 0) ||
   Number(liveTotalRevenue || 0);
 
 const effectiveLaborCostPercent =
