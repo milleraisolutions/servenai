@@ -10771,29 +10771,27 @@ const topShift =
   )[0] || null;
 const shiftLaborData = (locationLaborData || laborData || []).reduce(
   (acc, entry) => {
-    const laborHour = new Date(
-      entry.shift_date ||
-        entry.created_at ||
-        entry.date ||
-        Date.now()
-    ).getHours();
-
-    let shiftLabel = "Late Night";
-
-    if (laborHour >= 5 && laborHour < 11) {
-      shiftLabel = "Breakfast";
-    } else if (laborHour >= 11 && laborHour < 16) {
-      shiftLabel = "Lunch";
-    } else if (laborHour >= 16 && laborHour < 21) {
-      shiftLabel = "Dinner";
-    }
+    const shiftLabel =
+      entry.shift ||
+      entry.Shift ||
+      entry.daypart ||
+      entry.Daypart ||
+      "Unknown Shift";
 
     const laborCost = Number(
       entry.labor_cost ||
+        entry.laborCost ||
         entry.cost ||
-        entry.payroll_cost ||
-        entry.total_cost ||
-        entry.wages ||
+        entry.Cost ||
+        entry["Labor Cost"] ||
+        0
+    );
+
+    const hours = Number(
+      entry.hours_worked ||
+        entry.hours ||
+        entry.Hours ||
+        entry["Hours Worked"] ||
         0
     );
 
@@ -10801,10 +10799,14 @@ const shiftLaborData = (locationLaborData || laborData || []).reduce(
       acc[shiftLabel] = {
         shift: shiftLabel,
         laborCost: 0,
+        hours: 0,
+        rows: 0,
       };
     }
 
     acc[shiftLabel].laborCost += laborCost;
+    acc[shiftLabel].hours += hours;
+    acc[shiftLabel].rows += 1;
 
     return acc;
   },
