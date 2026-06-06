@@ -5319,22 +5319,43 @@ const handleImportMappedSales = async () => {
           row.Day ||
           null;
 
-        const rawRevenue =
-          row.revenue ||
-          row.Revenue ||
-          row.sales ||
-          row.Sales ||
-          row["Net Sales"] ||
-          row["Gross Sales"] ||
-          0;
+       const rawRevenue =
+  row.revenue ||
+  row.Revenue ||
+  row.sales ||
+  row.Sales ||
+  row.total_sales ||
+  row.totalSales ||
+  row["Total Sales"] ||
+  row.net_sales ||
+  row.netSales ||
+  row["Net Sales"] ||
+  row.gross_sales ||
+  row.grossSales ||
+  row["Gross Sales"] ||
+  row.amount ||
+  row.Amount ||
+  row.total ||
+  row.Total ||
+  0;
 
         const rawOrders =
-          row.orders_count ||
-          row.orders ||
-          row.Orders ||
-          row["Order Count"] ||
-          row["Guest Count"] ||
-          0;
+  row.orders_count ||
+  row.ordersCount ||
+  row.orders ||
+  row.Orders ||
+  row.order_count ||
+  row["Order Count"] ||
+  row.check_count ||
+  row["Check Count"] ||
+  row.ticket_count ||
+  row["Ticket Count"] ||
+  row.transactions ||
+  row.Transactions ||
+  row["Guest Count"] ||
+  row.guests ||
+  row.Guests ||
+  0;
 
         const rawLabor =
           row.labor ||
@@ -5342,7 +5363,43 @@ const handleImportMappedSales = async () => {
           row.Labor ||
           row["Labor Cost"] ||
           0;
+const rawShift =
+  row.shift ||
+  row.Shift ||
+  row.daypart ||
+  row.Daypart ||
+  row["Day Part"] ||
+  row.meal_period ||
+  row["Meal Period"] ||
+  row.service_period ||
+  row["Service Period"] ||
+  "";
 
+const rawTime =
+  row.time ||
+  row.Time ||
+  row.order_time ||
+  row["Order Time"] ||
+  row.check_time ||
+  row["Check Time"] ||
+  row.closed_time ||
+  row["Closed Time"] ||
+  row.opened_time ||
+  row["Opened Time"] ||
+  row.hour ||
+  row.Hour ||
+  "";
+
+const rawLocation =
+  row.location ||
+  row.Location ||
+  row.store ||
+  row.Store ||
+  row.restaurant ||
+  row.Restaurant ||
+  row.location_name ||
+  row["Location Name"] ||
+  null;
         return {
           user_id: user.id,
           sale_date: rawDate
@@ -5351,8 +5408,13 @@ const handleImportMappedSales = async () => {
           revenue: Number(String(rawRevenue).replace(/[$,]/g, "") || 0),
           orders_count: Number(String(rawOrders).replace(/[,]/g, "") || 0),
           labor: Number(String(rawLabor).replace(/[$,]/g, "") || 0),
-          source_name: selectedDataSource || "Manual Upload",
-          location_id: selectedUploadLocationId || null,
+
+shift: rawShift || null,
+order_time: rawTime || null,
+location_name: rawLocation,
+
+source_name: selectedDataSource || "Manual Upload",
+location_id: selectedUploadLocationId || null,
         };
       })
       .filter((row) => row.sale_date && row.revenue > 0);
