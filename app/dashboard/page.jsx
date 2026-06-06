@@ -17498,12 +17498,14 @@ const overtimeRiskData = useMemo(() => {
 
   console.log("OVERTIME SAMPLE ROW:", rows?.[0]);
   const employeeMap = rows.reduce((acc, row, index) => {
-    const name =
-      row.employee_name ||
-      row.name ||
-      row.staff_name ||
-      row.employee ||
-      `Employee ${index + 1}`;
+   const name =
+  row.employee_name ||
+  row.employee ||
+  row.name ||
+  row.staff_name ||
+  `${row.role || "Staff"} • ${row.location || "Unknown"} • ${
+    row.shift || "Shift"
+  }`;
 
     const hours = Number(
       row.hours ||
@@ -17539,14 +17541,13 @@ const overtimeRiskData = useMemo(() => {
     .map((employee) => {
       let status = "Controlled";
 
-      if (employee.hours >= 40) {
-        status = "Overtime";
-      } else if (employee.hours >= 36) {
-        status = "At Risk";
-      } else if (employee.hours >= 32) {
-        status = "Monitor";
-      }
-
+     if (employee.hours >= 45) {
+  status = "Overtime";
+} else if (employee.hours >= 38) {
+  status = "At Risk";
+} else if (employee.hours >= 32) {
+  status = "Monitor";
+}
       const projectedOvertimeHours =
         employee.hours > 40 ? employee.hours - 40 : 0;
 
