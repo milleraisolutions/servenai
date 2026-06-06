@@ -23855,35 +23855,39 @@ const handleDeleteUpload = async (uploadId) => {
   ) {
     const laborId = uploadIdString.replace("labor-", "");
 
-    const { error: laborDeleteError } = await supabase
-      .from("labor_uploads")
-      .delete()
-      .eq("id", laborId);
+  const { error: laborDeleteError } = await supabase
+  .from("labor_uploads")
+  .delete()
+  .eq("id", laborId);
 
-    if (laborDeleteError) {
-      console.error("Labor delete failed:", laborDeleteError);
-      alert(`Labor delete failed: ${laborDeleteError.message}`);
-      return;
-    }
+if (laborDeleteError) {
+  console.error("Labor delete failed:", laborDeleteError);
+  alert(`Labor delete failed: ${laborDeleteError.message}`);
+  return;
+}
 
-    setClientImports((prev) =>
-      (prev || []).filter((item) => item.id !== uploadId)
-    );
+setClientImports((prev) =>
+  (prev || []).filter((item) => item.id !== uploadId)
+);
 
-    setRecentUploads((prev) =>
-      (prev || []).filter((item) => item.id !== uploadId)
-    );
+setRecentUploads((prev) =>
+  (prev || []).filter((item) => item.id !== uploadId)
+);
 
-    setLaborData((prev) => (prev || []).filter((row) => row.id !== laborId));
+setLaborData((prev) =>
+  (prev || []).filter((row) => row.id !== laborId)
+);
 
-    setMessage("Labor import deleted.");
-    return;
+setMessage("Labor import deleted.");
+return;
   }
 
   // ✅ LABOR FILE DELETE: handles labor-file-<filename>-<created_at>
   if (uploadIdString.startsWith("labor-file-")) {
     const laborFileKey = uploadIdString.replace("labor-file-", "");
-
+const createdAtFromId = uploadIdString.includes("-2026-")
+  ? `2026-${uploadIdString.split("-2026-")[1]}`
+  : null;
     const allImports = [...(clientImports || []), ...(recentUploads || [])];
 
     const laborMatch = allImports.find((item) => item.id === uploadId);
@@ -23899,10 +23903,19 @@ const handleDeleteUpload = async (uploadId) => {
       return;
     }
 
-    const { error: laborFileDeleteError } = await supabase
-      .from("labor_uploads")
-      .delete()
-      .eq("file_name", fileName);
+
+
+let laborDeleteQuery = supabase.from("labor_uploads").delete();
+
+if (fileName) {
+  laborDeleteQuery = laborDeleteQuery.eq("file_name", fileName);
+}
+
+if (createdAtFromId) {
+  laborDeleteQuery = laborDeleteQuery.eq("created_at", createdAtFromId);
+}
+
+const { error: laborFileDeleteError } = await laborDeleteQuery;
 
     if (laborFileDeleteError) {
       console.error("Labor file delete failed:", laborFileDeleteError);
@@ -23919,8 +23932,14 @@ const handleDeleteUpload = async (uploadId) => {
     );
 
     setLaborData((prev) =>
-      (prev || []).filter((row) => row.file_name !== fileName)
-    );
+  (prev || []).filter((row) => {
+    if (createdAtFromId) {
+      return row.created_at !== createdAtFromId;
+    }
+
+    return row.file_name !== fileName;
+  })
+);
 
     setMessage("Labor import deleted.");
     return;
