@@ -10289,6 +10289,15 @@ uploadsQuery = applyLocationFilter(uploadsQuery);
 const { data, error } = await uploadsQuery.order("created_at", {
   ascending: false,
 });
+const { data: laborRows, error: laborError } = await supabase
+  .from("labor_uploads")
+  .select("*")
+  .eq("user_id", dataOwnerId)
+  .order("created_at", { ascending: false });
+
+if (laborError) {
+  console.error("LABOR IMPORTS LOAD ERROR:", laborError);
+}
 
     if (error) {
       console.error("CLIENT IMPORTS LOAD ERROR:", error);
@@ -13963,7 +13972,7 @@ const loadClientImports = async () => {
       .select("*")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
-      .limit(50);
+      .limit(1000);
 
     if (uploadsError) throw uploadsError;
     if (laborError) throw laborError;
