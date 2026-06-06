@@ -23914,7 +23914,11 @@ if (fileName) {
 if (createdAtFromId) {
   laborDeleteQuery = laborDeleteQuery.eq("created_at", createdAtFromId);
 }
-
+console.log("LABOR DELETE DEBUG", {
+  fileName,
+  createdAtFromId,
+});
+console.log("LABOR DELETE RESULT", laborFileDeleteError);
 const { error: laborFileDeleteError } = await laborDeleteQuery;
 
     if (laborFileDeleteError) {
