@@ -10522,17 +10522,21 @@ const totalLaborCost = (locationLaborData || []).reduce(
 );const effectiveFoodCostPercent =
   Number(foodCostPercentage || 0);
 
+const laborRevenueBase =
+  Number(revenueTracker?.weekRevenue || 0) ||
+  Number(thisWeekRevenue || 0) ||
+  Number(currentWeekRevenue || 0) ||
+  Number(liveTotalRevenue || 0);
+
 const effectiveLaborCostPercent =
-  Number(liveTotalRevenue || 0) > 0
-    ? (
-        (Number(totalLaborCost || 0) /
-          Number(liveTotalRevenue || 0)) *
-        100
-      )
+  Number(laborRevenueBase || 0) > 0
+    ? (Number(totalLaborCost || 0) / Number(laborRevenueBase || 0)) * 100
     : 0;
 console.log("LABOR COST % DEBUG", {
   totalLaborCost,
+  laborRevenueBase,
   liveTotalRevenue,
+  weekRevenue: revenueTracker?.weekRevenue,
   effectiveLaborCostPercent,
 });
 const estimatedCOGS =
