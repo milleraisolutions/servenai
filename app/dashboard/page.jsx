@@ -23918,9 +23918,9 @@ console.log("LABOR DELETE DEBUG", {
   fileName,
   createdAtFromId,
 });
-console.log("LABOR DELETE RESULT", laborFileDeleteError);
-const { error: laborFileDeleteError } = await laborDeleteQuery;
 
+const { error: laborFileDeleteError } = await laborDeleteQuery;
+console.log("LABOR DELETE RESULT", laborFileDeleteError);
     if (laborFileDeleteError) {
       console.error("Labor file delete failed:", laborFileDeleteError);
       alert(`Labor delete failed: ${laborFileDeleteError.message}`);
