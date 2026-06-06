@@ -17491,79 +17491,65 @@ const laborAlertsFeed = useMemo(() => {
 ]);
 
 const overtimeRiskData = useMemo(() => {
-  console.log("OVERTIME USEMEMO RUNNING");
-  console.log("OVERTIME LABOR DATA COUNT:", laborData?.length);
-
   const rows = laborData || [];
 
-  console.log("OVERTIME SAMPLE ROW:", rows?.[0]);
-  const employeeMap = rows.reduce((acc, row, index) => {
-   const name =
-  row.employee_name ||
-  row.employee ||
-  row.name ||
-  row.staff_name ||
-  `${row.role || "Staff"} • ${row.location || "Unknown"} • ${
-    row.shift || "Shift"
-  }`;
+  const overtimeRows = rows
+    .map((row, index) => {
+      const hours = Number(
+        row.overtime_hours ||
+          row.overtimeHours ||
+          row["Overtime Hours"] ||
+          row.ot_hours ||
+          row["OT Hours"] ||
+          0
+      );
 
-    const hours = Number(
-      row.hours ||
-        row.hours_worked ||
-        row.total_hours ||
-        row.shift_hours ||
-        0
-    );
-
-    const laborCost = Number(
-      row.labor_cost ||
-        row.cost ||
-        row.total_cost ||
-        row.wages ||
-        0
-    );
-
-    if (!acc[name]) {
-      acc[name] = {
-        name,
-        hours: 0,
-        laborCost: 0,
-      };
-    }
-
-    acc[name].hours += hours;
-    acc[name].laborCost += laborCost;
-
-    return acc;
-  }, {});
-
-  return Object.values(employeeMap)
-    .map((employee) => {
-      let status = "Controlled";
-
-     if (employee.hours >= 45) {
-  status = "Overtime";
-} else if (employee.hours >= 38) {
-  status = "At Risk";
-} else if (employee.hours >= 32) {
-  status = "Monitor";
-}
-      const projectedOvertimeHours =
-        employee.hours > 40 ? employee.hours - 40 : 0;
+      const rate = Number(
+        row.hourly_rate ||
+          row.hourlyRate ||
+          row.rate ||
+          row["Hourly Rate"] ||
+          0
+      );
 
       const estimatedOvertimeCost =
-        projectedOvertimeHours > 0
-          ? projectedOvertimeHours * 22.5
-          : 0;
+        Number(
+          row.overtime_cost ||
+            row.overtimeCost ||
+            row["Overtime Cost"] ||
+            row.ot_cost ||
+            row["OT Cost"] ||
+            0
+        ) || hours * rate * 1.5 || 0;
+
+      const name =
+        row.employee_name ||
+        row.employee ||
+        row.name ||
+        row.staff_name ||
+        row.role ||
+        `Labor Row ${index + 1}`;
 
       return {
-        ...employee,
-        status,
-        projectedOvertimeHours,
+        name,
+        hours: Number(row.hours_worked || row.hours || 0),
+        laborCost: Number(row.labor_cost || row.cost || 0),
+        projectedOvertimeHours: hours,
         estimatedOvertimeCost,
+        status: hours > 0 ? "Overtime" : "Controlled",
       };
     })
-    .sort((a, b) => b.hours - a.hours);
+    .filter(
+      (employee) =>
+        Number(employee.projectedOvertimeHours || 0) > 0 ||
+        Number(employee.estimatedOvertimeCost || 0) > 0
+    );
+
+  return overtimeRows.sort(
+    (a, b) =>
+      Number(b.estimatedOvertimeCost || 0) -
+      Number(a.estimatedOvertimeCost || 0)
+  );
 }, [laborData]);
 
 const laborForecastingData = useMemo(() => {
