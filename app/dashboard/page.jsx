@@ -23910,10 +23910,6 @@ let laborDeleteQuery = supabase.from("labor_uploads").delete();
 if (fileName) {
   laborDeleteQuery = laborDeleteQuery.eq("file_name", fileName);
 }
-
-if (createdAtFromId) {
-  laborDeleteQuery = laborDeleteQuery.eq("created_at", createdAtFromId);
-}
 console.log("LABOR DELETE DEBUG", {
   fileName,
   createdAtFromId,
