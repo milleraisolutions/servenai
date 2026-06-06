@@ -10717,50 +10717,6 @@ const laborEfficiencyInsight =
    SHIFT PERFORMANCE INTELLIGENCE
 ========================= */
 
-const shiftPerformanceData = (locationSalesData || []).reduce(
-  (acc, sale) => {
-    const saleHour =
-      new Date(
-        sale.created_at ||
-        sale.date ||
-        sale.sale_date ||
-        Date.now()
-      ).getHours();
-
-    let shiftLabel = "Late Night";
-
-    if (saleHour >= 5 && saleHour < 11) {
-      shiftLabel = "Breakfast";
-    } else if (saleHour >= 11 && saleHour < 16) {
-      shiftLabel = "Lunch";
-    } else if (saleHour >= 16 && saleHour < 21) {
-      shiftLabel = "Dinner";
-    }
-
-    const revenue =
-      Number(
-        sale.revenue ||
-        sale.total ||
-        sale.amount ||
-        sale.sales ||
-        0
-      );
-
-    if (!acc[shiftLabel]) {
-      acc[shiftLabel] = {
-        shift: shiftLabel,
-        revenue: 0,
-        orders: 0,
-      };
-    }
-
-    acc[shiftLabel].revenue += revenue;
-    acc[shiftLabel].orders += 1;
-
-    return acc;
-  },
-  {}
-);
 const shiftSalesRows =
   dbSalesRows?.length
     ? dbSalesRows
@@ -10769,67 +10725,109 @@ const shiftSalesRows =
     : pendingUploadRows?.length
     ? pendingUploadRows
     : salesData || [];
-    console.log("SHIFT SALES ROWS COUNT:", shiftSalesRows.length);
-console.log("SHIFT SALES FIRST ROW:", shiftSalesRows?.[0]);
-console.log("SHIFT LABOR ROWS COUNT:", (locationLaborData || laborData || []).length);
-console.log("SHIFT LABOR FIRST ROW:", (locationLaborData || laborData || [])?.[0]);
-const shiftPerformanceArray =
-  Object.values(shiftPerformanceData);
 
-const topShift =
-  shiftPerformanceArray.sort(
-    (a, b) => b.revenue - a.revenue
-  )[0] || null;
-const shiftLaborData = (locationLaborData || laborData || []).reduce(
-  (acc, entry) => {
-    const shiftLabel =
-      entry.shift ||
-      entry.Shift ||
-      entry.daypart ||
-      entry.Daypart ||
-      "Unknown Shift";
+const shiftLaborRows =
+  locationLaborData?.length ? locationLaborData : laborData || [];
 
-    const laborCost = Number(
-      entry.labor_cost ||
-        entry.laborCost ||
-        entry.cost ||
-        entry.Cost ||
-        entry["Labor Cost"] ||
+const totalShiftRevenue = shiftSalesRows.reduce(
+  (sum, sale) =>
+    sum +
+    Number(
+      sale.revenue ||
+        sale.total ||
+        sale.amount ||
+        sale.sales ||
+        sale["Net Sales"] ||
+        sale["Gross Sales"] ||
         0
-    );
-
-    const hours = Number(
-      entry.hours_worked ||
-        entry.hours ||
-        entry.Hours ||
-        entry["Hours Worked"] ||
-        0
-    );
-
-    if (!acc[shiftLabel]) {
-      acc[shiftLabel] = {
-        shift: shiftLabel,
-        laborCost: 0,
-        hours: 0,
-        rows: 0,
-      };
-    }
-
-    acc[shiftLabel].laborCost += laborCost;
-    acc[shiftLabel].hours += hours;
-    acc[shiftLabel].rows += 1;
-
-    return acc;
-  },
-  {}
+    ),
+  0
 );
 
+const totalShiftLaborCost = shiftLaborRows.reduce(
+  (sum, row) =>
+    sum +
+    Number(
+      row.labor_cost ||
+        row.laborCost ||
+        row.cost ||
+        row.Cost ||
+        row["Labor Cost"] ||
+        0
+    ),
+  0
+);
+
+const shiftPerformanceData = shiftLaborRows.reduce((acc, row) => {
+  const shiftLabel =
+    row.shift ||
+    row.Shift ||
+    row.daypart ||
+    row.Daypart ||
+    "Unknown Shift";
+
+  const laborCost = Number(
+    row.labor_cost ||
+      row.laborCost ||
+      row.cost ||
+      row.Cost ||
+      row["Labor Cost"] ||
+      0
+  );
+
+  const hours = Number(
+    row.hours_worked ||
+      row.hours ||
+      row.Hours ||
+      row["Hours Worked"] ||
+      0
+  );
+
+  const orders = Number(row.orders_handled || row.orders || 0);
+
+  if (!acc[shiftLabel]) {
+    acc[shiftLabel] = {
+      shift: shiftLabel,
+      revenue: 0,
+      orders: 0,
+      laborCost: 0,
+      hours: 0,
+      rows: 0,
+    };
+  }
+
+  acc[shiftLabel].laborCost += laborCost;
+  acc[shiftLabel].hours += hours;
+  acc[shiftLabel].orders += orders;
+  acc[shiftLabel].rows += 1;
+
+  return acc;
+}, {});
+
+Object.values(shiftPerformanceData).forEach((shift) => {
+  const laborShare =
+    totalShiftLaborCost > 0 ? shift.laborCost / totalShiftLaborCost : 0;
+
+  shift.revenue = totalShiftRevenue * laborShare;
+
+  if (!shift.orders || shift.orders <= 0) {
+    shift.orders = Math.max(1, Math.round(shift.rows || 1));
+  }
+});
+
+const shiftPerformanceArray = Object.values(shiftPerformanceData);
+
+const topShift =
+  [...shiftPerformanceArray].sort((a, b) => b.revenue - a.revenue)[0] ||
+  null;
+
 const shiftOperationalData = shiftPerformanceArray.map((shift) => {
-  const laborMatch = shiftLaborData[shift.shift] || {};
-  const laborCost = Number(laborMatch.laborCost || 0);
+  const laborCost = Number(shift.laborCost || 0);
 
   const laborPercent =
-    shift.revenue > 0 ? (laborCost / shift.revenue) * 100 : 0;
+    Number(shift.revenue || 0) > 0
+      ? (laborCost / Number(shift.revenue || 0)) * 100
+      : 0;
 
   let status = "Efficient";
 
@@ -10844,10 +10842,13 @@ const shiftOperationalData = shiftPerformanceArray.map((shift) => {
     laborCost,
     laborPercent,
     avgOrderValue:
-      shift.orders > 0 ? shift.revenue / shift.orders : 0,
+      Number(shift.orders || 0) > 0
+        ? Number(shift.revenue || 0) / Number(shift.orders || 0)
+        : 0,
     status,
   };
 });
+
 const weakestShift =
   [...shiftOperationalData]
     .filter((shift) => Number(shift.revenue || 0) > 0)
@@ -10866,19 +10867,21 @@ const shiftPerformanceInsight =
     : weakestShift?.revenue > 0
     ? `${weakestShift.shift} is currently the weakest revenue shift. AI recommends reviewing staffing, promotions, and menu mix during that window.`
     : topShift?.shift
-    ? `${topShift.shift} is currently the strongest shift by revenue. AI recommends protecting staffing and inventory during this window.`
+    ? `${topShift.shift} is currently the strongest shift by estimated revenue. AI recommends protecting staffing and inventory during this window.`
     : "Upload sales and labor data to activate shift performance intelligence.";
-    const shiftExecutiveSummary =
+
+const shiftExecutiveSummary =
   mostLaborHeavyShift?.laborPercent > 35
     ? `AI detected the highest staffing pressure during ${mostLaborHeavyShift.shift}. Labor is running at ${Number(
         mostLaborHeavyShift.laborPercent || 0
-      ).toFixed(1)}% of shift revenue.`
+      ).toFixed(1)}% of estimated shift revenue.`
     : topShift?.shift
-    ? `${topShift.shift} is currently the strongest operating window, generating $${Number(
+    ? `${topShift.shift} is currently the strongest operating window, generating an estimated $${Number(
         topShift.revenue || 0
       ).toLocaleString()} in revenue.`
     : "Shift intelligence will activate once sales and labor data are uploaded.";
-    const shiftActionRecommendation =
+
+const shiftActionRecommendation =
   mostLaborHeavyShift?.laborPercent > 35
     ? `Reduce or rebalance labor during ${mostLaborHeavyShift.shift}. Start by comparing scheduled hours against actual revenue for that shift.`
     : weakestShift?.shift
