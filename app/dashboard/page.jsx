@@ -12022,24 +12022,148 @@ return {
       row["Shift Date"] ||
       null
   ),
-hours_worked: Number(row.hours_worked || row.hours || 0),
 
-hourly_rate: Number(row.hourly_rate || row.rate || 0),
+  hours_worked: Number(
+  row.hours_worked ||
+    row.hoursWorked ||
+    row.hours ||
+    row.Hours ||
+    row["Hours Worked"] ||
+    row.total_hours ||
+    row["Total Hours"] ||
+    0
+),
 
-labor_cost: Number(row.labor_cost || 0),
-  location:
-    row.location ||
-    row.Location ||
-    row.store ||
-    row.Store ||
-    row.restaurant ||
-    row.Restaurant ||
-    null,
+hourly_rate: Number(
+  row.hourly_rate ||
+    row.hourlyRate ||
+    row.rate ||
+    row.Rate ||
+    row["Hourly Rate"] ||
+    row.pay_rate ||
+    row["Pay Rate"] ||
+    0
+),
 
-  shift: detectedShift,
+labor_cost:
+  Number(
+    row.labor_cost ||
+      row.laborCost ||
+      row.cost ||
+      row.Cost ||
+      row["Labor Cost"] ||
+      row.payroll ||
+      row["Payroll Cost"] ||
+      row.wages ||
+      row.Wages ||
+      0
+  ) ||
+  Number(
+    row.hours_worked ||
+      row.hoursWorked ||
+      row.hours ||
+      row.Hours ||
+      row["Hours Worked"] ||
+      row.total_hours ||
+      row["Total Hours"] ||
+      0
+  ) *
+    Number(
+      row.hourly_rate ||
+        row.hourlyRate ||
+        row.rate ||
+        row.Rate ||
+        row["Hourly Rate"] ||
+        row.pay_rate ||
+        row["Pay Rate"] ||
+        0
+    ),
 
-  file_name: pendingUploadSummary?.fileName || null,
-  source_name: "labor_upload",
+sales_generated: Number(
+  row.sales_generated ||
+    row.salesGenerated ||
+    row.revenue_during_shift ||
+    row.revenueDuringShift ||
+    row.shift_revenue ||
+    row["Shift Revenue"] ||
+    row.sales ||
+    row.Sales ||
+    row.revenue ||
+    row.Revenue ||
+    0
+),
+
+orders_handled: Number(
+  row.orders_handled ||
+    row.ordersHandled ||
+    row.order_count ||
+    row["Order Count"] ||
+    row.orders ||
+    row.Orders ||
+    row.transactions ||
+    row.Transactions ||
+    0
+),
+
+labor_percent: Number(
+  row.labor_percent ||
+    row.laborPercent ||
+    row["Labor Percent"] ||
+    row["Labor %"] ||
+    0
+),
+
+overtime_hours: Number(
+  row.overtime_hours ||
+    row.overtimeHours ||
+    row["Overtime Hours"] ||
+    row.ot_hours ||
+    row["OT Hours"] ||
+    0
+),
+
+overtime_cost: Number(
+  row.overtime_cost ||
+    row.overtimeCost ||
+    row["Overtime Cost"] ||
+    row.ot_cost ||
+    row["OT Cost"] ||
+    0
+),
+
+clock_in:
+  row.clock_in ||
+  row.clockIn ||
+  row["Clock In"] ||
+  row.start_time ||
+  row["Start Time"] ||
+  row.in_time ||
+  row["In Time"] ||
+  null,
+
+clock_out:
+  row.clock_out ||
+  row.clockOut ||
+  row["Clock Out"] ||
+  row.end_time ||
+  row["End Time"] ||
+  row.out_time ||
+  row["Out Time"] ||
+  null,
+
+location:
+  row.location ||
+  row.Location ||
+  row.store ||
+  row.Store ||
+  row.restaurant ||
+  row.Restaurant ||
+  null,
+
+shift: detectedShift,
+
+file_name: pendingUploadSummary?.fileName || null,
+source_name: "labor_upload",
 };
     });
 
