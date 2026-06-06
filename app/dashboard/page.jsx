@@ -23899,17 +23899,7 @@ const handleDeleteUpload = async (uploadId) => {
         ? `2026-${laborFileKey.split("-2026-")[1]}`
         : null);
 
-    let deleteQuery = supabase.from("labor_uploads").delete();
-
-    if (fileName) {
-      deleteQuery = deleteQuery.eq("file_name", fileName);
-    }
-
-    if (createdAt) {
-      deleteQuery = deleteQuery.eq("created_at", createdAt);
-    }
-
-    const { error } = await deleteQuery;
+  
 
     if (error) {
       console.error("Labor file delete failed:", error);
