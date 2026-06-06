@@ -9756,7 +9756,7 @@ useEffect(() => {
       let laborQuery = supabase
   .from("labor_uploads")
   .select("*")
-  .eq("user_id", dataOwnerId);
+  .eq("user_id", dataOwnerId || user.id);
 
 laborQuery = applyLocationFilter(laborQuery);
 
@@ -9768,15 +9768,24 @@ const { data, error } = await laborQuery
         return;
       }
 
-      if (data?.length) {
-        setLaborData(data);
+     const normalizedLaborRows = (data || []).map((row) => ({
+  ...row,
 
-        console.log(
-          "Loaded saved labor data:",
-          data.length,
-          "rows"
-        );
-      }
+  hours: Number(row.hours_worked || row.hours || 0),
+  rate: Number(row.hourly_rate || row.rate || 0),
+  labor_cost: Number(row.labor_cost || row.cost || 0),
+
+  work_date: row.work_date || row.shift_date || row.date || null,
+  role: row.role || row.position || "Staff",
+  location: row.location || null,
+  shift: row.shift || null,
+}));
+
+setLaborData(normalizedLaborRows);
+
+console.log("LOADED NORMALIZED LABOR:", normalizedLaborRows);
+console.log("LOADED NORMALIZED LABOR FIRST ROW:", normalizedLaborRows?.[0]);
+console.log("LOADED NORMALIZED LABOR COUNT:", normalizedLaborRows.length);
     } catch (err) {
       console.error("Labor load error:", err);
     }
