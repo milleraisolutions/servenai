@@ -10523,8 +10523,18 @@ const totalLaborCost = (locationLaborData || []).reduce(
   Number(foodCostPercentage || 0);
 
 const effectiveLaborCostPercent =
-  Number(laborCostPercent || 0);
-
+  Number(liveTotalRevenue || 0) > 0
+    ? (
+        (Number(totalLaborCost || 0) /
+          Number(liveTotalRevenue || 0)) *
+        100
+      )
+    : 0;
+console.log("LABOR COST % DEBUG", {
+  totalLaborCost,
+  liveTotalRevenue,
+  effectiveLaborCostPercent,
+});
 const estimatedCOGS =
   Number(liveTotalRevenue || 0) * (effectiveFoodCostPercent / 100);
 
