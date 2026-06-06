@@ -23919,7 +23919,7 @@ const { data: deletedLaborRows, error: laborFileDeleteError } = await supabase
   .from("labor_uploads")
   .delete()
   .eq("user_id", dataOwnerId || user?.id)
-  .eq("file_name", fileName)
+  .ilike("file_name", fileName)
   .select("id,file_name,created_at,user_id");
 
 console.log("DELETED LABOR ROWS:", deletedLaborRows);
