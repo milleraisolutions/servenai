@@ -1935,16 +1935,22 @@ const liveScore =
 
   return sum + (cost > 0 ? cost : hours * rate);
 }, 0);
+const laborRevenueBase =
+  Number(revenueTracker?.weekRevenue || 0) ||
+  Number(revenueTrend?.currentWeekRevenue || 0) ||
+  Number(liveTotalRevenue || 0);
+
+const laborPercent =
+  laborRevenueBase > 0 && totalLaborCost > 0
+    ? (totalLaborCost / laborRevenueBase) * 100
+    : 0;
+
 const laborRecoveryOpportunity =
-    Math.max(
-      0,
-      Number(totalLaborCost || 0) -
-        Number(liveTotalRevenue || 0) * 0.28
-    ) || 0;
-  const laborPercent =
-    liveTotalRevenue > 0 && totalLaborCost > 0
-      ? (totalLaborCost / liveTotalRevenue) * 100
-      : 0;
+  Math.max(
+    0,
+    Number(totalLaborCost || 0) -
+      Number(laborRevenueBase || 0) * 0.28
+  ) || 0;
 
   return {
   totalLaborCost,
