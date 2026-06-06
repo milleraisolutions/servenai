@@ -10761,7 +10761,10 @@ const shiftPerformanceData = (locationSalesData || []).reduce(
   },
   {}
 );
-
+const shiftSalesRows =
+  (locationSalesData || []).length > 0
+    ? locationSalesData
+    : salesData || [];
 const shiftPerformanceArray =
   Object.values(shiftPerformanceData);
 
