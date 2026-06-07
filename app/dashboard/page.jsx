@@ -435,13 +435,13 @@ const hasGrowthAccess =
   hasTeamAccess ||
   (
     ["active", "paid", "trialing"].includes(normalizedStatus) &&
-    ["growth", "pro", "team"].includes(normalizedPlan)
+   ["growth", "pro", "enterprise", "team"].includes(normalizedPlan)
   );
 const hasProAccess =
   isOwner ||
   (
     ["active", "paid", "trialing"].includes(normalizedStatus) &&
-    normalizedPlan === "pro"
+    ["pro", "enterprise"].includes(normalizedPlan)
   );
 
 
