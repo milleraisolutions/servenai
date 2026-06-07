@@ -6126,35 +6126,26 @@ for (const oldIngredient of ingredientsToDeactivate) {
   }
 }
 
-    for (const oldIngredient of ingredientsToDeactivate) {
-      const { error: deactivateError } = await supabase
-        .from("ingredients")
-        .update({
-          is_active: false,
-          last_seen_at: now,
-        })
-        .eq("id", oldIngredient.id);
-
-      if (deactivateError) {
-        console.error("Ingredient deactivate error:", deactivateError);
-        throw deactivateError;
-      }
-    }
 
     await loadClientUploads?.();
 await loadUploadComparison?.();
 
     setMessage(
-      `Ingredients synced: ${cleanedRows.length} active, ${ingredientsToDeactivate.length} marked inactive.`
-    );
+  `Ingredients synced: ${cleanedRows.length} active, ${ingredientsToDeactivate.length} marked inactive.`
+);
 
-    alert(
-      `Ingredients synced: ${cleanedRows.length} active, ${ingredientsToDeactivate.length} marked inactive.`
-    );
+alert(
+  `Ingredients synced: ${cleanedRows.length} active, ${ingredientsToDeactivate.length} marked inactive.`
+);
 
-    setPendingUploadSummary(null);
-    setIngredientsData([]);
-    setPendingUploadRows([]);
+setPendingUploadSummary(null);
+
+setMessage(
+  `Ingredients synced: ${cleanedRows.length} active.`
+);
+
+setIngredientsData([]);
+setPendingUploadRows([]);
     pendingUploadRowsRef.current = [];
   } catch (error) {
     console.error("Ingredients import failed:", error);
