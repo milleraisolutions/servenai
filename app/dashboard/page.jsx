@@ -18400,6 +18400,9 @@ const inventoryHealthScoreData = useMemo(() => {
   combinedInventoryAlerts,
   inventoryAISummary,
   inventoryAutopilotEnabled,
+  inventoryDepletionData,
+  inventoryData,
+  ingredientsData,
 ]);
 const inventoryExecutiveAlertsFeed = useMemo(() => {
   const hasInventoryData =
