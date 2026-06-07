@@ -55972,24 +55972,24 @@ if (!res.ok) {
             />
 
             <GlassCard
-              title="Items Tracked"
-              value={inventoryDepletionData.length}
-              subtext="Ingredients monitored by AI"
-            />
+  title="Inventory Value"
+  value={`$${Math.round(totalInventoryValue).toLocaleString()}`}
+  subtext="Current inventory asset value"
+/>
 
-            <GlassCard
-              title="Inventory Risk"
-              value={
-                criticalInventoryItems.length > 0
-                  ? "Critical"
-                  : lowInventoryItems.length > 0
-                  ? "Watch"
-                  : inventoryDepletionData.length > 0
-                  ? "Healthy"
-                  : "Needs data"
-              }
-              subtext="AI depletion risk rating"
-            />
+<GlassCard
+  title="Inventory Health"
+  value={
+    criticalInventoryItems.length > 0
+      ? "Critical"
+      : lowInventoryItems.length > 0
+      ? "Watch"
+      : inventoryDepletionData.length > 0
+      ? "Healthy"
+      : "Needs Data"
+  }
+  subtext={`${healthyInventoryItems.length} healthy items tracked`}
+/>
           </div>
         </div>
 
