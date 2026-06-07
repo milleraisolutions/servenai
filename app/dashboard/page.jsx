@@ -23647,7 +23647,13 @@ const realForecastConfidence = Math.max(
 );
 
 const simulationAccuracy = Number(realForecastConfidence || 0);
-
+const modeledSystemsCount = [
+  liveTotalRevenue > 0,
+  totalLaborCost > 0,
+  inventoryDepletionData?.length > 0,
+  menuItemsData?.length > 0,
+  invoicesData?.length > 0,
+].filter(Boolean).length;
 console.log("FORECAST CONFIDENCE DEBUG:", {
   realForecastConfidence,
   criticalInventoryItems: criticalInventoryItems?.length,
