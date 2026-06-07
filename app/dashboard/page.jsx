@@ -12209,8 +12209,18 @@ clock_in:
   row.start_time ||
   row["Start Time"] ||
   row.in_time ||
-  row["In Time"] ||
-  null,
+  row["In Time"]
+    ? `${cleanDate(
+        row.work_date ||
+          row.workDate ||
+          row.date ||
+          row.Date ||
+          row["Work Date"] ||
+          row.shift_date ||
+          row.shiftDate ||
+          row["Shift Date"]
+      )}T${row.clock_in || row.clockIn || row["Clock In"] || row.start_time || row["Start Time"] || row.in_time || row["In Time"]}:00`
+    : null,
 
 clock_out:
   row.clock_out ||
@@ -12219,8 +12229,18 @@ clock_out:
   row.end_time ||
   row["End Time"] ||
   row.out_time ||
-  row["Out Time"] ||
-  null,
+  row["Out Time"]
+    ? `${cleanDate(
+        row.work_date ||
+          row.workDate ||
+          row.date ||
+          row.Date ||
+          row["Work Date"] ||
+          row.shift_date ||
+          row.shiftDate ||
+          row["Shift Date"]
+      )}T${row.clock_out || row.clockOut || row["Clock Out"] || row.end_time || row["End Time"] || row.out_time || row["Out Time"]}:00`
+    : null,
 
 location:
   row.location ||
