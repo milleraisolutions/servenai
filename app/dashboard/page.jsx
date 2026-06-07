@@ -12396,6 +12396,188 @@ const handleImportBatchPrep = async () => {
     setMessage(error?.message || "Failed to import batch prep data.");
   }
 };
+const handleImportInventory = async () => {
+  console.log("INVENTORY CONFIRM CLICKED");
+  console.log("PENDING SUMMARY:", pendingUploadSummary);
+
+  try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user?.id) {
+      setMessage("Please log in before importing inventory data.");
+      return;
+    }
+
+    const inventoryRows =
+      pendingUploadSummary?.uploadType === "inventory"
+        ? pendingUploadSummary?.rows || []
+        : inventoryData || [];
+
+    console.log("INVENTORY ROWS FOUND:", inventoryRows);
+    console.log("INVENTORY FIRST ROW FOUND:", inventoryRows?.[0]);
+
+    const toNumber = (value) => {
+      const cleaned = String(value ?? "")
+        .replaceAll("$", "")
+        .replaceAll("%", "")
+        .replaceAll(",", "")
+        .trim();
+
+      const num = Number(cleaned);
+      return Number.isFinite(num) ? num : 0;
+    };
+
+    const rowsToInsert = inventoryRows
+      .map((row) => {
+        const itemName =
+          row.item_name ||
+          row["Item Name"] ||
+          row.inventory_item ||
+          row["Inventory Item"] ||
+          row.ingredient ||
+          row.Ingredient ||
+          row.product ||
+          row.Product ||
+          row.name ||
+          row.Name ||
+          row.item ||
+          row.Item ||
+          "";
+
+        const quantity = toNumber(
+          row.quantity ||
+            row.Quantity ||
+            row.qty ||
+            row.Qty ||
+            row.on_hand ||
+            row["On Hand"] ||
+            row.stock ||
+            row.Stock ||
+            row.count ||
+            row.Count ||
+            0
+        );
+
+        const unitCost = toNumber(
+          row.unit_cost ||
+            row["Unit Cost"] ||
+            row.cost ||
+            row.Cost ||
+            row.price ||
+            row.Price ||
+            row.invoice_price ||
+            row["Invoice Price"] ||
+            0
+        );
+
+        const totalValue =
+          toNumber(row.total_value || row["Total Value"] || row.value || row.Value) ||
+          quantity * unitCost;
+
+        return {
+          user_id: user.id,
+
+          item_name: String(itemName || "").trim(),
+
+          category:
+            row.category ||
+            row.Category ||
+            row.type ||
+            row.Type ||
+            row.department ||
+            row.Department ||
+            "Inventory",
+
+          quantity,
+
+          unit:
+            row.unit ||
+            row.Unit ||
+            row.uom ||
+            row.UOM ||
+            row.measure ||
+            row.Measure ||
+            "",
+
+          unit_cost: unitCost,
+          total_value: totalValue,
+
+          par_level: toNumber(
+            row.par_level ||
+              row["Par Level"] ||
+              row.par ||
+              row.Par ||
+              row.target_stock ||
+              row["Target Stock"] ||
+              0
+          ),
+
+          reorder_point: toNumber(
+            row.reorder_point ||
+              row["Reorder Point"] ||
+              row.reorder ||
+              row.Reorder ||
+              row.minimum ||
+              row.Minimum ||
+              row.min ||
+              row.Min ||
+              0
+          ),
+
+          location:
+            row.location ||
+            row.Location ||
+            row.store ||
+            row.Store ||
+            row.restaurant ||
+            row.Restaurant ||
+            activeLocation ||
+            null,
+        };
+      })
+      .filter((row) => row.item_name);
+
+    if (!rowsToInsert.length) {
+      setMessage("No inventory rows found to import.");
+      return;
+    }
+
+    console.log("INVENTORY FIRST ROW TO INSERT:", rowsToInsert?.[0]);
+    console.log("INVENTORY SAMPLE ROWS:", rowsToInsert?.slice(0, 5));
+
+    const { data: insertedInventoryRows, error } = await supabase
+      .from("inventory_items")
+      .insert(rowsToInsert)
+      .select();
+
+    if (error) {
+      console.error("Inventory import failed:", error);
+      setMessage(`Inventory import failed: ${error.message}`);
+      return;
+    }
+
+    const newInventoryUpload = {
+      id: `inventory-${Date.now()}`,
+      file_name: pendingUploadSummary?.fileName || "Inventory upload",
+      source_name: "inventory_upload",
+      row_count: rowsToInsert.length,
+      created_at: new Date().toISOString(),
+      rows: insertedInventoryRows || rowsToInsert,
+    };
+
+    setClientImports((prev) => [newInventoryUpload, ...(prev || [])]);
+    setRecentUploads((prev) => [newInventoryUpload, ...(prev || [])]);
+
+    setMessage(`Imported ${rowsToInsert.length} inventory rows successfully.`);
+    setPendingUploadSummary(null);
+    setInventoryData(insertedInventoryRows || rowsToInsert);
+  } catch (error) {
+    console.error("Inventory import error:", error);
+    setMessage("Inventory import failed. Check console for details.");
+  }
+};
 const laborRiskStatus =
   liveLaborIntelligence?.laborPercent > 35
     ? "Critical"
@@ -24848,9 +25030,11 @@ if (currentType === "menu_items") {
 } else if (currentType === "labor") {
   handleImportLabor();
 
+} else if (currentType === "inventory") {
+  handleImportInventory();
+
 } else if (currentType === "invoices") {
   handleImportInvoices();
-
 } else if (currentType === "batch_prep") {
   handleImportBatchPrep();
 
