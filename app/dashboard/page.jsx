@@ -16070,6 +16070,14 @@ const safeRestaurantProjectedScore = Number(aiHealthEngine?.projectedScore || 0)
 
 const restaurantHealthScore = safeRestaurantHealthScore;
 const restaurantAIHealthScore = restaurantHealthScore;
+const aiOptimizationStatus =
+  Number(restaurantAIHealthScore || 0) >= 85
+    ? "Optimized"
+    : Number(restaurantAIHealthScore || 0) >= 70
+    ? "Monitoring"
+    : Number(restaurantAIHealthScore || 0) >= 60
+    ? "Needs Review"
+    : "Critical";
 const restaurantHealthGrade =
   aiHealthEngine?.grade || (safeRestaurantHealthScore > 0 ? "Stable" : "Waiting for data");
 const restaurantHealthColor = aiHealthEngine?.statusColor || "#94a3b8";
