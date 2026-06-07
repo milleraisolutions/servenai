@@ -25049,7 +25049,16 @@ return (
   >
     Upload Ingredients
   </button>
-
+<button
+  onClick={() => {
+    selectedUploadTypeRef.current = "inventory";
+    setUploadType("inventory");
+    document.getElementById("csvUpload")?.click();
+  }}
+  style={setupGoldButton}
+>
+  Upload Inventory
+</button>
   <button
   onClick={() => {
     selectedUploadTypeRef.current = "invoices";
