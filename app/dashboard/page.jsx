@@ -16078,6 +16078,7 @@ const aiOptimizationStatus =
     : Number(restaurantAIHealthScore || 0) >= 60
     ? "Needs Review"
     : "Critical";
+   
 const restaurantHealthGrade =
   aiHealthEngine?.grade || (safeRestaurantHealthScore > 0 ? "Stable" : "Waiting for data");
 const restaurantHealthColor = aiHealthEngine?.statusColor || "#94a3b8";
@@ -23631,7 +23632,6 @@ const realEnterpriseHealth = Math.round(
     Number(100 - Math.min(50, Number(criticalInventoryItems?.length || 0) * 5))
   ) / 3
 );
-
 const realForecastConfidence = Math.max(
   35,
   Math.min(
@@ -23645,6 +23645,9 @@ const realForecastConfidence = Math.max(
     )
   )
 );
+
+const simulationAccuracy = Number(realForecastConfidence || 0);
+
 console.log("FORECAST CONFIDENCE DEBUG:", {
   realForecastConfidence,
   criticalInventoryItems: criticalInventoryItems?.length,
