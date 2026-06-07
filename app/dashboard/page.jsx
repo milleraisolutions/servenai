@@ -18325,11 +18325,9 @@ const inventoryHealthScoreData = useMemo(() => {
   const revenueLoss = Number(inventoryAISummary?.potentialRevenueLoss || 0);
 
   const hasInventoryData =
-    criticalCount > 0 ||
-    lowStockCount > 0 ||
-    alertCount > 0 ||
-    estimatedRisk > 0 ||
-    revenueLoss > 0;
+  (inventoryDepletionData || []).length > 0 ||
+  (inventoryData || []).length > 0 ||
+  (ingredientsData || []).length > 0;
 
   if (!hasInventoryData) {
     return {
@@ -18509,23 +18507,41 @@ const deadInventoryData = useMemo(() => {
         item.item_name ||
         `Inventory Item ${index + 1}`;
 
-      const quantity = Number(item.quantity || item.current_stock || 0);
-      const usageRate = Number(item.usageRate || item.daily_usage || 0);
-      const costPerUnit = Number(item.cost_per_unit || item.unit_cost || item.cost || 0);
+      const quantity = Number(
+        item.quantity || item.current_stock || 0
+      );
+
+      const usageRate = Number(
+        item.usageRate || item.daily_usage || 0
+      );
+
+      const costPerUnit = Number(
+        item.cost_per_unit ||
+          item.unit_cost ||
+          item.cost ||
+          0
+      );
 
       const daysOnHand =
-        usageRate > 0 ? quantity / usageRate : quantity > 0 ? 999 : 0;
+        usageRate > 0
+          ? quantity / usageRate
+          : null;
 
-      const tiedUpCash = quantity * costPerUnit;
+      const tiedUpCash =
+        quantity * costPerUnit;
 
-      let status = "Moving";
+      let status = "Monitoring";
 
-      if (daysOnHand >= 45) {
-        status = "Dead Stock";
-      } else if (daysOnHand >= 30) {
-        status = "Slow Moving";
-      } else if (daysOnHand >= 18) {
-        status = "Monitor";
+      if (daysOnHand !== null) {
+        if (daysOnHand >= 45) {
+          status = "Dead Stock";
+        } else if (daysOnHand >= 30) {
+          status = "Slow Moving";
+        } else if (daysOnHand >= 18) {
+          status = "Monitor";
+        } else {
+          status = "Moving";
+        }
       }
 
       return {
@@ -18538,8 +18554,17 @@ const deadInventoryData = useMemo(() => {
         status,
       };
     })
-    .filter((item) => item.status !== "Moving")
-    .sort((a, b) => b.daysOnHand - a.daysOnHand);
+    .filter(
+      (item) =>
+        item.status === "Dead Stock" ||
+        item.status === "Slow Moving" ||
+        item.status === "Monitor"
+    )
+    .sort(
+      (a, b) =>
+        (b.daysOnHand || 0) -
+        (a.daysOnHand || 0)
+    );
 }, [inventoryDepletionData]);
 
 const inventoryForecastingData = useMemo(() => {
