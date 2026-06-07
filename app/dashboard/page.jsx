@@ -16069,6 +16069,7 @@ const safeRestaurantHealthScore = Number(aiHealthEngine?.overallScore || 0);
 const safeRestaurantProjectedScore = Number(aiHealthEngine?.projectedScore || 0);
 
 const restaurantHealthScore = safeRestaurantHealthScore;
+const restaurantAIHealthScore = restaurantHealthScore;
 const restaurantHealthGrade =
   aiHealthEngine?.grade || (safeRestaurantHealthScore > 0 ? "Stable" : "Waiting for data");
 const restaurantHealthColor = aiHealthEngine?.statusColor || "#94a3b8";
