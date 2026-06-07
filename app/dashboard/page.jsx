@@ -25290,7 +25290,12 @@ return (
   pendingUploadSummary?.uploadType ||
   selectedUploadTypeRef.current ||
   uploadType;
-
+console.log("CONFIRM IMPORT CURRENT TYPE:", {
+  currentType,
+  pendingUploadSummaryType: pendingUploadSummary?.uploadType,
+  selectedUploadType: selectedUploadTypeRef.current,
+  uploadType,
+});
 if (currentType === "menu_items") {
   handleImportMenuItems();
 
