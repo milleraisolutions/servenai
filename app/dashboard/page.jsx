@@ -16092,7 +16092,9 @@ const restaurantHealthInsight =
   "SerVen AI is monitoring revenue, menu performance, and operational risk.";
 const restaurantHealthCategories = aiHealthEngine?.categoryScores || {};
 
-
+const forecastStability = Number(
+  restaurantHealthCategories?.forecastStability || 0
+);
 
 
 
