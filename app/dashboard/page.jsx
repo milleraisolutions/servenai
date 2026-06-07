@@ -5866,7 +5866,7 @@ const handleImportIngredients = async () => {
   try {
     console.log("INGREDIENTS CONFIRM CLICKED");
     setMessage("Importing ingredients...");
-
+console.log("INGREDIENT STEP 1: started");
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -6072,7 +6072,7 @@ const handleImportIngredients = async () => {
     const uploadedNames = cleanedRows.map((item) =>
       String(item.name || "").trim().toLowerCase()
     );
-
+console.log("INGREDIENT STEP 2: inserting upload row", cleanedRows.length);
     const { data: uploadRow, error: uploadError } = await supabase
       .from("uploads")
       .insert([
@@ -6093,7 +6093,7 @@ const handleImportIngredients = async () => {
       console.error("Ingredients upload row failed:", uploadError);
       throw uploadError;
     }
-
+console.log("INGREDIENT STEP 3: upload row inserted", uploadRow);
     if (uploadRow) {
       setClientImports((prev) => [
         uploadRow,
@@ -6105,7 +6105,7 @@ const handleImportIngredients = async () => {
         ...(prev || []).filter((upload) => upload.id !== uploadRow.id),
       ]);
     }
-
+console.log("INGREDIENT STEP 4: fetching existing ingredients");
     const { data: existingRows, error: existingError } = await supabase
       .from("ingredients")
       .select("*")
@@ -6115,9 +6115,9 @@ const handleImportIngredients = async () => {
       console.error("Ingredient existing rows fetch failed:", existingError);
       throw existingError;
     }
-
+console.log("INGREDIENT STEP 5: existing rows fetched", existingRows?.length);
     const savedRows = [];
-
+console.log("INGREDIENT STEP 6: syncing ingredient rows");
     for (const ingredient of cleanedRows) {
       const existing = (existingRows || []).find(
         (item) =>
@@ -6169,7 +6169,7 @@ const handleImportIngredients = async () => {
         savedRows.push(...(insertedRows || []));
       }
     }
-
+console.log("INGREDIENT STEP 7: ingredient rows synced", savedRows.length);
     const ingredientsToDeactivate = (existingRows || []).filter(
       (item) =>
         item.is_active !== false &&
