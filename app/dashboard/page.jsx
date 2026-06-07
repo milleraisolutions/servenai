@@ -11195,17 +11195,24 @@ const inventoryDepletionData = (inventorySourceRows || []).map((item) => {
 
   let depletionStatus = "Healthy";
 
-  if (reorderPoint > 0 && quantity <= reorderPoint) {
-    depletionStatus = "Critical";
-  } else if (parLevel > 0 && quantity <= parLevel) {
-    depletionStatus = "Low";
-  } else if (usageRate > 0 && daysRemaining <= 2) {
-    depletionStatus = "Critical";
-  } else if (usageRate > 0 && daysRemaining <= 5) {
-    depletionStatus = "Low";
-  } else if (quantity <= 0) {
-    depletionStatus = "Critical";
-  }
+const lowStockThreshold =
+  reorderPoint > 0
+    ? reorderPoint
+    : parLevel > 0
+    ? parLevel * 0.5
+    : 0;
+
+if (quantity <= 0) {
+  depletionStatus = "Critical";
+} else if (reorderPoint > 0 && quantity <= reorderPoint) {
+  depletionStatus = "Critical";
+} else if (lowStockThreshold > 0 && quantity <= lowStockThreshold) {
+  depletionStatus = "Low";
+} else if (usageRate > 0 && daysRemaining <= 2) {
+  depletionStatus = "Critical";
+} else if (usageRate > 0 && daysRemaining <= 5) {
+  depletionStatus = "Low";
+}
 
   return {
     ...item,
