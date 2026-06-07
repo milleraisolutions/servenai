@@ -6219,7 +6219,7 @@ const cleanDate = (value) => {
 const handleImportInvoices = async () => {
   try {
     setMessage("Importing invoice items...");
-
+console.log("INVOICE STEP 1: started");
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -6258,7 +6258,7 @@ const handleImportInvoices = async () => {
     const supplierName = getValue(rows[0], ["Vendor", "vendor", "Supplier", "supplier"]);
     const invoiceDate = getValue(rows[0], ["Invoice Date", "invoice_date"]);
     const invoiceNumber = getValue(rows[0], ["Invoice Number", "invoice_number"]);
-
+console.log("INVOICE STEP 3: invoice_uploads inserted", invoiceUpload);
     const { data: invoiceUpload, error: invoiceUploadError } = await supabase
       .from("invoice_uploads")
       .insert([
@@ -6323,7 +6323,8 @@ const handleImportInvoices = async () => {
         };
       })
       .filter(Boolean);
-
+console.log("INVOICE STEP 4: inserting invoice_items", cleanedRows.length);
+console.log("FIRST CLEANED INVOICE ROW:", cleanedRows[0]);
     const { data: insertedRows, error } = await supabase
       .from("invoice_items")
       .insert(cleanedRows)
@@ -6333,7 +6334,7 @@ const handleImportInvoices = async () => {
       console.error("Invoice items insert failed:", error);
       throw error;
     }
-
+console.log("INVOICE STEP 5: invoice_items inserted", insertedRows?.length);
     const uploadRow = {
       id: invoiceUpload.id,
       user_id: user.id,
