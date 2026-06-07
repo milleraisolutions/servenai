@@ -10872,15 +10872,25 @@ const shiftPerformanceData = shiftLaborRows.reduce((acc, row) => {
   acc[shiftLabel].hours += hours;
   acc[shiftLabel].orders += orders;
   acc[shiftLabel].rows += 1;
-
+acc[shiftLabel].revenue += Number(
+  row.sales_generated ||
+    row.revenue_during_shift ||
+    row.shift_revenue ||
+    row.revenue ||
+    0
+);
   return acc;
 }, {});
-
 Object.values(shiftPerformanceData).forEach((shift) => {
   const laborShare =
     totalShiftLaborCost > 0 ? shift.laborCost / totalShiftLaborCost : 0;
 
-  shift.revenue = totalShiftRevenue * laborShare;
+  const actualShiftRevenue = Number(shift.revenue || 0);
+
+  shift.revenue =
+    actualShiftRevenue > 0
+      ? actualShiftRevenue
+      : totalShiftRevenue * laborShare;
 
   if (!shift.orders || shift.orders <= 0) {
     shift.orders = Math.max(1, Math.round(shift.rows || 1));
