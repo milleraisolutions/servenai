@@ -24461,16 +24461,7 @@ const handleDeleteUpload = async (uploadId) => {
     return;
   }
 
-  const { error: invoiceDeleteError } = await supabase
-    .from("invoice_uploads")
-    .delete()
-    .eq("upload_id", uploadId);
-
-  if (invoiceDeleteError) {
-    console.error("Invoice uploads delete failed:", invoiceDeleteError);
-    alert(`Invoice delete failed: ${invoiceDeleteError.message}`);
-    return;
-  }
+  
 
   const { error: uploadDeleteError } = await supabase
     .from("uploads")
