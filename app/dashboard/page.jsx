@@ -12746,32 +12746,59 @@ const handleImportInventory = async () => {
     console.log("INVENTORY FIRST ROW TO INSERT:", rowsToInsert?.[0]);
     console.log("INVENTORY SAMPLE ROWS:", rowsToInsert?.slice(0, 5));
 
-    const { data: insertedInventoryRows, error } = await supabase
-      .from("inventory_items")
-      .insert(rowsToInsert)
-      .select();
-
-    if (error) {
-      console.error("Inventory import failed:", error);
-      setMessage(`Inventory import failed: ${error.message}`);
-      return;
-    }
-
-    const newInventoryUpload = {
-      id: `inventory-${Date.now()}`,
+  const { data: uploadRow, error: uploadError } = await supabase
+  .from("uploads")
+  .insert([
+    {
+      user_id: user.id,
       file_name: pendingUploadSummary?.fileName || "Inventory upload",
       source_name: "inventory_upload",
       row_count: rowsToInsert.length,
-      created_at: new Date().toISOString(),
-      rows: insertedInventoryRows || rowsToInsert,
-    };
+      upload_type: "inventory",
+      status: "completed",
+      location_id: selectedUploadLocationId || null,
+    },
+  ])
+  .select()
+  .single();
 
-    setClientImports((prev) => [newInventoryUpload, ...(prev || [])]);
-    setRecentUploads((prev) => [newInventoryUpload, ...(prev || [])]);
+if (uploadError) {
+  console.error("Inventory upload row failed:", uploadError);
+  setMessage(`Inventory upload failed: ${uploadError.message}`);
+  return;
+}
 
-    setMessage(`Imported ${rowsToInsert.length} inventory rows successfully.`);
-    setPendingUploadSummary(null);
-    setInventoryData(insertedInventoryRows || rowsToInsert);
+const rowsWithUploadId = rowsToInsert.map((row) => ({
+  ...row,
+  upload_id: uploadRow?.id || null,
+}));
+
+const { data: insertedInventoryRows, error } = await supabase
+  .from("inventory_items")
+  .insert(rowsWithUploadId)
+  .select();
+
+if (error) {
+  console.error("Inventory import failed:", error);
+  setMessage(`Inventory import failed: ${error.message}`);
+  return;
+}
+
+if (uploadRow) {
+  setClientImports((prev) => [
+    uploadRow,
+    ...(prev || []).filter((upload) => upload.id !== uploadRow.id),
+  ]);
+
+  setRecentUploads((prev) => [
+    uploadRow,
+    ...(prev || []).filter((upload) => upload.id !== uploadRow.id),
+  ]);
+}
+
+setMessage(`Imported ${rowsWithUploadId.length} inventory rows successfully.`);
+setPendingUploadSummary(null);
+setInventoryData(insertedInventoryRows || rowsWithUploadId);
   } catch (error) {
     console.error("Inventory import error:", error);
     setMessage("Inventory import failed. Check console for details.");
@@ -55586,47 +55613,7 @@ if (!res.ok) {
     height: "auto",
   }}
 >
-  <div
-    style={{
-      gridColumn: isMobile ? "span 1" : "span 12",
-      display: "flex",
-      flexWrap: "wrap",
-      gap: "12px",
-      marginBottom: "18px",
-    }}
-  >
-  {[
-    { id: "overview", label: "Overview" },
-    { id: "usage", label: "Usage & Waste" },
-    { id: "restock", label: "Restock" },
-    { id: "vendors", label: "Vendors" },
-    { id: "alcohol", label: "Alcohol" },
-  ].map((tab) => (
-    <button
-      key={tab.id}
-      type="button"
-      onClick={() => setInventoryView(tab.id)}
-      style={{
-        padding: "9px 12px",
-        borderRadius: "999px",
-        border:
-          inventoryView === tab.id
-            ? "1px solid rgba(34,197,94,0.35)"
-            : "1px solid rgba(148,163,184,0.18)",
-        background:
-          inventoryView === tab.id
-            ? "linear-gradient(135deg, #22c55e, #16a34a)"
-            : "rgba(255,255,255,0.04)",
-        color: "white",
-        fontSize: "12px",
-        fontWeight: "900",
-        cursor: "pointer",
-      }}
-    >
-      {tab.label}
-    </button>
-  ))}
-</div>
+ 
 {/* 🧠 INVENTORY AI SUMMARY BAR */}
 {(() => {
   const summaryTone = getInventorySummaryTone(
