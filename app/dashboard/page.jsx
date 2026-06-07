@@ -25748,14 +25748,6 @@ if (currentType === "menu_items") {
 
  
 
-<input
-  id="invoiceUpload"
-  type="file"
-  accept=".pdf"
-  multiple
-  onChange={handleInvoiceUpload}
-  style={{ display: "none" }}
-/>
 
 {uploadError && (
   <div
@@ -25775,15 +25767,6 @@ if (currentType === "menu_items") {
 )}
 
 
- 
-  <input
-    id="invoiceUpload"
-    type="file"
-    accept=".pdf"
-    multiple
-    onChange={handleInvoiceUpload}
-    style={{ display: "none" }}
-  />
 
  <WeeklyExecutiveSummary
   weeklyExecutiveSummary={weeklyExecutiveSummary}
