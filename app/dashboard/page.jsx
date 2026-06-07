@@ -18328,7 +18328,15 @@ const financialHealthScoreData = useMemo(() => {
   estimatedRecoverableProfit,
   vendorCostInsights,
 ]);
-
+const wasteHealthScore = Math.max(
+  35,
+  Math.round(
+    100 -
+      Number(aiWasteDetection?.length || 0) * 8 -
+      Number(ingredientVarianceData?.length || 0) * 4 -
+      Number(totalWasteLoss || 0) / 250
+  )
+);
 const financialAlertsFeed = useMemo(() => {
   const alerts = [];
 
@@ -23766,8 +23774,9 @@ const executiveHealthScore = Math.round(
     inventoryHealthScore +
     vendorHealthScore +
     financialHealthScore +
+    wasteHealthScore +
     beverageHealthScore
-  ) / 5
+  ) / 6
 );
 const executiveHealthLabel =
   executiveHealthScore >= 85
