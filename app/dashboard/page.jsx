@@ -270,6 +270,7 @@ const [inventoryAutopilotFixed, setInventoryAutopilotFixed] = useState({});
 const [inventoryAutopilotStatus, setInventoryAutopilotStatus] = useState("Idle");
 const [inventoryAutopilotActivity, setInventoryAutopilotActivity] = useState([]);
 const [inventoryProfitRecovered, setInventoryProfitRecovered] = useState(0);
+const [inventoryData, setInventoryData] = useState([]);
 const [customPlanLeads, setCustomPlanLeads] = useState([]);
 const [loadingCustomPlanLeads, setLoadingCustomPlanLeads] = useState(false);
 const [leadStatusFilter, setLeadStatusFilter] = useState("all");
@@ -9888,7 +9889,72 @@ console.log("LOADED NORMALIZED LABOR COUNT:", normalizedLaborRows.length);
 
   loadSavedLaborData();
 }, []);
+useEffect(() => {
+  const loadSavedInventoryData = async () => {
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
+      if (!user?.id) return;
+
+      let inventoryQuery = supabase
+        .from("inventory_items")
+        .select("*")
+        .eq("user_id", dataOwnerId || user.id);
+
+      inventoryQuery = applyLocationFilter(inventoryQuery);
+
+      const { data, error } = await inventoryQuery
+        .order("created_at", { ascending: false })
+        .limit(1000);
+
+      if (error) {
+        console.error("Failed to load inventory:", error);
+        return;
+      }
+
+      const normalizedInventoryRows = (data || []).map((row) => ({
+        ...row,
+
+        quantity: Number(row.quantity || 0),
+        unit_cost: Number(row.unit_cost || 0),
+        total_value: Number(
+          row.total_value ||
+            Number(row.quantity || 0) * Number(row.unit_cost || 0)
+        ),
+
+        par_level: Number(row.par_level || 0),
+        reorder_point: Number(row.reorder_point || 0),
+
+        item_name:
+          row.item_name ||
+          row.name ||
+          row.product_name ||
+          "Inventory Item",
+
+        category: row.category || "Inventory",
+        location: row.location || null,
+      }));
+
+      setInventoryData(normalizedInventoryRows);
+
+      console.log(
+        "LOADED NORMALIZED INVENTORY:",
+        normalizedInventoryRows
+      );
+
+      console.log(
+        "LOADED INVENTORY COUNT:",
+        normalizedInventoryRows.length
+      );
+    } catch (err) {
+      console.error("Inventory load error:", err);
+    }
+  };
+
+  loadSavedInventoryData();
+}, []);
 const BEVERAGE_CATEGORY_KEYWORDS = [
   "beer",
   "wine",
@@ -11031,58 +11097,145 @@ const operationalUsageVarianceInsight =
    INVENTORY DEPLETION INTELLIGENCE
 ========================= */
 
-const inventoryDepletionData = (ingredientsData || []).map(
-  (item) => {
-    const quantity =
-      Number(
-        item.quantity ||
-        item.stock ||
-        item.current_stock ||
-        item.inventory ||
-        0
-      );
+const inventorySourceRows =
+  Array.isArray(inventoryData) && inventoryData.length
+    ? inventoryData
+    : ingredientsData || [];
+const inventoryDepletionData = (inventorySourceRows || []).map((item) => {
+  const quantity = Number(
+    item.quantity ||
+      item.stock ||
+      item.current_stock ||
+      item.inventory ||
+      item.on_hand ||
+      item["On Hand"] ||
+      0
+  );
 
-    const usageRate =
-      Number(
-        item.daily_usage ||
-        item.avg_daily_usage ||
-        item.usage ||
-        0
-      );
+  const unitCost = Number(
+    item.unit_cost ||
+      item.cost ||
+      item.price ||
+      0
+  );
 
-    const daysRemaining =
-      usageRate > 0
-        ? Number((quantity / usageRate).toFixed(1))
-        : 0;
+  const parLevel = Number(
+    item.par_level ||
+      item.par ||
+      item.target_stock ||
+      0
+  );
 
-    const depletionStatus =
-      daysRemaining <= 0
-        ? "Unknown"
-        : daysRemaining <= 2
-        ? "Critical"
-        : daysRemaining <= 5
-        ? "Low"
-        : "Healthy";
+  const reorderPoint = Number(
+    item.reorder_point ||
+      item.reorder ||
+      item.minimum ||
+      item.min ||
+      0
+  );
 
-    return {
-      ...item,
-      quantity,
-      usageRate,
-      daysRemaining,
-      depletionStatus,
-    };
+  const usageRate = Number(
+    item.daily_usage ||
+      item.avg_daily_usage ||
+      item.usage ||
+      item.usageRate ||
+      0
+  );
+
+  const daysRemaining =
+    usageRate > 0
+      ? Number((quantity / usageRate).toFixed(1))
+      : 0;
+
+  let depletionStatus = "Healthy";
+
+  if (reorderPoint > 0 && quantity <= reorderPoint) {
+    depletionStatus = "Critical";
+  } else if (parLevel > 0 && quantity <= parLevel) {
+    depletionStatus = "Low";
+  } else if (usageRate > 0 && daysRemaining <= 2) {
+    depletionStatus = "Critical";
+  } else if (usageRate > 0 && daysRemaining <= 5) {
+    depletionStatus = "Low";
+  } else if (quantity <= 0) {
+    depletionStatus = "Critical";
   }
-);
+
+  return {
+    ...item,
+
+    name:
+      item.name ||
+      item.item_name ||
+      item.ingredient ||
+      item.product ||
+      "Inventory Item",
+
+    item_name:
+      item.item_name ||
+      item.name ||
+      item.ingredient ||
+      item.product ||
+      "Inventory Item",
+
+    category:
+      item.category ||
+      item.type ||
+      "Inventory",
+
+    quantity,
+
+    unit:
+      item.unit ||
+      item.uom ||
+      item.measure ||
+      "",
+
+    unitCost,
+    unit_cost: unitCost,
+
+    total_value:
+      Number(item.total_value || item.value || 0) ||
+      quantity * unitCost,
+
+    parLevel,
+    par_level: parLevel,
+
+    reorderPoint,
+    reorder_point: reorderPoint,
+
+    usageRate,
+    daysRemaining,
+    depletionStatus,
+  };
+});
 
 const criticalInventoryItems =
   inventoryDepletionData.filter(
-    (item) =>
-      item.depletionStatus === "Critical"
+    (item) => item.depletionStatus === "Critical"
   );
 
 const lowInventoryItems =
   inventoryDepletionData.filter(
+    (item) => item.depletionStatus === "Low"
+  );
+
+const healthyInventoryItems =
+  inventoryDepletionData.filter(
+    (item) => item.depletionStatus === "Healthy"
+  );
+
+const totalInventoryValue =
+  inventoryDepletionData.reduce(
+    (sum, item) =>
+      sum + Number(item.total_value || 0),
+    0
+  );
+
+const inventoryReorderAlerts =
+  inventoryDepletionData.filter(
     (item) =>
+      item.depletionStatus === "Critical" ||
       item.depletionStatus === "Low"
   );
 /* =========================
@@ -13875,7 +14028,7 @@ const previousOperationalScore = Math.max(
     ),
   0
 );
-const inventoryData = ingredientsData || [];
+
 const operationalTrendDelta =
   operationalHealthScore - previousOperationalScore;
 
