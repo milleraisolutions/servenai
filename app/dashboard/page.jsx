@@ -23729,7 +23729,14 @@ const inventoryHealthScore = Math.max(
       Number(inventoryAlerts?.length || 0) * 3
   )
 );
-
+const vendorHealthScore = Math.max(
+  40,
+  Math.round(
+    100 -
+      Number(invoiceReviewItems?.length || 0) * 5 -
+      Number(invoiceMismatchItems?.length || 0) * 8
+  )
+);
 const financialHealthScore = Math.max(
   40,
   Math.round(
@@ -23757,9 +23764,10 @@ const executiveHealthScore = Math.round(
   (
     laborHealthScore +
     inventoryHealthScore +
+    vendorHealthScore +
     financialHealthScore +
     beverageHealthScore
-  ) / 4
+  ) / 5
 );
 const executiveHealthLabel =
   executiveHealthScore >= 85
