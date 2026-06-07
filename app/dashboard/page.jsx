@@ -6258,7 +6258,7 @@ console.log("INVOICE STEP 1: started");
     const supplierName = getValue(rows[0], ["Vendor", "vendor", "Supplier", "supplier"]);
     const invoiceDate = getValue(rows[0], ["Invoice Date", "invoice_date"]);
     const invoiceNumber = getValue(rows[0], ["Invoice Number", "invoice_number"]);
-console.log("INVOICE STEP 3: invoice_uploads inserted", invoiceUpload);
+
     const { data: invoiceUpload, error: invoiceUploadError } = await supabase
       .from("invoice_uploads")
       .insert([
@@ -6277,7 +6277,7 @@ console.log("INVOICE STEP 3: invoice_uploads inserted", invoiceUpload);
       console.error("Invoice upload header failed:", invoiceUploadError);
       throw invoiceUploadError;
     }
-
+console.log("INVOICE STEP 3: invoice_uploads inserted", invoiceUpload);
     const cleanedRows = rows
       .map((row) => {
         const itemName = getValue(row, [
