@@ -24322,39 +24322,41 @@ const handleDeleteUpload = async (uploadId) => {
   ) {
     const laborId = uploadIdString.replace("labor-", "");
 
-  const { error: laborDeleteError } = await supabase
-  .from("labor_uploads")
-  .delete()
-  .eq("id", laborId);
+    const { error: laborDeleteError } = await supabase
+      .from("labor_uploads")
+      .delete()
+      .eq("id", laborId);
 
-if (laborDeleteError) {
-  console.error("Labor delete failed:", laborDeleteError);
-  alert(`Labor delete failed: ${laborDeleteError.message}`);
-  return;
-}
+    if (laborDeleteError) {
+      console.error("Labor delete failed:", laborDeleteError);
+      alert(`Labor delete failed: ${laborDeleteError.message}`);
+      return;
+    }
 
-setClientImports((prev) =>
-  (prev || []).filter((item) => item.id !== uploadId)
-);
+    setClientImports((prev) =>
+      (prev || []).filter((item) => item.id !== uploadId)
+    );
 
-setRecentUploads((prev) =>
-  (prev || []).filter((item) => item.id !== uploadId)
-);
+    setRecentUploads((prev) =>
+      (prev || []).filter((item) => item.id !== uploadId)
+    );
 
-setLaborData((prev) =>
-  (prev || []).filter((row) => row.id !== laborId)
-);
+    setLaborData((prev) =>
+      (prev || []).filter((row) => row.id !== laborId)
+    );
 
-setMessage("Labor import deleted.");
-return;
+    setMessage("Labor import deleted.");
+    return;
   }
 
   // ✅ LABOR FILE DELETE: handles labor-file-<filename>-<created_at>
   if (uploadIdString.startsWith("labor-file-")) {
     const laborFileKey = uploadIdString.replace("labor-file-", "");
-const createdAtFromId = uploadIdString.includes("-2026-")
-  ? `2026-${uploadIdString.split("-2026-")[1]}`
-  : null;
+
+    const createdAtFromId = uploadIdString.includes("-2026-")
+      ? `2026-${uploadIdString.split("-2026-")[1]}`
+      : null;
+
     const allImports = [...(clientImports || []), ...(recentUploads || [])];
 
     const laborMatch = allImports.find((item) => item.id === uploadId);
@@ -24370,27 +24372,28 @@ const createdAtFromId = uploadIdString.includes("-2026-")
       return;
     }
 
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-const {
-  data: { user },
-} = await supabase.auth.getUser();
+    console.log("LABOR DELETE DEBUG", {
+      fileName,
+      createdAtFromId,
+      userId: user?.id,
+      dataOwnerId,
+    });
 
-console.log("LABOR DELETE DEBUG", {
-  fileName,
-  createdAtFromId,
-  userId: user?.id,
-  dataOwnerId,
-});
+    const { data: deletedLaborRows, error: laborFileDeleteError } =
+      await supabase
+        .from("labor_uploads")
+        .delete()
+        .eq("user_id", dataOwnerId || user?.id)
+        .ilike("file_name", fileName)
+        .select("id,file_name,created_at,user_id");
 
-const { data: deletedLaborRows, error: laborFileDeleteError } = await supabase
-  .from("labor_uploads")
-  .delete()
-  .eq("user_id", dataOwnerId || user?.id)
-  .ilike("file_name", fileName)
-  .select("id,file_name,created_at,user_id");
+    console.log("DELETED LABOR ROWS:", deletedLaborRows);
+    console.log("LABOR DELETE ERROR:", laborFileDeleteError);
 
-console.log("DELETED LABOR ROWS:", deletedLaborRows);
-console.log("LABOR DELETE ERROR:", laborFileDeleteError);
     if (laborFileDeleteError) {
       console.error("Labor file delete failed:", laborFileDeleteError);
       alert(`Labor delete failed: ${laborFileDeleteError.message}`);
@@ -24405,15 +24408,15 @@ console.log("LABOR DELETE ERROR:", laborFileDeleteError);
       (prev || []).filter((item) => item.id !== uploadId)
     );
 
-setLaborData((prev) =>
-  (prev || []).filter((row) => row.file_name !== fileName)
-);
+    setLaborData((prev) =>
+      (prev || []).filter((row) => row.file_name !== fileName)
+    );
 
     setMessage("Labor import deleted.");
     return;
   }
 
-  // ✅ NORMAL POS / MENU DELETE
+  // ✅ NORMAL UPLOAD DELETE: POS / MENU / INGREDIENTS / INVENTORY / INVOICES
   const { error: salesDeleteError } = await supabase
     .from("sales")
     .delete()
@@ -24433,6 +24436,39 @@ setLaborData((prev) =>
   if (menuDeleteError) {
     console.error("Menu items delete failed:", menuDeleteError);
     alert(`Menu delete failed: ${menuDeleteError.message}`);
+    return;
+  }
+
+  const { error: ingredientsDeleteError } = await supabase
+    .from("ingredients")
+    .delete()
+    .eq("upload_id", uploadId);
+
+  if (ingredientsDeleteError) {
+    console.error("Ingredients delete failed:", ingredientsDeleteError);
+    alert(`Ingredients delete failed: ${ingredientsDeleteError.message}`);
+    return;
+  }
+
+  const { error: inventoryDeleteError } = await supabase
+    .from("inventory_items")
+    .delete()
+    .eq("upload_id", uploadId);
+
+  if (inventoryDeleteError) {
+    console.error("Inventory items delete failed:", inventoryDeleteError);
+    alert(`Inventory delete failed: ${inventoryDeleteError.message}`);
+    return;
+  }
+
+  const { error: invoiceDeleteError } = await supabase
+    .from("invoice_uploads")
+    .delete()
+    .eq("upload_id", uploadId);
+
+  if (invoiceDeleteError) {
+    console.error("Invoice uploads delete failed:", invoiceDeleteError);
+    alert(`Invoice delete failed: ${invoiceDeleteError.message}`);
     return;
   }
 
@@ -24464,6 +24500,14 @@ setLaborData((prev) =>
   );
 
   setMenuItemsData((prev) =>
+    (prev || []).filter((row) => row.upload_id !== uploadId)
+  );
+
+  setIngredientsData((prev) =>
+    (prev || []).filter((row) => row.upload_id !== uploadId)
+  );
+
+  setInventoryData((prev) =>
     (prev || []).filter((row) => row.upload_id !== uploadId)
   );
 
