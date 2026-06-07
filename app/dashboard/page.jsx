@@ -12609,10 +12609,14 @@ const handleImportInventory = async () => {
       return;
     }
 
-    const inventoryRows =
-      pendingUploadSummary?.uploadType === "inventory"
-        ? pendingUploadSummary?.rows || []
-        : inventoryData || [];
+   const inventoryRows =
+  pendingUploadSummary?.rows?.length
+    ? pendingUploadSummary.rows
+    : pendingUploadRows?.length
+    ? pendingUploadRows
+    : pendingUploadRowsRef.current?.length
+    ? pendingUploadRowsRef.current
+    : inventoryData || [];
 
     console.log("INVENTORY ROWS FOUND:", inventoryRows);
     console.log("INVENTORY FIRST ROW FOUND:", inventoryRows?.[0]);
