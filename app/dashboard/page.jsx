@@ -24515,6 +24515,21 @@ const handleDeleteUpload = async (uploadId) => {
   }
 
   // ✅ NORMAL UPLOAD DELETE: POS / MENU / INGREDIENTS / INVENTORY / INVOICES
+
+  // Grab upload row first so invoice deletes can match by file metadata if needed
+  const { data: uploadRow, error: uploadLookupError } = await supabase
+    .from("uploads")
+    .select("*")
+    .eq("id", uploadId)
+    .maybeSingle();
+
+  if (uploadLookupError) {
+    console.error("Upload lookup failed:", uploadLookupError);
+    alert(`Upload lookup failed: ${uploadLookupError.message}`);
+    return;
+  }
+
+  // POS
   const { error: salesDeleteError } = await supabase
     .from("sales")
     .delete()
@@ -24526,6 +24541,7 @@ const handleDeleteUpload = async (uploadId) => {
     return;
   }
 
+  // MENU
   const { error: menuDeleteError } = await supabase
     .from("menu_items")
     .delete()
@@ -24537,6 +24553,7 @@ const handleDeleteUpload = async (uploadId) => {
     return;
   }
 
+  // INGREDIENTS
   const { error: ingredientsDeleteError } = await supabase
     .from("ingredients")
     .delete()
@@ -24548,6 +24565,7 @@ const handleDeleteUpload = async (uploadId) => {
     return;
   }
 
+  // INVENTORY
   const { error: inventoryDeleteError } = await supabase
     .from("inventory_items")
     .delete()
@@ -24559,8 +24577,53 @@ const handleDeleteUpload = async (uploadId) => {
     return;
   }
 
-  
+  // INVOICES
+  if (uploadRow?.upload_type === "invoices") {
+    const { data: matchingInvoiceUploads, error: invoiceUploadFindError } =
+      await supabase
+        .from("invoice_uploads")
+        .select("id,file_name,created_at,user_id")
+        .eq("user_id", uploadRow.user_id)
+        .eq("file_name", uploadRow.file_name);
 
+    if (invoiceUploadFindError) {
+      console.error("Invoice upload lookup failed:", invoiceUploadFindError);
+      alert(`Invoice lookup failed: ${invoiceUploadFindError.message}`);
+      return;
+    }
+
+    const invoiceIds = (matchingInvoiceUploads || []).map((row) => row.id);
+
+    if (invoiceIds.length > 0) {
+      const { error: invoiceItemsDeleteError } = await supabase
+        .from("invoice_items")
+        .delete()
+        .in("invoice_id", invoiceIds);
+
+      if (invoiceItemsDeleteError) {
+        console.error("Invoice items delete failed:", invoiceItemsDeleteError);
+        alert(
+          `Invoice items delete failed: ${invoiceItemsDeleteError.message}`
+        );
+        return;
+      }
+
+      const { error: invoiceUploadsDeleteError } = await supabase
+        .from("invoice_uploads")
+        .delete()
+        .in("id", invoiceIds);
+
+      if (invoiceUploadsDeleteError) {
+        console.error("Invoice upload delete failed:", invoiceUploadsDeleteError);
+        alert(
+          `Invoice upload delete failed: ${invoiceUploadsDeleteError.message}`
+        );
+        return;
+      }
+    }
+  }
+
+  // MAIN UPLOAD ROW
   const { error: uploadDeleteError } = await supabase
     .from("uploads")
     .delete()
@@ -24598,6 +24661,14 @@ const handleDeleteUpload = async (uploadId) => {
 
   setInventoryData((prev) =>
     (prev || []).filter((row) => row.upload_id !== uploadId)
+  );
+
+  setInvoicesData((prev) =>
+    (prev || []).filter(
+      (row) =>
+        row.upload_id !== uploadId &&
+        row.invoice_id !== uploadId
+    )
   );
 
   setMessage("Upload deleted.");
