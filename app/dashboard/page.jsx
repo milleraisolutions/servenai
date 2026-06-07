@@ -25286,8 +25286,14 @@ return (
    <button
   type="button"
   onClick={() => {
-    const currentType =
-  pendingUploadSummary?.uploadType ||
+   const pendingType =
+  pendingUploadSummary?.uploadType &&
+  pendingUploadSummary.uploadType !== "unknown"
+    ? pendingUploadSummary.uploadType
+    : null;
+
+const currentType =
+  pendingType ||
   selectedUploadTypeRef.current ||
   uploadType;
 console.log("CONFIRM IMPORT CURRENT TYPE:", {
