@@ -6278,6 +6278,27 @@ console.log("INVOICE STEP 1: started");
       throw invoiceUploadError;
     }
 console.log("INVOICE STEP 3: invoice_uploads inserted", invoiceUpload);
+const { data: recentUploadRow, error: recentUploadError } = await supabase
+  .from("uploads")
+  .insert([
+    {
+      user_id: user.id,
+      file_name: pendingUploadSummary?.fileName || "Invoice Upload",
+      source_name: "invoice_upload",
+      row_count: rows.length,
+      upload_type: "invoices",
+      status: "completed",
+      archived: false,
+      location_id: selectedUploadLocationId || null,
+    },
+  ])
+  .select()
+  .single();
+
+if (recentUploadError) {
+  console.error("Invoice recent upload record failed:", recentUploadError);
+  throw recentUploadError;
+}
     const cleanedRows = rows
       .map((row) => {
         const itemName = getValue(row, [
@@ -6335,16 +6356,7 @@ console.log("FIRST CLEANED INVOICE ROW:", cleanedRows[0]);
       throw error;
     }
 console.log("INVOICE STEP 5: invoice_items inserted", insertedRows?.length);
-    const uploadRow = {
-      id: invoiceUpload.id,
-      user_id: user.id,
-      file_name: invoiceUpload.file_name,
-      source_name: "invoice_upload",
-      row_count: cleanedRows.length,
-      upload_type: "invoices",
-      status: "completed",
-      created_at: invoiceUpload.created_at,
-    };
+    const uploadRow = recentUploadRow;
 
     setClientImports((prev) => [uploadRow, ...(prev || [])]);
     setRecentUploads((prev) => [uploadRow, ...(prev || [])]);
