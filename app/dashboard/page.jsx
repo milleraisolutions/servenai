@@ -13303,7 +13303,7 @@ const inventoryTurnoverData = useMemo(() => {
 
     const daysOnHand = usageRate > 0 ? quantity / usageRate : 0;
 
-    let status = "Needs Usage Data";
+    let status = "Monitoring";
     let recommendation = "Upload usage or recipe data to calculate turnover.";
 
     if (daysOnHand > 14) {
@@ -56112,8 +56112,8 @@ if (!res.ok) {
                     }}
                   >
                     {item.daysRemaining > 0
-                      ? `${item.daysRemaining} days`
-                      : "Needs usage"}
+  ? `${item.daysRemaining} days`
+  : "Monitoring"}
                     <div style={{ fontSize: "11px", marginTop: "4px" }}>
                       {item.depletionStatus}
                     </div>
