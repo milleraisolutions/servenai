@@ -6229,11 +6229,7 @@ const handleImportInvoices = async () => {
       return;
     }
 
-    const rows = (pendingUploadSummary?.rows || []).filter((row) => {
-      const vendor = row?.Vendor || row?.vendor;
-      const ingredient = row?.["Ingredient Name"] || row?.ingredient_name;
-      return vendor || ingredient;
-    });
+    const rows = pendingUploadSummary?.rows || [];
 
     if (!rows.length) {
       setMessage("No invoice rows found.");
@@ -6242,102 +6238,125 @@ const handleImportInvoices = async () => {
 
     const getValue = (row, keys, fallback = "") => {
       for (const key of keys) {
-        if (
-          row?.[key] !== undefined &&
-          row?.[key] !== null &&
-          row?.[key] !== ""
-        ) {
+        if (row?.[key] !== undefined && row?.[key] !== null && row?.[key] !== "") {
           return row[key];
         }
       }
-
       return fallback;
     };
 
     const toNumber = (value) => {
-      const cleaned = String(value || "")
-        .replace("$", "")
-        .replaceAll(",", "")
-        .trim();
-
-      const num = Number(cleaned);
-
+      const num = Number(
+        String(value || "")
+          .replaceAll("$", "")
+          .replaceAll(",", "")
+          .trim()
+      );
       return Number.isFinite(num) ? num : 0;
     };
 
-    const cleanedRows = rows.map((row) => ({
-      user_id: user.id,
-      vendor: getValue(row, ["Vendor", "vendor"]),
-      invoice_number: getValue(row, ["Invoice Number", "invoice_number"]),
-      invoice_date: getValue(row, ["Invoice Date", "invoice_date"]),
-      ingredient_name: getValue(row, [
-        "Ingredient Name",
-        "ingredient_name",
-        "item",
-        "Item",
-      ]),
-      category: getValue(row, ["Category", "category"]),
-      quantity: toNumber(getValue(row, ["Quantity", "quantity"])),
-      unit: getValue(row, ["Unit", "unit"]),
-      unit_cost: toNumber(getValue(row, ["Unit Cost", "unit_cost"])),
-      total_cost: toNumber(getValue(row, ["Total Cost", "total_cost"])),
-      location_id: selectedUploadLocationId,
-    }));
+    const supplierName = getValue(rows[0], ["Vendor", "vendor", "Supplier", "supplier"]);
+    const invoiceDate = getValue(rows[0], ["Invoice Date", "invoice_date"]);
+    const invoiceNumber = getValue(rows[0], ["Invoice Number", "invoice_number"]);
 
-    const { data: uploadRow, error: uploadError } = await supabase
-      .from("uploads")
+    const { data: invoiceUpload, error: invoiceUploadError } = await supabase
+      .from("invoice_uploads")
       .insert([
         {
           user_id: user.id,
+          supplier_name: supplierName || "Unknown Supplier",
+          invoice_date: invoiceDate || null,
           file_name: pendingUploadSummary?.fileName || "Invoice Upload",
-          source_name: "Manual Upload",
-          row_count: cleanedRows.length,
-          upload_type: "invoices",
-          status: "completed",
-          archived: false,
-          location_id: selectedUploadLocationId,
+          file_url: null,
         },
       ])
       .select()
       .single();
 
-    if (uploadError) {
-      console.error("Invoice upload record failed:", uploadError);
-      throw uploadError;
+    if (invoiceUploadError) {
+      console.error("Invoice upload header failed:", invoiceUploadError);
+      throw invoiceUploadError;
     }
 
-    const rowsWithUploadId = cleanedRows.map((row) => ({
-      ...row,
-      upload_id: uploadRow?.id || null,
-    }));
+    const cleanedRows = rows
+      .map((row) => {
+        const itemName = getValue(row, [
+          "Ingredient Name",
+          "ingredient_name",
+          "Item Name",
+          "item_name",
+          "item",
+          "Item",
+          "Product",
+          "product",
+        ]);
 
-    console.log("CLEANED INVOICE ROWS BEFORE INSERT:", rowsWithUploadId);
+        if (!itemName) return null;
 
-    const { error } = await supabase
+        const unitPrice = toNumber(
+          getValue(row, ["Unit Cost", "unit_cost", "Unit Price", "unit_price", "Price", "price"])
+        );
+
+        const quantity = toNumber(getValue(row, ["Quantity", "quantity", "Qty", "qty"]));
+
+        const totalPrice =
+          toNumber(getValue(row, ["Total Cost", "total_cost", "Total Price", "total_price"])) ||
+          quantity * unitPrice;
+
+        return {
+          user_id: user.id,
+          invoice_id: invoiceUpload.id,
+          vendor: supplierName || getValue(row, ["Vendor", "vendor", "Supplier", "supplier"]),
+          invoice_number: invoiceNumber,
+          invoice_date: invoiceDate || null,
+          item_name: itemName,
+          category: getValue(row, ["Category", "category"]),
+          quantity,
+          unit: getValue(row, ["Unit", "unit", "UOM", "uom"]),
+          unit_price: unitPrice,
+          total_price: totalPrice,
+          previous_unit_price: null,
+          price_change: 0,
+          price_change_percent: 0,
+          flagged_increase: false,
+          location_id: selectedUploadLocationId || null,
+        };
+      })
+      .filter(Boolean);
+
+    const { data: insertedRows, error } = await supabase
       .from("invoice_items")
-      .insert(rowsWithUploadId);
-
-    console.log("INVOICE INSERT ERROR:", error);
+      .insert(cleanedRows)
+      .select();
 
     if (error) {
-      console.error("Invoice insert error:", error);
+      console.error("Invoice items insert failed:", error);
       throw error;
     }
 
-    console.log("INVOICE IMPORT COMPLETE:", rowsWithUploadId);
+    const uploadRow = {
+      id: invoiceUpload.id,
+      user_id: user.id,
+      file_name: invoiceUpload.file_name,
+      source_name: "invoice_upload",
+      row_count: cleanedRows.length,
+      upload_type: "invoices",
+      status: "completed",
+      created_at: invoiceUpload.created_at,
+    };
 
-    setMessage(`Imported ${rowsWithUploadId.length} invoice rows successfully.`);
-
-    alert(`Imported ${rowsWithUploadId.length} invoice rows successfully.`);
+    setClientImports((prev) => [uploadRow, ...(prev || [])]);
+    setRecentUploads((prev) => [uploadRow, ...(prev || [])]);
+    setInvoicesData(insertedRows || cleanedRows);
 
     setPendingUploadSummary(null);
+    setPendingUploadRows([]);
+    pendingUploadRowsRef.current = [];
 
-    await loadClientImports?.();
+    setMessage(`Imported ${cleanedRows.length} invoice rows successfully.`);
   } catch (error) {
     console.error("Invoice import failed:", error);
-
     setMessage(`Invoice import failed: ${error?.message || "Unknown error"}`);
-
     alert(error?.message || "Invoice import failed.");
   }
 };
