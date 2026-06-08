@@ -23117,7 +23117,13 @@ useEffect(() => {
 const handleLocationUpload = async (event) => {
   try {
     const file = event.target.files?.[0];
-    if (!file) return;
+
+    console.log("LOCATION FILE SELECTED:", file);
+
+    if (!file) {
+      setMessage("No location file selected.");
+      return;
+    }
 
     const {
       data: { user },
@@ -23132,34 +23138,78 @@ const handleLocationUpload = async (event) => {
       header: true,
       skipEmptyLines: true,
       complete: async (results) => {
+        console.log("LOCATION PARSE RESULTS:", results);
+
         const rows = results.data || [];
+
+        console.log("LOCATION ROW COUNT:", rows.length);
+        console.log("LOCATION FIRST ROW:", rows[0]);
+
+        if (!rows.length) {
+          setMessage("No location rows found in file.");
+          return;
+        }
 
         const locationsToInsert = rows.map((row) => ({
           user_id: user.id,
+
           location_name:
             row.location_name ||
             row["Location Name"] ||
             row.name ||
+            row.Name ||
+            row.restaurant ||
+            row.Restaurant ||
             "Location",
+
           city: row.city || row.City || null,
+
           state: row.state || row.State || null,
+
           status: row.status || row.Status || "active",
+
           monthly_revenue: Number(
-            row.monthly_revenue || row["Monthly Revenue"] || 0
+            row.monthly_revenue ||
+              row["Monthly Revenue"] ||
+              row.revenue ||
+              row.Revenue ||
+              0
           ),
+
           food_cost_percent: Number(
-            row.food_cost_percent || row["Food Cost Percent"] || 0
+            row.food_cost_percent ||
+              row["Food Cost Percent"] ||
+              row.food_cost ||
+              row["Food Cost"] ||
+              0
           ),
+
           labor_cost_percent: Number(
-            row.labor_cost_percent || row["Labor Cost Percent"] || 0
+            row.labor_cost_percent ||
+              row["Labor Cost Percent"] ||
+              row.labor_cost ||
+              row["Labor Cost"] ||
+              0
           ),
+
           prime_cost_percent: Number(
-            row.prime_cost_percent || row["Prime Cost Percent"] || 0
+            row.prime_cost_percent ||
+              row["Prime Cost Percent"] ||
+              row.prime_cost ||
+              row["Prime Cost"] ||
+              0
           ),
+
           health_score: Number(
-            row.health_score || row["Health Score"] || 0
+            row.health_score ||
+              row["Health Score"] ||
+              row.score ||
+              row.Score ||
+              0
           ),
         }));
+
+        console.log("LOCATION ROWS TO INSERT:", locationsToInsert.slice(0, 5));
 
         const { data, error } = await supabase
           .from("locations")
@@ -23168,58 +23218,68 @@ const handleLocationUpload = async (event) => {
 
         if (error) {
           console.error("Location upload error:", error);
+          alert(`Location upload failed: ${error.message}`);
           setMessage("Location upload failed. Check console.");
           return;
         }
 
         const { data: uploadRow, error: uploadError } = await supabase
-  .from("uploads")
-  .insert([
-    {
-      user_id: user.id,
-      file_name: file.name || "Location Upload",
-      source_name: "location_upload",
-      row_count: data?.length || locationsToInsert.length || 0,
-      upload_type: "locations",
-      status: "completed",
-      archived: false,
-      location_id: null,
-    },
-  ])
-  .select()
-  .single();
-console.log("LOCATION UPLOAD ROW:", uploadRow);
-console.log("LOCATION UPLOAD ERROR:", uploadError);
-if (uploadError) {
-  console.error("Location recent upload failed:", uploadError);
-  alert(
-    `Locations imported, but imports row failed: ${uploadError.message}`
-  );
-}
+          .from("uploads")
+          .insert([
+            {
+              user_id: user.id,
+              file_name: file.name || "Location Upload",
+              source_name: "location_upload",
+              row_count: data?.length || locationsToInsert.length || 0,
+              upload_type: "locations",
+              status: "completed",
+              archived: false,
+              location_id: null,
+            },
+          ])
+          .select()
+          .single();
 
-setLocations((prev) => [...(data || []), ...(prev || [])]);
+        console.log("LOCATION UPLOAD ROW:", uploadRow);
+        console.log("LOCATION UPLOAD ERROR:", uploadError);
 
-if (uploadRow) {
-  setClientImports((prev) => [
-    uploadRow,
-    ...(prev || []).filter((upload) => upload.id !== uploadRow.id),
-  ]);
+        if (uploadError) {
+          console.error("Location recent upload failed:", uploadError);
+          alert(
+            `Locations imported, but imports row failed: ${uploadError.message}`
+          );
+        }
 
-  setRecentUploads((prev) => [
-    uploadRow,
-    ...(prev || []).filter((upload) => upload.id !== uploadRow.id),
-  ]);
-}
+        setLocations((prev) => [...(data || []), ...(prev || [])]);
 
-setMessage(`Imported ${data?.length || 0} location(s).`);
+        if (uploadRow) {
+          setClientImports((prev) => [
+            uploadRow,
+            ...(prev || []).filter((upload) => upload.id !== uploadRow.id),
+          ]);
+
+          setRecentUploads((prev) => [
+            uploadRow,
+            ...(prev || []).filter((upload) => upload.id !== uploadRow.id),
+          ]);
+        }
+
+        setMessage(`Imported ${data?.length || 0} location(s).`);
+
+        event.target.value = "";
+      },
+      error: (parseError) => {
+        console.error("Location CSV parse failed:", parseError);
+        alert(`Location CSV parse failed: ${parseError.message}`);
+        setMessage("Location CSV parse failed.");
       },
     });
   } catch (error) {
     console.error("Location upload crashed:", error);
+    alert(`Location upload crashed: ${error.message}`);
     setMessage("Location upload failed. Check console.");
   }
 };
-
 useEffect(() => {
   const loadKitchenManagerData = async () => {
     const {
@@ -25984,13 +26044,19 @@ return (
       </button>
 
       <button
-        onClick={() => {
-          document.getElementById("locationUpload")?.click();
-        }}
-        style={setupPrimaryButton}
-      >
-        Upload Locations
-      </button>
+  onClick={() => {
+    console.log("LOCATION BUTTON CLICKED");
+
+    const input = document.getElementById("locationUpload");
+
+    console.log("LOCATION INPUT FOUND:", input);
+
+    input?.click();
+  }}
+  style={setupPrimaryButton}
+>
+  Upload Locations
+</button>
     </div>
   </div>
 
