@@ -25317,7 +25317,16 @@ return (
 </button>
 <button
   onClick={() => {
-    document.getElementById("guestUpload")?.click();
+    const input = document.getElementById("guestUpload");
+
+    if (!input) {
+      console.error("guestUpload input not found");
+      setMessage("Guest upload input not found.");
+      return;
+    }
+
+    input.value = "";
+    input.click();
   }}
   style={setupPrimaryButton}
 >
