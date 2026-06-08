@@ -14338,15 +14338,19 @@ const locationOptions = useMemo(() => {
 }, [multiLocationSalesRows]);
 
 
-
-const isOwnerOrGM =
-  isOwnerRole ||
-  isGMRole ||
-  isExecutiveRole;
 const isRestaurantOwner =
   userRole === "owner" ||
   userRole === "restaurant_owner" ||
   userRole === "executive";
+
+const isCorporateAdminRole =
+  userRole === "corporate_admin";
+
+const isRegionalDirectorRole =
+  userRole === "regional_director";
+
+const isFinanceRole =
+  userRole === "finance";
 
 const isManager =
   userRole === "manager" ||
@@ -14355,51 +14359,168 @@ const isManager =
   userRole === "kitchen_manager" ||
   userRole === "gm" ||
   userRole === "executive";
-const canSeeOwnerDashboard = isOwnerRole;
+
+const isOwnerOrGM =
+  isOwnerRole ||
+  isGMRole ||
+  isExecutiveRole ||
+  isCorporateAdminRole ||
+  isRegionalDirectorRole;
+
+const canManageUsers =
+  isOwnerRole || isExecutiveRole || isCorporateAdminRole;
+
+const canViewEnterprise =
+  isOwnerRole ||
+  isExecutiveRole ||
+  isCorporateAdminRole ||
+  isRegionalDirectorRole;
+
+const canViewFinancials =
+  isOwnerRole ||
+  isExecutiveRole ||
+  isCorporateAdminRole ||
+  isRegionalDirectorRole ||
+  isGMRole ||
+  isFinanceRole;
+
+const canViewKitchen =
+  isOwnerRole ||
+  isExecutiveRole ||
+  isCorporateAdminRole ||
+  isRegionalDirectorRole ||
+  isGMRole ||
+  isKitchenManagerRole;
+
+const canDeleteImports =
+  isOwnerRole ||
+  isExecutiveRole ||
+  isCorporateAdminRole ||
+  isGMRole;
+
+const canSeeOwnerDashboard =
+  isOwnerRole ||
+  isExecutiveRole ||
+  isCorporateAdminRole;
 
 const canSeeManagerDashboard =
   isManager && !canSeeOwnerDashboard;
-  
 
 const allowedTabsByRole = {
   owner: null,
+  executive: null,
+  corporate_admin: null,
 
-  gm: [
+  regional_director: [
     "overview",
-    "ai_insights",
+    "ai",
     "client_alerts",
     "analytics",
     "inventory",
     "financial",
     "labor",
     "operations",
-    "menu",
+    "recipes",
+    "beverage",
+    "ai_alerts",
+    "growth",
+    "multi_location",
+  ],
+
+  finance: [
+    "overview",
+    "analytics",
+    "financial",
+    "labor",
+    "inventory",
+    "invoices",
+    "multi_location",
+  ],
+
+  gm: [
+    "overview",
+    "ai",
+    "client_alerts",
+    "analytics",
+    "inventory",
+    "financial",
+    "labor",
+    "operations",
+    "recipes",
     "beverage",
     "growth",
     "marketing",
+    "kitchen_manager",
+  ],
+
+  general_manager: [
+    "overview",
+    "ai",
+    "client_alerts",
+    "analytics",
+    "inventory",
+    "financial",
+    "labor",
+    "operations",
+    "recipes",
+    "beverage",
+    "growth",
+    "marketing",
+    "kitchen_manager",
   ],
 
   kitchen_manager: [
     "overview",
     "inventory",
     "operations",
-    "menu",
+    "recipes",
     "beverage",
     "ai_alerts",
-    "kitchen",
+    "kitchen_manager",
   ],
 };
 
 const canViewTab = (tabId) => {
-  if (userRole === "owner") return true;
+  if (
+    userRole === "owner" ||
+    userRole === "executive" ||
+    userRole === "corporate_admin"
+  ) {
+    return true;
+  }
+
   return allowedTabsByRole[userRole]?.includes(tabId);
 };
+
 const sidebarTabs = isKitchenManagerRole
   ? [
       { key: "kitchen_manager", label: "Kitchen Manager", icon: "🍳" },
       { key: "recipes", label: "Recipes", icon: "📋" },
       { key: "inventory", label: "Inventory", icon: "📦" },
+      { key: "operations", label: "Operations", icon: "⚙️" },
+    ]
+
+  : isFinanceRole
+  ? [
+      { key: "overview", label: "Overview", icon: "📊" },
+      { key: "analytics", label: "Analytics", icon: "📈" },
+      { key: "financial", label: "Financial", icon: "💰" },
       { key: "labor", label: "Labor", icon: "👥" },
+      { key: "inventory", label: "Inventory", icon: "📦" },
+      { key: "multi_location", label: "Enterprise", icon: "🏢" },
+    ]
+
+  : isRegionalDirectorRole
+  ? [
+      { key: "overview", label: "Overview", icon: "📊" },
+      { key: "ai", label: "AI Insights", icon: "🧠" },
+      { key: "analytics", label: "Analytics", icon: "📈" },
+      { key: "financial", label: "Financial", icon: "💰" },
+      { key: "labor", label: "Labor", icon: "👥" },
+      { key: "inventory", label: "Inventory", icon: "📦" },
+      { key: "operations", label: "Operations", icon: "⚙️" },
+      { key: "multi_location", label: "Enterprise", icon: "🏢" },
+      { key: "ai_alerts", label: "AI Alerts", icon: "🚨" },
     ]
 
   : isGMRole
@@ -14410,11 +14531,13 @@ const sidebarTabs = isKitchenManagerRole
       { key: "labor", label: "Labor", icon: "👥" },
       { key: "inventory", label: "Inventory", icon: "📦" },
       { key: "recipes", label: "Recipes", icon: "📋" },
+      { key: "operations", label: "Operations", icon: "⚙️" },
+      { key: "beverage", label: "Beverage", icon: "🍸" },
       { key: "marketing", label: "Marketing", icon: "📣" },
       { key: "kitchen_manager", label: "Kitchen", icon: "🍳" },
     ]
 
-  : isExecutiveRole || isOwnerRole
+  : isExecutiveRole || isOwnerRole || isCorporateAdminRole
   ? [
       { key: "overview", label: "Overview", icon: "📊" },
       { key: "ai", label: "AI Insights", icon: "🧠" },
@@ -14432,8 +14555,8 @@ const sidebarTabs = isKitchenManagerRole
       { key: "pro_ai", label: "Pro AI", icon: "⚡" },
       { key: "kitchen_manager", label: "Kitchen", icon: "🍳" },
       { key: "multi_location", label: "Enterprise", icon: "🏢" },
-      { key: "admin", label: "Account Center", icon: "⚙️" },
       { key: "team_management", label: "Team", icon: "👥" },
+      { key: "admin", label: "Account Center", icon: "⚙️" },
     ]
 
   : [];
