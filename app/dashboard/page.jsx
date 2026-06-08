@@ -26389,7 +26389,24 @@ if (currentType === "menu_items") {
   >
     AI continuously analyzes uploaded operational data to generate restaurant intelligence.
   </p>
-
+<input
+  value={importsSearch}
+  onChange={(e) => setImportsSearch(e.target.value)}
+  placeholder="Search imports by date, file name, or type..."
+  style={{
+    width: "100%",
+    marginTop: "16px",
+    marginBottom: "16px",
+    padding: "14px 16px",
+    borderRadius: "16px",
+    border: "1px solid rgba(148,163,184,0.18)",
+    background: "rgba(15,23,42,0.82)",
+    color: "white",
+    fontSize: "14px",
+    outline: "none",
+    boxSizing: "border-box",
+  }}
+/>
   {importsLoading ? (
     <div
       style={{
