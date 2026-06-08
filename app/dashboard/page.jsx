@@ -23188,7 +23188,8 @@ const handleLocationUpload = async (event) => {
   ])
   .select()
   .single();
-
+console.log("LOCATION UPLOAD ROW:", uploadRow);
+console.log("LOCATION UPLOAD ERROR:", uploadError);
 if (uploadError) {
   console.error("Location recent upload failed:", uploadError);
   alert(
