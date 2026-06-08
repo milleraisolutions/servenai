@@ -25830,14 +25830,15 @@ return (
       </p>
 
       <div
-  style={{
-    display: "grid",
-    gridTemplateColumns: isMobile
-  ? "1fr"
-  : "repeat(2, minmax(0, 1fr))",
-    gap: "12px",
-    width: "100%",
-  }}
+ style={{
+  display: "grid",
+  gridTemplateColumns: isMobile
+    ? "1fr"
+    : "repeat(3, minmax(220px, 1fr))",
+  gap: "14px",
+  alignItems: "stretch",
+  maxWidth: "980px",
+}}
 >
  <div
   style={{
@@ -25982,13 +25983,14 @@ return (
 
     <div
       style={{
-        display: "grid",
-        gridTemplateColumns: isMobile
-          ? "1fr"
-          : "repeat(4, minmax(0, 1fr))",
-        gap: "14px",
-        alignItems: "stretch",
-      }}
+  display: "grid",
+  gridTemplateColumns: isMobile
+    ? "1fr"
+    : "repeat(3, minmax(220px, 1fr))",
+  gap: "14px",
+  alignItems: "stretch",
+  maxWidth: "980px",
+}}
     >
       <button
         onClick={() => {
@@ -26038,7 +26040,7 @@ return (
         }}
         style={{
           ...setupGoldButton,
-          gridColumn: isMobile ? "auto" : "2 / span 2",
+         gridColumn: isMobile ? "auto" : "1 / span 3",
         }}
       >
         Upload Beverage Data
