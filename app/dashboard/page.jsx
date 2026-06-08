@@ -26023,14 +26023,17 @@ return (
         Upload Batch Prep
       </button>
 
-      <button
-        onClick={() => {
-          document.getElementById("employeeShiftUpload")?.click();
-        }}
-        style={setupSecondaryButton}
-      >
-        Upload Employee Shifts
-      </button>
+     <button
+  onClick={() => {
+    document.getElementById("employeeShiftUpload")?.click();
+  }}
+  style={{
+    ...setupSecondaryButton,
+    gridColumn: isMobile ? "auto" : "1 / span 3",
+  }}
+>
+  Upload Employee Shifts
+</button>
 
       <button
         type="button"
