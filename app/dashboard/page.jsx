@@ -224,7 +224,7 @@ const [employees, setEmployees] = useState([]);
 const [employeeShifts, setEmployeeShifts] = useState([]);
 const [beverageItems, setBeverageItems] = useState([]);
 const [beverageUsage, setBeverageUsage] = useState([]);
-
+const [importsSearch, setImportsSearch] = useState("");
 const [mapping, setMapping] = useState({
   name: "",
   category: "",
@@ -25433,7 +25433,16 @@ const formatChartDate = (value) => {
   });
 };
 
+const filteredRecentUploads = (recentUploads || []).filter((upload) => {
+  const search = importsSearch.toLowerCase();
 
+  return (
+    String(upload.file_name || "").toLowerCase().includes(search) ||
+    String(upload.upload_type || "").toLowerCase().includes(search) ||
+    String(upload.source_name || "").toLowerCase().includes(search) ||
+    String(upload.created_at || "").toLowerCase().includes(search)
+  );
+});
 
 
 
@@ -26346,27 +26355,28 @@ if (currentType === "menu_items") {
     </div>
 
     <div
-      style={{
-        padding: "8px 12px",
-        borderRadius: "999px",
-        background: "rgba(255,255,255,0.05)",
-        border: "1px solid rgba(148,163,184,0.12)",
-        color: "#cbd5e1",
-        fontSize: "12px",
-        fontWeight: "900",
-      }}
-    >
-     {[
-  ...new Map(
-    (clientImports || []).map((item) => [
-      item.source_name === "labor_upload"
-        ? `labor-${item.file_name || "Labor Upload"}`
-        : item.id,
-      item,
-    ])
-  ).values(),
-].length} Total Imports
-    </div>
+  style={{
+    padding: "8px 12px",
+    borderRadius: "999px",
+    background: "rgba(255,255,255,0.05)",
+    border: "1px solid rgba(148,163,184,0.12)",
+    color: "#cbd5e1",
+    fontSize: "12px",
+    fontWeight: "900",
+  }}
+>
+  {filteredRecentUploads.length} Showing /{" "}
+  {[
+    ...new Map(
+      (clientImports || []).map((item) => [
+        item.source_name === "labor_upload"
+          ? `labor-${item.file_name || "Labor Upload"}`
+          : item.id,
+        item,
+      ])
+    ).values(),
+  ].length} Total Imports
+</div>
   </div>
 
   <p
