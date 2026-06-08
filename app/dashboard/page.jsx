@@ -22653,6 +22653,34 @@ const handleEmployeeShiftUpload = async (event) => {
           ...(prev || []),
         ]);
         console.log("ADDING EMPLOYEE SHIFT IMPORT TO UI:", file.name);
+    const { data: employeeShiftUploadRow, error: employeeShiftUploadError } =
+  await supabase
+    .from("uploads")
+    .insert([
+      {
+        user_id: user.id,
+        file_name: file.name || "Employee Shift Upload",
+        source_name: "employee_shift_upload",
+        row_count: insertedShifts?.length || 0,
+        upload_type: "employee_shifts",
+        status: "completed",
+        archived: false,
+        location_id: selectedUploadLocationId || null,
+      },
+    ])
+    .select()
+    .single();
+
+if (employeeShiftUploadError) {
+  console.error(
+    "Employee shift upload row insert failed:",
+    employeeShiftUploadError
+  );
+
+  alert(
+    `Employee shift import saved, but imports row failed: ${employeeShiftUploadError.message}`
+  );
+}
 const newEmployeeShiftUpload = {
   id:
     employeeShiftUploadRow?.id ||
