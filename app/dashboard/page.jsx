@@ -50317,13 +50317,17 @@ Restaurant AI Health is currently rated{" "}
       onChange={(e) => setInviteEmail(e.target.value)}
     />
 
-    <select
-      value={inviteRole}
-      onChange={(e) => setInviteRole(e.target.value)}
-    >
-      <option value="gm">General Manager</option>
-      <option value="kitchen_manager">Kitchen Manager</option>
-    </select>
+   <select
+  value={inviteRole}
+  onChange={(e) => setInviteRole(e.target.value)}
+>
+  <option value="owner">Owner</option>
+  <option value="corporate_admin">Corporate Admin</option>
+  <option value="regional_director">Regional Director</option>
+  <option value="gm">General Manager</option>
+  <option value="kitchen_manager">Kitchen Manager</option>
+  <option value="finance">Finance</option>
+</select>
 
     <input
       placeholder="Assigned Location"
@@ -50402,9 +50406,17 @@ Restaurant AI Health is currently rated{" "}
         fontWeight: "800",
       }}
     >
-      {member.role === "gm"
-        ? "General Manager"
-        : "Kitchen Manager"}{" "}
+      {member.role === "owner"
+  ? "Owner"
+  : member.role === "corporate_admin"
+  ? "Corporate Admin"
+  : member.role === "regional_director"
+  ? "Regional Director"
+  : member.role === "gm"
+  ? "General Manager"
+  : member.role === "finance"
+  ? "Finance"
+  : "Kitchen Manager"}{" "}
       • {member.location_name} • {member.status}
     </div>
 
