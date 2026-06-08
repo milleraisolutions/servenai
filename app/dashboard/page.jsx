@@ -23168,9 +23168,7 @@ const handleLocationUpload = async (event) => {
             "Location",
 
           city: row.city || row.City || null,
-
           state: row.state || row.State || null,
-
           status: row.status || row.Status || "active",
 
           monthly_revenue: Number(
@@ -23260,12 +23258,24 @@ const handleLocationUpload = async (event) => {
         if (uploadRow) {
           setClientImports((prev) => [
             uploadRow,
-            ...(prev || []).filter((upload) => upload.id !== uploadRow.id),
+            ...(prev || []).filter(
+              (upload) =>
+                !(
+                  upload.file_name === uploadRow.file_name &&
+                  upload.upload_type === uploadRow.upload_type
+                )
+            ),
           ]);
 
           setRecentUploads((prev) => [
             uploadRow,
-            ...(prev || []).filter((upload) => upload.id !== uploadRow.id),
+            ...(prev || []).filter(
+              (upload) =>
+                !(
+                  upload.file_name === uploadRow.file_name &&
+                  upload.upload_type === uploadRow.upload_type
+                )
+            ),
           ]);
         }
 
