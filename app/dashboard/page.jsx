@@ -12672,6 +12672,10 @@ if (uploadRow) {
 }
 
 setMessage(`Imported ${rowsToInsert.length} batch prep rows.`);
+setPendingUploadSummary(null);
+setPendingUploadRows([]);
+pendingUploadRowsRef.current = [];
+
   } catch (error) {
     console.error("Batch prep import error:", error);
     setMessage(error?.message || "Failed to import batch prep data.");
