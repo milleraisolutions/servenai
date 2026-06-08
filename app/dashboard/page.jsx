@@ -22658,6 +22658,8 @@ const newEmployeeShiftUpload = {
   file_name: file.name,
   name: file.name,
   upload_type: "employee_shifts",
+  source: "Employee Shifts",
+  row_count: insertedShifts?.length || 0,
   created_at: new Date().toISOString(),
 };
 
