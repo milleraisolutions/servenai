@@ -12788,7 +12788,8 @@ const handleImportInventory = async () => {
 
     console.log("INVENTORY FIRST ROW TO INSERT:", rowsToInsert?.[0]);
     console.log("INVENTORY SAMPLE ROWS:", rowsToInsert?.slice(0, 5));
-
+console.log("GUEST STEP 1: customers inserted", data?.length);
+console.log("GUEST STEP 2: creating recent upload row");
   const { data: uploadRow, error: uploadError } = await supabase
   .from("uploads")
   .insert([
@@ -12810,7 +12811,7 @@ if (uploadError) {
   setMessage(`Inventory upload failed: ${uploadError.message}`);
   return;
 }
-
+console.log("GUEST STEP 3: recent upload row created", uploadRow);
 const rowsWithUploadId = rowsToInsert.map((row) => ({
   ...row,
   upload_id: uploadRow?.id || null,
@@ -22062,7 +22063,12 @@ const handleGuestUpload = async (event) => {
       header: true,
       skipEmptyLines: true,
       complete: async (results) => {
-        const rows = results.data || [];
+  console.log(
+    "GUEST PARSE COMPLETE:",
+    results.data?.length
+  );
+
+  const rows = results.data || [];
 
         const customersToInsert = rows.map((row) => {
           const visits = Number(
@@ -22089,42 +22095,59 @@ const handleGuestUpload = async (event) => {
             last_visit: row.last_visit || row["Last Visit"] || null,
           };
         });
+console.log(
+  "GUEST STEP 0: inserting customers",
+  customersToInsert.length
+);
+       const { data, error } = await supabase
+  .from("customers")
+  .insert(customersToInsert)
+  .select();
 
-        const { data, error } = await supabase
-          .from("customers")
-          .insert(customersToInsert)
-          .select();
+if (error) {
+  console.error("Guest upload error:", error);
+  setMessage("Guest upload failed. Check console.");
+  return;
+}
 
-        if (error) {
-          console.error("Guest upload error:", error);
-          setMessage("Guest upload failed. Check console.");
-          return;
-        }
+console.log(
+  "GUEST STEP 1: customers inserted",
+  data?.length
+);
 
-        const { data: uploadRow, error: uploadError } = await supabase
-          .from("uploads")
-          .insert([
-            {
-              user_id: user.id,
-              file_name: file.name || "Guest Data Upload",
-              source_name: "guest_upload",
-              row_count: customersToInsert.length,
-              upload_type: "guest_data",
-              status: "completed",
-              archived: false,
-              location_id: selectedUploadLocationId || null,
-            },
-          ])
-          .select()
-          .single();
+console.log(
+  "GUEST STEP 2: creating recent upload row"
+);
 
-        if (uploadError) {
-          console.error("Guest recent upload insert failed:", uploadError);
-          setMessage("Guest data saved, but recent import failed.");
-          return;
-        }
+const { data: uploadRow, error: uploadError } = await supabase
+  .from("uploads")
+  .insert([
+    {
+      user_id: user.id,
+      file_name: file.name || "Guest Data Upload",
+      source_name: "guest_upload",
+      row_count: customersToInsert.length,
+      upload_type: "guest_data",
+      status: "completed",
+      archived: false,
+      location_id: selectedUploadLocationId || null,
+    },
+  ])
+  .select()
+  .single();
 
-        setCustomerData(data || []);
+if (uploadError) {
+  console.error("Guest recent upload insert failed:", uploadError);
+  setMessage("Guest data saved, but recent import failed.");
+  return;
+}
+
+console.log(
+  "GUEST STEP 3: recent upload row created",
+  uploadRow
+);
+
+setCustomerData(data || []);
 
         setClientImports((prev) => [
           uploadRow,
