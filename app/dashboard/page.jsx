@@ -22310,12 +22310,33 @@ const handleRecipeUpload = async (event) => {
       header: true,
       skipEmptyLines: true,
       complete: async (results) => {
-        console.log("RECIPE PARSE COMPLETE:", results.data?.length);
-
         const rows = results.data || [];
 
         if (!rows.length) {
           setMessage("No recipe rows found.");
+          return;
+        }
+
+        const { data: uploadRow, error: uploadError } = await supabase
+          .from("uploads")
+          .insert([
+            {
+              user_id: user.id,
+              file_name: file.name || "Recipe Cards Upload",
+              source_name: "recipe_upload",
+              row_count: rows.length,
+              upload_type: "recipes",
+              status: "completed",
+              archived: false,
+              location_id: selectedUploadLocationId || null,
+            },
+          ])
+          .select()
+          .single();
+
+        if (uploadError) {
+          console.error("Recipe recent upload insert failed:", uploadError);
+          setMessage(`Recipe upload failed: ${uploadError.message}`);
           return;
         }
 
@@ -22333,6 +22354,7 @@ const handleRecipeUpload = async (event) => {
             recipeMap.set(recipeName, {
               recipe: {
                 user_id: user.id,
+                upload_id: uploadRow.id,
                 recipe_name: recipeName,
                 menu_item_name:
                   row.menu_item_name || row["Menu Item"] || recipeName,
@@ -22353,14 +22375,10 @@ const handleRecipeUpload = async (event) => {
           recipeMap.get(recipeName).ingredients.push(row);
         });
 
-        console.log("RECIPE GROUP COUNT:", recipeMap.size);
-
         const savedRecipes = [];
         const savedIngredients = [];
 
         for (const [, group] of recipeMap) {
-          console.log("RECIPE STEP 1:", group.recipe.recipe_name);
-
           const { data: recipeInsert, error: recipeError } = await supabase
             .from("recipes")
             .insert([group.recipe])
@@ -22371,8 +22389,6 @@ const handleRecipeUpload = async (event) => {
             console.error("RECIPE INSERT ERROR:", recipeError);
             continue;
           }
-
-          console.log("RECIPE STEP 2: recipe saved", recipeInsert?.id);
 
           const ingredientRows = group.ingredients.map((row) => {
             const quantity = Number(row.quantity || row.Quantity || 0);
@@ -22395,11 +22411,6 @@ const handleRecipeUpload = async (event) => {
             };
           });
 
-          console.log(
-            "RECIPE STEP 3: inserting recipe ingredients",
-            ingredientRows.length
-          );
-
           const { data: ingredientInsert, error: ingredientError } =
             await supabase
               .from("recipe_ingredients")
@@ -22407,41 +22418,12 @@ const handleRecipeUpload = async (event) => {
               .select();
 
           if (ingredientError) {
-            console.error(
-              "RECIPE INGREDIENTS INSERT ERROR:",
-              ingredientError
-            );
+            console.error("RECIPE INGREDIENTS INSERT ERROR:", ingredientError);
             continue;
           }
 
-          console.log(
-            "RECIPE STEP 4: ingredients saved",
-            ingredientInsert?.length
-          );
-
           savedRecipes.push(recipeInsert);
           savedIngredients.push(...(ingredientInsert || []));
-        }
-
-        const { data: uploadRow, error: uploadError } = await supabase
-          .from("uploads")
-          .insert([
-            {
-              user_id: user.id,
-              file_name: file.name || "Recipe Cards Upload",
-              source_name: "recipe_upload",
-              row_count: rows.length,
-              upload_type: "recipes",
-              status: "completed",
-              archived: false,
-              location_id: selectedUploadLocationId || null,
-            },
-          ])
-          .select()
-          .single();
-
-        if (uploadError) {
-          console.error("Recipe recent upload insert failed:", uploadError);
         }
 
         setRecipes((prev) => [...savedRecipes, ...(prev || [])]);
@@ -22450,17 +22432,15 @@ const handleRecipeUpload = async (event) => {
           ...(prev || []),
         ]);
 
-        if (uploadRow) {
-          setClientImports((prev) => [
-            uploadRow,
-            ...(prev || []).filter((upload) => upload.id !== uploadRow.id),
-          ]);
+        setClientImports((prev) => [
+          uploadRow,
+          ...(prev || []).filter((upload) => upload.id !== uploadRow.id),
+        ]);
 
-          setRecentUploads((prev) => [
-            uploadRow,
-            ...(prev || []).filter((upload) => upload.id !== uploadRow.id),
-          ]);
-        }
+        setRecentUploads((prev) => [
+          uploadRow,
+          ...(prev || []).filter((upload) => upload.id !== uploadRow.id),
+        ]);
 
         setMessage(`Imported ${savedRecipes.length} recipe card(s).`);
       },
