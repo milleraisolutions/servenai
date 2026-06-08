@@ -22919,6 +22919,177 @@ const handleBeverageUpload = async (event) => {
   }
 };
 
+const handleBeverageUsageUpload = async (event) => {
+  try {
+    const file = event.target.files?.[0];
+
+    console.log("BEVERAGE USAGE FILE SELECTED:", file);
+
+    if (!file) {
+      setMessage("No beverage usage file selected.");
+      return;
+    }
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user?.id) {
+      setMessage("You must be logged in to upload beverage usage.");
+      return;
+    }
+
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (results) => {
+        const rows = results.data || [];
+
+        console.log("BEVERAGE USAGE ROW COUNT:", rows.length);
+        console.log("BEVERAGE USAGE FIRST ROW:", rows[0]);
+
+        if (!rows.length) {
+          setMessage("No beverage usage rows found in file.");
+          return;
+        }
+
+        const usageRows = rows.map((row) => ({
+          user_id: user.id,
+
+          beverage_name:
+            row.beverage_name ||
+            row["Beverage Name"] ||
+            row.name ||
+            row.Name ||
+            row.item ||
+            row.Item ||
+            row.product ||
+            row.Product ||
+            "Beverage",
+
+          usage_date:
+            row.usage_date ||
+            row["Usage Date"] ||
+            row.date ||
+            row.Date ||
+            null,
+
+          bartender:
+            row.bartender ||
+            row.Bartender ||
+            row.employee ||
+            row.Employee ||
+            row.server ||
+            row.Server ||
+            null,
+
+          shift:
+            row.shift ||
+            row.Shift ||
+            null,
+
+          expected_oz: Number(
+            row.expected_oz ||
+              row["Expected Oz"] ||
+              row.expected ||
+              row.Expected ||
+              0
+          ),
+
+          actual_oz: Number(
+            row.actual_oz ||
+              row["Actual Oz"] ||
+              row.actual ||
+              row.Actual ||
+              0
+          ),
+
+          waste_oz: Number(
+            row.waste_oz ||
+              row["Waste Oz"] ||
+              row.waste ||
+              row.Waste ||
+              0
+          ),
+
+          comps_oz: Number(
+            row.comps_oz ||
+              row["Comps Oz"] ||
+              row.comps ||
+              row.Comps ||
+              0
+          ),
+        }));
+
+        console.log("BEVERAGE USAGE ROWS TO INSERT:", usageRows.slice(0, 5));
+
+        const { data, error } = await supabase
+          .from("beverage_usage")
+          .insert(usageRows)
+          .select();
+
+        if (error) {
+          console.error("Beverage usage upload error:", error);
+          alert(`Beverage usage upload failed: ${error.message}`);
+          setMessage("Beverage usage upload failed. Check console.");
+          return;
+        }
+
+        const { data: uploadRow, error: uploadError } = await supabase
+          .from("uploads")
+          .insert([
+            {
+              user_id: user.id,
+              file_name: file.name || "Beverage Usage Upload",
+              source_name: "beverage_usage_upload",
+              row_count: data?.length || usageRows.length || 0,
+              upload_type: "beverage_usage",
+              status: "completed",
+              archived: false,
+              location_id: selectedUploadLocationId || null,
+            },
+          ])
+          .select()
+          .single();
+
+        if (uploadError) {
+          console.error("Beverage usage recent upload failed:", uploadError);
+          alert(
+            `Beverage usage imported, but imports row failed: ${uploadError.message}`
+          );
+        }
+
+        setBeverageUsage((prev) => [...(data || []), ...(prev || [])]);
+
+        if (uploadRow) {
+          setClientImports((prev) => [
+            uploadRow,
+            ...(prev || []).filter((upload) => upload.id !== uploadRow.id),
+          ]);
+
+          setRecentUploads((prev) => [
+            uploadRow,
+            ...(prev || []).filter((upload) => upload.id !== uploadRow.id),
+          ]);
+        }
+
+        setMessage(`Imported ${data?.length || 0} beverage usage row(s).`);
+
+        event.target.value = "";
+      },
+      error: (parseError) => {
+        console.error("Beverage usage CSV parse failed:", parseError);
+        alert(`Beverage usage CSV parse failed: ${parseError.message}`);
+        setMessage("Beverage usage CSV parse failed.");
+      },
+    });
+  } catch (error) {
+    console.error("Beverage usage upload crashed:", error);
+    alert(`Beverage usage upload crashed: ${error.message}`);
+    setMessage("Beverage usage upload failed. Check console.");
+  }
+};
+
 useEffect(() => {
   const loadLocations = async () => {
     const {
