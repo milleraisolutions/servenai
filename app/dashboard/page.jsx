@@ -25839,6 +25839,14 @@ return (
     width: "100%",
   }}
 >
+ {/* PRIMARY IMPORTS */}
+<div
+  style={{
+    display: "grid",
+    gridTemplateColumns: isMobile ? "1fr" : "repeat(2, minmax(0, 1fr))",
+    gap: "14px",
+  }}
+>
   <button
     onClick={() => {
       selectedUploadTypeRef.current = "pos";
@@ -25849,16 +25857,39 @@ return (
   >
     Upload POS Data
   </button>
-<button
-  onClick={() => {
-    selectedUploadTypeRef.current = "labor";
-    setUploadType("labor");
-    document.getElementById("csvUpload")?.click();
-  }}
-  style={setupPrimaryButton}
->
-  Upload Labor Data
-</button>
+
+  <button
+    onClick={() => {
+      selectedUploadTypeRef.current = "labor";
+      setUploadType("labor");
+      document.getElementById("csvUpload")?.click();
+    }}
+    style={setupPrimaryButton}
+  >
+    Upload Labor Data
+  </button>
+
+  <button
+    onClick={() => {
+      selectedUploadTypeRef.current = "inventory";
+      setUploadType("inventory");
+      document.getElementById("csvUpload")?.click();
+    }}
+    style={setupGoldButton}
+  >
+    Upload Inventory
+  </button>
+
+  <button
+    onClick={() => {
+      selectedUploadTypeRef.current = "invoices";
+      setUploadType("invoices");
+      document.getElementById("csvUpload")?.click();
+    }}
+    style={setupSecondaryButton}
+  >
+    Upload Invoices
+  </button>
 
   <button
     onClick={() => {
@@ -25873,100 +25904,117 @@ return (
 
   <button
     onClick={() => {
-      selectedUploadTypeRef.current = "ingredients";
-      setUploadType("ingredients");
-      document.getElementById("csvUpload")?.click();
+      const input = document.getElementById("guestUpload");
+
+      if (!input) {
+        console.error("guestUpload input not found");
+        setMessage("Guest upload input not found.");
+        return;
+      }
+
+      input.value = "";
+      input.click();
     }}
-    style={setupGoldButton}
+    style={setupPrimaryButton}
   >
-    Upload Ingredients
+    Upload Guest Data
   </button>
-<button
-  onClick={() => {
-    selectedUploadTypeRef.current = "inventory";
-    setUploadType("inventory");
-    document.getElementById("csvUpload")?.click();
-  }}
-  style={setupGoldButton}
->
-  Upload Inventory
-</button>
+
   <button
-  onClick={() => {
-    selectedUploadTypeRef.current = "invoices";
-    setUploadType("invoices");
-    document.getElementById("csvUpload")?.click();
-  }}
-  style={setupSecondaryButton}
->
-  Upload Invoices
-</button>
-<button
-  onClick={() => {
-    const input = document.getElementById("guestUpload");
+    onClick={() => {
+      document.getElementById("locationUpload")?.click();
+    }}
+    style={setupPrimaryButton}
+  >
+    Upload Locations
+  </button>
+</div>
 
-    if (!input) {
-      console.error("guestUpload input not found");
-      setMessage("Guest upload input not found.");
-      return;
-    }
+{/* ADVANCED IMPORTS */}
+<div
+  style={{
+    marginTop: "18px",
+    paddingTop: "16px",
+    borderTop: "1px solid rgba(148,163,184,0.16)",
+  }}
+>
+  <div
+    style={{
+      color: "#94a3b8",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "12px",
+    }}
+  >
+    Advanced Imports
+  </div>
 
-    input.value = "";
-    input.click();
-  }}
-  style={setupPrimaryButton}
->
-  Upload Guest Data
-</button>
-<button
-  onClick={() => {
-    document.getElementById("recipeUpload")?.click();
-  }}
-  style={setupGoldButton}
->
-  Upload Recipe Cards
-</button>
-<button
-  onClick={() => {
-    selectedUploadTypeRef.current = "batch_prep";
-    setUploadType("batch_prep");
-    document.getElementById("csvUpload")?.click();
-  }}
-  style={setupGoldButton}
->
-  Upload Batch Prep
-</button>
-<button
-  onClick={() => {
-    document.getElementById("employeeShiftUpload")?.click();
-  }}
-  style={setupSecondaryButton}
->
-  Upload Employee Shifts
-</button>
-<button
-  type="button"
-  onClick={() => {
-    console.log("BEVERAGE BUTTON CLICKED");
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile ? "1fr" : "repeat(2, minmax(0, 1fr))",
+      gap: "12px",
+    }}
+  >
+    <button
+      onClick={() => {
+        selectedUploadTypeRef.current = "ingredients";
+        setUploadType("ingredients");
+        document.getElementById("csvUpload")?.click();
+      }}
+      style={setupGoldButton}
+    >
+      Upload Ingredients
+    </button>
 
-    const input = document.getElementById("beverageUpload");
+    <button
+      onClick={() => {
+        document.getElementById("recipeUpload")?.click();
+      }}
+      style={setupGoldButton}
+    >
+      Upload Recipe Cards
+    </button>
 
-    console.log("BEVERAGE INPUT FOUND:", input);
+    <button
+      onClick={() => {
+        selectedUploadTypeRef.current = "batch_prep";
+        setUploadType("batch_prep");
+        document.getElementById("csvUpload")?.click();
+      }}
+      style={setupGoldButton}
+    >
+      Upload Batch Prep
+    </button>
 
-    input?.click();
-  }}
-  style={setupGoldButton}
->
-  Upload Beverage Data
-</button>
-<button
-  onClick={() => {
-    document.getElementById("locationUpload")?.click();
-  }}
-  style={setupPrimaryButton}
->
-  Upload Locations
-</button>
+    <button
+      onClick={() => {
+        document.getElementById("employeeShiftUpload")?.click();
+      }}
+      style={setupSecondaryButton}
+    >
+      Upload Employee Shifts
+    </button>
+
+    <button
+      type="button"
+      onClick={() => {
+        console.log("BEVERAGE BUTTON CLICKED");
+
+        const input = document.getElementById("beverageUpload");
+
+        console.log("BEVERAGE INPUT FOUND:", input);
+
+        input?.click();
+      }}
+      style={setupGoldButton}
+    >
+      Upload Beverage Data
+    </button>
+  </div>
+</div>
 </div>
     </div>
 </>
