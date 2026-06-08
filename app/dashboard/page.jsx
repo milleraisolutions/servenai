@@ -22940,7 +22940,17 @@ const logAuditEvent = async ({
       data: { user },
     } = await supabase.auth.getUser();
 
+    console.log("AUDIT USER:", user);
+
     if (!user?.id) return;
+
+    console.log("AUDIT LOG ATTEMPT:", {
+      user_id: user.id,
+      action,
+      entityType,
+      entityId,
+      details,
+    });
 
     const { error } = await supabase.from("audit_logs").insert([
       {
@@ -22951,6 +22961,8 @@ const logAuditEvent = async ({
         details,
       },
     ]);
+
+    console.log("AUDIT LOG ERROR:", error);
 
     if (error) {
       console.error("Audit log failed:", error);
