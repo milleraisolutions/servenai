@@ -297,7 +297,8 @@ const [cookTimeLogs, setCookTimeLogs] = useState([]);
 const [batchPrepData, setBatchPrepData] = useState([]);
 const importLockRef = useRef(false);
 const [importingPOS, setImportingPOS] = useState(false);
-
+const [auditLogs, setAuditLogs] = useState([]);
+const [auditLogsLoading, setAuditLogsLoading] = useState(false);
 
 
 
@@ -14557,6 +14558,7 @@ const sidebarTabs = isKitchenManagerRole
       { key: "multi_location", label: "Enterprise", icon: "🏢" },
       { key: "team_management", label: "Team", icon: "👥" },
       { key: "admin", label: "Account Center", icon: "⚙️" },
+      { key: "audit_trail", label: "Audit Trail", icon: "🛡️" },
     ]
 
   : [];
@@ -14712,8 +14714,15 @@ const archiveImport = async (uploadId) => {
     (prev || []).filter((item) => item.id !== uploadId)
   );
 
-  setMessage("Import archived.");
-  await loadClientImports();
+await logAuditEvent({
+  action: "archived_import",
+  entityType: "upload",
+  entityId: uploadId,
+  details: "User archived an import.",
+});
+
+setMessage("Import archived.");
+await loadClientImports();
 };
 const deleteImport = async (uploadId) => {
   if (!uploadId) {
@@ -22223,6 +22232,13 @@ useEffect(() => {
 const handleGuestUpload = async (event) => {
   try {
     const file = event.target.files?.[0];
+    const fileError = validateUploadFile(file, 25);
+
+if (fileError) {
+  alert(fileError);
+  setMessage(fileError);
+  return;
+}
     if (!file) return;
 
     const {
@@ -22470,6 +22486,13 @@ useEffect(() => {
 const handleRecipeUpload = async (event) => {
   try {
     const file = event.target.files?.[0];
+    const fileError = validateUploadFile(file, 25);
+
+if (fileError) {
+  alert(fileError);
+  setMessage(fileError);
+  return;
+}
     if (!file) return;
 
     const {
@@ -22666,6 +22689,13 @@ useEffect(() => {
 const handleEmployeeShiftUpload = async (event) => {
   try {
     const file = event.target.files?.[0];
+    const fileError = validateUploadFile(file, 25);
+
+if (fileError) {
+  alert(fileError);
+  setMessage(fileError);
+  return;
+}
     if (!file) return;
 
     const {
@@ -22882,11 +22912,96 @@ useEffect(() => {
 
   loadBeverageData();
 }, []);
+const validateUploadFile = (file, maxSizeMB = 25) => {
+  if (!file) {
+    return "No file selected.";
+  }
 
+  if (file.size <= 0) {
+    return "This file appears to be empty.";
+  }
+
+  const maxBytes = maxSizeMB * 1024 * 1024;
+
+  if (file.size > maxBytes) {
+    return `File is too large. Maximum size is ${maxSizeMB}MB.`;
+  }
+
+  return null;
+};
+const logAuditEvent = async ({
+  action,
+  entityType = null,
+  entityId = null,
+  details = null,
+}) => {
+  try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user?.id) return;
+
+    const { error } = await supabase.from("audit_logs").insert([
+      {
+        user_id: user.id,
+        action,
+        entity_type: entityType,
+        entity_id: entityId,
+        details,
+      },
+    ]);
+
+    if (error) {
+      console.error("Audit log failed:", error);
+    }
+  } catch (error) {
+    console.error("Audit log crashed:", error);
+  }
+};
+const loadAuditLogs = async () => {
+  try {
+    setAuditLogsLoading(true);
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user?.id) return;
+
+    const { data, error } = await supabase
+      .from("audit_logs")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(100);
+
+    if (error) {
+      console.error("Audit logs load failed:", error);
+      return;
+    }
+
+    setAuditLogs(data || []);
+  } catch (error) {
+    console.error("Audit logs crashed:", error);
+  } finally {
+    setAuditLogsLoading(false);
+  }
+};
+
+useEffect(() => {
+  loadAuditLogs();
+}, []);
 const handleBeverageUpload = async (event) => {
   try {
     const file = event.target.files?.[0];
+const fileError = validateUploadFile(file, 25);
 
+if (fileError) {
+  alert(fileError);
+  setMessage(fileError);
+  return;
+}
     console.log("BEVERAGE FILE SELECTED:", file);
 
     if (!file) {
@@ -23050,7 +23165,13 @@ const handleBeverageUpload = async (event) => {
 const handleBeverageUsageUpload = async (event) => {
   try {
     const file = event.target.files?.[0];
+const fileError = validateUploadFile(file, 25);
 
+if (fileError) {
+  alert(fileError);
+  setMessage(fileError);
+  return;
+}
     console.log("BEVERAGE USAGE FILE SELECTED:", file);
 
     if (!file) {
@@ -23245,7 +23366,13 @@ useEffect(() => {
 const handleLocationUpload = async (event) => {
   try {
     const file = event.target.files?.[0];
+const fileError = validateUploadFile(file, 25);
 
+if (fileError) {
+  alert(fileError);
+  setMessage(fileError);
+  return;
+}
     console.log("LOCATION FILE SELECTED:", file);
 
     if (!file) {
@@ -23465,6 +23592,13 @@ if (stationError) {
 const handleKitchenPrepUpload = async (event) => {
   try {
     const file = event.target.files?.[0];
+    const fileError = validateUploadFile(file, 25);
+
+if (fileError) {
+  alert(fileError);
+  setMessage(fileError);
+  return;
+}
     if (!file) return;
 
     const {
@@ -23525,6 +23659,13 @@ const handleKitchenPrepUpload = async (event) => {
 const handleKitchenStationUpload = async (event) => {
   try {
     const file = event.target.files?.[0];
+    const fileError = validateUploadFile(file, 25);
+
+if (fileError) {
+  alert(fileError);
+  setMessage(fileError);
+  return;
+}
     if (!file) return;
 
     const {
@@ -24540,9 +24681,18 @@ await fetch("/api/send-team-invite", {
   }),
 });
 
-  await loadTeamInvites();
+await logAuditEvent({
+  action: "created_team_invite",
+  entityType: "team_invite",
+  entityId: inviteToken,
+  details: `Invited ${inviteEmail.trim().toLowerCase()} as ${inviteRole}${
+    inviteLocation.trim() ? ` for ${inviteLocation.trim()}` : ""
+  }.`,
+});
 
- alert("Invite sent successfully.");
+await loadTeamInvites();
+
+alert("Invite sent successfully.");
 
   setInviteName("");
   setInviteEmail("");
@@ -25489,7 +25639,21 @@ const handleDeleteUpload = async (uploadId) => {
     )
   );
 
-  setMessage("Upload deleted.");
+await logAuditEvent({
+  action: "deleted_import",
+  entityType: "upload",
+  entityId: uploadId,
+  details: "User deleted an import.",
+});
+
+await logAuditEvent({
+  action: "deleted_import",
+  entityType: "upload",
+  entityId: uploadId,
+  details: "User deleted an import.",
+});
+
+setMessage("Upload deleted.");
 };
 
 const batchPrepIntelligence = (batchPrepData || []).map((batch) => {
@@ -51775,7 +51939,152 @@ Restaurant AI Health is currently rated{" "}
 
   </div>
 )}
+{activeTab === "audit_trail" && (
+  <div>
+    <div
+      style={{
+        padding: "28px",
+        borderRadius: "28px",
+        background:
+          "linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.94))",
+        border: "1px solid rgba(148,163,184,0.16)",
+        boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
+      }}
+    >
+      <div
+        style={{
+          color: "#93c5fd",
+          fontSize: "12px",
+          fontWeight: "900",
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          marginBottom: "10px",
+        }}
+      >
+        Data Protection
+      </div>
 
+      <h2
+        style={{
+          color: "white",
+          fontSize: "30px",
+          fontWeight: "950",
+          marginBottom: "10px",
+        }}
+      >
+        Audit Trail
+      </h2>
+
+      <p
+        style={{
+          color: "#94a3b8",
+          fontSize: "14px",
+          lineHeight: 1.7,
+          marginBottom: "22px",
+        }}
+      >
+        Track uploads, deletes, archives, invites, and account activity across the restaurant system.
+      </p>
+
+      {auditLogsLoading ? (
+        <div style={{ color: "#94a3b8" }}>Loading audit logs...</div>
+      ) : auditLogs.length === 0 ? (
+        <div
+          style={{
+            padding: "18px",
+            borderRadius: "18px",
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(148,163,184,0.12)",
+            color: "#94a3b8",
+            textAlign: "center",
+          }}
+        >
+          No audit activity recorded yet.
+        </div>
+      ) : (
+        <div
+          style={{
+            display: "grid",
+            gap: "12px",
+            maxHeight: "680px",
+            overflowY: "auto",
+            paddingRight: "8px",
+          }}
+        >
+          {auditLogs.map((log) => (
+            <div
+              key={log.id}
+              style={{
+                padding: "16px",
+                borderRadius: "18px",
+                background: "rgba(255,255,255,0.04)",
+                border: "1px solid rgba(148,163,184,0.12)",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: "12px",
+                  flexWrap: "wrap",
+                  marginBottom: "8px",
+                }}
+              >
+                <div
+                  style={{
+                    color: "white",
+                    fontSize: "15px",
+                    fontWeight: "900",
+                  }}
+                >
+                  {String(log.action || "activity")
+                    .replaceAll("_", " ")
+                    .replace(/\b\w/g, (char) => char.toUpperCase())}
+                </div>
+
+                <div
+                  style={{
+                    color: "#c7d2fe",
+                    fontSize: "12px",
+                    fontWeight: "900",
+                  }}
+                >
+                  {log.created_at
+                    ? new Date(log.created_at).toLocaleString()
+                    : "Recent"}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  color: "#94a3b8",
+                  fontSize: "13px",
+                  lineHeight: 1.6,
+                }}
+              >
+                Type: {log.entity_type || "System"}{" "}
+                {log.entity_id ? `• ID: ${log.entity_id}` : ""}
+              </div>
+
+              {log.details && (
+                <div
+                  style={{
+                    marginTop: "8px",
+                    color: "#cbd5e1",
+                    fontSize: "13px",
+                    lineHeight: 1.6,
+                  }}
+                >
+                  {log.details}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  </div>
+)}
 {activeTab === "financial" && (
   <div
     style={{
