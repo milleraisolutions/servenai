@@ -22101,7 +22101,41 @@ const handleGuestUpload = async (event) => {
           return;
         }
 
+        const { data: uploadRow, error: uploadError } = await supabase
+          .from("uploads")
+          .insert([
+            {
+              user_id: user.id,
+              file_name: file.name || "Guest Data Upload",
+              source_name: "guest_upload",
+              row_count: customersToInsert.length,
+              upload_type: "guest_data",
+              status: "completed",
+              archived: false,
+              location_id: selectedUploadLocationId || null,
+            },
+          ])
+          .select()
+          .single();
+
+        if (uploadError) {
+          console.error("Guest recent upload insert failed:", uploadError);
+          setMessage("Guest data saved, but recent import failed.");
+          return;
+        }
+
         setCustomerData(data || []);
+
+        setClientImports((prev) => [
+          uploadRow,
+          ...(prev || []).filter((upload) => upload.id !== uploadRow.id),
+        ]);
+
+        setRecentUploads((prev) => [
+          uploadRow,
+          ...(prev || []).filter((upload) => upload.id !== uploadRow.id),
+        ]);
+
         setMessage(`Imported ${data?.length || 0} customer profiles.`);
       },
     });
