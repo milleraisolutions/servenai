@@ -23172,8 +23172,45 @@ const handleLocationUpload = async (event) => {
           return;
         }
 
-        setLocations((prev) => [...(data || []), ...(prev || [])]);
-        setMessage(`Imported ${data?.length || 0} location(s).`);
+        const { data: uploadRow, error: uploadError } = await supabase
+  .from("uploads")
+  .insert([
+    {
+      user_id: user.id,
+      file_name: file.name || "Location Upload",
+      source_name: "location_upload",
+      row_count: data?.length || locationsToInsert.length || 0,
+      upload_type: "locations",
+      status: "completed",
+      archived: false,
+      location_id: null,
+    },
+  ])
+  .select()
+  .single();
+
+if (uploadError) {
+  console.error("Location recent upload failed:", uploadError);
+  alert(
+    `Locations imported, but imports row failed: ${uploadError.message}`
+  );
+}
+
+setLocations((prev) => [...(data || []), ...(prev || [])]);
+
+if (uploadRow) {
+  setClientImports((prev) => [
+    uploadRow,
+    ...(prev || []).filter((upload) => upload.id !== uploadRow.id),
+  ]);
+
+  setRecentUploads((prev) => [
+    uploadRow,
+    ...(prev || []).filter((upload) => upload.id !== uploadRow.id),
+  ]);
+}
+
+setMessage(`Imported ${data?.length || 0} location(s).`);
       },
     });
   } catch (error) {
