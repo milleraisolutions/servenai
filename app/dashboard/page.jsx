@@ -22652,6 +22652,7 @@ const handleEmployeeShiftUpload = async (event) => {
           ...(insertedShifts || []),
           ...(prev || []),
         ]);
+        console.log("ADDING EMPLOYEE SHIFT IMPORT TO UI:", file.name);
 const newEmployeeShiftUpload = {
   id: `employee-shift-file-${file.name}-${Date.now()}`,
   file_name: file.name,
