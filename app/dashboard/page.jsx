@@ -22652,7 +22652,23 @@ const handleEmployeeShiftUpload = async (event) => {
           ...(insertedShifts || []),
           ...(prev || []),
         ]);
+const newEmployeeShiftUpload = {
+  id: `employee-shift-file-${file.name}-${Date.now()}`,
+  file_name: file.name,
+  name: file.name,
+  upload_type: "employee_shifts",
+  created_at: new Date().toISOString(),
+};
 
+setClientImports((prev) => [
+  newEmployeeShiftUpload,
+  ...(prev || []),
+]);
+
+setRecentUploads((prev) => [
+  newEmployeeShiftUpload,
+  ...(prev || []),
+]);
         setMessage(`Imported ${insertedShifts?.length || 0} employee shifts.`);
       },
     });
