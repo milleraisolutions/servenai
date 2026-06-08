@@ -25774,8 +25774,15 @@ return (
   Upload Employee Shifts
 </button>
 <button
+  type="button"
   onClick={() => {
-    document.getElementById("beverageUpload")?.click();
+    console.log("BEVERAGE BUTTON CLICKED");
+
+    const input = document.getElementById("beverageUpload");
+
+    console.log("BEVERAGE INPUT FOUND:", input);
+
+    input?.click();
   }}
   style={setupGoldButton}
 >
