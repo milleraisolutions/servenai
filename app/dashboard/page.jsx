@@ -22744,8 +22744,46 @@ const handleBeverageUpload = async (event) => {
           setMessage("Beverage upload failed. Check console.");
           return;
         }
+const { data: uploadRow, error: uploadError } = await supabase
+  .from("uploads")
+  .insert([
+    {
+      user_id: user.id,
+      file_name: file.name || "Beverage Upload",
+      source_name: "beverage_upload",
+      row_count: beverageRows.length,
+      upload_type: "beverage",
+      status: "completed",
+      archived: false,
+      location_id: selectedUploadLocationId || null,
+    },
+  ])
+  .select()
+  .single();
 
-        setBeverageItems((prev) => [...(data || []), ...(prev || [])]);
+if (uploadError) {
+  console.error(
+    "Beverage recent upload failed:",
+    uploadError
+  );
+}
+       setBeverageItems((prev) => [...(data || []), ...(prev || [])]);
+
+if (uploadRow) {
+  setClientImports((prev) => [
+    uploadRow,
+    ...(prev || []).filter(
+      (upload) => upload.id !== uploadRow.id
+    ),
+  ]);
+
+  setRecentUploads((prev) => [
+    uploadRow,
+    ...(prev || []).filter(
+      (upload) => upload.id !== uploadRow.id
+    ),
+  ]);
+}
         setMessage(`Imported ${data?.length || 0} beverage item(s).`);
       },
     });
