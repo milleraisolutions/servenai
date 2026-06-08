@@ -12620,15 +12620,58 @@ const handleImportBatchPrep = async () => {
       notes: row.notes || row["Notes"] || "",
     }));
 
-    const { error } = await supabase
-      .from("batch_prep_data")
-      .insert(rowsToInsert);
+   const { error } = await supabase
+  .from("batch_prep_data")
+  .insert(rowsToInsert);
 
-    if (error) throw error;
+if (error) throw error;
 
-    setBatchPrepData((prev) => [...rowsToInsert, ...prev]);
+const { data: uploadRow, error: uploadError } = await supabase
+  .from("uploads")
+  .insert([
+    {
+      user_id: user.id,
+      file_name:
+        pendingUploadSummary?.fileName ||
+        "Batch Prep Upload",
 
-    setMessage(`Imported ${rowsToInsert.length} batch prep rows.`);
+      source_name: "batch_prep_upload",
+      row_count: rowsToInsert.length,
+      upload_type: "batch_prep",
+      status: "completed",
+      archived: false,
+      location_id: selectedUploadLocationId || null,
+    },
+  ])
+  .select()
+  .single();
+
+if (uploadError) {
+  console.error(
+    "Batch prep recent upload failed:",
+    uploadError
+  );
+}
+
+setBatchPrepData((prev) => [...rowsToInsert, ...prev]);
+
+if (uploadRow) {
+  setClientImports((prev) => [
+    uploadRow,
+    ...(prev || []).filter(
+      (upload) => upload.id !== uploadRow.id
+    ),
+  ]);
+
+  setRecentUploads((prev) => [
+    uploadRow,
+    ...(prev || []).filter(
+      (upload) => upload.id !== uploadRow.id
+    ),
+  ]);
+}
+
+setMessage(`Imported ${rowsToInsert.length} batch prep rows.`);
   } catch (error) {
     console.error("Batch prep import error:", error);
     setMessage(error?.message || "Failed to import batch prep data.");
