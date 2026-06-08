@@ -2,7 +2,30 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
+const formatRoleLabel = (role) => {
+  switch (role) {
+    case "owner":
+      return "Owner";
 
+    case "corporate_admin":
+      return "Corporate Admin";
+
+    case "regional_director":
+      return "Regional Director";
+
+    case "gm":
+      return "General Manager";
+
+    case "kitchen_manager":
+      return "Kitchen Manager";
+
+    case "finance":
+      return "Finance";
+
+    default:
+      return role;
+  }
+};
 export default function AcceptInvitePage() {
   const [invite, setInvite] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -145,7 +168,7 @@ if (!acceptResult.success) {
       <h1>Accept Your Serven Invite</h1>
 
       <p>
-        You were invited as <strong>{invite.role}</strong>
+        You were invited as <strong>{formatRoleLabel(invite.role)}</strong>
         {invite.location_name ? ` for ${invite.location_name}` : ""}.
       </p>
 <p style={{ color: "#64748b", marginTop: "10px" }}>
