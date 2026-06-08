@@ -24672,7 +24672,48 @@ const handleDeleteUpload = async (uploadId) => {
     alert(`Inventory delete failed: ${inventoryDeleteError.message}`);
     return;
   }
+// RECIPES
+const { data: recipesToDelete, error: recipeLookupError } = await supabase
+  .from("recipes")
+  .select("id")
+  .eq("upload_id", uploadId);
 
+if (recipeLookupError) {
+  console.error("Recipe lookup failed:", recipeLookupError);
+  alert(`Recipe lookup failed: ${recipeLookupError.message}`);
+  return;
+}
+
+const recipeIds = (recipesToDelete || []).map((recipe) => recipe.id);
+
+if (recipeIds.length > 0) {
+  const { error: recipeIngredientsDeleteError } = await supabase
+    .from("recipe_ingredients")
+    .delete()
+    .in("recipe_id", recipeIds);
+
+  if (recipeIngredientsDeleteError) {
+    console.error(
+      "Recipe ingredients delete failed:",
+      recipeIngredientsDeleteError
+    );
+    alert(
+      `Recipe ingredients delete failed: ${recipeIngredientsDeleteError.message}`
+    );
+    return;
+  }
+
+  const { error: recipesDeleteError } = await supabase
+    .from("recipes")
+    .delete()
+    .eq("upload_id", uploadId);
+
+  if (recipesDeleteError) {
+    console.error("Recipes delete failed:", recipesDeleteError);
+    alert(`Recipes delete failed: ${recipesDeleteError.message}`);
+    return;
+  }
+}
   // INVOICES
   if (uploadRow?.upload_type === "invoices") {
     const { data: matchingInvoiceUploads, error: invoiceUploadFindError } =
@@ -24754,7 +24795,9 @@ const handleDeleteUpload = async (uploadId) => {
   setInventoryData((prev) =>
     (prev || []).filter((row) => row.upload_id !== uploadId)
   );
-
+setRecipes((prev) =>
+  (prev || []).filter((row) => row.upload_id !== uploadId)
+);
   setInvoicesData((prev) =>
     (prev || []).filter(
       (row) =>
