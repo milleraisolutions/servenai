@@ -26432,11 +26432,14 @@ if (currentType === "menu_items") {
     </div>
   ) : (
     <div
-      style={{
-        display: "grid",
-        gap: "12px",
-      }}
-    >
+  style={{
+    display: "grid",
+    gap: "12px",
+    maxHeight: "700px",
+    overflowY: "auto",
+    paddingRight: "8px",
+  }}
+>
       {[
   ...new Map(
     (clientImports || []).map((item) => [
@@ -26452,7 +26455,7 @@ if (currentType === "menu_items") {
             new Date(b.created_at || 0) -
             new Date(a.created_at || 0)
         )
-        .slice(0, 6)
+        
         .map((item, index) => (
           <div
             key={item.id || index}
