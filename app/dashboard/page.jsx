@@ -25761,7 +25761,16 @@ const formatChartDate = (value) => {
   });
 };
 
-const filteredRecentUploads = (recentUploads || []).filter((upload) => {
+const filteredRecentUploads = [
+  ...new Map(
+    (clientImports || []).map((item) => [
+      item.source_name === "labor_upload"
+        ? `labor-${item.file_name || "Labor Upload"}`
+        : item.id,
+      item,
+    ])
+  ).values(),
+].filter((upload) => {
   const search = importsSearch.toLowerCase();
 
   return (
@@ -26768,16 +26777,7 @@ if (currentType === "menu_items") {
     paddingRight: "8px",
   }}
 >
-      {[
-  ...new Map(
-    (clientImports || []).map((item) => [
-      item.source_name === "labor_upload"
-        ? `labor-${item.file_name || "Labor Upload"}`
-        : item.id,
-      item,
-    ])
-  ).values(),
-]
+ {filteredRecentUploads
   .sort(
           (a, b) =>
             new Date(b.created_at || 0) -
