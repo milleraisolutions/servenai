@@ -12554,6 +12554,7 @@ await logAuditEvent({
   entityId: newLaborUpload?.id || null,
   details: `Uploaded labor data with ${rowsToInsert.length} row(s).`,
 });
+console.log("LABOR IMPORT SUCCESS BLOCK HIT");
     setMessage(`Imported ${rowsToInsert.length} labor rows successfully.`);
 setPendingUploadSummary(null);
 setPendingUploadRows([]);
