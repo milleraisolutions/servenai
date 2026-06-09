@@ -12555,8 +12555,14 @@ await logAuditEvent({
   details: `Uploaded labor data with ${rowsToInsert.length} row(s).`,
 });
     setMessage(`Imported ${rowsToInsert.length} labor rows successfully.`);
-    setPendingUploadSummary(null);
-    setLaborData(insertedLaborRows || rowsToInsert);
+setPendingUploadSummary(null);
+setPendingUploadRows([]);
+pendingUploadRowsRef.current = [];
+setLaborData(insertedLaborRows || rowsToInsert);
+
+setTimeout(() => {
+  setMessage("");
+}, 2500);
   } catch (error) {
     console.error("Labor import error:", error);
     setMessage("Labor import failed. Check console for details.");
