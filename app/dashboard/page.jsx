@@ -50522,7 +50522,15 @@ Restaurant AI Health is currently rated{" "}
 
 <button
   type="button"
-  onClick={handleCreateTeamInvite}
+  onMouseDown={() => console.log("SEND INVITE MOUSEDOWN")}
+  onClick={(e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    console.log("SEND INVITE BUTTON CLICKED DIRECTLY");
+
+    handleCreateTeamInvite();
+  }}
   style={{
     marginTop: "18px",
     padding: "14px 20px",
@@ -50532,9 +50540,12 @@ Restaurant AI Health is currently rated{" "}
     color: "white",
     fontWeight: "800",
     cursor: "pointer",
+    position: "relative",
+    zIndex: 9999,
+    pointerEvents: "auto",
   }}
 >
-  Send Invite
+  {sendingInvite ? "Sending..." : "Send Invite"}
 </button>
 </div>
 {/* INVITED TEAM MEMBERS */}
