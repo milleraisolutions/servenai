@@ -22892,6 +22892,12 @@ setRecentUploads((prev) => [
   newEmployeeShiftUpload,
   ...(prev || []),
 ]);
+await logAuditEvent({
+  action: "uploaded_employee_shifts",
+  entityType: "employee_shifts",
+  entityId: newEmployeeShiftUpload?.id || null,
+  details: `Uploaded employee shifts with ${insertedShifts?.length || 0} row(s).`,
+});
         setMessage(`Imported ${insertedShifts?.length || 0} employee shifts.`);
       },
     });
@@ -23181,7 +23187,12 @@ if (fileError) {
             ...(prev || []).filter((upload) => upload.id !== uploadRow.id),
           ]);
         }
-
+await logAuditEvent({
+  action: "uploaded_beverage_items",
+  entityType: "beverage_items",
+  entityId: uploadRow?.id || null,
+  details: `Uploaded beverage items with ${data?.length || 0} row(s).`,
+});
         setMessage(`Imported ${data?.length || 0} beverage item(s).`);
 
         event.target.value = "";
@@ -23358,7 +23369,12 @@ if (fileError) {
             ...(prev || []).filter((upload) => upload.id !== uploadRow.id),
           ]);
         }
-
+await logAuditEvent({
+  action: "uploaded_beverage_usage",
+  entityType: "beverage_usage",
+  entityId: uploadRow?.id || null,
+  details: `Uploaded beverage usage with ${data?.length || 0} row(s).`,
+});
         setMessage(`Imported ${data?.length || 0} beverage usage row(s).`);
 
         event.target.value = "";
@@ -23572,7 +23588,12 @@ if (fileError) {
           entityId: uploadRow?.id || null,
           details: `Uploaded ${file.name} with ${data?.length || 0} location row(s).`,
         });
-
+await logAuditEvent({
+  action: "uploaded_locations",
+  entityType: "locations",
+  entityId: uploadRow?.id || null,
+  details: `Uploaded locations with ${data?.length || 0} row(s).`,
+});
         setMessage(`Imported ${data?.length || 0} location(s).`);
 
         event.target.value = "";
