@@ -23107,6 +23107,7 @@ useEffect(() => {
   loadAuditLogs();
 }, []);
 const handleBeverageUpload = async (event) => {
+  console.log("BEVERAGE UPLOAD FIRED");
   try {
     const file = event.target.files?.[0];
 const fileError = validateUploadFile(file, 25);
@@ -26654,13 +26655,20 @@ return (
 
       <button
         type="button"
-       onClick={() => {
+      onClick={() => {
   selectedUploadTypeRef.current = "beverage";
   setUploadType("beverage");
 
   const input = document.getElementById("beverageUpload");
-  if (input) input.value = "";
-  input?.click();
+
+  if (!input) {
+    console.error("beverageUpload input not found");
+    setMessage("Beverage upload input not found.");
+    return;
+  }
+
+  input.value = "";
+  input.click();
 }}
         style={{
           ...setupGoldButton,
