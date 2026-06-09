@@ -9917,7 +9917,7 @@ useEffect(() => {
   .eq("user_id", user.id)
   .eq("is_active", true);
 
-// menuItemsQuery = applyLocationFilter(menuItemsQuery);
+menuItemsQuery = applyLocationFilter(menuItemsQuery);
 
 const { data, error } = await menuItemsQuery;
 
@@ -22482,23 +22482,29 @@ useEffect(() => {
 
     if (!user?.id) return;
 
-    const { data: recipeData, error: recipeError } = await supabase
-      .from("recipes")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false });
+    let recipeQuery = supabase
+  .from("recipes")
+  .select("*")
+  .eq("user_id", user.id);
+
+recipeQuery = applyLocationFilter(recipeQuery);
+
+const { data: recipeData, error: recipeError } =
+  await recipeQuery.order("created_at", { ascending: false });
 
     if (recipeError) {
       console.error("Recipes load error:", recipeError);
       return;
     }
+let ingredientQuery = supabase
+  .from("recipe_ingredients")
+  .select("*")
+  .eq("user_id", user.id);
 
-    const { data: ingredientData, error: ingredientError } = await supabase
-      .from("recipe_ingredients")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false });
+ingredientQuery = applyLocationFilter(ingredientQuery);
 
+const { data: ingredientData, error: ingredientError } =
+  await ingredientQuery.order("created_at", { ascending: false });
     if (ingredientError) {
       console.error("Recipe ingredients load error:", ingredientError);
       return;
@@ -22554,6 +22560,10 @@ if (fileError) {
               status: "completed",
               archived: false,
               location_id: selectedUploadLocationId || null,
+location_name:
+  activeLocation !== "all"
+    ? activeLocation
+    : assignedLocation || null,
             },
           ])
           .select()
@@ -22577,24 +22587,53 @@ if (fileError) {
 
           if (!recipeMap.has(recipeName)) {
             recipeMap.set(recipeName, {
-              recipe: {
-                user_id: user.id,
-                upload_id: uploadRow.id,
-                recipe_name: recipeName,
-                menu_item_name:
-                  row.menu_item_name || row["Menu Item"] || recipeName,
-                category: row.category || row.Category || null,
-                selling_price: Number(
-                  row.selling_price || row["Selling Price"] || row.price || 0
-                ),
-                prep_time_minutes: Number(
-                  row.prep_time_minutes || row["Prep Time"] || 0
-                ),
-                serving_size: row.serving_size || row["Serving Size"] || null,
-                notes: row.notes || row.Notes || null,
-              },
-              ingredients: [],
-            });
+  recipe: {
+    user_id: user.id,
+    upload_id: uploadRow.id,
+
+    location_name:
+      activeLocation !== "all"
+        ? activeLocation
+        : assignedLocation || null,
+
+    recipe_name: recipeName,
+
+    menu_item_name:
+      row.menu_item_name ||
+      row["Menu Item"] ||
+      recipeName,
+
+    category:
+      row.category ||
+      row.Category ||
+      null,
+
+    selling_price: Number(
+      row.selling_price ||
+      row["Selling Price"] ||
+      row.price ||
+      0
+    ),
+
+    prep_time_minutes: Number(
+      row.prep_time_minutes ||
+      row["Prep Time"] ||
+      0
+    ),
+
+    serving_size:
+      row.serving_size ||
+      row["Serving Size"] ||
+      null,
+
+    notes:
+      row.notes ||
+      row.Notes ||
+      null,
+  },
+
+  ingredients: [],
+});
           }
 
           recipeMap.get(recipeName).ingredients.push(row);
@@ -22620,20 +22659,31 @@ if (fileError) {
             const costPerUnit = Number(
               row.cost_per_unit || row["Cost Per Unit"] || row.unit_cost || 0
             );
+return {
+  user_id: user.id,
+  recipe_id: recipeInsert.id,
 
-            return {
-              user_id: user.id,
-              recipe_id: recipeInsert.id,
-              ingredient_name:
-                row.ingredient_name ||
-                row["Ingredient Name"] ||
-                row.ingredient ||
-                "Ingredient",
-              quantity,
-              unit: row.unit || row.Unit || null,
-              cost_per_unit: costPerUnit,
-              total_cost: quantity * costPerUnit,
-            };
+  location_name:
+    activeLocation !== "all"
+      ? activeLocation
+      : assignedLocation || null,
+
+  ingredient_name:
+    row.ingredient_name ||
+    row["Ingredient Name"] ||
+    row.ingredient ||
+    "Ingredient",
+
+  quantity,
+
+  unit:
+    row.unit ||
+    row.Unit ||
+    null,
+
+  cost_per_unit: costPerUnit,
+  total_cost: quantity * costPerUnit,
+};
           });
 
           const { data: ingredientInsert, error: ingredientError } =
