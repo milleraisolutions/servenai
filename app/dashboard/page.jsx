@@ -26168,7 +26168,7 @@ return (
 {/* ================================ */}
 {activeTab === "overview" && (
   <>
-  {canSeeManagerDashboard && (
+  {(isOwnerRole || isExecutiveRole || canSeeManagerDashboard) && (
   <>
     {/* WELCOME / UPLOAD SECTION HERE */}
   
