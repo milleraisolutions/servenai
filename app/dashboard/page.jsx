@@ -14796,11 +14796,14 @@ if (String(uploadId).startsWith("labor-")) {
     .delete()
     .eq("id", uploadId);
 
-  if (error) {
-    console.error("Delete failed:", error);
-    alert(`Delete failed: ${error.message}`);
-    return;
-  }
+ if (error) {
+  setClientImports(previousClientImports);
+  setRecentUploads(previousRecentUploads);
+
+  console.error("Some delete failed:", error);
+  alert(`Delete failed: ${error.message}`);
+  return;
+}
 
   setClientImports((prev) =>
     (prev || []).filter((item) => item.id !== uploadId)
@@ -25429,7 +25432,12 @@ const handleDeleteUpload = async (uploadId) => {
   console.log("DELETE CLICKED uploadId:", uploadId);
 
   const uploadIdString = String(uploadId);
+const previousClientImports = clientImports || [];
+const previousRecentUploads = recentUploads || [];
 
+setClientImports((prev) => (prev || []).filter((item) => item.id !== uploadId));
+setRecentUploads((prev) => (prev || []).filter((item) => item.id !== uploadId));
+setMessage("Deleting import...");
   // ✅ EMPLOYEE SHIFT FILE DELETE
   if (uploadIdString.startsWith("employee-shift-file-")) {
     const employeeShiftFileKey = uploadIdString.replace(
