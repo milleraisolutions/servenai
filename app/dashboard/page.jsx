@@ -22342,13 +22342,19 @@ const { data: uploadRow, error: uploadError } = await supabase
   .insert([
     {
       user_id: user.id,
-      file_name: file.name || "Guest Data Upload",
-      source_name: "guest_upload",
-      row_count: customersToInsert.length,
-      upload_type: "guest_data",
+      file_name: file.name || "Beverage Upload",
+      source_name: "beverage_upload",
+      row_count: data?.length || beverageRows.length || 0,
+      upload_type: "beverage",
       status: "completed",
       archived: false,
+
       location_id: selectedUploadLocationId || null,
+
+      location_name:
+        activeLocation !== "all"
+          ? activeLocation
+          : assignedLocation || null,
     },
   ])
   .select()
@@ -23151,7 +23157,10 @@ if (fileError) {
 
         const beverageRows = rows.map((row) => ({
           user_id: user.id,
-
+location_name:
+  activeLocation !== "all"
+    ? activeLocation
+    : assignedLocation || null,
           beverage_name:
             row.beverage_name ||
             row["Beverage Name"] ||
