@@ -12255,6 +12255,7 @@ const handleImportLabor = async () => {
    console.log("LABOR CONFIRM CLICKED");
   console.log("PENDING SUMMARY:", pendingUploadSummary);
   console.log("LABOR DATA STATE:", laborData);
+  setMessage("Importing labor data...");
   try {
     const {
       data: { user },
@@ -12708,7 +12709,7 @@ pendingUploadRowsRef.current = [];
 const handleImportInventory = async () => {
   console.log("INVENTORY CONFIRM CLICKED");
   console.log("PENDING SUMMARY:", pendingUploadSummary);
-
+setMessage("Importing inventory data...");
   try {
     const {
       data: { user },
