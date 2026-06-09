@@ -24642,6 +24642,14 @@ const renderSafeText = (value, fallback = "") => {
   return value;
 };
 const handleCreateTeamInvite = async () => {
+  console.log("SEND INVITE CLICKED");
+console.log("INVITE FORM STATE:", {
+  inviteName,
+  inviteEmail,
+  inviteRole,
+  inviteLocation,
+  sendingInvite,
+});
   setSendingInvite(true);
   if (!inviteName.trim() || !inviteEmail.trim()) {
     alert("Please enter a name and email.");
