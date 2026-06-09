@@ -52264,16 +52264,22 @@ Restaurant AI Health is currently rated{" "}
                 </div>
               </div>
 
-              <div
-                style={{
-                  color: "#94a3b8",
-                  fontSize: "13px",
-                  lineHeight: 1.6,
-                }}
-              >
-                Type: {log.entity_type || "System"}{" "}
-                {log.entity_id ? `• ID: ${log.entity_id}` : ""}
-              </div>
+           <div
+  style={{
+    color: "#94a3b8",
+    fontSize: "13px",
+    lineHeight: 1.7,
+  }}
+>
+  User: {log.user_name || "Unknown User"} • Role:{" "}
+  {log.role || "user"} • Location:{" "}
+  {log.location_name || "All Locations"}
+
+  <br />
+
+  Type: {log.entity_type || "System"}{" "}
+  {log.entity_id ? `• ID: ${log.entity_id}` : ""}
+</div>
 
               {log.details && (
                 <div
