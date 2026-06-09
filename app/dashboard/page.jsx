@@ -23541,6 +23541,13 @@ if (fileError) {
           ]);
         }
 
+               await logAuditEvent({
+          action: "uploaded_file",
+          entityType: uploadRow?.upload_type || "locations",
+          entityId: uploadRow?.id || null,
+          details: `Uploaded ${file.name} with ${data?.length || 0} location row(s).`,
+        });
+
         setMessage(`Imported ${data?.length || 0} location(s).`);
 
         event.target.value = "";
