@@ -25532,17 +25532,20 @@ const handleDeleteUpload = async (uploadId) => {
   }
 
   // ✅ NORMAL UPLOAD DELETE
-  const { data: uploadRow, error: uploadLookupError } = await supabase
-    .from("uploads")
-    .select("*")
-    .eq("id", uploadId)
-    .maybeSingle();
+ const { data: uploadRow, error: uploadLookupError } = await supabase
+  .from("uploads")
+  .select("*")
+  .eq("id", uploadId)
+  .maybeSingle();
 
-  if (uploadLookupError) {
-    console.error("Upload lookup failed:", uploadLookupError);
-    alert(`Upload lookup failed: ${uploadLookupError.message}`);
-    return;
-  }
+console.log("DELETE UPLOAD ROW:", uploadRow);
+console.log("DELETE LOOKUP ERROR:", uploadLookupError);
+
+if (uploadLookupError) {
+  console.error("Upload lookup failed:", uploadLookupError);
+  alert(`Upload lookup failed: ${uploadLookupError.message}`);
+  return;
+}
 
   const deleteSteps = [
     ["sales", "upload_id"],
@@ -25655,10 +25658,12 @@ const handleDeleteUpload = async (uploadId) => {
     }
   }
 
-  const { error: uploadDeleteError } = await supabase
-    .from("uploads")
-    .delete()
-    .eq("id", uploadId);
+ const { error: uploadDeleteError } = await supabase
+  .from("uploads")
+  .delete()
+  .eq("id", uploadId);
+
+console.log("UPLOAD DELETE ERROR:", uploadDeleteError);
 
   if (uploadDeleteError) {
     console.error("Upload delete failed:", uploadDeleteError);
@@ -25687,12 +25692,7 @@ await logAuditEvent({
   details: "User deleted an import.",
 });
 
-await logAuditEvent({
-  action: "deleted_import",
-  entityType: "upload",
-  entityId: uploadId,
-  details: "User deleted an import.",
-});
+
 
 setMessage("Upload deleted.");
 };
