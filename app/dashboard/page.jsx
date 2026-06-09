@@ -23017,6 +23017,7 @@ const logAuditEvent = async ({
   entityType = null,
   entityId = null,
   details = null,
+  locationName = null,
 }) => {
   try {
     const {
@@ -23035,15 +23036,33 @@ const logAuditEvent = async ({
       details,
     });
 
-    const { error } = await supabase.from("audit_logs").insert([
-      {
-        user_id: user.id,
-        action,
-        entity_type: entityType,
-        entity_id: entityId,
-        details,
-      },
-    ]);
+  const { error } = await supabase.from("audit_logs").insert([
+  {
+    user_id: user.id,
+
+    user_name:
+      userProfile?.name ||
+      userProfile?.email ||
+      user.email ||
+      "Unknown User",
+
+    role:
+      userRole ||
+      userProfile?.role ||
+      "user",
+
+    location_name:
+      locationName ||
+      (activeLocation !== "all" ? activeLocation : null) ||
+      assignedLocation ||
+      null,
+
+    action,
+    entity_type: entityType,
+    entity_id: entityId,
+    details,
+  },
+]);
 
     console.log("AUDIT LOG ERROR:", error);
 
