@@ -25598,7 +25598,21 @@ const handleDeleteUpload = async (uploadId) => {
       return;
     }
   }
+  // LOCATIONS
+  if (uploadRow?.upload_type === "locations") {
+    const { error: locationsDeleteError } = await supabase
+      .from("locations")
+      .delete()
+      .eq("user_id", uploadRow.user_id);
 
+    if (locationsDeleteError) {
+      console.error("Locations delete failed:", locationsDeleteError);
+      alert(`Locations delete failed: ${locationsDeleteError.message}`);
+      return;
+    }
+
+    setLocations([]);
+  }
   // INVOICES
   if (uploadRow?.upload_type === "invoices") {
     const { data: matchingInvoiceUploads, error: invoiceUploadFindError } =
