@@ -5484,7 +5484,12 @@ location_id: selectedUploadLocationId || null,
         ...(prev || []).filter((upload) => upload.id !== uploadedFileRow.id),
       ]);
     }
-
+await logAuditEvent({
+  action: "uploaded_pos",
+  entityType: "upload",
+  entityId: uploadedFileRow?.id || null,
+  details: `Uploaded POS sales data with ${finalSalesRows.length} row(s).`,
+});
   setMessage(`DONE: POS sales imported ${finalSalesRows.length} rows`);
 setPendingUploadSummary(null);
 setRows([]);
@@ -6366,7 +6371,12 @@ console.log("INVOICE STEP 5: invoice_items inserted", insertedRows?.length);
     setPendingUploadSummary(null);
     setPendingUploadRows([]);
     pendingUploadRowsRef.current = [];
-
+await logAuditEvent({
+  action: "uploaded_invoice",
+  entityType: "upload",
+  entityId: uploadRow?.id || null,
+  details: `Uploaded invoice data with ${cleanedRows.length} row(s).`,
+});
     setMessage(`Imported ${cleanedRows.length} invoice rows successfully.`);
   } catch (error) {
     console.error("Invoice import failed:", error);
@@ -12534,7 +12544,12 @@ console.log("LABOR SAMPLE ROWS:", rowsToInsert?.slice(0, 5));
 };
 setClientImports((prev) => [newLaborUpload, ...(prev || [])]);
     setRecentUploads((prev) => [newLaborUpload, ...(prev || [])]);
-
+await logAuditEvent({
+  action: "uploaded_labor",
+  entityType: "labor_upload",
+  entityId: newLaborUpload?.id || null,
+  details: `Uploaded labor data with ${rowsToInsert.length} row(s).`,
+});
     setMessage(`Imported ${rowsToInsert.length} labor rows successfully.`);
     setPendingUploadSummary(null);
     setLaborData(insertedLaborRows || rowsToInsert);
@@ -12671,7 +12686,12 @@ if (uploadRow) {
     ),
   ]);
 }
-
+await logAuditEvent({
+  action: "uploaded_batch_prep",
+  entityType: "upload",
+  entityId: uploadRow?.id || null,
+  details: `Uploaded batch prep data with ${rowsToInsert.length} row(s).`,
+});
 setMessage(`Imported ${rowsToInsert.length} batch prep rows.`);
 setPendingUploadSummary(null);
 setPendingUploadRows([]);
@@ -12887,7 +12907,12 @@ if (uploadRow) {
     ...(prev || []).filter((upload) => upload.id !== uploadRow.id),
   ]);
 }
-
+await logAuditEvent({
+  action: "uploaded_inventory",
+  entityType: "upload",
+  entityId: uploadRow?.id || null,
+  details: `Uploaded inventory data with ${rowsWithUploadId.length} row(s).`,
+});
 setMessage(`Imported ${rowsWithUploadId.length} inventory rows successfully.`);
 setPendingUploadSummary(null);
 setInventoryData(insertedInventoryRows || rowsWithUploadId);
