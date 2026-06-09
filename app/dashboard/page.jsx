@@ -5272,7 +5272,10 @@ const handleFileUpload = async (e) => {
   setPendingUploadSummary({
     fileName: file.name,
     rowCount: safeRows.length,
-    uploadType: "unknown",
+   uploadType:
+  selectedUploadTypeRef.current ||
+  uploadType ||
+  "unknown",
     uploadedAt: Date.now(),
     rows: safeRows,
   });
