@@ -12859,8 +12859,7 @@ const handleImportInventory = async () => {
 
     console.log("INVENTORY FIRST ROW TO INSERT:", rowsToInsert?.[0]);
     console.log("INVENTORY SAMPLE ROWS:", rowsToInsert?.slice(0, 5));
-console.log("GUEST STEP 1: customers inserted", data?.length);
-console.log("GUEST STEP 2: creating recent upload row");
+
   const { data: uploadRow, error: uploadError } = await supabase
   .from("uploads")
   .insert([
