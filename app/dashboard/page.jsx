@@ -26686,7 +26686,8 @@ if (currentType === "menu_items") {
   handleImportLabor();
 
 } else if (currentType === "inventory") {
-  handleImportInventory();
+ console.log("RUNNING INVENTORY IMPORT");
+handleImportInventory();
 
 } else if (currentType === "invoices") {
   handleImportInvoices();
