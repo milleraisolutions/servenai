@@ -23356,10 +23356,19 @@ const handleBeverageUpload = async (event) => {
             entityId: uploadRow?.id || null,
             details: `Uploaded beverage items with ${data?.length || 0} row(s).`,
           });
-        } catch (innerError) {
-          console.error("Beverage import inner error:", innerError);
-          setMessage("Beverage import failed. Check console.");
-        }
+       } catch (innerError) {
+  console.error("Beverage import inner error:", innerError);
+
+  setClientImports((prev) =>
+    (prev || []).filter((item) => item.id !== optimisticUpload?.id)
+  );
+
+  setRecentUploads((prev) =>
+    (prev || []).filter((item) => item.id !== optimisticUpload?.id)
+  );
+
+  setMessage("Beverage import failed. Check console.");
+}
       },
 
       error: (parseError) => {
