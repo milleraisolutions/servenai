@@ -25706,7 +25706,7 @@ const handleDeleteUpload = async (uploadId) => {
       ["ingredients", "upload_id"],
       ["inventory_items", "upload_id"],
       ["beverage_items", "upload_id"],
-      ["beverage_uploads", "upload_id"],
+     ["beverage_usage", "upload_id"],
     ];
 
     for (const [table, column] of deleteSteps) {
