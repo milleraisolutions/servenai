@@ -12972,7 +12972,7 @@ setPendingUploadRows([]);
 pendingUploadRowsRef.current = [];
 
 setInventoryData(insertedInventoryRows || rowsWithUploadId);
-
+setIngredientsData(insertedInventoryRows || rowsWithUploadId);
 setTimeout(() => {
   setMessage("");
 }, 2500);
