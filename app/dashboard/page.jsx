@@ -12277,7 +12277,11 @@ const handleImportLabor = async () => {
    console.log("LABOR CONFIRM CLICKED");
   console.log("PENDING SUMMARY:", pendingUploadSummary);
   console.log("LABOR DATA STATE:", laborData);
-  setMessage("Importing labor data...");
+  const optimisticUpload = startOptimisticImport({
+  fileName: pendingUploadSummary?.fileName,
+  sourceName: "labor_upload",
+  rowCount: pendingUploadSummary?.rowCount || 0,
+});
   try {
     const {
       data: { user },
@@ -12568,8 +12572,17 @@ console.log("LABOR SAMPLE ROWS:", rowsToInsert?.slice(0, 5));
   created_at: new Date().toISOString(),
   rows: insertedLaborRows || rowsToInsert,
 };
-setClientImports((prev) => [newLaborUpload, ...(prev || [])]);
-setRecentUploads((prev) => [newLaborUpload, ...(prev || [])]);
+setClientImports((prev) =>
+  (prev || []).map((item) =>
+    item.id === optimisticUpload.id ? newLaborUpload : item
+  )
+);
+
+setRecentUploads((prev) =>
+  (prev || []).map((item) =>
+    item.id === optimisticUpload.id ? newLaborUpload : item
+  )
+);
 
 console.log("LABOR IMPORT SUCCESS BLOCK HIT");
 
