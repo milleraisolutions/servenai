@@ -25534,404 +25534,302 @@ const handleDeleteUpload = async (uploadId) => {
   console.log("DELETE CLICKED uploadId:", uploadId);
 
   const uploadIdString = String(uploadId);
-const previousClientImports = clientImports || [];
-const previousRecentUploads = recentUploads || [];
+  const previousClientImports = clientImports || [];
+  const previousRecentUploads = recentUploads || [];
 
-setClientImports((prev) => (prev || []).filter((item) => item.id !== uploadId));
-setRecentUploads((prev) => (prev || []).filter((item) => item.id !== uploadId));
-setMessage("Deleting import...");
-  // ✅ EMPLOYEE SHIFT FILE DELETE
-  if (uploadIdString.startsWith("employee-shift-file-")) {
-    const employeeShiftFileKey = uploadIdString.replace(
-      "employee-shift-file-",
-      ""
-    );
+  setClientImports((prev) => (prev || []).filter((item) => item.id !== uploadId));
+  setRecentUploads((prev) => (prev || []).filter((item) => item.id !== uploadId));
+  setMessage("Deleting import...");
 
-    const allImports = [...(clientImports || []), ...(recentUploads || [])];
-    const shiftMatch = allImports.find((item) => item.id === uploadId);
+  try {
+    // ✅ EMPLOYEE SHIFT FILE DELETE
+    if (uploadIdString.startsWith("employee-shift-file-")) {
+      const employeeShiftFileKey = uploadIdString.replace("employee-shift-file-", "");
+      const allImports = [...(clientImports || []), ...(recentUploads || [])];
+      const shiftMatch = allImports.find((item) => item.id === uploadId);
 
-    const fileName =
-      shiftMatch?.file_name ||
-      shiftMatch?.name ||
-      employeeShiftFileKey.split("-2026-")[0] ||
-      null;
+      const fileName =
+        shiftMatch?.file_name ||
+        shiftMatch?.name ||
+        employeeShiftFileKey.split("-2026-")[0] ||
+        null;
 
-    if (!fileName) {
-      alert("Could not identify employee shift file name to delete.");
-      return;
-    }
+      if (!fileName) {
+        alert("Could not identify employee shift file name to delete.");
+        return;
+      }
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-    const { data: deletedShiftRows, error: employeeShiftFileDeleteError } =
-      await supabase
+      const { error } = await supabase
         .from("employee_shifts")
         .delete()
         .eq("user_id", dataOwnerId || user?.id)
-        .ilike("file_name", fileName)
-        .select("id,file_name,created_at,user_id");
+        .ilike("file_name", fileName);
 
-    console.log("DELETED EMPLOYEE SHIFT ROWS:", deletedShiftRows);
-    console.log("EMPLOYEE SHIFT DELETE ERROR:", employeeShiftFileDeleteError);
+      if (error) throw error;
 
-    if (employeeShiftFileDeleteError) {
-      console.error("Employee shift file delete failed:", employeeShiftFileDeleteError);
-      alert(`Employee shift delete failed: ${employeeShiftFileDeleteError.message}`);
+      setEmployeeShifts((prev) => (prev || []).filter((row) => row.file_name !== fileName));
+      setMessage("Employee shift import deleted.");
       return;
     }
 
-    setClientImports((prev) => (prev || []).filter((item) => item.id !== uploadId));
-    setRecentUploads((prev) => (prev || []).filter((item) => item.id !== uploadId));
+    // ✅ EMPLOYEE SHIFT DELETE
+    if (uploadIdString.startsWith("employee-shift-")) {
+      const employeeShiftId = uploadIdString.replace("employee-shift-", "");
 
-    setEmployeeShifts((prev) =>
-      (prev || []).filter((row) => row.file_name !== fileName)
-    );
+      const { error } = await supabase
+        .from("employee_shifts")
+        .delete()
+        .eq("id", employeeShiftId);
 
-    setMessage("Employee shift import deleted.");
-    return;
-  }
+      if (error) throw error;
 
-  // ✅ EMPLOYEE SHIFT DELETE
-  if (uploadIdString.startsWith("employee-shift-")) {
-    const employeeShiftId = uploadIdString.replace("employee-shift-", "");
-
-    const { error: employeeShiftDeleteError } = await supabase
-      .from("employee_shifts")
-      .delete()
-      .eq("id", employeeShiftId);
-
-    if (employeeShiftDeleteError) {
-      console.error("Employee shift delete failed:", employeeShiftDeleteError);
-      alert(`Employee shift delete failed: ${employeeShiftDeleteError.message}`);
+      setEmployeeShifts((prev) => (prev || []).filter((row) => row.id !== employeeShiftId));
+      setMessage("Employee shift import deleted.");
       return;
     }
 
-    setClientImports((prev) => (prev || []).filter((item) => item.id !== uploadId));
-    setRecentUploads((prev) => (prev || []).filter((item) => item.id !== uploadId));
+    // ✅ BATCH PREP FILE DELETE
+    if (uploadIdString.startsWith("batch-prep-file-")) {
+      const batchPrepFileKey = uploadIdString.replace("batch-prep-file-", "");
+      const allImports = [...(clientImports || []), ...(recentUploads || [])];
+      const batchPrepMatch = allImports.find((item) => item.id === uploadId);
 
-    setEmployeeShifts((prev) =>
-      (prev || []).filter((row) => row.id !== employeeShiftId)
-    );
+      const fileName =
+        batchPrepMatch?.file_name ||
+        batchPrepMatch?.name ||
+        batchPrepFileKey.split("-2026-")[0] ||
+        null;
 
-    setMessage("Employee shift import deleted.");
-    return;
-  }
+      if (!fileName) {
+        alert("Could not identify batch prep file name to delete.");
+        return;
+      }
 
-  // ✅ BATCH PREP FILE DELETE
-  if (uploadIdString.startsWith("batch-prep-file-")) {
-    const batchPrepFileKey = uploadIdString.replace("batch-prep-file-", "");
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-    const allImports = [...(clientImports || []), ...(recentUploads || [])];
-    const batchPrepMatch = allImports.find((item) => item.id === uploadId);
-
-    const fileName =
-      batchPrepMatch?.file_name ||
-      batchPrepMatch?.name ||
-      batchPrepFileKey.split("-2026-")[0] ||
-      null;
-
-    if (!fileName) {
-      alert("Could not identify batch prep file name to delete.");
-      return;
-    }
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    const { data: deletedBatchPrepRows, error: batchPrepFileDeleteError } =
-      await supabase
+      const { error } = await supabase
         .from("batch_prep_data")
         .delete()
         .eq("user_id", dataOwnerId || user?.id)
-        .ilike("file_name", fileName)
-        .select("id,file_name,created_at,user_id");
+        .ilike("file_name", fileName);
 
-    console.log("DELETED BATCH PREP ROWS:", deletedBatchPrepRows);
-    console.log("BATCH PREP DELETE ERROR:", batchPrepFileDeleteError);
+      if (error) throw error;
 
-    if (batchPrepFileDeleteError) {
-      console.error("Batch prep file delete failed:", batchPrepFileDeleteError);
-      alert(`Batch prep delete failed: ${batchPrepFileDeleteError.message}`);
+      setBatchPrepData((prev) => (prev || []).filter((row) => row.file_name !== fileName));
+      setMessage("Batch prep import deleted.");
       return;
     }
 
-    setClientImports((prev) => (prev || []).filter((item) => item.id !== uploadId));
-    setRecentUploads((prev) => (prev || []).filter((item) => item.id !== uploadId));
+    // ✅ BATCH PREP DELETE
+    if (uploadIdString.startsWith("batch-prep-")) {
+      const batchPrepId = uploadIdString.replace("batch-prep-", "");
 
-    setBatchPrepData((prev) =>
-      (prev || []).filter((row) => row.file_name !== fileName)
-    );
+      const { error } = await supabase
+        .from("batch_prep_data")
+        .delete()
+        .eq("id", batchPrepId);
 
-    setMessage("Batch prep import deleted.");
-    return;
-  }
+      if (error) throw error;
 
-  // ✅ BATCH PREP DELETE
-  if (uploadIdString.startsWith("batch-prep-")) {
-    const batchPrepId = uploadIdString.replace("batch-prep-", "");
-
-    const { error: batchPrepDeleteError } = await supabase
-      .from("batch_prep_data")
-      .delete()
-      .eq("id", batchPrepId);
-
-    if (batchPrepDeleteError) {
-      console.error("Batch prep delete failed:", batchPrepDeleteError);
-      alert(`Batch prep delete failed: ${batchPrepDeleteError.message}`);
+      setBatchPrepData((prev) => (prev || []).filter((row) => row.id !== batchPrepId));
+      setMessage("Batch prep import deleted.");
       return;
     }
 
-    setClientImports((prev) => (prev || []).filter((item) => item.id !== uploadId));
-    setRecentUploads((prev) => (prev || []).filter((item) => item.id !== uploadId));
+    // ✅ LABOR DELETE
+    if (uploadIdString.startsWith("labor-") && !uploadIdString.startsWith("labor-file-")) {
+      const laborId = uploadIdString.replace("labor-", "");
 
-    setBatchPrepData((prev) =>
-      (prev || []).filter((row) => row.id !== batchPrepId)
-    );
+      const { error } = await supabase
+        .from("labor_uploads")
+        .delete()
+        .eq("id", laborId);
 
-    setMessage("Batch prep import deleted.");
-    return;
-  }
+      if (error) throw error;
 
-  // ✅ LABOR DELETE
-  if (
-    uploadIdString.startsWith("labor-") &&
-    !uploadIdString.startsWith("labor-file-")
-  ) {
-    const laborId = uploadIdString.replace("labor-", "");
-
-    const { error: laborDeleteError } = await supabase
-      .from("labor_uploads")
-      .delete()
-      .eq("id", laborId);
-
-    if (laborDeleteError) {
-      console.error("Labor delete failed:", laborDeleteError);
-      alert(`Labor delete failed: ${laborDeleteError.message}`);
+      setLaborData((prev) => (prev || []).filter((row) => row.id !== laborId));
+      setMessage("Labor import deleted.");
       return;
     }
 
-    setClientImports((prev) => (prev || []).filter((item) => item.id !== uploadId));
-    setRecentUploads((prev) => (prev || []).filter((item) => item.id !== uploadId));
-    setLaborData((prev) => (prev || []).filter((row) => row.id !== laborId));
+    // ✅ LABOR FILE DELETE
+    if (uploadIdString.startsWith("labor-file-")) {
+      const laborFileKey = uploadIdString.replace("labor-file-", "");
+      const allImports = [...(clientImports || []), ...(recentUploads || [])];
+      const laborMatch = allImports.find((item) => item.id === uploadId);
 
-    setMessage("Labor import deleted.");
-    return;
-  }
+      const fileName =
+        laborMatch?.file_name ||
+        laborMatch?.name ||
+        laborFileKey.split("-2026-")[0] ||
+        null;
 
-  // ✅ LABOR FILE DELETE
-  if (uploadIdString.startsWith("labor-file-")) {
-    const laborFileKey = uploadIdString.replace("labor-file-", "");
+      if (!fileName) {
+        alert("Could not identify labor file name to delete.");
+        return;
+      }
 
-    const allImports = [...(clientImports || []), ...(recentUploads || [])];
-    const laborMatch = allImports.find((item) => item.id === uploadId);
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-    const fileName =
-      laborMatch?.file_name ||
-      laborMatch?.name ||
-      laborFileKey.split("-2026-")[0] ||
-      null;
-
-    if (!fileName) {
-      alert("Could not identify labor file name to delete.");
-      return;
-    }
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    const { data: deletedLaborRows, error: laborFileDeleteError } =
-      await supabase
+      const { error } = await supabase
         .from("labor_uploads")
         .delete()
         .eq("user_id", dataOwnerId || user?.id)
-        .ilike("file_name", fileName)
-        .select("id,file_name,created_at,user_id");
+        .ilike("file_name", fileName);
 
-    console.log("DELETED LABOR ROWS:", deletedLaborRows);
-    console.log("LABOR DELETE ERROR:", laborFileDeleteError);
+      if (error) throw error;
 
-    if (laborFileDeleteError) {
-      console.error("Labor file delete failed:", laborFileDeleteError);
-      alert(`Labor delete failed: ${laborFileDeleteError.message}`);
+      setLaborData((prev) => (prev || []).filter((row) => row.file_name !== fileName));
+      setMessage("Labor import deleted.");
       return;
     }
 
-    setClientImports((prev) => (prev || []).filter((item) => item.id !== uploadId));
-    setRecentUploads((prev) => (prev || []).filter((item) => item.id !== uploadId));
-    setLaborData((prev) => (prev || []).filter((row) => row.file_name !== fileName));
+    // ✅ NORMAL UPLOAD DELETE
+    const { data: uploadRow, error: uploadLookupError } = await supabase
+      .from("uploads")
+      .select("*")
+      .eq("id", uploadId)
+      .maybeSingle();
 
-    setMessage("Labor import deleted.");
-    return;
-  }
+    console.log("DELETE UPLOAD ROW:", uploadRow);
+    console.log("DELETE LOOKUP ERROR:", uploadLookupError);
 
-  // ✅ NORMAL UPLOAD DELETE
- const { data: uploadRow, error: uploadLookupError } = await supabase
-  .from("uploads")
-  .select("*")
-  .eq("id", uploadId)
-  .maybeSingle();
+    if (uploadLookupError) throw uploadLookupError;
 
-console.log("DELETE UPLOAD ROW:", uploadRow);
-console.log("DELETE LOOKUP ERROR:", uploadLookupError);
+    const deleteSteps = [
+      ["sales", "upload_id"],
+      ["menu_items", "upload_id"],
+      ["ingredients", "upload_id"],
+      ["inventory_items", "upload_id"],
+      ["beverage_items", "upload_id"],
+      ["beverage_uploads", "upload_id"],
+    ];
 
-if (uploadLookupError) {
-  console.error("Upload lookup failed:", uploadLookupError);
-  alert(`Upload lookup failed: ${uploadLookupError.message}`);
-  return;
-}
+    for (const [table, column] of deleteSteps) {
+      const { error } = await supabase.from(table).delete().eq(column, uploadId);
 
-  const deleteSteps = [
-    ["sales", "upload_id"],
-    ["menu_items", "upload_id"],
-    ["ingredients", "upload_id"],
-    ["inventory_items", "upload_id"],
-  ];
-
-  for (const [table, column] of deleteSteps) {
-    const { error } = await supabase.from(table).delete().eq(column, uploadId);
-
-    if (error) {
-      console.error(`${table} delete failed:`, error);
-      alert(`${table} delete failed: ${error.message}`);
-      return;
-    }
-  }
-
-  // RECIPES
-  const { data: recipesToDelete, error: recipeLookupError } = await supabase
-    .from("recipes")
-    .select("id")
-    .eq("upload_id", uploadId);
-
-  if (recipeLookupError) {
-    console.error("Recipe lookup failed:", recipeLookupError);
-    alert(`Recipe lookup failed: ${recipeLookupError.message}`);
-    return;
-  }
-
-  const recipeIds = (recipesToDelete || []).map((recipe) => recipe.id);
-
-  if (recipeIds.length > 0) {
-    const { error: recipeIngredientsDeleteError } = await supabase
-      .from("recipe_ingredients")
-      .delete()
-      .in("recipe_id", recipeIds);
-
-    if (recipeIngredientsDeleteError) {
-      console.error("Recipe ingredients delete failed:", recipeIngredientsDeleteError);
-      alert(`Recipe ingredients delete failed: ${recipeIngredientsDeleteError.message}`);
-      return;
+      if (error) {
+        console.warn(`${table} delete skipped/failed:`, error);
+      }
     }
 
-    const { error: recipesDeleteError } = await supabase
+    // ✅ RECIPES
+    const { data: recipesToDelete, error: recipeLookupError } = await supabase
       .from("recipes")
-      .delete()
+      .select("id")
       .eq("upload_id", uploadId);
 
-    if (recipesDeleteError) {
-      console.error("Recipes delete failed:", recipesDeleteError);
-      alert(`Recipes delete failed: ${recipesDeleteError.message}`);
-      return;
+    if (recipeLookupError) throw recipeLookupError;
+
+    const recipeIds = (recipesToDelete || []).map((recipe) => recipe.id);
+
+    if (recipeIds.length > 0) {
+      const { error: recipeIngredientsDeleteError } = await supabase
+        .from("recipe_ingredients")
+        .delete()
+        .in("recipe_id", recipeIds);
+
+      if (recipeIngredientsDeleteError) throw recipeIngredientsDeleteError;
+
+      const { error: recipesDeleteError } = await supabase
+        .from("recipes")
+        .delete()
+        .eq("upload_id", uploadId);
+
+      if (recipesDeleteError) throw recipesDeleteError;
     }
-  }
-  // LOCATIONS
-  if (uploadRow?.upload_type === "locations") {
-    const { error: locationsDeleteError } = await supabase
-      .from("locations")
+
+    // ✅ LOCATIONS
+    if (uploadRow?.upload_type === "locations") {
+      const { error } = await supabase
+        .from("locations")
+        .delete()
+        .eq("user_id", uploadRow.user_id);
+
+      if (error) throw error;
+
+      setLocations([]);
+    }
+
+    // ✅ INVOICES
+    if (uploadRow?.upload_type === "invoices") {
+      const { data: matchingInvoiceUploads, error: invoiceUploadFindError } =
+        await supabase
+          .from("invoice_uploads")
+          .select("id,file_name,created_at,user_id")
+          .eq("user_id", uploadRow.user_id)
+          .eq("file_name", uploadRow.file_name);
+
+      if (invoiceUploadFindError) throw invoiceUploadFindError;
+
+      const invoiceIds = (matchingInvoiceUploads || []).map((row) => row.id);
+
+      if (invoiceIds.length > 0) {
+        const { error: invoiceItemsDeleteError } = await supabase
+          .from("invoice_items")
+          .delete()
+          .in("invoice_id", invoiceIds);
+
+        if (invoiceItemsDeleteError) throw invoiceItemsDeleteError;
+
+        const { error: invoiceUploadsDeleteError } = await supabase
+          .from("invoice_uploads")
+          .delete()
+          .in("id", invoiceIds);
+
+        if (invoiceUploadsDeleteError) throw invoiceUploadsDeleteError;
+      }
+    }
+
+    const { error: uploadDeleteError } = await supabase
+      .from("uploads")
       .delete()
-      .eq("user_id", uploadRow.user_id);
+      .eq("id", uploadId);
 
-    if (locationsDeleteError) {
-      console.error("Locations delete failed:", locationsDeleteError);
-      alert(`Locations delete failed: ${locationsDeleteError.message}`);
-      return;
-    }
+    console.log("UPLOAD DELETE ERROR:", uploadDeleteError);
 
-    setLocations([]);
+    if (uploadDeleteError) throw uploadDeleteError;
+
+    setRecentUploads((prev) => (prev || []).filter((upload) => upload.id !== uploadId));
+    setClientImports((prev) => (prev || []).filter((upload) => upload.id !== uploadId));
+    setDbSalesRows((prev) => (prev || []).filter((row) => row.upload_id !== uploadId));
+    setMenuItemsData((prev) => (prev || []).filter((row) => row.upload_id !== uploadId));
+    setIngredientsData((prev) => (prev || []).filter((row) => row.upload_id !== uploadId));
+    setInventoryData((prev) => (prev || []).filter((row) => row.upload_id !== uploadId));
+    setBeverageItems((prev) => (prev || []).filter((row) => row.upload_id !== uploadId));
+    setRecipes((prev) => (prev || []).filter((row) => row.upload_id !== uploadId));
+
+    setInvoicesData((prev) =>
+      (prev || []).filter(
+        (row) => row.upload_id !== uploadId && row.invoice_id !== uploadId
+      )
+    );
+
+    await logAuditEvent({
+      action: "deleted_import",
+      entityType: "upload",
+      entityId: uploadId,
+      details: "User deleted an import.",
+    });
+
+    setMessage("Upload deleted.");
+  } catch (error) {
+    console.error("Delete import failed:", error);
+
+    setClientImports(previousClientImports);
+    setRecentUploads(previousRecentUploads);
+
+    alert(`Delete failed: ${error.message}`);
+    setMessage("Delete failed.");
   }
-  // INVOICES
-  if (uploadRow?.upload_type === "invoices") {
-    const { data: matchingInvoiceUploads, error: invoiceUploadFindError } =
-      await supabase
-        .from("invoice_uploads")
-        .select("id,file_name,created_at,user_id")
-        .eq("user_id", uploadRow.user_id)
-        .eq("file_name", uploadRow.file_name);
-
-    if (invoiceUploadFindError) {
-      console.error("Invoice upload lookup failed:", invoiceUploadFindError);
-      alert(`Invoice lookup failed: ${invoiceUploadFindError.message}`);
-      return;
-    }
-
-    const invoiceIds = (matchingInvoiceUploads || []).map((row) => row.id);
-
-    if (invoiceIds.length > 0) {
-      const { error: invoiceItemsDeleteError } = await supabase
-        .from("invoice_items")
-        .delete()
-        .in("invoice_id", invoiceIds);
-
-      if (invoiceItemsDeleteError) {
-        console.error("Invoice items delete failed:", invoiceItemsDeleteError);
-        alert(`Invoice items delete failed: ${invoiceItemsDeleteError.message}`);
-        return;
-      }
-
-      const { error: invoiceUploadsDeleteError } = await supabase
-        .from("invoice_uploads")
-        .delete()
-        .in("id", invoiceIds);
-
-      if (invoiceUploadsDeleteError) {
-        console.error("Invoice upload delete failed:", invoiceUploadsDeleteError);
-        alert(`Invoice upload delete failed: ${invoiceUploadsDeleteError.message}`);
-        return;
-      }
-    }
-  }
-
- const { error: uploadDeleteError } = await supabase
-  .from("uploads")
-  .delete()
-  .eq("id", uploadId);
-
-console.log("UPLOAD DELETE ERROR:", uploadDeleteError);
-
-  if (uploadDeleteError) {
-    console.error("Upload delete failed:", uploadDeleteError);
-    alert(`Upload delete failed: ${uploadDeleteError.message}`);
-    return;
-  }
-
-  setRecentUploads((prev) => (prev || []).filter((upload) => upload.id !== uploadId));
-  setClientImports((prev) => (prev || []).filter((upload) => upload.id !== uploadId));
-  setDbSalesRows((prev) => (prev || []).filter((row) => row.upload_id !== uploadId));
-  setMenuItemsData((prev) => (prev || []).filter((row) => row.upload_id !== uploadId));
-  setIngredientsData((prev) => (prev || []).filter((row) => row.upload_id !== uploadId));
-  setInventoryData((prev) => (prev || []).filter((row) => row.upload_id !== uploadId));
-  setRecipes((prev) => (prev || []).filter((row) => row.upload_id !== uploadId));
-
-  setInvoicesData((prev) =>
-    (prev || []).filter(
-      (row) => row.upload_id !== uploadId && row.invoice_id !== uploadId
-    )
-  );
-
-await logAuditEvent({
-  action: "deleted_import",
-  entityType: "upload",
-  entityId: uploadId,
-  details: "User deleted an import.",
-});
-
-
-
-setMessage("Upload deleted.");
 };
 
 const batchPrepIntelligence = (batchPrepData || []).map((batch) => {
