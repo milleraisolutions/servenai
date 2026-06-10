@@ -23161,21 +23161,25 @@ useEffect(() => {
 }, []);
 const handleBeverageUpload = async (event) => {
   console.log("BEVERAGE UPLOAD FIRED");
+
   try {
     const file = event.target.files?.[0];
-const fileError = validateUploadFile(file, 25);
+    const fileError = validateUploadFile(file, 25);
 
-if (fileError) {
-  alert(fileError);
-  setMessage(fileError);
-  return;
-}
+    if (fileError) {
+      alert(fileError);
+      setMessage(fileError);
+      return;
+    }
+
     console.log("BEVERAGE FILE SELECTED:", file);
 
     if (!file) {
       setMessage("No beverage file selected.");
       return;
     }
+
+    setMessage("Importing beverage data...");
 
     const {
       data: { user },
@@ -23189,144 +23193,180 @@ if (fileError) {
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
+
       complete: async (results) => {
-        console.log("BEVERAGE PARSE RESULTS:", results);
+        try {
+          console.log("BEVERAGE PARSE RESULTS:", results);
 
-        const rows = results.data || [];
+          const rows = results.data || [];
 
-        console.log("BEVERAGE ROW COUNT:", rows.length);
-        console.log("BEVERAGE FIRST ROW:", rows[0]);
+          console.log("BEVERAGE ROW COUNT:", rows.length);
+          console.log("BEVERAGE FIRST ROW:", rows[0]);
 
-        if (!rows.length) {
-          setMessage("No beverage rows found in file.");
-          return;
+          if (!rows.length) {
+            setMessage("No beverage rows found in file.");
+            return;
+          }
+
+          const optimisticUpload = startOptimisticImport({
+            fileName: file.name || "Beverage Upload",
+            sourceName: "beverage_upload",
+            rowCount: rows.length,
+          });
+
+          const beverageRows = rows.map((row) => ({
+            user_id: user.id,
+
+            location_name:
+              activeLocation !== "all"
+                ? activeLocation
+                : assignedLocation || null,
+
+            beverage_name:
+              row.beverage_name ||
+              row["Beverage Name"] ||
+              row.name ||
+              row.Name ||
+              row.item ||
+              row.Item ||
+              row.product ||
+              row.Product ||
+              "Beverage",
+
+            category:
+              row.category ||
+              row.Category ||
+              row.type ||
+              row.Type ||
+              "Beverage",
+
+            bottle_size_oz: Number(
+              row.bottle_size_oz ||
+                row["Bottle Size Oz"] ||
+                row["Bottle Size"] ||
+                row.size_oz ||
+                row["Size Oz"] ||
+                0
+            ),
+
+            cost_per_bottle: Number(
+              row.cost_per_bottle ||
+                row["Cost Per Bottle"] ||
+                row.bottle_cost ||
+                row["Bottle Cost"] ||
+                row.cost ||
+                row.Cost ||
+                0
+            ),
+
+            pour_size_oz: Number(
+              row.pour_size_oz ||
+                row["Pour Size Oz"] ||
+                row["Pour Size"] ||
+                row.pour_size ||
+                0
+            ),
+
+            selling_price: Number(
+              row.selling_price ||
+                row["Selling Price"] ||
+                row.price ||
+                row.Price ||
+                row.menu_price ||
+                row["Menu Price"] ||
+                0
+            ),
+          }));
+
+          console.log("BEVERAGE ROWS TO INSERT:", beverageRows.slice(0, 5));
+
+          const { data, error } = await supabase
+            .from("beverage_items")
+            .insert(beverageRows)
+            .select();
+
+          if (error) {
+            console.error("Beverage upload error:", error);
+
+            setClientImports((prev) =>
+              (prev || []).filter((item) => item.id !== optimisticUpload.id)
+            );
+            setRecentUploads((prev) =>
+              (prev || []).filter((item) => item.id !== optimisticUpload.id)
+            );
+
+            alert(`Beverage upload failed: ${error.message}`);
+            setMessage("Beverage upload failed. Check console.");
+            return;
+          }
+
+          const { data: uploadRow, error: uploadError } = await supabase
+            .from("uploads")
+            .insert([
+              {
+                user_id: user.id,
+                file_name: file.name || "Beverage Upload",
+                source_name: "beverage_upload",
+                row_count: data?.length || beverageRows.length || 0,
+                upload_type: "beverage",
+                status: "completed",
+                archived: false,
+                location_id: selectedUploadLocationId || null,
+                location_name:
+                  activeLocation !== "all"
+                    ? activeLocation
+                    : assignedLocation || null,
+              },
+            ])
+            .select()
+            .single();
+
+          if (uploadError) {
+            console.error("Beverage recent upload failed:", uploadError);
+            setMessage(
+              `Beverage data imported, but imports row failed: ${uploadError.message}`
+            );
+            return;
+          }
+
+          setBeverageItems((prev) => [...(data || []), ...(prev || [])]);
+
+          if (uploadRow) {
+            setClientImports((prev) =>
+              (prev || []).map((item) =>
+                item.id === optimisticUpload.id ? uploadRow : item
+              )
+            );
+
+            setRecentUploads((prev) =>
+              (prev || []).map((item) =>
+                item.id === optimisticUpload.id ? uploadRow : item
+              )
+            );
+          }
+
+          setMessage(`Imported ${data?.length || 0} beverage item(s).`);
+
+          setTimeout(() => {
+            setMessage("");
+          }, 2500);
+
+          event.target.value = "";
+
+          await logAuditEvent({
+            action: "uploaded_beverage_items",
+            entityType: "beverage_items",
+            entityId: uploadRow?.id || null,
+            details: `Uploaded beverage items with ${data?.length || 0} row(s).`,
+          });
+        } catch (innerError) {
+          console.error("Beverage import inner error:", innerError);
+          setMessage("Beverage import failed. Check console.");
         }
-
-        const beverageRows = rows.map((row) => ({
-          user_id: user.id,
-location_name:
-  activeLocation !== "all"
-    ? activeLocation
-    : assignedLocation || null,
-          beverage_name:
-            row.beverage_name ||
-            row["Beverage Name"] ||
-            row.name ||
-            row.Name ||
-            row.item ||
-            row.Item ||
-            row.product ||
-            row.Product ||
-            "Beverage",
-
-          category:
-            row.category ||
-            row.Category ||
-            row.type ||
-            row.Type ||
-            "Beverage",
-
-          bottle_size_oz: Number(
-            row.bottle_size_oz ||
-              row["Bottle Size Oz"] ||
-              row["Bottle Size"] ||
-              row.size_oz ||
-              row["Size Oz"] ||
-              0
-          ),
-
-          cost_per_bottle: Number(
-            row.cost_per_bottle ||
-              row["Cost Per Bottle"] ||
-              row.bottle_cost ||
-              row["Bottle Cost"] ||
-              row.cost ||
-              row.Cost ||
-              0
-          ),
-
-          pour_size_oz: Number(
-            row.pour_size_oz ||
-              row["Pour Size Oz"] ||
-              row["Pour Size"] ||
-              row.pour_size ||
-              0
-          ),
-
-          selling_price: Number(
-            row.selling_price ||
-              row["Selling Price"] ||
-              row.price ||
-              row.Price ||
-              row.menu_price ||
-              row["Menu Price"] ||
-              0
-          ),
-        }));
-
-        console.log("BEVERAGE ROWS TO INSERT:", beverageRows.slice(0, 5));
-
-        const { data, error } = await supabase
-          .from("beverage_items")
-          .insert(beverageRows)
-          .select();
-
-        if (error) {
-          console.error("Beverage upload error:", error);
-          alert(`Beverage upload failed: ${error.message}`);
-          setMessage("Beverage upload failed. Check console.");
-          return;
-        }
-
-        const { data: uploadRow, error: uploadError } = await supabase
-          .from("uploads")
-          .insert([
-            {
-              user_id: user.id,
-              file_name: file.name || "Beverage Upload",
-              source_name: "beverage_upload",
-              row_count: data?.length || beverageRows.length || 0,
-              upload_type: "beverage",
-              status: "completed",
-              archived: false,
-              location_id: selectedUploadLocationId || null,
-            },
-          ])
-          .select()
-          .single();
-
-        if (uploadError) {
-          console.error("Beverage recent upload failed:", uploadError);
-          alert(
-            `Beverage data imported, but imports row failed: ${uploadError.message}`
-          );
-        }
-
-        setBeverageItems((prev) => [...(data || []), ...(prev || [])]);
-
-        if (uploadRow) {
-          setClientImports((prev) => [
-            uploadRow,
-            ...(prev || []).filter((upload) => upload.id !== uploadRow.id),
-          ]);
-
-          setRecentUploads((prev) => [
-            uploadRow,
-            ...(prev || []).filter((upload) => upload.id !== uploadRow.id),
-          ]);
-        }
-await logAuditEvent({
-  action: "uploaded_beverage_items",
-  entityType: "beverage_items",
-  entityId: uploadRow?.id || null,
-  details: `Uploaded beverage items with ${data?.length || 0} row(s).`,
-});
-        setMessage(`Imported ${data?.length || 0} beverage item(s).`);
-
-        event.target.value = "";
       },
+
       error: (parseError) => {
-        console.error("Beverage CSV parse failed:", parseError);
+        console.error("BEVERAGE PARSE ERROR:", parseError);
         alert(`Beverage CSV parse failed: ${parseError.message}`);
         setMessage("Beverage CSV parse failed.");
       },
