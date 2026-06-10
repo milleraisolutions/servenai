@@ -6389,6 +6389,28 @@ await logAuditEvent({
 };
 const selectedUploadTypeRef = useRef("pos");
 
+const startOptimisticImport = ({ fileName, sourceName, rowCount }) => {
+  const optimisticUpload = {
+    id: `temp-${Date.now()}`,
+    file_name: fileName || "Uploading file",
+    source_name: sourceName || "upload",
+    row_count: rowCount || 0,
+    created_at: new Date().toISOString(),
+    status: "processing",
+  };
+
+  setPendingUploadSummary(null);
+  setPendingUploadRows([]);
+  pendingUploadRowsRef.current = [];
+
+  setClientImports((prev) => [optimisticUpload, ...(prev || [])]);
+  setRecentUploads((prev) => [optimisticUpload, ...(prev || [])]);
+
+  setMessage("Import started...");
+
+  return optimisticUpload;
+};
+
 const openUploadPicker = (type) => {
   selectedUploadTypeRef.current = type;
   setUploadType(type);
