@@ -118,18 +118,13 @@ export async function POST(req) {
   .insert({
     user_id: user.id,
     supplier_name: parsedInvoice.supplierName,
-    invoice_date: cleanDate(parsedInvoice.invoiceDate),
+    invoice_date: parsedInvoice.invoiceDate || null,
     file_name: file.name,
     file_url: publicUrlData.publicUrl,
   })
   .select()
   .single();
-
 if (invoiceError) throw invoiceError;
-
-if (invoiceRow) {
-  setInvoiceUploads((prev) => [invoiceRow, ...(prev || [])]);
-}
       for (const item of parsedInvoice.items) {
         const { data: previousItem } = await supabase
           .from("invoice_line_items")
