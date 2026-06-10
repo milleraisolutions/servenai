@@ -5268,6 +5268,16 @@ const handleFileUpload = async (e) => {
   });
 
   setMessage(`Invoice file loaded: ${safeRows.length} rows ready to import.`);
+} else if (activeUploadType === "batch_prep") {
+  setPendingUploadSummary({
+    fileName: file.name,
+    rowCount: safeRows.length,
+    uploadType: "batch_prep",
+    uploadedAt: Date.now(),
+    rows: safeRows,
+  });
+
+  setMessage(`Batch prep file loaded: ${safeRows.length} rows ready to import.`);
 } else {
   setPendingUploadSummary({
     fileName: file.name,
@@ -5280,7 +5290,12 @@ const handleFileUpload = async (e) => {
     rows: safeRows,
   });
 
+if (
+  !String(pendingUploadSummary?.uploadType || "").includes("batch") &&
+  activeTab !== "kitchen"
+) {
   setMessage("Upload type was not detected.");
+}
 }
 
 e.target.value = "";
