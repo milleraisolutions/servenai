@@ -12752,7 +12752,11 @@ pendingUploadRowsRef.current = [];
 const handleImportInventory = async () => {
   console.log("INVENTORY CONFIRM CLICKED");
   console.log("PENDING SUMMARY:", pendingUploadSummary);
-setMessage("Importing inventory data...");
+const optimisticUpload = startOptimisticImport({
+  fileName: pendingUploadSummary?.fileName,
+  sourceName: "inventory_upload",
+  rowCount: pendingUploadSummary?.rowCount || 0,
+});
   try {
     const {
       data: { user },
@@ -12943,15 +12947,17 @@ if (error) {
 }
 
 if (uploadRow) {
-  setClientImports((prev) => [
-    uploadRow,
-    ...(prev || []).filter((upload) => upload.id !== uploadRow.id),
-  ]);
+  setClientImports((prev) =>
+    (prev || []).map((item) =>
+      item.id === optimisticUpload.id ? uploadRow : item
+    )
+  );
 
-  setRecentUploads((prev) => [
-    uploadRow,
-    ...(prev || []).filter((upload) => upload.id !== uploadRow.id),
-  ]);
+  setRecentUploads((prev) =>
+    (prev || []).map((item) =>
+      item.id === optimisticUpload.id ? uploadRow : item
+    )
+  );
 }
 await logAuditEvent({
   action: "uploaded_inventory",
@@ -12960,8 +12966,16 @@ await logAuditEvent({
   details: `Uploaded inventory data with ${rowsWithUploadId.length} row(s).`,
 });
 setMessage(`Imported ${rowsWithUploadId.length} inventory rows successfully.`);
+
 setPendingUploadSummary(null);
+setPendingUploadRows([]);
+pendingUploadRowsRef.current = [];
+
 setInventoryData(insertedInventoryRows || rowsWithUploadId);
+
+setTimeout(() => {
+  setMessage("");
+}, 2500);
   } catch (error) {
     console.error("Inventory import error:", error);
     setMessage("Inventory import failed. Check console for details.");
