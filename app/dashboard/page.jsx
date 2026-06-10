@@ -12547,15 +12547,26 @@ console.log("LABOR SAMPLE ROWS:", rowsToInsert?.slice(0, 5));
   rows: insertedLaborRows || rowsToInsert,
 };
 setClientImports((prev) => [newLaborUpload, ...(prev || [])]);
-    setRecentUploads((prev) => [newLaborUpload, ...(prev || [])]);
+setRecentUploads((prev) => [newLaborUpload, ...(prev || [])]);
+
+console.log("LABOR IMPORT SUCCESS BLOCK HIT");
+
+setMessage(`Imported ${rowsToInsert.length} labor rows successfully.`);
+setPendingUploadSummary(null);
+setPendingUploadRows([]);
+pendingUploadRowsRef.current = [];
+setLaborData(insertedLaborRows || rowsToInsert);
+
+setTimeout(() => {
+  setMessage("");
+}, 2500);
+
 await logAuditEvent({
   action: "uploaded_labor",
   entityType: "labor_upload",
   entityId: newLaborUpload?.id || null,
   details: `Uploaded labor data with ${rowsToInsert.length} row(s).`,
 });
-console.log("LABOR IMPORT SUCCESS BLOCK HIT");
-    setMessage(`Imported ${rowsToInsert.length} labor rows successfully.`);
 setPendingUploadSummary(null);
 setPendingUploadRows([]);
 pendingUploadRowsRef.current = [];
