@@ -23344,21 +23344,25 @@ const handleBeverageUpload = async (event) => {
           }
 
           setBeverageItems((prev) => [...(data || []), ...(prev || [])]);
+if (uploadRow) {
+  const cleanUploadRow = {
+    ...uploadRow,
+    status: "completed",
+    upload_type: "inventory",
+    source_name: "inventory_upload",
+    row_count: rowsWithUploadId.length,
+  };
 
-          if (uploadRow) {
-            setClientImports((prev) =>
-              (prev || []).map((item) =>
-                item.id === optimisticUpload.id ? uploadRow : item
-              )
-            );
+  setClientImports((prev) => [
+    cleanUploadRow,
+    ...(prev || []).filter((item) => item.id !== optimisticUpload.id),
+  ]);
 
-            setRecentUploads((prev) =>
-              (prev || []).map((item) =>
-                item.id === optimisticUpload.id ? uploadRow : item
-              )
-            );
-          }
-
+  setRecentUploads((prev) => [
+    cleanUploadRow,
+    ...(prev || []).filter((item) => item.id !== optimisticUpload.id),
+  ]);
+}
           setMessage(`Imported ${data?.length || 0} beverage item(s).`);
 
           setTimeout(() => {
