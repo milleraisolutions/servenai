@@ -12641,8 +12641,29 @@ const handleImportBatchPrep = async () => {
       return;
     }
 
+    const { data: uploadRow, error: uploadError } = await supabase
+      .from("uploads")
+      .insert([
+        {
+          user_id: user.id,
+          file_name: pendingUploadSummary?.fileName || "Batch Prep Upload",
+          source_name: "batch_prep_upload",
+          row_count: rows.length,
+          upload_type: "batch_prep",
+          status: "completed",
+          archived: false,
+          location_id: selectedUploadLocationId || null,
+        },
+      ])
+      .select()
+      .single();
+
+    if (uploadError) throw uploadError;
+
     const rowsToInsert = rows.map((row) => ({
       user_id: user.id,
+      upload_id: uploadRow?.id || null,
+      file_name: pendingUploadSummary?.fileName || "Batch Prep Upload",
 
       batch_name:
         row.batch_name ||
@@ -12651,16 +12672,9 @@ const handleImportBatchPrep = async () => {
         row.item ||
         "Unnamed Batch",
 
-      prep_date:
-        row.prep_date ||
-        row["Prep Date"] ||
-        row.date ||
-        null,
+      prep_date: row.prep_date || row["Prep Date"] || row.date || null,
 
-      station:
-        row.station ||
-        row["Station"] ||
-        "Prep",
+      station: row.station || row["Station"] || "Prep",
 
       prepared_by:
         row.prepared_by ||
@@ -12669,18 +12683,10 @@ const handleImportBatchPrep = async () => {
         row.staff ||
         "",
 
-      batch_yield: Number(
-        row.batch_yield ||
-          row["Batch Yield"] ||
-          row.yield ||
-          0
-      ),
+      batch_yield: Number(row.batch_yield || row["Batch Yield"] || row.yield || 0),
 
       portions_sold: Number(
-        row.portions_sold ||
-          row["Portions Sold"] ||
-          row.sold ||
-          0
+        row.portions_sold || row["Portions Sold"] || row.sold || 0
       ),
 
       portions_left: Number(
@@ -12692,76 +12698,45 @@ const handleImportBatchPrep = async () => {
       ),
 
       waste_portions: Number(
-        row.waste_portions ||
-          row["Waste Portions"] ||
-          row.waste ||
-          0
+        row.waste_portions || row["Waste Portions"] || row.waste || 0
       ),
 
       notes: row.notes || row["Notes"] || "",
     }));
 
-   const { error } = await supabase
-  .from("batch_prep_data")
-  .insert(rowsToInsert);
+    const { data: insertedRows, error } = await supabase
+      .from("batch_prep_data")
+      .insert(rowsToInsert)
+      .select();
 
-if (error) throw error;
+    if (error) {
+      await supabase.from("uploads").delete().eq("id", uploadRow?.id);
+      throw error;
+    }
 
-const { data: uploadRow, error: uploadError } = await supabase
-  .from("uploads")
-  .insert([
-    {
-      user_id: user.id,
-      file_name:
-        pendingUploadSummary?.fileName ||
-        "Batch Prep Upload",
+    setBatchPrepData((prev) => [...(insertedRows || rowsToInsert), ...(prev || [])]);
 
-      source_name: "batch_prep_upload",
-      row_count: rowsToInsert.length,
-      upload_type: "batch_prep",
-      status: "completed",
-      archived: false,
-      location_id: selectedUploadLocationId || null,
-    },
-  ])
-  .select()
-  .single();
+    setClientImports((prev) => [
+      uploadRow,
+      ...(prev || []).filter((upload) => upload.id !== uploadRow.id),
+    ]);
 
-if (uploadError) {
-  console.error(
-    "Batch prep recent upload failed:",
-    uploadError
-  );
-}
+    setRecentUploads((prev) => [
+      uploadRow,
+      ...(prev || []).filter((upload) => upload.id !== uploadRow.id),
+    ]);
 
-setBatchPrepData((prev) => [...rowsToInsert, ...prev]);
+    await logAuditEvent({
+      action: "uploaded_batch_prep",
+      entityType: "upload",
+      entityId: uploadRow?.id || null,
+      details: `Uploaded batch prep data with ${rowsToInsert.length} row(s).`,
+    });
 
-if (uploadRow) {
-  setClientImports((prev) => [
-    uploadRow,
-    ...(prev || []).filter(
-      (upload) => upload.id !== uploadRow.id
-    ),
-  ]);
-
-  setRecentUploads((prev) => [
-    uploadRow,
-    ...(prev || []).filter(
-      (upload) => upload.id !== uploadRow.id
-    ),
-  ]);
-}
-await logAuditEvent({
-  action: "uploaded_batch_prep",
-  entityType: "upload",
-  entityId: uploadRow?.id || null,
-  details: `Uploaded batch prep data with ${rowsToInsert.length} row(s).`,
-});
-setMessage(`Imported ${rowsToInsert.length} batch prep rows.`);
-setPendingUploadSummary(null);
-setPendingUploadRows([]);
-pendingUploadRowsRef.current = [];
-
+    setMessage(`Imported ${rowsToInsert.length} batch prep rows.`);
+    setPendingUploadSummary(null);
+    setPendingUploadRows([]);
+    pendingUploadRowsRef.current = [];
   } catch (error) {
     console.error("Batch prep import error:", error);
     setMessage(error?.message || "Failed to import batch prep data.");
@@ -25718,14 +25693,20 @@ const handleDeleteUpload = async (uploadId) => {
 
     if (uploadLookupError) throw uploadLookupError;
 
-    const deleteSteps = [
-      ["sales", "upload_id"],
-      ["menu_items", "upload_id"],
-      ["ingredients", "upload_id"],
-      ["inventory_items", "upload_id"],
-      ["beverage_items", "upload_id"],
-     ["beverage_usage", "upload_id"],
-    ];
+  const deleteSteps = [
+  ["sales", "upload_id"],
+  ["menu_items", "upload_id"],
+  ["ingredients", "upload_id"],
+  ["inventory_items", "upload_id"],
+  ["beverage_items", "upload_id"],
+  ["beverage_usage", "upload_id"],
+  ["batch_prep_data", "upload_id"],
+  ["recipes", "upload_id"],
+  ["invoice_items", "upload_id"],
+  ["restaurant_customers", "upload_id"],
+  ["customers", "upload_id"],
+  ["client_data_uploads", "upload_id"],
+];
 
     for (const [table, column] of deleteSteps) {
       const { error } = await supabase.from(table).delete().eq(column, uploadId);
