@@ -23348,9 +23348,9 @@ if (uploadRow) {
   const cleanUploadRow = {
     ...uploadRow,
     status: "completed",
-    upload_type: "inventory",
-    source_name: "inventory_upload",
-    row_count: rowsWithUploadId.length,
+    upload_type: "beverage",
+    source_name: "beverage_upload",
+    row_count: (data || []).length,
   };
 
   setClientImports((prev) => [
