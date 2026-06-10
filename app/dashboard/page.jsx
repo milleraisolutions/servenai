@@ -12551,26 +12551,16 @@ setRecentUploads((prev) => [newLaborUpload, ...(prev || [])]);
 
 console.log("LABOR IMPORT SUCCESS BLOCK HIT");
 
+setLaborData(insertedLaborRows || rowsToInsert);
+
+setPendingUploadSummary(null);
+setPendingUploadRows([]);
+pendingUploadRowsRef.current = [];
+
+const csvInput = document.getElementById("csvUpload");
+if (csvInput) csvInput.value = "";
+
 setMessage(`Imported ${rowsToInsert.length} labor rows successfully.`);
-setPendingUploadSummary(null);
-setPendingUploadRows([]);
-pendingUploadRowsRef.current = [];
-setLaborData(insertedLaborRows || rowsToInsert);
-
-setTimeout(() => {
-  setMessage("");
-}, 2500);
-
-await logAuditEvent({
-  action: "uploaded_labor",
-  entityType: "labor_upload",
-  entityId: newLaborUpload?.id || null,
-  details: `Uploaded labor data with ${rowsToInsert.length} row(s).`,
-});
-setPendingUploadSummary(null);
-setPendingUploadRows([]);
-pendingUploadRowsRef.current = [];
-setLaborData(insertedLaborRows || rowsToInsert);
 
 setTimeout(() => {
   setMessage("");
