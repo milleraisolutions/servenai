@@ -12621,6 +12621,9 @@ setTimeout(() => {
   }
 };
 const handleImportBatchPrep = async () => {
+  console.log("BATCH PREP CONFIRM CLICKED", pendingUploadSummary);
+  setMessage("Importing batch prep data...");
+
   try {
     const {
       data: { user },
