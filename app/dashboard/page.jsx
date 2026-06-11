@@ -972,20 +972,16 @@ const handleIngredientsUpload = async (event) => {
                 ])
               ).trim();
 
-              const quantity = toNumber(
-                getValue(row, [
-                  "quantity",
-                  "Quantity",
-                  "qty",
-                  "Qty",
-                  "on_hand",
-                  "On Hand",
-                  "Quantity On Hand",
-                  "Qty On Hand",
-                  "stock",
-                  "Stock",
-                ])
-              );
+             const quantity = Number(
+  row.quantity ||
+    row.Quantity ||
+    row.qty ||
+    row.Qty ||
+    row.amount_used ||
+    row["amount_used"] ||
+    row["Amount Used"] ||
+    0
+);
 
               const costPerUnit = toNumber(
                 getValue(row, [
@@ -22994,10 +22990,13 @@ const handleRecipeUpload = async (event) => {
           const recipeMap = new Map();
 
           rows.forEach((row) => {
-           const recipeName = String(
+        const recipeName = String(
   row.recipe_name ||
     row["Recipe Name"] ||
     row.menu_item_name ||
+    row["Menu Item Name"] ||
+    row.menu_item ||
+    row["menu_item"] ||
     row["Menu Item"] ||
     row.name ||
     row.Name ||
@@ -23007,7 +23006,6 @@ const handleRecipeUpload = async (event) => {
     row.Product ||
     row.dish ||
     row.Dish ||
-    row["Menu Item Name"] ||
     `Recipe ${recipeMap.size + 1}`
 ).trim();
 
@@ -23142,14 +23140,15 @@ const handleRecipeUpload = async (event) => {
                 location_name:
                   activeLocation !== "all" ? activeLocation : assignedLocation || null,
 
-                ingredient_name:
-                  row.ingredient_name ||
-                  row["Ingredient Name"] ||
-                  row.ingredient ||
-                  row.Ingredient ||
-                  row.item ||
-                  row.Item ||
-                  "Ingredient",
+               ingredient_name:
+  row.ingredient_name ||
+  row["Ingredient Name"] ||
+  row.ingredient ||
+  row.Ingredient ||
+  row["ingredient"] ||
+  row.item ||
+  row.Item ||
+  "Ingredient",
 
                 quantity,
 
