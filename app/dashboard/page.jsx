@@ -26373,9 +26373,24 @@ return (
         }}
       >
         Welcome to SerVen
-      </div>
+      </div><input
+  id="posUpload"
+  type="file"
+  accept=".csv,.xlsx,.xls"
+  onChange={handleFileUpload}
+  style={{ display: "none" }}
+/>
+
 <input
-  id="csvUpload"
+  id="laborUpload"
+  type="file"
+  accept=".csv,.xlsx,.xls"
+  onChange={handleFileUpload}
+  style={{ display: "none" }}
+/>
+
+<input
+  id="inventoryUpload"
   type="file"
   accept=".csv,.xlsx,.xls"
   onChange={handleFileUpload}
@@ -26390,39 +26405,68 @@ return (
   onChange={handleInvoiceUpload}
   style={{ display: "none" }}
 />
+
+<input
+  id="menuItemsUpload"
+  type="file"
+  accept=".csv,.xlsx,.xls"
+  onChange={handleFileUpload}
+  style={{ display: "none" }}
+/>
+
 <input
   id="guestUpload"
   type="file"
-  accept=".csv"
+  accept=".csv,.xlsx,.xls"
   onChange={handleGuestUpload}
   style={{ display: "none" }}
 />
-<input
-  id="recipeUpload"
-  type="file"
-  accept=".csv"
-  onChange={handleRecipeUpload}
-  style={{ display: "none" }}
-/>
-<input
-  id="employeeShiftUpload"
-  type="file"
-  accept=".csv"
-  onChange={handleEmployeeShiftUpload}
-  style={{ display: "none" }}
-/>
-<input
-  id="beverageUpload"
-  type="file"
-  accept=".csv"
-  onChange={handleBeverageUpload}
-  style={{ display: "none" }}
-/>
+
 <input
   id="locationUpload"
   type="file"
-  accept=".csv"
+  accept=".csv,.xlsx,.xls"
   onChange={handleLocationUpload}
+  style={{ display: "none" }}
+/>
+
+<input
+  id="ingredientsUpload"
+  type="file"
+  accept=".csv,.xlsx,.xls"
+  onChange={handleFileUpload}
+  style={{ display: "none" }}
+/>
+
+<input
+  id="recipeUpload"
+  type="file"
+  accept=".csv,.xlsx,.xls"
+  onChange={handleRecipeUpload}
+  style={{ display: "none" }}
+/>
+
+<input
+  id="batchPrepUpload"
+  type="file"
+  accept=".csv,.xlsx,.xls"
+  onChange={handleBatchPrepUpload}
+  style={{ display: "none" }}
+/>
+
+<input
+  id="employeeShiftUpload"
+  type="file"
+  accept=".csv,.xlsx,.xls"
+  onChange={handleEmployeeShiftUpload}
+  style={{ display: "none" }}
+/>
+
+<input
+  id="beverageUpload"
+  type="file"
+  accept=".csv,.xlsx,.xls"
+  onChange={handleBeverageUpload}
   style={{ display: "none" }}
 />
 {uploadError && (
@@ -26508,40 +26552,40 @@ return (
         gap: "14px",
         alignItems: "stretch",
       }}
-    >
-      <button
-        onClick={() => {
-  selectedUploadTypeRef.current = "pos";
-  setUploadType("pos");
+    ><button
+  onClick={() => {
+    selectedUploadTypeRef.current = "pos";
+    setUploadType("pos");
 
-  const input = document.getElementById("csvUpload");
-  if (input) input.value = "";
-  input?.click();
-}}
-        style={setupPrimaryButton}
-      >
-        Upload POS Data
-      </button>
+    const input = document.getElementById("posUpload");
+    if (input) input.value = "";
+    input?.click();
+  }}
+  style={setupPrimaryButton}
+>
+  Upload POS Data
+</button>
 
-      <button
-       onClick={() => {
-  selectedUploadTypeRef.current = "labor";
-  setUploadType("labor");
+<button
+  onClick={() => {
+    selectedUploadTypeRef.current = "labor";
+    setUploadType("labor");
 
-  const input = document.getElementById("csvUpload");
-  if (input) input.value = "";
-  input?.click();
-}}
-        style={setupPrimaryButton}
-      >
-        Upload Labor Data
-      </button>
+    const input = document.getElementById("laborUpload");
+    if (input) input.value = "";
+    input?.click();
+  }}
+  style={setupPrimaryButton}
+>
+  Upload Labor Data
+</button>
+
 <button
   onClick={() => {
     selectedUploadTypeRef.current = "inventory";
     setUploadType("inventory");
 
-    const input = document.getElementById("csvUpload");
+    const input = document.getElementById("inventoryUpload");
     if (input) input.value = "";
     input?.click();
   }}
@@ -26550,67 +26594,71 @@ return (
   Upload Inventory
 </button>
 
-      <button
-        onClick={() => {
-  selectedUploadTypeRef.current = "invoices";
-  setUploadType("invoices");
+<button
+  onClick={() => {
+    selectedUploadTypeRef.current = "invoices";
+    setUploadType("invoices");
 
-  const input = document.getElementById("csvUpload");
-  if (input) input.value = "";
-  input?.click();
-}}
-        style={setupSecondaryButton}
-      >
-        Upload Invoices
-      </button>
+    const input = document.getElementById("invoiceUpload");
+    if (input) input.value = "";
+    input?.click();
+  }}
+  style={setupSecondaryButton}
+>
+  Upload Invoices
+</button>
 
-      <button
-        onClick={() => {
-  selectedUploadTypeRef.current = "menu_items";
-  setUploadType("menu_items");
+<button
+  onClick={() => {
+    selectedUploadTypeRef.current = "menu_items";
+    setUploadType("menu_items");
 
-  const input = document.getElementById("csvUpload");
-  if (input) input.value = "";
-  input?.click();
-}}
-        style={setupSecondaryButton}
-      >
-        Upload Menu Items
-      </button>
+    const input = document.getElementById("menuItemsUpload");
+    if (input) input.value = "";
+    input?.click();
+  }}
+  style={setupSecondaryButton}
+>
+  Upload Menu Items
+</button>
 
-      <button
-        onClick={() => {
-          const input = document.getElementById("guestUpload");
+<button
+  onClick={() => {
+    selectedUploadTypeRef.current = "guests";
+    setUploadType("guests");
 
-          if (!input) {
-            console.error("guestUpload input not found");
-            setMessage("Guest upload input not found.");
-            return;
-          }
+    const input = document.getElementById("guestUpload");
 
-          input.value = "";
-          input.click();
-        }}
-        style={setupPrimaryButton}
-      >
-        Upload Guest Data
-      </button>
+    if (!input) {
+      console.error("guestUpload input not found");
+      setMessage("Guest upload input not found.");
+      return;
+    }
 
-      <button
- onClick={() => {
-  selectedUploadTypeRef.current = "locations";
-  setUploadType("locations");
+    input.value = "";
+    input.click();
+  }}
+  style={setupPrimaryButton}
+>
+  Upload Guest Data
+</button>
 
-  const input = document.getElementById("locationUpload");
+<button
+  onClick={() => {
+    selectedUploadTypeRef.current = "locations";
+    setUploadType("locations");
 
-  if (!input) {
-    console.error("locationUpload input not found");
-    return;
-  }
+    const input = document.getElementById("locationUpload");
 
-  input.value = "";
-  input.click();
-}}
+    if (!input) {
+      console.error("locationUpload input not found");
+      setMessage("Location upload input not found.");
+      return;
+    }
+
+    input.value = "";
+    input.click();
+  }}
   style={setupPrimaryButton}
 >
   Upload Locations
@@ -26653,58 +26701,57 @@ return (
   alignItems: "stretch",
   maxWidth: "980px",
 }}
-    >
-      <button
-        onClick={() => {
-  selectedUploadTypeRef.current = "ingredients";
-  setUploadType("ingredients");
+    ><button
+  onClick={() => {
+    selectedUploadTypeRef.current = "ingredients";
+    setUploadType("ingredients");
 
-  const input = document.getElementById("csvUpload");
-  if (input) input.value = "";
-  input?.click();
-}}
-        style={setupGoldButton}
-      >
-        Upload Ingredients
-      </button>
+    const input = document.getElementById("ingredientsUpload");
+    if (input) input.value = "";
+    input?.click();
+  }}
+  style={setupGoldButton}
+>
+  Upload Ingredients
+</button>
 
-      <button
-       onClick={() => {
-  selectedUploadTypeRef.current = "recipe_cards";
-  setUploadType("recipe_cards");
+<button
+  onClick={() => {
+    selectedUploadTypeRef.current = "recipe_cards";
+    setUploadType("recipe_cards");
 
-  const input = document.getElementById("recipeUpload");
-  if (input) input.value = "";
-  input?.click();
-}}
-        style={setupGoldButton}
-      >
-        Upload Recipe Cards
-      </button>
+    const input = document.getElementById("recipeUpload");
+    if (input) input.value = "";
+    input?.click();
+  }}
+  style={setupGoldButton}
+>
+  Upload Recipe Cards
+</button>
 
-      <button
-        onClick={() => {
-  selectedUploadTypeRef.current = "batch_prep";
-  setUploadType("batch_prep");
+<button
+  onClick={() => {
+    selectedUploadTypeRef.current = "batch_prep";
+    setUploadType("batch_prep");
 
-  const input = document.getElementById("csvUpload");
-  if (input) input.value = "";
-  input?.click();
-}}
-        style={setupGoldButton}
-      >
-        Upload Batch Prep
-      </button>
+    const input = document.getElementById("batchPrepUpload");
+    if (input) input.value = "";
+    input?.click();
+  }}
+  style={setupGoldButton}
+>
+  Upload Batch Prep
+</button>
 
-     <button
- onClick={() => {
-  selectedUploadTypeRef.current = "employee_shifts";
-  setUploadType("employee_shifts");
+<button
+  onClick={() => {
+    selectedUploadTypeRef.current = "employee_shifts";
+    setUploadType("employee_shifts");
 
-  const input = document.getElementById("employeeShiftUpload");
-  if (input) input.value = "";
-  input?.click();
-}}
+    const input = document.getElementById("employeeShiftUpload");
+    if (input) input.value = "";
+    input?.click();
+  }}
   style={{
     ...setupSecondaryButton,
     gridColumn: isMobile ? "auto" : "1 / span 3",
@@ -26713,30 +26760,30 @@ return (
   Upload Employee Shifts
 </button>
 
-      <button
-        type="button"
-      onClick={() => {
-  selectedUploadTypeRef.current = "beverage";
-  setUploadType("beverage");
+<button
+  type="button"
+  onClick={() => {
+    selectedUploadTypeRef.current = "beverage";
+    setUploadType("beverage");
 
-  const input = document.getElementById("beverageUpload");
+    const input = document.getElementById("beverageUpload");
 
-  if (!input) {
-    console.error("beverageUpload input not found");
-    setMessage("Beverage upload input not found.");
-    return;
-  }
+    if (!input) {
+      console.error("beverageUpload input not found");
+      setMessage("Beverage upload input not found.");
+      return;
+    }
 
-  input.value = "";
-  input.click();
-}}
-        style={{
-          ...setupGoldButton,
-         gridColumn: isMobile ? "auto" : "1 / span 3",
-        }}
-      >
-        Upload Beverage Data
-      </button>
+    input.value = "";
+    input.click();
+  }}
+  style={{
+    ...setupGoldButton,
+    gridColumn: isMobile ? "auto" : "1 / span 3",
+  }}
+>
+  Upload Beverage Data
+</button>
     </div>
   </div>
 </div>
