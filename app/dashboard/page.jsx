@@ -12625,21 +12625,13 @@ const handleImportBatchPrep = async () => {
   setMessage("Importing batch prep data...");
 
   try {
-    console.log("BATCH PREP: before getSession");
+  console.log("BATCH PREP: using dashboard user");
 
-    const {
-      data: { session },
-      error: sessionError,
-    } = await supabase.auth.getSession();
+const currentUser = user;
 
-    console.log("BATCH PREP session:", session);
-    console.log("BATCH PREP sessionError:", sessionError);
+console.log("BATCH PREP currentUser:", currentUser);
 
-    if (sessionError) throw sessionError;
-
-    const user = session?.user;
-
-    if (!user?.id) {
+   if (!currentUser?.id) {
       setMessage("You must be logged in to import batch prep data.");
       return;
     }
@@ -12655,7 +12647,7 @@ const handleImportBatchPrep = async () => {
       .from("uploads")
       .insert([
         {
-          user_id: user.id,
+          user_id: currentUser.id,
           file_name: pendingUploadSummary?.fileName || "Batch Prep Upload",
           source_name: "batch_prep_upload",
           row_count: rows.length,
@@ -12671,7 +12663,7 @@ const handleImportBatchPrep = async () => {
     if (uploadError) throw uploadError;
 
     const rowsToInsert = rows.map((row) => ({
-      user_id: user.id,
+      user_id: currentUser.id,
       upload_id: uploadRow?.id || null,
       file_name: pendingUploadSummary?.fileName || "Batch Prep Upload",
 
