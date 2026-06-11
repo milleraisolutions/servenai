@@ -23103,6 +23103,13 @@ useEffect(() => {
 
   loadBeverageData();
 }, []);
+const handleBatchPrepUpload = async (event) => {
+  selectedUploadTypeRef.current = "batch_prep";
+  setUploadType("batch_prep");
+
+  await handleFileUpload(event);
+  setMessage("Batch prep file loaded. Click Confirm Import.");
+};
 const validateUploadFile = (file, maxSizeMB = 25) => {
   if (!file) {
     return "No file selected.";
