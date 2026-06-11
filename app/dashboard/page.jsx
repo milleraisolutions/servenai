@@ -12729,13 +12729,14 @@ const handleImportBatchPrep = async () => {
       .insert(rowsToInsert)
       .select();
 
-    console.log("BATCH PREP insertedRows:", insertResult.data);
-    console.log("BATCH PREP insertError:", insertResult.error);
+  console.log("BATCH PREP insertedRows:", insertResult.data);
+console.log("BATCH PREP insertError:", insertResult.error);
 
-    if (insertResult.error) {
-      await supabase.from("uploads").delete().eq("id", uploadRow?.id);
-      throw insertResult.error;
-    }
+if (insertResult.error) {
+  alert(`Batch prep insert failed: ${insertResult.error.message}`);
+  await supabase.from("uploads").delete().eq("id", uploadRow?.id);
+  throw insertResult.error;
+}
 
     const insertedRows = insertResult.data || rowsToInsert;
 
