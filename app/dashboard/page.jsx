@@ -26215,8 +26215,12 @@ if (uploadRow?.upload_type === "ingredients") {
         console.warn(`${table} delete skipped/failed:`, error);
       }
     }
-// ✅ RECIPES
-if (uploadRow?.upload_type === "recipes") {
+// ✅ RECIPES / RECIPE CARDS DELETE
+if (
+  uploadRow?.upload_type === "recipes" ||
+  uploadRow?.upload_type === "recipe_cards" ||
+  uploadRow?.source_name === "recipe_upload"
+) {
   console.log("RECIPE DELETE START");
   console.log("RECIPE uploadId:", uploadId);
   console.log("RECIPE uploadRow:", uploadRow);
@@ -26231,25 +26235,64 @@ if (uploadRow?.upload_type === "recipes") {
 
   if (recipeLookupError) throw recipeLookupError;
 
-  const { data: ingredientsToDelete, error: recipeIngredientLookupError } =
-    await supabase
-      .from("recipe_ingredients")
-      .select("id,recipe_id,ingredient_name,upload_id")
-      .eq("upload_id", uploadId);
+  const recipeIds = (recipesToDelete || []).map((recipe) => recipe.id);
 
-  console.log("RECIPE ingredient lookup rows:", ingredientsToDelete);
-  console.log("RECIPE ingredient lookup error:", recipeIngredientLookupError);
+  if (recipeIds.length > 0) {
+    const { data: ingredientsToDelete, error: recipeIngredientLookupError } =
+      await supabase
+        .from("recipe_ingredients")
+        .select("id,recipe_id,ingredient_name,upload_id")
+        .in("recipe_id", recipeIds);
 
-  if (recipeIngredientLookupError) throw recipeIngredientLookupError;
+    console.log("RECIPE ingredient lookup rows:", ingredientsToDelete);
+    console.log("RECIPE ingredient lookup error:", recipeIngredientLookupError);
 
-  const { error: recipeIngredientsDeleteError } = await supabase
+    if (recipeIngredientLookupError) throw recipeIngredientLookupError;
+  }
+
+  const { error: recipeIngredientsDeleteByUploadError } = await supabase
     .from("recipe_ingredients")
     .delete()
     .eq("upload_id", uploadId);
 
-  console.log("RECIPE ingredient delete error:", recipeIngredientsDeleteError);
+  console.log(
+    "RECIPE ingredient delete by upload_id error:",
+    recipeIngredientsDeleteByUploadError
+  );
 
-  if (recipeIngredientsDeleteError) throw recipeIngredientsDeleteError;
+  if (recipeIngredientsDeleteByUploadError) {
+    console.warn(
+      "Recipe ingredient delete by upload_id failed, fallback will run:",
+      recipeIngredientsDeleteByUploadError
+    );
+  }
+
+  if (recipeIds.length > 0) {
+    const { error: recipeIngredientsDeleteByRecipeError } = await supabase
+      .from("recipe_ingredients")
+      .delete()
+      .in("recipe_id", recipeIds);
+
+    console.log(
+      "RECIPE ingredient delete by recipe_id error:",
+      recipeIngredientsDeleteByRecipeError
+    );
+
+    if (recipeIngredientsDeleteByRecipeError) {
+      throw recipeIngredientsDeleteByRecipeError;
+    }
+  }
+
+  const { error: recipeUsageRulesDeleteError } = await supabase
+    .from("recipe_usage_rules")
+    .delete()
+    .eq("upload_id", uploadId);
+
+  console.log("RECIPE usage rules delete error:", recipeUsageRulesDeleteError);
+
+  if (recipeUsageRulesDeleteError) {
+    console.warn("Recipe usage rules delete skipped/failed:", recipeUsageRulesDeleteError);
+  }
 
   const { error: recipesDeleteError } = await supabase
     .from("recipes")
@@ -26261,12 +26304,18 @@ if (uploadRow?.upload_type === "recipes") {
   if (recipesDeleteError) throw recipesDeleteError;
 
   setRecipeIngredients((prev) =>
-    (prev || []).filter((row) => row.upload_id !== uploadId)
+    (prev || []).filter(
+      (row) =>
+        row.upload_id !== uploadId &&
+        !recipeIds.includes(row.recipe_id)
+    )
   );
 
   setRecipes((prev) =>
     (prev || []).filter((row) => row.upload_id !== uploadId)
   );
+
+  console.log("RECIPE DELETE COMPLETE");
 }
     // ✅ LOCATIONS
     if (uploadRow?.upload_type === "locations") {
