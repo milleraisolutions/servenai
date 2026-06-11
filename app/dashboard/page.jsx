@@ -846,7 +846,329 @@ if (autopilotEnabled) {
   setInvoiceUploadLoading(false);
 }
 };
+const handleIngredientsUpload = async (event) => {
+  try {
+    const file = event.target.files?.[0];
+    const fileError = validateUploadFile(file, 25);
 
+    if (fileError) {
+      alert(fileError);
+      setMessage(fileError);
+      return;
+    }
+
+    if (!file) {
+      setMessage("No ingredients file selected.");
+      return;
+    }
+
+    setMessage("Importing ingredients...");
+
+    const currentUser = user;
+
+    if (!currentUser?.id) {
+      setMessage("You must be logged in to import ingredients.");
+      alert("You must be logged in to import ingredients.");
+      return;
+    }
+
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+
+      complete: async (results) => {
+        let uploadRow = null;
+
+        try {
+          const rawRows = results.data || [];
+
+          const rowsToImport = rawRows.filter((row) => {
+            const firstValue = String(
+              row.name ||
+                row.Name ||
+                row.ingredient ||
+                row.Ingredient ||
+                row.ingredient_name ||
+                row["Ingredient Name"] ||
+                ""
+            )
+              .trim()
+              .toLowerCase();
+
+            return firstValue && firstValue !== "name" && firstValue !== "ingredient";
+          });
+
+          if (!rowsToImport.length) {
+            setMessage("No ingredients data found to import.");
+            alert("No ingredients data found to import.");
+            return;
+          }
+
+          const now = new Date().toISOString();
+          const fileName = file.name || "Ingredients Upload";
+
+          const toNumber = (value, fallback = 0) => {
+            const cleaned = String(value ?? "")
+              .replaceAll("$", "")
+              .replaceAll(",", "")
+              .replaceAll("%", "")
+              .trim();
+
+            const num = Number(cleaned);
+            return Number.isFinite(num) ? num : fallback;
+          };
+
+          const getValue = (row, keys, fallback = "") => {
+            for (const key of keys) {
+              if (
+                row?.[key] !== undefined &&
+                row?.[key] !== null &&
+                row?.[key] !== ""
+              ) {
+                return row[key];
+              }
+            }
+
+            return fallback;
+          };
+
+          const cleanedRows = rowsToImport
+            .map((row) => {
+              const name = String(
+                getValue(row, [
+                  "name",
+                  "Name",
+                  "ingredient_name",
+                  "Ingredient Name",
+                  "ingredient",
+                  "Ingredient",
+                  "item",
+                  "Item",
+                  "product",
+                  "Product",
+                ])
+              ).trim();
+
+              if (!name || name.toLowerCase() === "unnamed ingredient") {
+                return null;
+              }
+
+              const supplier = String(
+                getValue(row, ["supplier", "Supplier", "vendor", "Vendor"])
+              ).trim();
+
+              const category = String(
+                getValue(row, ["category", "Category", "type", "Type"], "Uncategorized")
+              ).trim();
+
+              const unit = String(
+                getValue(row, [
+                  "unit",
+                  "Unit",
+                  "uom",
+                  "UOM",
+                  "Unit Of Measure",
+                  "Unit of Measure",
+                ])
+              ).trim();
+
+              const quantity = toNumber(
+                getValue(row, [
+                  "quantity",
+                  "Quantity",
+                  "qty",
+                  "Qty",
+                  "on_hand",
+                  "On Hand",
+                  "Quantity On Hand",
+                  "Qty On Hand",
+                  "stock",
+                  "Stock",
+                ])
+              );
+
+              const costPerUnit = toNumber(
+                getValue(row, [
+                  "cost_per_unit",
+                  "Cost Per Unit",
+                  "unit_cost",
+                  "Unit Cost",
+                  "cost",
+                  "Cost",
+                  "price",
+                  "Price",
+                ])
+              );
+
+              const uploadedTotalCost = toNumber(
+                getValue(row, [
+                  "total_cost",
+                  "Total Cost",
+                  "inventory_value",
+                  "Inventory Value",
+                  "value",
+                  "Value",
+                ])
+              );
+
+              const totalCost =
+                uploadedTotalCost > 0 ? uploadedTotalCost : quantity * costPerUnit;
+
+              return {
+                user_id: currentUser.id,
+                name,
+                supplier,
+                category,
+                unit,
+                quantity,
+                cost_per_unit: costPerUnit,
+                total_cost: totalCost,
+
+                ingredient_type: String(
+                  getValue(
+                    row,
+                    ["ingredient_type", "Ingredient Type", "type", "Type"],
+                    "core"
+                  )
+                ).trim(),
+
+                variance_tolerance: toNumber(
+                  getValue(
+                    row,
+                    [
+                      "variance_tolerance",
+                      "Variance Tolerance",
+                      "tolerance",
+                      "Tolerance",
+                    ],
+                    5
+                  ),
+                  5
+                ),
+
+                is_active: true,
+                last_seen_at: now,
+                created_at: now,
+              };
+            })
+            .filter(Boolean);
+
+          if (!cleanedRows.length) {
+            setMessage("No valid ingredients found after cleaning.");
+            alert("No valid ingredients found after cleaning.");
+            return;
+          }
+
+          const optimisticUpload = startOptimisticImport({
+            fileName,
+            sourceName: "ingredients_upload",
+            rowCount: cleanedRows.length,
+          });
+
+          const { data: createdUploadRow, error: uploadError } = await supabase
+            .from("uploads")
+            .insert([
+              {
+                user_id: currentUser.id,
+                file_name: fileName,
+                source_name: "ingredients_upload",
+                row_count: cleanedRows.length,
+                upload_type: "ingredients",
+                status: "completed",
+                archived: false,
+                location_id: selectedUploadLocationId || null,
+                location_name:
+                  activeLocation !== "all" ? activeLocation : assignedLocation || null,
+              },
+            ])
+            .select()
+            .single();
+
+          uploadRow = createdUploadRow;
+
+          if (uploadError) throw uploadError;
+
+          const rowsWithUploadId = cleanedRows.map((row) => ({
+            ...row,
+            upload_id: uploadRow?.id || null,
+            file_name: fileName,
+            location_name:
+              activeLocation !== "all" ? activeLocation : assignedLocation || null,
+          }));
+
+          const { data: insertedRows, error: insertError } = await supabase
+            .from("ingredients")
+            .insert(rowsWithUploadId)
+            .select();
+
+          if (insertError) {
+            await supabase.from("uploads").delete().eq("id", uploadRow?.id);
+            throw insertError;
+          }
+
+          const cleanUploadRow = {
+            ...uploadRow,
+            status: "completed",
+            upload_type: "ingredients",
+            source_name: "ingredients_upload",
+            row_count: insertedRows?.length || rowsWithUploadId.length || 0,
+          };
+
+          setIngredientsData((prev) => [
+            ...(insertedRows || rowsWithUploadId),
+            ...(prev || []),
+          ]);
+
+          setClientImports((prev) => [
+            cleanUploadRow,
+            ...(prev || []).filter((item) => item.id !== optimisticUpload.id),
+          ]);
+
+          setRecentUploads((prev) => [
+            cleanUploadRow,
+            ...(prev || []).filter((item) => item.id !== optimisticUpload.id),
+          ]);
+
+          setPendingUploadSummary(null);
+          setPendingUploadRows([]);
+          pendingUploadRowsRef.current = [];
+
+          setMessage(`Imported ${rowsWithUploadId.length} ingredient rows.`);
+
+          event.target.value = "";
+
+          logAuditEvent({
+            action: "uploaded_ingredients",
+            entityType: "upload",
+            entityId: uploadRow?.id || null,
+            details: `Uploaded ingredients with ${rowsWithUploadId.length} row(s).`,
+          }).catch((auditError) => {
+            console.warn("Ingredients audit log failed:", auditError);
+          });
+        } catch (innerError) {
+          console.error("Ingredients import inner error:", innerError);
+
+          if (uploadRow?.id) {
+            await supabase.from("uploads").delete().eq("id", uploadRow.id);
+          }
+
+          setMessage(innerError?.message || "Ingredients import failed.");
+          alert(innerError?.message || "Ingredients import failed.");
+        }
+      },
+
+      error: (parseError) => {
+        console.error("Ingredients CSV parse failed:", parseError);
+        setMessage("Ingredients CSV parse failed.");
+        alert(`Ingredients CSV parse failed: ${parseError.message}`);
+      },
+    });
+  } catch (error) {
+    console.error("Ingredients upload crashed:", error);
+    setMessage("Ingredients upload failed. Check console.");
+    alert(error?.message || "Ingredients upload failed.");
+  }
+};
 const handleGenerateCampaignFromRecommendation = (rec) => {
   const lowerItem = String(rec.item || "").toLowerCase();
 
@@ -26473,7 +26795,7 @@ return (
   id="ingredientsUpload"
   type="file"
   accept=".csv,.xlsx,.xls"
-  onChange={handleFileUpload}
+  onChange={handleIngredientsUpload}
   style={{ display: "none" }}
 />
 
