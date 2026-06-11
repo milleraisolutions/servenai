@@ -25751,7 +25751,7 @@ const handleDeleteUpload = async (uploadId) => {
 
     if (uploadLookupError) throw uploadLookupError;
 
-  const deleteSteps = [
+ const deleteSteps = [
   ["sales", "upload_id"],
   ["menu_items", "upload_id"],
   ["ingredients", "upload_id"],
@@ -25759,13 +25759,27 @@ const handleDeleteUpload = async (uploadId) => {
   ["beverage_items", "upload_id"],
   ["beverage_usage", "upload_id"],
   ["batch_prep_data", "upload_id"],
+  ["recipe_ingredients", "upload_id"],
+  ["recipe_usage_rules", "upload_id"],
   ["recipes", "upload_id"],
   ["invoice_items", "upload_id"],
   ["restaurant_customers", "upload_id"],
   ["customers", "upload_id"],
   ["client_data_uploads", "upload_id"],
 ];
+if (uploadRow?.upload_type === "ingredients") {
+  const { error: ingredientsDeleteError } = await supabase
+    .from("ingredients")
+    .delete()
+    .eq("user_id", uploadRow.user_id)
+    .eq("upload_id", uploadId);
 
+  if (ingredientsDeleteError) throw ingredientsDeleteError;
+
+  setIngredientsData((prev) =>
+    (prev || []).filter((row) => row.upload_id !== uploadId)
+  );
+}
     for (const [table, column] of deleteSteps) {
       const { error } = await supabase.from(table).delete().eq(column, uploadId);
 
