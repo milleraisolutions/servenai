@@ -26311,7 +26311,7 @@ const handleDeleteUpload = async (uploadId) => {
 
     if (uploadLookupError) throw uploadLookupError;
 
- const deleteSteps = [
+const deleteSteps = [
   ["sales", "upload_id"],
   ["menu_items", "upload_id"],
   ["ingredients", "upload_id"],
@@ -26320,13 +26320,31 @@ const handleDeleteUpload = async (uploadId) => {
   ["beverage_usage", "upload_id"],
   ["batch_prep_data", "upload_id"],
   ["recipe_ingredients", "upload_id"],
-  ["recipe_usage_rules", "upload_id"],
   ["recipes", "upload_id"],
+  ["employee_shifts", "upload_id"],
   ["invoice_items", "upload_id"],
   ["restaurant_customers", "upload_id"],
   ["customers", "upload_id"],
   ["client_data_uploads", "upload_id"],
 ];
+if (uploadRow?.upload_type === "employee_shifts") {
+  console.log("EMPLOYEE SHIFT DELETE START");
+  console.log("EMPLOYEE SHIFT uploadId:", uploadId);
+  console.log("EMPLOYEE SHIFT uploadRow:", uploadRow);
+
+  const { error: employeeShiftDeleteError } = await supabase
+    .from("employee_shifts")
+    .delete()
+    .eq("upload_id", uploadId);
+
+  console.log("EMPLOYEE SHIFT delete error:", employeeShiftDeleteError);
+
+  if (employeeShiftDeleteError) throw employeeShiftDeleteError;
+
+  setEmployeeShifts((prev) =>
+    (prev || []).filter((row) => row.upload_id !== uploadId)
+  );
+}
 if (uploadRow?.upload_type === "ingredients") {
   console.log("INGREDIENT DELETE START");
   console.log("INGREDIENT uploadId:", uploadId);
