@@ -23298,194 +23298,335 @@ const handleEmployeeShiftUpload = async (event) => {
     const file = event.target.files?.[0];
     const fileError = validateUploadFile(file, 25);
 
-if (fileError) {
-  alert(fileError);
-  setMessage(fileError);
-  return;
-}
-    if (!file) return;
+    if (fileError) {
+      alert(fileError);
+      setMessage(fileError);
+      return;
+    }
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    if (!file) {
+      setMessage("No employee shift file selected.");
+      return;
+    }
 
-    if (!user?.id) {
+    setMessage("Importing employee shifts...");
+
+    const currentUser = user;
+
+    if (!currentUser?.id) {
       setMessage("You must be logged in to upload employee shifts.");
+      alert("You must be logged in to upload employee shifts.");
       return;
     }
 
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
+
       complete: async (results) => {
-        const rows = results.data || [];
+        let uploadRow = null;
 
-        const employeeMap = new Map();
+        try {
+          const rows = results.data || [];
 
-        rows.forEach((row) => {
-          const employeeName =
-            row.employee_name ||
-            row["Employee Name"] ||
-            row.name ||
-            "Unknown Employee";
-
-          if (!employeeMap.has(employeeName)) {
-            employeeMap.set(employeeName, {
-              user_id: user.id,
-              employee_name: employeeName,
-              role: row.role || row.Role || null,
-              department: row.department || row.Department || "Labor",
-              hourly_rate: Number(
-                row.hourly_rate || row["Hourly Rate"] || 0
-              ),
-              status: "active",
-            });
+          if (!rows.length) {
+            setMessage("No employee shift rows found.");
+            alert("No employee shift rows found.");
+            return;
           }
-        });
 
-        const employeesToInsert = Array.from(employeeMap.values());
+          const fileName = file.name || "Employee Shift Upload";
 
-        const { data: insertedEmployees, error: employeesError } =
-          await supabase
-            .from("employees")
-            .insert(employeesToInsert)
+          const optimisticUpload = startOptimisticImport({
+            fileName,
+            sourceName: "employee_shift_upload",
+            rowCount: rows.length,
+          });
+
+          const { data: createdUploadRow, error: uploadError } = await supabase
+            .from("uploads")
+            .insert([
+              {
+                user_id: currentUser.id,
+                file_name: fileName,
+                source_name: "employee_shift_upload",
+                row_count: rows.length,
+                upload_type: "employee_shifts",
+                status: "completed",
+                archived: false,
+                location_id: selectedUploadLocationId || null,
+                location_name:
+                  activeLocation !== "all" ? activeLocation : assignedLocation || null,
+              },
+            ])
+            .select()
+            .single();
+
+          uploadRow = createdUploadRow;
+
+          console.log("EMPLOYEE SHIFT uploadRow:", uploadRow);
+          console.log("EMPLOYEE SHIFT uploadError:", uploadError);
+
+          if (uploadError) throw uploadError;
+
+          const employeeMap = new Map();
+
+          rows.forEach((row) => {
+            const employeeName = String(
+              row.employee_name ||
+                row["Employee Name"] ||
+                row.name ||
+                row.Name ||
+                row.employee ||
+                row.Employee ||
+                row.staff ||
+                row.Staff ||
+                "Unknown Employee"
+            ).trim();
+
+            if (!employeeName) return;
+
+            if (!employeeMap.has(employeeName)) {
+              employeeMap.set(employeeName, {
+                user_id: currentUser.id,
+                employee_name: employeeName,
+                role:
+                  row.role ||
+                  row.Role ||
+                  row.position ||
+                  row.Position ||
+                  null,
+                department:
+                  row.department ||
+                  row.Department ||
+                  row.section ||
+                  row.Section ||
+                  "Labor",
+                hourly_rate: Number(
+                  row.hourly_rate ||
+                    row["Hourly Rate"] ||
+                    row.rate ||
+                    row.Rate ||
+                    row.pay_rate ||
+                    row["Pay Rate"] ||
+                    0
+                ),
+                status: "active",
+              });
+            }
+          });
+
+          const employeesToInsert = Array.from(employeeMap.values());
+
+          console.log("EMPLOYEE SHIFT employeesToInsert:", employeesToInsert);
+
+          let insertedEmployees = [];
+
+          if (employeesToInsert.length) {
+            const { data: employeeRows, error: employeesError } = await supabase
+              .from("employees")
+              .insert(employeesToInsert)
+              .select();
+
+            console.log("EMPLOYEE SHIFT insertedEmployees:", employeeRows);
+            console.log("EMPLOYEE SHIFT employeesError:", employeesError);
+
+            if (employeesError) {
+              await supabase.from("uploads").delete().eq("id", uploadRow.id);
+              throw employeesError;
+            }
+
+            insertedEmployees = employeeRows || [];
+          }
+
+          const employeeLookup = new Map(
+            insertedEmployees.map((employee) => [
+              employee.employee_name,
+              employee.id,
+            ])
+          );
+
+          const shiftsToInsert = rows.map((row) => {
+            const employeeName = String(
+              row.employee_name ||
+                row["Employee Name"] ||
+                row.name ||
+                row.Name ||
+                row.employee ||
+                row.Employee ||
+                row.staff ||
+                row.Staff ||
+                "Unknown Employee"
+            ).trim();
+
+            const hoursWorked = Number(
+              row.hours_worked ||
+                row["Hours Worked"] ||
+                row.hours ||
+                row.Hours ||
+                row.shift_hours ||
+                row["Shift Hours"] ||
+                0
+            );
+
+            const hourlyRate = Number(
+              row.hourly_rate ||
+                row["Hourly Rate"] ||
+                row.rate ||
+                row.Rate ||
+                row.pay_rate ||
+                row["Pay Rate"] ||
+                0
+            );
+
+            return {
+              user_id: currentUser.id,
+              upload_id: uploadRow.id,
+              file_name: fileName,
+
+              employee_id: employeeLookup.get(employeeName) || null,
+              employee_name: employeeName,
+
+              location_name:
+                activeLocation !== "all" ? activeLocation : assignedLocation || null,
+
+              role:
+                row.role ||
+                row.Role ||
+                row.position ||
+                row.Position ||
+                null,
+
+              shift_date:
+                row.shift_date ||
+                row["Shift Date"] ||
+                row.date ||
+                row.Date ||
+                row.work_date ||
+                row["Work Date"] ||
+                null,
+
+              shift_start:
+                row.shift_start ||
+                row["Shift Start"] ||
+                row.start ||
+                row.Start ||
+                null,
+
+              shift_end:
+                row.shift_end ||
+                row["Shift End"] ||
+                row.end ||
+                row.End ||
+                null,
+
+              hours_worked: hoursWorked,
+
+              labor_cost:
+                Number(row.labor_cost || row["Labor Cost"] || row.cost || row.Cost || 0) ||
+                hoursWorked * hourlyRate,
+
+              revenue_during_shift: Number(
+                row.revenue_during_shift ||
+                  row["Revenue During Shift"] ||
+                  row.revenue ||
+                  row.Revenue ||
+                  0
+              ),
+            };
+          });
+
+          console.log("EMPLOYEE SHIFT shiftsToInsert:", shiftsToInsert);
+
+          const { data: insertedShifts, error: shiftsError } = await supabase
+            .from("employee_shifts")
+            .insert(shiftsToInsert)
             .select();
 
-        if (employeesError) {
-          console.error("Employee insert error:", employeesError);
-          setMessage("Employee upload failed. Check console.");
-          return;
-        }
+          console.log("EMPLOYEE SHIFT insertedShifts:", insertedShifts);
+          console.log("EMPLOYEE SHIFT shiftsError:", shiftsError);
 
-        const employeeLookup = new Map(
-          (insertedEmployees || []).map((employee) => [
-            employee.employee_name,
-            employee.id,
-          ])
-        );
+          if (shiftsError) {
+            await supabase
+              .from("employee_shifts")
+              .delete()
+              .eq("upload_id", uploadRow.id);
 
-        const shiftsToInsert = rows.map((row) => {
-          const employeeName =
-            row.employee_name ||
-            row["Employee Name"] ||
-            row.name ||
-            "Unknown Employee";
+            await supabase.from("uploads").delete().eq("id", uploadRow.id);
 
-          const hoursWorked = Number(
-            row.hours_worked || row["Hours Worked"] || row.hours || 0
-          );
+            throw shiftsError;
+          }
 
-          const hourlyRate = Number(
-            row.hourly_rate || row["Hourly Rate"] || 0
-          );
-
-          return {
-            user_id: user.id,
-            employee_id: employeeLookup.get(employeeName) || null,
-            shift_date:
-              row.shift_date || row["Shift Date"] || row.date || null,
-            shift_start:
-              row.shift_start || row["Shift Start"] || null,
-            shift_end:
-              row.shift_end || row["Shift End"] || null,
-            hours_worked: hoursWorked,
-            labor_cost:
-              Number(row.labor_cost || row["Labor Cost"] || 0) ||
-              hoursWorked * hourlyRate,
-            revenue_during_shift: Number(
-              row.revenue_during_shift ||
-                row["Revenue During Shift"] ||
-                row.revenue ||
-                0
-            ),
+          const cleanUploadRow = {
+            ...uploadRow,
+            status: "completed",
+            upload_type: "employee_shifts",
+            source_name: "employee_shift_upload",
+            row_count: insertedShifts?.length || shiftsToInsert.length || 0,
           };
-        });
 
-        const { data: insertedShifts, error: shiftsError } = await supabase
-          .from("employee_shifts")
-          .insert(shiftsToInsert)
-          .select();
+          setEmployees((prev) => [...insertedEmployees, ...(prev || [])]);
 
-        if (shiftsError) {
-          console.error("Shift insert error:", shiftsError);
-          setMessage("Employee shifts upload failed. Check console.");
-          return;
+          setEmployeeShifts((prev) => [
+            ...(insertedShifts || shiftsToInsert),
+            ...(prev || []),
+          ]);
+
+          setClientImports((prev) => [
+            cleanUploadRow,
+            ...(prev || []).filter((item) => item.id !== optimisticUpload.id),
+          ]);
+
+          setRecentUploads((prev) => [
+            cleanUploadRow,
+            ...(prev || []).filter((item) => item.id !== optimisticUpload.id),
+          ]);
+
+          setPendingUploadSummary(null);
+          setPendingUploadRows([]);
+          pendingUploadRowsRef.current = [];
+
+          setMessage(`Imported ${insertedShifts?.length || shiftsToInsert.length} employee shifts.`);
+
+          event.target.value = "";
+
+          logAuditEvent({
+            action: "uploaded_employee_shifts",
+            entityType: "employee_shifts",
+            entityId: uploadRow?.id || null,
+            details: `Uploaded employee shifts with ${
+              insertedShifts?.length || shiftsToInsert.length
+            } row(s).`,
+          }).catch((auditError) => {
+            console.warn("Employee shift audit log failed:", auditError);
+          });
+        } catch (innerError) {
+          console.error("Employee shift upload inner error:", innerError);
+
+          if (uploadRow?.id) {
+            await supabase
+              .from("employee_shifts")
+              .delete()
+              .eq("upload_id", uploadRow.id);
+
+            await supabase.from("uploads").delete().eq("id", uploadRow.id);
+          }
+
+          setMessage(innerError?.message || "Employee shift upload failed.");
+          alert(innerError?.message || "Employee shift upload failed.");
         }
-
-        setEmployees((prev) => [...(insertedEmployees || []), ...(prev || [])]);
-        setEmployeeShifts((prev) => [
-          ...(insertedShifts || []),
-          ...(prev || []),
-        ]);
-        console.log("ADDING EMPLOYEE SHIFT IMPORT TO UI:", file.name);
-    const { data: employeeShiftUploadRow, error: employeeShiftUploadError } =
-  await supabase
-    .from("uploads")
-    .insert([
-      {
-        user_id: user.id,
-        file_name: file.name || "Employee Shift Upload",
-        source_name: "employee_shift_upload",
-        row_count: insertedShifts?.length || 0,
-        upload_type: "employee_shifts",
-        status: "completed",
-        archived: false,
-        location_id: selectedUploadLocationId || null,
       },
-    ])
-    .select()
-    .single();
 
-if (employeeShiftUploadError) {
-  console.error(
-    "Employee shift upload row insert failed:",
-    employeeShiftUploadError
-  );
-
-  alert(
-    `Employee shift import saved, but imports row failed: ${employeeShiftUploadError.message}`
-  );
-}
-const newEmployeeShiftUpload = {
-  id:
-    employeeShiftUploadRow?.id ||
-    `employee-shift-file-${file.name}-${Date.now()}`,
-
-  file_name: file.name,
-  name: file.name,
-
-  upload_type: "employee_shifts",
-
-  source: "Employee Shifts",
-
-  row_count: insertedShifts?.length || 0,
-
-  created_at:
-    employeeShiftUploadRow?.created_at ||
-    new Date().toISOString(),
-};
-
-setClientImports((prev) => [
-  newEmployeeShiftUpload,
-  ...(prev || []),
-]);
-
-setRecentUploads((prev) => [
-  newEmployeeShiftUpload,
-  ...(prev || []),
-]);
-await logAuditEvent({
-  action: "uploaded_employee_shifts",
-  entityType: "employee_shifts",
-  entityId: newEmployeeShiftUpload?.id || null,
-  details: `Uploaded employee shifts with ${insertedShifts?.length || 0} row(s).`,
-});
-        setMessage(`Imported ${insertedShifts?.length || 0} employee shifts.`);
+      error: (parseError) => {
+        console.error("Employee shift CSV parse failed:", parseError);
+        setMessage("Employee shift CSV parse failed.");
+        alert(`Employee shift CSV parse failed: ${parseError.message}`);
       },
     });
   } catch (error) {
     console.error("Employee shift upload crashed:", error);
     setMessage("Employee shift upload failed. Check console.");
+    alert(error?.message || "Employee shift upload failed.");
   }
 };
 
