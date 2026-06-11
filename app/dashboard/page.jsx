@@ -25768,11 +25768,26 @@ const handleDeleteUpload = async (uploadId) => {
   ["client_data_uploads", "upload_id"],
 ];
 if (uploadRow?.upload_type === "ingredients") {
+  console.log("INGREDIENT DELETE START");
+  console.log("INGREDIENT uploadId:", uploadId);
+  console.log("INGREDIENT uploadRow:", uploadRow);
+
+  const { data: matchingIngredients, error: ingredientLookupError } =
+    await supabase
+      .from("ingredients")
+      .select("id,name,upload_id,file_name")
+      .eq("upload_id", uploadId);
+
+  console.log("INGREDIENT lookup rows:", matchingIngredients);
+  console.log("INGREDIENT lookup error:", ingredientLookupError);
+
   const { error: ingredientsDeleteError } = await supabase
     .from("ingredients")
     .delete()
     .eq("user_id", uploadRow.user_id)
     .eq("upload_id", uploadId);
+
+  console.log("INGREDIENT delete error:", ingredientsDeleteError);
 
   if (ingredientsDeleteError) throw ingredientsDeleteError;
 
