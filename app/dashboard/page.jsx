@@ -12624,31 +12624,35 @@ const handleImportBatchPrep = async () => {
   console.log("BATCH PREP CONFIRM CLICKED", pendingUploadSummary);
   setMessage("Importing batch prep data...");
 
+  const currentUser = user;
+
+  if (!currentUser?.id) {
+    setMessage("You must be logged in to import batch prep data.");
+    return;
+  }
+
+  const rows = pendingUploadSummary?.rows || parsedRows || [];
+
+  if (!rows.length) {
+    setMessage("No batch prep rows found.");
+    return;
+  }
+
+  const fileName = pendingUploadSummary?.fileName || "Batch Prep Upload";
+
+  const optimisticUpload = startOptimisticImport({
+    fileName,
+    sourceName: "batch_prep_upload",
+    rowCount: rows.length,
+  });
+
   try {
-  console.log("BATCH PREP: using dashboard user");
-
-const currentUser = user;
-
-console.log("BATCH PREP currentUser:", currentUser);
-
-   if (!currentUser?.id) {
-      setMessage("You must be logged in to import batch prep data.");
-      return;
-    }
-
-    const rows = pendingUploadSummary?.rows || parsedRows || [];
-
-    if (!rows.length) {
-      setMessage("No batch prep rows found.");
-      return;
-    }
-
     const { data: uploadRow, error: uploadError } = await supabase
       .from("uploads")
       .insert([
         {
           user_id: currentUser.id,
-          file_name: pendingUploadSummary?.fileName || "Batch Prep Upload",
+          file_name: fileName,
           source_name: "batch_prep_upload",
           row_count: rows.length,
           upload_type: "batch_prep",
@@ -12665,7 +12669,7 @@ console.log("BATCH PREP currentUser:", currentUser);
     const rowsToInsert = rows.map((row) => ({
       user_id: currentUser.id,
       upload_id: uploadRow?.id || null,
-      file_name: pendingUploadSummary?.fileName || "Batch Prep Upload",
+      file_name: fileName,
 
       batch_name:
         row.batch_name ||
@@ -12684,13 +12688,8 @@ console.log("BATCH PREP currentUser:", currentUser);
         row.staff ||
         "",
 
-      batch_yield: Number(
-        row.batch_yield || row["Batch Yield"] || row.yield || 0
-      ),
-
-      portions_sold: Number(
-        row.portions_sold || row["Portions Sold"] || row.sold || 0
-      ),
+      batch_yield: Number(row.batch_yield || row["Batch Yield"] || row.yield || 0),
+      portions_sold: Number(row.portions_sold || row["Portions Sold"] || row.sold || 0),
 
       portions_left: Number(
         row.portions_left ||
@@ -12732,31 +12731,38 @@ console.log("BATCH PREP currentUser:", currentUser);
 
     setClientImports((prev) => [
       cleanUploadRow,
-      ...(prev || []).filter((upload) => upload.id !== cleanUploadRow.id),
+      ...(prev || []).filter((item) => item.id !== optimisticUpload.id),
     ]);
 
     setRecentUploads((prev) => [
       cleanUploadRow,
-      ...(prev || []).filter((upload) => upload.id !== cleanUploadRow.id),
+      ...(prev || []).filter((item) => item.id !== optimisticUpload.id),
     ]);
-
-    try {
-      await logAuditEvent({
-        action: "uploaded_batch_prep",
-        entityType: "upload",
-        entityId: uploadRow?.id || null,
-        details: `Uploaded batch prep data with ${rowsToInsert.length} row(s).`,
-      });
-    } catch (auditError) {
-      console.warn("Batch prep audit log failed:", auditError);
-    }
 
     setMessage(`Imported ${rowsToInsert.length} batch prep rows.`);
     setPendingUploadSummary(null);
     setPendingUploadRows([]);
     pendingUploadRowsRef.current = [];
+
+    logAuditEvent({
+      action: "uploaded_batch_prep",
+      entityType: "upload",
+      entityId: uploadRow?.id || null,
+      details: `Uploaded batch prep data with ${rowsToInsert.length} row(s).`,
+    }).catch((auditError) => {
+      console.warn("Batch prep audit log failed:", auditError);
+    });
   } catch (error) {
     console.error("Batch prep import error:", error);
+
+    setClientImports((prev) =>
+      (prev || []).filter((item) => item.id !== optimisticUpload.id)
+    );
+
+    setRecentUploads((prev) =>
+      (prev || []).filter((item) => item.id !== optimisticUpload.id)
+    );
+
     setMessage(error?.message || "Failed to import batch prep data.");
   }
 };
