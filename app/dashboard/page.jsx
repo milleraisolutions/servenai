@@ -22952,210 +22952,301 @@ const handleRecipeUpload = async (event) => {
     const file = event.target.files?.[0];
     const fileError = validateUploadFile(file, 25);
 
-if (fileError) {
-  alert(fileError);
-  setMessage(fileError);
-  return;
-}
-    if (!file) return;
+    if (fileError) {
+      alert(fileError);
+      setMessage(fileError);
+      return;
+    }
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    if (!file) {
+      setMessage("No recipe file selected.");
+      return;
+    }
 
-    if (!user?.id) {
+    setMessage("Importing recipe cards...");
+
+    const currentUser = user;
+
+    if (!currentUser?.id) {
       setMessage("You must be logged in to upload recipes.");
+      alert("You must be logged in to upload recipes.");
       return;
     }
 
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
+
       complete: async (results) => {
-        const rows = results.data || [];
+        let uploadRow = null;
 
-        if (!rows.length) {
-          setMessage("No recipe rows found.");
-          return;
-        }
+        try {
+          const rows = results.data || [];
 
-        const { data: uploadRow, error: uploadError } = await supabase
-          .from("uploads")
-          .insert([
-            {
-              user_id: user.id,
-              file_name: file.name || "Recipe Cards Upload",
-              source_name: "recipe_upload",
-              row_count: rows.length,
-              upload_type: "recipes",
-              status: "completed",
-              archived: false,
-              location_id: selectedUploadLocationId || null,
-location_name:
-  activeLocation !== "all"
-    ? activeLocation
-    : assignedLocation || null,
-            },
-          ])
-          .select()
-          .single();
-
-        if (uploadError) {
-          console.error("Recipe recent upload insert failed:", uploadError);
-          setMessage(`Recipe upload failed: ${uploadError.message}`);
-          return;
-        }
-
-        const recipeMap = new Map();
-
-        rows.forEach((row) => {
-          const recipeName =
-            row.recipe_name ||
-            row["Recipe Name"] ||
-            row.menu_item_name ||
-            row["Menu Item"] ||
-            "Untitled Recipe";
-
-          if (!recipeMap.has(recipeName)) {
-            recipeMap.set(recipeName, {
-  recipe: {
-    user_id: user.id,
-    upload_id: uploadRow.id,
-
-    location_name:
-      activeLocation !== "all"
-        ? activeLocation
-        : assignedLocation || null,
-
-    recipe_name: recipeName,
-
-    menu_item_name:
-      row.menu_item_name ||
-      row["Menu Item"] ||
-      recipeName,
-
-    category:
-      row.category ||
-      row.Category ||
-      null,
-
-    selling_price: Number(
-      row.selling_price ||
-      row["Selling Price"] ||
-      row.price ||
-      0
-    ),
-
-    prep_time_minutes: Number(
-      row.prep_time_minutes ||
-      row["Prep Time"] ||
-      0
-    ),
-
-    serving_size:
-      row.serving_size ||
-      row["Serving Size"] ||
-      null,
-
-    notes:
-      row.notes ||
-      row.Notes ||
-      null,
-  },
-
-  ingredients: [],
-});
+          if (!rows.length) {
+            setMessage("No recipe rows found.");
+            alert("No recipe rows found.");
+            return;
           }
 
-          recipeMap.get(recipeName).ingredients.push(row);
-        });
+          const fileName = file.name || "Recipe Cards Upload";
 
-        const savedRecipes = [];
-        const savedIngredients = [];
+          const recipeMap = new Map();
 
-        for (const [, group] of recipeMap) {
-          const { data: recipeInsert, error: recipeError } = await supabase
-            .from("recipes")
-            .insert([group.recipe])
+          rows.forEach((row) => {
+            const recipeName = String(
+              row.recipe_name ||
+                row["Recipe Name"] ||
+                row.menu_item_name ||
+                row["Menu Item"] ||
+                row.name ||
+                row.Name ||
+                "Untitled Recipe"
+            ).trim();
+
+            if (!recipeName || recipeName === "Untitled Recipe") return;
+
+            if (!recipeMap.has(recipeName)) {
+              recipeMap.set(recipeName, {
+                recipe: {
+                  user_id: currentUser.id,
+                  upload_id: null,
+
+                  location_name:
+                    activeLocation !== "all" ? activeLocation : assignedLocation || null,
+
+                  recipe_name: recipeName,
+
+                  menu_item_name:
+                    row.menu_item_name || row["Menu Item"] || recipeName,
+
+                  category: row.category || row.Category || null,
+
+                  selling_price: Number(
+                    row.selling_price || row["Selling Price"] || row.price || row.Price || 0
+                  ),
+
+                  prep_time_minutes: Number(
+                    row.prep_time_minutes || row["Prep Time"] || row.prep_time || 0
+                  ),
+
+                  serving_size: row.serving_size || row["Serving Size"] || null,
+
+                  notes: row.notes || row.Notes || null,
+                },
+
+                ingredients: [],
+              });
+            }
+
+            recipeMap.get(recipeName).ingredients.push(row);
+          });
+
+          if (!recipeMap.size) {
+            setMessage("No valid recipe cards found.");
+            alert("No valid recipe cards found.");
+            return;
+          }
+
+          const optimisticUpload = startOptimisticImport({
+            fileName,
+            sourceName: "recipe_upload",
+            rowCount: rows.length,
+          });
+
+          const { data: createdUploadRow, error: uploadError } = await supabase
+            .from("uploads")
+            .insert([
+              {
+                user_id: currentUser.id,
+                file_name: fileName,
+                source_name: "recipe_upload",
+                row_count: rows.length,
+                upload_type: "recipes",
+                status: "completed",
+                archived: false,
+                location_id: selectedUploadLocationId || null,
+                location_name:
+                  activeLocation !== "all" ? activeLocation : assignedLocation || null,
+              },
+            ])
             .select()
             .single();
 
+          uploadRow = createdUploadRow;
+
+          console.log("RECIPE uploadRow:", uploadRow);
+          console.log("RECIPE uploadError:", uploadError);
+
+          if (uploadError) throw uploadError;
+
+          const recipeRows = Array.from(recipeMap.values()).map((group) => ({
+            ...group.recipe,
+            upload_id: uploadRow.id,
+          }));
+
+          console.log("RECIPE recipeRows:", recipeRows);
+
+          const { data: insertedRecipes, error: recipeError } = await supabase
+            .from("recipes")
+            .insert(recipeRows)
+            .select();
+
+          console.log("RECIPE insertedRecipes:", insertedRecipes);
+          console.log("RECIPE recipeError:", recipeError);
+
           if (recipeError) {
-            console.error("RECIPE INSERT ERROR:", recipeError);
-            continue;
+            await supabase.from("uploads").delete().eq("id", uploadRow.id);
+            throw recipeError;
           }
 
-          const ingredientRows = group.ingredients.map((row) => {
-            const quantity = Number(row.quantity || row.Quantity || 0);
-            const costPerUnit = Number(
-              row.cost_per_unit || row["Cost Per Unit"] || row.unit_cost || 0
-            );
-return {
-  user_id: user.id,
-  upload_id: uploadRow.id,
-  recipe_id: recipeInsert.id,
+          const insertedRecipeByName = new Map(
+            (insertedRecipes || []).map((recipe) => [
+              String(recipe.recipe_name || "").trim(),
+              recipe,
+            ])
+          );
 
-  location_name:
-    activeLocation !== "all"
-      ? activeLocation
-      : assignedLocation || null,
+          const ingredientRows = [];
 
-  ingredient_name:
-    row.ingredient_name ||
-    row["Ingredient Name"] ||
-    row.ingredient ||
-    "Ingredient",
+          for (const [recipeName, group] of recipeMap) {
+            const recipeInsert = insertedRecipeByName.get(String(recipeName).trim());
 
-  quantity,
-  unit:
-    row.unit ||
-    row.Unit ||
-    null,
+            if (!recipeInsert?.id) continue;
 
-  cost_per_unit: costPerUnit,
-  total_cost: quantity * costPerUnit,
-};
+            group.ingredients.forEach((row) => {
+              const quantity = Number(row.quantity || row.Quantity || row.qty || row.Qty || 0);
 
+              const costPerUnit = Number(
+                row.cost_per_unit ||
+                  row["Cost Per Unit"] ||
+                  row.unit_cost ||
+                  row["Unit Cost"] ||
+                  row.cost ||
+                  row.Cost ||
+                  0
+              );
 
-          });
+              ingredientRows.push({
+                user_id: currentUser.id,
+                upload_id: uploadRow.id,
+                recipe_id: recipeInsert.id,
 
-          const { data: ingredientInsert, error: ingredientError } =
-            await supabase
+                location_name:
+                  activeLocation !== "all" ? activeLocation : assignedLocation || null,
+
+                ingredient_name:
+                  row.ingredient_name ||
+                  row["Ingredient Name"] ||
+                  row.ingredient ||
+                  row.Ingredient ||
+                  row.item ||
+                  row.Item ||
+                  "Ingredient",
+
+                quantity,
+
+                unit: row.unit || row.Unit || row.uom || row.UOM || null,
+
+                cost_per_unit: costPerUnit,
+                total_cost: quantity * costPerUnit,
+              });
+            });
+          }
+
+          console.log("RECIPE ingredientRows:", ingredientRows);
+
+          let insertedIngredients = [];
+
+          if (ingredientRows.length) {
+            const { data: ingredientInsert, error: ingredientError } = await supabase
               .from("recipe_ingredients")
               .insert(ingredientRows)
               .select();
 
-          if (ingredientError) {
-            console.error("RECIPE INGREDIENTS INSERT ERROR:", ingredientError);
-            continue;
+            console.log("RECIPE ingredientInsert:", ingredientInsert);
+            console.log("RECIPE ingredientError:", ingredientError);
+
+            if (ingredientError) {
+              await supabase
+                .from("recipe_ingredients")
+                .delete()
+                .eq("upload_id", uploadRow.id);
+
+              await supabase.from("recipes").delete().eq("upload_id", uploadRow.id);
+              await supabase.from("uploads").delete().eq("id", uploadRow.id);
+
+              throw ingredientError;
+            }
+
+            insertedIngredients = ingredientInsert || [];
           }
 
-          savedRecipes.push(recipeInsert);
-          savedIngredients.push(...(ingredientInsert || []));
+          const cleanUploadRow = {
+            ...uploadRow,
+            status: "completed",
+            upload_type: "recipes",
+            source_name: "recipe_upload",
+            row_count: insertedRecipes?.length || recipeRows.length || 0,
+          };
+
+          setRecipes((prev) => [...(insertedRecipes || []), ...(prev || [])]);
+
+          setRecipeIngredients((prev) => [
+            ...insertedIngredients,
+            ...(prev || []),
+          ]);
+
+          setClientImports((prev) => [
+            cleanUploadRow,
+            ...(prev || []).filter((item) => item.id !== optimisticUpload.id),
+          ]);
+
+          setRecentUploads((prev) => [
+            cleanUploadRow,
+            ...(prev || []).filter((item) => item.id !== optimisticUpload.id),
+          ]);
+
+          setPendingUploadSummary(null);
+          setPendingUploadRows([]);
+          pendingUploadRowsRef.current = [];
+
+          setMessage(`Imported ${insertedRecipes?.length || recipeRows.length} recipe card(s).`);
+
+          event.target.value = "";
+
+          logAuditEvent({
+            action: "uploaded_recipes",
+            entityType: "upload",
+            entityId: uploadRow?.id || null,
+            details: `Uploaded ${insertedRecipes?.length || recipeRows.length} recipe card(s).`,
+          }).catch((auditError) => {
+            console.warn("Recipe audit log failed:", auditError);
+          });
+        } catch (innerError) {
+          console.error("Recipe upload inner error:", innerError);
+
+          if (uploadRow?.id) {
+            await supabase.from("recipe_ingredients").delete().eq("upload_id", uploadRow.id);
+            await supabase.from("recipes").delete().eq("upload_id", uploadRow.id);
+            await supabase.from("uploads").delete().eq("id", uploadRow.id);
+          }
+
+          setMessage(innerError?.message || "Recipe upload failed.");
+          alert(innerError?.message || "Recipe upload failed.");
         }
+      },
 
-        setRecipes((prev) => [...savedRecipes, ...(prev || [])]);
-        setRecipeIngredients((prev) => [
-          ...savedIngredients,
-          ...(prev || []),
-        ]);
-
-        setClientImports((prev) => [
-          uploadRow,
-          ...(prev || []).filter((upload) => upload.id !== uploadRow.id),
-        ]);
-
-        setRecentUploads((prev) => [
-          uploadRow,
-          ...(prev || []).filter((upload) => upload.id !== uploadRow.id),
-        ]);
-
-        setMessage(`Imported ${savedRecipes.length} recipe card(s).`);
+      error: (parseError) => {
+        console.error("Recipe CSV parse failed:", parseError);
+        setMessage("Recipe CSV parse failed.");
+        alert(`Recipe CSV parse failed: ${parseError.message}`);
       },
     });
   } catch (error) {
     console.error("Recipe upload crashed:", error);
     setMessage("Recipe upload failed. Check console.");
+    alert(error?.message || "Recipe upload failed.");
   }
 };
 
