@@ -12646,8 +12646,13 @@ const handleImportBatchPrep = async () => {
     rowCount: rows.length,
   });
 
+  let uploadRow = null;
+
   try {
-    const { data: uploadRow, error: uploadError } = await supabase
+    const rowsPreview = rows.slice(0, 3);
+    console.log("BATCH PREP rows preview:", rowsPreview);
+
+    const uploadResult = await supabase
       .from("uploads")
       .insert([
         {
@@ -12664,7 +12669,12 @@ const handleImportBatchPrep = async () => {
       .select()
       .single();
 
-    if (uploadError) throw uploadError;
+    uploadRow = uploadResult.data;
+
+    console.log("BATCH PREP uploadRow:", uploadRow);
+    console.log("BATCH PREP uploadError:", uploadResult.error);
+
+    if (uploadResult.error) throw uploadResult.error;
 
     const rowsToInsert = rows.map((row) => ({
       user_id: currentUser.id,
@@ -12679,6 +12689,7 @@ const handleImportBatchPrep = async () => {
         "Unnamed Batch",
 
       prep_date: row.prep_date || row["Prep Date"] || row.date || null,
+
       station: row.station || row["Station"] || "Prep",
 
       prepared_by:
@@ -12688,8 +12699,13 @@ const handleImportBatchPrep = async () => {
         row.staff ||
         "",
 
-      batch_yield: Number(row.batch_yield || row["Batch Yield"] || row.yield || 0),
-      portions_sold: Number(row.portions_sold || row["Portions Sold"] || row.sold || 0),
+      batch_yield: Number(
+        row.batch_yield || row["Batch Yield"] || row.yield || 0
+      ),
+
+      portions_sold: Number(
+        row.portions_sold || row["Portions Sold"] || row.sold || 0
+      ),
 
       portions_left: Number(
         row.portions_left ||
@@ -12706,28 +12722,32 @@ const handleImportBatchPrep = async () => {
       notes: row.notes || row["Notes"] || "",
     }));
 
-    const { data: insertedRows, error: insertError } = await supabase
+    console.log("BATCH PREP rowsToInsert preview:", rowsToInsert.slice(0, 3));
+
+    const insertResult = await supabase
       .from("batch_prep_data")
       .insert(rowsToInsert)
       .select();
 
-    if (insertError) {
+    console.log("BATCH PREP insertedRows:", insertResult.data);
+    console.log("BATCH PREP insertError:", insertResult.error);
+
+    if (insertResult.error) {
       await supabase.from("uploads").delete().eq("id", uploadRow?.id);
-      throw insertError;
+      throw insertResult.error;
     }
+
+    const insertedRows = insertResult.data || rowsToInsert;
 
     const cleanUploadRow = {
       ...uploadRow,
       status: "completed",
       upload_type: "batch_prep",
       source_name: "batch_prep_upload",
-      row_count: insertedRows?.length || rowsToInsert.length || 0,
+      row_count: insertedRows.length || rowsToInsert.length || 0,
     };
 
-    setBatchPrepData((prev) => [
-      ...(insertedRows || rowsToInsert),
-      ...(prev || []),
-    ]);
+    setBatchPrepData((prev) => [...insertedRows, ...(prev || [])]);
 
     setClientImports((prev) => [
       cleanUploadRow,
@@ -12754,6 +12774,10 @@ const handleImportBatchPrep = async () => {
     });
   } catch (error) {
     console.error("Batch prep import error:", error);
+
+    if (uploadRow?.id) {
+      await supabase.from("uploads").delete().eq("id", uploadRow.id);
+    }
 
     setClientImports((prev) =>
       (prev || []).filter((item) => item.id !== optimisticUpload.id)
