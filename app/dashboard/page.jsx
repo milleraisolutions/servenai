@@ -22994,17 +22994,24 @@ const handleRecipeUpload = async (event) => {
           const recipeMap = new Map();
 
           rows.forEach((row) => {
-            const recipeName = String(
-              row.recipe_name ||
-                row["Recipe Name"] ||
-                row.menu_item_name ||
-                row["Menu Item"] ||
-                row.name ||
-                row.Name ||
-                "Untitled Recipe"
-            ).trim();
+           const recipeName = String(
+  row.recipe_name ||
+    row["Recipe Name"] ||
+    row.menu_item_name ||
+    row["Menu Item"] ||
+    row.name ||
+    row.Name ||
+    row.item ||
+    row.Item ||
+    row.product ||
+    row.Product ||
+    row.dish ||
+    row.Dish ||
+    row["Menu Item Name"] ||
+    `Recipe ${recipeMap.size + 1}`
+).trim();
 
-            if (!recipeName || recipeName === "Untitled Recipe") return;
+           if (!recipeName) return;
 
             if (!recipeMap.has(recipeName)) {
               recipeMap.set(recipeName, {
