@@ -22770,6 +22770,7 @@ location_name:
             );
 return {
   user_id: user.id,
+  upload_id: uploadRow.id,
   recipe_id: recipeInsert.id,
 
   location_name:
@@ -22784,7 +22785,6 @@ return {
     "Ingredient",
 
   quantity,
-
   unit:
     row.unit ||
     row.Unit ||
@@ -22793,6 +22793,8 @@ return {
   cost_per_unit: costPerUnit,
   total_cost: quantity * costPerUnit,
 };
+
+
           });
 
           const { data: ingredientInsert, error: ingredientError } =
@@ -25784,9 +25786,9 @@ const handleDeleteUpload = async (uploadId) => {
 
     if (recipeIds.length > 0) {
       const { error: recipeIngredientsDeleteError } = await supabase
-        .from("recipe_ingredients")
-        .delete()
-        .in("recipe_id", recipeIds);
+  .from("recipe_ingredients")
+  .delete()
+  .eq("upload_id", uploadId);
 
       if (recipeIngredientsDeleteError) throw recipeIngredientsDeleteError;
 
