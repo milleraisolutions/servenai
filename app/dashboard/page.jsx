@@ -23296,6 +23296,8 @@ useEffect(() => {
 const handleEmployeeShiftUpload = async (event) => {
   try {
     const file = event.target.files?.[0];
+    console.log("EMPLOYEE SHIFT UPLOAD FIRED");
+console.log("EMPLOYEE SHIFT FILE:", file);
     const fileError = validateUploadFile(file, 25);
 
     if (fileError) {
