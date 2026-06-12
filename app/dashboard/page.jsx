@@ -22678,138 +22678,233 @@ useEffect(() => {
 }, []);
 
 const handleGuestUpload = async (event) => {
+  let uploadRow = null;
+
   try {
     const file = event.target.files?.[0];
     const fileError = validateUploadFile(file, 25);
 
-if (fileError) {
-  alert(fileError);
-  setMessage(fileError);
-  return;
-}
-    if (!file) return;
+    if (fileError) {
+      alert(fileError);
+      setMessage(fileError);
+      return;
+    }
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    if (!file) {
+      setMessage("No guest file selected.");
+      return;
+    }
 
-    if (!user?.id) {
+    setMessage("Importing guest data...");
+
+    const currentUser = user;
+
+    if (!currentUser?.id) {
       setMessage("You must be logged in to upload guest data.");
+      alert("You must be logged in to upload guest data.");
       return;
     }
 
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
+      worker: false,
+
       complete: async (results) => {
-  console.log(
-    "GUEST PARSE COMPLETE:",
-    results.data?.length
-  );
+        try {
+          console.log("GUEST PARSE COMPLETE:", results.data?.length);
 
-  const rows = results.data || [];
+          const rawRows = results.data || [];
 
-        const customersToInsert = rows.map((row) => {
-          const visits = Number(
-            row.visits || row.total_visits || row["Total Visits"] || 0
-          );
-
-          const totalSpend = Number(
-            row.total_spend || row.lifetime_spend || row["Total Spend"] || 0
-          );
-
-          return {
-            user_id: user.id,
-            customer_name:
+          const rows = rawRows.filter((row) => {
+            const name =
               row.customer_name ||
               row.name ||
+              row.Name ||
               row["Customer Name"] ||
               row["Guest Name"] ||
-              "Guest",
-            email: row.email || row.Email || null,
-            phone: row.phone || row.Phone || null,
-            visits,
-            total_spend: totalSpend,
-            avg_spend: visits > 0 ? totalSpend / visits : 0,
-            last_visit: row.last_visit || row["Last Visit"] || null,
+              row.guest_name ||
+              row["Guest Name"];
+
+            const email = row.email || row.Email;
+            const phone = row.phone || row.Phone;
+
+            return (
+              String(name || "").trim() ||
+              String(email || "").trim() ||
+              String(phone || "").trim()
+            );
+          });
+
+          if (!rows.length) {
+            setMessage("No valid guest rows found.");
+            alert("No valid guest rows found.");
+            return;
+          }
+
+          const fileName = file.name || "Guest Data Upload";
+
+          const optimisticUpload = startOptimisticImport({
+            fileName,
+            sourceName: "guest_upload",
+            rowCount: rows.length,
+          });
+
+          const { data: createdUploadRow, error: uploadError } = await supabase
+            .from("uploads")
+            .insert([
+              {
+                user_id: currentUser.id,
+                file_name: fileName,
+                source_name: "guest_upload",
+                row_count: rows.length,
+                upload_type: "guests",
+                status: "completed",
+                archived: false,
+                location_id: selectedUploadLocationId || null,
+                location_name:
+                  activeLocation !== "all" ? activeLocation : assignedLocation || null,
+              },
+            ])
+            .select()
+            .single();
+
+          uploadRow = createdUploadRow;
+
+          console.log("GUEST UPLOAD ROW:", uploadRow);
+          console.log("GUEST UPLOAD ERROR:", uploadError);
+
+          if (uploadError) throw uploadError;
+
+          const customersToInsert = rows.map((row) => {
+            const visits = Number(
+              row.visits ||
+                row.total_visits ||
+                row["Total Visits"] ||
+                row.visit_count ||
+                0
+            );
+
+            const totalSpend = Number(
+              row.total_spend ||
+                row.lifetime_spend ||
+                row["Total Spend"] ||
+                row.spend ||
+                0
+            );
+
+            return {
+              user_id: currentUser.id,
+              upload_id: uploadRow.id,
+              file_name: fileName,
+
+              customer_name:
+                row.customer_name ||
+                row.name ||
+                row.Name ||
+                row["Customer Name"] ||
+                row["Guest Name"] ||
+                row.guest_name ||
+                "Guest",
+
+              email: row.email || row.Email || null,
+              phone: row.phone || row.Phone || null,
+
+              visits,
+              total_spend: totalSpend,
+              avg_spend: visits > 0 ? totalSpend / visits : 0,
+
+              last_visit:
+                row.last_visit ||
+                row["Last Visit"] ||
+                row.last_seen ||
+                null,
+
+              location_name:
+                activeLocation !== "all" ? activeLocation : assignedLocation || null,
+            };
+          });
+
+          console.log("GUEST CUSTOMERS TO INSERT:", customersToInsert.slice(0, 5));
+
+          const { data: insertedCustomers, error: customerInsertError } =
+            await supabase.from("customers").insert(customersToInsert).select();
+
+          console.log("GUEST INSERTED CUSTOMERS:", insertedCustomers);
+          console.log("GUEST CUSTOMER INSERT ERROR:", customerInsertError);
+
+          if (customerInsertError) {
+            await supabase.from("uploads").delete().eq("id", uploadRow.id);
+            throw customerInsertError;
+          }
+
+          const cleanUploadRow = {
+            ...uploadRow,
+            status: "completed",
+            upload_type: "guests",
+            source_name: "guest_upload",
+            row_count: insertedCustomers?.length || customersToInsert.length || 0,
           };
-        });
-console.log(
-  "GUEST STEP 0: inserting customers",
-  customersToInsert.length
-);
-       const { data, error } = await supabase
-  .from("customers")
-  .insert(customersToInsert)
-  .select();
 
-if (error) {
-  console.error("Guest upload error:", error);
-  setMessage("Guest upload failed. Check console.");
-  return;
-}
+          setCustomerData((prev) => [
+            ...(insertedCustomers || customersToInsert),
+            ...(prev || []),
+          ]);
 
-console.log(
-  "GUEST STEP 1: customers inserted",
-  data?.length
-);
+          setClientImports((prev) => [
+            cleanUploadRow,
+            ...(prev || []).filter((item) => item.id !== optimisticUpload.id),
+          ]);
 
-console.log(
-  "GUEST STEP 2: creating recent upload row"
-);
+          setRecentUploads((prev) => [
+            cleanUploadRow,
+            ...(prev || []).filter((item) => item.id !== optimisticUpload.id),
+          ]);
 
-const { data: uploadRow, error: uploadError } = await supabase
-  .from("uploads")
-  .insert([
-    {
-      user_id: user.id,
-      file_name: file.name || "Beverage Upload",
-      source_name: "beverage_upload",
-      row_count: data?.length || beverageRows.length || 0,
-      upload_type: "beverage",
-      status: "completed",
-      archived: false,
+          setPendingUploadSummary(null);
+          setPendingUploadRows([]);
+          pendingUploadRowsRef.current = [];
 
-      location_id: selectedUploadLocationId || null,
+          setMessage(
+            `Imported ${insertedCustomers?.length || customersToInsert.length} customer profiles.`
+          );
 
-      location_name:
-        activeLocation !== "all"
-          ? activeLocation
-          : assignedLocation || null,
-    },
-  ])
-  .select()
-  .single();
+          event.target.value = "";
 
-if (uploadError) {
-  console.error("Guest recent upload insert failed:", uploadError);
-  setMessage("Guest data saved, but recent import failed.");
-  return;
-}
+          logAuditEvent({
+            action: "uploaded_guests",
+            entityType: "customers",
+            entityId: uploadRow?.id || null,
+            details: `Uploaded guest data with ${
+              insertedCustomers?.length || customersToInsert.length
+            } row(s).`,
+          }).catch((auditError) => {
+            console.warn("Guest audit log failed:", auditError);
+          });
+        } catch (innerError) {
+          console.error("Guest upload inner error:", innerError);
 
-console.log(
-  "GUEST STEP 3: recent upload row created",
-  uploadRow
-);
+          if (uploadRow?.id) {
+            await supabase.from("customers").delete().eq("upload_id", uploadRow.id);
+            await supabase.from("restaurant_customers").delete().eq("upload_id", uploadRow.id);
+            await supabase.from("uploads").delete().eq("id", uploadRow.id);
+          }
 
-setCustomerData(data || []);
+          setMessage(innerError?.message || "Guest upload failed.");
+          alert(innerError?.message || "Guest upload failed.");
+        }
+      },
 
-        setClientImports((prev) => [
-          uploadRow,
-          ...(prev || []).filter((upload) => upload.id !== uploadRow.id),
-        ]);
-
-        setRecentUploads((prev) => [
-          uploadRow,
-          ...(prev || []).filter((upload) => upload.id !== uploadRow.id),
-        ]);
-
-        setMessage(`Imported ${data?.length || 0} customer profiles.`);
+      error: (parseError) => {
+        console.error("Guest CSV parse failed:", parseError);
+        setMessage("Guest CSV parse failed.");
+        alert(`Guest CSV parse failed: ${parseError.message}`);
       },
     });
   } catch (error) {
     console.error("Guest upload crashed:", error);
     setMessage("Guest upload failed. Check console.");
+    alert(error?.message || "Guest upload failed.");
   }
 };
 
