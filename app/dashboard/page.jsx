@@ -26378,6 +26378,7 @@ const deleteSteps = [
   ["restaurant_customers", "upload_id"],
   ["customers", "upload_id"],
   ["client_data_uploads", "upload_id"],
+  ["locations", "upload_id"],
 ];
 if (uploadRow?.upload_type === "employee_shifts") {
   console.log("EMPLOYEE SHIFT DELETE START");
