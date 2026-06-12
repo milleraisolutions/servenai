@@ -23294,10 +23294,15 @@ useEffect(() => {
 }, []);
 
 const handleEmployeeShiftUpload = async (event) => {
+  console.log("EMPLOYEE SHIFT UPLOAD FIRED");
+
+  let uploadRow = null;
+
   try {
     const file = event.target.files?.[0];
-    console.log("EMPLOYEE SHIFT UPLOAD FIRED");
-console.log("EMPLOYEE SHIFT FILE:", file);
+
+    console.log("EMPLOYEE SHIFT FILE:", file);
+
     const fileError = validateUploadFile(file, 25);
 
     if (fileError) {
@@ -23324,16 +23329,33 @@ console.log("EMPLOYEE SHIFT FILE:", file);
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
+      worker: false,
 
       complete: async (results) => {
-        let uploadRow = null;
-
         try {
-          const rows = results.data || [];
+          console.log("EMPLOYEE SHIFT PARSE RESULTS:", results);
+
+          const rawRows = results.data || [];
+
+          const rows = rawRows.filter((row) => {
+            const employeeName =
+              row.employee_name ||
+              row["Employee Name"] ||
+              row.name ||
+              row.Name ||
+              row.employee ||
+              row.Employee ||
+              row.staff ||
+              row.Staff;
+
+            return String(employeeName || "").trim();
+          });
+
+          console.log("EMPLOYEE SHIFT CLEAN ROWS:", rows);
 
           if (!rows.length) {
-            setMessage("No employee shift rows found.");
-            alert("No employee shift rows found.");
+            setMessage("No valid employee shift rows found.");
+            alert("No valid employee shift rows found.");
             return;
           }
 
@@ -23344,6 +23366,8 @@ console.log("EMPLOYEE SHIFT FILE:", file);
             sourceName: "employee_shift_upload",
             rowCount: rows.length,
           });
+
+          console.log("EMPLOYEE SHIFT before upload row insert");
 
           const { data: createdUploadRow, error: uploadError } = await supabase
             .from("uploads")
@@ -23388,62 +23412,95 @@ console.log("EMPLOYEE SHIFT FILE:", file);
 
             if (!employeeName) return;
 
-            if (!employeeMap.has(employeeName)) {
-              employeeMap.set(employeeName, {
-                user_id: currentUser.id,
-                employee_name: employeeName,
-                role:
-                  row.role ||
-                  row.Role ||
-                  row.position ||
-                  row.Position ||
-                  null,
-                department:
-                  row.department ||
-                  row.Department ||
-                  row.section ||
-                  row.Section ||
-                  "Labor",
-                hourly_rate: Number(
-                  row.hourly_rate ||
-                    row["Hourly Rate"] ||
-                    row.rate ||
-                    row.Rate ||
-                    row.pay_rate ||
-                    row["Pay Rate"] ||
-                    0
-                ),
-                status: "active",
-              });
-            }
+            employeeMap.set(employeeName, {
+              user_id: currentUser.id,
+              employee_name: employeeName,
+              role:
+                row.role ||
+                row.Role ||
+                row.position ||
+                row.Position ||
+                null,
+              department:
+                row.department ||
+                row.Department ||
+                row.section ||
+                row.Section ||
+                "Labor",
+              hourly_rate: Number(
+                row.hourly_rate ||
+                  row["Hourly Rate"] ||
+                  row.rate ||
+                  row.Rate ||
+                  row.pay_rate ||
+                  row["Pay Rate"] ||
+                  0
+              ),
+              status: "active",
+            });
           });
 
           const employeesToInsert = Array.from(employeeMap.values());
 
           console.log("EMPLOYEE SHIFT employeesToInsert:", employeesToInsert);
 
+          const { data: existingEmployees, error: existingEmployeesError } =
+            await supabase
+              .from("employees")
+              .select("id,employee_name")
+              .eq("user_id", currentUser.id);
+
+          console.log("EMPLOYEE SHIFT existingEmployees:", existingEmployees);
+          console.log(
+            "EMPLOYEE SHIFT existingEmployeesError:",
+            existingEmployeesError
+          );
+
+          if (existingEmployeesError) throw existingEmployeesError;
+
+          const existingEmployeeByName = new Map(
+            (existingEmployees || []).map((employee) => [
+              String(employee.employee_name || "").trim(),
+              employee,
+            ])
+          );
+
+          const newEmployeesToInsert = employeesToInsert.filter(
+            (employee) =>
+              !existingEmployeeByName.has(
+                String(employee.employee_name || "").trim()
+              )
+          );
+
+          console.log(
+            "EMPLOYEE SHIFT newEmployeesToInsert:",
+            newEmployeesToInsert
+          );
+
           let insertedEmployees = [];
 
-          if (employeesToInsert.length) {
+          if (newEmployeesToInsert.length) {
             const { data: employeeRows, error: employeesError } = await supabase
               .from("employees")
-              .insert(employeesToInsert)
+              .insert(newEmployeesToInsert)
               .select();
 
             console.log("EMPLOYEE SHIFT insertedEmployees:", employeeRows);
             console.log("EMPLOYEE SHIFT employeesError:", employeesError);
 
-            if (employeesError) {
-              await supabase.from("uploads").delete().eq("id", uploadRow.id);
-              throw employeesError;
-            }
+            if (employeesError) throw employeesError;
 
             insertedEmployees = employeeRows || [];
           }
 
+          const allEmployees = [
+            ...(existingEmployees || []),
+            ...insertedEmployees,
+          ];
+
           const employeeLookup = new Map(
-            insertedEmployees.map((employee) => [
-              employee.employee_name,
+            allEmployees.map((employee) => [
+              String(employee.employee_name || "").trim(),
               employee.id,
             ])
           );
@@ -23548,16 +23605,7 @@ console.log("EMPLOYEE SHIFT FILE:", file);
           console.log("EMPLOYEE SHIFT insertedShifts:", insertedShifts);
           console.log("EMPLOYEE SHIFT shiftsError:", shiftsError);
 
-          if (shiftsError) {
-            await supabase
-              .from("employee_shifts")
-              .delete()
-              .eq("upload_id", uploadRow.id);
-
-            await supabase.from("uploads").delete().eq("id", uploadRow.id);
-
-            throw shiftsError;
-          }
+          if (shiftsError) throw shiftsError;
 
           const cleanUploadRow = {
             ...uploadRow,
@@ -23588,7 +23636,9 @@ console.log("EMPLOYEE SHIFT FILE:", file);
           setPendingUploadRows([]);
           pendingUploadRowsRef.current = [];
 
-          setMessage(`Imported ${insertedShifts?.length || shiftsToInsert.length} employee shifts.`);
+          setMessage(
+            `Imported ${insertedShifts?.length || shiftsToInsert.length} employee shifts.`
+          );
 
           event.target.value = "";
 
@@ -23620,7 +23670,7 @@ console.log("EMPLOYEE SHIFT FILE:", file);
       },
 
       error: (parseError) => {
-        console.error("Employee shift CSV parse failed:", parseError);
+        console.error("EMPLOYEE SHIFT PARSE ERROR:", parseError);
         setMessage("Employee shift CSV parse failed.");
         alert(`Employee shift CSV parse failed: ${parseError.message}`);
       },
