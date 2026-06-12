@@ -24262,15 +24262,18 @@ useEffect(() => {
   loadLocations();
 }, []);
 const handleLocationUpload = async (event) => {
+  let uploadRow = null;
+
   try {
     const file = event.target.files?.[0];
-const fileError = validateUploadFile(file, 25);
+    const fileError = validateUploadFile(file, 25);
 
-if (fileError) {
-  alert(fileError);
-  setMessage(fileError);
-  return;
-}
+    if (fileError) {
+      alert(fileError);
+      setMessage(fileError);
+      return;
+    }
+
     console.log("LOCATION FILE SELECTED:", file);
 
     if (!file) {
@@ -24278,171 +24281,206 @@ if (fileError) {
       return;
     }
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    setMessage("Importing locations...");
 
-    if (!user?.id) {
+    const currentUser = user;
+
+    if (!currentUser?.id) {
       setMessage("You must be logged in to upload locations.");
+      alert("You must be logged in to upload locations.");
       return;
     }
 
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
+      worker: false,
+
       complete: async (results) => {
-        console.log("LOCATION PARSE RESULTS:", results);
+        try {
+          console.log("LOCATION PARSE RESULTS:", results);
 
-        const rows = results.data || [];
+          const rawRows = results.data || [];
 
-        console.log("LOCATION ROW COUNT:", rows.length);
-        console.log("LOCATION FIRST ROW:", rows[0]);
+          const rows = rawRows.filter((row) => {
+            const name =
+              row.location_name ||
+              row["Location Name"] ||
+              row.name ||
+              row.Name ||
+              row.restaurant ||
+              row.Restaurant;
 
-        if (!rows.length) {
-          setMessage("No location rows found in file.");
-          return;
-        }
+            return String(name || "").trim();
+          });
 
-        const locationsToInsert = rows.map((row) => ({
-          user_id: user.id,
+          console.log("LOCATION CLEAN ROW COUNT:", rows.length);
+          console.log("LOCATION FIRST CLEAN ROW:", rows[0]);
 
-          location_name:
-            row.location_name ||
-            row["Location Name"] ||
-            row.name ||
-            row.Name ||
-            row.restaurant ||
-            row.Restaurant ||
-            "Location",
+          if (!rows.length) {
+            setMessage("No valid location rows found in file.");
+            alert("No valid location rows found in file.");
+            return;
+          }
 
-          city: row.city || row.City || null,
-          state: row.state || row.State || null,
-          status: row.status || row.Status || "active",
+          const fileName = file.name || "Location Upload";
 
-          monthly_revenue: Number(
-            row.monthly_revenue ||
-              row["Monthly Revenue"] ||
-              row.revenue ||
-              row.Revenue ||
-              0
-          ),
+          const optimisticUpload = startOptimisticImport({
+            fileName,
+            sourceName: "location_upload",
+            rowCount: rows.length,
+          });
 
-          food_cost_percent: Number(
-            row.food_cost_percent ||
-              row["Food Cost Percent"] ||
-              row.food_cost ||
-              row["Food Cost"] ||
-              0
-          ),
+          const { data: createdUploadRow, error: uploadError } = await supabase
+            .from("uploads")
+            .insert([
+              {
+                user_id: currentUser.id,
+                file_name: fileName,
+                source_name: "location_upload",
+                row_count: rows.length,
+                upload_type: "locations",
+                status: "completed",
+                archived: false,
+                location_id: null,
+              },
+            ])
+            .select()
+            .single();
 
-          labor_cost_percent: Number(
-            row.labor_cost_percent ||
-              row["Labor Cost Percent"] ||
-              row.labor_cost ||
-              row["Labor Cost"] ||
-              0
-          ),
+          uploadRow = createdUploadRow;
 
-          prime_cost_percent: Number(
-            row.prime_cost_percent ||
-              row["Prime Cost Percent"] ||
-              row.prime_cost ||
-              row["Prime Cost"] ||
-              0
-          ),
+          console.log("LOCATION UPLOAD ROW:", uploadRow);
+          console.log("LOCATION UPLOAD ERROR:", uploadError);
 
-          health_score: Number(
-            row.health_score ||
-              row["Health Score"] ||
-              row.score ||
-              row.Score ||
-              0
-          ),
-        }));
+          if (uploadError) throw uploadError;
 
-        console.log("LOCATION ROWS TO INSERT:", locationsToInsert.slice(0, 5));
+          const locationsToInsert = rows.map((row) => ({
+            user_id: currentUser.id,
+            upload_id: uploadRow.id,
+            file_name: fileName,
 
-        const { data, error } = await supabase
-          .from("locations")
-          .insert(locationsToInsert)
-          .select();
+            location_name:
+              row.location_name ||
+              row["Location Name"] ||
+              row.name ||
+              row.Name ||
+              row.restaurant ||
+              row.Restaurant ||
+              "Location",
 
-        if (error) {
-          console.error("Location upload error:", error);
-          alert(`Location upload failed: ${error.message}`);
-          setMessage("Location upload failed. Check console.");
-          return;
-        }
+            city: row.city || row.City || null,
+            state: row.state || row.State || null,
+            status: row.status || row.Status || "active",
 
-        const { data: uploadRow, error: uploadError } = await supabase
-          .from("uploads")
-          .insert([
-            {
-              user_id: user.id,
-              file_name: file.name || "Location Upload",
-              source_name: "location_upload",
-              row_count: data?.length || locationsToInsert.length || 0,
-              upload_type: "locations",
-              status: "completed",
-              archived: false,
-              location_id: null,
-            },
-          ])
-          .select()
-          .single();
-
-        console.log("LOCATION UPLOAD ROW:", uploadRow);
-        console.log("LOCATION UPLOAD ERROR:", uploadError);
-
-        if (uploadError) {
-          console.error("Location recent upload failed:", uploadError);
-          alert(
-            `Locations imported, but imports row failed: ${uploadError.message}`
-          );
-        }
-
-        setLocations((prev) => [...(data || []), ...(prev || [])]);
-
-        if (uploadRow) {
-          setClientImports((prev) => [
-            uploadRow,
-            ...(prev || []).filter(
-              (upload) =>
-                !(
-                  upload.file_name === uploadRow.file_name &&
-                  upload.upload_type === uploadRow.upload_type
-                )
+            monthly_revenue: Number(
+              row.monthly_revenue ||
+                row["Monthly Revenue"] ||
+                row.revenue ||
+                row.Revenue ||
+                0
             ),
+
+            food_cost_percent: Number(
+              row.food_cost_percent ||
+                row["Food Cost Percent"] ||
+                row.food_cost ||
+                row["Food Cost"] ||
+                0
+            ),
+
+            labor_cost_percent: Number(
+              row.labor_cost_percent ||
+                row["Labor Cost Percent"] ||
+                row.labor_cost ||
+                row["Labor Cost"] ||
+                0
+            ),
+
+            prime_cost_percent: Number(
+              row.prime_cost_percent ||
+                row["Prime Cost Percent"] ||
+                row.prime_cost ||
+                row["Prime Cost"] ||
+                0
+            ),
+
+            health_score: Number(
+              row.health_score ||
+                row["Health Score"] ||
+                row.score ||
+                row.Score ||
+                0
+            ),
+          }));
+
+          console.log("LOCATION ROWS TO INSERT:", locationsToInsert.slice(0, 5));
+
+          const { data: insertedLocations, error: locationInsertError } =
+            await supabase.from("locations").insert(locationsToInsert).select();
+
+          console.log("LOCATION INSERTED ROWS:", insertedLocations);
+          console.log("LOCATION INSERT ERROR:", locationInsertError);
+
+          if (locationInsertError) {
+            await supabase.from("uploads").delete().eq("id", uploadRow.id);
+            throw locationInsertError;
+          }
+
+          const cleanUploadRow = {
+            ...uploadRow,
+            status: "completed",
+            upload_type: "locations",
+            source_name: "location_upload",
+            row_count: insertedLocations?.length || locationsToInsert.length || 0,
+          };
+
+          setLocations((prev) => [
+            ...(insertedLocations || locationsToInsert),
+            ...(prev || []),
+          ]);
+
+          setClientImports((prev) => [
+            cleanUploadRow,
+            ...(prev || []).filter((item) => item.id !== optimisticUpload.id),
           ]);
 
           setRecentUploads((prev) => [
-            uploadRow,
-            ...(prev || []).filter(
-              (upload) =>
-                !(
-                  upload.file_name === uploadRow.file_name &&
-                  upload.upload_type === uploadRow.upload_type
-                )
-            ),
+            cleanUploadRow,
+            ...(prev || []).filter((item) => item.id !== optimisticUpload.id),
           ]);
+
+          setPendingUploadSummary(null);
+          setPendingUploadRows([]);
+          pendingUploadRowsRef.current = [];
+
+          setMessage(`Imported ${insertedLocations?.length || locationsToInsert.length} location(s).`);
+
+          event.target.value = "";
+
+          logAuditEvent({
+            action: "uploaded_locations",
+            entityType: "locations",
+            entityId: uploadRow?.id || null,
+            details: `Uploaded locations with ${
+              insertedLocations?.length || locationsToInsert.length
+            } row(s).`,
+          }).catch((auditError) => {
+            console.warn("Locations audit log failed:", auditError);
+          });
+        } catch (innerError) {
+          console.error("Location upload inner error:", innerError);
+
+          if (uploadRow?.id) {
+            await supabase.from("locations").delete().eq("upload_id", uploadRow.id);
+            await supabase.from("uploads").delete().eq("id", uploadRow.id);
+          }
+
+          setMessage(innerError?.message || "Location upload failed.");
+          alert(innerError?.message || "Location upload failed.");
         }
-
-               await logAuditEvent({
-          action: "uploaded_file",
-          entityType: uploadRow?.upload_type || "locations",
-          entityId: uploadRow?.id || null,
-          details: `Uploaded ${file.name} with ${data?.length || 0} location row(s).`,
-        });
-await logAuditEvent({
-  action: "uploaded_locations",
-  entityType: "locations",
-  entityId: uploadRow?.id || null,
-  details: `Uploaded locations with ${data?.length || 0} row(s).`,
-});
-        setMessage(`Imported ${data?.length || 0} location(s).`);
-
-        event.target.value = "";
       },
+
       error: (parseError) => {
         console.error("Location CSV parse failed:", parseError);
         alert(`Location CSV parse failed: ${parseError.message}`);
