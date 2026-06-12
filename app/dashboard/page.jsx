@@ -26523,7 +26523,47 @@ if (
         if (invoiceUploadsDeleteError) throw invoiceUploadsDeleteError;
       }
     }
+if (uploadRow?.upload_type === "employee_shifts") {
+  console.log("EMPLOYEE SHIFT DELETE START");
+  console.log("EMPLOYEE SHIFT uploadId:", uploadId);
 
+  const { data: existingShiftRows, error: existingShiftRowsError } =
+    await supabase
+      .from("employee_shifts")
+      .select("id, upload_id, employee_name")
+      .eq("upload_id", uploadId);
+
+  console.log(
+    "EMPLOYEE SHIFT rows found before delete:",
+    existingShiftRows
+  );
+  console.log(
+    "EMPLOYEE SHIFT lookup error:",
+    existingShiftRowsError
+  );
+
+  const { error: employeeShiftDeleteError } = await supabase
+    .from("employee_shifts")
+    .delete()
+    .eq("upload_id", uploadId);
+
+  console.log(
+    "EMPLOYEE SHIFT delete error:",
+    employeeShiftDeleteError
+  );
+
+  const { data: remainingShiftRows } = await supabase
+    .from("employee_shifts")
+    .select("id")
+    .eq("upload_id", uploadId);
+
+  console.log(
+    "EMPLOYEE SHIFT rows after delete:",
+    remainingShiftRows
+  );
+
+  if (employeeShiftDeleteError) throw employeeShiftDeleteError;
+}
     const { error: uploadDeleteError } = await supabase
       .from("uploads")
       .delete()
