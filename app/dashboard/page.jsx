@@ -22678,10 +22678,15 @@ useEffect(() => {
 }, []);
 
 const handleGuestUpload = async (event) => {
+  console.log("GUEST UPLOAD FIRED");
+
   let uploadRow = null;
 
   try {
     const file = event.target.files?.[0];
+
+    console.log("GUEST FILE:", file);
+
     const fileError = validateUploadFile(file, 25);
 
     if (fileError) {
@@ -22712,19 +22717,22 @@ const handleGuestUpload = async (event) => {
 
       complete: async (results) => {
         try {
-          console.log("GUEST PARSE COMPLETE:", results.data?.length);
+          console.log("GUEST PARSE RESULTS:", results);
 
           const rawRows = results.data || [];
 
           const rows = rawRows.filter((row) => {
             const name =
               row.customer_name ||
+              row.CustomerName ||
               row.name ||
               row.Name ||
               row["Customer Name"] ||
               row["Guest Name"] ||
               row.guest_name ||
-              row["Guest Name"];
+              row.GuestName ||
+              row.guest ||
+              row.Guest;
 
             const email = row.email || row.Email;
             const phone = row.phone || row.Phone;
@@ -22735,6 +22743,8 @@ const handleGuestUpload = async (event) => {
               String(phone || "").trim()
             );
           });
+
+          console.log("GUEST CLEAN ROWS:", rows);
 
           if (!rows.length) {
             setMessage("No valid guest rows found.");
@@ -22749,6 +22759,8 @@ const handleGuestUpload = async (event) => {
             sourceName: "guest_upload",
             rowCount: rows.length,
           });
+
+          console.log("GUEST before upload row insert");
 
           const { data: createdUploadRow, error: uploadError } = await supabase
             .from("uploads")
@@ -22771,25 +22783,29 @@ const handleGuestUpload = async (event) => {
 
           uploadRow = createdUploadRow;
 
-          console.log("GUEST UPLOAD ROW:", uploadRow);
-          console.log("GUEST UPLOAD ERROR:", uploadError);
+          console.log("GUEST uploadRow:", uploadRow);
+          console.log("GUEST uploadError:", uploadError);
 
           if (uploadError) throw uploadError;
 
           const customersToInsert = rows.map((row) => {
             const visits = Number(
               row.visits ||
+                row.Visits ||
                 row.total_visits ||
                 row["Total Visits"] ||
                 row.visit_count ||
+                row["Visit Count"] ||
                 0
             );
 
             const totalSpend = Number(
               row.total_spend ||
-                row.lifetime_spend ||
                 row["Total Spend"] ||
+                row.lifetime_spend ||
+                row["Lifetime Spend"] ||
                 row.spend ||
+                row.Spend ||
                 0
             );
 
@@ -22800,11 +22816,15 @@ const handleGuestUpload = async (event) => {
 
               customer_name:
                 row.customer_name ||
+                row.CustomerName ||
                 row.name ||
                 row.Name ||
                 row["Customer Name"] ||
                 row["Guest Name"] ||
                 row.guest_name ||
+                row.GuestName ||
+                row.guest ||
+                row.Guest ||
                 "Guest",
 
               email: row.email || row.Email || null,
@@ -22818,6 +22838,7 @@ const handleGuestUpload = async (event) => {
                 row.last_visit ||
                 row["Last Visit"] ||
                 row.last_seen ||
+                row["Last Seen"] ||
                 null,
 
               location_name:
@@ -22825,13 +22846,23 @@ const handleGuestUpload = async (event) => {
             };
           });
 
-          console.log("GUEST CUSTOMERS TO INSERT:", customersToInsert.slice(0, 5));
+          console.log(
+            "GUEST uploadRow before customer insert:",
+            uploadRow
+          );
+          console.log(
+            "GUEST customersToInsert sample:",
+            customersToInsert.slice(0, 3)
+          );
 
           const { data: insertedCustomers, error: customerInsertError } =
-            await supabase.from("customers").insert(customersToInsert).select();
+            await supabase
+              .from("customers")
+              .insert(customersToInsert)
+              .select();
 
-          console.log("GUEST INSERTED CUSTOMERS:", insertedCustomers);
-          console.log("GUEST CUSTOMER INSERT ERROR:", customerInsertError);
+          console.log("GUEST insertedCustomers:", insertedCustomers);
+          console.log("GUEST customerInsertError:", customerInsertError);
 
           if (customerInsertError) {
             await supabase.from("uploads").delete().eq("id", uploadRow.id);
@@ -22885,8 +22916,16 @@ const handleGuestUpload = async (event) => {
           console.error("Guest upload inner error:", innerError);
 
           if (uploadRow?.id) {
-            await supabase.from("customers").delete().eq("upload_id", uploadRow.id);
-            await supabase.from("restaurant_customers").delete().eq("upload_id", uploadRow.id);
+            await supabase
+              .from("customers")
+              .delete()
+              .eq("upload_id", uploadRow.id);
+
+            await supabase
+              .from("restaurant_customers")
+              .delete()
+              .eq("upload_id", uploadRow.id);
+
             await supabase.from("uploads").delete().eq("id", uploadRow.id);
           }
 
