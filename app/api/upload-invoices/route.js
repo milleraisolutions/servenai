@@ -52,6 +52,10 @@ function parseInvoiceText(text) {
 }
 
 export async function POST(req) {
+  const createdUploadRows = [];
+  const createdInvoiceRows = [];
+  const createdLineItems = [];
+
   try {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -83,10 +87,12 @@ export async function POST(req) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const uploadedFiles = [];
     const alerts = [];
 
     for (const file of files) {
+      let uploadRow = null;
+      let invoiceRow = null;
+
       const bytes = await file.arrayBuffer();
       const buffer = Buffer.from(bytes);
 
@@ -97,6 +103,27 @@ export async function POST(req) {
 
       const text = parsedPdf.text || "";
       const parsedInvoice = parseInvoiceText(text);
+
+      const { data: createdUploadRow, error: uploadError } = await supabase
+        .from("uploads")
+        .insert([
+          {
+            user_id: user.id,
+            file_name: file.name || "Invoice Upload",
+            source_name: "invoice_upload",
+            row_count: parsedInvoice.items?.length || 0,
+            upload_type: "invoices",
+            status: "completed",
+            archived: false,
+          },
+        ])
+        .select()
+        .single();
+
+      if (uploadError) throw uploadError;
+
+      uploadRow = createdUploadRow;
+      createdUploadRows.push(uploadRow);
 
       const filePath = `${user.id}/invoices/${Date.now()}-${file.name}`;
 
@@ -113,18 +140,26 @@ export async function POST(req) {
         .from("invoice-pdfs")
         .getPublicUrl(filePath);
 
-      const { data: invoiceRow, error: invoiceError } = await supabase
-  .from("invoice_uploads")
-  .insert({
-    user_id: user.id,
-    supplier_name: parsedInvoice.supplierName,
-    invoice_date: parsedInvoice.invoiceDate || null,
-    file_name: file.name,
-    file_url: publicUrlData.publicUrl,
-  })
-  .select()
-  .single();
-if (invoiceError) throw invoiceError;
+      const { data: createdInvoiceRow, error: invoiceError } = await supabase
+        .from("invoice_uploads")
+        .insert({
+          user_id: user.id,
+          upload_id: uploadRow.id,
+          supplier_name: parsedInvoice.supplierName,
+          invoice_date: parsedInvoice.invoiceDate || null,
+          file_name: file.name,
+          file_url: publicUrlData.publicUrl,
+        })
+        .select()
+        .single();
+
+      if (invoiceError) throw invoiceError;
+
+      invoiceRow = createdInvoiceRow;
+      createdInvoiceRows.push(invoiceRow);
+
+      const lineItemsToInsert = [];
+
       for (const item of parsedInvoice.items) {
         const { data: previousItem } = await supabase
           .from("invoice_line_items")
@@ -136,8 +171,10 @@ if (invoiceError) throw invoiceError;
           .maybeSingle();
 
         const previousPrice = previousItem?.unit_price ?? null;
+
         const priceChange =
           previousPrice != null ? item.unit_price - previousPrice : null;
+
         const priceChangePercent =
           previousPrice && previousPrice > 0
             ? ((item.unit_price - previousPrice) / previousPrice) * 100
@@ -146,23 +183,21 @@ if (invoiceError) throw invoiceError;
         const flaggedIncrease =
           priceChangePercent != null && priceChangePercent >= 5;
 
-        const { error: lineError } = await supabase
-          .from("invoice_line_items")
-          .insert({
-            invoice_id: invoiceRow.id,
-            user_id: user.id,
-            item_name: item.item_name,
-            unit: item.unit,
-            quantity: item.quantity,
-            unit_price: item.unit_price,
-            total_price: item.total_price,
-            previous_unit_price: previousPrice,
-            price_change: priceChange,
-            price_change_percent: priceChangePercent,
-            flagged_increase: flaggedIncrease,
-          });
-
-        if (lineError) throw lineError;
+        lineItemsToInsert.push({
+          invoice_id: invoiceRow.id,
+          upload_id: uploadRow.id,
+          user_id: user.id,
+          file_name: file.name,
+          item_name: item.item_name,
+          unit: item.unit,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          total_price: item.total_price,
+          previous_unit_price: previousPrice,
+          price_change: priceChange,
+          price_change_percent: priceChangePercent,
+          flagged_increase: flaggedIncrease,
+        });
 
         if (flaggedIncrease) {
           alerts.push({
@@ -175,16 +210,30 @@ if (invoiceError) throw invoiceError;
         }
       }
 
-      uploadedFiles.push(file.name);
+      if (lineItemsToInsert.length > 0) {
+        const { data: insertedLineItems, error: lineError } = await supabase
+          .from("invoice_line_items")
+          .insert(lineItemsToInsert)
+          .select();
+
+        if (lineError) throw lineError;
+
+        createdLineItems.push(...(insertedLineItems || []));
+      }
     }
 
     return NextResponse.json({
       success: true,
-      uploadedCount: uploadedFiles.length,
+      uploadedCount: createdInvoiceRows.length,
+      uploads: createdUploadRows,
+      uploadRow: createdUploadRows[0] || null,
+      invoiceUploads: createdInvoiceRows,
+      invoiceItems: createdLineItems,
       alerts,
     });
   } catch (error) {
     console.error("Invoice upload error:", error);
+
     return NextResponse.json(
       { error: error.message || "Failed to process invoices" },
       { status: 500 }

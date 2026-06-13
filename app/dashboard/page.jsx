@@ -764,87 +764,161 @@ const locationMenuItemsData = filterByActiveLocation(menuItemsData);
 const locationIngredientsData = filterByActiveLocation(ingredientsData);
 
 const locationInvoicesData = filterByActiveLocation(invoicesData);
- const handleInvoiceUpload = async (e) => {
+const handleInvoiceUpload = async (e) => {
   const files = Array.from(e.target.files || []);
-  if (!files.length) return;
+
+  console.log("INVOICE UPLOAD FIRED");
+  console.log("INVOICE FILES:", files);
+
+  if (!files.length) {
+    setInvoiceUploadMessage("No invoice files selected.");
+    return;
+  }
 
   try {
     setInvoiceUploadLoading(true);
-    setInvoiceUploadMessage("");
+    setInvoiceUploadMessage("Uploading invoices...");
 
     const {
       data: { session },
+      error: sessionError,
     } = await supabase.auth.getSession();
+
+    console.log("INVOICE SESSION ERROR:", sessionError);
+    console.log("INVOICE SESSION USER:", session?.user);
+
+    if (sessionError) throw sessionError;
 
     if (!session?.access_token) {
       throw new Error("You must be logged in");
     }
 
     const formData = new FormData();
-    files.forEach((file) => formData.append("files", file));
 
-const res = await fetch("/api/upload-invoices", {
-  method: "POST",
-  headers: {
-    Authorization: `Bearer ${session.access_token}`,
-  },
-  body: formData,
-});
+    files.forEach((file) => {
+      formData.append("files", file);
+    });
 
-const data = await res.json();
+    console.log("INVOICE before API upload");
 
-if (!res.ok) {
-  throw new Error(data?.error || "Invoice upload failed");
-}
+    const res = await fetch("/api/upload-invoices", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: formData,
+    });
 
-setInvoiceUploadMessage(
-  `Uploaded ${data.uploadedCount} invoice(s) successfully`
-);
-setSupplierAlerts(data.alerts || []);
-setAiLog((prev) =>
-  [
-    {
-      id: Date.now(),
-      text: `Uploaded ${data.uploadedCount} invoice(s) successfully`,
-    },
-    ...prev,
-  ].slice(0, 6)
-);
-if (data.alerts && data.alerts.length > 0) {
-  const recommendations = data.alerts.map((alert) => {
-    let suggestion = "Consider promoting alternative items this week";
+    console.log("INVOICE API STATUS:", res.status);
 
-    if (String(alert.item || "").toLowerCase().includes("steak")) {
-      suggestion = "Promote chicken and pasta this week to protect margins";
-    } else if (String(alert.item || "").toLowerCase().includes("chicken")) {
-      suggestion = "Bundle chicken meals or adjust pricing to protect margin";
-    } else if (String(alert.item || "").toLowerCase().includes("cheese")) {
-      suggestion = "Push high-margin favorites and reduce discounting";
+    const data = await res.json();
+
+    console.log("INVOICE API RESPONSE:", data);
+
+    if (!res.ok) {
+      throw new Error(data?.error || "Invoice upload failed");
     }
 
-    return {
-      item: alert.item,
-      supplier: alert.supplier,
-      percentChange: alert.percentChange,
-      suggestion,
-    };
-  });
+    const uploadedCount = Number(data.uploadedCount || data.count || files.length || 0);
 
-  setAiPriceRecommendations(recommendations);
+    setInvoiceUploadMessage(
+      `Uploaded ${uploadedCount} invoice(s) successfully`
+    );
 
- if (false && hasProAccess && autoCampaignsEnabled && recommendations.length > 0) {
-  handleAutoLaunchCampaignFromRecommendation(recommendations[0]);
-}
-}
-if (autopilotEnabled) {
-  runAutopilotAI("Invoice upload scan");
-}
-} catch (err) {
-  console.error(err);
-  setInvoiceUploadMessage(err.message || "Invoice upload failed");
-} finally {
-  setInvoiceUploadLoading(false);
-}
+    setSupplierAlerts(data.alerts || []);
+
+    if (Array.isArray(data.uploads) && data.uploads.length > 0) {
+      setClientImports((prev) => [
+        ...data.uploads,
+        ...(prev || []).filter(
+          (upload) => !data.uploads.some((newUpload) => newUpload.id === upload.id)
+        ),
+      ]);
+
+      setRecentUploads((prev) => [
+        ...data.uploads,
+        ...(prev || []).filter(
+          (upload) => !data.uploads.some((newUpload) => newUpload.id === upload.id)
+        ),
+      ]);
+    } else if (data.uploadRow) {
+      setClientImports((prev) => [
+        data.uploadRow,
+        ...(prev || []).filter((upload) => upload.id !== data.uploadRow.id),
+      ]);
+
+      setRecentUploads((prev) => [
+        data.uploadRow,
+        ...(prev || []).filter((upload) => upload.id !== data.uploadRow.id),
+      ]);
+    } else {
+      console.warn("Invoice API did not return upload rows for Recent Imports.");
+      await loadClientUploads?.();
+    }
+
+    if (Array.isArray(data.invoiceItems) && data.invoiceItems.length > 0) {
+      setInvoicesData((prev) => [
+        ...data.invoiceItems,
+        ...(prev || []),
+      ]);
+    } else {
+      await loadUploadComparison?.();
+    }
+
+    setAiLog((prev) =>
+      [
+        {
+          id: Date.now(),
+          text: `Uploaded ${uploadedCount} invoice(s) successfully`,
+        },
+        ...prev,
+      ].slice(0, 6)
+    );
+
+    if (data.alerts && data.alerts.length > 0) {
+      const recommendations = data.alerts.map((alert) => {
+        let suggestion = "Consider promoting alternative items this week";
+
+        if (String(alert.item || "").toLowerCase().includes("steak")) {
+          suggestion = "Promote chicken and pasta this week to protect margins";
+        } else if (String(alert.item || "").toLowerCase().includes("chicken")) {
+          suggestion = "Bundle chicken meals or adjust pricing to protect margin";
+        } else if (String(alert.item || "").toLowerCase().includes("cheese")) {
+          suggestion = "Push high-margin favorites and reduce discounting";
+        }
+
+        return {
+          item: alert.item,
+          supplier: alert.supplier,
+          percentChange: alert.percentChange,
+          suggestion,
+        };
+      });
+
+      setAiPriceRecommendations(recommendations);
+
+      if (
+        false &&
+        hasProAccess &&
+        autoCampaignsEnabled &&
+        recommendations.length > 0
+      ) {
+        handleAutoLaunchCampaignFromRecommendation(recommendations[0]);
+      }
+    }
+
+    if (autopilotEnabled) {
+      runAutopilotAI("Invoice upload scan");
+    }
+
+    e.target.value = "";
+  } catch (err) {
+    console.error("Invoice upload failed:", err);
+    setInvoiceUploadMessage(err.message || "Invoice upload failed");
+    alert(err.message || "Invoice upload failed");
+  } finally {
+    setInvoiceUploadLoading(false);
+  }
 };
 const handleIngredientsUpload = async (event) => {
   try {
@@ -6602,16 +6676,17 @@ console.log("INVOICE STEP 1: started");
     const invoiceNumber = getValue(rows[0], ["Invoice Number", "invoice_number"]);
 
     const { data: invoiceUpload, error: invoiceUploadError } = await supabase
-      .from("invoice_uploads")
-      .insert([
-        {
-          user_id: user.id,
-          supplier_name: supplierName || "Unknown Supplier",
-          invoice_date: invoiceDate || null,
-          file_name: pendingUploadSummary?.fileName || "Invoice Upload",
-          file_url: null,
-        },
-      ])
+  .from("invoice_uploads")
+  .insert([
+    {
+      user_id: user.id,
+      upload_id: uploadRow?.id || null,
+      supplier_name: supplierName || "Unknown Supplier",
+      invoice_date: invoiceDate || null,
+      file_name: pendingUploadSummary?.fileName || "Invoice Upload",
+      file_url: null,
+    },
+  ])
       .select()
       .single();
 
@@ -26546,7 +26621,8 @@ const deleteSteps = [
   ["recipe_ingredients", "upload_id"],
   ["recipes", "upload_id"],
   ["employee_shifts", "upload_id"],
-  ["invoice_items", "upload_id"],
+  ["invoice_line_items", "upload_id"],
+["invoice_items", "upload_id"],
   ["restaurant_customers", "upload_id"],
   ["customers", "upload_id"],
   ["client_data_uploads", "upload_id"],
@@ -26720,34 +26796,72 @@ if (
     }
 
     // ✅ INVOICES
-    if (uploadRow?.upload_type === "invoices") {
-      const { data: matchingInvoiceUploads, error: invoiceUploadFindError } =
-        await supabase
-          .from("invoice_uploads")
-          .select("id,file_name,created_at,user_id")
-          .eq("user_id", uploadRow.user_id)
-          .eq("file_name", uploadRow.file_name);
+if (uploadRow?.upload_type === "invoices") {
+  console.log("INVOICE DELETE START");
+  console.log("INVOICE uploadId:", uploadId);
+  console.log("INVOICE uploadRow:", uploadRow);
 
-      if (invoiceUploadFindError) throw invoiceUploadFindError;
+  const { data: matchingInvoiceUploads, error: invoiceUploadFindError } =
+    await supabase
+      .from("invoice_uploads")
+      .select("id,upload_id,file_name,created_at,user_id")
+      .eq("upload_id", uploadId);
 
-      const invoiceIds = (matchingInvoiceUploads || []).map((row) => row.id);
+  console.log("INVOICE matching uploads:", matchingInvoiceUploads);
+  console.log("INVOICE lookup error:", invoiceUploadFindError);
 
-      if (invoiceIds.length > 0) {
-        const { error: invoiceItemsDeleteError } = await supabase
-          .from("invoice_items")
-          .delete()
-          .in("invoice_id", invoiceIds);
+  if (invoiceUploadFindError) throw invoiceUploadFindError;
 
-        if (invoiceItemsDeleteError) throw invoiceItemsDeleteError;
+  const invoiceIds = (matchingInvoiceUploads || []).map((row) => row.id);
 
-        const { error: invoiceUploadsDeleteError } = await supabase
-          .from("invoice_uploads")
-          .delete()
-          .in("id", invoiceIds);
+  const { error: lineItemsByUploadError } = await supabase
+    .from("invoice_line_items")
+    .delete()
+    .eq("upload_id", uploadId);
 
-        if (invoiceUploadsDeleteError) throw invoiceUploadsDeleteError;
-      }
+  console.log("INVOICE line items by upload delete error:", lineItemsByUploadError);
+
+  if (lineItemsByUploadError) throw lineItemsByUploadError;
+
+  if (invoiceIds.length > 0) {
+    const { error: lineItemsByInvoiceError } = await supabase
+      .from("invoice_line_items")
+      .delete()
+      .in("invoice_id", invoiceIds);
+
+    console.log("INVOICE line items by invoice delete error:", lineItemsByInvoiceError);
+
+    if (lineItemsByInvoiceError) throw lineItemsByInvoiceError;
+
+    const { error: invoiceItemsDeleteError } = await supabase
+      .from("invoice_items")
+      .delete()
+      .in("invoice_id", invoiceIds);
+
+    console.log("INVOICE invoice_items delete error:", invoiceItemsDeleteError);
+
+    if (invoiceItemsDeleteError) {
+      console.warn("invoice_items delete skipped/failed:", invoiceItemsDeleteError);
     }
+  }
+
+  const { error: invoiceUploadsDeleteError } = await supabase
+    .from("invoice_uploads")
+    .delete()
+    .eq("upload_id", uploadId);
+
+  console.log("INVOICE invoice_uploads delete error:", invoiceUploadsDeleteError);
+
+  if (invoiceUploadsDeleteError) throw invoiceUploadsDeleteError;
+
+  setInvoicesData((prev) =>
+    (prev || []).filter(
+      (row) =>
+        row.upload_id !== uploadId &&
+        !invoiceIds.includes(row.invoice_id)
+    )
+  );
+}
 if (uploadRow?.upload_type === "employee_shifts") {
   console.log("EMPLOYEE SHIFT DELETE START");
   console.log("EMPLOYEE SHIFT uploadId:", uploadId);
