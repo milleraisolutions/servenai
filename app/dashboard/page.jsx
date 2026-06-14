@@ -27494,7 +27494,7 @@ return (
 <input
   id="invoiceUpload"
   type="file"
-  accept=".pdf"
+  accept=".pdf,.csv,.xlsx,.xls"
   multiple
   onChange={handleInvoiceUpload}
   style={{ display: "none" }}
