@@ -801,13 +801,22 @@ const handleInvoiceUpload = async (e) => {
 
     console.log("INVOICE before API upload");
 
-    const res = await fetch("/api/upload-invoices", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${session.access_token}`,
-      },
-      body: formData,
-    });
+   const controller = new AbortController();
+
+const timeoutId = setTimeout(() => {
+  controller.abort();
+}, 30000);
+
+const res = await fetch("/api/upload-invoices", {
+  method: "POST",
+  headers: {
+    Authorization: `Bearer ${session.access_token}`,
+  },
+  body: formData,
+  signal: controller.signal,
+});
+
+clearTimeout(timeoutId);
 
     console.log("INVOICE API STATUS:", res.status);
 
@@ -913,12 +922,26 @@ const handleInvoiceUpload = async (e) => {
 
     e.target.value = "";
   } catch (err) {
-    console.error("Invoice upload failed:", err);
-    setInvoiceUploadMessage(err.message || "Invoice upload failed");
-    alert(err.message || "Invoice upload failed");
-  } finally {
-    setInvoiceUploadLoading(false);
+
+  if (err.name === "AbortError") {
+    setInvoiceUploadMessage("Invoice upload timed out after 30 seconds.");
+    alert("Invoice upload timed out after 30 seconds.");
+    return;
   }
+
+  console.error("Invoice upload failed:", err);
+
+  setInvoiceUploadMessage(
+    err?.message || "Invoice upload failed"
+  );
+
+  alert(
+    err?.message || "Invoice upload failed"
+  );
+
+} finally {
+  setInvoiceUploadLoading(false);
+}
 };
 const handleIngredientsUpload = async (event) => {
   try {
