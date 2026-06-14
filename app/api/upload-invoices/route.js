@@ -99,6 +99,8 @@ export async function POST(req) {
       const { PDFParse } = await import("pdf-parse");
       const parser = new PDFParse({ data: buffer });
       const parsedPdf = await parser.getText();
+      console.log("PDF TEXT LENGTH:", parsedPdf?.text?.length);
+console.log("PDF TEXT SAMPLE:", parsedPdf?.text?.slice(0, 500));
       await parser.destroy();
 
       const text = parsedPdf.text || "";
