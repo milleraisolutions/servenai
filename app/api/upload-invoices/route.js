@@ -96,15 +96,13 @@ export async function POST(req) {
       const bytes = await file.arrayBuffer();
       const buffer = Buffer.from(bytes);
 
-      const { PDFParse } = await import("pdf-parse");
-      const parser = new PDFParse({ data: buffer });
-      const parsedPdf = await parser.getText();
-      
-      console.log("PDF TEXT LENGTH:", parsedPdf?.text?.length);
-console.log("PDF TEXT SAMPLE:", parsedPdf?.text?.slice(0, 500));
-      await parser.destroy();
+     const pdfParse = (await import("pdf-parse")).default;
+const parsedPdf = await pdfParse(buffer);
 
-      const text = parsedPdf.text || "";
+console.log("PDF TEXT LENGTH:", parsedPdf?.text?.length);
+console.log("PDF TEXT SAMPLE:", parsedPdf?.text?.slice(0, 500));
+
+const text = parsedPdf.text || "";
       const parsedInvoice = parseInvoiceText(text);
 
       const { data: createdUploadRow, error: uploadError } = await supabase
