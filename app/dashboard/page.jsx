@@ -4565,96 +4565,95 @@ const deleteClientUpload = async (id) => {
   const previousClientImports = clientImports || [];
   const previousRecentUploads = recentUploads || [];
   const previousInvoicesData = invoicesData || [];
-try {
-  setMessage("Deleting upload...");
-
-  let deleteId = id;
-
-  if (String(id).startsWith("labor-")) {
-    deleteId = String(id).replace("labor-", "");
-  }
-
-  // optimistic UI removal
-  setClientUploads((prev) =>
-    (prev || []).filter(
-      (item) => item.id !== id && item.id !== deleteId
-    )
-  );
-
-  setClientImports((prev) =>
-    (prev || []).filter(
-      (item) => item.id !== id && item.id !== deleteId
-    )
-  );
-
-  setRecentUploads((prev) =>
-    (prev || []).filter(
-      (item) => item.id !== id && item.id !== deleteId
-    )
-  );
-
-  setInvoicesData((prev) =>
-    (prev || []).filter(
-      (row) =>
-        row.upload_id !== id &&
-        row.upload_id !== deleteId &&
-        row.invoice_id !== id &&
-        row.invoice_id !== deleteId &&
-        row.id !== id &&
-        row.id !== deleteId
-    )
-  );
-
-  setLaborData((prev) =>
-    (prev || []).filter(
-      (row) => row.id !== id && row.id !== deleteId
-    )
-  );
-
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  const res = await fetch("/api/delete-client-upload", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${session?.access_token || ""}`,
-    },
-    body: JSON.stringify({ id: deleteId }),
-  });
-
-  let result = {};
+  const previousLaborData = laborData || [];
 
   try {
-    result = await res.json();
-  } catch {
-    result = {};
+    setMessage("Deleting upload...");
+
+    let deleteId = id;
+    const originalId = id;
+
+    if (String(id).startsWith("labor-")) {
+      deleteId = String(id).replace("labor-", "");
+    }
+
+    const laborDisplayId = `labor-${deleteId}`;
+
+    const shouldKeepItem = (item) =>
+      item.id !== originalId &&
+      item.id !== deleteId &&
+      item.id !== laborDisplayId &&
+      item.upload_id !== originalId &&
+      item.upload_id !== deleteId &&
+      item.upload_id !== laborDisplayId;
+
+    // optimistic UI removal
+    setClientUploads((prev) => (prev || []).filter(shouldKeepItem));
+    setClientImports((prev) => (prev || []).filter(shouldKeepItem));
+    setRecentUploads((prev) => (prev || []).filter(shouldKeepItem));
+
+    setInvoicesData((prev) =>
+      (prev || []).filter(
+        (row) =>
+          row.upload_id !== originalId &&
+          row.upload_id !== deleteId &&
+          row.upload_id !== laborDisplayId &&
+          row.invoice_id !== originalId &&
+          row.invoice_id !== deleteId &&
+          row.invoice_id !== laborDisplayId &&
+          row.id !== originalId &&
+          row.id !== deleteId &&
+          row.id !== laborDisplayId
+      )
+    );
+
+    setLaborData((prev) => (prev || []).filter(shouldKeepItem));
+
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    const res = await fetch("/api/delete-client-upload", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session?.access_token || ""}`,
+      },
+      body: JSON.stringify({ id: deleteId }),
+    });
+
+    let result = {};
+
+    try {
+      result = await res.json();
+    } catch {
+      result = {};
+    }
+
+    console.log("DELETE CLIENT UPLOAD STATUS:", res.status);
+    console.log("DELETE CLIENT UPLOAD RESPONSE:", result);
+
+    if (!res.ok) {
+      throw new Error(result?.error || "Delete failed");
+    }
+
+    setMessage("Upload deleted.");
+
+    await loadClientUploads?.();
+    await loadClientImports?.();
+    await loadUploadComparison?.();
+  } catch (err) {
+    console.error("Delete error:", err);
+
+    setClientUploads(previousClientUploads);
+    setClientImports(previousClientImports);
+    setRecentUploads(previousRecentUploads);
+    setInvoicesData(previousInvoicesData);
+    setLaborData(previousLaborData);
+
+    alert(err?.message || "Delete error");
+    setMessage("Delete failed.");
   }
-
-  console.log("DELETE CLIENT UPLOAD STATUS:", res.status);
-  console.log("DELETE CLIENT UPLOAD RESPONSE:", result);
-
-  if (!res.ok) {
-    throw new Error(result?.error || "Delete failed");
-  }
-
-  setMessage("Upload deleted.");
-
-  await loadClientUploads?.();
-  await loadClientImports?.();
-  await loadUploadComparison?.();
-} catch (err) {
-  console.error("Delete error:", err);
-
-  setClientUploads(previousClientUploads);
-  setClientImports(previousClientImports);
-  setRecentUploads(previousRecentUploads);
-  setInvoicesData(previousInvoicesData);
-
-  alert(err?.message || "Delete error");
-  setMessage("Delete failed.");
-}
 };
 const clientRiskSummary = {
   critical: clientAlerts?.filter((a) => a.severity === "critical").length || 0,
