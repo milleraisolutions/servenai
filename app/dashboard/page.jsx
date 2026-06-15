@@ -773,6 +773,7 @@ const handleInvoiceUpload = async (e) => {
 
   if (!files.length) {
     setInvoiceUploadMessage("No invoice files selected.");
+    setMessage("No invoice files selected.");
     return;
   }
 
@@ -784,6 +785,7 @@ const handleInvoiceUpload = async (e) => {
 
   if (invalidFile) {
     setInvoiceUploadMessage("Only PDF invoice files are allowed.");
+    setMessage("Only PDF invoice files are allowed.");
     alert("Only PDF invoice files are allowed.");
     input.value = "";
     return;
@@ -791,7 +793,8 @@ const handleInvoiceUpload = async (e) => {
 
   try {
     setInvoiceUploadLoading(true);
-    setInvoiceUploadMessage("Importing invoices...");
+    setInvoiceUploadMessage("Importing invoice data...");
+    setMessage("Importing invoice data...");
 
     const {
       data: { session },
@@ -807,6 +810,9 @@ const handleInvoiceUpload = async (e) => {
       throw new Error("You must be logged in to upload invoices.");
     }
 
+    setInvoiceUploadMessage("Reading invoice PDF...");
+    setMessage("Reading invoice PDF...");
+
     const formData = new FormData();
 
     files.forEach((file) => {
@@ -814,6 +820,9 @@ const handleInvoiceUpload = async (e) => {
     });
 
     console.log("INVOICE before API upload");
+
+    setInvoiceUploadMessage("Importing invoice data...");
+    setMessage("Importing invoice data...");
 
     const controller = new AbortController();
 
@@ -852,9 +861,10 @@ const handleInvoiceUpload = async (e) => {
       data?.uploadedCount || data?.count || files.length || 0
     );
 
-    setInvoiceUploadMessage(
-      `Uploaded ${uploadedCount} invoice(s) successfully.`
-    );
+    const successMessage = `Uploaded ${uploadedCount} invoice(s) successfully.`;
+
+    setInvoiceUploadMessage(successMessage);
+    setMessage(successMessage);
 
     setSupplierAlerts(data?.alerts || []);
 
@@ -905,7 +915,7 @@ const handleInvoiceUpload = async (e) => {
       [
         {
           id: Date.now(),
-          text: `Uploaded ${uploadedCount} invoice(s) successfully.`,
+          text: successMessage,
         },
         ...(prev || []),
       ].slice(0, 6)
@@ -962,6 +972,7 @@ const handleInvoiceUpload = async (e) => {
         : err?.message || "Invoice upload failed.";
 
     setInvoiceUploadMessage(message);
+    setMessage(message);
     alert(message);
   } finally {
     setInvoiceUploadLoading(false);
