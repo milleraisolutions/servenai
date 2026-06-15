@@ -26645,7 +26645,6 @@ const deleteSteps = [
   ["recipes", "upload_id"],
   ["employee_shifts", "upload_id"],
   ["invoice_line_items", "upload_id"],
-["invoice_items", "upload_id"],
   ["restaurant_customers", "upload_id"],
   ["customers", "upload_id"],
   ["client_data_uploads", "upload_id"],
@@ -26856,16 +26855,7 @@ if (uploadRow?.upload_type === "invoices") {
 
     if (lineItemsByInvoiceError) throw lineItemsByInvoiceError;
 
-    const { error: invoiceItemsDeleteError } = await supabase
-      .from("invoice_items")
-      .delete()
-      .in("invoice_id", invoiceIds);
-
-    console.log("INVOICE invoice_items delete error:", invoiceItemsDeleteError);
-
-    if (invoiceItemsDeleteError) {
-      console.warn("invoice_items delete skipped/failed:", invoiceItemsDeleteError);
-    }
+    
   }
 
   const { error: invoiceUploadsDeleteError } = await supabase
