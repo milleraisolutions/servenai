@@ -179,7 +179,7 @@ const [clientUploads, setClientUploads] = useState([]);
 const [locations, setLocations] = useState([]);
 const [user, setUser] = useState(null);
 const [selectedEnterpriseLocation, setSelectedEnterpriseLocation] = useState(null);
-
+const loadingImportsRef = useRef(false);
 const isMobile =
   typeof window !== "undefined" && window.innerWidth < 640;
 const [clientAlerts, setClientAlerts] = useState([]);
@@ -10940,7 +10940,7 @@ if (laborError) {
     }
 
     console.log("CLIENT IMPORTS SKIPPED:", data);
-await loadClientImports();
+// await loadClientImports();
   } catch (err) {
     console.error("fetchClientImports crashed:", err);
   } finally {
@@ -15167,6 +15167,14 @@ const deleteLead = async (leadId) => {
   
 };
 const loadClientImports = async () => {
+  if (loadingImportsRef.current) {
+    console.log("LOAD CLIENT IMPORTS SKIPPED");
+    return;
+  }
+
+  loadingImportsRef.current = true;
+  setImportsLoading(true);
+
   try {
     setImportsLoading(true);
 
@@ -15241,11 +15249,18 @@ console.log(
 
     setClientImports(combinedImports);
     setRecentUploads(combinedImports);
-  } catch (error) {
+    } catch (error) {
+    if (
+      String(error?.message || "").includes("AbortError") ||
+      String(error?.details || "").includes("AbortError")
+    ) {
+      console.warn("Recent imports request cancelled");
+      return;
+    }
+
     console.error("Recent imports load failed:", error);
-    setClientImports([]);
-    setRecentUploads([]);
   } finally {
+    loadingImportsRef.current = false;
     setImportsLoading(false);
   }
 };
@@ -15289,7 +15304,7 @@ await logAuditEvent({
 });
 
 setMessage("Import archived.");
-await loadClientImports();
+// await loadClientImports();
 };
 const deleteImport = async (uploadId) => {
   if (!uploadId) {
@@ -15375,7 +15390,7 @@ const restoreImport = async (uploadId) => {
   }
 
   setMessage("Import restored.");
-  await loadClientImports();
+  // await loadClientImports();
 };
 
 
