@@ -26490,14 +26490,22 @@ const handleDeleteUpload = async (uploadId) => {
   const previousClientImports = clientImports || [];
   const previousRecentUploads = recentUploads || [];
 
-  setClientImports((prev) => (prev || []).filter((item) => item.id !== uploadId));
-  setRecentUploads((prev) => (prev || []).filter((item) => item.id !== uploadId));
+  setClientImports((prev) =>
+    (prev || []).filter((item) => item.id !== uploadId)
+  );
+  setRecentUploads((prev) =>
+    (prev || []).filter((item) => item.id !== uploadId)
+  );
   setMessage("Deleting import...");
 
   try {
     // ✅ EMPLOYEE SHIFT FILE DELETE
     if (uploadIdString.startsWith("employee-shift-file-")) {
-      const employeeShiftFileKey = uploadIdString.replace("employee-shift-file-", "");
+      const employeeShiftFileKey = uploadIdString.replace(
+        "employee-shift-file-",
+        ""
+      );
+
       const allImports = [...(clientImports || []), ...(recentUploads || [])];
       const shiftMatch = allImports.find((item) => item.id === uploadId);
 
@@ -26524,12 +26532,15 @@ const handleDeleteUpload = async (uploadId) => {
 
       if (error) throw error;
 
-      setEmployeeShifts((prev) => (prev || []).filter((row) => row.file_name !== fileName));
+      setEmployeeShifts((prev) =>
+        (prev || []).filter((row) => row.file_name !== fileName)
+      );
+
       setMessage("Employee shift import deleted.");
       return;
     }
 
-    // ✅ EMPLOYEE SHIFT DELETE
+    // ✅ EMPLOYEE SHIFT SINGLE DELETE
     if (uploadIdString.startsWith("employee-shift-")) {
       const employeeShiftId = uploadIdString.replace("employee-shift-", "");
 
@@ -26540,7 +26551,10 @@ const handleDeleteUpload = async (uploadId) => {
 
       if (error) throw error;
 
-      setEmployeeShifts((prev) => (prev || []).filter((row) => row.id !== employeeShiftId));
+      setEmployeeShifts((prev) =>
+        (prev || []).filter((row) => row.id !== employeeShiftId)
+      );
+
       setMessage("Employee shift import deleted.");
       return;
     }
@@ -26548,6 +26562,7 @@ const handleDeleteUpload = async (uploadId) => {
     // ✅ BATCH PREP FILE DELETE
     if (uploadIdString.startsWith("batch-prep-file-")) {
       const batchPrepFileKey = uploadIdString.replace("batch-prep-file-", "");
+
       const allImports = [...(clientImports || []), ...(recentUploads || [])];
       const batchPrepMatch = allImports.find((item) => item.id === uploadId);
 
@@ -26574,12 +26589,15 @@ const handleDeleteUpload = async (uploadId) => {
 
       if (error) throw error;
 
-      setBatchPrepData((prev) => (prev || []).filter((row) => row.file_name !== fileName));
+      setBatchPrepData((prev) =>
+        (prev || []).filter((row) => row.file_name !== fileName)
+      );
+
       setMessage("Batch prep import deleted.");
       return;
     }
 
-    // ✅ BATCH PREP DELETE
+    // ✅ BATCH PREP SINGLE DELETE
     if (uploadIdString.startsWith("batch-prep-")) {
       const batchPrepId = uploadIdString.replace("batch-prep-", "");
 
@@ -26590,13 +26608,19 @@ const handleDeleteUpload = async (uploadId) => {
 
       if (error) throw error;
 
-      setBatchPrepData((prev) => (prev || []).filter((row) => row.id !== batchPrepId));
+      setBatchPrepData((prev) =>
+        (prev || []).filter((row) => row.id !== batchPrepId)
+      );
+
       setMessage("Batch prep import deleted.");
       return;
     }
 
-    // ✅ LABOR DELETE
-    if (uploadIdString.startsWith("labor-") && !uploadIdString.startsWith("labor-file-")) {
+    // ✅ LABOR SINGLE DELETE
+    if (
+      uploadIdString.startsWith("labor-") &&
+      !uploadIdString.startsWith("labor-file-")
+    ) {
       const laborId = uploadIdString.replace("labor-", "");
 
       const { error } = await supabase
@@ -26614,6 +26638,7 @@ const handleDeleteUpload = async (uploadId) => {
     // ✅ LABOR FILE DELETE
     if (uploadIdString.startsWith("labor-file-")) {
       const laborFileKey = uploadIdString.replace("labor-file-", "");
+
       const allImports = [...(clientImports || []), ...(recentUploads || [])];
       const laborMatch = allImports.find((item) => item.id === uploadId);
 
@@ -26640,12 +26665,15 @@ const handleDeleteUpload = async (uploadId) => {
 
       if (error) throw error;
 
-      setLaborData((prev) => (prev || []).filter((row) => row.file_name !== fileName));
+      setLaborData((prev) =>
+        (prev || []).filter((row) => row.file_name !== fileName)
+      );
+
       setMessage("Labor import deleted.");
       return;
     }
 
-    // ✅ NORMAL UPLOAD DELETE
+    // ✅ NORMAL UPLOAD LOOKUP
     const { data: uploadRow, error: uploadLookupError } = await supabase
       .from("uploads")
       .select("*")
@@ -26657,69 +26685,97 @@ const handleDeleteUpload = async (uploadId) => {
 
     if (uploadLookupError) throw uploadLookupError;
 
-const deleteSteps = [
-  ["sales", "upload_id"],
-  ["menu_items", "upload_id"],
-  ["ingredients", "upload_id"],
-  ["inventory_items", "upload_id"],
-  ["beverage_items", "upload_id"],
-  ["beverage_usage", "upload_id"],
-  ["batch_prep_data", "upload_id"],
-  ["recipe_ingredients", "upload_id"],
-  ["recipes", "upload_id"],
-  ["employee_shifts", "upload_id"],
-  ["invoice_line_items", "upload_id"],
-  ["restaurant_customers", "upload_id"],
-  ["customers", "upload_id"],
-  ["client_data_uploads", "upload_id"],
-  ["locations", "upload_id"],
-];
-if (uploadRow?.upload_type === "employee_shifts") {
-  console.log("EMPLOYEE SHIFT DELETE START");
-  console.log("EMPLOYEE SHIFT uploadId:", uploadId);
-  console.log("EMPLOYEE SHIFT uploadRow:", uploadRow);
+    if (!uploadRow) {
+      console.warn("No upload row found. Removing from UI only:", uploadId);
+      setMessage("Upload removed from screen.");
+      return;
+    }
 
-  const { error: employeeShiftDeleteError } = await supabase
-    .from("employee_shifts")
-    .delete()
-    .eq("upload_id", uploadId);
+    // ✅ INVOICE DELETE — IMPORTANT
+    if (uploadRow?.upload_type === "invoices") {
+      console.log("INVOICE DELETE START");
+      console.log("INVOICE uploadId:", uploadId);
+      console.log("INVOICE uploadRow:", uploadRow);
 
-  console.log("EMPLOYEE SHIFT delete error:", employeeShiftDeleteError);
+      const { data: matchingInvoiceUploads, error: invoiceUploadFindError } =
+        await supabase
+          .from("invoice_uploads")
+          .select("id, upload_id, file_name, created_at, user_id")
+          .eq("upload_id", uploadId);
 
-  if (employeeShiftDeleteError) throw employeeShiftDeleteError;
+      console.log("INVOICE matching uploads:", matchingInvoiceUploads);
+      console.log("INVOICE lookup error:", invoiceUploadFindError);
 
-  setEmployeeShifts((prev) =>
-    (prev || []).filter((row) => row.upload_id !== uploadId)
-  );
-}
-if (uploadRow?.upload_type === "ingredients") {
-  console.log("INGREDIENT DELETE START");
-  console.log("INGREDIENT uploadId:", uploadId);
-  console.log("INGREDIENT uploadRow:", uploadRow);
+      if (invoiceUploadFindError) throw invoiceUploadFindError;
 
-  const { data: matchingIngredients, error: ingredientLookupError } =
-    await supabase
-      .from("ingredients")
-      .select("id,name,upload_id,file_name")
-      .eq("upload_id", uploadId);
+      const invoiceIds = (matchingInvoiceUploads || []).map((row) => row.id);
 
-  console.log("INGREDIENT lookup rows:", matchingIngredients);
-  console.log("INGREDIENT lookup error:", ingredientLookupError);
+      const { error: lineItemsByUploadError } = await supabase
+        .from("invoice_line_items")
+        .delete()
+        .eq("upload_id", uploadId);
 
-  const { error: ingredientsDeleteError } = await supabase
-    .from("ingredients")
-    .delete()
-    .eq("user_id", uploadRow.user_id)
-    .eq("upload_id", uploadId);
+      console.log(
+        "INVOICE line items by upload delete error:",
+        lineItemsByUploadError
+      );
 
-  console.log("INGREDIENT delete error:", ingredientsDeleteError);
+      if (lineItemsByUploadError) throw lineItemsByUploadError;
 
-  if (ingredientsDeleteError) throw ingredientsDeleteError;
+      if (invoiceIds.length > 0) {
+        const { error: lineItemsByInvoiceError } = await supabase
+          .from("invoice_line_items")
+          .delete()
+          .in("invoice_id", invoiceIds);
 
-  setIngredientsData((prev) =>
-    (prev || []).filter((row) => row.upload_id !== uploadId)
-  );
-}
+        console.log(
+          "INVOICE line items by invoice delete error:",
+          lineItemsByInvoiceError
+        );
+
+        if (lineItemsByInvoiceError) throw lineItemsByInvoiceError;
+      }
+
+      const { error: invoiceUploadsDeleteError } = await supabase
+        .from("invoice_uploads")
+        .delete()
+        .eq("upload_id", uploadId);
+
+      console.log(
+        "INVOICE invoice_uploads delete error:",
+        invoiceUploadsDeleteError
+      );
+
+      if (invoiceUploadsDeleteError) throw invoiceUploadsDeleteError;
+
+      setInvoicesData((prev) =>
+        (prev || []).filter(
+          (row) =>
+            row.upload_id !== uploadId &&
+            row.invoice_id !== uploadId &&
+            !invoiceIds.includes(row.invoice_id)
+        )
+      );
+    }
+
+    // ✅ GENERAL CHILD TABLE DELETE
+    const deleteSteps = [
+      ["sales", "upload_id"],
+      ["menu_items", "upload_id"],
+      ["ingredients", "upload_id"],
+      ["inventory_items", "upload_id"],
+      ["beverage_items", "upload_id"],
+      ["beverage_usage", "upload_id"],
+      ["batch_prep_data", "upload_id"],
+      ["recipe_ingredients", "upload_id"],
+      ["recipes", "upload_id"],
+      ["employee_shifts", "upload_id"],
+      ["restaurant_customers", "upload_id"],
+      ["customers", "upload_id"],
+      ["client_data_uploads", "upload_id"],
+      ["locations", "upload_id"],
+    ];
+
     for (const [table, column] of deleteSteps) {
       const { error } = await supabase.from(table).delete().eq(column, uploadId);
 
@@ -26727,219 +26783,83 @@ if (uploadRow?.upload_type === "ingredients") {
         console.warn(`${table} delete skipped/failed:`, error);
       }
     }
-// ✅ RECIPES / RECIPE CARDS DELETE
-if (
-  uploadRow?.upload_type === "recipes" ||
-  uploadRow?.upload_type === "recipe_cards" ||
-  uploadRow?.source_name === "recipe_upload"
-) {
-  console.log("RECIPE DELETE START");
-  console.log("RECIPE uploadId:", uploadId);
-  console.log("RECIPE uploadRow:", uploadRow);
 
-  const { data: recipesToDelete, error: recipeLookupError } = await supabase
-    .from("recipes")
-    .select("id,recipe_name,upload_id")
-    .eq("upload_id", uploadId);
+    // ✅ RECIPES / RECIPE CARDS DELETE
+    if (
+      uploadRow?.upload_type === "recipes" ||
+      uploadRow?.upload_type === "recipe_cards" ||
+      uploadRow?.source_name === "recipe_upload"
+    ) {
+      console.log("RECIPE DELETE START");
 
-  console.log("RECIPE lookup rows:", recipesToDelete);
-  console.log("RECIPE lookup error:", recipeLookupError);
+      const { data: recipesToDelete, error: recipeLookupError } = await supabase
+        .from("recipes")
+        .select("id, recipe_name, upload_id")
+        .eq("upload_id", uploadId);
 
-  if (recipeLookupError) throw recipeLookupError;
+      if (recipeLookupError) throw recipeLookupError;
 
-  const recipeIds = (recipesToDelete || []).map((recipe) => recipe.id);
+      const recipeIds = (recipesToDelete || []).map((recipe) => recipe.id);
 
-  if (recipeIds.length > 0) {
-    const { data: ingredientsToDelete, error: recipeIngredientLookupError } =
       await supabase
         .from("recipe_ingredients")
-        .select("id,recipe_id,ingredient_name,upload_id")
-        .in("recipe_id", recipeIds);
+        .delete()
+        .eq("upload_id", uploadId);
 
-    console.log("RECIPE ingredient lookup rows:", ingredientsToDelete);
-    console.log("RECIPE ingredient lookup error:", recipeIngredientLookupError);
+      if (recipeIds.length > 0) {
+        const { error: recipeIngredientsDeleteByRecipeError } = await supabase
+          .from("recipe_ingredients")
+          .delete()
+          .in("recipe_id", recipeIds);
 
-    if (recipeIngredientLookupError) throw recipeIngredientLookupError;
-  }
+        if (recipeIngredientsDeleteByRecipeError) {
+          throw recipeIngredientsDeleteByRecipeError;
+        }
+      }
 
-  const { error: recipeIngredientsDeleteByUploadError } = await supabase
-    .from("recipe_ingredients")
-    .delete()
-    .eq("upload_id", uploadId);
+      await supabase
+        .from("recipe_usage_rules")
+        .delete()
+        .eq("upload_id", uploadId);
 
-  console.log(
-    "RECIPE ingredient delete by upload_id error:",
-    recipeIngredientsDeleteByUploadError
-  );
+      const { error: recipesDeleteError } = await supabase
+        .from("recipes")
+        .delete()
+        .eq("upload_id", uploadId);
 
-  if (recipeIngredientsDeleteByUploadError) {
-    console.warn(
-      "Recipe ingredient delete by upload_id failed, fallback will run:",
-      recipeIngredientsDeleteByUploadError
-    );
-  }
+      if (recipesDeleteError) throw recipesDeleteError;
 
-  if (recipeIds.length > 0) {
-    const { error: recipeIngredientsDeleteByRecipeError } = await supabase
-      .from("recipe_ingredients")
-      .delete()
-      .in("recipe_id", recipeIds);
+      setRecipeIngredients((prev) =>
+        (prev || []).filter(
+          (row) =>
+            row.upload_id !== uploadId && !recipeIds.includes(row.recipe_id)
+        )
+      );
 
-    console.log(
-      "RECIPE ingredient delete by recipe_id error:",
-      recipeIngredientsDeleteByRecipeError
-    );
-
-    if (recipeIngredientsDeleteByRecipeError) {
-      throw recipeIngredientsDeleteByRecipeError;
+      setRecipes((prev) =>
+        (prev || []).filter((row) => row.upload_id !== uploadId)
+      );
     }
-  }
 
-  const { error: recipeUsageRulesDeleteError } = await supabase
-    .from("recipe_usage_rules")
-    .delete()
-    .eq("upload_id", uploadId);
-
-  console.log("RECIPE usage rules delete error:", recipeUsageRulesDeleteError);
-
-  if (recipeUsageRulesDeleteError) {
-    console.warn("Recipe usage rules delete skipped/failed:", recipeUsageRulesDeleteError);
-  }
-
-  const { error: recipesDeleteError } = await supabase
-    .from("recipes")
-    .delete()
-    .eq("upload_id", uploadId);
-
-  console.log("RECIPE delete error:", recipesDeleteError);
-
-  if (recipesDeleteError) throw recipesDeleteError;
-
-  setRecipeIngredients((prev) =>
-    (prev || []).filter(
-      (row) =>
-        row.upload_id !== uploadId &&
-        !recipeIds.includes(row.recipe_id)
-    )
-  );
-
-  setRecipes((prev) =>
-    (prev || []).filter((row) => row.upload_id !== uploadId)
-  );
-
-  console.log("RECIPE DELETE COMPLETE");
-}
     // ✅ LOCATIONS
     if (uploadRow?.upload_type === "locations") {
       const { error } = await supabase
         .from("locations")
         .delete()
-        .eq("user_id", uploadRow.user_id);
+        .eq("upload_id", uploadId);
 
       if (error) throw error;
 
-      setLocations([]);
+      setLocations((prev) =>
+        (prev || []).filter((row) => row.upload_id !== uploadId)
+      );
     }
 
-    // ✅ INVOICES
-if (uploadRow?.upload_type === "invoices") {
-  console.log("INVOICE DELETE START");
-  console.log("INVOICE uploadId:", uploadId);
-  console.log("INVOICE uploadRow:", uploadRow);
+    // ✅ FINAL UPLOAD ROW DELETE
+    console.log("ABOUT TO DELETE UPLOAD");
+    console.log("UPLOAD ID:", uploadId);
+    console.log("UPLOAD ROW:", uploadRow);
 
-  const { data: matchingInvoiceUploads, error: invoiceUploadFindError } =
-    await supabase
-      .from("invoice_uploads")
-      .select("id,upload_id,file_name,created_at,user_id")
-      .eq("upload_id", uploadId);
-
-  console.log("INVOICE matching uploads:", matchingInvoiceUploads);
-  console.log("INVOICE lookup error:", invoiceUploadFindError);
-
-  if (invoiceUploadFindError) throw invoiceUploadFindError;
-
-  const invoiceIds = (matchingInvoiceUploads || []).map((row) => row.id);
-
-  const { error: lineItemsByUploadError } = await supabase
-    .from("invoice_line_items")
-    .delete()
-    .eq("upload_id", uploadId);
-
-  console.log("INVOICE line items by upload delete error:", lineItemsByUploadError);
-
-  if (lineItemsByUploadError) throw lineItemsByUploadError;
-
-  if (invoiceIds.length > 0) {
-    const { error: lineItemsByInvoiceError } = await supabase
-      .from("invoice_line_items")
-      .delete()
-      .in("invoice_id", invoiceIds);
-
-    console.log("INVOICE line items by invoice delete error:", lineItemsByInvoiceError);
-
-    if (lineItemsByInvoiceError) throw lineItemsByInvoiceError;
-
-    
-  }
-
-  const { error: invoiceUploadsDeleteError } = await supabase
-    .from("invoice_uploads")
-    .delete()
-    .eq("upload_id", uploadId);
-
-  console.log("INVOICE invoice_uploads delete error:", invoiceUploadsDeleteError);
-
-  if (invoiceUploadsDeleteError) throw invoiceUploadsDeleteError;
-
-  setInvoicesData((prev) =>
-    (prev || []).filter(
-      (row) =>
-        row.upload_id !== uploadId &&
-        !invoiceIds.includes(row.invoice_id)
-    )
-  );
-}
-if (uploadRow?.upload_type === "employee_shifts") {
-  console.log("EMPLOYEE SHIFT DELETE START");
-  console.log("EMPLOYEE SHIFT uploadId:", uploadId);
-
-  const { data: existingShiftRows, error: existingShiftRowsError } =
-    await supabase
-      .from("employee_shifts")
-      .select("id, upload_id, employee_name")
-      .eq("upload_id", uploadId);
-
-  console.log(
-    "EMPLOYEE SHIFT rows found before delete:",
-    existingShiftRows
-  );
-  console.log(
-    "EMPLOYEE SHIFT lookup error:",
-    existingShiftRowsError
-  );
-
-  const { error: employeeShiftDeleteError } = await supabase
-    .from("employee_shifts")
-    .delete()
-    .eq("upload_id", uploadId);
-
-  console.log(
-    "EMPLOYEE SHIFT delete error:",
-    employeeShiftDeleteError
-  );
-
-  const { data: remainingShiftRows } = await supabase
-    .from("employee_shifts")
-    .select("id")
-    .eq("upload_id", uploadId);
-
-  console.log(
-    "EMPLOYEE SHIFT rows after delete:",
-    remainingShiftRows
-  );
-
-  if (employeeShiftDeleteError) throw employeeShiftDeleteError;
-}
     const { error: uploadDeleteError } = await supabase
       .from("uploads")
       .delete()
@@ -26949,14 +26869,38 @@ if (uploadRow?.upload_type === "employee_shifts") {
 
     if (uploadDeleteError) throw uploadDeleteError;
 
-    setRecentUploads((prev) => (prev || []).filter((upload) => upload.id !== uploadId));
-    setClientImports((prev) => (prev || []).filter((upload) => upload.id !== uploadId));
-    setDbSalesRows((prev) => (prev || []).filter((row) => row.upload_id !== uploadId));
-    setMenuItemsData((prev) => (prev || []).filter((row) => row.upload_id !== uploadId));
-    setIngredientsData((prev) => (prev || []).filter((row) => row.upload_id !== uploadId));
-    setInventoryData((prev) => (prev || []).filter((row) => row.upload_id !== uploadId));
-    setBeverageItems((prev) => (prev || []).filter((row) => row.upload_id !== uploadId));
-    setRecipes((prev) => (prev || []).filter((row) => row.upload_id !== uploadId));
+    // ✅ UI CLEANUP
+    setRecentUploads((prev) =>
+      (prev || []).filter((upload) => upload.id !== uploadId)
+    );
+
+    setClientImports((prev) =>
+      (prev || []).filter((upload) => upload.id !== uploadId)
+    );
+
+    setDbSalesRows((prev) =>
+      (prev || []).filter((row) => row.upload_id !== uploadId)
+    );
+
+    setMenuItemsData((prev) =>
+      (prev || []).filter((row) => row.upload_id !== uploadId)
+    );
+
+    setIngredientsData((prev) =>
+      (prev || []).filter((row) => row.upload_id !== uploadId)
+    );
+
+    setInventoryData((prev) =>
+      (prev || []).filter((row) => row.upload_id !== uploadId)
+    );
+
+    setBeverageItems((prev) =>
+      (prev || []).filter((row) => row.upload_id !== uploadId)
+    );
+
+    setRecipes((prev) =>
+      (prev || []).filter((row) => row.upload_id !== uploadId)
+    );
 
     setInvoicesData((prev) =>
       (prev || []).filter(
