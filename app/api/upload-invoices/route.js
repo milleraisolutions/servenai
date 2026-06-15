@@ -214,9 +214,9 @@ export async function POST(req) {
 
       created.storagePaths.push(filePath);
 
-      const { data: publicUrlData } = supabase.storage
-        .from("invoice-pdfs")
-        .getPublicUrl(filePath);
+    const { data: signedUrlData } = await supabase.storage
+  .from("invoice-pdfs")
+  .createSignedUrl(filePath, 60 * 60 * 24 * 7);
 
       const { data: invoiceRow, error: invoiceError } = await supabase
         .from("invoice_uploads")
@@ -226,7 +226,7 @@ export async function POST(req) {
           supplier_name: parsedInvoice.supplierName,
           invoice_date: parsedInvoice.invoiceDate,
           file_name: file.name,
-          file_url: publicUrlData?.publicUrl || null,
+         file_url: signedUrlData?.signedUrl || null,
         })
         .select()
         .single();
