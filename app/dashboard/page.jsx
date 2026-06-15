@@ -26705,73 +26705,95 @@ const handleDeleteUpload = async (uploadId) => {
       setMessage("Upload removed from screen.");
       return;
     }
+// ✅ INVOICE DELETE — IMPORTANT
+if (uploadRow?.upload_type === "invoices") {
+  console.log("INVOICE DELETE START");
+  console.log("INVOICE original uploadId:", uploadId);
+  console.log("INVOICE uploadRow:", uploadRow);
 
-    // ✅ INVOICE DELETE — IMPORTANT
-    if (uploadRow?.upload_type === "invoices") {
-      console.log("INVOICE DELETE START");
-      console.log("INVOICE uploadId:", uploadId);
-      console.log("INVOICE uploadRow:", uploadRow);
+  let realUploadId = uploadId;
 
-      const { data: matchingInvoiceUploads, error: invoiceUploadFindError } =
-        await supabase
-          .from("invoice_uploads")
-          .select("id, upload_id, file_name, created_at, user_id")
-          .eq("upload_id", uploadId);
+  // fallback: if the clicked id is actually invoice_uploads.id
+  const { data: invoiceUploadById, error: invoiceUploadByIdError } =
+    await supabase
+      .from("invoice_uploads")
+      .select("id, upload_id, file_name, created_at, user_id")
+      .eq("id", uploadId)
+      .maybeSingle();
 
-      console.log("INVOICE matching uploads:", matchingInvoiceUploads);
-      console.log("INVOICE lookup error:", invoiceUploadFindError);
+  console.log("INVOICE upload by id:", invoiceUploadById);
+  console.log("INVOICE upload by id error:", invoiceUploadByIdError);
 
-      if (invoiceUploadFindError) throw invoiceUploadFindError;
+  if (invoiceUploadByIdError) throw invoiceUploadByIdError;
 
-      const invoiceIds = (matchingInvoiceUploads || []).map((row) => row.id);
+  if (invoiceUploadById?.upload_id) {
+    realUploadId = invoiceUploadById.upload_id;
+  }
 
-      const { error: lineItemsByUploadError } = await supabase
-        .from("invoice_line_items")
-        .delete()
-        .eq("upload_id", uploadId);
+  console.log("INVOICE realUploadId:", realUploadId);
 
-      console.log(
-        "INVOICE line items by upload delete error:",
-        lineItemsByUploadError
-      );
+  const { data: matchingInvoiceUploads, error: invoiceUploadFindError } =
+    await supabase
+      .from("invoice_uploads")
+      .select("id, upload_id, file_name, created_at, user_id")
+      .eq("upload_id", realUploadId);
 
-      if (lineItemsByUploadError) throw lineItemsByUploadError;
+  console.log("INVOICE matching uploads:", matchingInvoiceUploads);
+  console.log("INVOICE lookup error:", invoiceUploadFindError);
 
-      if (invoiceIds.length > 0) {
-        const { error: lineItemsByInvoiceError } = await supabase
-          .from("invoice_line_items")
-          .delete()
-          .in("invoice_id", invoiceIds);
+  if (invoiceUploadFindError) throw invoiceUploadFindError;
 
-        console.log(
-          "INVOICE line items by invoice delete error:",
-          lineItemsByInvoiceError
-        );
+  const invoiceIds = (matchingInvoiceUploads || []).map((row) => row.id);
 
-        if (lineItemsByInvoiceError) throw lineItemsByInvoiceError;
-      }
+  const { error: lineItemsByUploadError } = await supabase
+    .from("invoice_line_items")
+    .delete()
+    .eq("upload_id", realUploadId);
 
-      const { error: invoiceUploadsDeleteError } = await supabase
-        .from("invoice_uploads")
-        .delete()
-        .eq("upload_id", uploadId);
+  console.log(
+    "INVOICE line items by upload delete error:",
+    lineItemsByUploadError
+  );
 
-      console.log(
-        "INVOICE invoice_uploads delete error:",
-        invoiceUploadsDeleteError
-      );
+  if (lineItemsByUploadError) throw lineItemsByUploadError;
 
-      if (invoiceUploadsDeleteError) throw invoiceUploadsDeleteError;
+  if (invoiceIds.length > 0) {
+    const { error: lineItemsByInvoiceError } = await supabase
+      .from("invoice_line_items")
+      .delete()
+      .in("invoice_id", invoiceIds);
 
-      setInvoicesData((prev) =>
-        (prev || []).filter(
-          (row) =>
-            row.upload_id !== uploadId &&
-            row.invoice_id !== uploadId &&
-            !invoiceIds.includes(row.invoice_id)
-        )
-      );
-    }
+    console.log(
+      "INVOICE line items by invoice delete error:",
+      lineItemsByInvoiceError
+    );
+
+    if (lineItemsByInvoiceError) throw lineItemsByInvoiceError;
+  }
+
+  const { error: invoiceUploadsDeleteError } = await supabase
+    .from("invoice_uploads")
+    .delete()
+    .eq("upload_id", realUploadId);
+
+  console.log(
+    "INVOICE invoice_uploads delete error:",
+    invoiceUploadsDeleteError
+  );
+
+  if (invoiceUploadsDeleteError) throw invoiceUploadsDeleteError;
+
+  setInvoicesData((prev) =>
+    (prev || []).filter(
+      (row) =>
+        row.upload_id !== realUploadId &&
+        row.invoice_id !== realUploadId &&
+        !invoiceIds.includes(row.invoice_id)
+    )
+  );
+
+  uploadId = realUploadId;
+}
 
     // ✅ GENERAL CHILD TABLE DELETE
     const deleteSteps = [
