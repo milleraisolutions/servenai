@@ -765,7 +765,8 @@ const locationIngredientsData = filterByActiveLocation(ingredientsData);
 
 const locationInvoicesData = filterByActiveLocation(invoicesData);
 const handleInvoiceUpload = async (e) => {
-  const files = Array.from(e.target.files || []);
+  const input = e.target;
+  const files = Array.from(input.files || []);
 
   console.log("INVOICE UPLOAD FIRED");
   console.log("INVOICE FILES:", files);
@@ -775,9 +776,22 @@ const handleInvoiceUpload = async (e) => {
     return;
   }
 
+  const invalidFile = files.find(
+    (file) =>
+      file.type !== "application/pdf" &&
+      !String(file.name || "").toLowerCase().endsWith(".pdf")
+  );
+
+  if (invalidFile) {
+    setInvoiceUploadMessage("Only PDF invoice files are allowed.");
+    alert("Only PDF invoice files are allowed.");
+    input.value = "";
+    return;
+  }
+
   try {
     setInvoiceUploadLoading(true);
-    setInvoiceUploadMessage("Uploading invoices...");
+    setInvoiceUploadMessage("Importing invoices...");
 
     const {
       data: { session },
@@ -790,7 +804,7 @@ const handleInvoiceUpload = async (e) => {
     if (sessionError) throw sessionError;
 
     if (!session?.access_token) {
-      throw new Error("You must be logged in");
+      throw new Error("You must be logged in to upload invoices.");
     }
 
     const formData = new FormData();
@@ -801,74 +815,87 @@ const handleInvoiceUpload = async (e) => {
 
     console.log("INVOICE before API upload");
 
-   const controller = new AbortController();
+    const controller = new AbortController();
 
-const timeoutId = setTimeout(() => {
-  controller.abort();
-}, 30000);
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+    }, 60000);
 
-const res = await fetch("/api/upload-invoices", {
-  method: "POST",
-  headers: {
-    Authorization: `Bearer ${session.access_token}`,
-  },
-  body: formData,
-  signal: controller.signal,
-});
+    const res = await fetch("/api/upload-invoices", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: formData,
+      signal: controller.signal,
+    });
 
-clearTimeout(timeoutId);
+    clearTimeout(timeoutId);
 
     console.log("INVOICE API STATUS:", res.status);
 
-    const data = await res.json();
+    let data = null;
+
+    try {
+      data = await res.json();
+    } catch {
+      data = {};
+    }
 
     console.log("INVOICE API RESPONSE:", data);
 
     if (!res.ok) {
-      throw new Error(data?.error || "Invoice upload failed");
+      throw new Error(data?.error || "Invoice upload failed.");
     }
 
-    const uploadedCount = Number(data.uploadedCount || data.count || files.length || 0);
-
-    setInvoiceUploadMessage(
-      `Uploaded ${uploadedCount} invoice(s) successfully`
+    const uploadedCount = Number(
+      data?.uploadedCount || data?.count || files.length || 0
     );
 
-    setSupplierAlerts(data.alerts || []);
+    setInvoiceUploadMessage(
+      `Uploaded ${uploadedCount} invoice(s) successfully.`
+    );
 
-    if (Array.isArray(data.uploads) && data.uploads.length > 0) {
+    setSupplierAlerts(data?.alerts || []);
+
+    const uploadedRows = Array.isArray(data?.uploads)
+      ? data.uploads
+      : data?.uploadRow
+      ? [data.uploadRow]
+      : [];
+
+    if (uploadedRows.length > 0) {
       setClientImports((prev) => [
-        ...data.uploads,
+        ...uploadedRows,
         ...(prev || []).filter(
-          (upload) => !data.uploads.some((newUpload) => newUpload.id === upload.id)
+          (upload) =>
+            !uploadedRows.some((newUpload) => newUpload.id === upload.id)
         ),
       ]);
 
       setRecentUploads((prev) => [
-        ...data.uploads,
+        ...uploadedRows,
         ...(prev || []).filter(
-          (upload) => !data.uploads.some((newUpload) => newUpload.id === upload.id)
+          (upload) =>
+            !uploadedRows.some((newUpload) => newUpload.id === upload.id)
         ),
-      ]);
-    } else if (data.uploadRow) {
-      setClientImports((prev) => [
-        data.uploadRow,
-        ...(prev || []).filter((upload) => upload.id !== data.uploadRow.id),
-      ]);
-
-      setRecentUploads((prev) => [
-        data.uploadRow,
-        ...(prev || []).filter((upload) => upload.id !== data.uploadRow.id),
       ]);
     } else {
-      console.warn("Invoice API did not return upload rows for Recent Imports.");
+      console.warn("Invoice API did not return upload rows.");
       await loadClientUploads?.();
     }
 
-    if (Array.isArray(data.invoiceItems) && data.invoiceItems.length > 0) {
+    if (Array.isArray(data?.invoiceItems) && data.invoiceItems.length > 0) {
       setInvoicesData((prev) => [
         ...data.invoiceItems,
-        ...(prev || []),
+        ...(prev || []).filter(
+          (row) =>
+            !data.invoiceItems.some(
+              (newRow) =>
+                newRow.id === row.id ||
+                (newRow.upload_id && newRow.upload_id === row.upload_id)
+            )
+        ),
       ]);
     } else {
       await loadUploadComparison?.();
@@ -878,22 +905,24 @@ clearTimeout(timeoutId);
       [
         {
           id: Date.now(),
-          text: `Uploaded ${uploadedCount} invoice(s) successfully`,
+          text: `Uploaded ${uploadedCount} invoice(s) successfully.`,
         },
-        ...prev,
+        ...(prev || []),
       ].slice(0, 6)
     );
 
-    if (data.alerts && data.alerts.length > 0) {
+    if (Array.isArray(data?.alerts) && data.alerts.length > 0) {
       const recommendations = data.alerts.map((alert) => {
-        let suggestion = "Consider promoting alternative items this week";
+        let suggestion = "Consider promoting alternative items this week.";
 
-        if (String(alert.item || "").toLowerCase().includes("steak")) {
-          suggestion = "Promote chicken and pasta this week to protect margins";
-        } else if (String(alert.item || "").toLowerCase().includes("chicken")) {
-          suggestion = "Bundle chicken meals or adjust pricing to protect margin";
-        } else if (String(alert.item || "").toLowerCase().includes("cheese")) {
-          suggestion = "Push high-margin favorites and reduce discounting";
+        const itemName = String(alert.item || "").toLowerCase();
+
+        if (itemName.includes("steak")) {
+          suggestion = "Promote chicken and pasta this week to protect margins.";
+        } else if (itemName.includes("chicken")) {
+          suggestion = "Bundle chicken meals or adjust pricing to protect margin.";
+        } else if (itemName.includes("cheese")) {
+          suggestion = "Push high-margin favorites and reduce discounting.";
         }
 
         return {
@@ -920,28 +949,23 @@ clearTimeout(timeoutId);
       runAutopilotAI("Invoice upload scan");
     }
 
-    e.target.value = "";
+    await loadClientUploads?.();
+    await loadUploadComparison?.();
+
+    input.value = "";
   } catch (err) {
+    console.error("Invoice upload failed:", err);
 
-  if (err.name === "AbortError") {
-    setInvoiceUploadMessage("Invoice upload timed out after 30 seconds.");
-    alert("Invoice upload timed out after 30 seconds.");
-    return;
+    const message =
+      err?.name === "AbortError"
+        ? "Invoice upload timed out after 60 seconds."
+        : err?.message || "Invoice upload failed.";
+
+    setInvoiceUploadMessage(message);
+    alert(message);
+  } finally {
+    setInvoiceUploadLoading(false);
   }
-
-  console.error("Invoice upload failed:", err);
-
-  setInvoiceUploadMessage(
-    err?.message || "Invoice upload failed"
-  );
-
-  alert(
-    err?.message || "Invoice upload failed"
-  );
-
-} finally {
-  setInvoiceUploadLoading(false);
-}
 };
 const handleIngredientsUpload = async (event) => {
   try {
