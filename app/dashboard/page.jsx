@@ -26502,6 +26502,7 @@ const handleDeleteUpload = async (uploadId) => {
   console.log("DELETE CLICKED uploadId:", uploadId);
 
   const uploadIdString = String(uploadId);
+  let deleteUploadId = uploadId;
   const previousClientImports = clientImports || [];
   const previousRecentUploads = recentUploads || [];
 
@@ -26792,7 +26793,7 @@ if (uploadRow?.upload_type === "invoices") {
     )
   );
 
-  uploadId = realUploadId;
+ deleteUploadId = realUploadId;
 }
 
     // ✅ GENERAL CHILD TABLE DELETE
@@ -26898,9 +26899,9 @@ if (uploadRow?.upload_type === "invoices") {
     console.log("UPLOAD ROW:", uploadRow);
 
     const { error: uploadDeleteError } = await supabase
-      .from("uploads")
-      .delete()
-      .eq("id", uploadId);
+  .from("uploads")
+  .delete()
+  .eq("id", deleteUploadId);
 
     console.log("UPLOAD DELETE ERROR:", uploadDeleteError);
 
