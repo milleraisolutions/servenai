@@ -168,8 +168,22 @@ export async function POST(req) {
         throw new Error(`${file.name} is empty`);
       }
 
-      const parsedPdf = await pdfParse(buffer);
-      const text = parsedPdf?.text || "";
+      let text = "";
+
+try {
+  const parsedPdf = await pdfParse(buffer);
+  text = parsedPdf?.text || "";
+} catch (pdfError) {
+  console.error("PDF parse failed:", pdfError);
+
+  return NextResponse.json(
+    {
+      error:
+        "This invoice PDF could not be read. Try exporting it as a new PDF or upload a cleaner vendor invoice PDF.",
+    },
+    { status: 400 }
+  );
+}
 
       console.log("PDF FILE:", file.name);
       console.log("PDF TEXT LENGTH:", text.length);
