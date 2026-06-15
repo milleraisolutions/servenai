@@ -12,21 +12,124 @@ if (!supabaseUrl || !supabaseServiceRoleKey) {
 
 const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
 
+async function safeDeleteByUploadId(uploadId) {
+  const deleteSteps = [
+    ["sales", "upload_id"],
+    ["menu_items", "upload_id"],
+    ["ingredients", "upload_id"],
+    ["inventory_items", "upload_id"],
+    ["beverage_items", "upload_id"],
+    ["beverage_usage", "upload_id"],
+    ["batch_prep_data", "upload_id"],
+    ["recipe_ingredients", "upload_id"],
+    ["recipes", "upload_id"],
+    ["employee_shifts", "upload_id"],
+    ["restaurant_customers", "upload_id"],
+    ["customers", "upload_id"],
+    ["client_data_uploads", "upload_id"],
+    ["locations", "upload_id"],
+  ];
+
+  for (const [table, column] of deleteSteps) {
+    const { error } = await supabase.from(table).delete().eq(column, uploadId);
+
+    if (error) {
+      console.warn(`DELETE API ${table} skipped/failed:`, error);
+    }
+  }
+}
+
+async function deleteInvoiceData(uploadId) {
+  const { data: invoiceUploads, error: invoiceLookupError } = await supabase
+    .from("invoice_uploads")
+    .select("id, upload_id, file_name, user_id")
+    .eq("upload_id", uploadId);
+
+  if (invoiceLookupError) throw invoiceLookupError;
+
+  const invoiceIds = (invoiceUploads || []).map((row) => row.id);
+
+  console.log("DELETE API invoiceUploads:", invoiceUploads);
+  console.log("DELETE API invoiceIds:", invoiceIds);
+
+  const { error: lineByUploadError } = await supabase
+    .from("invoice_line_items")
+    .delete()
+    .eq("upload_id", uploadId);
+
+  if (lineByUploadError) throw lineByUploadError;
+
+  if (invoiceIds.length > 0) {
+    const { error: lineByInvoiceError } = await supabase
+      .from("invoice_line_items")
+      .delete()
+      .in("invoice_id", invoiceIds);
+
+    if (lineByInvoiceError) throw lineByInvoiceError;
+  }
+
+  const { error: invoiceUploadsDeleteError } = await supabase
+    .from("invoice_uploads")
+    .delete()
+    .eq("upload_id", uploadId);
+
+  if (invoiceUploadsDeleteError) throw invoiceUploadsDeleteError;
+}
+
+async function deleteLaborUpload(id) {
+  const laborId = String(id).startsWith("labor-")
+    ? String(id).replace("labor-", "")
+    : String(id);
+
+  const { data: laborRow, error: laborLookupError } = await supabase
+    .from("labor_uploads")
+    .select("id")
+    .eq("id", laborId)
+    .maybeSingle();
+
+  if (laborLookupError) throw laborLookupError;
+
+  if (!laborRow?.id) return null;
+
+  const { error: laborDeleteError } = await supabase
+    .from("labor_uploads")
+    .delete()
+    .eq("id", laborId);
+
+  if (laborDeleteError) throw laborDeleteError;
+
+  return laborId;
+}
+
 export async function POST(req) {
   try {
     const body = await req.json();
-    const id = body?.id || body?.uploadId;
+    const rawId = body?.id || body?.uploadId;
 
-    if (!id) {
+    if (!rawId) {
       return NextResponse.json(
         { error: "Upload id is required." },
         { status: 400 }
       );
     }
 
+    const id = String(rawId);
+
     console.log("DELETE CLIENT UPLOAD API START:", id);
 
-    // First check uploads table
+    // ✅ 1. Labor uploads do not live in uploads table.
+    // Try this first so labor-<uuid> and raw labor uuid both work.
+    const deletedLaborId = await deleteLaborUpload(id);
+
+    if (deletedLaborId) {
+      return NextResponse.json({
+        success: true,
+        deletedFrom: "labor_uploads",
+        deletedUploadId: deletedLaborId,
+      });
+    }
+
+    // ✅ 2. Normal uploads table rows.
     const { data: uploadRow, error: uploadLookupError } = await supabase
       .from("uploads")
       .select("*")
@@ -37,73 +140,12 @@ export async function POST(req) {
 
     console.log("DELETE API uploadRow:", uploadRow);
 
-    // ✅ If this is a normal uploads-table import
     if (uploadRow?.id) {
       if (uploadRow.upload_type === "invoices") {
-        const { data: invoiceUploads, error: invoiceLookupError } =
-          await supabase
-            .from("invoice_uploads")
-            .select("id, upload_id, file_name, user_id")
-            .eq("upload_id", uploadRow.id);
-
-        if (invoiceLookupError) throw invoiceLookupError;
-
-        const invoiceIds = (invoiceUploads || []).map((row) => row.id);
-
-        console.log("DELETE API invoiceUploads:", invoiceUploads);
-        console.log("DELETE API invoiceIds:", invoiceIds);
-
-        const { error: lineByUploadError } = await supabase
-          .from("invoice_line_items")
-          .delete()
-          .eq("upload_id", uploadRow.id);
-
-        if (lineByUploadError) throw lineByUploadError;
-
-        if (invoiceIds.length > 0) {
-          const { error: lineByInvoiceError } = await supabase
-            .from("invoice_line_items")
-            .delete()
-            .in("invoice_id", invoiceIds);
-
-          if (lineByInvoiceError) throw lineByInvoiceError;
-        }
-
-        const { error: invoiceUploadsDeleteError } = await supabase
-          .from("invoice_uploads")
-          .delete()
-          .eq("upload_id", uploadRow.id);
-
-        if (invoiceUploadsDeleteError) throw invoiceUploadsDeleteError;
+        await deleteInvoiceData(uploadRow.id);
       }
 
-      const deleteSteps = [
-        ["sales", "upload_id"],
-        ["menu_items", "upload_id"],
-        ["ingredients", "upload_id"],
-        ["inventory_items", "upload_id"],
-        ["beverage_items", "upload_id"],
-        ["beverage_usage", "upload_id"],
-        ["batch_prep_data", "upload_id"],
-        ["recipe_ingredients", "upload_id"],
-        ["recipes", "upload_id"],
-        ["employee_shifts", "upload_id"],
-        ["restaurant_customers", "upload_id"],
-        ["customers", "upload_id"],
-        ["client_data_uploads", "upload_id"],
-        ["locations", "upload_id"],
-      ];
-
-      for (const [table, column] of deleteSteps) {
-        const { error } = await supabase
-          .from(table)
-          .delete()
-          .eq(column, uploadRow.id);
-
-        if (error) {
-          console.warn(`DELETE API ${table} skipped/failed:`, error);
-        }
-      }
+      await safeDeleteByUploadId(uploadRow.id);
 
       const { error: uploadDeleteError } = await supabase
         .from("uploads")
@@ -119,31 +161,37 @@ export async function POST(req) {
       });
     }
 
-    // ✅ Fallback for old client_data_uploads-only rows
-    const { error: clientDataDeleteError } = await supabase
+    // ✅ 3. Fallback for old client_data_uploads-only rows.
+    const { data: clientRow, error: clientLookupError } = await supabase
       .from("client_data_uploads")
-      .delete()
-      .eq("id", id);
+      .select("id")
+      .eq("id", id)
+      .maybeSingle();
 
-    if (clientDataDeleteError) {
-      console.error("Delete client_data_uploads failed:", clientDataDeleteError);
+    if (clientLookupError) throw clientLookupError;
 
-      return NextResponse.json(
-        {
-          error: clientDataDeleteError.message || "Failed to delete upload.",
-          details: clientDataDeleteError.details || null,
-          hint: clientDataDeleteError.hint || null,
-          code: clientDataDeleteError.code || null,
-        },
-        { status: 500 }
-      );
+    if (clientRow?.id) {
+      const { error: clientDataDeleteError } = await supabase
+        .from("client_data_uploads")
+        .delete()
+        .eq("id", id);
+
+      if (clientDataDeleteError) throw clientDataDeleteError;
+
+      return NextResponse.json({
+        success: true,
+        deletedFrom: "client_data_uploads",
+        deletedUploadId: id,
+      });
     }
 
-    return NextResponse.json({
-      success: true,
-      deletedFrom: "client_data_uploads",
-      deletedUploadId: id,
-    });
+    return NextResponse.json(
+      {
+        error: "No matching upload was found to delete.",
+        searchedId: id,
+      },
+      { status: 404 }
+    );
   } catch (error) {
     console.error("Delete route failed:", error);
 
