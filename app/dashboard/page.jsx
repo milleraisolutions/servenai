@@ -377,7 +377,7 @@ const isOwnerRole = userRole === "owner";
 const isExecutiveRole = userRole === "executive";
 const isGMRole = userRole === "gm";
 const isKitchenManagerRole = userRole === "kitchen_manager";
-const dataOwnerId = userProfile?.owner_user_id || user?.id;
+const dataOwnerId = userProfile?.owner_user_id || user?.id || null;
 const assignedLocation = userProfile?.location_name || null;
 
 const shouldFilterByLocation =
@@ -6225,7 +6225,7 @@ const finalRevenue =
     const { data: existingRows, error: existingError } = await supabase
       .from("menu_items")
       .select("*")
-      .eq("user_id", dataOwnerId)
+      .eq("user_id", dataOwnerId || user?.id)
 
     if (existingError) throw existingError;
 
@@ -6304,7 +6304,7 @@ const isFullMenuSync = cleanedRows.length >= 20;
     const { data: refreshedMenuItems, error: refreshError } = await supabase
       .from("menu_items")
       .select("*")
-     .eq("user_id", dataOwnerId)
+     .eq("user_id", dataOwnerId || user?.id)
       .eq("is_active", true)
       .order("created_at", { ascending: false });
 
@@ -7056,13 +7056,13 @@ const loadUploadComparison = async () => {
     const { data: menuItems } = await supabase
       .from("menu_items")
       .select("*")
-      .eq("user_id", dataOwnerId)
+      .eq("user_id", dataOwnerId || user?.id)
       .order("last_seen_at", { ascending: false });
 
     const { data: ingredients } = await supabase
       .from("ingredients")
       .select("*")
-      .eq("user_id", dataOwnerId)
+      .eq("user_id", dataOwnerId || user?.id)
       .order("last_seen_at", { ascending: false });
 
     const activeMenuItems = (menuItems || []).filter((i) => i.is_active);
@@ -10916,7 +10916,7 @@ const fetchClientImports = async () => {
 let uploadsQuery = supabase
   .from("uploads")
   .select("*")
-  .eq("user_id", dataOwnerId)
+  .eq("user_id", dataOwnerId || user?.id)
   .or("archived.is.false,archived.is.null");
 
 uploadsQuery = applyLocationFilter(uploadsQuery);
@@ -10927,7 +10927,7 @@ const { data, error } = await uploadsQuery.order("created_at", {
 const { data: laborRows, error: laborError } = await supabase
   .from("labor_uploads")
   .select("*")
-  .eq("user_id", dataOwnerId)
+ .eq("user_id", dataOwnerId || user?.id)
   .order("created_at", { ascending: false });
 
 if (laborError) {
