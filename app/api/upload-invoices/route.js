@@ -263,22 +263,21 @@ export async function POST(req) {
         const flaggedIncrease =
           priceChangePercent != null && priceChangePercent >= 5;
 
-        lineItemsToInsert.push({
-          invoice_id: invoiceRow.id,
-          upload_id: uploadRow.id,
-          user_id: user.id,
-          file_name: file.name,
-          supplier_name: parsedInvoice.supplierName,
-          item_name: item.item_name,
-          unit: item.unit,
-          quantity: item.quantity,
-          unit_price: item.unit_price,
-          total_price: item.total_price,
-          previous_unit_price: previousPrice,
-          price_change: priceChange,
-          price_change_percent: priceChangePercent,
-          flagged_increase: flaggedIncrease,
-        });
+      lineItemsToInsert.push({
+  invoice_id: invoiceRow.id,
+  upload_id: uploadRow.id,
+  user_id: user.id,
+  file_name: file.name,
+  item_name: item.item_name,
+  unit: item.unit,
+  quantity: item.quantity,
+  unit_price: item.unit_price,
+  total_price: item.total_price,
+  previous_unit_price: previousPrice,
+  price_change: priceChange,
+  price_change_percent: priceChangePercent,
+  flagged_increase: flaggedIncrease,
+});
 
         if (flaggedIncrease) {
           alerts.push({
