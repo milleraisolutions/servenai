@@ -263,11 +263,12 @@ export async function POST(req) {
         const flaggedIncrease =
           priceChangePercent != null && priceChangePercent >= 5;
 
-      lineItemsToInsert.push({
+ lineItemsToInsert.push({
   invoice_id: invoiceRow.id,
   upload_id: uploadRow.id,
   user_id: user.id,
   file_name: file.name,
+  supplier_name: parsedInvoice.supplierName || "Unknown Supplier",
   item_name: item.item_name,
   unit: item.unit,
   quantity: item.quantity,
