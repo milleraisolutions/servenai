@@ -2331,24 +2331,106 @@ const rawSales = Array.isArray(locationSalesData) && locationSalesData.length
         : "flat",
   };
 }, [dbSalesRows, locationSalesData, pendingUploadRows]);
+const realSalesMetrics = useMemo(() => {
+  const rows = dbSalesRows || [];
 
+  const cleanRows = rows.filter((row) => {
+    const revenue = Number(row.revenue || 0);
+    return revenue > 0;
+  });
+
+  const totalRevenueFromDb = cleanRows.reduce(
+    (sum, row) => sum + Number(row.revenue || 0),
+    0
+  );
+
+  const totalOrdersFromDb = cleanRows.reduce((sum, row) => {
+    const orders = Number(
+      row.orders_count ||
+        row.orders ||
+        row.order_count ||
+        row.check_count ||
+        row.ticket_count ||
+        row.transactions ||
+        0
+    );
+
+    return sum + orders;
+  }, 0);
+
+  const averageOrderValueFromDb =
+    totalOrdersFromDb > 0 ? totalRevenueFromDb / totalOrdersFromDb : 0;
+
+  const today = new Date().toISOString().slice(0, 10);
+
+  const todayRows = cleanRows.filter((row) => {
+    const saleDate =
+      row.sale_date ||
+      row.date ||
+      row.business_date ||
+      row.created_at ||
+      "";
+
+    return String(saleDate).slice(0, 10) === today;
+  });
+
+  const todayRevenueFromDb = todayRows.reduce(
+    (sum, row) => sum + Number(row.revenue || 0),
+    0
+  );
+
+  const todayOrdersFromDb = todayRows.reduce((sum, row) => {
+    const orders = Number(
+      row.orders_count ||
+        row.orders ||
+        row.order_count ||
+        row.check_count ||
+        row.ticket_count ||
+        row.transactions ||
+        0
+    );
+
+    return sum + orders;
+  }, 0);
+
+  const todayAOVFromDb =
+    todayOrdersFromDb > 0 ? todayRevenueFromDb / todayOrdersFromDb : 0;
+
+  return {
+    totalRevenueFromDb,
+    totalOrdersFromDb,
+    averageOrderValueFromDb,
+
+    todayRevenueFromDb,
+    todayOrdersFromDb,
+    todayAOVFromDb,
+
+    salesRecordCount: cleanRows.length,
+    hasDbSales: cleanRows.length > 0,
+    hasTodaySales: todayRows.length > 0,
+  };
+}, [dbSalesRows]);
 const liveTotalRevenue =
-  revenueTracker?.totalRevenue || totalRevenue || 0;
+  Number(realSalesMetrics?.totalRevenueFromDb || 0) > 0
+    ? Number(realSalesMetrics.totalRevenueFromDb || 0)
+    : Number(revenueTracker?.totalRevenue || totalRevenue || 0);
 
 const liveMomentumPercent =
-  revenueTrend?.growthPercent || momentumPercent || 0;
+  Number(revenueTrend?.growthPercent || momentumPercent || 0);
 
 const liveTotalOrders =
-  revenueTracker?.recentSales?.length || totalOrders || 0;
+  Number(realSalesMetrics?.totalOrdersFromDb || 0) > 0
+    ? Number(realSalesMetrics.totalOrdersFromDb || 0)
+    : Number(totalOrders || revenueTracker?.recentSales?.length || 0);
 
 const liveAOV =
-  liveTotalOrders > 0
+  Number(realSalesMetrics?.averageOrderValueFromDb || 0) > 0
+    ? Number(realSalesMetrics.averageOrderValueFromDb || 0)
+    : liveTotalOrders > 0
     ? liveTotalRevenue / liveTotalOrders
-    : aov || 0;
+    : Number(aov || 0);
 
-const livePeakHours =
-  peakHours || "N/A";
-
+const livePeakHours = peakHours || "N/A";
 const liveAvgMargin =
   avgMargin || 0;
 
@@ -7998,29 +8080,7 @@ useEffect(() => {
   if (!dataOwnerId) return;
   loadSalesFromDatabase();
 }, [dataOwnerId, activeLocation]);
-const realSalesMetrics = useMemo(() => {
-  const rows = dbSalesRows || [];
 
-  const totalRevenueFromDb = rows.reduce(
-    (sum, row) => sum + Number(row.revenue || 0),
-    0
-  );
-
-  const totalOrdersFromDb = rows.reduce(
-    (sum, row) => sum + Number(row.orders_count || 0),
-    0
-  );
-
-  const averageOrderValueFromDb =
-    totalOrdersFromDb > 0 ? totalRevenueFromDb / totalOrdersFromDb : 0;
-
-  return {
-    totalRevenueFromDb,
-    totalOrdersFromDb,
-    averageOrderValueFromDb,
-    hasDbSales: rows.length > 0,
-  };
-}, [dbSalesRows]);
 useEffect(() => {
   if (!autopilotEnabled) return;
 
