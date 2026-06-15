@@ -4472,34 +4472,77 @@ const detectPOSSourceFromRows = (rows) => {
 };
 
 const deleteClientUpload = async (id) => {
-  if (!id) return;
+  if (!id) {
+    alert("Missing upload id.");
+    return;
+  }
+
   if (!confirm("Delete this upload?")) return;
 
+  const previousClientUploads = clientUploads || [];
+  const previousClientImports = clientImports || [];
+  const previousRecentUploads = recentUploads || [];
+  const previousInvoicesData = invoicesData || [];
+
   try {
+    setMessage("Deleting upload...");
+
+    // optimistic UI removal
+    setClientUploads((prev) => (prev || []).filter((item) => item.id !== id));
+    setClientImports((prev) => (prev || []).filter((item) => item.id !== id));
+    setRecentUploads((prev) => (prev || []).filter((item) => item.id !== id));
+    setInvoicesData((prev) =>
+      (prev || []).filter(
+        (row) =>
+          row.upload_id !== id &&
+          row.invoice_id !== id &&
+          row.id !== id
+      )
+    );
+
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
     const res = await fetch("/api/delete-client-upload", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        Authorization: `Bearer ${session?.access_token || ""}`,
       },
       body: JSON.stringify({ id }),
     });
 
-    const result = await res.json();
+    let result = {};
 
-    if (!res.ok) {
-      console.error("Delete failed:", result);
-      alert(result?.error || "Delete failed");
-      return;
+    try {
+      result = await res.json();
+    } catch {
+      result = {};
     }
 
-    setClientUploads((prev) =>
-      (prev || []).filter((item) => item.id !== id)
-    );
+    console.log("DELETE CLIENT UPLOAD STATUS:", res.status);
+    console.log("DELETE CLIENT UPLOAD RESPONSE:", result);
 
-    await loadClientUploads();
+    if (!res.ok) {
+      throw new Error(result?.error || "Delete failed");
+    }
+
+    setMessage("Upload deleted.");
+
+    await loadClientUploads?.();
+    await loadClientImports?.();
+    await loadUploadComparison?.();
   } catch (err) {
     console.error("Delete error:", err);
+
+    setClientUploads(previousClientUploads);
+    setClientImports(previousClientImports);
+    setRecentUploads(previousRecentUploads);
+    setInvoicesData(previousInvoicesData);
+
     alert(err?.message || "Delete error");
+    setMessage("Delete failed.");
   }
 };
 const clientRiskSummary = {
