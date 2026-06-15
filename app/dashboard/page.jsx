@@ -28348,7 +28348,7 @@ handleImportInventory();
     </button>
 
     <button
-      onClick={() => handleDeleteUpload(item.id)}
+      onClick={() => deleteClientUpload(item.id)}
       style={{
         padding: "8px 12px",
         borderRadius: "10px",
