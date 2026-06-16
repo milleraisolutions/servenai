@@ -49,9 +49,6 @@ async function deleteInvoiceData(uploadId) {
 
   const invoiceIds = (invoiceUploads || []).map((row) => row.id);
 
-  console.log("DELETE API invoiceUploads:", invoiceUploads);
-  console.log("DELETE API invoiceIds:", invoiceIds);
-
   const { error: lineByUploadError } = await supabase
     .from("invoice_line_items")
     .delete()
@@ -76,12 +73,46 @@ async function deleteInvoiceData(uploadId) {
   if (invoiceUploadsDeleteError) throw invoiceUploadsDeleteError;
 }
 
+async function deleteLaborByFileName(fileName) {
+  if (!fileName) return null;
+
+  const cleanFileName = String(fileName).trim();
+
+  if (!cleanFileName) return null;
+
+  console.log("DELETE API labor by file_name:", cleanFileName);
+
+  const { data: laborRows, error: laborLookupError } = await supabase
+    .from("labor_uploads")
+    .select("id, file_name")
+    .ilike("file_name", cleanFileName);
+
+  if (laborLookupError) throw laborLookupError;
+
+  if (!laborRows?.length) {
+    console.log("DELETE API no labor rows matched file_name:", cleanFileName);
+    return null;
+  }
+
+  const { error: laborDeleteError } = await supabase
+    .from("labor_uploads")
+    .delete()
+    .ilike("file_name", cleanFileName);
+
+  if (laborDeleteError) throw laborDeleteError;
+
+  return {
+    fileName: cleanFileName,
+    deletedCount: laborRows.length,
+    ids: laborRows.map((row) => row.id),
+  };
+}
+
 async function deleteLaborUpload(id) {
   const rawId = String(id || "");
 
   if (!rawId) return null;
 
-  // Only handle real labor upload IDs here
   if (rawId.startsWith("labor-file-")) {
     return null;
   }
@@ -90,7 +121,6 @@ async function deleteLaborUpload(id) {
     ? rawId.slice("labor-".length)
     : rawId;
 
-  // Prevent UUID errors before Supabase query
   const uuidRegex =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -101,11 +131,6 @@ async function deleteLaborUpload(id) {
     });
     return null;
   }
-
-  console.log("DELETE API labor lookup:", {
-    rawId,
-    laborId,
-  });
 
   const { data: laborRow, error: laborLookupError } = await supabase
     .from("labor_uploads")
@@ -130,7 +155,9 @@ async function deleteLaborUpload(id) {
 export async function POST(req) {
   try {
     const body = await req.json();
+
     const rawId = body?.id || body?.uploadId;
+    const laborFileName = body?.laborFileName || null;
 
     if (!rawId) {
       return NextResponse.json(
@@ -141,10 +168,28 @@ export async function POST(req) {
 
     const id = String(rawId);
 
-    console.log("DELETE CLIENT UPLOAD API START:", id);
+    console.log("DELETE CLIENT UPLOAD API START:", {
+      id,
+      laborFileName,
+    });
 
-    // ✅ 1. Labor uploads do not live in uploads table.
-    // Try this first so labor-<uuid> and raw labor uuid both work.
+    // ✅ 1. Labor file group delete by filename.
+    if (laborFileName) {
+      const deletedLaborFile = await deleteLaborByFileName(laborFileName);
+
+      if (deletedLaborFile) {
+        return NextResponse.json({
+          success: true,
+          deletedFrom: "labor_uploads",
+          deletedUploadId: id,
+          deletedFileName: deletedLaborFile.fileName,
+          deletedCount: deletedLaborFile.deletedCount,
+          deletedLaborIds: deletedLaborFile.ids,
+        });
+      }
+    }
+
+    // ✅ 2. Labor single UUID delete.
     const deletedLaborId = await deleteLaborUpload(id);
 
     if (deletedLaborId) {
@@ -155,7 +200,20 @@ export async function POST(req) {
       });
     }
 
-    // ✅ 2. Normal uploads table rows.
+    // ✅ 3. Normal uploads table rows.
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+    if (!uuidRegex.test(id)) {
+      return NextResponse.json(
+        {
+          error: "No matching upload was found to delete.",
+          searchedId: id,
+        },
+        { status: 404 }
+      );
+    }
+
     const { data: uploadRow, error: uploadLookupError } = await supabase
       .from("uploads")
       .select("*")
@@ -163,8 +221,6 @@ export async function POST(req) {
       .maybeSingle();
 
     if (uploadLookupError) throw uploadLookupError;
-
-    console.log("DELETE API uploadRow:", uploadRow);
 
     if (uploadRow?.id) {
       if (uploadRow.upload_type === "invoices") {
@@ -187,7 +243,7 @@ export async function POST(req) {
       });
     }
 
-    // ✅ 3. Fallback for old client_data_uploads-only rows.
+    // ✅ 4. Fallback for old client_data_uploads-only rows.
     const { data: clientRow, error: clientLookupError } = await supabase
       .from("client_data_uploads")
       .select("id")

@@ -4572,10 +4572,19 @@ const deleteClientUpload = async (id) => {
 
     let deleteId = id;
     const originalId = id;
+let laborFileNameToDelete = null;
 
-    if (String(id).startsWith("labor-")) {
-      deleteId = String(id).replace("labor-", "");
-    }
+if (String(id).startsWith("labor-file-")) {
+  laborFileNameToDelete =
+    String(id)
+      .replace("labor-file-", "")
+      .split("-2026-")[0] || null;
+}
+   if (String(id).startsWith("labor-file-")) {
+  deleteId = id;
+} else if (String(id).startsWith("labor-")) {
+  deleteId = String(id).replace("labor-", "");
+}
 
     const laborDisplayId = `labor-${deleteId}`;
 
@@ -4619,7 +4628,10 @@ const deleteClientUpload = async (id) => {
         "Content-Type": "application/json",
         Authorization: `Bearer ${session?.access_token || ""}`,
       },
-      body: JSON.stringify({ id: deleteId }),
+      body: JSON.stringify({
+  id: deleteId,
+  laborFileName: laborFileNameToDelete,
+}),
     });
 
     let result = {};
