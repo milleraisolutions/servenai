@@ -4815,11 +4815,18 @@ useEffect(() => {
   };
 }, []);
 useEffect(() => {
-  if (user?.id && isOwner) {
-    loadClientAlerts();
-  } else {
+  if (!(user?.id && isOwner)) {
     setClientAlerts([]);
+    return;
   }
+
+  loadClientAlerts();
+
+  const interval = setInterval(() => {
+    loadClientAlerts();
+  }, 30000);
+
+  return () => clearInterval(interval);
 }, [user?.id, isOwner]);
 const getRecommendedActionForAlert = (alert) => {
   const actionsSource =
@@ -12566,6 +12573,14 @@ const totalAIRecoveryOpportunity =
   estimatedLaborRecovery +
   operationalEstimatedWasteRecovery +
   estimatedAlcoholRecovery;
+  const annualRecoverableProfit =
+  Number(totalAIRecoveryOpportunity || 0) * 12;
+
+const restaurantRetains =
+  Number(totalAIRecoveryOpportunity || 0) * 0.7;
+
+const servenSuccessFee =
+  Number(totalAIRecoveryOpportunity || 0) * 0.3;
   const hasOperationalData =
   (salesData || []).length > 0 ||
   (laborData || []).length > 0 ||
@@ -12704,11 +12719,11 @@ const wowInsight = (() => {
     };
   }
 
-  return {
-    title: "Profit Leakage Detected",
-    value: `$${Number(totalAIRecoveryOpportunity || 0).toLocaleString()}/month`,
-    message: "Estimated monthly opportunity",
-  };
+ return {
+  title: "Monthly Recoverable Profit",
+  value: `$${Number(totalAIRecoveryOpportunity || 0).toLocaleString()}/month`,
+  message: "Serven-estimated monthly profit recovery opportunity",
+};
 })();
 console.log("AI RECOVERY DEBUG:", {
   estimatedFoodRecovery,
@@ -24369,7 +24384,7 @@ const loadAuditLogs = async () => {
     const { data, error } = await supabase
       .from("audit_logs")
       .select("*")
-      .eq("user_id", user.id)
+      .eq("user_id", dataOwnerId || user.id)
       .order("created_at", { ascending: false })
       .limit(100);
 
@@ -24387,8 +24402,16 @@ const loadAuditLogs = async () => {
 };
 
 useEffect(() => {
+  if (!dataOwnerId) return;
+
   loadAuditLogs();
-}, []);
+
+  const interval = setInterval(() => {
+    loadAuditLogs();
+  }, 30000);
+
+  return () => clearInterval(interval);
+}, [dataOwnerId]);
 const handleBeverageUpload = async (event) => {
   console.log("BEVERAGE UPLOAD FIRED");
 
@@ -26219,8 +26242,16 @@ alert("Invite sent successfully.");
 };
 
 useEffect(() => {
+  if (!dataOwnerId) return;
+
   loadTeamInvites();
-}, []);
+
+  const interval = setInterval(() => {
+    loadTeamInvites();
+  }, 30000);
+
+  return () => clearInterval(interval);
+}, [dataOwnerId]);
 
 const loadTeamInvites = async () => {
   const {
@@ -26232,7 +26263,7 @@ const loadTeamInvites = async () => {
   const { data, error } = await supabase
     .from("team_invites")
     .select("*")
-    .eq("owner_user_id", user.id)
+    .eq("owner_user_id", dataOwnerId || user.id)
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -55010,26 +55041,39 @@ Restaurant AI Health is currently rated{" "}
   }}
 >
           <GlassCard
-            title="AI Score"
-           value={
-  hasOperationalData
-    ? `${Number(restaurantAIHealthScore || 0)}/100`
-    : "Awaiting Data"
-}
-            subtext="AI-rated business health"
-          />
+  title="Annual Recoverable Profit"
+  value={
+    hasOperationalData
+      ? `$${Number(
+          annualRecoverableProfit || 0
+        ).toLocaleString()}`
+      : "Awaiting Data"
+  }
+  subtext="Estimated annual profit recovery"
+/>
 
-          <GlassCard
-            title="Health Status"
-            value={
-              Number(score || 0) >= 80
-                ? "Strong"
-                : Number(score || 0) >= 60
-                ? "Stable"
-                : "Needs Attention"
-            }
-            subtext="Overall system performance"
-          />
+<GlassCard
+  title="Restaurant Retains"
+  value={
+    hasOperationalData
+      ? `$${Number(
+          restaurantRetains || 0
+        ).toLocaleString()}`
+      : "Awaiting Data"
+  }
+  subtext="70% retained by operator"
+/>
+<GlassCard
+  title="Serven Success Fee"
+  value={
+    hasOperationalData
+      ? `$${Number(
+          servenSuccessFee || 0
+        ).toLocaleString()}`
+      : "Awaiting Data"
+  }
+  subtext="30% performance share"
+/>
         </div>
 
 
