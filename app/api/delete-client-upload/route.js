@@ -77,9 +77,35 @@ async function deleteInvoiceData(uploadId) {
 }
 
 async function deleteLaborUpload(id) {
-  const laborId = String(id).startsWith("labor-")
-    ? String(id).replace("labor-", "")
-    : String(id);
+  const rawId = String(id || "");
+
+  if (!rawId) return null;
+
+  // Only handle real labor upload IDs here
+  if (rawId.startsWith("labor-file-")) {
+    return null;
+  }
+
+  const laborId = rawId.startsWith("labor-")
+    ? rawId.slice("labor-".length)
+    : rawId;
+
+  // Prevent UUID errors before Supabase query
+  const uuidRegex =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+  if (!uuidRegex.test(laborId)) {
+    console.log("DELETE API skipping labor lookup, not a UUID:", {
+      rawId,
+      laborId,
+    });
+    return null;
+  }
+
+  console.log("DELETE API labor lookup:", {
+    rawId,
+    laborId,
+  });
 
   const { data: laborRow, error: laborLookupError } = await supabase
     .from("labor_uploads")
