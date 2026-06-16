@@ -11110,9 +11110,57 @@ if (laborError) {
 };
 useEffect(() => {
   if (!dataOwnerId) return;
-  fetchClientImports();
-}, [dataOwnerId, activeLocation]);
 
+  fetchClientImports();
+
+  const interval = setInterval(() => {
+    fetchClientImports();
+  }, 30000);
+
+  return () => clearInterval(interval);
+}, [dataOwnerId, activeLocation]);
+useEffect(() => {
+  const loadInvoices = async () => {
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user?.id) return;
+
+      let invoiceQuery = supabase
+        .from("invoice_line_items")
+        .select("*")
+        .eq("user_id", dataOwnerId || user.id);
+
+      invoiceQuery = applyLocationFilter(invoiceQuery);
+
+      const { data, error } = await invoiceQuery
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("Invoice load error:", error);
+        return;
+      }
+
+      setInvoicesData(data || []);
+
+      console.log("LOADED INVOICES:", data?.length || 0);
+    } catch (err) {
+      console.error("Invoice load crash:", err);
+    }
+  };
+
+  if (!dataOwnerId) return;
+
+  loadInvoices();
+
+  const interval = setInterval(() => {
+    loadInvoices();
+  }, 30000);
+
+  return () => clearInterval(interval);
+}, [dataOwnerId, activeLocation]);
 const getCampaignROIStats = () => {
   const campaigns = savedCampaigns || [];
 
@@ -24704,11 +24752,19 @@ useEffect(() => {
       return;
     }
 
-    setLocations(data || []);
+       setLocations(data || []);
   };
 
+  if (!dataOwnerId) return;
+
   loadLocations();
-}, []);
+
+  const interval = setInterval(() => {
+    loadLocations();
+  }, 30000);
+
+  return () => clearInterval(interval);
+}, [dataOwnerId, activeLocation]);
 const handleLocationUpload = async (event) => {
   let uploadRow = null;
 
