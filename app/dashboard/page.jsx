@@ -11161,6 +11161,48 @@ useEffect(() => {
 
   return () => clearInterval(interval);
 }, [dataOwnerId, activeLocation]);
+useEffect(() => {
+  const loadBatchPrepData = async () => {
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user?.id) return;
+
+      let batchPrepQuery = supabase
+        .from("batch_prep_data")
+        .select("*")
+        .eq("user_id", dataOwnerId || user.id);
+
+      batchPrepQuery = applyLocationFilter(batchPrepQuery);
+
+      const { data, error } = await batchPrepQuery
+        .order("prep_date", { ascending: false })
+        .limit(1000);
+
+      if (error) {
+        console.error("Batch prep load error:", error);
+        return;
+      }
+
+      setBatchPrepData(data || []);
+      console.log("LOADED BATCH PREP:", data?.length || 0);
+    } catch (err) {
+      console.error("Batch prep load crash:", err);
+    }
+  };
+
+  if (!dataOwnerId) return;
+
+  loadBatchPrepData();
+
+  const interval = setInterval(() => {
+    loadBatchPrepData();
+  }, 30000);
+
+  return () => clearInterval(interval);
+}, [dataOwnerId, activeLocation]);
 const getCampaignROIStats = () => {
   const campaigns = savedCampaigns || [];
 
