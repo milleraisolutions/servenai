@@ -28354,7 +28354,10 @@ handleImportInventory();
     </button>
 
     <button
-      onClick={() => deleteClientUpload(item.id)}
+     onClick={() => {
+  console.log("RECENT IMPORT DELETE ITEM:", item);
+  deleteClientUpload(item.id);
+}}
       style={{
         padding: "8px 12px",
         borderRadius: "10px",
