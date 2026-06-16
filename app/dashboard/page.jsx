@@ -9530,25 +9530,14 @@ const alertKey = `${user.id}-${alert.ingredientName}-${todayKey}`;
 
       if (existingLog) continue;
 
-      // Send email
-     const emailRes = await fetch("/api/inventory-alert-email", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-  },
-  body: JSON.stringify({
-    ownerEmail: "antoinemiller@servenai.com",
-    restaurantName: selectedClient?.client_name || "Restaurant",
-    ingredientName: alert.ingredientName,
-    message: alert.message,
-    suggestion: alert.suggestion,
-  }),
-});
+// Email alerts disabled during development.
+// Dashboard alerts will still show, but Resend will not send emails.
 
-if (!emailRes.ok) {
-  console.error("Auto inventory alert email failed");
-  continue;
-}
+console.log("Inventory email alert skipped:", {
+  ingredientName: alert.ingredientName,
+  message: alert.message,
+  suggestion: alert.suggestion,
+});
 
 await supabase.from("inventory_alert_email_logs").insert({
   user_id: user.id,
@@ -9557,23 +9546,12 @@ await supabase.from("inventory_alert_email_logs").insert({
   message: alert.message,
   suggestion: alert.suggestion,
   restaurant_name: selectedClient?.client_name || "Restaurant",
+  email_sent: false,
 });
-
-setMessage(`Auto inventory alert sent for ${alert.ingredientName}`);
-
-      // Save log so it doesn't resend after refresh
-      await supabase.from("inventory_alert_email_logs").insert({
-        user_id: user.id,
-        ingredient_name: alert.ingredientName,
-        alert_key: alertKey,
-        message: alert.message,
-        suggestion: alert.suggestion,
-        restaurant_name: selectedClient?.client_name || "Restaurant",
-      });
     }
   };
 
-  sendAutomaticInventoryAlerts();
+ // sendAutomaticInventoryAlerts();
 }, [inventoryAlerts, selectedClient]);
 const getInventoryAlertTone = (type) => {
   if (type === "critical") {
