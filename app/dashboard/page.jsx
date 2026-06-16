@@ -24156,8 +24156,16 @@ useEffect(() => {
     setBeverageUsage(usageData || []);
   };
 
+   if (!dataOwnerId) return;
+
   loadBeverageData();
-}, []);
+
+  const interval = setInterval(() => {
+    loadBeverageData();
+  }, 30000);
+
+  return () => clearInterval(interval);
+}, [dataOwnerId, activeLocation]);
 const handleBatchPrepUpload = async (event) => {
   selectedUploadTypeRef.current = "batch_prep";
   setUploadType("batch_prep");
