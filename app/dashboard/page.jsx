@@ -10667,8 +10667,16 @@ useEffect(() => {
     }
   };
 
+   if (!dataOwnerId) return;
+
   loadSavedInventoryData();
-}, []);
+
+  const interval = setInterval(() => {
+    loadSavedInventoryData();
+  }, 30000);
+
+  return () => clearInterval(interval);
+}, [dataOwnerId, activeLocation]);
 const BEVERAGE_CATEGORY_KEYWORDS = [
   "beer",
   "wine",
