@@ -62647,7 +62647,7 @@ subtitle="Labor shifts analyzed"
     </div>
 
     <div style={{ marginTop: "18px", display: "grid", gap: "14px" }}>
-  {false && employeeShifts.length > 0 ? (
+  {employeeShifts.length > 0 ? (
     employeeShifts.slice(0, 8).map((shift) => {
       const employee = employees.find(
         (item) => item.id === shift.employee_id
@@ -62848,7 +62848,7 @@ subtitle="Labor shifts analyzed"
     gap: "14px",
   }}
 >
- {false && employeeShifts.length > 0 ? (
+ {employeeShifts.length > 0 ? (
   employeeShifts.slice(0, 6).map((shift) => {
     const employee = employees.find(
       (item) => item.id === shift.employee_id
