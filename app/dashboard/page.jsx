@@ -23683,7 +23683,7 @@ useEffect(() => {
     const { data: employeesData, error: employeesError } = await supabase
       .from("employees")
       .select("*")
-      .eq("user_id", user.id)
+      .eq("user_id", dataOwnerId || user.id)
       .order("created_at", { ascending: false });
 
     if (employeesError) {
@@ -23694,7 +23694,7 @@ useEffect(() => {
     const { data: shiftsData, error: shiftsError } = await supabase
       .from("employee_shifts")
       .select("*")
-      .eq("user_id", user.id)
+      .eq("user_id", dataOwnerId || user.id)
       .order("shift_date", { ascending: false });
 
     if (shiftsError) {
@@ -23706,8 +23706,16 @@ useEffect(() => {
     setEmployeeShifts(shiftsData || []);
   };
 
+  if (!dataOwnerId) return;
+
   loadEmployees();
-}, []);
+
+  const interval = setInterval(() => {
+    loadEmployees();
+  }, 30000);
+
+  return () => clearInterval(interval);
+}, [dataOwnerId, activeLocation]);
 
 const handleEmployeeShiftUpload = async (event) => {
   console.log("EMPLOYEE SHIFT UPLOAD FIRED");
