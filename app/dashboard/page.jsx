@@ -8118,7 +8118,12 @@ const { data, error } = await salesQuery.order("sale_date", {
 };
 useEffect(() => {
   if (!dataOwnerId) return;
-  loadSalesFromDatabase();
+
+  const interval = setInterval(() => {
+    loadSalesFromDatabase();
+  }, 30000);
+
+  return () => clearInterval(interval);
 }, [dataOwnerId, activeLocation]);
 
 useEffect(() => {
@@ -10588,8 +10593,16 @@ console.log("LOADED NORMALIZED LABOR COUNT:", normalizedLaborRows.length);
     }
   };
 
+  if (!dataOwnerId) return;
+
   loadSavedLaborData();
-}, []);
+
+  const interval = setInterval(() => {
+    loadSavedLaborData();
+  }, 30000);
+
+  return () => clearInterval(interval);
+}, [dataOwnerId, activeLocation]);
 useEffect(() => {
   const loadSavedInventoryData = async () => {
     try {
@@ -32610,9 +32623,9 @@ Restaurant AI Health is currently rated{" "}
   title="Check Average Intelligence"
  value={`$${Number(liveAOV || 0).toFixed(2)}`}
   subtext={
-    Number(aov || 0) >= 25
+   Number(liveAOV || 0) >= 25
       ? "Strong guest spend"
-      : Number(aov || 0) >= 15
+      : Number(liveAOV || 0) >= 15
       ? "Average guest spend"
       : "Upsell opportunity detected"
   }
@@ -32653,7 +32666,7 @@ Restaurant AI Health is currently rated{" "}
   title="Order Volume Intelligence"
   value={`${Number(liveTotalOrders || 0).toLocaleString()}`}
   subtext={
-    Number(totalOrders || 0) > 0
+   Number(liveTotalOrders || 0) > 0
       ? "Guest traffic captured"
       : "Upload sales data to measure volume"
   }
