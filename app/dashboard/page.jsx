@@ -315,7 +315,7 @@ const loadAdminData = async () => {
  const { data: importData, error: importError } = await supabase
   .from("uploads")
   .select("*")
-  .eq("user_id", user.id)
+  .eq("user_id", dataOwnerId || user.id)
   .or("archived.is.false,archived.is.null")
   .order("created_at", { ascending: false });
 
@@ -6748,7 +6748,7 @@ console.log("INGREDIENT STEP 4: fetching existing ingredients");
     const { data: existingRows, error: existingError } = await supabase
       .from("ingredients")
       .select("*")
-      .eq("user_id", user.id);
+     .eq("user_id", dataOwnerId || user.id)
 
     if (existingError) {
       console.error("Ingredient existing rows fetch failed:", existingError);
@@ -10528,7 +10528,7 @@ useEffect(() => {
   let menuItemsQuery = supabase
   .from("menu_items")
   .select("*")
-  .eq("user_id", user.id)
+  .eq("user_id", dataOwnerId || user.id)
   .eq("is_active", true);
 
 menuItemsQuery = applyLocationFilter(menuItemsQuery);
@@ -10544,8 +10544,16 @@ const { data, error } = await menuItemsQuery;
     setMenuItemsData(data || []);
   };
 
+   if (!dataOwnerId) return;
+
   loadMenuItems();
-}, []);
+
+  const interval = setInterval(() => {
+    loadMenuItems();
+  }, 30000);
+
+  return () => clearInterval(interval);
+}, [dataOwnerId, activeLocation]);
 useEffect(() => {
   const loadSavedLaborData = async () => {
     try {
@@ -15344,7 +15352,7 @@ const loadClientImports = async () => {
     const { data: uploadsData, error: uploadsError } = await supabase
       .from("uploads")
       .select("*")
-      .eq("user_id", user.id)
+      .eq("user_id", dataOwnerId || user.id)
       .or("archived.is.false,archived.is.null")
       .order("created_at", { ascending: false })
       .limit(10);
@@ -15357,7 +15365,7 @@ console.log(
     const { data: laborData, error: laborError } = await supabase
       .from("labor_uploads")
       .select("*")
-      .eq("user_id", user.id)
+     .eq("user_id", dataOwnerId || user.id)
       .order("created_at", { ascending: false })
       .limit(1000);
 
@@ -23336,7 +23344,7 @@ useEffect(() => {
     let recipeQuery = supabase
   .from("recipes")
   .select("*")
-  .eq("user_id", user.id);
+  .eq("user_id", dataOwnerId || user.id)
 
 recipeQuery = applyLocationFilter(recipeQuery);
 
@@ -23350,7 +23358,7 @@ const { data: recipeData, error: recipeError } =
 let ingredientQuery = supabase
   .from("recipe_ingredients")
   .select("*")
-  .eq("user_id", user.id);
+  .eq("user_id", dataOwnerId || user.id)
 
 ingredientQuery = applyLocationFilter(ingredientQuery);
 
@@ -24125,7 +24133,7 @@ useEffect(() => {
     const { data: itemsData, error: itemsError } = await supabase
       .from("beverage_items")
       .select("*")
-      .eq("user_id", user.id)
+      .eq("user_id", dataOwnerId || user.id)
       .order("created_at", { ascending: false });
 
     if (itemsError) {
@@ -24136,7 +24144,7 @@ useEffect(() => {
     const { data: usageData, error: usageError } = await supabase
       .from("beverage_usage")
       .select("*")
-      .eq("user_id", user.id)
+      .eq("user_id", dataOwnerId || user.id)
       .order("usage_date", { ascending: false });
 
     if (usageError) {
@@ -24680,7 +24688,7 @@ useEffect(() => {
     const { data, error } = await supabase
       .from("locations")
       .select("*")
-      .eq("user_id", user.id)
+     .eq("user_id", dataOwnerId || user.id)
       .order("created_at", { ascending: false });
 
     if (error) {
