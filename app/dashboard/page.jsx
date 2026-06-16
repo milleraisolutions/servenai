@@ -9448,7 +9448,7 @@ useEffect(() => {
     const { data } = await supabase
       .from("recipe_usage_rules")
       .select("*")
-      .eq("user_id", user.id);
+     .eq("user_id", dataOwnerId || user.id);
 
     if (data) {
       setRecipeUsageRules(
@@ -15658,7 +15658,7 @@ const loadRecipeUsageRules = async () => {
   const { data, error } = await supabase
     .from("recipe_usage_rules")
     .select("*")
-    .eq("user_id", user.id);
+    .eq("user_id", dataOwnerId || user.id);
 
   if (error) {
     console.error("Recipe rules load failed:", error);
@@ -15828,8 +15828,16 @@ const fetchRecipeUsageRules = async () => {
   }
 };
 useEffect(() => {
+  if (!dataOwnerId) return;
+
   fetchRecipeUsageRules();
-}, []);
+
+  const interval = setInterval(() => {
+    fetchRecipeUsageRules();
+  }, 30000);
+
+  return () => clearInterval(interval);
+}, [dataOwnerId, activeLocation]);
 
 
 console.log("RECIPE COSTING DATA:", recipeCostingData);
@@ -23462,9 +23470,16 @@ const { data: ingredientData, error: ingredientError } =
     setRecipes(recipeData || []);
     setRecipeIngredients(ingredientData || []);
   };
+  if (!dataOwnerId) return;
 
   loadRecipes();
-}, []);
+
+  const interval = setInterval(() => {
+    loadRecipes();
+  }, 30000);
+
+  return () => clearInterval(interval);
+}, [dataOwnerId, activeLocation]);
 const handleRecipeUpload = async (event) => {
   try {
     const file = event.target.files?.[0];
