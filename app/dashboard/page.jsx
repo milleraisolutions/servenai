@@ -12581,6 +12581,26 @@ const restaurantRetains =
 
 const servenSuccessFee =
   Number(totalAIRecoveryOpportunity || 0) * 0.3;
+  const topLossCategories = [
+  {
+    name: "Labor",
+    value: Number(estimatedLaborRecovery || 0),
+  },
+  {
+    name: "Inventory",
+    value: Number(operationalEstimatedWasteRecovery || 0),
+  },
+  {
+    name: "Menu",
+    value: Number(estimatedFoodRecovery || 0),
+  },
+  {
+    name: "Beverage",
+    value: Number(estimatedAlcoholRecovery || 0),
+  },
+]
+.sort((a, b) => b.value - a.value)
+.filter((item) => item.value > 0);
   const hasOperationalData =
   (salesData || []).length > 0 ||
   (laborData || []).length > 0 ||
@@ -55075,7 +55095,50 @@ Restaurant AI Health is currently rated{" "}
   subtext="30% performance share"
 />
         </div>
+<div
+  style={{
+    marginTop: "18px",
+    padding: "22px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.88))",
+    border: "1px solid rgba(148,163,184,0.16)",
+  }}
+>
+  <h3 style={sectionTitle}>Executive Loss Breakdown</h3>
 
+  <div style={{ display: "grid", gap: "10px", marginTop: "14px" }}>
+    {(topLossCategories || []).length > 0 ? (
+      topLossCategories.map((item, index) => (
+        <div
+          key={item.name}
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            gap: "12px",
+            padding: "12px",
+            borderRadius: "14px",
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(255,255,255,0.08)",
+          }}
+        >
+          <span style={{ color: "#cbd5e1", fontWeight: "800" }}>
+            #{index + 1} {item.name}
+          </span>
+
+          <span style={{ color: "#86efac", fontWeight: "950" }}>
+            ${Number(item.value || 0).toLocaleString()}/mo
+          </span>
+        </div>
+      ))
+    ) : (
+      <div style={{ color: "#94a3b8", fontSize: "14px" }}>
+        Upload POS, labor, inventory, beverage, and invoice data to identify
+        loss categories.
+      </div>
+    )}
+  </div>
+</div>
 
         <div>
           <h3 style={sectionTitle}>
