@@ -27950,7 +27950,7 @@ return (
   </div>
 </div>
 
-{/* TOP PROFIT LEAKS */}
+{/* PROFIT RECOVERY OPPORTUNITY */}
 <div
   style={{
     marginBottom: "18px",
@@ -27961,38 +27961,795 @@ return (
     border: "1px solid rgba(148,163,184,0.16)",
   }}
 >
-  <h3 style={sectionTitle}>Top Profit Leaks</h3>
+  <h3 style={sectionTitle}>Profit Recovery Opportunity</h3>
 
-  <div style={{ display: "grid", gap: "10px", marginTop: "14px" }}>
+  <p
+    style={{
+      color: "#94a3b8",
+      fontSize: "13px",
+      marginTop: "6px",
+      marginBottom: "14px",
+    }}
+  >
+    AI identified where monthly profit can be recovered across labor, menu,
+    inventory, beverage, and vendor costs.
+  </p>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile
+        ? "1fr"
+        : "repeat(auto-fit, minmax(220px, 1fr))",
+      gap: "14px",
+      marginTop: "18px",
+    }}
+  >
     {(topLossCategories || []).length > 0 ? (
       topLossCategories.map((item, index) => (
         <div
           key={item.name}
           style={{
-            display: "flex",
-            justifyContent: "space-between",
-            gap: "12px",
-            padding: "12px",
-            borderRadius: "14px",
+            padding: "18px",
+            borderRadius: "18px",
             background: "rgba(255,255,255,0.04)",
             border: "1px solid rgba(255,255,255,0.08)",
           }}
         >
-          <span style={{ color: "#cbd5e1", fontWeight: "800" }}>
-            #{index + 1} {item.name}
-          </span>
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "11px",
+              fontWeight: "900",
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              marginBottom: "10px",
+            }}
+          >
+            Opportunity #{index + 1}
+          </div>
 
-          <span style={{ color: "#86efac", fontWeight: "950" }}>
+          <div
+            style={{
+              color: "white",
+              fontSize: "18px",
+              fontWeight: "900",
+              marginBottom: "10px",
+            }}
+          >
+            {item.name}
+          </div>
+
+          <div
+            style={{
+              color: "#86efac",
+              fontSize: "28px",
+              fontWeight: "1000",
+              marginBottom: "8px",
+            }}
+          >
             ${Number(item.value || 0).toLocaleString()}/mo
-          </span>
+          </div>
+
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "12px",
+              lineHeight: 1.5,
+            }}
+          >
+            Estimated monthly profit recovery opportunity.
+          </div>
         </div>
       ))
     ) : (
       <div style={{ color: "#94a3b8", fontSize: "14px" }}>
         Upload POS, labor, inventory, beverage, and invoice data to identify
-        top profit leaks.
+        profit recovery opportunities.
       </div>
     )}
+  </div>
+</div>
+<div
+ style={{
+  marginTop: "16px",
+  marginBottom: "18px",
+  padding: "18px",
+  borderRadius: "18px",
+    background:
+      "linear-gradient(135deg, rgba(34,197,94,0.12), rgba(15,23,42,0.92))",
+    border: "1px solid rgba(34,197,94,0.20)",
+    textAlign: "center",
+  }}
+>
+  <div
+    style={{
+      color: "#86efac",
+      fontSize: "12px",
+      fontWeight: "900",
+      textTransform: "uppercase",
+      letterSpacing: "0.08em",
+      marginBottom: "8px",
+    }}
+  >
+    Total Recovery Opportunity
+  </div>
+
+  <div
+    style={{
+      color: "white",
+      fontSize: isMobile ? "32px" : "42px",
+      fontWeight: "1000",
+      marginBottom: "8px",
+    }}
+  >
+    ${Number(totalAIRecoveryOpportunity || 0).toLocaleString()}/mo
+  </div>
+
+  <div
+    style={{
+      color: "#94a3b8",
+      fontSize: "13px",
+    }}
+  >
+    Annual impact: $
+    {Number(annualRecoverableProfit || 0).toLocaleString()}
+  </div>
+</div>
+{/* AI RECOVERY ACTIONS */}
+<div
+  style={{
+    marginBottom: "18px",
+    padding: "22px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(79,70,229,0.14), rgba(15,23,42,0.94))",
+    border: "1px solid rgba(129,140,248,0.18)",
+  }}
+>
+  <div
+    style={{
+      fontSize: "11px",
+      fontWeight: "800",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      color: "#a5b4fc",
+      marginBottom: "10px",
+    }}
+  >
+    AI Recovery Actions
+  </div>
+
+  <h3 style={sectionTitle}>Recommended Actions</h3>
+
+  <p
+    style={{
+      color: "#94a3b8",
+      fontSize: "13px",
+      marginTop: "6px",
+      marginBottom: "16px",
+      lineHeight: 1.6,
+    }}
+  >
+    Highest-impact actions Serven recommends to recover monthly profit.
+  </p>
+
+  <div
+    style={{
+      display: "flex",
+      flexDirection: "column",
+      gap: "12px",
+    }}
+  >
+   {(aiProfitOpportunities || []).slice(0, 5).map((item, index) => {
+  const alreadyApplied = appliedFixes.includes(item.id);
+
+  const actionPriority =
+    index === 0 ? "Highest Priority" : index === 1 ? "High Priority" : "Recommended";
+const timeToImpact =
+  item.difficulty === "Easy"
+    ? "1-7 Days"
+    : item.difficulty === "Medium"
+    ? "1-4 Weeks"
+    : "30+ Days";
+      return (
+        <div
+          key={item.id}
+          style={{
+            padding: "16px",
+            borderRadius: "16px",
+            background: alreadyApplied
+              ? "rgba(34,197,94,0.08)"
+              : "rgba(255,255,255,0.04)",
+            border: alreadyApplied
+              ? "1px solid rgba(34,197,94,0.22)"
+              : "1px solid rgba(255,255,255,0.08)",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: "16px",
+            flexWrap: "wrap",
+          }}
+        >
+          <div style={{ minWidth: 0, flex: 1 }}>
+
+  <div
+    style={{
+      color: index === 0 ? "#fbbf24" : "#a5b4fc",
+      fontSize: "11px",
+      fontWeight: "900",
+      textTransform: "uppercase",
+      letterSpacing: "0.08em",
+      marginBottom: "6px",
+    }}
+  >
+    {actionPriority}
+  </div>
+
+  <div
+    style={{
+      color: "white",
+      fontWeight: "900",
+      fontSize: "15px",
+      marginBottom: "6px",
+    }}
+  >
+    {item.title}
+  </div>
+
+            <div
+              style={{
+                color: "#94a3b8",
+                fontSize: "13px",
+                lineHeight: 1.5,
+                marginBottom: "10px",
+              }}
+            >
+              {item.description}
+            </div>
+
+            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+              <span
+                style={{
+                  padding: "4px 10px",
+                  borderRadius: "999px",
+                  background: "rgba(79,70,229,0.16)",
+                  color: "#c7d2fe",
+                  fontSize: "11px",
+                  fontWeight: "800",
+                }}
+              >
+                {item.category}
+              </span>
+
+              <span
+                style={{
+                  padding: "4px 10px",
+                  borderRadius: "999px",
+                  background: "rgba(255,255,255,0.08)",
+                  color: "#cbd5e1",
+                  fontSize: "11px",
+                  fontWeight: "800",
+                }}
+              >
+                {item.difficulty}
+              </span>
+<span
+  style={{
+    padding: "4px 10px",
+    borderRadius: "999px",
+    background: "rgba(251,191,36,0.12)",
+    color: "#fbbf24",
+    fontSize: "11px",
+    fontWeight: "800",
+  }}
+>
+  {timeToImpact}
+</span>
+              <span
+                style={{
+                  padding: "4px 10px",
+                  borderRadius: "999px",
+                  background: "rgba(34,197,94,0.14)",
+                  color: "#6ee7b7",
+                  fontSize: "11px",
+                  fontWeight: "900",
+                }}
+              >
+                +${Number(item.impact || 0).toLocaleString()}/mo
+              </span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              if (alreadyApplied) return;
+
+              setSimulatedProfit(
+                (prev) => prev + Number(item.impact || 0)
+              );
+
+              setAppliedFixes((prev) => [...prev, item.id]);
+
+              setAiLog((prev) =>
+                [
+                  {
+                    id: Date.now(),
+                    text: `Applied fix: ${item.title} → +$${Number(
+                      item.impact || 0
+                    ).toLocaleString()}/mo`,
+                  },
+                  ...prev,
+                ].slice(0, 6)
+              );
+            }}
+            style={{
+              padding: "10px 14px",
+              borderRadius: "12px",
+              border: "none",
+              background: alreadyApplied
+                ? "rgba(34,197,94,0.16)"
+                : "linear-gradient(135deg, #4f46e5, #6D3DF5)",
+              color: "white",
+              fontWeight: "900",
+              cursor: alreadyApplied ? "default" : "pointer",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {alreadyApplied ? "Applied ✓" : "Apply Fix"}
+          </button>
+        </div>
+      );
+    })}
+  </div>
+</div>
+{/* RECOVERY TRACKING */}
+<div
+  style={{
+    marginBottom: "18px",
+    padding: "22px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(34,197,94,0.10), rgba(15,23,42,0.94))",
+    border: "1px solid rgba(34,197,94,0.18)",
+  }}
+>
+  <div
+    style={{
+      fontSize: "11px",
+      fontWeight: "800",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      color: "#86efac",
+      marginBottom: "10px",
+    }}
+  >
+    Recovery Tracking
+  </div>
+
+  <h3 style={sectionTitle}>Profit Recovery Progress</h3>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile
+        ? "1fr"
+        : "repeat(4, minmax(0, 1fr))",
+      gap: "14px",
+      marginTop: "18px",
+    }}
+  >
+    <GlassCard
+      title="Profit Found"
+      value={`$${Number(totalAIRecoveryOpportunity || 0).toLocaleString()}`}
+      subtext="Monthly recovery identified"
+    />
+
+    <GlassCard
+      title="Profit Applied"
+      value={`$${Number(simulatedProfit || 0).toLocaleString()}`}
+      subtext="Monthly recovery from applied fixes"
+    />
+
+    <GlassCard
+      title="Remaining"
+      value={`$${Number(
+        Math.max(
+          0,
+          Number(totalAIRecoveryOpportunity || 0) - Number(simulatedProfit || 0)
+        )
+      ).toLocaleString()}`}
+      subtext="Uncaptured monthly opportunity"
+    />
+
+    <GlassCard
+      title="Recovery Rate"
+      value={`${
+        Number(totalAIRecoveryOpportunity || 0) > 0
+          ? Math.min(
+              100,
+              Math.round(
+                (Number(simulatedProfit || 0) /
+                  Number(totalAIRecoveryOpportunity || 1)) *
+                  100
+              )
+            )
+          : 0
+      }%`}
+      subtext="Progress toward full recovery"
+    />
+    <div
+  style={{
+    marginTop: "18px",
+    padding: "18px",
+    borderRadius: "18px",
+    background: "rgba(255,255,255,0.04)",
+    border: "1px solid rgba(255,255,255,0.08)",
+  }}
+>
+  <div
+    style={{
+      display: "flex",
+      justifyContent: "space-between",
+      gap: "12px",
+      flexWrap: "wrap",
+      marginBottom: "10px",
+    }}
+  >
+    <span style={{ color: "white", fontWeight: "900" }}>
+      Recovery Progress
+    </span>
+
+    <span style={{ color: "#86efac", fontWeight: "950" }}>
+      {Number(totalAIRecoveryOpportunity || 0) > 0
+        ? Math.min(
+            100,
+            Math.round(
+              (Number(simulatedProfit || 0) /
+                Number(totalAIRecoveryOpportunity || 1)) *
+                100
+            )
+          )
+        : 0}
+      %
+    </span>
+  </div>
+
+  <div
+    style={{
+      height: "12px",
+      width: "100%",
+      borderRadius: "999px",
+      background: "rgba(148,163,184,0.16)",
+      overflow: "hidden",
+    }}
+  >
+    <div
+      style={{
+        height: "100%",
+        width: `${
+          Number(totalAIRecoveryOpportunity || 0) > 0
+            ? Math.min(
+                100,
+                Math.round(
+                  (Number(simulatedProfit || 0) /
+                    Number(totalAIRecoveryOpportunity || 1)) *
+                    100
+                )
+              )
+            : 0
+        }%`,
+        borderRadius: "999px",
+        background: "linear-gradient(135deg, #22c55e, #86efac)",
+      }}
+    />
+  </div>
+
+  <div
+    style={{
+      display: "flex",
+      justifyContent: "space-between",
+      gap: "12px",
+      flexWrap: "wrap",
+      marginTop: "10px",
+      color: "#94a3b8",
+      fontSize: "12px",
+      fontWeight: "800",
+    }}
+  >
+    <span>
+      ${Number(simulatedProfit || 0).toLocaleString()} recovered
+    </span>
+
+    <span>
+      ${Number(
+        Math.max(
+          0,
+          Number(totalAIRecoveryOpportunity || 0) -
+            Number(simulatedProfit || 0)
+        )
+      ).toLocaleString()} remaining
+    </span>
+  </div>
+</div>
+  </div>
+</div>
+{/* AUTOPILOT RECOMMENDATIONS */}
+<div
+  style={{
+    marginBottom: "18px",
+    padding: "22px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(245,158,11,0.12), rgba(15,23,42,0.94))",
+    border: "1px solid rgba(245,158,11,0.20)",
+  }}
+>
+  <div
+    style={{
+      fontSize: "11px",
+      fontWeight: "800",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      color: "#fbbf24",
+      marginBottom: "10px",
+    }}
+  >
+    Autopilot Recommendations
+  </div>
+
+  <h3 style={sectionTitle}>Next Best Action</h3>
+
+  <p
+    style={{
+      color: "#94a3b8",
+      fontSize: "13px",
+      marginTop: "6px",
+      marginBottom: "16px",
+      lineHeight: 1.6,
+    }}
+  >
+    Serven prioritizes the highest-impact recovery move based on current profit
+    leaks, difficulty, and expected time to impact.
+  </p>
+
+  {aiProfitOpportunities?.length > 0 ? (
+    <div
+      style={{
+        padding: "18px",
+        borderRadius: "18px",
+        background: "rgba(255,255,255,0.04)",
+        border: "1px solid rgba(255,255,255,0.08)",
+      }}
+    >
+      <div
+        style={{
+          color: "#fbbf24",
+          fontSize: "11px",
+          fontWeight: "900",
+          textTransform: "uppercase",
+          letterSpacing: "0.08em",
+          marginBottom: "8px",
+        }}
+      >
+        Recommended First
+      </div>
+
+      <div
+        style={{
+          color: "white",
+          fontSize: "20px",
+          fontWeight: "950",
+          marginBottom: "8px",
+        }}
+      >
+        {aiProfitOpportunities[0]?.title}
+      </div>
+
+      <div
+        style={{
+          color: "#cbd5e1",
+          fontSize: "13px",
+          lineHeight: 1.6,
+          marginBottom: "14px",
+        }}
+      >
+        {aiProfitOpportunities[0]?.description}
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          gap: "8px",
+          flexWrap: "wrap",
+          marginBottom: "16px",
+        }}
+      >
+        <span
+          style={{
+            padding: "5px 10px",
+            borderRadius: "999px",
+            background: "rgba(79,70,229,0.16)",
+            color: "#c7d2fe",
+            fontSize: "11px",
+            fontWeight: "800",
+          }}
+        >
+          {aiProfitOpportunities[0]?.category}
+        </span>
+
+        <span
+          style={{
+            padding: "5px 10px",
+            borderRadius: "999px",
+            background: "rgba(34,197,94,0.14)",
+            color: "#6ee7b7",
+            fontSize: "11px",
+            fontWeight: "900",
+          }}
+        >
+          +${Number(aiProfitOpportunities[0]?.impact || 0).toLocaleString()}/mo
+        </span>
+      </div>
+
+      <div
+        style={{
+          marginTop: "16px",
+          display: "grid",
+          gap: "12px",
+        }}
+      >
+        {(aiProfitOpportunities || [])
+          .slice(1, 4)
+          .map((item, index) => (
+            <div
+              key={item.id || index}
+              style={{
+                padding: "14px",
+                borderRadius: "14px",
+                background: "rgba(255,255,255,0.04)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                display: "flex",
+                justifyContent: "space-between",
+                gap: "12px",
+                flexWrap: "wrap",
+              }}
+            >
+              <div style={{ flex: 1, minWidth: "220px" }}>
+                <div
+                  style={{
+                    color: "#fbbf24",
+                    fontSize: "11px",
+                    fontWeight: "900",
+                    textTransform: "uppercase",
+                    marginBottom: "6px",
+                  }}
+                >
+                  Queue #{index + 2}
+                </div>
+
+                <div
+                  style={{
+                    color: "white",
+                    fontWeight: "900",
+                    marginBottom: "6px",
+                  }}
+                >
+                  {item.title}
+                </div>
+
+                <div
+                  style={{
+                    color: "#94a3b8",
+                    fontSize: "12px",
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {item.description}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  color: "#6ee7b7",
+                  fontWeight: "900",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                +${Number(item.impact || 0).toLocaleString()}/mo
+              </div>
+            </div>
+          ))}
+      </div>
+    </div>
+  ) : (
+    <div style={{ color: "#94a3b8", fontSize: "14px" }}>
+      Upload operational data to activate autopilot recommendations.
+    </div>
+  )}
+</div>
+{/* EXECUTIVE COMMAND CENTER */}
+<div
+  style={{
+    marginBottom: "18px",
+    padding: "24px",
+    borderRadius: "24px",
+    background:
+      "radial-gradient(circle at top right, rgba(212,175,55,0.20), transparent 35%), linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.94))",
+    border: "1px solid rgba(212,175,55,0.24)",
+    boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
+  }}
+>
+  <div
+    style={{
+      color: "#d4af37",
+      fontSize: "11px",
+      fontWeight: "900",
+      letterSpacing: "0.1em",
+      textTransform: "uppercase",
+      marginBottom: "10px",
+    }}
+  >
+    Executive Command Center
+  </div>
+
+  <h3 style={sectionTitle}>Owner Summary</h3>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile ? "1fr" : "repeat(3, minmax(0, 1fr))",
+      gap: "14px",
+      marginTop: "18px",
+    }}
+  >
+    <GlassCard
+      title="Monthly Recovery"
+      value={`$${Number(totalAIRecoveryOpportunity || 0).toLocaleString()}`}
+      subtext="Total profit recovery found"
+    />
+
+    <GlassCard
+      title="Recovery Progress"
+      value={`${
+        Number(totalAIRecoveryOpportunity || 0) > 0
+          ? Math.min(
+              100,
+              Math.round(
+                (Number(simulatedProfit || 0) /
+                  Number(totalAIRecoveryOpportunity || 1)) *
+                  100
+              )
+            )
+          : 0
+      }%`}
+      subtext="Applied recovery progress"
+    />
+
+    <GlassCard
+      title="Annual Impact"
+      value={`$${Number(annualRecoverableProfit || 0).toLocaleString()}`}
+      subtext="Projected annual opportunity"
+    />
+
+    <GlassCard
+      title="Biggest Risk"
+      value={topLossCategories?.[0]?.name || "Monitoring"}
+      subtext="Largest active profit leak"
+    />
+
+    <GlassCard
+      title="Next Action"
+      value={aiProfitOpportunities?.[0]?.title || "Awaiting Data"}
+      subtext="Recommended first move"
+    />
+
+    <GlassCard
+      title="Autopilot Status"
+      value={aiProfitOpportunities?.length > 0 ? "Active" : "Waiting"}
+      subtext="AI recovery engine status"
+    />
   </div>
 </div>
     <div
@@ -28018,7 +28775,8 @@ return (
         }}
       >
         Welcome to SerVen
-      </div><input
+      </div>
+      <input
   id="posUpload"
   type="file"
   accept=".csv,.xlsx,.xls"
@@ -28436,6 +29194,7 @@ return (
     </div>
 </>
 )}
+
 {/* UPLOAD SUMMARY + CONFIRM */}
 {pendingUploadSummary && (
   <div
