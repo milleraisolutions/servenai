@@ -28297,6 +28297,321 @@ return (
 </div>
 </div>
     </div>
+    {/* CLIENT RECENT IMPORTS */}
+
+<div
+  style={{
+    marginTop: "20px",
+    padding: "22px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.92))",
+    border: "1px solid rgba(148,163,184,0.14)",
+    boxShadow: "0 18px 50px rgba(2,6,23,0.22)",
+  }}
+>
+  <div
+    style={{
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      gap: "12px",
+      flexWrap: "wrap",
+      marginBottom: "14px",
+    }}
+  >
+    <div>
+      <div
+        style={{
+          color: "#a5b4fc",
+          fontSize: "12px",
+          fontWeight: "900",
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          marginBottom: "6px",
+        }}
+      >
+        Recent Upload Activity
+      </div>
+
+      <h3
+        style={{
+          margin: 0,
+          fontSize: "24px",
+          fontWeight: "950",
+          color: "white",
+        }}
+      >
+        Recent Imports
+      </h3>
+    </div>
+
+    <div
+  style={{
+    padding: "8px 12px",
+    borderRadius: "999px",
+    background: "rgba(255,255,255,0.05)",
+    border: "1px solid rgba(148,163,184,0.12)",
+    color: "#cbd5e1",
+    fontSize: "12px",
+    fontWeight: "900",
+  }}
+>
+  {filteredRecentUploads.length} Showing /{" "}
+  {[
+    ...new Map(
+      (clientImports || []).map((item) => [
+        item.source_name === "labor_upload"
+          ? `labor-${item.file_name || "Labor Upload"}`
+          : item.id,
+        item,
+      ])
+    ).values(),
+  ].length} Total Imports
+</div>
+  </div>
+
+  <p
+    style={{
+      color: "#94a3b8",
+      fontSize: "14px",
+      lineHeight: 1.7,
+      marginBottom: "18px",
+    }}
+  >
+    AI continuously analyzes uploaded operational data to generate restaurant intelligence.
+  </p>
+<input
+  value={importsSearch}
+  onChange={(e) => setImportsSearch(e.target.value)}
+  placeholder="Search imports by date, file name, or type..."
+  style={{
+    width: "100%",
+    marginTop: "16px",
+    marginBottom: "16px",
+    padding: "14px 16px",
+    borderRadius: "16px",
+    border: "1px solid rgba(148,163,184,0.18)",
+    background: "rgba(15,23,42,0.82)",
+    color: "white",
+    fontSize: "14px",
+    outline: "none",
+    boxSizing: "border-box",
+  }}
+/>
+  {importsLoading ? (
+    <div
+      style={{
+        color: "#94a3b8",
+        fontSize: "14px",
+      }}
+    >
+      Loading recent imports...
+    </div>
+  ) : clientImports.length === 0 ? (
+    <div
+      style={{
+        padding: "18px",
+        borderRadius: "16px",
+        background: "rgba(255,255,255,0.03)",
+        border: "1px solid rgba(148,163,184,0.10)",
+        color: "#94a3b8",
+        textAlign: "center",
+        fontSize: "14px",
+      }}
+    >
+      No restaurant data imports detected yet.
+    </div>
+  ) : (
+    <div
+  style={{
+    display: "grid",
+    gap: "12px",
+    maxHeight: "700px",
+    overflowY: "auto",
+    paddingRight: "8px",
+  }}
+>
+ {filteredRecentUploads
+  .sort(
+          (a, b) =>
+            new Date(b.created_at || 0) -
+            new Date(a.created_at || 0)
+        )
+        
+        .map((item, index) => (
+          <div
+            key={item.id || index}
+            style={{
+              padding: "16px",
+              borderRadius: "18px",
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(148,163,184,0.12)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: "12px",
+                flexWrap: "wrap",
+                alignItems: "center",
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    fontWeight: "900",
+                    color: "white",
+                    fontSize: "15px",
+                    marginBottom: "6px",
+                  }}
+                >
+                  {item.file_name ||
+                    item.source_name ||
+                    "Imported File"}
+                </div>
+
+                <div
+                  style={{
+                    color: "#94a3b8",
+                    fontSize: "13px",
+                    lineHeight: 1.6,
+                  }}
+                >
+                  Source: {item.source_name || "Unknown"} •{" "}
+                  {Number(item.row_count || 0).toLocaleString()} rows
+                </div>
+              </div>
+
+              <div
+                style={{
+                  padding: "8px 12px",
+                  borderRadius: "12px",
+                  background: "rgba(99,102,241,0.10)",
+                  border: "1px solid rgba(99,102,241,0.20)",
+                  color: "#c7d2fe",
+                  fontSize: "12px",
+                  fontWeight: "900",
+                }}
+              >
+                {item.created_at
+                  ? new Date(item.created_at).toLocaleDateString()
+                  : "Recent"}
+              </div>
+            </div>
+
+          {(isOwnerRole || isExecutiveRole || isGMRole) && (
+  <div
+    style={{
+      marginTop: "12px",
+      display: "flex",
+      gap: "10px",
+      flexWrap: "wrap",
+    }}
+  >
+    <button
+      onClick={() => archiveImport(item.id)}
+      style={{
+        padding: "8px 12px",
+        borderRadius: "10px",
+        border: "1px solid rgba(148,163,184,0.16)",
+        background: "rgba(255,255,255,0.04)",
+        color: "#cbd5e1",
+        fontSize: "12px",
+        fontWeight: "900",
+        cursor: "pointer",
+      }}
+    >
+      Archive
+    </button>
+
+    <button
+     onClick={() => {
+  console.log("RECENT IMPORT DELETE ITEM:", item);
+  deleteClientUpload(item.id);
+}}
+      style={{
+        padding: "8px 12px",
+        borderRadius: "10px",
+        border: "1px solid rgba(239,68,68,0.20)",
+        background: "rgba(239,68,68,0.08)",
+        color: "#fca5a5",
+        fontSize: "12px",
+        fontWeight: "900",
+        cursor: "pointer",
+      }}
+    >
+      ✕ Delete
+    </button>
+  </div>
+)}
+          </div>
+        ))}
+    </div>
+  )}
+</div>
+{/* ✅ AI ONBOARDING PROGRESS */}
+<div
+  style={{
+    marginBottom: "22px",
+    padding: "20px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.92))",
+    border: "1px solid rgba(148,163,184,0.14)",
+  }}
+>
+  <div style={{ color: "#86efac", fontSize: "12px", fontWeight: "900" }}>
+    AI ONBOARDING PROGRESS
+  </div>
+
+  <div style={{ marginTop: "14px", display: "grid", gap: "10px" }}>
+    {[
+      
+  {
+  label: "POS Sales",
+  complete:
+    (dbSalesRows || []).length > 0 ||
+    (salesData || []).length > 0 ||
+    Number(realSalesMetrics?.totalRevenueFromDb || 0) > 0 ||
+    Number(liveTotalRevenue || 0) > 0,
+},
+  { label: "Labor Data", complete: (laborData || []).length > 0 },
+  { label: "Inventory Data", complete: (inventoryData || []).length > 0 },
+  { label: "Menu Items", complete: (menuItemsData || []).length > 0 },
+  { label: "Invoices", complete: (invoicesData || []).length > 0 },
+
+    ].map((item) => (
+      <div
+        key={item.label}
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          padding: "12px",
+          borderRadius: "14px",
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(148,163,184,0.12)",
+        }}
+      >
+        <div style={{ color: "white", fontWeight: "900", fontSize: "13px" }}>
+          {item.label}
+        </div>
+
+        <div
+          style={{
+            color: item.complete ? "#86efac" : "#fbbf24",
+            fontWeight: "900",
+            fontSize: "12px",
+          }}
+        >
+          {item.complete ? "Connected" : "Needed"}
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
   {/* EXECUTIVE PROFIT RECOVERY HERO */}
 <div
   style={{
@@ -29319,321 +29634,7 @@ handleImportInventory();
     {message}
   </div>
 )}
-{/* CLIENT RECENT IMPORTS */}
 
-<div
-  style={{
-    marginTop: "20px",
-    padding: "22px",
-    borderRadius: "22px",
-    background:
-      "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.92))",
-    border: "1px solid rgba(148,163,184,0.14)",
-    boxShadow: "0 18px 50px rgba(2,6,23,0.22)",
-  }}
->
-  <div
-    style={{
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-      gap: "12px",
-      flexWrap: "wrap",
-      marginBottom: "14px",
-    }}
-  >
-    <div>
-      <div
-        style={{
-          color: "#a5b4fc",
-          fontSize: "12px",
-          fontWeight: "900",
-          letterSpacing: "0.08em",
-          textTransform: "uppercase",
-          marginBottom: "6px",
-        }}
-      >
-        Recent Upload Activity
-      </div>
-
-      <h3
-        style={{
-          margin: 0,
-          fontSize: "24px",
-          fontWeight: "950",
-          color: "white",
-        }}
-      >
-        Recent Imports
-      </h3>
-    </div>
-
-    <div
-  style={{
-    padding: "8px 12px",
-    borderRadius: "999px",
-    background: "rgba(255,255,255,0.05)",
-    border: "1px solid rgba(148,163,184,0.12)",
-    color: "#cbd5e1",
-    fontSize: "12px",
-    fontWeight: "900",
-  }}
->
-  {filteredRecentUploads.length} Showing /{" "}
-  {[
-    ...new Map(
-      (clientImports || []).map((item) => [
-        item.source_name === "labor_upload"
-          ? `labor-${item.file_name || "Labor Upload"}`
-          : item.id,
-        item,
-      ])
-    ).values(),
-  ].length} Total Imports
-</div>
-  </div>
-
-  <p
-    style={{
-      color: "#94a3b8",
-      fontSize: "14px",
-      lineHeight: 1.7,
-      marginBottom: "18px",
-    }}
-  >
-    AI continuously analyzes uploaded operational data to generate restaurant intelligence.
-  </p>
-<input
-  value={importsSearch}
-  onChange={(e) => setImportsSearch(e.target.value)}
-  placeholder="Search imports by date, file name, or type..."
-  style={{
-    width: "100%",
-    marginTop: "16px",
-    marginBottom: "16px",
-    padding: "14px 16px",
-    borderRadius: "16px",
-    border: "1px solid rgba(148,163,184,0.18)",
-    background: "rgba(15,23,42,0.82)",
-    color: "white",
-    fontSize: "14px",
-    outline: "none",
-    boxSizing: "border-box",
-  }}
-/>
-  {importsLoading ? (
-    <div
-      style={{
-        color: "#94a3b8",
-        fontSize: "14px",
-      }}
-    >
-      Loading recent imports...
-    </div>
-  ) : clientImports.length === 0 ? (
-    <div
-      style={{
-        padding: "18px",
-        borderRadius: "16px",
-        background: "rgba(255,255,255,0.03)",
-        border: "1px solid rgba(148,163,184,0.10)",
-        color: "#94a3b8",
-        textAlign: "center",
-        fontSize: "14px",
-      }}
-    >
-      No restaurant data imports detected yet.
-    </div>
-  ) : (
-    <div
-  style={{
-    display: "grid",
-    gap: "12px",
-    maxHeight: "700px",
-    overflowY: "auto",
-    paddingRight: "8px",
-  }}
->
- {filteredRecentUploads
-  .sort(
-          (a, b) =>
-            new Date(b.created_at || 0) -
-            new Date(a.created_at || 0)
-        )
-        
-        .map((item, index) => (
-          <div
-            key={item.id || index}
-            style={{
-              padding: "16px",
-              borderRadius: "18px",
-              background: "rgba(255,255,255,0.04)",
-              border: "1px solid rgba(148,163,184,0.12)",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                gap: "12px",
-                flexWrap: "wrap",
-                alignItems: "center",
-              }}
-            >
-              <div>
-                <div
-                  style={{
-                    fontWeight: "900",
-                    color: "white",
-                    fontSize: "15px",
-                    marginBottom: "6px",
-                  }}
-                >
-                  {item.file_name ||
-                    item.source_name ||
-                    "Imported File"}
-                </div>
-
-                <div
-                  style={{
-                    color: "#94a3b8",
-                    fontSize: "13px",
-                    lineHeight: 1.6,
-                  }}
-                >
-                  Source: {item.source_name || "Unknown"} •{" "}
-                  {Number(item.row_count || 0).toLocaleString()} rows
-                </div>
-              </div>
-
-              <div
-                style={{
-                  padding: "8px 12px",
-                  borderRadius: "12px",
-                  background: "rgba(99,102,241,0.10)",
-                  border: "1px solid rgba(99,102,241,0.20)",
-                  color: "#c7d2fe",
-                  fontSize: "12px",
-                  fontWeight: "900",
-                }}
-              >
-                {item.created_at
-                  ? new Date(item.created_at).toLocaleDateString()
-                  : "Recent"}
-              </div>
-            </div>
-
-          {(isOwnerRole || isExecutiveRole || isGMRole) && (
-  <div
-    style={{
-      marginTop: "12px",
-      display: "flex",
-      gap: "10px",
-      flexWrap: "wrap",
-    }}
-  >
-    <button
-      onClick={() => archiveImport(item.id)}
-      style={{
-        padding: "8px 12px",
-        borderRadius: "10px",
-        border: "1px solid rgba(148,163,184,0.16)",
-        background: "rgba(255,255,255,0.04)",
-        color: "#cbd5e1",
-        fontSize: "12px",
-        fontWeight: "900",
-        cursor: "pointer",
-      }}
-    >
-      Archive
-    </button>
-
-    <button
-     onClick={() => {
-  console.log("RECENT IMPORT DELETE ITEM:", item);
-  deleteClientUpload(item.id);
-}}
-      style={{
-        padding: "8px 12px",
-        borderRadius: "10px",
-        border: "1px solid rgba(239,68,68,0.20)",
-        background: "rgba(239,68,68,0.08)",
-        color: "#fca5a5",
-        fontSize: "12px",
-        fontWeight: "900",
-        cursor: "pointer",
-      }}
-    >
-      ✕ Delete
-    </button>
-  </div>
-)}
-          </div>
-        ))}
-    </div>
-  )}
-</div>
-{/* ✅ AI ONBOARDING PROGRESS */}
-<div
-  style={{
-    marginBottom: "22px",
-    padding: "20px",
-    borderRadius: "22px",
-    background:
-      "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.92))",
-    border: "1px solid rgba(148,163,184,0.14)",
-  }}
->
-  <div style={{ color: "#86efac", fontSize: "12px", fontWeight: "900" }}>
-    AI ONBOARDING PROGRESS
-  </div>
-
-  <div style={{ marginTop: "14px", display: "grid", gap: "10px" }}>
-    {[
-      
-  {
-  label: "POS Sales",
-  complete:
-    (dbSalesRows || []).length > 0 ||
-    (salesData || []).length > 0 ||
-    Number(realSalesMetrics?.totalRevenueFromDb || 0) > 0 ||
-    Number(liveTotalRevenue || 0) > 0,
-},
-  { label: "Labor Data", complete: (laborData || []).length > 0 },
-  { label: "Inventory Data", complete: (inventoryData || []).length > 0 },
-  { label: "Menu Items", complete: (menuItemsData || []).length > 0 },
-  { label: "Invoices", complete: (invoicesData || []).length > 0 },
-
-    ].map((item) => (
-      <div
-        key={item.label}
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          padding: "12px",
-          borderRadius: "14px",
-          background: "rgba(255,255,255,0.04)",
-          border: "1px solid rgba(148,163,184,0.12)",
-        }}
-      >
-        <div style={{ color: "white", fontWeight: "900", fontSize: "13px" }}>
-          {item.label}
-        </div>
-
-        <div
-          style={{
-            color: item.complete ? "#86efac" : "#fbbf24",
-            fontWeight: "900",
-            fontSize: "12px",
-          }}
-        >
-          {item.complete ? "Connected" : "Needed"}
-        </div>
-      </div>
-    ))}
-  </div>
-</div>
 
    {/* OVERVIEW HERO */}
 <div
