@@ -50399,7 +50399,7 @@ Restaurant AI Health is currently rated{" "}
             Number(weeklyExecutiveSummary?.warningAlerts || 0),
         },
         {
-          label: "Profit Opportunity",
+          label: "Monthly Recoverable Profit",
           value: `$${Number(
             weeklyExecutiveSummary?.totalOpportunity || 0
           ).toLocaleString()}`,
@@ -50455,8 +50455,14 @@ Restaurant AI Health is currently rated{" "}
         overflowWrap: "anywhere",
       }}
     >
-      {weeklyExecutiveSummary?.summary ||
-        "Weekly executive summary is monitoring operational performance."}
+      {Number(totalAIRecoveryOpportunity || 0) > 0
+  ? `Serven identified $${Number(
+      totalAIRecoveryOpportunity || 0
+    ).toLocaleString()}/month in recoverable profit opportunities. Annual impact is $${Number(
+      annualRecoverableProfit || 0
+    ).toLocaleString()}.`
+  : weeklyExecutiveSummary?.summary ||
+    "Weekly executive summary is monitoring operational performance."}
     </div>
 
     <button
