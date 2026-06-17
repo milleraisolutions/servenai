@@ -1579,8 +1579,9 @@ setSavedCampaigns((prev) => [
       "Track smoothie ingredients that are close to expiration and reduce spoilage risk.",
   },
   restaurant: {
-    title: "Shelf Life Tracking",
-    subtitle: "Track produce, proteins, and prep items close to expiration.",
+    title: "Shelf Life Exposure Intelligence",
+subtitle:
+  "Identify inventory at risk of spoilage and recover preventable profit loss.",
     lockedTitle: "Unlock Shelf Life Tracking",
     lockedText:
       "Track ingredients that are close to expiration and reduce spoilage risk.",
@@ -12567,12 +12568,41 @@ const estimatedAlcoholRecovery =
           0.2
       )
     : 0;
+const executiveInvoiceRecoveryOpportunity = (invoicesData || []).reduce(
+  (sum, row) => {
+    const unitCost = Number(
+      row.unit_cost ||
+        row.unit_price ||
+        row.price_per_unit ||
+        row.cost_per_unit ||
+        row.amount ||
+        0
+    );
 
+    const quantity = Number(row.quantity || row.qty || row.units || 1);
+
+    const variancePercent = Number(
+      row.variancePercent ||
+        row.variance_percent ||
+        row.price_increase_percent ||
+        0
+    );
+
+    const estimatedIncrease =
+      variancePercent > 0 ? unitCost * quantity * (variancePercent / 100) : 0;
+
+    return sum + Math.max(0, estimatedIncrease);
+  },
+  0
+);
 const totalAIRecoveryOpportunity =
   estimatedFoodRecovery +
   estimatedLaborRecovery +
   operationalEstimatedWasteRecovery +
-  estimatedAlcoholRecovery;
+  estimatedAlcoholRecovery +
+  Number(shelfLifeLoss || 0) +
+  Number(executiveInvoiceRecoveryOpportunity || 0);
+  
   const annualRecoverableProfit =
   Number(totalAIRecoveryOpportunity || 0) * 12;
 
@@ -12581,6 +12611,7 @@ const restaurantRetains =
 
 const servenSuccessFee =
   Number(totalAIRecoveryOpportunity || 0) * 0.3;
+
   const topLossCategories = [
   {
     name: "Labor",
@@ -12590,6 +12621,14 @@ const servenSuccessFee =
     name: "Inventory",
     value: Number(operationalEstimatedWasteRecovery || 0),
   },
+  {
+  name: "Shelf Life",
+  value: Number(shelfLifeLoss || 0),
+},
+{
+  name: "Vendor Inflation",
+  value: Number(executiveInvoiceRecoveryOpportunity || 0),
+},
   {
     name: "Menu",
     value: Number(estimatedFoodRecovery || 0),
@@ -14468,7 +14507,26 @@ const vendorPriceSpikeData = useMemo(() => {
     .filter((item) => item.latestCost > 0)
     .sort((a, b) => b.priceChange - a.priceChange);
 }, [invoicesData]);
+const invoiceRecoveryOpportunity = (vendorPriceSpikeData || []).reduce(
+  (sum, item) => {
+    const previousCost = Number(item.previousCost || 0);
+    const latestCost = Number(item.latestCost || 0);
 
+    const unitIncrease = Math.max(0, latestCost - previousCost);
+
+    const monthlyQuantity =
+      Number(item.quantity || 0) ||
+      Number(item.totalQuantity || 0) ||
+      Number(item.monthlyQuantity || 0) ||
+      100;
+
+    return sum + unitIncrease * monthlyQuantity;
+  },
+  0
+);
+
+const annualInvoiceRecoveryOpportunity =
+  Number(invoiceRecoveryOpportunity || 0) * 12;
 const recipeCostingData = useMemo(() => {
   const rules = recipeUsageRules || [];
 
@@ -54462,6 +54520,27 @@ Restaurant AI Health is currently rated{" "}
       Tracks invoice costs by vendor and ingredient to detect rising supplier
       prices before they erode menu margins.
     </p>
+    <div
+  style={{
+    display: "grid",
+    gridTemplateColumns: isMobile ? "1fr" : "repeat(2, minmax(0, 1fr))",
+    gap: "12px",
+    marginTop: "16px",
+    marginBottom: "16px",
+  }}
+>
+  <GlassCard
+    title="Monthly Vendor Inflation Impact"
+    value={`$${Number(invoiceRecoveryOpportunity || 0).toLocaleString()}`}
+    subtext="Estimated monthly supplier cost pressure"
+  />
+
+  <GlassCard
+    title="Annual Vendor Inflation Impact"
+    value={`$${Number(annualInvoiceRecoveryOpportunity || 0).toLocaleString()}`}
+    subtext="Projected annual margin impact"
+  />
+</div>
 {(!vendorCostInsights || vendorCostInsights.length === 0) && (
   <div
     style={{
@@ -55412,7 +55491,7 @@ Restaurant AI Health is currently rated{" "}
                     color: "#fbbf24",
                   }}
                 >
-                  Estimated spoilage exposure: $
+                  Monthly Recoverable Shelf-Life Profit: $
                   {Number(shelfLifeLoss || 0).toLocaleString()}
                 </div>
               )}
