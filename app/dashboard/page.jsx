@@ -28612,6 +28612,207 @@ return (
     ))}
   </div>
 </div>
+{/* DATA UNLOCK STATUS */}
+<div
+  style={{
+    marginBottom: "22px",
+    padding: "20px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(79,70,229,0.12), rgba(15,23,42,0.94))",
+    border: "1px solid rgba(129,140,248,0.16)",
+  }}
+>
+  <div style={{ color: "#a5b4fc", fontSize: "12px", fontWeight: "900" }}>
+    DATA UNLOCK STATUS
+  </div>
+
+  <div style={{ marginTop: "14px", display: "grid", gap: "10px" }}>
+    {[
+      {
+        label: "Revenue Intelligence",
+        unlocked:
+          (dbSalesRows || []).length > 0 ||
+          (salesData || []).length > 0 ||
+          Number(liveTotalRevenue || 0) > 0,
+        detail: "POS data unlocks revenue trends and sales performance.",
+      },
+      {
+        label: "Labor Recovery",
+        unlocked: (laborData || []).length > 0,
+        detail: "Labor data unlocks staffing efficiency and labor leakage.",
+      },
+      {
+        label: "Inventory Waste",
+        unlocked: (inventoryData || []).length > 0,
+        detail: "Inventory data unlocks waste and depletion intelligence.",
+      },
+      {
+        label: "Menu Profitability",
+        unlocked: (menuItemsData || []).length > 0,
+        detail: "Menu data unlocks item-level margin opportunities.",
+      },
+      {
+        label: "Vendor Savings",
+        unlocked: (invoicesData || []).length > 0,
+        detail: "Invoice data unlocks vendor pricing and cost recovery.",
+      },
+    ].map((item) => (
+      <div
+        key={item.label}
+        style={{
+          padding: "12px",
+          borderRadius: "14px",
+          background: item.unlocked
+            ? "rgba(34,197,94,0.08)"
+            : "rgba(255,255,255,0.04)",
+          border: item.unlocked
+            ? "1px solid rgba(34,197,94,0.18)"
+            : "1px solid rgba(148,163,184,0.12)",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            gap: "12px",
+            flexWrap: "wrap",
+          }}
+        >
+          <div style={{ color: "white", fontWeight: "900", fontSize: "13px" }}>
+            {item.label}
+          </div>
+
+          <div
+            style={{
+              color: item.unlocked ? "#86efac" : "#fbbf24",
+              fontWeight: "900",
+              fontSize: "12px",
+            }}
+          >
+            {item.unlocked ? "Unlocked" : "Locked"}
+          </div>
+        </div>
+
+        <div
+          style={{
+            color: "#94a3b8",
+            fontSize: "12px",
+            marginTop: "6px",
+            lineHeight: 1.5,
+          }}
+        >
+          {item.detail}
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+{/* RECOMMENDED NEXT UPLOAD */}
+<div
+  style={{
+    marginBottom: "22px",
+    padding: "20px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(245,158,11,0.12), rgba(15,23,42,0.94))",
+    border: "1px solid rgba(245,158,11,0.18)",
+  }}
+>
+  <div
+    style={{
+      color: "#fbbf24",
+      fontSize: "12px",
+      fontWeight: "900",
+      marginBottom: "10px",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+    }}
+  >
+    Recommended Next Upload
+  </div>
+
+  <div
+    style={{
+      color: "white",
+      fontSize: "18px",
+      fontWeight: "900",
+      marginBottom: "8px",
+    }}
+  >
+    {!(invoicesData || []).length
+      ? "Upload Invoices"
+      : !(inventoryData || []).length
+      ? "Upload Inventory Data"
+      : !(laborData || []).length
+      ? "Upload Labor Data"
+      : !(menuItemsData || []).length
+      ? "Upload Menu Items"
+      : "All Core Intelligence Activated"}
+  </div>
+
+  <div
+    style={{
+      color: "#cbd5e1",
+      fontSize: "13px",
+      lineHeight: 1.6,
+    }}
+  >
+    {!(invoicesData || []).length
+      ? "Invoice uploads unlock vendor inflation detection, supplier price tracking, and purchasing savings opportunities."
+      : !(inventoryData || []).length
+      ? "Inventory uploads unlock depletion tracking, waste monitoring, and shelf-life intelligence."
+      : !(laborData || []).length
+      ? "Labor uploads unlock labor recovery, overtime analysis, and staffing optimization."
+      : !(menuItemsData || []).length
+      ? "Menu uploads unlock item-level profitability, pricing intelligence, and menu engineering."
+      : "Serven has activated all core intelligence modules. Continue uploading data to improve accuracy."}
+  </div>
+</div>
+{/* SERVEN INTELLIGENCE SCORE */}
+<div
+  style={{
+    marginBottom: "22px",
+    padding: "20px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(34,197,94,0.10), rgba(15,23,42,0.94))",
+    border: "1px solid rgba(34,197,94,0.18)",
+  }}
+>
+  <div style={{ color: "#86efac", fontSize: "12px", fontWeight: "900" }}>
+    SERVEN INTELLIGENCE SCORE
+  </div>
+
+  <div
+    style={{
+      color: "white",
+      fontSize: "34px",
+      fontWeight: "1000",
+      marginTop: "12px",
+      marginBottom: "8px",
+    }}
+  >
+    {Math.round(
+      ([
+        (dbSalesRows || []).length > 0 ||
+          (salesData || []).length > 0 ||
+          Number(liveTotalRevenue || 0) > 0,
+        (laborData || []).length > 0,
+        (inventoryData || []).length > 0,
+        (menuItemsData || []).length > 0,
+        (invoicesData || []).length > 0,
+      ].filter(Boolean).length /
+        5) *
+        100
+    )}
+    /100
+  </div>
+
+  <div style={{ color: "#94a3b8", fontSize: "13px", lineHeight: 1.6 }}>
+    Intelligence improves as more restaurant data sources are connected.
+  </div>
+</div>
 {hasOperationalData && (
   <>
   {/* EXECUTIVE PROFIT RECOVERY HERO */}
