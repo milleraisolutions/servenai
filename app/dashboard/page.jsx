@@ -22589,9 +22589,28 @@ const aiMultiLocationExecutiveInsights = (
     };
   }
 );
-const aiLocationRanking = [...(aiMultiLocationExecutiveInsights || [])].sort(
-  (a, b) => Number(a.primeCost || 0) - Number(b.primeCost || 0)
-);
+const aiLocationRanking = [...(aiMultiLocationExecutiveInsights || [])]
+  .map((location) => {
+    const revenue = Number(location.revenue || 0);
+    const primeCost = Number(location.primeCost || 0);
+
+    const targetPrimeCost = 60;
+
+    const recoverableProfit =
+      primeCost > targetPrimeCost
+        ? Math.round(((primeCost - targetPrimeCost) / 100) * revenue)
+        : 0;
+
+    return {
+      ...location,
+      recoverableProfit,
+    };
+  })
+  .sort(
+    (a, b) =>
+      Number(b.recoverableProfit || 0) -
+      Number(a.recoverableProfit || 0)
+  );
 
 const aiCrossLocationRisks = (aiMultiLocationExecutiveInsights || []).filter(
   (location) =>
@@ -34498,6 +34517,67 @@ Restaurant AI Health is currently rated{" "}
       ))}
     </div>
   </div>
+       
+
+{/* EXECUTIVE LOCATION RANKING */}
+
+<div
+  style={{
+    marginTop: "20px",
+    padding: "22px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.90))",
+    border: "1px solid rgba(148,163,184,0.14)",
+  }}
+>
+  <div
+    style={{
+      color: "#93c5fd",
+      fontSize: "12px",
+      fontWeight: "900",
+      marginBottom: "10px",
+      textTransform: "uppercase",
+    }}
+  >
+    Executive Location Ranking
+  </div>
+{(aiLocationRanking || []).slice(0, 5).map((location, index) => {
+  const recoverableProfit = Number(location.recoverableProfit || 0);
+  const servenFee = recoverableProfit * 0.3;
+  const operatorKeeps = recoverableProfit * 0.7;
+
+  return (
+    <div
+      key={location.location}
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        gap: "14px",
+        padding: "12px",
+        marginBottom: "10px",
+        borderRadius: "12px",
+        background: "rgba(255,255,255,0.04)",
+      }}
+    >
+      <span style={{ color: "white", fontWeight: "800" }}>
+        #{index + 1} {location.location}
+      </span>
+
+      <div style={{ textAlign: "right" }}>
+        <div style={{ color: "#86efac", fontWeight: "900" }}>
+          ${recoverableProfit.toLocaleString()}/mo Recoverable Profit
+        </div>
+
+        <div style={{ color: "#cbd5e1", fontSize: "12px", marginTop: "4px" }}>
+          Operator keeps ${operatorKeeps.toLocaleString()}/mo • Serven fee $
+          {servenFee.toLocaleString()}/mo
+        </div>
+      </div>
+    </div>
+  );
+})}
+</div>
 </div>
     <div
       style={{
