@@ -28612,6 +28612,8 @@ return (
     ))}
   </div>
 </div>
+{hasOperationalData && (
+  <>
   {/* EXECUTIVE PROFIT RECOVERY HERO */}
 <div
   style={{
@@ -29507,7 +29509,8 @@ const timeToImpact =
     />
   </div>
 </div>
-   
+   </>
+)}
 </>
 )}
 
