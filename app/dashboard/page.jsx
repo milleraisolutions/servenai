@@ -55001,27 +55001,53 @@ Restaurant AI Health is currently rated{" "}
       AI PROFIT ALERT
     </div>
 
-    <div
-      style={{
-        color: "white",
-        fontSize: "22px",
-        fontWeight: "900",
-        marginBottom: "8px",
-      }}
-    >
-     {hasOperationalData
-  ? "AI detected operational profit opportunities"
-  : "Unlock AI profit recovery intelligence"}
-    </div>
+  <div
+  style={{
+    color: "white",
+    fontSize: "18px",
+    fontWeight: "950",
+    marginBottom: "8px",
+    textTransform: "uppercase",
+    letterSpacing: "0.06em",
+  }}
+>
+  {hasOperationalData ? "You're Losing" : "Profit Recovery Waiting"}
+</div>
 
-    <div
-      style={{
-        fontSize: "13px",
-        color: "#94a3b8",
-      }}
-    >
-      Let Serven apply the highest-impact fix first
-    </div>
+<div
+  style={{
+    color: "#fca5a5",
+    fontSize: isMobile ? "34px" : "48px",
+    fontWeight: "1000",
+    lineHeight: 1,
+    marginBottom: "10px",
+  }}
+>
+  {hasOperationalData
+    ? `$${Number(totalAIRecoveryOpportunity || 0).toLocaleString()}/mo`
+    : "$0/mo"}
+</div>
+
+<div
+  style={{
+    color: "#cbd5e1",
+    fontSize: "14px",
+    lineHeight: 1.6,
+  }}
+>
+  Annual impact:{" "}
+  <strong style={{ color: "white" }}>
+    ${Number(annualRecoverableProfit || 0).toLocaleString()}
+  </strong>{" "}
+  • Operator keeps{" "}
+  <strong style={{ color: "#86efac" }}>
+    ${Number(restaurantRetains * 12 || 0).toLocaleString()}
+  </strong>{" "}
+  • Serven fee{" "}
+  <strong style={{ color: "#a5b4fc" }}>
+    ${Number(servenSuccessFee * 12 || 0).toLocaleString()}
+  </strong>
+</div>
   
   <button
     onClick={applyTopRecommendedFix}
@@ -55778,7 +55804,7 @@ Restaurant AI Health is currently rated{" "}
         )}
 
         
-{/* GROWTH DIAGNOSIS */}
+{/* PROFIT RECOVERY DIAGNOSIS */}
 
 <div
   style={{
@@ -55812,7 +55838,7 @@ Restaurant AI Health is currently rated{" "}
           marginBottom: "6px",
         }}
       >
-        Growth Intelligence
+        Profit Recovery Intelligence
       </div>
 
       <h3
@@ -55823,7 +55849,7 @@ Restaurant AI Health is currently rated{" "}
           fontWeight: "950",
         }}
       >
-        Growth diagnosis
+        Profit Recovery Diagnosis
       </h3>
 
       <p
@@ -55991,7 +56017,7 @@ Restaurant AI Health is currently rated{" "}
         fontSize: "13px",
       }}
     >
-      No growth diagnosis available yet.
+      No profit recovery diagnosis available yet.
     </div>
   )}
 </div>
