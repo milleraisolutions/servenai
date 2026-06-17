@@ -27857,6 +27857,446 @@ return (
   {(isOwnerRole || isExecutiveRole || canSeeManagerDashboard) && (
   <>
     {/* WELCOME / UPLOAD SECTION HERE */}
+     <div
+      style={{
+  marginBottom: "24px",
+  padding: isMobile ? "16px" : "20px",
+  borderRadius: isMobile ? "22px" : "26px",
+  background:
+    "radial-gradient(circle at top right, rgba(109,61,245,0.28), transparent 32%), linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.94))",
+  border: "1px solid rgba(167,139,250,0.24)",
+  boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
+  overflow: "hidden",
+}}
+    >
+      <div
+        style={{
+          color: "#d4af37",
+          fontSize: "12px",
+          fontWeight: "900",
+          letterSpacing: "0.1em",
+          textTransform: "uppercase",
+          marginBottom: "10px",
+        }}
+      >
+        Welcome to SerVen
+      </div>
+      <input
+  id="posUpload"
+  type="file"
+  accept=".csv,.xlsx,.xls"
+  onChange={handleFileUpload}
+  style={{ display: "none" }}
+/>
+
+<input
+  id="laborUpload"
+  type="file"
+  accept=".csv,.xlsx,.xls"
+  onChange={handleFileUpload}
+  style={{ display: "none" }}
+/>
+
+<input
+  id="inventoryUpload"
+  type="file"
+  accept=".csv,.xlsx,.xls"
+  onChange={handleFileUpload}
+  style={{ display: "none" }}
+/>
+
+<input
+  id="invoiceUpload"
+  type="file"
+  accept=".pdf,.csv,.xlsx,.xls"
+  multiple
+  onChange={handleInvoiceUpload}
+  style={{ display: "none" }}
+/>
+
+<input
+  id="menuItemsUpload"
+  type="file"
+  accept=".csv,.xlsx,.xls"
+  onChange={handleFileUpload}
+  style={{ display: "none" }}
+/>
+
+<input
+  id="guestUpload"
+  type="file"
+  accept=".csv,.xlsx,.xls"
+  onChange={handleGuestUpload}
+  style={{ display: "none" }}
+/>
+
+<input
+  id="locationUpload"
+  type="file"
+  accept=".csv,.xlsx,.xls"
+  onChange={handleLocationUpload}
+  style={{ display: "none" }}
+/>
+
+<input
+  id="ingredientsUpload"
+  type="file"
+  accept=".csv,.xlsx,.xls"
+  onChange={handleIngredientsUpload}
+  style={{ display: "none" }}
+/>
+
+<input
+  id="recipeUpload"
+  type="file"
+  accept=".csv,.xlsx,.xls"
+  onChange={handleRecipeUpload}
+  style={{ display: "none" }}
+/>
+
+<input
+  id="batchPrepUpload"
+  type="file"
+  accept=".csv,.xlsx,.xls"
+  onChange={handleBatchPrepUpload}
+  style={{ display: "none" }}
+/>
+
+<input
+  id="employeeShiftUpload"
+  type="file"
+  accept=".csv,.xlsx,.xls"
+  onChange={handleEmployeeShiftUpload}
+  style={{ display: "none" }}
+/>
+
+<input
+  id="beverageUpload"
+  type="file"
+  accept=".csv,.xlsx,.xls"
+  onChange={handleBeverageUpload}
+  style={{ display: "none" }}
+/>
+{uploadError && (
+  <div
+    style={{
+      marginTop: "12px",
+      padding: "12px",
+      borderRadius: "12px",
+      background: "rgba(239,68,68,0.10)",
+      border: "1px solid rgba(239,68,68,0.22)",
+      color: "#fca5a5",
+      fontSize: "13px",
+      fontWeight: "800",
+    }}
+  >
+    {uploadError}
+  </div>
+)}
+      <h2
+        style={{
+          color: "white",
+          fontSize: "30px",
+          fontWeight: "950",
+          margin: "0 0 10px",
+        }}
+      >
+        Connect your restaurant data to unlock your first AI insights
+      </h2>
+
+      <p
+        style={{
+          color: "#cbd5e1",
+          fontSize: "15px",
+          lineHeight: 1.7,
+          maxWidth: "780px",
+          margin: "0 0 22px",
+        }}
+      >
+        Upload your POS sales data, menu items, or ingredients to generate
+        revenue trends, profit leaks, food cost alerts, and AI-powered
+        recommendations.
+      </p>
+
+      <div
+ style={{
+  display: "grid",
+  gridTemplateColumns: isMobile
+    ? "1fr"
+    : "repeat(3, minmax(220px, 1fr))",
+  gap: "14px",
+  alignItems: "stretch",
+  maxWidth: "980px",
+}}
+>
+ <div
+  style={{
+    display: "grid",
+    gap: "26px",
+    width: "100%",
+  }}
+>
+  {/* PRIMARY IMPORTS */}
+  <div>
+    <div
+      style={{
+        color: "#e5e7eb",
+        fontSize: "13px",
+        fontWeight: "950",
+        letterSpacing: "0.12em",
+        textTransform: "uppercase",
+        marginBottom: "14px",
+      }}
+    >
+      Primary Imports
+    </div>
+
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: isMobile
+          ? "1fr"
+          : "repeat(4, minmax(0, 1fr))",
+        gap: "14px",
+        alignItems: "stretch",
+      }}
+    ><button
+  onClick={() => {
+    selectedUploadTypeRef.current = "pos";
+    setUploadType("pos");
+
+    const input = document.getElementById("posUpload");
+    if (input) input.value = "";
+    input?.click();
+  }}
+  style={setupPrimaryButton}
+>
+  Upload POS Data
+</button>
+
+<button
+  onClick={() => {
+    selectedUploadTypeRef.current = "labor";
+    setUploadType("labor");
+
+    const input = document.getElementById("laborUpload");
+    if (input) input.value = "";
+    input?.click();
+  }}
+  style={setupPrimaryButton}
+>
+  Upload Labor Data
+</button>
+
+<button
+  onClick={() => {
+    selectedUploadTypeRef.current = "inventory";
+    setUploadType("inventory");
+
+    const input = document.getElementById("inventoryUpload");
+    if (input) input.value = "";
+    input?.click();
+  }}
+  style={setupGoldButton}
+>
+  Upload Inventory
+</button>
+
+<button
+  onClick={() => {
+    selectedUploadTypeRef.current = "invoices";
+    setUploadType("invoices");
+
+    const input = document.getElementById("invoiceUpload");
+    if (input) input.value = "";
+    input?.click();
+  }}
+  style={setupSecondaryButton}
+>
+  Upload Invoices
+</button>
+
+<button
+  onClick={() => {
+    selectedUploadTypeRef.current = "menu_items";
+    setUploadType("menu_items");
+
+    const input = document.getElementById("menuItemsUpload");
+    if (input) input.value = "";
+    input?.click();
+  }}
+  style={setupSecondaryButton}
+>
+  Upload Menu Items
+</button>
+
+<button
+  onClick={() => {
+    selectedUploadTypeRef.current = "guests";
+    setUploadType("guests");
+
+    const input = document.getElementById("guestUpload");
+
+    if (!input) {
+      console.error("guestUpload input not found");
+      setMessage("Guest upload input not found.");
+      return;
+    }
+
+    input.value = "";
+    input.click();
+  }}
+  style={setupPrimaryButton}
+>
+  Upload Guest Data
+</button>
+
+<button
+  onClick={() => {
+    selectedUploadTypeRef.current = "locations";
+    setUploadType("locations");
+
+    const input = document.getElementById("locationUpload");
+
+    if (!input) {
+      console.error("locationUpload input not found");
+      setMessage("Location upload input not found.");
+      return;
+    }
+
+    input.value = "";
+    input.click();
+  }}
+  style={setupPrimaryButton}
+>
+  Upload Locations
+</button>
+    </div>
+  </div>
+
+  {/* DIVIDER */}
+  <div
+    style={{
+      height: "1px",
+      width: "100%",
+      background:
+        "linear-gradient(90deg, transparent, rgba(148,163,184,0.28), transparent)",
+    }}
+  />
+
+  {/* ADVANCED IMPORTS */}
+  <div>
+    <div
+      style={{
+        color: "#e5e7eb",
+        fontSize: "13px",
+        fontWeight: "950",
+        letterSpacing: "0.12em",
+        textTransform: "uppercase",
+        marginBottom: "14px",
+      }}
+    >
+      Advanced Imports
+    </div>
+
+    <div
+      style={{
+  display: "grid",
+  gridTemplateColumns: isMobile
+    ? "1fr"
+    : "repeat(3, minmax(220px, 1fr))",
+  gap: "14px",
+  alignItems: "stretch",
+  maxWidth: "980px",
+}}
+    ><button
+  onClick={() => {
+    selectedUploadTypeRef.current = "ingredients";
+    setUploadType("ingredients");
+
+    const input = document.getElementById("ingredientsUpload");
+    if (input) input.value = "";
+    input?.click();
+  }}
+  style={setupGoldButton}
+>
+  Upload Ingredients
+</button>
+
+<button
+  onClick={() => {
+    selectedUploadTypeRef.current = "recipe_cards";
+    setUploadType("recipe_cards");
+
+    const input = document.getElementById("recipeUpload");
+    if (input) input.value = "";
+    input?.click();
+  }}
+  style={setupGoldButton}
+>
+  Upload Recipe Cards
+</button>
+
+<button
+  onClick={() => {
+    selectedUploadTypeRef.current = "batch_prep";
+    setUploadType("batch_prep");
+
+    const input = document.getElementById("batchPrepUpload");
+    if (input) input.value = "";
+    input?.click();
+  }}
+  style={setupGoldButton}
+>
+  Upload Batch Prep
+</button>
+
+<button
+  onClick={() => {
+    selectedUploadTypeRef.current = "employee_shifts";
+    setUploadType("employee_shifts");
+
+    const input = document.getElementById("employeeShiftUpload");
+    if (input) input.value = "";
+    input?.click();
+  }}
+  style={{
+    ...setupSecondaryButton,
+    gridColumn: isMobile ? "auto" : "1 / span 3",
+  }}
+>
+  Upload Employee Shifts
+</button>
+
+<button
+  type="button"
+  onClick={() => {
+    selectedUploadTypeRef.current = "beverage";
+    setUploadType("beverage");
+
+    const input = document.getElementById("beverageUpload");
+
+    if (!input) {
+      console.error("beverageUpload input not found");
+      setMessage("Beverage upload input not found.");
+      return;
+    }
+
+    input.value = "";
+    input.click();
+  }}
+  style={{
+    ...setupGoldButton,
+    gridColumn: isMobile ? "auto" : "1 / span 3",
+  }}
+>
+  Upload Beverage Data
+</button>
+    </div>
+  </div>
+</div>
+</div>
+    </div>
   {/* EXECUTIVE PROFIT RECOVERY HERO */}
 <div
   style={{
@@ -27971,7 +28411,7 @@ return (
       marginBottom: "14px",
     }}
   >
-    AI identified where monthly profit can be recovered across labor, menu,
+    SerVen identified where monthly profit can be recovered across labor, menu,
     inventory, beverage, and vendor costs.
   </p>
 
@@ -28752,446 +29192,7 @@ const timeToImpact =
     />
   </div>
 </div>
-    <div
-      style={{
-  marginBottom: "24px",
-  padding: isMobile ? "16px" : "20px",
-  borderRadius: isMobile ? "22px" : "26px",
-  background:
-    "radial-gradient(circle at top right, rgba(109,61,245,0.28), transparent 32%), linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.94))",
-  border: "1px solid rgba(167,139,250,0.24)",
-  boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
-  overflow: "hidden",
-}}
-    >
-      <div
-        style={{
-          color: "#d4af37",
-          fontSize: "12px",
-          fontWeight: "900",
-          letterSpacing: "0.1em",
-          textTransform: "uppercase",
-          marginBottom: "10px",
-        }}
-      >
-        Welcome to SerVen
-      </div>
-      <input
-  id="posUpload"
-  type="file"
-  accept=".csv,.xlsx,.xls"
-  onChange={handleFileUpload}
-  style={{ display: "none" }}
-/>
-
-<input
-  id="laborUpload"
-  type="file"
-  accept=".csv,.xlsx,.xls"
-  onChange={handleFileUpload}
-  style={{ display: "none" }}
-/>
-
-<input
-  id="inventoryUpload"
-  type="file"
-  accept=".csv,.xlsx,.xls"
-  onChange={handleFileUpload}
-  style={{ display: "none" }}
-/>
-
-<input
-  id="invoiceUpload"
-  type="file"
-  accept=".pdf,.csv,.xlsx,.xls"
-  multiple
-  onChange={handleInvoiceUpload}
-  style={{ display: "none" }}
-/>
-
-<input
-  id="menuItemsUpload"
-  type="file"
-  accept=".csv,.xlsx,.xls"
-  onChange={handleFileUpload}
-  style={{ display: "none" }}
-/>
-
-<input
-  id="guestUpload"
-  type="file"
-  accept=".csv,.xlsx,.xls"
-  onChange={handleGuestUpload}
-  style={{ display: "none" }}
-/>
-
-<input
-  id="locationUpload"
-  type="file"
-  accept=".csv,.xlsx,.xls"
-  onChange={handleLocationUpload}
-  style={{ display: "none" }}
-/>
-
-<input
-  id="ingredientsUpload"
-  type="file"
-  accept=".csv,.xlsx,.xls"
-  onChange={handleIngredientsUpload}
-  style={{ display: "none" }}
-/>
-
-<input
-  id="recipeUpload"
-  type="file"
-  accept=".csv,.xlsx,.xls"
-  onChange={handleRecipeUpload}
-  style={{ display: "none" }}
-/>
-
-<input
-  id="batchPrepUpload"
-  type="file"
-  accept=".csv,.xlsx,.xls"
-  onChange={handleBatchPrepUpload}
-  style={{ display: "none" }}
-/>
-
-<input
-  id="employeeShiftUpload"
-  type="file"
-  accept=".csv,.xlsx,.xls"
-  onChange={handleEmployeeShiftUpload}
-  style={{ display: "none" }}
-/>
-
-<input
-  id="beverageUpload"
-  type="file"
-  accept=".csv,.xlsx,.xls"
-  onChange={handleBeverageUpload}
-  style={{ display: "none" }}
-/>
-{uploadError && (
-  <div
-    style={{
-      marginTop: "12px",
-      padding: "12px",
-      borderRadius: "12px",
-      background: "rgba(239,68,68,0.10)",
-      border: "1px solid rgba(239,68,68,0.22)",
-      color: "#fca5a5",
-      fontSize: "13px",
-      fontWeight: "800",
-    }}
-  >
-    {uploadError}
-  </div>
-)}
-      <h2
-        style={{
-          color: "white",
-          fontSize: "30px",
-          fontWeight: "950",
-          margin: "0 0 10px",
-        }}
-      >
-        Connect your restaurant data to unlock your first AI insights
-      </h2>
-
-      <p
-        style={{
-          color: "#cbd5e1",
-          fontSize: "15px",
-          lineHeight: 1.7,
-          maxWidth: "780px",
-          margin: "0 0 22px",
-        }}
-      >
-        Upload your POS sales data, menu items, or ingredients to generate
-        revenue trends, profit leaks, food cost alerts, and AI-powered
-        recommendations.
-      </p>
-
-      <div
- style={{
-  display: "grid",
-  gridTemplateColumns: isMobile
-    ? "1fr"
-    : "repeat(3, minmax(220px, 1fr))",
-  gap: "14px",
-  alignItems: "stretch",
-  maxWidth: "980px",
-}}
->
- <div
-  style={{
-    display: "grid",
-    gap: "26px",
-    width: "100%",
-  }}
->
-  {/* PRIMARY IMPORTS */}
-  <div>
-    <div
-      style={{
-        color: "#e5e7eb",
-        fontSize: "13px",
-        fontWeight: "950",
-        letterSpacing: "0.12em",
-        textTransform: "uppercase",
-        marginBottom: "14px",
-      }}
-    >
-      Primary Imports
-    </div>
-
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: isMobile
-          ? "1fr"
-          : "repeat(4, minmax(0, 1fr))",
-        gap: "14px",
-        alignItems: "stretch",
-      }}
-    ><button
-  onClick={() => {
-    selectedUploadTypeRef.current = "pos";
-    setUploadType("pos");
-
-    const input = document.getElementById("posUpload");
-    if (input) input.value = "";
-    input?.click();
-  }}
-  style={setupPrimaryButton}
->
-  Upload POS Data
-</button>
-
-<button
-  onClick={() => {
-    selectedUploadTypeRef.current = "labor";
-    setUploadType("labor");
-
-    const input = document.getElementById("laborUpload");
-    if (input) input.value = "";
-    input?.click();
-  }}
-  style={setupPrimaryButton}
->
-  Upload Labor Data
-</button>
-
-<button
-  onClick={() => {
-    selectedUploadTypeRef.current = "inventory";
-    setUploadType("inventory");
-
-    const input = document.getElementById("inventoryUpload");
-    if (input) input.value = "";
-    input?.click();
-  }}
-  style={setupGoldButton}
->
-  Upload Inventory
-</button>
-
-<button
-  onClick={() => {
-    selectedUploadTypeRef.current = "invoices";
-    setUploadType("invoices");
-
-    const input = document.getElementById("invoiceUpload");
-    if (input) input.value = "";
-    input?.click();
-  }}
-  style={setupSecondaryButton}
->
-  Upload Invoices
-</button>
-
-<button
-  onClick={() => {
-    selectedUploadTypeRef.current = "menu_items";
-    setUploadType("menu_items");
-
-    const input = document.getElementById("menuItemsUpload");
-    if (input) input.value = "";
-    input?.click();
-  }}
-  style={setupSecondaryButton}
->
-  Upload Menu Items
-</button>
-
-<button
-  onClick={() => {
-    selectedUploadTypeRef.current = "guests";
-    setUploadType("guests");
-
-    const input = document.getElementById("guestUpload");
-
-    if (!input) {
-      console.error("guestUpload input not found");
-      setMessage("Guest upload input not found.");
-      return;
-    }
-
-    input.value = "";
-    input.click();
-  }}
-  style={setupPrimaryButton}
->
-  Upload Guest Data
-</button>
-
-<button
-  onClick={() => {
-    selectedUploadTypeRef.current = "locations";
-    setUploadType("locations");
-
-    const input = document.getElementById("locationUpload");
-
-    if (!input) {
-      console.error("locationUpload input not found");
-      setMessage("Location upload input not found.");
-      return;
-    }
-
-    input.value = "";
-    input.click();
-  }}
-  style={setupPrimaryButton}
->
-  Upload Locations
-</button>
-    </div>
-  </div>
-
-  {/* DIVIDER */}
-  <div
-    style={{
-      height: "1px",
-      width: "100%",
-      background:
-        "linear-gradient(90deg, transparent, rgba(148,163,184,0.28), transparent)",
-    }}
-  />
-
-  {/* ADVANCED IMPORTS */}
-  <div>
-    <div
-      style={{
-        color: "#e5e7eb",
-        fontSize: "13px",
-        fontWeight: "950",
-        letterSpacing: "0.12em",
-        textTransform: "uppercase",
-        marginBottom: "14px",
-      }}
-    >
-      Advanced Imports
-    </div>
-
-    <div
-      style={{
-  display: "grid",
-  gridTemplateColumns: isMobile
-    ? "1fr"
-    : "repeat(3, minmax(220px, 1fr))",
-  gap: "14px",
-  alignItems: "stretch",
-  maxWidth: "980px",
-}}
-    ><button
-  onClick={() => {
-    selectedUploadTypeRef.current = "ingredients";
-    setUploadType("ingredients");
-
-    const input = document.getElementById("ingredientsUpload");
-    if (input) input.value = "";
-    input?.click();
-  }}
-  style={setupGoldButton}
->
-  Upload Ingredients
-</button>
-
-<button
-  onClick={() => {
-    selectedUploadTypeRef.current = "recipe_cards";
-    setUploadType("recipe_cards");
-
-    const input = document.getElementById("recipeUpload");
-    if (input) input.value = "";
-    input?.click();
-  }}
-  style={setupGoldButton}
->
-  Upload Recipe Cards
-</button>
-
-<button
-  onClick={() => {
-    selectedUploadTypeRef.current = "batch_prep";
-    setUploadType("batch_prep");
-
-    const input = document.getElementById("batchPrepUpload");
-    if (input) input.value = "";
-    input?.click();
-  }}
-  style={setupGoldButton}
->
-  Upload Batch Prep
-</button>
-
-<button
-  onClick={() => {
-    selectedUploadTypeRef.current = "employee_shifts";
-    setUploadType("employee_shifts");
-
-    const input = document.getElementById("employeeShiftUpload");
-    if (input) input.value = "";
-    input?.click();
-  }}
-  style={{
-    ...setupSecondaryButton,
-    gridColumn: isMobile ? "auto" : "1 / span 3",
-  }}
->
-  Upload Employee Shifts
-</button>
-
-<button
-  type="button"
-  onClick={() => {
-    selectedUploadTypeRef.current = "beverage";
-    setUploadType("beverage");
-
-    const input = document.getElementById("beverageUpload");
-
-    if (!input) {
-      console.error("beverageUpload input not found");
-      setMessage("Beverage upload input not found.");
-      return;
-    }
-
-    input.value = "";
-    input.click();
-  }}
-  style={{
-    ...setupGoldButton,
-    gridColumn: isMobile ? "auto" : "1 / span 3",
-  }}
->
-  Upload Beverage Data
-</button>
-    </div>
-  </div>
-</div>
-</div>
-    </div>
+   
 </>
 )}
 
