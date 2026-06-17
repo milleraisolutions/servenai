@@ -50399,11 +50399,11 @@ Restaurant AI Health is currently rated{" "}
             Number(weeklyExecutiveSummary?.warningAlerts || 0),
         },
         {
-          label: "Monthly Recoverable Profit",
-          value: `$${Number(
-            weeklyExecutiveSummary?.totalOpportunity || 0
-          ).toLocaleString()}`,
-        },
+  label: "Monthly Recoverable Profit",
+  value: `$${Number(
+    totalAIRecoveryOpportunity || 0
+  ).toLocaleString()}`,
+},
       ].map((metric) => (
         <div
           key={metric.label}
