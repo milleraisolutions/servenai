@@ -28766,7 +28766,9 @@ return (
       letterSpacing: "0.06em",
     }}
   >
-    {hasOperationalData ? "You're Losing" : "Profit Recovery Waiting"}
+    {Number(totalAIRecoveryOpportunity || 0) > 0
+  ? "You're Losing"
+  : "Profit Recovery Analysis"}
   </div>
 
   <div
@@ -28778,9 +28780,9 @@ return (
       marginBottom: "18px",
     }}
   >
-    {hasOperationalData
-      ? `$${Number(totalAIRecoveryOpportunity || 0).toLocaleString()}/mo`
-      : "$0/mo"}
+   {Number(totalAIRecoveryOpportunity || 0) > 0
+  ? `$${Number(totalAIRecoveryOpportunity || 0).toLocaleString()}/mo`
+  : "Upload Data To Reveal"}
   </div>
 
   <div
@@ -56034,7 +56036,9 @@ Restaurant AI Health is currently rated{" "}
     letterSpacing: "0.06em",
   }}
 >
-  {hasOperationalData ? "You're Losing" : "Profit Recovery Waiting"}
+ {totalAIRecoveryOpportunity > 0
+  ? "You're Losing"
+  : "Profit Recovery Analysis"}
 </div>
 
 <div
