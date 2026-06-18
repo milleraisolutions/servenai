@@ -28907,6 +28907,8 @@ return (
     />
   </div>
 </div>
+{Number(totalAIRecoveryOpportunity || 0) > 0 && (
+  <>
 {/* PROFIT RECOVERY OPPORTUNITY */}
 <div
   style={{
@@ -29053,6 +29055,8 @@ return (
     {Number(annualRecoverableProfit || 0).toLocaleString()}
   </div>
 </div>
+  </>
+)}
 
 {/* AI RECOVERY ACTIONS */}
 <div
