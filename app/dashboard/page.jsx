@@ -50808,22 +50808,24 @@ Restaurant AI Health is currently rated{" "}
         }}
       >
         {[
-          {
-            label: "Critical Alerts",
-            value: executiveSummary?.criticalAlerts || 0,
-          },
-          {
-            label: "Warnings",
-            value: executiveSummary?.warningAlerts || 0,
-          },
-          {
-            label: "Projected Revenue",
-            value: executiveSummary?.projectedRevenue || "$0",
-          },
-          {
-            label: "Operational Risk",
-            value: executiveSummary?.operationalRisk || "Controlled",
-          },
+         {
+  label: "Active Alerts",
+  value:
+    Number(executiveSummary?.criticalAlerts || 0) +
+    Number(executiveSummary?.warningAlerts || 0),
+},
+{
+  label: "Revenue Outlook",
+  value: executiveSummary?.projectedRevenue || "$0",
+},
+{
+  label: "Operational Risk",
+  value: executiveSummary?.operationalRisk || "Controlled",
+},
+{
+  label: "Recoverable Profit",
+  value: `$${Number(totalAIRecoveryOpportunity || 0).toLocaleString()}`,
+},
         ].map((metric) => (
           <div
             key={metric.label}
@@ -51380,7 +51382,7 @@ Restaurant AI Health is currently rated{" "}
         overflowWrap: "anywhere",
       }}
     >
-      Boardroom-Style Operational Report
+      Restaurant Performance Briefing
     </h3>
 
     <p
@@ -51392,8 +51394,8 @@ Restaurant AI Health is currently rated{" "}
         overflowWrap: "anywhere",
       }}
     >
-      Summarizes weekly revenue forecasts, operational risk, AI alerts,
-      autopilot actions, and profit recovery opportunities.
+     Provides an executive summary of restaurant performance, operational risk,
+profit recovery opportunities, AI recommendations, and forecasted trends.
     </p>
 
     <div
@@ -51407,20 +51409,24 @@ Restaurant AI Health is currently rated{" "}
       }}
     >
       {[
-        {
-          label: "Projected Revenue",
-          value: weeklyExecutiveSummary?.projectedRevenue || "$0",
-        },
-        {
-          label: "Risk Level",
-          value: weeklyExecutiveSummary?.operationalRisk || "Controlled",
-        },
-        {
-          label: "AI Alerts",
-          value:
-            Number(weeklyExecutiveSummary?.criticalAlerts || 0) +
-            Number(weeklyExecutiveSummary?.warningAlerts || 0),
-        },
+       {
+  label: "Revenue Outlook",
+  value: weeklyExecutiveSummary?.projectedRevenue || "$0",
+},
+{
+  label: "Operational Risk",
+  value: weeklyExecutiveSummary?.operationalRisk || "Controlled",
+},
+{
+  label: "Active Alerts",
+  value:
+    Number(weeklyExecutiveSummary?.criticalAlerts || 0) +
+    Number(weeklyExecutiveSummary?.warningAlerts || 0),
+},
+{
+  label: "Recoverable Profit",
+  value: `$${Number(totalAIRecoveryOpportunity || 0).toLocaleString()}`,
+},
         {
   label: "Monthly Recoverable Profit",
   value: `$${Number(
