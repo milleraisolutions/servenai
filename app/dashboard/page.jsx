@@ -30022,20 +30022,60 @@ handleImportInventory();
 
 
 
- <WeeklyExecutiveSummary
-  weeklyExecutiveSummary={weeklyExecutiveSummary}
-  revenueTrend={revenueTrend}
-  avgMargin={avgMargin}
-  foodCostPercentage={foodCostPercentage}
-  restaurantName={userProfile?.restaurant_name}
-  revenueChartData={revenueTrend?.chartData || []}
+{hasRevenueData ? (
+  <WeeklyExecutiveSummary
+    weeklyExecutiveSummary={weeklyExecutiveSummary}
+    revenueTrend={revenueTrend}
+    avgMargin={avgMargin}
+    foodCostPercentage={foodCostPercentage}
+    restaurantName={userProfile?.restaurant_name}
+    revenueChartData={revenueTrend?.chartData || []}
+    alcoholRevenue={alcoholRevenue}
+    alcoholRevenuePercent={alcoholRevenuePercent}
+    topAlcoholItemName={topAlcoholItemName}
+    topBeverageCategory={topBeverageCategory}
+    alcoholMarginStatus={alcoholMarginStatus}
+  />
+) : (
+  <div
+    style={{
+      padding: "28px",
+      borderRadius: "24px",
+      background:
+        "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.92))",
+      border: "1px solid rgba(148,163,184,0.16)",
+      marginTop: "18px",
+      marginBottom: "22px",
+    }}
+  >
+    <div
+      style={{
+        color: "#fbbf24",
+        fontSize: "12px",
+        fontWeight: "900",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      Executive Report Locked
+    </div>
 
-  alcoholRevenue={alcoholRevenue}
-  alcoholRevenuePercent={alcoholRevenuePercent}
-  topAlcoholItemName={topAlcoholItemName}
-  topBeverageCategory={topBeverageCategory}
-  alcoholMarginStatus={alcoholMarginStatus}
-/>
+    <h3 style={{ color: "white", marginBottom: "12px" }}>
+      Upload POS Data To Generate Your First Executive Report
+    </h3>
+
+    <div
+      style={{
+        color: "#94a3b8",
+        fontSize: "14px",
+        lineHeight: 1.7,
+      }}
+    >
+      Revenue uploads unlock executive reporting, revenue trends, forecasting,
+      margin analysis, and weekly performance summaries.
+    </div>
+  </div>
+)}
 
 {/* 🚨 AI RISK ALERTS */}
 
