@@ -160,32 +160,7 @@ export default function AdminPage() {
 
     setAlerts(alertData || []);
     setAiActions(aiActionData || []);
-const handleToggleAccountActivation = async (clientId, currentStatus) => {
-  // Determine target status based on current state
-  const nextStatus = currentStatus === "active" ? "lead" : "active";
-  
-  try {
-    // 1. Update the customer_status in your Supabase 'users' or 'profiles' table
-    const { error } = await supabase
-      .from("users") // Change to 'profiles' if that's your custom userdata table name
-      .update({ customer_status: nextStatus })
-      .eq("id", clientId);
 
-    if (error) throw error;
-
-    // 2. Optimistically update local UI state so you see the change instantly
-    setClients((prevClients) =>
-      prevClients.map((client) =>
-        client.id === clientId ? { ...client, customer_status: nextStatus } : client
-      )
-    );
-
-    alert(`Account successfully set to ${nextStatus.toUpperCase()}!`);
-  } catch (err) {
-    console.error("Activation Toggle Error:", err);
-    alert(`Failed to change account status: ${err.message}`);
-  }
-};
     const customersWithMetrics = (usersData || []).map((customer) => {
       const customerSales = (salesData || []).filter((sale) => sale.user_id === customer.id);
       const customerAlerts = (alertData || []).filter((alert) => alert.user_id === customer.id);
@@ -774,6 +749,140 @@ const handleToggleAccountActivation = async (clientId, currentStatus) => {
       })()}
     </div>
 
+  </div>
+</div>
+{/* AT-RISK CLIENTS */}
+<div style={panelCard("#ef4444")}>
+  <div style={eyebrow}>CLIENT RETENTION RISK</div>
+  <h2 style={{ color: "white", fontSize: "26px", fontWeight: "900", marginBottom: "18px" }}>
+    At-Risk Clients
+  </h2>
+
+  {customers.filter((client) =>
+    Number(client.healthScore || 0) <= 55 ||
+    ["past_due", "unpaid"].includes(String(client.billingStatus || "").toLowerCase())
+  ).length === 0 ? (
+    <div style={{ color: "#94a3b8" }}>
+      No at-risk clients right now.
+    </div>
+  ) : (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(320px,1fr))", gap: "16px" }}>
+      {customers
+        .filter((client) =>
+          Number(client.healthScore || 0) <= 55 ||
+          ["past_due", "unpaid"].includes(String(client.billingStatus || "").toLowerCase())
+        )
+        .map((client) => (
+          <div key={client.id} style={leadCardStyle}>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: "10px" }}>
+              <div>
+                <div style={{ color: "white", fontWeight: "900", fontSize: "18px" }}>
+                  {client.restaurant_name || "Unnamed Business"}
+                </div>
+                <div style={{ color: "#94a3b8", fontSize: "13px" }}>
+                  {client.email}
+                </div>
+              </div>
+
+              <div style={healthBadge(client.healthScore)}>
+                {client.healthScore}% Health
+              </div>
+            </div>
+
+            <div style={leadMetaText}>
+              <div>Plan: {client.plan || "starter"}</div>
+              <div>Billing: {client.billingStatus}</div>
+              <div>Open Alerts: {client.openAlerts}</div>
+              <div>
+                Last Upload:{" "}
+                {client.lastUpload
+                  ? new Date(client.lastUpload).toLocaleDateString()
+                  : "Never"}
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: "8px", marginTop: "14px" }}>
+              <button
+                onClick={() => markContacted(client.id)}
+                style={{ ...smallActionButton, flex: 1, background: "#334155" }}
+              >
+                Mark Contacted
+              </button>
+
+              <button
+                onClick={() => sendClientEmail(client, "intro")}
+                style={{
+                  ...smallActionButton,
+                  flex: 1,
+                  background: "linear-gradient(135deg,#ef4444,#dc2626)",
+                }}
+              >
+                Email Client
+              </button>
+            </div>
+          </div>
+        ))}
+    </div>
+  )}
+</div>
+{/* CLIENT HEALTH SUMMARY */}
+<div style={panelCard("#22c55e")}>
+  <div style={eyebrow}>CLIENT HEALTH MONITORING</div>
+
+  <h2
+    style={{
+      color: "white",
+      fontSize: "26px",
+      fontWeight: "900",
+      marginBottom: "18px",
+    }}
+  >
+    Client Health Summary
+  </h2>
+
+  <div style={statsGrid}>
+    <StatCard
+      label="Healthy Clients"
+      value={
+        customers.filter((c) => Number(c.healthScore || 0) > 80).length
+      }
+    />
+
+    <StatCard
+      label="Watch List"
+      value={
+        customers.filter(
+          (c) =>
+            Number(c.healthScore || 0) <= 80 &&
+            Number(c.healthScore || 0) > 55
+        ).length
+      }
+    />
+
+    <StatCard
+      label="At Risk"
+      value={
+        customers.filter((c) => Number(c.healthScore || 0) <= 55).length
+      }
+    />
+
+    <StatCard
+      label="Past Due"
+      value={
+        customers.filter((c) =>
+          ["past_due", "unpaid"].includes(
+            String(c.billingStatus || "").toLowerCase()
+          )
+        ).length
+      }
+    />
+
+    <StatCard
+      label="No Uploads"
+      value={
+        customers.filter((c) => !c.lastUpload).length
+      }
+    />
   </div>
 </div>
       {/* CURRENT CLIENTS DIRECTORY */}
