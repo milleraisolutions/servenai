@@ -28907,6 +28907,182 @@ return (
     />
   </div>
 </div>
+
+{/* =========================
+   AI EXECUTIVE SUMMARY CLOSEOUT
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      gridColumn: "span 12",
+      width: "100%",
+      minWidth: 0,
+
+      marginTop: "24px",
+      marginBottom: "30px",
+
+      padding: "32px",
+      borderRadius: "34px",
+
+      overflow: "hidden",
+      position: "relative",
+
+      background:
+        "linear-gradient(135deg, rgba(15,23,42,0.99), rgba(30,41,59,0.95), rgba(99,102,241,0.18))",
+
+      border: "1px solid rgba(129,140,248,0.24)",
+
+      boxShadow: "0 34px 100px rgba(2,6,23,0.46)",
+    }}
+  >
+    <div
+      style={{
+        position: "absolute",
+        top: "-120px",
+        right: "-120px",
+        width: "260px",
+        height: "260px",
+        borderRadius: "999px",
+        background: "rgba(129,140,248,0.12)",
+        filter: "blur(44px)",
+      }}
+    />
+
+    <div
+      style={{
+        position: "relative",
+        zIndex: 2,
+      }}
+    >
+      <div
+        style={{
+          color: "#c7d2fe",
+          fontSize: "12px",
+          fontWeight: "950",
+          letterSpacing: "0.1em",
+          textTransform: "uppercase",
+          marginBottom: "10px",
+        }}
+      >
+        AI Executive Summary
+      </div>
+
+      <h2
+        style={{
+          color: "white",
+          fontSize: "34px",
+          fontWeight: "950",
+          lineHeight: 1.2,
+          marginBottom: "16px",
+        }}
+      >
+        Restaurant Intelligence Status: Operationally Stable
+      </h2>
+
+      <p
+        style={{
+          color: "#cbd5e1",
+          fontSize: "15px",
+          lineHeight: 1.9,
+          maxWidth: "980px",
+          marginBottom: "28px",
+        }}
+      >
+        SerVen AI has completed a full operational analysis across revenue,
+        labor, inventory, guests, forecasting, reservations, profit leakage,
+        and optimization systems. AI predicts stable growth potential while
+        identifying opportunities to improve guest retention, increase margin
+        efficiency, and reduce operational leakage.
+      </p>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: isMobile
+            ? "1fr"
+            : "repeat(4,minmax(0,1fr))",
+          gap: "16px",
+          marginBottom: "26px",
+        }}
+      >
+       <GlassCard
+  title="Operational Score"
+  value={
+    hasOperationalData
+      ? `${Number(restaurantAIHealthScore || 0)}%`
+      : "Awaiting Data"
+  }
+  subtitle="AI system health"
+/>
+
+<GlassCard
+  title="Profit Recovery"
+  value={
+    hasOperationalData
+      ? `$${Number(totalAIRecoveryOpportunity || 0).toLocaleString()}`
+      : "Awaiting Data"
+  }
+  subtitle="Estimated monthly opportunity"
+/>
+
+<GlassCard
+  title="Forecast Confidence"
+  value={
+    hasOperationalData
+      ? `${Number(realForecastConfidence || 0)}%`
+      : "Simulation"
+  }
+  subtitle="AI predictive certainty"
+/>
+
+<GlassCard
+  title="Optimization Status"
+  value={
+    hasOperationalData
+      ? aiOptimizationStatus || "Monitoring"
+      : "Awaiting Data"
+  }
+  subtitle="Autonomous AI monitoring"
+/>
+      </div>
+
+      <div
+        style={{
+          padding: "22px",
+          borderRadius: "24px",
+          background: "rgba(15,23,42,0.78)",
+          border: "1px solid rgba(129,140,248,0.14)",
+        }}
+      >
+        <div
+          style={{
+            color: "#a5b4fc",
+            fontSize: "12px",
+            fontWeight: "900",
+            marginBottom: "10px",
+          }}
+        >
+          AI Final Recommendation
+        </div>
+
+        <div
+          style={{
+            color: "#e2e8f0",
+            fontSize: "14px",
+            lineHeight: 1.8,
+          }}
+        >
+          Focus immediate optimization efforts on guest retention recovery,
+          high-margin menu visibility, labor efficiency during low-volume
+          periods, and inventory variance reduction. AI predicts these
+          initiatives have the highest probability of near-term profitability
+          improvement.
+        </div>
+      </div>
+    </div>
+  </div>
+)}
 {Number(totalAIRecoveryOpportunity || 0) > 0 && (
   <>
 {/* PROFIT RECOVERY OPPORTUNITY */}
@@ -58649,6 +58825,2319 @@ minWidth: 0,
 </div>
   </div>
 </div>
+{/* =========================
+   AI GUEST INTELLIGENCE
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      gridColumn: "span 12",
+      width: "100%",
+      minWidth: 0,
+
+      marginTop: "24px",
+      padding: "24px",
+      borderRadius: "28px",
+
+      overflow: "hidden",
+
+      background:
+        "linear-gradient(135deg, rgba(59,130,246,0.16), rgba(15,23,42,0.96))",
+
+      border: "1px solid rgba(96,165,250,0.24)",
+
+      boxShadow: "0 24px 70px rgba(2,6,23,0.32)",
+    }}
+  >
+    <div
+      style={{
+        color: "#93c5fd",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      AI Guest Intelligence
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "28px",
+        fontWeight: "950",
+        marginBottom: "10px",
+      }}
+    >
+      Customer Behavior & Revenue Intelligence
+    </h3>
+
+    <p
+      style={{
+        color: "#cbd5e1",
+        fontSize: "14px",
+        lineHeight: 1.7,
+        marginBottom: "22px",
+      }}
+    >
+      SerVen AI identifies VIP guests, churn risk, average spend, and loyalty
+      signals so restaurants can protect repeat revenue.
+    </p>
+{aiGuestSentimentIntelligence.length === 0 && (
+  <div
+    style={{
+      marginBottom: "18px",
+      padding: "18px",
+      borderRadius: "20px",
+      background: "rgba(15,23,42,0.72)",
+      border: "1px solid rgba(96,165,250,0.18)",
+      color: "#cbd5e1",
+      fontSize: "14px",
+      lineHeight: 1.7,
+    }}
+  >
+    Upload or connect customer data to activate AI Guest Intelligence,
+    including VIP detection, churn risk, loyalty scoring, and guest revenue
+    forecasting.
+  </div>
+)}
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: isMobile
+          ? "1fr"
+          : "repeat(3,minmax(0,1fr))",
+        gap: "16px",
+      }}
+    >
+      <GlassCard
+        title="VIP Guests"
+        value={vipGuests}
+        subtitle="High lifetime value customers"
+      />
+
+      <GlassCard
+        title="At-Risk Guests"
+        value={highRiskGuests}
+        subtitle="Customers likely to churn"
+      />
+
+      <GlassCard
+        title="Average Guest Spend"
+        value={`$${avgGuestSpend.toFixed(0)}`}
+        subtitle="Average customer ticket value"
+      />
+    </div>
+  </div>
+)}
+{/* =========================
+   AI GUEST SENTIMENT INTELLIGENCE
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      gridColumn: "span 12",
+      width: "100%",
+      minWidth: 0,
+
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+
+      overflow: "hidden",
+
+      background:
+        "linear-gradient(135deg, rgba(14,165,233,0.14), rgba(15,23,42,0.96))",
+
+      border: "1px solid rgba(125,211,252,0.20)",
+    }}
+  >
+    <div
+      style={{
+        color: "#7dd3fc",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      AI Guest Sentiment Intelligence
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "24px",
+        fontWeight: "950",
+        marginBottom: "18px",
+      }}
+    >
+      Guest Loyalty & Behavior Analysis
+    </h3>
+
+    <div
+      style={{
+        overflowX: "auto",
+      }}
+    >
+      <table
+        style={{
+          width: "100%",
+          borderCollapse: "collapse",
+          minWidth: "760px",
+        }}
+      >
+        <thead>
+          <tr>
+            {[
+              "Guest",
+              "Tier",
+              "Visits",
+              "Avg Spend",
+              "Sentiment",
+              "Behavior Prediction",
+            ].map((header) => (
+              <th
+                key={header}
+                style={{
+                  textAlign: "left",
+                  padding: "14px",
+                  color: "#bae6fd",
+                  fontSize: "12px",
+                  fontWeight: "900",
+                  borderBottom:
+                    "1px solid rgba(148,163,184,0.14)",
+                }}
+              >
+                {header}
+              </th>
+            ))}
+          </tr>
+        </thead>
+<tbody>
+  {aiGuestSentimentIntelligence.length > 0 ? (
+    aiGuestSentimentIntelligence
+      .slice(0, 8)
+      .map((guest, index) => (
+        <tr
+          key={guest.id || index}
+          style={{
+            borderBottom:
+              "1px solid rgba(148,163,184,0.08)",
+          }}
+        >
+          <td
+            style={{
+              padding: "14px",
+              color: "white",
+              fontWeight: "700",
+            }}
+          >
+            {guest.name}
+          </td>
+
+          <td
+            style={{
+              padding: "14px",
+              color:
+                guest.guestTier === "VIP"
+                  ? "#facc15"
+                  : guest.guestTier === "Premium"
+                  ? "#93c5fd"
+                  : "#cbd5e1",
+              fontWeight: "800",
+            }}
+          >
+            {guest.guestTier}
+          </td>
+
+          <td
+            style={{
+              padding: "14px",
+              color: "#e2e8f0",
+            }}
+          >
+            {guest.visits}
+          </td>
+
+          <td
+            style={{
+              padding: "14px",
+              color: "#86efac",
+              fontWeight: "700",
+            }}
+          >
+            ${guest.avgSpend.toFixed(0)}
+          </td>
+
+          <td
+            style={{
+              padding: "14px",
+              color:
+                guest.sentimentScore === "Excellent"
+                  ? "#4ade80"
+                  : guest.sentimentScore === "Positive"
+                  ? "#93c5fd"
+                  : guest.sentimentScore === "Neutral"
+                  ? "#facc15"
+                  : "#f87171",
+              fontWeight: "800",
+            }}
+          >
+            {guest.sentimentScore}
+          </td>
+
+          <td
+            style={{
+              padding: "14px",
+              color: "#cbd5e1",
+              fontSize: "13px",
+            }}
+          >
+            {guest.predictedBehavior}
+          </td>
+        </tr>
+      ))
+  ) : (
+    <tr>
+      <td
+        colSpan={6}
+        style={{
+          padding: "28px",
+          textAlign: "center",
+          color: "#94a3b8",
+          fontSize: "14px",
+        }}
+      >
+        No guest sentiment data available yet.
+      </td>
+    </tr>
+  )}
+</tbody>
+      </table>
+    </div>
+  </div>
+)}
+{/* =========================
+   VIP GUEST TRACKER
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      gridColumn: "span 12",
+      width: "100%",
+      minWidth: 0,
+
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+
+      overflow: "hidden",
+
+      background:
+        "linear-gradient(135deg, rgba(250,204,21,0.12), rgba(15,23,42,0.96))",
+
+      border: "1px solid rgba(250,204,21,0.22)",
+
+      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
+    }}
+  >
+    <div
+      style={{
+        color: "#fde68a",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      VIP Guest Tracker
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "24px",
+        fontWeight: "950",
+        marginBottom: "18px",
+      }}
+    >
+      High-Value Customer Intelligence
+    </h3>
+
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: isMobile
+          ? "1fr"
+          : "repeat(auto-fit,minmax(260px,1fr))",
+        gap: "16px",
+      }}
+    >
+      {aiGuestSentimentIntelligence.filter(
+        (guest) => guest.guestTier === "VIP"
+      ).length > 0 ? (
+        aiGuestSentimentIntelligence
+          .filter((guest) => guest.guestTier === "VIP")
+          .slice(0, 6)
+          .map((guest, index) => (
+            <div
+              key={guest.id || index}
+              style={{
+                padding: "18px",
+                borderRadius: "22px",
+                background: "rgba(15,23,42,0.76)",
+                border: "1px solid rgba(250,204,21,0.14)",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: "14px",
+                }}
+              >
+                <div
+                  style={{
+                    color: "white",
+                    fontSize: "18px",
+                    fontWeight: "900",
+                  }}
+                >
+                  {guest.name}
+                </div>
+
+                <div
+                  style={{
+                    padding: "6px 10px",
+                    borderRadius: "999px",
+                    background: "rgba(250,204,21,0.14)",
+                    color: "#fde68a",
+                    fontSize: "11px",
+                    fontWeight: "900",
+                  }}
+                >
+                  VIP
+                </div>
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gap: "10px",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <span
+                    style={{
+                      color: "#94a3b8",
+                      fontSize: "13px",
+                    }}
+                  >
+                    Total Visits
+                  </span>
+
+                  <span
+                    style={{
+                      color: "#e2e8f0",
+                      fontWeight: "800",
+                    }}
+                  >
+                    {guest.visits}
+                  </span>
+                </div>
+
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <span
+                    style={{
+                      color: "#94a3b8",
+                      fontSize: "13px",
+                    }}
+                  >
+                    Average Spend
+                  </span>
+
+                  <span
+                    style={{
+                      color: "#86efac",
+                      fontWeight: "800",
+                    }}
+                  >
+                    ${guest.avgSpend.toFixed(0)}
+                  </span>
+                </div>
+
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <span
+                    style={{
+                      color: "#94a3b8",
+                      fontSize: "13px",
+                    }}
+                  >
+                    Loyalty Score
+                  </span>
+
+                  <span
+                    style={{
+                      color: "#60a5fa",
+                      fontWeight: "800",
+                    }}
+                  >
+                    {guest.loyaltyScore}/100
+                  </span>
+                </div>
+
+                <div
+                  style={{
+                    marginTop: "10px",
+                    width: "100%",
+                    height: "10px",
+                    borderRadius: "999px",
+                    background: "rgba(51,65,85,0.7)",
+                    overflow: "hidden",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: `${guest.loyaltyScore}%`,
+                      height: "100%",
+                      borderRadius: "999px",
+                      background:
+                        "linear-gradient(90deg,#facc15,#fde68a)",
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          ))
+      ) : (
+        <div
+          style={{
+            gridColumn: "1 / -1",
+            padding: "22px",
+            borderRadius: "22px",
+            background: "rgba(15,23,42,0.72)",
+            border: "1px solid rgba(250,204,21,0.14)",
+            color: "#94a3b8",
+            fontSize: "14px",
+            textAlign: "center",
+          }}
+        >
+          No VIP guests detected yet.
+        </div>
+      )}
+    </div>
+  </div>
+)}
+{/* =========================
+   AI CHURN DETECTION ALERTS
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      gridColumn: "span 12",
+      width: "100%",
+      minWidth: 0,
+
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+
+      overflow: "hidden",
+
+      background:
+        "linear-gradient(135deg, rgba(239,68,68,0.12), rgba(15,23,42,0.96))",
+
+      border: "1px solid rgba(248,113,113,0.20)",
+
+      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
+    }}
+  >
+    <div
+      style={{
+        color: "#fca5a5",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      AI Churn Detection Alerts
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "24px",
+        fontWeight: "950",
+        marginBottom: "18px",
+      }}
+    >
+      Customers At Risk Of Not Returning
+    </h3>
+
+    <div
+      style={{
+        display: "grid",
+        gap: "14px",
+      }}
+    >
+      {aiGuestSentimentIntelligence.filter(
+        (guest) => guest.churnRisk === "High"
+      ).length > 0 ? (
+        aiGuestSentimentIntelligence
+          .filter((guest) => guest.churnRisk === "High")
+          .slice(0, 6)
+          .map((guest, index) => (
+            <div
+              key={guest.id || index}
+              style={{
+                padding: "18px",
+                borderRadius: "20px",
+                background: "rgba(15,23,42,0.72)",
+                border: "1px solid rgba(248,113,113,0.16)",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: isMobile ? "flex-start" : "center",
+                flexDirection: isMobile ? "column" : "row",
+                gap: "14px",
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    color: "white",
+                    fontSize: "18px",
+                    fontWeight: "900",
+                    marginBottom: "6px",
+                  }}
+                >
+                  {guest.name}
+                </div>
+
+                <div
+                  style={{
+                    color: "#cbd5e1",
+                    fontSize: "13px",
+                    lineHeight: 1.6,
+                  }}
+                >
+                  AI predicts this guest may stop visiting due to low
+                  engagement frequency and declining loyalty signals.
+                </div>
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  gap: "10px",
+                  flexWrap: "wrap",
+                }}
+              >
+                <div
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: "999px",
+                    background: "rgba(248,113,113,0.14)",
+                    color: "#fca5a5",
+                    fontSize: "12px",
+                    fontWeight: "900",
+                  }}
+                >
+                  High Churn Risk
+                </div>
+
+                <div
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: "999px",
+                    background: "rgba(59,130,246,0.14)",
+                    color: "#93c5fd",
+                    fontSize: "12px",
+                    fontWeight: "900",
+                  }}
+                >
+                  {guest.visits} Visits
+                </div>
+
+                <div
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: "999px",
+                    background: "rgba(34,197,94,0.14)",
+                    color: "#86efac",
+                    fontSize: "12px",
+                    fontWeight: "900",
+                  }}
+                >
+                  ${guest.avgSpend.toFixed(0)} Avg Spend
+                </div>
+              </div>
+            </div>
+          ))
+      ) : (
+        <div
+          style={{
+            padding: "22px",
+            borderRadius: "20px",
+            background: "rgba(15,23,42,0.72)",
+            border: "1px solid rgba(248,113,113,0.14)",
+            color: "#94a3b8",
+            fontSize: "14px",
+            textAlign: "center",
+          }}
+        >
+          No high-risk guests detected.
+        </div>
+      )}
+    </div>
+  </div>
+)}
+{/* =========================
+   AI LOYALTY HEATMAP
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      gridColumn: "span 12",
+      width: "100%",
+      minWidth: 0,
+
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+
+      overflow: "hidden",
+
+      background:
+        "linear-gradient(135deg, rgba(168,85,247,0.13), rgba(15,23,42,0.96))",
+
+      border: "1px solid rgba(196,181,253,0.20)",
+
+      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
+    }}
+  >
+    <div
+      style={{
+        color: "#c4b5fd",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      AI Loyalty Heatmap
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "24px",
+        fontWeight: "950",
+        marginBottom: "18px",
+      }}
+    >
+      Guest Loyalty Score Distribution
+    </h3>
+
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: isMobile
+          ? "1fr"
+          : "repeat(auto-fit,minmax(180px,1fr))",
+        gap: "14px",
+      }}
+    >
+      {[
+        {
+          label: "Excellent",
+          range: "80–100",
+          count: aiGuestSentimentIntelligence.filter(
+            (g) => g.loyaltyScore >= 80
+          ).length,
+          color: "#4ade80",
+        },
+        {
+          label: "Positive",
+          range: "55–79",
+          count: aiGuestSentimentIntelligence.filter(
+            (g) => g.loyaltyScore >= 55 && g.loyaltyScore < 80
+          ).length,
+          color: "#60a5fa",
+        },
+        {
+          label: "Neutral",
+          range: "35–54",
+          count: aiGuestSentimentIntelligence.filter(
+            (g) => g.loyaltyScore >= 35 && g.loyaltyScore < 55
+          ).length,
+          color: "#facc15",
+        },
+        {
+          label: "At Risk",
+          range: "0–34",
+          count: aiGuestSentimentIntelligence.filter(
+            (g) => g.loyaltyScore < 35
+          ).length,
+          color: "#f87171",
+        },
+      ].map((bucket) => (
+        <div
+          key={bucket.label}
+          style={{
+            padding: "18px",
+            borderRadius: "22px",
+            background: "rgba(15,23,42,0.76)",
+            border: "1px solid rgba(148,163,184,0.12)",
+          }}
+        >
+          <div
+            style={{
+              color: bucket.color,
+              fontSize: "13px",
+              fontWeight: "900",
+              marginBottom: "8px",
+            }}
+          >
+            {bucket.label}
+          </div>
+
+          <div
+            style={{
+              color: "white",
+              fontSize: "30px",
+              fontWeight: "950",
+              marginBottom: "6px",
+            }}
+          >
+            {bucket.count}
+          </div>
+
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "12px",
+              fontWeight: "700",
+            }}
+          >
+            Loyalty Score {bucket.range}
+          </div>
+
+          <div
+            style={{
+              marginTop: "14px",
+              height: "8px",
+              borderRadius: "999px",
+              background: "rgba(51,65,85,0.72)",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                width: `${Math.min(
+                  100,
+                  (bucket.count /
+                    (aiGuestSentimentIntelligence.length || 1)) *
+                    100
+                )}%`,
+                height: "100%",
+                borderRadius: "999px",
+                background: bucket.color,
+              }}
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
+{/* =========================
+   GUEST LIFETIME VALUE FORECASTING
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      gridColumn: "span 12",
+      width: "100%",
+      minWidth: 0,
+
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+
+      overflow: "hidden",
+
+      background:
+        "linear-gradient(135deg, rgba(34,197,94,0.13), rgba(15,23,42,0.96))",
+
+      border: "1px solid rgba(74,222,128,0.20)",
+
+      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
+    }}
+  >
+    <div
+      style={{
+        color: "#86efac",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      Guest Lifetime Value Forecasting
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "24px",
+        fontWeight: "950",
+        marginBottom: "18px",
+      }}
+    >
+      Predicted Future Guest Revenue
+    </h3>
+
+    <div
+      style={{
+        display: "grid",
+        gap: "14px",
+      }}
+    >
+      {aiGuestSentimentIntelligence.slice(0, 6).map((guest, index) => {
+        const projectedLifetimeValue =
+          guest.spend + guest.avgSpend * Math.max(3, guest.loyaltyScore / 10);
+
+        return (
+          <div
+            key={guest.id || index}
+            style={{
+              padding: "18px",
+              borderRadius: "20px",
+              background: "rgba(15,23,42,0.74)",
+              border: "1px solid rgba(74,222,128,0.14)",
+              display: "grid",
+              gridTemplateColumns: isMobile
+                ? "1fr"
+                : "1.4fr 1fr 1fr 1fr",
+              gap: "14px",
+              alignItems: "center",
+            }}
+          >
+            <div>
+              <div
+                style={{
+                  color: "white",
+                  fontSize: "17px",
+                  fontWeight: "900",
+                  marginBottom: "5px",
+                }}
+              >
+                {guest.name}
+              </div>
+
+              <div
+                style={{
+                  color: "#94a3b8",
+                  fontSize: "12px",
+                  fontWeight: "700",
+                }}
+              >
+                {guest.guestTier} • {guest.sentimentScore} sentiment
+              </div>
+            </div>
+
+            <div>
+              <div style={{ color: "#94a3b8", fontSize: "12px" }}>
+                Current Spend
+              </div>
+              <div style={{ color: "#e2e8f0", fontWeight: "900" }}>
+                ${guest.spend.toFixed(0)}
+              </div>
+            </div>
+
+            <div>
+              <div style={{ color: "#94a3b8", fontSize: "12px" }}>
+                Avg Spend
+              </div>
+              <div style={{ color: "#93c5fd", fontWeight: "900" }}>
+                ${guest.avgSpend.toFixed(0)}
+              </div>
+            </div>
+
+            <div>
+              <div style={{ color: "#94a3b8", fontSize: "12px" }}>
+                Forecast LTV
+              </div>
+              <div style={{ color: "#86efac", fontWeight: "950" }}>
+                ${projectedLifetimeValue.toFixed(0)}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  </div>
+)}
+{/* =========================
+   AI PERSONALIZED CAMPAIGN GENERATOR
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      gridColumn: "span 12",
+      width: "100%",
+      minWidth: 0,
+
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+
+      overflow: "hidden",
+
+      background:
+        "linear-gradient(135deg, rgba(236,72,153,0.13), rgba(15,23,42,0.96))",
+
+      border: "1px solid rgba(244,114,182,0.20)",
+
+      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
+    }}
+  >
+    <div
+      style={{
+        color: "#f9a8d4",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      AI Personalized Campaign Generator
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "24px",
+        fontWeight: "950",
+        marginBottom: "12px",
+      }}
+    >
+      Guest-Specific Marketing Recommendations
+    </h3>
+
+    <p
+      style={{
+        color: "#cbd5e1",
+        fontSize: "13px",
+        lineHeight: 1.7,
+        marginBottom: "18px",
+      }}
+    >
+      AI recommends the right campaign type based on guest tier, loyalty score,
+      churn risk, and average spend behavior.
+    </p>
+
+    <div style={{ display: "grid", gap: "14px" }}>
+      {aiGuestSentimentIntelligence.length > 0 ? (
+        aiGuestSentimentIntelligence.slice(0, 6).map((guest, index) => {
+          const campaignType =
+            guest.churnRisk === "High"
+              ? "Win-Back Offer"
+              : guest.guestTier === "VIP"
+              ? "VIP Appreciation"
+              : guest.loyaltyScore >= 55
+              ? "Loyalty Booster"
+              : "First-Time Return Offer";
+
+          const campaignMessage =
+            guest.churnRisk === "High"
+              ? `Send ${guest.name} a limited-time comeback offer.`
+              : guest.guestTier === "VIP"
+              ? `Invite ${guest.name} to an exclusive VIP dining experience.`
+              : guest.loyaltyScore >= 55
+              ? `Reward ${guest.name} with a loyalty incentive.`
+              : `Encourage ${guest.name} to return with a personalized offer.`;
+
+          return (
+            <div
+              key={guest.id || index}
+              style={{
+                padding: "18px",
+                borderRadius: "22px",
+                background: "rgba(15,23,42,0.74)",
+                border: "1px solid rgba(244,114,182,0.14)",
+                display: "grid",
+                gridTemplateColumns: isMobile
+                  ? "1fr"
+                  : "1.2fr 1fr 1.4fr",
+                gap: "14px",
+                alignItems: "center",
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    color: "white",
+                    fontSize: "17px",
+                    fontWeight: "900",
+                    marginBottom: "5px",
+                  }}
+                >
+                  {guest.name}
+                </div>
+
+                <div
+                  style={{
+                    color: "#94a3b8",
+                    fontSize: "12px",
+                    fontWeight: "700",
+                  }}
+                >
+                  {guest.guestTier} • {guest.churnRisk} churn risk
+                </div>
+              </div>
+
+              <div>
+                <div
+                  style={{
+                    color: "#94a3b8",
+                    fontSize: "12px",
+                    marginBottom: "5px",
+                  }}
+                >
+                  Recommended Campaign
+                </div>
+
+                <div
+                  style={{
+                    color: "#f9a8d4",
+                    fontSize: "14px",
+                    fontWeight: "900",
+                  }}
+                >
+                  {campaignType}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  color: "#cbd5e1",
+                  fontSize: "13px",
+                  lineHeight: 1.6,
+                }}
+              >
+                {campaignMessage}
+              </div>
+            </div>
+          );
+        })
+      ) : (
+        <div
+          style={{
+            padding: "22px",
+            borderRadius: "22px",
+            background: "rgba(15,23,42,0.72)",
+            border: "1px solid rgba(244,114,182,0.14)",
+            color: "#94a3b8",
+            fontSize: "14px",
+            textAlign: "center",
+          }}
+        >
+          No personalized campaigns generated yet.
+        </div>
+      )}
+    </div>
+  </div>
+)}
+{/* =========================
+   AI WIN-BACK AUTOMATION ENGINE
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      gridColumn: "span 12",
+      width: "100%",
+      minWidth: 0,
+
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+
+      overflow: "hidden",
+
+      background:
+        "linear-gradient(135deg, rgba(249,115,22,0.13), rgba(15,23,42,0.96))",
+
+      border: "1px solid rgba(251,146,60,0.22)",
+
+      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
+    }}
+  >
+    <div
+      style={{
+        color: "#fdba74",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      AI Win-Back Automation Engine
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "24px",
+        fontWeight: "950",
+        marginBottom: "12px",
+      }}
+    >
+      Recover Guests Before They Disappear
+    </h3>
+
+    <p
+      style={{
+        color: "#cbd5e1",
+        fontSize: "13px",
+        lineHeight: 1.7,
+        marginBottom: "18px",
+      }}
+    >
+      AI identifies at-risk guests and recommends automated comeback offers to
+      recover repeat visits.
+    </p>
+
+    <div style={{ display: "grid", gap: "14px" }}>
+      {aiGuestSentimentIntelligence.filter(
+        (guest) => guest.churnRisk === "High"
+      ).length > 0 ? (
+        aiGuestSentimentIntelligence
+          .filter((guest) => guest.churnRisk === "High")
+          .slice(0, 5)
+          .map((guest, index) => {
+            const estimatedRecoveryValue = guest.avgSpend * 2.5;
+
+            return (
+              <div
+                key={guest.id || index}
+                style={{
+                  padding: "18px",
+                  borderRadius: "22px",
+                  background: "rgba(15,23,42,0.74)",
+                  border: "1px solid rgba(251,146,60,0.16)",
+                  display: "grid",
+                  gridTemplateColumns: isMobile
+                    ? "1fr"
+                    : "1.2fr 1fr 1fr 1.2fr",
+                  gap: "14px",
+                  alignItems: "center",
+                }}
+              >
+                <div>
+                  <div
+                    style={{
+                      color: "white",
+                      fontSize: "17px",
+                      fontWeight: "900",
+                      marginBottom: "5px",
+                    }}
+                  >
+                    {guest.name}
+                  </div>
+
+                  <div
+                    style={{
+                      color: "#94a3b8",
+                      fontSize: "12px",
+                      fontWeight: "700",
+                    }}
+                  >
+                    {guest.visits} visits • {guest.sentimentScore} sentiment
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ color: "#94a3b8", fontSize: "12px" }}>
+                    Suggested Offer
+                  </div>
+                  <div style={{ color: "#fdba74", fontWeight: "900" }}>
+                    Comeback Deal
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ color: "#94a3b8", fontSize: "12px" }}>
+                    Recovery Value
+                  </div>
+                  <div style={{ color: "#86efac", fontWeight: "950" }}>
+                    ${estimatedRecoveryValue.toFixed(0)}
+                  </div>
+                </div>
+
+                <button
+  type="button"
+  onClick={() =>
+    handleCreateAIAction({
+      actionType: "win_back_campaign",
+      title: "Comeback Deal",
+      description: `AI drafted a win-back campaign for ${guest.name}.`,
+      customer: guest,
+      estimatedValue: estimatedRecoveryValue,
+      channel: "Email/SMS",
+      message: `Hi ${guest.name}, we miss you at the restaurant. Come back this week and enjoy a personalized comeback offer on your next visit.`,
+    })
+  }
+  style={{
+    padding: "12px 14px",
+    borderRadius: "14px",
+    border: "1px solid rgba(251,146,60,0.28)",
+    background: "rgba(249,115,22,0.16)",
+    color: "#fed7aa",
+    fontSize: "13px",
+    fontWeight: "900",
+    cursor: "pointer",
+  }}
+>
+  Draft Win-Back Campaign
+</button>
+              </div>
+            );
+          })
+      ) : (
+        <div
+          style={{
+            padding: "22px",
+            borderRadius: "22px",
+            background: "rgba(15,23,42,0.72)",
+            border: "1px solid rgba(251,146,60,0.14)",
+            color: "#94a3b8",
+            fontSize: "14px",
+            textAlign: "center",
+          }}
+        >
+          No win-back campaigns available yet.
+        </div>
+      )}
+    </div>
+  </div>
+)}
+{/* =========================
+   AI RESERVATION INTELLIGENCE
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      gridColumn: "span 12",
+      width: "100%",
+      minWidth: 0,
+
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+
+      overflow: "hidden",
+
+      background:
+        "linear-gradient(135deg, rgba(6,182,212,0.13), rgba(15,23,42,0.96))",
+
+      border: "1px solid rgba(34,211,238,0.22)",
+
+      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
+    }}
+  >
+    <div
+      style={{
+        color: "#67e8f9",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      AI Reservation Intelligence
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "24px",
+        fontWeight: "950",
+        marginBottom: "12px",
+      }}
+    >
+      Reservation Demand & Guest Booking Insights
+    </h3>
+
+    <p
+      style={{
+        color: "#cbd5e1",
+        fontSize: "13px",
+        lineHeight: 1.7,
+        marginBottom: "20px",
+      }}
+    >
+      AI analyzes reservation demand patterns, booking behavior, cancellation
+      risk, and peak guest windows to optimize staffing and revenue planning.
+    </p>
+
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: isMobile
+          ? "1fr"
+          : "repeat(4,minmax(0,1fr))",
+        gap: "16px",
+        marginBottom: "22px",
+      }}
+    >
+      <GlassCard
+        title="Peak Reservation Hour"
+        value="7 PM"
+        subtitle="Highest booking activity"
+      />
+
+      <GlassCard
+        title="Cancellation Risk"
+        value="12%"
+        subtitle="Predicted reservation cancellations"
+      />
+
+      <GlassCard
+        title="Weekend Demand"
+        value="+28%"
+        subtitle="Compared to weekday traffic"
+      />
+
+      <GlassCard
+        title="Reservation Fill Rate"
+        value="84%"
+        subtitle="Expected seating utilization"
+      />
+    </div>
+
+    <div
+      style={{
+        display: "grid",
+        gap: "14px",
+      }}
+    >
+      {[
+        {
+  title: hasOperationalData
+    ? "Friday Dinner Rush Forecast"
+    : "AI Reservation Simulation",
+
+  insight: hasOperationalData
+    ? "AI predicts elevated reservation demand between 6 PM and 8 PM."
+    : "Upload reservation or guest activity data to activate live booking forecasts.",
+
+  impact: hasOperationalData
+    ? "Increase staffing coverage"
+    : "Awaiting Live Data",
+},
+
+{
+  title: hasOperationalData
+    ? "VIP Reservation Opportunity"
+    : "Guest Retention Intelligence",
+
+  insight: hasOperationalData
+    ? "Multiple high-value guests are predicted to revisit this weekend."
+    : "AI guest revisit predictions will activate after customer behavior data is connected.",
+
+  impact: hasOperationalData
+    ? "Prepare premium seating"
+    : "Simulation Mode",
+},
+
+{
+  title: hasOperationalData
+    ? "Reservation Gap Detected"
+    : "Demand Gap Forecasting",
+
+  insight: hasOperationalData
+    ? "Low reservation activity expected Tuesday after 7 PM."
+    : "AI will identify slow reservation windows and promotion opportunities after uploads.",
+
+  impact: hasOperationalData
+    ? "Launch targeted promotion"
+    : "Awaiting Reservation Data",
+},
+      ].map((item, index) => (
+        <div
+          key={index}
+          style={{
+            padding: "18px",
+            borderRadius: "20px",
+            background: "rgba(15,23,42,0.74)",
+            border: "1px solid rgba(34,211,238,0.14)",
+          }}
+        >
+          <div
+            style={{
+              color: "white",
+              fontSize: "17px",
+              fontWeight: "900",
+              marginBottom: "8px",
+            }}
+          >
+            {item.title}
+          </div>
+
+          <div
+            style={{
+              color: "#cbd5e1",
+              fontSize: "13px",
+              lineHeight: 1.7,
+              marginBottom: "12px",
+            }}
+          >
+            {item.insight}
+          </div>
+
+          <div
+            style={{
+              display: "inline-flex",
+              padding: "8px 12px",
+              borderRadius: "999px",
+              background: "rgba(34,211,238,0.14)",
+              border: "1px solid rgba(34,211,238,0.22)",
+              color: "#67e8f9",
+              fontSize: "12px",
+              fontWeight: "900",
+            }}
+          >
+            {item.impact}
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
+{/* =========================
+   AI GUEST JOURNEY TRACKING
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      gridColumn: "span 12",
+      width: "100%",
+      minWidth: 0,
+
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+
+      overflow: "hidden",
+
+      background:
+        "linear-gradient(135deg, rgba(99,102,241,0.13), rgba(15,23,42,0.96))",
+
+      border: "1px solid rgba(129,140,248,0.22)",
+
+      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
+    }}
+  >
+    <div
+      style={{
+        color: "#a5b4fc",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      AI Guest Journey Tracking
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "24px",
+        fontWeight: "950",
+        marginBottom: "12px",
+      }}
+    >
+      End-To-End Customer Engagement Intelligence
+    </h3>
+
+    <p
+      style={{
+        color: "#cbd5e1",
+        fontSize: "13px",
+        lineHeight: 1.7,
+        marginBottom: "22px",
+      }}
+    >
+      AI tracks the full customer lifecycle from first visit to loyalty growth,
+      churn risk, and repeat purchase behavior.
+    </p>
+
+    <div
+      style={{
+        display: "grid",
+        gap: "16px",
+      }}
+    >
+      {aiGuestSentimentIntelligence.length > 0 ? (
+        aiGuestSentimentIntelligence
+          .slice(0, 5)
+          .map((guest, index) => {
+            const currentStage =
+              guest.visits <= 1
+                ? "First Visit"
+                : guest.visits <= 3
+                ? "Returning Guest"
+                : guest.guestTier === "VIP"
+                ? "VIP Loyalist"
+                : "Loyal Customer";
+
+            const nextAction =
+              guest.churnRisk === "High"
+                ? "Launch Win-Back Offer"
+                : guest.guestTier === "VIP"
+                ? "Invite To VIP Experience"
+                : "Increase Loyalty Engagement";
+
+            return (
+              <div
+                key={guest.id || index}
+                style={{
+                  padding: "20px",
+                  borderRadius: "22px",
+                  background: "rgba(15,23,42,0.74)",
+                  border: "1px solid rgba(129,140,248,0.14)",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: isMobile ? "flex-start" : "center",
+                    flexDirection: isMobile ? "column" : "row",
+                    gap: "14px",
+                    marginBottom: "18px",
+                  }}
+                >
+                  <div>
+                    <div
+                      style={{
+                        color: "white",
+                        fontSize: "18px",
+                        fontWeight: "900",
+                        marginBottom: "6px",
+                      }}
+                    >
+                      {guest.name}
+                    </div>
+
+                    <div
+                      style={{
+                        color: "#94a3b8",
+                        fontSize: "12px",
+                        fontWeight: "700",
+                      }}
+                    >
+                      {guest.visits} visits • $
+                      {guest.avgSpend.toFixed(0)} avg spend
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      padding: "8px 12px",
+                      borderRadius: "999px",
+                      background: "rgba(99,102,241,0.14)",
+                      border: "1px solid rgba(129,140,248,0.22)",
+                      color: "#c7d2fe",
+                      fontSize: "12px",
+                      fontWeight: "900",
+                    }}
+                  >
+                    {currentStage}
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "10px",
+                    flexWrap: "wrap",
+                    marginBottom: "18px",
+                  }}
+                >
+                  {[
+                    "Awareness",
+                    "First Visit",
+                    "Repeat Visits",
+                    "Loyalty",
+                    "VIP",
+                  ].map((step, stepIndex) => {
+                    const activeSteps =
+                      guest.visits <= 1
+                        ? 2
+                        : guest.visits <= 3
+                        ? 3
+                        : guest.guestTier === "VIP"
+                        ? 5
+                        : 4;
+
+                    const isActive = stepIndex + 1 <= activeSteps;
+
+                    return (
+                      <div
+                        key={step}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "10px",
+                        }}
+                      >
+                        <div
+                          style={{
+                            padding: "8px 12px",
+                            borderRadius: "999px",
+                            background: isActive
+                              ? "rgba(99,102,241,0.18)"
+                              : "rgba(51,65,85,0.55)",
+                            color: isActive
+                              ? "#c7d2fe"
+                              : "#64748b",
+                            fontSize: "11px",
+                            fontWeight: "800",
+                            border: isActive
+                              ? "1px solid rgba(129,140,248,0.24)"
+                              : "1px solid rgba(71,85,105,0.18)",
+                          }}
+                        >
+                          {step}
+                        </div>
+
+                        {step !== "VIP" && (
+                          <div
+                            style={{
+                              width: "18px",
+                              height: "2px",
+                              background: isActive
+                                ? "rgba(129,140,248,0.5)"
+                                : "rgba(71,85,105,0.35)",
+                            }}
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div
+                  style={{
+                    padding: "14px",
+                    borderRadius: "16px",
+                    background: "rgba(30,41,59,0.72)",
+                    border: "1px solid rgba(148,163,184,0.10)",
+                  }}
+                >
+                  <div
+                    style={{
+                      color: "#a5b4fc",
+                      fontSize: "12px",
+                      fontWeight: "900",
+                      marginBottom: "6px",
+                    }}
+                  >
+                    AI Recommended Next Action
+                  </div>
+
+                  <div
+                    style={{
+                      color: "#e2e8f0",
+                      fontSize: "13px",
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    {nextAction}
+                  </div>
+                </div>
+              </div>
+            );
+          })
+      ) : (
+        <div
+          style={{
+            padding: "22px",
+            borderRadius: "22px",
+            background: "rgba(15,23,42,0.72)",
+            border: "1px solid rgba(129,140,248,0.14)",
+            color: "#94a3b8",
+            fontSize: "14px",
+            textAlign: "center",
+          }}
+        >
+          No guest journey data available yet.
+        </div>
+      )}
+    </div>
+  </div>
+)}
+{/* =========================
+   AI DINING BEHAVIOR INTELLIGENCE
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      gridColumn: "span 12",
+      width: "100%",
+      minWidth: 0,
+
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+
+      overflow: "hidden",
+
+      background:
+        "linear-gradient(135deg, rgba(16,185,129,0.13), rgba(15,23,42,0.96))",
+
+      border: "1px solid rgba(52,211,153,0.22)",
+
+      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
+    }}
+  >
+    <div
+      style={{
+        color: "#6ee7b7",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      AI Dining Behavior Intelligence
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "24px",
+        fontWeight: "950",
+        marginBottom: "12px",
+      }}
+    >
+      Guest Ordering & Visit Pattern Analysis
+    </h3>
+
+    <p
+      style={{
+        color: "#cbd5e1",
+        fontSize: "13px",
+        lineHeight: 1.7,
+        marginBottom: "22px",
+      }}
+    >
+      AI analyzes guest spending habits, dining frequency, ordering behavior,
+      and visit timing patterns to optimize revenue opportunities.
+    </p>
+
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: isMobile
+          ? "1fr"
+          : "repeat(4,minmax(0,1fr))",
+        gap: "16px",
+        marginBottom: "22px",
+      }}
+    >
+     <GlassCard
+  title="Peak Dining Day"
+  value={peakDiningDay || "Awaiting Data"}
+  subtitle="Calculated from uploaded POS/customer timestamps"
+/>
+
+<GlassCard
+  title="Most Common Visit Time"
+  value={peakDiningHour || "Awaiting Data"}
+  subtitle="Calculated from uploaded POS/customer timestamps"
+/>
+
+<GlassCard
+  title="Top Guest Category"
+  value={topCustomerSegment || "Awaiting Data"}
+  subtitle="Calculated from uploaded customer or POS segment data"
+/>
+
+<GlassCard
+  title="Repeat Visit Rate"
+  value={
+    repeatVisitRate !== null
+      ? `${repeatVisitRate}%`
+      : "Awaiting Data"
+  }
+  subtitle="Calculated from repeat customer identifiers"
+/>
+    </div>
+
+    <div style={{ display: "grid", gap: "14px" }}>
+      {aiGuestSentimentIntelligence.length > 0 ? (
+        aiGuestSentimentIntelligence.slice(0, 6).map((guest, index) => {
+          const diningPattern =
+            guest.avgSpend >= 120
+              ? "Premium Dining Preference"
+              : guest.visits >= 5
+              ? "Frequent Repeat Visitor"
+              : guest.churnRisk === "High"
+              ? "Declining Engagement"
+              : "Standard Dining Pattern";
+
+          const recommendedUpsell =
+            guest.avgSpend >= 120
+              ? "Chef Specials & Premium Pairings"
+              : guest.visits >= 5
+              ? "Loyalty Rewards"
+              : guest.churnRisk === "High"
+              ? "Limited-Time Return Offer"
+              : "Combo Promotions";
+
+          return (
+            <div
+              key={guest.id || index}
+              style={{
+                padding: "18px",
+                borderRadius: "22px",
+                background: "rgba(15,23,42,0.74)",
+                border: "1px solid rgba(52,211,153,0.14)",
+                display: "grid",
+                gridTemplateColumns: isMobile
+                  ? "1fr"
+                  : "1.2fr 1fr 1fr",
+                gap: "14px",
+                alignItems: "center",
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    color: "white",
+                    fontSize: "17px",
+                    fontWeight: "900",
+                    marginBottom: "5px",
+                  }}
+                >
+                  {guest.name}
+                </div>
+
+                <div
+                  style={{
+                    color: "#94a3b8",
+                    fontSize: "12px",
+                    fontWeight: "700",
+                  }}
+                >
+                  {guest.visits} visits • ${guest.avgSpend.toFixed(0)} avg spend
+                </div>
+              </div>
+
+              <div>
+                <div
+                  style={{
+                    color: "#94a3b8",
+                    fontSize: "12px",
+                    marginBottom: "5px",
+                  }}
+                >
+                  Dining Pattern
+                </div>
+
+                <div
+                  style={{
+                    color: "#6ee7b7",
+                    fontSize: "13px",
+                    fontWeight: "900",
+                  }}
+                >
+                  {diningPattern}
+                </div>
+              </div>
+
+              <div>
+                <div
+                  style={{
+                    color: "#94a3b8",
+                    fontSize: "12px",
+                    marginBottom: "5px",
+                  }}
+                >
+                  Recommended Offer
+                </div>
+
+                <div
+                  style={{
+                    color: "#e2e8f0",
+                    fontSize: "13px",
+                    fontWeight: "800",
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {recommendedUpsell}
+                </div>
+              </div>
+            </div>
+          );
+        })
+      ) : (
+        <div
+          style={{
+            padding: "22px",
+            borderRadius: "22px",
+            background: "rgba(15,23,42,0.72)",
+            border: "1px solid rgba(52,211,153,0.14)",
+            color: "#94a3b8",
+            fontSize: "14px",
+            textAlign: "center",
+          }}
+        >
+          No dining behavior data available yet.
+        </div>
+      )}
+    </div>
+  </div>
+)}
+{/* =========================
+   AI GUEST RETENTION FORECASTING
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      gridColumn: "span 12",
+      width: "100%",
+      minWidth: 0,
+
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+
+      overflow: "hidden",
+
+      background:
+        "linear-gradient(135deg, rgba(59,130,246,0.13), rgba(15,23,42,0.96))",
+
+      border: "1px solid rgba(96,165,250,0.22)",
+
+      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
+    }}
+  >
+    <div
+      style={{
+        color: "#93c5fd",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      AI Guest Retention Forecasting
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "24px",
+        fontWeight: "950",
+        marginBottom: "18px",
+      }}
+    >
+      Predicted Guest Return Probability
+    </h3>
+
+    <div style={{ display: "grid", gap: "14px" }}>
+      {aiGuestSentimentIntelligence.length > 0 ? (
+        aiGuestSentimentIntelligence.slice(0, 6).map((guest, index) => {
+          const retentionProbability =
+            guest.churnRisk === "High"
+              ? Math.max(18, guest.loyaltyScore - 25)
+              : guest.guestTier === "VIP"
+              ? Math.min(98, guest.loyaltyScore + 12)
+              : Math.min(92, guest.loyaltyScore + 8);
+
+          const retentionStatus =
+            retentionProbability >= 80
+              ? "Strong Retention"
+              : retentionProbability >= 55
+              ? "Moderate Retention"
+              : "Retention Risk";
+
+          return (
+            <div
+              key={guest.id || index}
+              style={{
+                padding: "18px",
+                borderRadius: "22px",
+                background: "rgba(15,23,42,0.74)",
+                border: "1px solid rgba(96,165,250,0.14)",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: isMobile ? "flex-start" : "center",
+                  flexDirection: isMobile ? "column" : "row",
+                  gap: "12px",
+                  marginBottom: "12px",
+                }}
+              >
+                <div>
+                  <div
+                    style={{
+                      color: "white",
+                      fontSize: "17px",
+                      fontWeight: "900",
+                    }}
+                  >
+                    {guest.name}
+                  </div>
+
+                  <div
+                    style={{
+                      color: "#94a3b8",
+                      fontSize: "12px",
+                      marginTop: "4px",
+                    }}
+                  >
+                    {guest.guestTier} • {guest.visits} visits •{" "}
+                    {guest.churnRisk} churn risk
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    color:
+                      retentionProbability >= 80
+                        ? "#86efac"
+                        : retentionProbability >= 55
+                        ? "#fde68a"
+                        : "#fca5a5",
+                    fontSize: "18px",
+                    fontWeight: "950",
+                  }}
+                >
+                  {retentionProbability}%
+                </div>
+              </div>
+
+              <div
+                style={{
+                  height: "10px",
+                  borderRadius: "999px",
+                  background: "rgba(51,65,85,0.72)",
+                  overflow: "hidden",
+                  marginBottom: "10px",
+                }}
+              >
+                <div
+                  style={{
+                    width: `${retentionProbability}%`,
+                    height: "100%",
+                    borderRadius: "999px",
+                    background:
+                      retentionProbability >= 80
+                        ? "linear-gradient(90deg,#22c55e,#86efac)"
+                        : retentionProbability >= 55
+                        ? "linear-gradient(90deg,#facc15,#fde68a)"
+                        : "linear-gradient(90deg,#ef4444,#fca5a5)",
+                  }}
+                />
+              </div>
+
+              <div
+                style={{
+                  color: "#cbd5e1",
+                  fontSize: "13px",
+                  fontWeight: "800",
+                }}
+              >
+                {retentionStatus}
+              </div>
+            </div>
+          );
+        })
+      ) : (
+        <div
+          style={{
+            padding: "22px",
+            borderRadius: "22px",
+            background: "rgba(15,23,42,0.72)",
+            border: "1px solid rgba(96,165,250,0.14)",
+            color: "#94a3b8",
+            fontSize: "14px",
+            textAlign: "center",
+          }}
+        >
+          No retention forecasts available yet.
+        </div>
+      )}
+    </div>
+  </div>
+)}
+{/* =========================
+   AI DYNAMIC OFFER OPTIMIZATION
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      gridColumn: "span 12",
+      width: "100%",
+      minWidth: 0,
+
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+
+      overflow: "hidden",
+
+      background:
+        "linear-gradient(135deg, rgba(234,179,8,0.13), rgba(15,23,42,0.96))",
+
+      border: "1px solid rgba(250,204,21,0.22)",
+
+      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
+    }}
+  >
+    <div
+      style={{
+        color: "#fde68a",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      AI Dynamic Offer Optimization
+    </div>
+
+    <h3 style={{ color: "white", fontSize: "24px", fontWeight: "950" }}>
+      Best Offer For Each Guest Segment
+    </h3>
+
+    <div style={{ display: "grid", gap: "14px", marginTop: "18px" }}>
+      {aiGuestSentimentIntelligence.slice(0, 6).map((guest, index) => {
+        const optimizedOffer =
+          guest.churnRisk === "High"
+            ? "20% Comeback Offer"
+            : guest.guestTier === "VIP"
+            ? "Complimentary Premium Appetizer"
+            : guest.avgSpend >= 75
+            ? "Chef Special Pairing"
+            : "Free Dessert With Next Visit";
+
+        const expectedLift =
+          guest.churnRisk === "High"
+            ? "+18% return chance"
+            : guest.guestTier === "VIP"
+            ? "+12% loyalty lift"
+            : guest.avgSpend >= 75
+            ? "+9% ticket lift"
+            : "+7% revisit lift";
+
+        return (
+          <div
+            key={guest.id || index}
+            style={{
+              padding: "18px",
+              borderRadius: "22px",
+              background: "rgba(15,23,42,0.74)",
+              border: "1px solid rgba(250,204,21,0.14)",
+              display: "grid",
+              gridTemplateColumns: isMobile
+                ? "1fr"
+                : "1.2fr 1.2fr 1fr",
+              gap: "14px",
+              alignItems: "center",
+            }}
+          >
+            <div>
+              <div style={{ color: "white", fontSize: "17px", fontWeight: "900" }}>
+                {guest.name}
+              </div>
+              <div style={{ color: "#94a3b8", fontSize: "12px", marginTop: "4px" }}>
+                {guest.guestTier} • ${guest.avgSpend.toFixed(0)} avg spend
+              </div>
+            </div>
+
+            <div>
+              <div style={{ color: "#94a3b8", fontSize: "12px" }}>
+                Optimized Offer
+              </div>
+              <div style={{ color: "#fde68a", fontWeight: "900", marginTop: "4px" }}>
+                {optimizedOffer}
+              </div>
+            </div>
+
+            <div
+              style={{
+                padding: "8px 12px",
+                borderRadius: "999px",
+                background: "rgba(250,204,21,0.14)",
+                color: "#fef3c7",
+                fontSize: "12px",
+                fontWeight: "900",
+                width: "fit-content",
+              }}
+            >
+              {expectedLift}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  </div>
+)}
     {/* ========================= */}
     {/* CAMPAIGN IMPACT */}
     {/* ========================= */}
@@ -61434,6 +63923,221 @@ flexWrap: "wrap",
   );
 })()}
 
+{/* =========================
+   AI AUTONOMOUS OPTIMIZATION ENGINE
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      gridColumn: "span 12",
+      width: "100%",
+      minWidth: 0,
+
+      marginTop: "22px",
+      padding: "28px",
+      borderRadius: "32px",
+
+      overflow: "hidden",
+
+      background:
+        "linear-gradient(135deg, rgba(34,197,94,0.16), rgba(15,23,42,0.98))",
+
+      border: "1px solid rgba(74,222,128,0.24)",
+
+      boxShadow: "0 30px 90px rgba(2,6,23,0.42)",
+    }}
+  >
+    <div
+      style={{
+        color: "#86efac",
+        fontSize: "12px",
+        fontWeight: "950",
+        letterSpacing: "0.1em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      AI Autonomous Optimization Engine
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "28px",
+        fontWeight: "950",
+        marginBottom: "14px",
+      }}
+    >
+      Self-Improving Restaurant Performance System
+    </h3>
+
+    <p
+      style={{
+        color: "#cbd5e1",
+        fontSize: "14px",
+        lineHeight: 1.8,
+        marginBottom: "24px",
+        maxWidth: "920px",
+      }}
+    >
+      AI continuously recommends the best operational adjustments across guest
+      recovery, labor efficiency, inventory control, menu profitability, and
+      revenue growth.
+    </p>
+
+    <div style={{ display: "grid", gap: "16px" }}>
+      {[
+       {
+  system: "Guest Revenue Optimization",
+  action: hasOperationalData
+    ? "Launch win-back campaigns for high-risk guests."
+    : "Upload guest activity and customer data to activate retention intelligence.",
+
+  result: hasOperationalData
+    ? "+$0/mo potential recovery"
+    : "Simulation Mode",
+
+  status: hasOperationalData
+    ? "Ready"
+    : "Awaiting Data",
+},
+
+{
+  system: "Labor Cost Optimization",
+  action: hasOperationalData
+    ? "Reduce staffing during predicted slow periods."
+    : "Upload labor and sales data to activate staffing optimization.",
+
+  result: hasOperationalData
+    ? "+$0/mo profit protection"
+    : "Simulation Mode",
+
+  status: hasOperationalData
+    ? "Recommended"
+    : "Awaiting Data",
+},
+
+{
+  system: "Menu Profit Optimization",
+  action: hasOperationalData
+    ? "Promote high-margin items and premium add-ons."
+    : "Upload menu and sales mix data to activate menu profitability AI.",
+
+  result: hasOperationalData
+  ? "+$0/mo margin upside"
+  : "Simulation Mode",
+
+  status: hasOperationalData
+    ? "Active"
+    : "Awaiting Data",
+},
+
+{
+  system: "Inventory Waste Optimization",
+  action: hasOperationalData
+    ? "Adjust purchasing cadence based on usage variance."
+    : "Upload inventory and invoice data to activate waste optimization intelligence.",
+
+  result: hasOperationalData
+  ? "+$0/mo waste reduction"
+  : "Simulation Mode",
+
+  status: hasOperationalData
+    ? "Monitoring"
+    : "Awaiting Data",
+},
+      ].map((item, index) => (
+        <div
+          key={index}
+          style={{
+            padding: "20px",
+            borderRadius: "24px",
+            background: "rgba(15,23,42,0.78)",
+            border: "1px solid rgba(74,222,128,0.14)",
+            display: "grid",
+            gridTemplateColumns: isMobile
+              ? "1fr"
+              : "1.2fr 1.4fr 1fr 120px",
+            gap: "16px",
+            alignItems: "center",
+          }}
+        >
+          <div>
+            <div
+              style={{
+                color: "white",
+                fontSize: "17px",
+                fontWeight: "900",
+                marginBottom: "6px",
+              }}
+            >
+              {item.system}
+            </div>
+
+            <div
+              style={{
+                color: "#94a3b8",
+                fontSize: "12px",
+                fontWeight: "700",
+              }}
+            >
+              AI optimization module
+            </div>
+          </div>
+
+          <div
+            style={{
+              color: "#cbd5e1",
+              fontSize: "13px",
+              lineHeight: 1.7,
+            }}
+          >
+            {item.action}
+          </div>
+
+          <div
+            style={{
+              color: "#86efac",
+              fontSize: "13px",
+              fontWeight: "900",
+            }}
+          >
+            {item.result}
+          </div>
+
+          <div
+            style={{
+              padding: "8px 12px",
+              borderRadius: "999px",
+              textAlign: "center",
+              background:
+                item.status === "Active"
+                  ? "rgba(34,197,94,0.15)"
+                  : item.status === "Ready"
+                  ? "rgba(59,130,246,0.15)"
+                  : item.status === "Recommended"
+                  ? "rgba(250,204,21,0.15)"
+                  : "rgba(148,163,184,0.15)",
+              color:
+                item.status === "Active"
+                  ? "#86efac"
+                  : item.status === "Ready"
+                  ? "#93c5fd"
+                  : item.status === "Recommended"
+                  ? "#fde68a"
+                  : "#cbd5e1",
+              fontSize: "12px",
+              fontWeight: "900",
+            }}
+          >
+            {item.status}
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
     {/* 📲 LIVE REAL-TIME POS KITCHEN TICKETS CONTAINER */}
 {(() => {
   // 🛡️ Guardrail Layer for parent objects and contextual media flags
@@ -72014,2709 +74718,7 @@ minWidth: 0,
     </div>
   ))}
 </div>
-{/* =========================
-   AI GUEST INTELLIGENCE
-========================= */}
 
-{hasProAccess && (
-  <div
-    style={{
-      gridColumn: "span 12",
-      width: "100%",
-      minWidth: 0,
-
-      marginTop: "24px",
-      padding: "24px",
-      borderRadius: "28px",
-
-      overflow: "hidden",
-
-      background:
-        "linear-gradient(135deg, rgba(59,130,246,0.16), rgba(15,23,42,0.96))",
-
-      border: "1px solid rgba(96,165,250,0.24)",
-
-      boxShadow: "0 24px 70px rgba(2,6,23,0.32)",
-    }}
-  >
-    <div
-      style={{
-        color: "#93c5fd",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      AI Guest Intelligence
-    </div>
-
-    <h3
-      style={{
-        color: "white",
-        fontSize: "28px",
-        fontWeight: "950",
-        marginBottom: "10px",
-      }}
-    >
-      Customer Behavior & Revenue Intelligence
-    </h3>
-
-    <p
-      style={{
-        color: "#cbd5e1",
-        fontSize: "14px",
-        lineHeight: 1.7,
-        marginBottom: "22px",
-      }}
-    >
-      SerVen AI identifies VIP guests, churn risk, average spend, and loyalty
-      signals so restaurants can protect repeat revenue.
-    </p>
-{aiGuestSentimentIntelligence.length === 0 && (
-  <div
-    style={{
-      marginBottom: "18px",
-      padding: "18px",
-      borderRadius: "20px",
-      background: "rgba(15,23,42,0.72)",
-      border: "1px solid rgba(96,165,250,0.18)",
-      color: "#cbd5e1",
-      fontSize: "14px",
-      lineHeight: 1.7,
-    }}
-  >
-    Upload or connect customer data to activate AI Guest Intelligence,
-    including VIP detection, churn risk, loyalty scoring, and guest revenue
-    forecasting.
-  </div>
-)}
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: isMobile
-          ? "1fr"
-          : "repeat(3,minmax(0,1fr))",
-        gap: "16px",
-      }}
-    >
-      <GlassCard
-        title="VIP Guests"
-        value={vipGuests}
-        subtitle="High lifetime value customers"
-      />
-
-      <GlassCard
-        title="At-Risk Guests"
-        value={highRiskGuests}
-        subtitle="Customers likely to churn"
-      />
-
-      <GlassCard
-        title="Average Guest Spend"
-        value={`$${avgGuestSpend.toFixed(0)}`}
-        subtitle="Average customer ticket value"
-      />
-    </div>
-  </div>
-)}
-{/* =========================
-   AI GUEST SENTIMENT INTELLIGENCE
-========================= */}
-
-{hasProAccess && (
-  <div
-    style={{
-      gridColumn: "span 12",
-      width: "100%",
-      minWidth: 0,
-
-      marginTop: "22px",
-      padding: "24px",
-      borderRadius: "28px",
-
-      overflow: "hidden",
-
-      background:
-        "linear-gradient(135deg, rgba(14,165,233,0.14), rgba(15,23,42,0.96))",
-
-      border: "1px solid rgba(125,211,252,0.20)",
-    }}
-  >
-    <div
-      style={{
-        color: "#7dd3fc",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      AI Guest Sentiment Intelligence
-    </div>
-
-    <h3
-      style={{
-        color: "white",
-        fontSize: "24px",
-        fontWeight: "950",
-        marginBottom: "18px",
-      }}
-    >
-      Guest Loyalty & Behavior Analysis
-    </h3>
-
-    <div
-      style={{
-        overflowX: "auto",
-      }}
-    >
-      <table
-        style={{
-          width: "100%",
-          borderCollapse: "collapse",
-          minWidth: "760px",
-        }}
-      >
-        <thead>
-          <tr>
-            {[
-              "Guest",
-              "Tier",
-              "Visits",
-              "Avg Spend",
-              "Sentiment",
-              "Behavior Prediction",
-            ].map((header) => (
-              <th
-                key={header}
-                style={{
-                  textAlign: "left",
-                  padding: "14px",
-                  color: "#bae6fd",
-                  fontSize: "12px",
-                  fontWeight: "900",
-                  borderBottom:
-                    "1px solid rgba(148,163,184,0.14)",
-                }}
-              >
-                {header}
-              </th>
-            ))}
-          </tr>
-        </thead>
-<tbody>
-  {aiGuestSentimentIntelligence.length > 0 ? (
-    aiGuestSentimentIntelligence
-      .slice(0, 8)
-      .map((guest, index) => (
-        <tr
-          key={guest.id || index}
-          style={{
-            borderBottom:
-              "1px solid rgba(148,163,184,0.08)",
-          }}
-        >
-          <td
-            style={{
-              padding: "14px",
-              color: "white",
-              fontWeight: "700",
-            }}
-          >
-            {guest.name}
-          </td>
-
-          <td
-            style={{
-              padding: "14px",
-              color:
-                guest.guestTier === "VIP"
-                  ? "#facc15"
-                  : guest.guestTier === "Premium"
-                  ? "#93c5fd"
-                  : "#cbd5e1",
-              fontWeight: "800",
-            }}
-          >
-            {guest.guestTier}
-          </td>
-
-          <td
-            style={{
-              padding: "14px",
-              color: "#e2e8f0",
-            }}
-          >
-            {guest.visits}
-          </td>
-
-          <td
-            style={{
-              padding: "14px",
-              color: "#86efac",
-              fontWeight: "700",
-            }}
-          >
-            ${guest.avgSpend.toFixed(0)}
-          </td>
-
-          <td
-            style={{
-              padding: "14px",
-              color:
-                guest.sentimentScore === "Excellent"
-                  ? "#4ade80"
-                  : guest.sentimentScore === "Positive"
-                  ? "#93c5fd"
-                  : guest.sentimentScore === "Neutral"
-                  ? "#facc15"
-                  : "#f87171",
-              fontWeight: "800",
-            }}
-          >
-            {guest.sentimentScore}
-          </td>
-
-          <td
-            style={{
-              padding: "14px",
-              color: "#cbd5e1",
-              fontSize: "13px",
-            }}
-          >
-            {guest.predictedBehavior}
-          </td>
-        </tr>
-      ))
-  ) : (
-    <tr>
-      <td
-        colSpan={6}
-        style={{
-          padding: "28px",
-          textAlign: "center",
-          color: "#94a3b8",
-          fontSize: "14px",
-        }}
-      >
-        No guest sentiment data available yet.
-      </td>
-    </tr>
-  )}
-</tbody>
-      </table>
-    </div>
-  </div>
-)}
-{/* =========================
-   VIP GUEST TRACKER
-========================= */}
-
-{hasProAccess && (
-  <div
-    style={{
-      gridColumn: "span 12",
-      width: "100%",
-      minWidth: 0,
-
-      marginTop: "22px",
-      padding: "24px",
-      borderRadius: "28px",
-
-      overflow: "hidden",
-
-      background:
-        "linear-gradient(135deg, rgba(250,204,21,0.12), rgba(15,23,42,0.96))",
-
-      border: "1px solid rgba(250,204,21,0.22)",
-
-      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
-    }}
-  >
-    <div
-      style={{
-        color: "#fde68a",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      VIP Guest Tracker
-    </div>
-
-    <h3
-      style={{
-        color: "white",
-        fontSize: "24px",
-        fontWeight: "950",
-        marginBottom: "18px",
-      }}
-    >
-      High-Value Customer Intelligence
-    </h3>
-
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: isMobile
-          ? "1fr"
-          : "repeat(auto-fit,minmax(260px,1fr))",
-        gap: "16px",
-      }}
-    >
-      {aiGuestSentimentIntelligence.filter(
-        (guest) => guest.guestTier === "VIP"
-      ).length > 0 ? (
-        aiGuestSentimentIntelligence
-          .filter((guest) => guest.guestTier === "VIP")
-          .slice(0, 6)
-          .map((guest, index) => (
-            <div
-              key={guest.id || index}
-              style={{
-                padding: "18px",
-                borderRadius: "22px",
-                background: "rgba(15,23,42,0.76)",
-                border: "1px solid rgba(250,204,21,0.14)",
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  marginBottom: "14px",
-                }}
-              >
-                <div
-                  style={{
-                    color: "white",
-                    fontSize: "18px",
-                    fontWeight: "900",
-                  }}
-                >
-                  {guest.name}
-                </div>
-
-                <div
-                  style={{
-                    padding: "6px 10px",
-                    borderRadius: "999px",
-                    background: "rgba(250,204,21,0.14)",
-                    color: "#fde68a",
-                    fontSize: "11px",
-                    fontWeight: "900",
-                  }}
-                >
-                  VIP
-                </div>
-              </div>
-
-              <div
-                style={{
-                  display: "grid",
-                  gap: "10px",
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                  }}
-                >
-                  <span
-                    style={{
-                      color: "#94a3b8",
-                      fontSize: "13px",
-                    }}
-                  >
-                    Total Visits
-                  </span>
-
-                  <span
-                    style={{
-                      color: "#e2e8f0",
-                      fontWeight: "800",
-                    }}
-                  >
-                    {guest.visits}
-                  </span>
-                </div>
-
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                  }}
-                >
-                  <span
-                    style={{
-                      color: "#94a3b8",
-                      fontSize: "13px",
-                    }}
-                  >
-                    Average Spend
-                  </span>
-
-                  <span
-                    style={{
-                      color: "#86efac",
-                      fontWeight: "800",
-                    }}
-                  >
-                    ${guest.avgSpend.toFixed(0)}
-                  </span>
-                </div>
-
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                  }}
-                >
-                  <span
-                    style={{
-                      color: "#94a3b8",
-                      fontSize: "13px",
-                    }}
-                  >
-                    Loyalty Score
-                  </span>
-
-                  <span
-                    style={{
-                      color: "#60a5fa",
-                      fontWeight: "800",
-                    }}
-                  >
-                    {guest.loyaltyScore}/100
-                  </span>
-                </div>
-
-                <div
-                  style={{
-                    marginTop: "10px",
-                    width: "100%",
-                    height: "10px",
-                    borderRadius: "999px",
-                    background: "rgba(51,65,85,0.7)",
-                    overflow: "hidden",
-                  }}
-                >
-                  <div
-                    style={{
-                      width: `${guest.loyaltyScore}%`,
-                      height: "100%",
-                      borderRadius: "999px",
-                      background:
-                        "linear-gradient(90deg,#facc15,#fde68a)",
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-          ))
-      ) : (
-        <div
-          style={{
-            gridColumn: "1 / -1",
-            padding: "22px",
-            borderRadius: "22px",
-            background: "rgba(15,23,42,0.72)",
-            border: "1px solid rgba(250,204,21,0.14)",
-            color: "#94a3b8",
-            fontSize: "14px",
-            textAlign: "center",
-          }}
-        >
-          No VIP guests detected yet.
-        </div>
-      )}
-    </div>
-  </div>
-)}
-{/* =========================
-   AI CHURN DETECTION ALERTS
-========================= */}
-
-{hasProAccess && (
-  <div
-    style={{
-      gridColumn: "span 12",
-      width: "100%",
-      minWidth: 0,
-
-      marginTop: "22px",
-      padding: "24px",
-      borderRadius: "28px",
-
-      overflow: "hidden",
-
-      background:
-        "linear-gradient(135deg, rgba(239,68,68,0.12), rgba(15,23,42,0.96))",
-
-      border: "1px solid rgba(248,113,113,0.20)",
-
-      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
-    }}
-  >
-    <div
-      style={{
-        color: "#fca5a5",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      AI Churn Detection Alerts
-    </div>
-
-    <h3
-      style={{
-        color: "white",
-        fontSize: "24px",
-        fontWeight: "950",
-        marginBottom: "18px",
-      }}
-    >
-      Customers At Risk Of Not Returning
-    </h3>
-
-    <div
-      style={{
-        display: "grid",
-        gap: "14px",
-      }}
-    >
-      {aiGuestSentimentIntelligence.filter(
-        (guest) => guest.churnRisk === "High"
-      ).length > 0 ? (
-        aiGuestSentimentIntelligence
-          .filter((guest) => guest.churnRisk === "High")
-          .slice(0, 6)
-          .map((guest, index) => (
-            <div
-              key={guest.id || index}
-              style={{
-                padding: "18px",
-                borderRadius: "20px",
-                background: "rgba(15,23,42,0.72)",
-                border: "1px solid rgba(248,113,113,0.16)",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: isMobile ? "flex-start" : "center",
-                flexDirection: isMobile ? "column" : "row",
-                gap: "14px",
-              }}
-            >
-              <div>
-                <div
-                  style={{
-                    color: "white",
-                    fontSize: "18px",
-                    fontWeight: "900",
-                    marginBottom: "6px",
-                  }}
-                >
-                  {guest.name}
-                </div>
-
-                <div
-                  style={{
-                    color: "#cbd5e1",
-                    fontSize: "13px",
-                    lineHeight: 1.6,
-                  }}
-                >
-                  AI predicts this guest may stop visiting due to low
-                  engagement frequency and declining loyalty signals.
-                </div>
-              </div>
-
-              <div
-                style={{
-                  display: "flex",
-                  gap: "10px",
-                  flexWrap: "wrap",
-                }}
-              >
-                <div
-                  style={{
-                    padding: "8px 12px",
-                    borderRadius: "999px",
-                    background: "rgba(248,113,113,0.14)",
-                    color: "#fca5a5",
-                    fontSize: "12px",
-                    fontWeight: "900",
-                  }}
-                >
-                  High Churn Risk
-                </div>
-
-                <div
-                  style={{
-                    padding: "8px 12px",
-                    borderRadius: "999px",
-                    background: "rgba(59,130,246,0.14)",
-                    color: "#93c5fd",
-                    fontSize: "12px",
-                    fontWeight: "900",
-                  }}
-                >
-                  {guest.visits} Visits
-                </div>
-
-                <div
-                  style={{
-                    padding: "8px 12px",
-                    borderRadius: "999px",
-                    background: "rgba(34,197,94,0.14)",
-                    color: "#86efac",
-                    fontSize: "12px",
-                    fontWeight: "900",
-                  }}
-                >
-                  ${guest.avgSpend.toFixed(0)} Avg Spend
-                </div>
-              </div>
-            </div>
-          ))
-      ) : (
-        <div
-          style={{
-            padding: "22px",
-            borderRadius: "20px",
-            background: "rgba(15,23,42,0.72)",
-            border: "1px solid rgba(248,113,113,0.14)",
-            color: "#94a3b8",
-            fontSize: "14px",
-            textAlign: "center",
-          }}
-        >
-          No high-risk guests detected.
-        </div>
-      )}
-    </div>
-  </div>
-)}
-{/* =========================
-   AI LOYALTY HEATMAP
-========================= */}
-
-{hasProAccess && (
-  <div
-    style={{
-      gridColumn: "span 12",
-      width: "100%",
-      minWidth: 0,
-
-      marginTop: "22px",
-      padding: "24px",
-      borderRadius: "28px",
-
-      overflow: "hidden",
-
-      background:
-        "linear-gradient(135deg, rgba(168,85,247,0.13), rgba(15,23,42,0.96))",
-
-      border: "1px solid rgba(196,181,253,0.20)",
-
-      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
-    }}
-  >
-    <div
-      style={{
-        color: "#c4b5fd",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      AI Loyalty Heatmap
-    </div>
-
-    <h3
-      style={{
-        color: "white",
-        fontSize: "24px",
-        fontWeight: "950",
-        marginBottom: "18px",
-      }}
-    >
-      Guest Loyalty Score Distribution
-    </h3>
-
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: isMobile
-          ? "1fr"
-          : "repeat(auto-fit,minmax(180px,1fr))",
-        gap: "14px",
-      }}
-    >
-      {[
-        {
-          label: "Excellent",
-          range: "80–100",
-          count: aiGuestSentimentIntelligence.filter(
-            (g) => g.loyaltyScore >= 80
-          ).length,
-          color: "#4ade80",
-        },
-        {
-          label: "Positive",
-          range: "55–79",
-          count: aiGuestSentimentIntelligence.filter(
-            (g) => g.loyaltyScore >= 55 && g.loyaltyScore < 80
-          ).length,
-          color: "#60a5fa",
-        },
-        {
-          label: "Neutral",
-          range: "35–54",
-          count: aiGuestSentimentIntelligence.filter(
-            (g) => g.loyaltyScore >= 35 && g.loyaltyScore < 55
-          ).length,
-          color: "#facc15",
-        },
-        {
-          label: "At Risk",
-          range: "0–34",
-          count: aiGuestSentimentIntelligence.filter(
-            (g) => g.loyaltyScore < 35
-          ).length,
-          color: "#f87171",
-        },
-      ].map((bucket) => (
-        <div
-          key={bucket.label}
-          style={{
-            padding: "18px",
-            borderRadius: "22px",
-            background: "rgba(15,23,42,0.76)",
-            border: "1px solid rgba(148,163,184,0.12)",
-          }}
-        >
-          <div
-            style={{
-              color: bucket.color,
-              fontSize: "13px",
-              fontWeight: "900",
-              marginBottom: "8px",
-            }}
-          >
-            {bucket.label}
-          </div>
-
-          <div
-            style={{
-              color: "white",
-              fontSize: "30px",
-              fontWeight: "950",
-              marginBottom: "6px",
-            }}
-          >
-            {bucket.count}
-          </div>
-
-          <div
-            style={{
-              color: "#94a3b8",
-              fontSize: "12px",
-              fontWeight: "700",
-            }}
-          >
-            Loyalty Score {bucket.range}
-          </div>
-
-          <div
-            style={{
-              marginTop: "14px",
-              height: "8px",
-              borderRadius: "999px",
-              background: "rgba(51,65,85,0.72)",
-              overflow: "hidden",
-            }}
-          >
-            <div
-              style={{
-                width: `${Math.min(
-                  100,
-                  (bucket.count /
-                    (aiGuestSentimentIntelligence.length || 1)) *
-                    100
-                )}%`,
-                height: "100%",
-                borderRadius: "999px",
-                background: bucket.color,
-              }}
-            />
-          </div>
-        </div>
-      ))}
-    </div>
-  </div>
-)}
-{/* =========================
-   GUEST LIFETIME VALUE FORECASTING
-========================= */}
-
-{hasProAccess && (
-  <div
-    style={{
-      gridColumn: "span 12",
-      width: "100%",
-      minWidth: 0,
-
-      marginTop: "22px",
-      padding: "24px",
-      borderRadius: "28px",
-
-      overflow: "hidden",
-
-      background:
-        "linear-gradient(135deg, rgba(34,197,94,0.13), rgba(15,23,42,0.96))",
-
-      border: "1px solid rgba(74,222,128,0.20)",
-
-      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
-    }}
-  >
-    <div
-      style={{
-        color: "#86efac",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      Guest Lifetime Value Forecasting
-    </div>
-
-    <h3
-      style={{
-        color: "white",
-        fontSize: "24px",
-        fontWeight: "950",
-        marginBottom: "18px",
-      }}
-    >
-      Predicted Future Guest Revenue
-    </h3>
-
-    <div
-      style={{
-        display: "grid",
-        gap: "14px",
-      }}
-    >
-      {aiGuestSentimentIntelligence.slice(0, 6).map((guest, index) => {
-        const projectedLifetimeValue =
-          guest.spend + guest.avgSpend * Math.max(3, guest.loyaltyScore / 10);
-
-        return (
-          <div
-            key={guest.id || index}
-            style={{
-              padding: "18px",
-              borderRadius: "20px",
-              background: "rgba(15,23,42,0.74)",
-              border: "1px solid rgba(74,222,128,0.14)",
-              display: "grid",
-              gridTemplateColumns: isMobile
-                ? "1fr"
-                : "1.4fr 1fr 1fr 1fr",
-              gap: "14px",
-              alignItems: "center",
-            }}
-          >
-            <div>
-              <div
-                style={{
-                  color: "white",
-                  fontSize: "17px",
-                  fontWeight: "900",
-                  marginBottom: "5px",
-                }}
-              >
-                {guest.name}
-              </div>
-
-              <div
-                style={{
-                  color: "#94a3b8",
-                  fontSize: "12px",
-                  fontWeight: "700",
-                }}
-              >
-                {guest.guestTier} • {guest.sentimentScore} sentiment
-              </div>
-            </div>
-
-            <div>
-              <div style={{ color: "#94a3b8", fontSize: "12px" }}>
-                Current Spend
-              </div>
-              <div style={{ color: "#e2e8f0", fontWeight: "900" }}>
-                ${guest.spend.toFixed(0)}
-              </div>
-            </div>
-
-            <div>
-              <div style={{ color: "#94a3b8", fontSize: "12px" }}>
-                Avg Spend
-              </div>
-              <div style={{ color: "#93c5fd", fontWeight: "900" }}>
-                ${guest.avgSpend.toFixed(0)}
-              </div>
-            </div>
-
-            <div>
-              <div style={{ color: "#94a3b8", fontSize: "12px" }}>
-                Forecast LTV
-              </div>
-              <div style={{ color: "#86efac", fontWeight: "950" }}>
-                ${projectedLifetimeValue.toFixed(0)}
-              </div>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  </div>
-)}
-{/* =========================
-   AI PERSONALIZED CAMPAIGN GENERATOR
-========================= */}
-
-{hasProAccess && (
-  <div
-    style={{
-      gridColumn: "span 12",
-      width: "100%",
-      minWidth: 0,
-
-      marginTop: "22px",
-      padding: "24px",
-      borderRadius: "28px",
-
-      overflow: "hidden",
-
-      background:
-        "linear-gradient(135deg, rgba(236,72,153,0.13), rgba(15,23,42,0.96))",
-
-      border: "1px solid rgba(244,114,182,0.20)",
-
-      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
-    }}
-  >
-    <div
-      style={{
-        color: "#f9a8d4",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      AI Personalized Campaign Generator
-    </div>
-
-    <h3
-      style={{
-        color: "white",
-        fontSize: "24px",
-        fontWeight: "950",
-        marginBottom: "12px",
-      }}
-    >
-      Guest-Specific Marketing Recommendations
-    </h3>
-
-    <p
-      style={{
-        color: "#cbd5e1",
-        fontSize: "13px",
-        lineHeight: 1.7,
-        marginBottom: "18px",
-      }}
-    >
-      AI recommends the right campaign type based on guest tier, loyalty score,
-      churn risk, and average spend behavior.
-    </p>
-
-    <div style={{ display: "grid", gap: "14px" }}>
-      {aiGuestSentimentIntelligence.length > 0 ? (
-        aiGuestSentimentIntelligence.slice(0, 6).map((guest, index) => {
-          const campaignType =
-            guest.churnRisk === "High"
-              ? "Win-Back Offer"
-              : guest.guestTier === "VIP"
-              ? "VIP Appreciation"
-              : guest.loyaltyScore >= 55
-              ? "Loyalty Booster"
-              : "First-Time Return Offer";
-
-          const campaignMessage =
-            guest.churnRisk === "High"
-              ? `Send ${guest.name} a limited-time comeback offer.`
-              : guest.guestTier === "VIP"
-              ? `Invite ${guest.name} to an exclusive VIP dining experience.`
-              : guest.loyaltyScore >= 55
-              ? `Reward ${guest.name} with a loyalty incentive.`
-              : `Encourage ${guest.name} to return with a personalized offer.`;
-
-          return (
-            <div
-              key={guest.id || index}
-              style={{
-                padding: "18px",
-                borderRadius: "22px",
-                background: "rgba(15,23,42,0.74)",
-                border: "1px solid rgba(244,114,182,0.14)",
-                display: "grid",
-                gridTemplateColumns: isMobile
-                  ? "1fr"
-                  : "1.2fr 1fr 1.4fr",
-                gap: "14px",
-                alignItems: "center",
-              }}
-            >
-              <div>
-                <div
-                  style={{
-                    color: "white",
-                    fontSize: "17px",
-                    fontWeight: "900",
-                    marginBottom: "5px",
-                  }}
-                >
-                  {guest.name}
-                </div>
-
-                <div
-                  style={{
-                    color: "#94a3b8",
-                    fontSize: "12px",
-                    fontWeight: "700",
-                  }}
-                >
-                  {guest.guestTier} • {guest.churnRisk} churn risk
-                </div>
-              </div>
-
-              <div>
-                <div
-                  style={{
-                    color: "#94a3b8",
-                    fontSize: "12px",
-                    marginBottom: "5px",
-                  }}
-                >
-                  Recommended Campaign
-                </div>
-
-                <div
-                  style={{
-                    color: "#f9a8d4",
-                    fontSize: "14px",
-                    fontWeight: "900",
-                  }}
-                >
-                  {campaignType}
-                </div>
-              </div>
-
-              <div
-                style={{
-                  color: "#cbd5e1",
-                  fontSize: "13px",
-                  lineHeight: 1.6,
-                }}
-              >
-                {campaignMessage}
-              </div>
-            </div>
-          );
-        })
-      ) : (
-        <div
-          style={{
-            padding: "22px",
-            borderRadius: "22px",
-            background: "rgba(15,23,42,0.72)",
-            border: "1px solid rgba(244,114,182,0.14)",
-            color: "#94a3b8",
-            fontSize: "14px",
-            textAlign: "center",
-          }}
-        >
-          No personalized campaigns generated yet.
-        </div>
-      )}
-    </div>
-  </div>
-)}
-{/* =========================
-   AI WIN-BACK AUTOMATION ENGINE
-========================= */}
-
-{hasProAccess && (
-  <div
-    style={{
-      gridColumn: "span 12",
-      width: "100%",
-      minWidth: 0,
-
-      marginTop: "22px",
-      padding: "24px",
-      borderRadius: "28px",
-
-      overflow: "hidden",
-
-      background:
-        "linear-gradient(135deg, rgba(249,115,22,0.13), rgba(15,23,42,0.96))",
-
-      border: "1px solid rgba(251,146,60,0.22)",
-
-      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
-    }}
-  >
-    <div
-      style={{
-        color: "#fdba74",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      AI Win-Back Automation Engine
-    </div>
-
-    <h3
-      style={{
-        color: "white",
-        fontSize: "24px",
-        fontWeight: "950",
-        marginBottom: "12px",
-      }}
-    >
-      Recover Guests Before They Disappear
-    </h3>
-
-    <p
-      style={{
-        color: "#cbd5e1",
-        fontSize: "13px",
-        lineHeight: 1.7,
-        marginBottom: "18px",
-      }}
-    >
-      AI identifies at-risk guests and recommends automated comeback offers to
-      recover repeat visits.
-    </p>
-
-    <div style={{ display: "grid", gap: "14px" }}>
-      {aiGuestSentimentIntelligence.filter(
-        (guest) => guest.churnRisk === "High"
-      ).length > 0 ? (
-        aiGuestSentimentIntelligence
-          .filter((guest) => guest.churnRisk === "High")
-          .slice(0, 5)
-          .map((guest, index) => {
-            const estimatedRecoveryValue = guest.avgSpend * 2.5;
-
-            return (
-              <div
-                key={guest.id || index}
-                style={{
-                  padding: "18px",
-                  borderRadius: "22px",
-                  background: "rgba(15,23,42,0.74)",
-                  border: "1px solid rgba(251,146,60,0.16)",
-                  display: "grid",
-                  gridTemplateColumns: isMobile
-                    ? "1fr"
-                    : "1.2fr 1fr 1fr 1.2fr",
-                  gap: "14px",
-                  alignItems: "center",
-                }}
-              >
-                <div>
-                  <div
-                    style={{
-                      color: "white",
-                      fontSize: "17px",
-                      fontWeight: "900",
-                      marginBottom: "5px",
-                    }}
-                  >
-                    {guest.name}
-                  </div>
-
-                  <div
-                    style={{
-                      color: "#94a3b8",
-                      fontSize: "12px",
-                      fontWeight: "700",
-                    }}
-                  >
-                    {guest.visits} visits • {guest.sentimentScore} sentiment
-                  </div>
-                </div>
-
-                <div>
-                  <div style={{ color: "#94a3b8", fontSize: "12px" }}>
-                    Suggested Offer
-                  </div>
-                  <div style={{ color: "#fdba74", fontWeight: "900" }}>
-                    Comeback Deal
-                  </div>
-                </div>
-
-                <div>
-                  <div style={{ color: "#94a3b8", fontSize: "12px" }}>
-                    Recovery Value
-                  </div>
-                  <div style={{ color: "#86efac", fontWeight: "950" }}>
-                    ${estimatedRecoveryValue.toFixed(0)}
-                  </div>
-                </div>
-
-                <button
-  type="button"
-  onClick={() =>
-    handleCreateAIAction({
-      actionType: "win_back_campaign",
-      title: "Comeback Deal",
-      description: `AI drafted a win-back campaign for ${guest.name}.`,
-      customer: guest,
-      estimatedValue: estimatedRecoveryValue,
-      channel: "Email/SMS",
-      message: `Hi ${guest.name}, we miss you at the restaurant. Come back this week and enjoy a personalized comeback offer on your next visit.`,
-    })
-  }
-  style={{
-    padding: "12px 14px",
-    borderRadius: "14px",
-    border: "1px solid rgba(251,146,60,0.28)",
-    background: "rgba(249,115,22,0.16)",
-    color: "#fed7aa",
-    fontSize: "13px",
-    fontWeight: "900",
-    cursor: "pointer",
-  }}
->
-  Draft Win-Back Campaign
-</button>
-              </div>
-            );
-          })
-      ) : (
-        <div
-          style={{
-            padding: "22px",
-            borderRadius: "22px",
-            background: "rgba(15,23,42,0.72)",
-            border: "1px solid rgba(251,146,60,0.14)",
-            color: "#94a3b8",
-            fontSize: "14px",
-            textAlign: "center",
-          }}
-        >
-          No win-back campaigns available yet.
-        </div>
-      )}
-    </div>
-  </div>
-)}
-{/* =========================
-   AI RESERVATION INTELLIGENCE
-========================= */}
-
-{hasProAccess && (
-  <div
-    style={{
-      gridColumn: "span 12",
-      width: "100%",
-      minWidth: 0,
-
-      marginTop: "22px",
-      padding: "24px",
-      borderRadius: "28px",
-
-      overflow: "hidden",
-
-      background:
-        "linear-gradient(135deg, rgba(6,182,212,0.13), rgba(15,23,42,0.96))",
-
-      border: "1px solid rgba(34,211,238,0.22)",
-
-      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
-    }}
-  >
-    <div
-      style={{
-        color: "#67e8f9",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      AI Reservation Intelligence
-    </div>
-
-    <h3
-      style={{
-        color: "white",
-        fontSize: "24px",
-        fontWeight: "950",
-        marginBottom: "12px",
-      }}
-    >
-      Reservation Demand & Guest Booking Insights
-    </h3>
-
-    <p
-      style={{
-        color: "#cbd5e1",
-        fontSize: "13px",
-        lineHeight: 1.7,
-        marginBottom: "20px",
-      }}
-    >
-      AI analyzes reservation demand patterns, booking behavior, cancellation
-      risk, and peak guest windows to optimize staffing and revenue planning.
-    </p>
-
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: isMobile
-          ? "1fr"
-          : "repeat(4,minmax(0,1fr))",
-        gap: "16px",
-        marginBottom: "22px",
-      }}
-    >
-      <GlassCard
-        title="Peak Reservation Hour"
-        value="7 PM"
-        subtitle="Highest booking activity"
-      />
-
-      <GlassCard
-        title="Cancellation Risk"
-        value="12%"
-        subtitle="Predicted reservation cancellations"
-      />
-
-      <GlassCard
-        title="Weekend Demand"
-        value="+28%"
-        subtitle="Compared to weekday traffic"
-      />
-
-      <GlassCard
-        title="Reservation Fill Rate"
-        value="84%"
-        subtitle="Expected seating utilization"
-      />
-    </div>
-
-    <div
-      style={{
-        display: "grid",
-        gap: "14px",
-      }}
-    >
-      {[
-        {
-  title: hasOperationalData
-    ? "Friday Dinner Rush Forecast"
-    : "AI Reservation Simulation",
-
-  insight: hasOperationalData
-    ? "AI predicts elevated reservation demand between 6 PM and 8 PM."
-    : "Upload reservation or guest activity data to activate live booking forecasts.",
-
-  impact: hasOperationalData
-    ? "Increase staffing coverage"
-    : "Awaiting Live Data",
-},
-
-{
-  title: hasOperationalData
-    ? "VIP Reservation Opportunity"
-    : "Guest Retention Intelligence",
-
-  insight: hasOperationalData
-    ? "Multiple high-value guests are predicted to revisit this weekend."
-    : "AI guest revisit predictions will activate after customer behavior data is connected.",
-
-  impact: hasOperationalData
-    ? "Prepare premium seating"
-    : "Simulation Mode",
-},
-
-{
-  title: hasOperationalData
-    ? "Reservation Gap Detected"
-    : "Demand Gap Forecasting",
-
-  insight: hasOperationalData
-    ? "Low reservation activity expected Tuesday after 7 PM."
-    : "AI will identify slow reservation windows and promotion opportunities after uploads.",
-
-  impact: hasOperationalData
-    ? "Launch targeted promotion"
-    : "Awaiting Reservation Data",
-},
-      ].map((item, index) => (
-        <div
-          key={index}
-          style={{
-            padding: "18px",
-            borderRadius: "20px",
-            background: "rgba(15,23,42,0.74)",
-            border: "1px solid rgba(34,211,238,0.14)",
-          }}
-        >
-          <div
-            style={{
-              color: "white",
-              fontSize: "17px",
-              fontWeight: "900",
-              marginBottom: "8px",
-            }}
-          >
-            {item.title}
-          </div>
-
-          <div
-            style={{
-              color: "#cbd5e1",
-              fontSize: "13px",
-              lineHeight: 1.7,
-              marginBottom: "12px",
-            }}
-          >
-            {item.insight}
-          </div>
-
-          <div
-            style={{
-              display: "inline-flex",
-              padding: "8px 12px",
-              borderRadius: "999px",
-              background: "rgba(34,211,238,0.14)",
-              border: "1px solid rgba(34,211,238,0.22)",
-              color: "#67e8f9",
-              fontSize: "12px",
-              fontWeight: "900",
-            }}
-          >
-            {item.impact}
-          </div>
-        </div>
-      ))}
-    </div>
-  </div>
-)}
-{/* =========================
-   AI GUEST JOURNEY TRACKING
-========================= */}
-
-{hasProAccess && (
-  <div
-    style={{
-      gridColumn: "span 12",
-      width: "100%",
-      minWidth: 0,
-
-      marginTop: "22px",
-      padding: "24px",
-      borderRadius: "28px",
-
-      overflow: "hidden",
-
-      background:
-        "linear-gradient(135deg, rgba(99,102,241,0.13), rgba(15,23,42,0.96))",
-
-      border: "1px solid rgba(129,140,248,0.22)",
-
-      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
-    }}
-  >
-    <div
-      style={{
-        color: "#a5b4fc",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      AI Guest Journey Tracking
-    </div>
-
-    <h3
-      style={{
-        color: "white",
-        fontSize: "24px",
-        fontWeight: "950",
-        marginBottom: "12px",
-      }}
-    >
-      End-To-End Customer Engagement Intelligence
-    </h3>
-
-    <p
-      style={{
-        color: "#cbd5e1",
-        fontSize: "13px",
-        lineHeight: 1.7,
-        marginBottom: "22px",
-      }}
-    >
-      AI tracks the full customer lifecycle from first visit to loyalty growth,
-      churn risk, and repeat purchase behavior.
-    </p>
-
-    <div
-      style={{
-        display: "grid",
-        gap: "16px",
-      }}
-    >
-      {aiGuestSentimentIntelligence.length > 0 ? (
-        aiGuestSentimentIntelligence
-          .slice(0, 5)
-          .map((guest, index) => {
-            const currentStage =
-              guest.visits <= 1
-                ? "First Visit"
-                : guest.visits <= 3
-                ? "Returning Guest"
-                : guest.guestTier === "VIP"
-                ? "VIP Loyalist"
-                : "Loyal Customer";
-
-            const nextAction =
-              guest.churnRisk === "High"
-                ? "Launch Win-Back Offer"
-                : guest.guestTier === "VIP"
-                ? "Invite To VIP Experience"
-                : "Increase Loyalty Engagement";
-
-            return (
-              <div
-                key={guest.id || index}
-                style={{
-                  padding: "20px",
-                  borderRadius: "22px",
-                  background: "rgba(15,23,42,0.74)",
-                  border: "1px solid rgba(129,140,248,0.14)",
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: isMobile ? "flex-start" : "center",
-                    flexDirection: isMobile ? "column" : "row",
-                    gap: "14px",
-                    marginBottom: "18px",
-                  }}
-                >
-                  <div>
-                    <div
-                      style={{
-                        color: "white",
-                        fontSize: "18px",
-                        fontWeight: "900",
-                        marginBottom: "6px",
-                      }}
-                    >
-                      {guest.name}
-                    </div>
-
-                    <div
-                      style={{
-                        color: "#94a3b8",
-                        fontSize: "12px",
-                        fontWeight: "700",
-                      }}
-                    >
-                      {guest.visits} visits • $
-                      {guest.avgSpend.toFixed(0)} avg spend
-                    </div>
-                  </div>
-
-                  <div
-                    style={{
-                      padding: "8px 12px",
-                      borderRadius: "999px",
-                      background: "rgba(99,102,241,0.14)",
-                      border: "1px solid rgba(129,140,248,0.22)",
-                      color: "#c7d2fe",
-                      fontSize: "12px",
-                      fontWeight: "900",
-                    }}
-                  >
-                    {currentStage}
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "10px",
-                    flexWrap: "wrap",
-                    marginBottom: "18px",
-                  }}
-                >
-                  {[
-                    "Awareness",
-                    "First Visit",
-                    "Repeat Visits",
-                    "Loyalty",
-                    "VIP",
-                  ].map((step, stepIndex) => {
-                    const activeSteps =
-                      guest.visits <= 1
-                        ? 2
-                        : guest.visits <= 3
-                        ? 3
-                        : guest.guestTier === "VIP"
-                        ? 5
-                        : 4;
-
-                    const isActive = stepIndex + 1 <= activeSteps;
-
-                    return (
-                      <div
-                        key={step}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "10px",
-                        }}
-                      >
-                        <div
-                          style={{
-                            padding: "8px 12px",
-                            borderRadius: "999px",
-                            background: isActive
-                              ? "rgba(99,102,241,0.18)"
-                              : "rgba(51,65,85,0.55)",
-                            color: isActive
-                              ? "#c7d2fe"
-                              : "#64748b",
-                            fontSize: "11px",
-                            fontWeight: "800",
-                            border: isActive
-                              ? "1px solid rgba(129,140,248,0.24)"
-                              : "1px solid rgba(71,85,105,0.18)",
-                          }}
-                        >
-                          {step}
-                        </div>
-
-                        {step !== "VIP" && (
-                          <div
-                            style={{
-                              width: "18px",
-                              height: "2px",
-                              background: isActive
-                                ? "rgba(129,140,248,0.5)"
-                                : "rgba(71,85,105,0.35)",
-                            }}
-                          />
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <div
-                  style={{
-                    padding: "14px",
-                    borderRadius: "16px",
-                    background: "rgba(30,41,59,0.72)",
-                    border: "1px solid rgba(148,163,184,0.10)",
-                  }}
-                >
-                  <div
-                    style={{
-                      color: "#a5b4fc",
-                      fontSize: "12px",
-                      fontWeight: "900",
-                      marginBottom: "6px",
-                    }}
-                  >
-                    AI Recommended Next Action
-                  </div>
-
-                  <div
-                    style={{
-                      color: "#e2e8f0",
-                      fontSize: "13px",
-                      lineHeight: 1.6,
-                    }}
-                  >
-                    {nextAction}
-                  </div>
-                </div>
-              </div>
-            );
-          })
-      ) : (
-        <div
-          style={{
-            padding: "22px",
-            borderRadius: "22px",
-            background: "rgba(15,23,42,0.72)",
-            border: "1px solid rgba(129,140,248,0.14)",
-            color: "#94a3b8",
-            fontSize: "14px",
-            textAlign: "center",
-          }}
-        >
-          No guest journey data available yet.
-        </div>
-      )}
-    </div>
-  </div>
-)}
-{/* =========================
-   AI DINING BEHAVIOR INTELLIGENCE
-========================= */}
-
-{hasProAccess && (
-  <div
-    style={{
-      gridColumn: "span 12",
-      width: "100%",
-      minWidth: 0,
-
-      marginTop: "22px",
-      padding: "24px",
-      borderRadius: "28px",
-
-      overflow: "hidden",
-
-      background:
-        "linear-gradient(135deg, rgba(16,185,129,0.13), rgba(15,23,42,0.96))",
-
-      border: "1px solid rgba(52,211,153,0.22)",
-
-      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
-    }}
-  >
-    <div
-      style={{
-        color: "#6ee7b7",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      AI Dining Behavior Intelligence
-    </div>
-
-    <h3
-      style={{
-        color: "white",
-        fontSize: "24px",
-        fontWeight: "950",
-        marginBottom: "12px",
-      }}
-    >
-      Guest Ordering & Visit Pattern Analysis
-    </h3>
-
-    <p
-      style={{
-        color: "#cbd5e1",
-        fontSize: "13px",
-        lineHeight: 1.7,
-        marginBottom: "22px",
-      }}
-    >
-      AI analyzes guest spending habits, dining frequency, ordering behavior,
-      and visit timing patterns to optimize revenue opportunities.
-    </p>
-
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: isMobile
-          ? "1fr"
-          : "repeat(4,minmax(0,1fr))",
-        gap: "16px",
-        marginBottom: "22px",
-      }}
-    >
-     <GlassCard
-  title="Peak Dining Day"
-  value={peakDiningDay || "Awaiting Data"}
-  subtitle="Calculated from uploaded POS/customer timestamps"
-/>
-
-<GlassCard
-  title="Most Common Visit Time"
-  value={peakDiningHour || "Awaiting Data"}
-  subtitle="Calculated from uploaded POS/customer timestamps"
-/>
-
-<GlassCard
-  title="Top Guest Category"
-  value={topCustomerSegment || "Awaiting Data"}
-  subtitle="Calculated from uploaded customer or POS segment data"
-/>
-
-<GlassCard
-  title="Repeat Visit Rate"
-  value={
-    repeatVisitRate !== null
-      ? `${repeatVisitRate}%`
-      : "Awaiting Data"
-  }
-  subtitle="Calculated from repeat customer identifiers"
-/>
-    </div>
-
-    <div style={{ display: "grid", gap: "14px" }}>
-      {aiGuestSentimentIntelligence.length > 0 ? (
-        aiGuestSentimentIntelligence.slice(0, 6).map((guest, index) => {
-          const diningPattern =
-            guest.avgSpend >= 120
-              ? "Premium Dining Preference"
-              : guest.visits >= 5
-              ? "Frequent Repeat Visitor"
-              : guest.churnRisk === "High"
-              ? "Declining Engagement"
-              : "Standard Dining Pattern";
-
-          const recommendedUpsell =
-            guest.avgSpend >= 120
-              ? "Chef Specials & Premium Pairings"
-              : guest.visits >= 5
-              ? "Loyalty Rewards"
-              : guest.churnRisk === "High"
-              ? "Limited-Time Return Offer"
-              : "Combo Promotions";
-
-          return (
-            <div
-              key={guest.id || index}
-              style={{
-                padding: "18px",
-                borderRadius: "22px",
-                background: "rgba(15,23,42,0.74)",
-                border: "1px solid rgba(52,211,153,0.14)",
-                display: "grid",
-                gridTemplateColumns: isMobile
-                  ? "1fr"
-                  : "1.2fr 1fr 1fr",
-                gap: "14px",
-                alignItems: "center",
-              }}
-            >
-              <div>
-                <div
-                  style={{
-                    color: "white",
-                    fontSize: "17px",
-                    fontWeight: "900",
-                    marginBottom: "5px",
-                  }}
-                >
-                  {guest.name}
-                </div>
-
-                <div
-                  style={{
-                    color: "#94a3b8",
-                    fontSize: "12px",
-                    fontWeight: "700",
-                  }}
-                >
-                  {guest.visits} visits • ${guest.avgSpend.toFixed(0)} avg spend
-                </div>
-              </div>
-
-              <div>
-                <div
-                  style={{
-                    color: "#94a3b8",
-                    fontSize: "12px",
-                    marginBottom: "5px",
-                  }}
-                >
-                  Dining Pattern
-                </div>
-
-                <div
-                  style={{
-                    color: "#6ee7b7",
-                    fontSize: "13px",
-                    fontWeight: "900",
-                  }}
-                >
-                  {diningPattern}
-                </div>
-              </div>
-
-              <div>
-                <div
-                  style={{
-                    color: "#94a3b8",
-                    fontSize: "12px",
-                    marginBottom: "5px",
-                  }}
-                >
-                  Recommended Offer
-                </div>
-
-                <div
-                  style={{
-                    color: "#e2e8f0",
-                    fontSize: "13px",
-                    fontWeight: "800",
-                    lineHeight: 1.5,
-                  }}
-                >
-                  {recommendedUpsell}
-                </div>
-              </div>
-            </div>
-          );
-        })
-      ) : (
-        <div
-          style={{
-            padding: "22px",
-            borderRadius: "22px",
-            background: "rgba(15,23,42,0.72)",
-            border: "1px solid rgba(52,211,153,0.14)",
-            color: "#94a3b8",
-            fontSize: "14px",
-            textAlign: "center",
-          }}
-        >
-          No dining behavior data available yet.
-        </div>
-      )}
-    </div>
-  </div>
-)}
-{/* =========================
-   AI GUEST RETENTION FORECASTING
-========================= */}
-
-{hasProAccess && (
-  <div
-    style={{
-      gridColumn: "span 12",
-      width: "100%",
-      minWidth: 0,
-
-      marginTop: "22px",
-      padding: "24px",
-      borderRadius: "28px",
-
-      overflow: "hidden",
-
-      background:
-        "linear-gradient(135deg, rgba(59,130,246,0.13), rgba(15,23,42,0.96))",
-
-      border: "1px solid rgba(96,165,250,0.22)",
-
-      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
-    }}
-  >
-    <div
-      style={{
-        color: "#93c5fd",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      AI Guest Retention Forecasting
-    </div>
-
-    <h3
-      style={{
-        color: "white",
-        fontSize: "24px",
-        fontWeight: "950",
-        marginBottom: "18px",
-      }}
-    >
-      Predicted Guest Return Probability
-    </h3>
-
-    <div style={{ display: "grid", gap: "14px" }}>
-      {aiGuestSentimentIntelligence.length > 0 ? (
-        aiGuestSentimentIntelligence.slice(0, 6).map((guest, index) => {
-          const retentionProbability =
-            guest.churnRisk === "High"
-              ? Math.max(18, guest.loyaltyScore - 25)
-              : guest.guestTier === "VIP"
-              ? Math.min(98, guest.loyaltyScore + 12)
-              : Math.min(92, guest.loyaltyScore + 8);
-
-          const retentionStatus =
-            retentionProbability >= 80
-              ? "Strong Retention"
-              : retentionProbability >= 55
-              ? "Moderate Retention"
-              : "Retention Risk";
-
-          return (
-            <div
-              key={guest.id || index}
-              style={{
-                padding: "18px",
-                borderRadius: "22px",
-                background: "rgba(15,23,42,0.74)",
-                border: "1px solid rgba(96,165,250,0.14)",
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: isMobile ? "flex-start" : "center",
-                  flexDirection: isMobile ? "column" : "row",
-                  gap: "12px",
-                  marginBottom: "12px",
-                }}
-              >
-                <div>
-                  <div
-                    style={{
-                      color: "white",
-                      fontSize: "17px",
-                      fontWeight: "900",
-                    }}
-                  >
-                    {guest.name}
-                  </div>
-
-                  <div
-                    style={{
-                      color: "#94a3b8",
-                      fontSize: "12px",
-                      marginTop: "4px",
-                    }}
-                  >
-                    {guest.guestTier} • {guest.visits} visits •{" "}
-                    {guest.churnRisk} churn risk
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    color:
-                      retentionProbability >= 80
-                        ? "#86efac"
-                        : retentionProbability >= 55
-                        ? "#fde68a"
-                        : "#fca5a5",
-                    fontSize: "18px",
-                    fontWeight: "950",
-                  }}
-                >
-                  {retentionProbability}%
-                </div>
-              </div>
-
-              <div
-                style={{
-                  height: "10px",
-                  borderRadius: "999px",
-                  background: "rgba(51,65,85,0.72)",
-                  overflow: "hidden",
-                  marginBottom: "10px",
-                }}
-              >
-                <div
-                  style={{
-                    width: `${retentionProbability}%`,
-                    height: "100%",
-                    borderRadius: "999px",
-                    background:
-                      retentionProbability >= 80
-                        ? "linear-gradient(90deg,#22c55e,#86efac)"
-                        : retentionProbability >= 55
-                        ? "linear-gradient(90deg,#facc15,#fde68a)"
-                        : "linear-gradient(90deg,#ef4444,#fca5a5)",
-                  }}
-                />
-              </div>
-
-              <div
-                style={{
-                  color: "#cbd5e1",
-                  fontSize: "13px",
-                  fontWeight: "800",
-                }}
-              >
-                {retentionStatus}
-              </div>
-            </div>
-          );
-        })
-      ) : (
-        <div
-          style={{
-            padding: "22px",
-            borderRadius: "22px",
-            background: "rgba(15,23,42,0.72)",
-            border: "1px solid rgba(96,165,250,0.14)",
-            color: "#94a3b8",
-            fontSize: "14px",
-            textAlign: "center",
-          }}
-        >
-          No retention forecasts available yet.
-        </div>
-      )}
-    </div>
-  </div>
-)}
-{/* =========================
-   AI DYNAMIC OFFER OPTIMIZATION
-========================= */}
-
-{hasProAccess && (
-  <div
-    style={{
-      gridColumn: "span 12",
-      width: "100%",
-      minWidth: 0,
-
-      marginTop: "22px",
-      padding: "24px",
-      borderRadius: "28px",
-
-      overflow: "hidden",
-
-      background:
-        "linear-gradient(135deg, rgba(234,179,8,0.13), rgba(15,23,42,0.96))",
-
-      border: "1px solid rgba(250,204,21,0.22)",
-
-      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
-    }}
-  >
-    <div
-      style={{
-        color: "#fde68a",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      AI Dynamic Offer Optimization
-    </div>
-
-    <h3 style={{ color: "white", fontSize: "24px", fontWeight: "950" }}>
-      Best Offer For Each Guest Segment
-    </h3>
-
-    <div style={{ display: "grid", gap: "14px", marginTop: "18px" }}>
-      {aiGuestSentimentIntelligence.slice(0, 6).map((guest, index) => {
-        const optimizedOffer =
-          guest.churnRisk === "High"
-            ? "20% Comeback Offer"
-            : guest.guestTier === "VIP"
-            ? "Complimentary Premium Appetizer"
-            : guest.avgSpend >= 75
-            ? "Chef Special Pairing"
-            : "Free Dessert With Next Visit";
-
-        const expectedLift =
-          guest.churnRisk === "High"
-            ? "+18% return chance"
-            : guest.guestTier === "VIP"
-            ? "+12% loyalty lift"
-            : guest.avgSpend >= 75
-            ? "+9% ticket lift"
-            : "+7% revisit lift";
-
-        return (
-          <div
-            key={guest.id || index}
-            style={{
-              padding: "18px",
-              borderRadius: "22px",
-              background: "rgba(15,23,42,0.74)",
-              border: "1px solid rgba(250,204,21,0.14)",
-              display: "grid",
-              gridTemplateColumns: isMobile
-                ? "1fr"
-                : "1.2fr 1.2fr 1fr",
-              gap: "14px",
-              alignItems: "center",
-            }}
-          >
-            <div>
-              <div style={{ color: "white", fontSize: "17px", fontWeight: "900" }}>
-                {guest.name}
-              </div>
-              <div style={{ color: "#94a3b8", fontSize: "12px", marginTop: "4px" }}>
-                {guest.guestTier} • ${guest.avgSpend.toFixed(0)} avg spend
-              </div>
-            </div>
-
-            <div>
-              <div style={{ color: "#94a3b8", fontSize: "12px" }}>
-                Optimized Offer
-              </div>
-              <div style={{ color: "#fde68a", fontWeight: "900", marginTop: "4px" }}>
-                {optimizedOffer}
-              </div>
-            </div>
-
-            <div
-              style={{
-                padding: "8px 12px",
-                borderRadius: "999px",
-                background: "rgba(250,204,21,0.14)",
-                color: "#fef3c7",
-                fontSize: "12px",
-                fontWeight: "900",
-                width: "fit-content",
-              }}
-            >
-              {expectedLift}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  </div>
-)}
-{/* =========================
-   AI AUTONOMOUS OPTIMIZATION ENGINE
-========================= */}
-
-{hasProAccess && (
-  <div
-    style={{
-      gridColumn: "span 12",
-      width: "100%",
-      minWidth: 0,
-
-      marginTop: "22px",
-      padding: "28px",
-      borderRadius: "32px",
-
-      overflow: "hidden",
-
-      background:
-        "linear-gradient(135deg, rgba(34,197,94,0.16), rgba(15,23,42,0.98))",
-
-      border: "1px solid rgba(74,222,128,0.24)",
-
-      boxShadow: "0 30px 90px rgba(2,6,23,0.42)",
-    }}
-  >
-    <div
-      style={{
-        color: "#86efac",
-        fontSize: "12px",
-        fontWeight: "950",
-        letterSpacing: "0.1em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      AI Autonomous Optimization Engine
-    </div>
-
-    <h3
-      style={{
-        color: "white",
-        fontSize: "28px",
-        fontWeight: "950",
-        marginBottom: "14px",
-      }}
-    >
-      Self-Improving Restaurant Performance System
-    </h3>
-
-    <p
-      style={{
-        color: "#cbd5e1",
-        fontSize: "14px",
-        lineHeight: 1.8,
-        marginBottom: "24px",
-        maxWidth: "920px",
-      }}
-    >
-      AI continuously recommends the best operational adjustments across guest
-      recovery, labor efficiency, inventory control, menu profitability, and
-      revenue growth.
-    </p>
-
-    <div style={{ display: "grid", gap: "16px" }}>
-      {[
-       {
-  system: "Guest Revenue Optimization",
-  action: hasOperationalData
-    ? "Launch win-back campaigns for high-risk guests."
-    : "Upload guest activity and customer data to activate retention intelligence.",
-
-  result: hasOperationalData
-    ? "+$0/mo potential recovery"
-    : "Simulation Mode",
-
-  status: hasOperationalData
-    ? "Ready"
-    : "Awaiting Data",
-},
-
-{
-  system: "Labor Cost Optimization",
-  action: hasOperationalData
-    ? "Reduce staffing during predicted slow periods."
-    : "Upload labor and sales data to activate staffing optimization.",
-
-  result: hasOperationalData
-    ? "+$0/mo profit protection"
-    : "Simulation Mode",
-
-  status: hasOperationalData
-    ? "Recommended"
-    : "Awaiting Data",
-},
-
-{
-  system: "Menu Profit Optimization",
-  action: hasOperationalData
-    ? "Promote high-margin items and premium add-ons."
-    : "Upload menu and sales mix data to activate menu profitability AI.",
-
-  result: hasOperationalData
-  ? "+$0/mo margin upside"
-  : "Simulation Mode",
-
-  status: hasOperationalData
-    ? "Active"
-    : "Awaiting Data",
-},
-
-{
-  system: "Inventory Waste Optimization",
-  action: hasOperationalData
-    ? "Adjust purchasing cadence based on usage variance."
-    : "Upload inventory and invoice data to activate waste optimization intelligence.",
-
-  result: hasOperationalData
-  ? "+$0/mo waste reduction"
-  : "Simulation Mode",
-
-  status: hasOperationalData
-    ? "Monitoring"
-    : "Awaiting Data",
-},
-      ].map((item, index) => (
-        <div
-          key={index}
-          style={{
-            padding: "20px",
-            borderRadius: "24px",
-            background: "rgba(15,23,42,0.78)",
-            border: "1px solid rgba(74,222,128,0.14)",
-            display: "grid",
-            gridTemplateColumns: isMobile
-              ? "1fr"
-              : "1.2fr 1.4fr 1fr 120px",
-            gap: "16px",
-            alignItems: "center",
-          }}
-        >
-          <div>
-            <div
-              style={{
-                color: "white",
-                fontSize: "17px",
-                fontWeight: "900",
-                marginBottom: "6px",
-              }}
-            >
-              {item.system}
-            </div>
-
-            <div
-              style={{
-                color: "#94a3b8",
-                fontSize: "12px",
-                fontWeight: "700",
-              }}
-            >
-              AI optimization module
-            </div>
-          </div>
-
-          <div
-            style={{
-              color: "#cbd5e1",
-              fontSize: "13px",
-              lineHeight: 1.7,
-            }}
-          >
-            {item.action}
-          </div>
-
-          <div
-            style={{
-              color: "#86efac",
-              fontSize: "13px",
-              fontWeight: "900",
-            }}
-          >
-            {item.result}
-          </div>
-
-          <div
-            style={{
-              padding: "8px 12px",
-              borderRadius: "999px",
-              textAlign: "center",
-              background:
-                item.status === "Active"
-                  ? "rgba(34,197,94,0.15)"
-                  : item.status === "Ready"
-                  ? "rgba(59,130,246,0.15)"
-                  : item.status === "Recommended"
-                  ? "rgba(250,204,21,0.15)"
-                  : "rgba(148,163,184,0.15)",
-              color:
-                item.status === "Active"
-                  ? "#86efac"
-                  : item.status === "Ready"
-                  ? "#93c5fd"
-                  : item.status === "Recommended"
-                  ? "#fde68a"
-                  : "#cbd5e1",
-              fontSize: "12px",
-              fontWeight: "900",
-            }}
-          >
-            {item.status}
-          </div>
-        </div>
-      ))}
-    </div>
-  </div>
-)}
-{/* =========================
-   AI EXECUTIVE SUMMARY CLOSEOUT
-========================= */}
-
-{hasProAccess && (
-  <div
-    style={{
-      gridColumn: "span 12",
-      width: "100%",
-      minWidth: 0,
-
-      marginTop: "24px",
-      marginBottom: "30px",
-
-      padding: "32px",
-      borderRadius: "34px",
-
-      overflow: "hidden",
-      position: "relative",
-
-      background:
-        "linear-gradient(135deg, rgba(15,23,42,0.99), rgba(30,41,59,0.95), rgba(99,102,241,0.18))",
-
-      border: "1px solid rgba(129,140,248,0.24)",
-
-      boxShadow: "0 34px 100px rgba(2,6,23,0.46)",
-    }}
-  >
-    <div
-      style={{
-        position: "absolute",
-        top: "-120px",
-        right: "-120px",
-        width: "260px",
-        height: "260px",
-        borderRadius: "999px",
-        background: "rgba(129,140,248,0.12)",
-        filter: "blur(44px)",
-      }}
-    />
-
-    <div
-      style={{
-        position: "relative",
-        zIndex: 2,
-      }}
-    >
-      <div
-        style={{
-          color: "#c7d2fe",
-          fontSize: "12px",
-          fontWeight: "950",
-          letterSpacing: "0.1em",
-          textTransform: "uppercase",
-          marginBottom: "10px",
-        }}
-      >
-        AI Executive Summary
-      </div>
-
-      <h2
-        style={{
-          color: "white",
-          fontSize: "34px",
-          fontWeight: "950",
-          lineHeight: 1.2,
-          marginBottom: "16px",
-        }}
-      >
-        Restaurant Intelligence Status: Operationally Stable
-      </h2>
-
-      <p
-        style={{
-          color: "#cbd5e1",
-          fontSize: "15px",
-          lineHeight: 1.9,
-          maxWidth: "980px",
-          marginBottom: "28px",
-        }}
-      >
-        SerVen AI has completed a full operational analysis across revenue,
-        labor, inventory, guests, forecasting, reservations, profit leakage,
-        and optimization systems. AI predicts stable growth potential while
-        identifying opportunities to improve guest retention, increase margin
-        efficiency, and reduce operational leakage.
-      </p>
-
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: isMobile
-            ? "1fr"
-            : "repeat(4,minmax(0,1fr))",
-          gap: "16px",
-          marginBottom: "26px",
-        }}
-      >
-       <GlassCard
-  title="Operational Score"
-  value={
-    hasOperationalData
-      ? `${Number(restaurantAIHealthScore || 0)}%`
-      : "Awaiting Data"
-  }
-  subtitle="AI system health"
-/>
-
-<GlassCard
-  title="Profit Recovery"
-  value={
-    hasOperationalData
-      ? `$${Number(totalAIRecoveryOpportunity || 0).toLocaleString()}`
-      : "Awaiting Data"
-  }
-  subtitle="Estimated monthly opportunity"
-/>
-
-<GlassCard
-  title="Forecast Confidence"
-  value={
-    hasOperationalData
-      ? `${Number(realForecastConfidence || 0)}%`
-      : "Simulation"
-  }
-  subtitle="AI predictive certainty"
-/>
-
-<GlassCard
-  title="Optimization Status"
-  value={
-    hasOperationalData
-      ? aiOptimizationStatus || "Monitoring"
-      : "Awaiting Data"
-  }
-  subtitle="Autonomous AI monitoring"
-/>
-      </div>
-
-      <div
-        style={{
-          padding: "22px",
-          borderRadius: "24px",
-          background: "rgba(15,23,42,0.78)",
-          border: "1px solid rgba(129,140,248,0.14)",
-        }}
-      >
-        <div
-          style={{
-            color: "#a5b4fc",
-            fontSize: "12px",
-            fontWeight: "900",
-            marginBottom: "10px",
-          }}
-        >
-          AI Final Recommendation
-        </div>
-
-        <div
-          style={{
-            color: "#e2e8f0",
-            fontSize: "14px",
-            lineHeight: 1.8,
-          }}
-        >
-          Focus immediate optimization efforts on guest retention recovery,
-          high-margin menu visibility, labor efficiency during low-volume
-          periods, and inventory variance reduction. AI predicts these
-          initiatives have the highest probability of near-term profitability
-          improvement.
-        </div>
-      </div>
-    </div>
-  </div>
-)}
 {/* ============================= */}
 {/* AI PROFIT ENGINE */}
 {/* ============================= */}
@@ -75230,7 +75232,7 @@ impact: hasOperationalData
     minWidth: 0,
   }}
 >
-          {/* ================= AI ENGINE CONTROL ================= */}
+       {/* ================= AI COMMAND CENTER ================= */}
           <div
             style={{
               position: "relative",
@@ -75635,167 +75637,8 @@ impact: hasOperationalData
             </div>
           </div>
 
-          {/* ================= AI OPPORTUNITIES ================= */}
-          <div
-            style={{
-              ...sectionCard,
-              borderRadius: "20px",
-              padding: "22px",
-            }}
-          >
-            <div
-              style={{
-                fontSize: "11px",
-                fontWeight: "800",
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-                color: "#a5b4fc",
-                marginBottom: "10px",
-              }}
-            >
-              AI Profit Opportunities
-            </div>
-
-            <h3 style={sectionTitle}>Recommended Actions</h3>
-
-            <div
-              style={{
-                marginTop: "16px",
-                display: "flex",
-                flexDirection: "column",
-                gap: "12px",
-              }}
-            >
-              {aiProfitOpportunities.map((item) => {
-                const alreadyApplied = appliedFixes.includes(item.id);
-
-                return (
-                  <div
-                    key={item.id}
-                    style={{
-                      padding: "16px",
-                      borderRadius: "16px",
-                      background: "rgba(255,255,255,0.04)",
-                      border: "1px solid rgba(255,255,255,0.08)",
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      gap: "16px",
-                      flexWrap: "wrap",
-                    }}
-                  >
-                    <div style={{ minWidth: 0, flex: 1 }}>
-                      <div
-                        style={{
-                          color: "white",
-                          fontWeight: "800",
-                          fontSize: "14px",
-                          marginBottom: "6px",
-                        }}
-                      >
-                        {item.title}
-                      </div>
-
-                      <div
-                        style={{
-                          color: "#94a3b8",
-                          fontSize: "13px",
-                          lineHeight: 1.5,
-                          marginBottom: "10px",
-                        }}
-                      >
-                        {item.description}
-                      </div>
-
-                      <div
-                        style={{
-                          display: "flex",
-                          gap: "8px",
-                          flexWrap: "wrap",
-                        }}
-                      >
-                        <span
-                          style={{
-                            padding: "4px 10px",
-                            borderRadius: "999px",
-                            background: "rgba(79,70,229,0.16)",
-                            color: "#c7d2fe",
-                            fontSize: "11px",
-                            fontWeight: "700",
-                          }}
-                        >
-                          {item.category}
-                        </span>
-
-                        <span
-                          style={{
-                            padding: "4px 10px",
-                            borderRadius: "999px",
-                            background: "rgba(255,255,255,0.08)",
-                            color: "#cbd5e1",
-                            fontSize: "11px",
-                            fontWeight: "700",
-                          }}
-                        >
-                          {item.difficulty}
-                        </span>
-
-                        <span
-                          style={{
-                            padding: "4px 10px",
-                            borderRadius: "999px",
-                            background: "rgba(34,197,94,0.14)",
-                            color: "#6ee7b7",
-                            fontSize: "11px",
-                            fontWeight: "800",
-                          }}
-                        >
-                          +${Number(item.impact || 0).toLocaleString()}/mo
-                        </span>
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!hasProAccess || alreadyApplied) return;
-
-                        setSimulatedProfit(
-                          (prev) => prev + Number(item.impact || 0)
-                        );
-                        setAppliedFixes((prev) => [...prev, item.id]);
-                        setAiLog((prev) =>
-                          [
-                            {
-                              id: Date.now(),
-                              text: `Applied fix: ${item.title} → +$${Number(
-                                item.impact || 0
-                              ).toLocaleString()}/mo`,
-                            },
-                            ...prev,
-                          ].slice(0, 6)
-                        );
-                      }}
-                      style={{
-                        padding: "10px 14px",
-                        borderRadius: "12px",
-                        border: "none",
-                        background: alreadyApplied
-                          ? "#374151"
-                          : "linear-gradient(135deg, #4f46e5, #6D3DF5)",
-                        color: "white",
-                        fontWeight: "800",
-                        cursor: alreadyApplied ? "default" : "pointer",
-                        minWidth: "110px",
-                      }}
-                    >
-                      {alreadyApplied ? "Applied" : "Apply Fix"}
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+                
+         
         </div>
 
         {/* ================= RIGHT COLUMN ================= */}
