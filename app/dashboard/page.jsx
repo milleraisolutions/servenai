@@ -28858,53 +28858,60 @@ return (
       gap: "14px",
       marginTop: "18px",
     }}
-  >
-    <GlassCard
-      title="Monthly Recovery"
-      value={`$${Number(totalAIRecoveryOpportunity || 0).toLocaleString()}`}
-      subtext="Total profit recovery found"
-    />
+  ><GlassCard
+  title="Monthly Recovery"
+  value={
+    hasOperationalData
+      ? `$${Number(totalAIRecoveryOpportunity || 0).toLocaleString()}`
+      : "Upload POS Data"
+  }
+  subtext="Total profit recovery found"
+/>
 
-    <GlassCard
-      title="Recovery Progress"
-      value={`${
-        Number(totalAIRecoveryOpportunity || 0) > 0
-          ? Math.min(
-              100,
-              Math.round(
-                (Number(simulatedProfit || 0) /
-                  Number(totalAIRecoveryOpportunity || 1)) *
-                  100
-              )
-            )
-          : 0
-      }%`}
-      subtext="Applied recovery progress"
-    />
+<GlassCard
+  title="Recovery Progress"
+  value={
+    hasOperationalData
+      ? `${Math.min(
+          100,
+          Math.round(
+            (Number(simulatedProfit || 0) /
+              Number(totalAIRecoveryOpportunity || 1)) *
+              100
+          )
+        )}%`
+      : "Awaiting Analysis"
+  }
+  subtext="Applied recovery progress"
+/>
 
-    <GlassCard
-      title="Annual Impact"
-      value={`$${Number(annualRecoverableProfit || 0).toLocaleString()}`}
-      subtext="Projected annual opportunity"
-    />
+<GlassCard
+  title="Annual Impact"
+  value={
+    hasOperationalData
+      ? `$${Number(annualRecoverableProfit || 0).toLocaleString()}`
+      : "Upload Revenue"
+  }
+  subtext="Projected annual opportunity"
+/>
 
-    <GlassCard
-      title="Biggest Risk"
-      value={topLossCategories?.[0]?.name || "Monitoring"}
-      subtext="Largest active profit leak"
-    />
+<GlassCard
+  title="Biggest Risk"
+  value={topLossCategories?.[0]?.name || "Awaiting Risk Analysis"}
+  subtext="Largest active profit leak"
+/>
 
-    <GlassCard
-      title="Next Action"
-      value={aiProfitOpportunities?.[0]?.title || "Awaiting Data"}
-      subtext="Recommended first move"
-    />
+<GlassCard
+  title="Next Action"
+  value={aiProfitOpportunities?.[0]?.title || "Upload Operational Data"}
+  subtext="Recommended first move"
+/>
 
-    <GlassCard
-      title="Autopilot Status"
-      value={aiProfitOpportunities?.length > 0 ? "Active" : "Waiting"}
-      subtext="AI recovery engine status"
-    />
+<GlassCard
+  title="Autopilot Status"
+  value={aiProfitOpportunities?.length > 0 ? "Active" : "Standby"}
+  subtext="AI recovery engine status"
+/>
   </div>
 </div>
 
@@ -29477,46 +29484,58 @@ const timeToImpact =
       gap: "14px",
       marginTop: "18px",
     }}
-  >
-    <GlassCard
-      title="Profit Found"
-      value={`$${Number(totalAIRecoveryOpportunity || 0).toLocaleString()}`}
-      subtext="Monthly recovery identified"
-    />
+  ><GlassCard
+  title="Profit Found"
+  value={
+    hasOperationalData
+      ? `$${Number(totalAIRecoveryOpportunity || 0).toLocaleString()}`
+      : "Upload POS Data"
+  }
+  subtext="Monthly recovery identified"
+/>
 
-    <GlassCard
-      title="Profit Applied"
-      value={`$${Number(simulatedProfit || 0).toLocaleString()}`}
-      subtext="Monthly recovery from applied fixes"
-    />
+<GlassCard
+  title="Profit Applied"
+  value={
+    hasOperationalData
+      ? `$${Number(simulatedProfit || 0).toLocaleString()}`
+      : "Apply AI Fixes"
+  }
+  subtext="Monthly recovery from applied fixes"
+/>
 
-    <GlassCard
-      title="Remaining"
-      value={`$${Number(
-        Math.max(
-          0,
-          Number(totalAIRecoveryOpportunity || 0) - Number(simulatedProfit || 0)
-        )
-      ).toLocaleString()}`}
-      subtext="Uncaptured monthly opportunity"
-    />
+<GlassCard
+  title="Remaining"
+  value={
+    hasOperationalData
+      ? `$${Number(
+          Math.max(
+            0,
+            Number(totalAIRecoveryOpportunity || 0) -
+              Number(simulatedProfit || 0)
+          )
+        ).toLocaleString()}`
+      : "Awaiting Analysis"
+  }
+  subtext="Uncaptured monthly opportunity"
+/>
 
-    <GlassCard
-      title="Recovery Rate"
-      value={`${
-        Number(totalAIRecoveryOpportunity || 0) > 0
-          ? Math.min(
-              100,
-              Math.round(
-                (Number(simulatedProfit || 0) /
-                  Number(totalAIRecoveryOpportunity || 1)) *
-                  100
-              )
-            )
-          : 0
-      }%`}
-      subtext="Progress toward full recovery"
-    />
+<GlassCard
+  title="Recovery Rate"
+  value={
+    hasOperationalData
+      ? `${Math.min(
+          100,
+          Math.round(
+            (Number(simulatedProfit || 0) /
+              Number(totalAIRecoveryOpportunity || 1)) *
+              100
+          )
+        )}%`
+      : "Not Started"
+  }
+  subtext="Progress toward full recovery"
+/>
     <div
   style={{
     marginTop: "18px",
@@ -35153,30 +35172,49 @@ Restaurant AI Health is currently rated{" "}
       gap: "14px",
       marginBottom: "14px",
     }}
-  >
-    <GlassCard
-      title="Total Recovery Opportunity"
-      value={`$${Number(totalAIRecoveryOpportunity || 0).toLocaleString()}`}
-      subtext={aiRecoveryInsight}
-    />
+  ><GlassCard
+  title="Total Recovery Opportunity"
+  value={
+    hasOperationalData
+      ? `$${Number(totalAIRecoveryOpportunity || 0).toLocaleString()}`
+      : "Upload POS Data"
+  }
+  subtext={
+    hasOperationalData
+      ? aiRecoveryInsight
+      : "Connect restaurant data to identify recovery opportunities."
+  }
+/>
 
-    <GlassCard
-      title="Food Cost Recovery"
-      value={`$${Number(estimatedFoodRecovery || 0).toLocaleString()}`}
-      subtext="Potential savings from food cost optimization"
-    />
+<GlassCard
+  title="Food Cost Recovery"
+  value={
+    hasOperationalData
+      ? `$${Number(estimatedFoodRecovery || 0).toLocaleString()}`
+      : "Upload Inventory"
+  }
+  subtext="Potential savings from food cost optimization"
+/>
 
-    <GlassCard
-      title="Labor Recovery"
-      value={`$${Number(estimatedLaborRecovery || 0).toLocaleString()}`}
-      subtext="Potential savings from labor optimization"
-    />
+<GlassCard
+  title="Labor Recovery"
+  value={
+    hasOperationalData
+      ? `$${Number(estimatedLaborRecovery || 0).toLocaleString()}`
+      : "Upload Labor Data"
+  }
+  subtext="Potential savings from labor optimization"
+/>
 
-    <GlassCard
-      title="Recovery Status"
-      value={aiRecoveryStatus}
-      subtext="AI operational recovery rating"
-    />
+<GlassCard
+  title="Recovery Status"
+  value={
+    hasOperationalData
+      ? aiRecoveryStatus
+      : "Awaiting Analysis"
+  }
+  subtext="AI operational recovery rating"
+/>
   </div>
 
   <div
@@ -35230,37 +35268,55 @@ Restaurant AI Health is currently rated{" "}
       gap: "14px",
     }}
   >
-    <GlassCard
-      title="Risk Score"
-      value={`${Number(executiveRiskScore || 0)}/100`}
-      subtext={executiveRiskInsight}
-    />
+   <GlassCard
+  title="Risk Score"
+  value={
+    hasOperationalData
+      ? `${Number(executiveRiskScore || 0)}/100`
+      : "Awaiting Analysis"
+  }
+  subtext={
+    hasOperationalData
+      ? executiveRiskInsight
+      : "Upload operational data to calculate risk."
+  }
+/>
 
-    <GlassCard
-      title="Risk Status"
-      value={executiveRiskStatus}
-      subtext="Owner-level operational risk rating"
-    />
+<GlassCard
+  title="Risk Status"
+  value={
+    hasOperationalData
+      ? executiveRiskStatus
+      : "Data Needed"
+  }
+  subtext="Owner-level operational risk rating"
+/>
 
-    <GlassCard
-      title="Recovery Opportunity"
-      value={`$${Number(totalAIRecoveryOpportunity || 0).toLocaleString()}`}
-      subtext="Potential recovery identified by AI"
-    />
+<GlassCard
+  title="Recovery Opportunity"
+  value={
+    hasOperationalData
+      ? `$${Number(totalAIRecoveryOpportunity || 0).toLocaleString()}`
+      : "Upload Revenue"
+  }
+  subtext="Potential recovery identified by AI"
+/>
 
-    <GlassCard
-      title="Priority Focus"
-      value={
-        executiveRiskScore >= 70
-          ? "Immediate Review"
-          : executiveRiskScore >= 45
-          ? "Cost Control"
-          : executiveRiskScore >= 20
-          ? "Monitor Trends"
-          : "Maintain"
-      }
-      subtext="Recommended executive action"
-    />
+<GlassCard
+  title="Priority Focus"
+  value={
+    hasOperationalData
+      ? executiveRiskScore >= 70
+        ? "Immediate Review"
+        : executiveRiskScore >= 45
+        ? "Cost Control"
+        : executiveRiskScore >= 20
+        ? "Monitor Trends"
+        : "Maintain"
+      : "Awaiting Data"
+  }
+  subtext="Recommended executive action"
+/>
   </div>
 </div>
 {/* 📩 EMAIL MODAL */}
