@@ -12640,11 +12640,23 @@ const servenSuccessFee =
 ]
 .sort((a, b) => b.value - a.value)
 .filter((item) => item.value > 0);
-  const hasOperationalData =
+  const hasRevenueData =
   (salesData || []).length > 0 ||
+  (dbSalesRows || []).length > 0 ||
+  Number(liveTotalRevenue || 0) > 0 ||
+  Number(realSalesMetrics?.totalRevenueFromDb || 0) > 0;
+
+const hasOperationalData =
+  hasRevenueData ||
   (laborData || []).length > 0 ||
-  (menuItemsData || []).length > 0 ||
+  (inventoryData || []).length > 0 ||
   (invoicesData || []).length > 0;
+
+const hasFullRecoveryData =
+  hasRevenueData &&
+  ((laborData || []).length > 0 ||
+    (inventoryData || []).length > 0 ||
+    (invoicesData || []).length > 0);
 const fallbackProfitOpportunities = [
   {
     id: 1,
@@ -28728,7 +28740,7 @@ return (
     </div>
   </div>
 </div>
-{hasOperationalData && (
+{hasFullRecoveryData&& (
   <>
   {/* EXECUTIVE PROFIT RECOVERY HERO */}
 <div
@@ -28796,7 +28808,7 @@ return (
     <GlassCard
       title="Annual Impact"
       value={
-        hasOperationalData
+       hasFullRecoveryData
           ? `$${Number(annualRecoverableProfit || 0).toLocaleString()}`
           : "Awaiting Data"
       }
@@ -28806,7 +28818,7 @@ return (
     <GlassCard
       title="Operator Keeps"
       value={
-        hasOperationalData
+        hasFullRecoveryData
           ? `$${Number((restaurantRetains || 0) * 12).toLocaleString()}`
           : "Awaiting Data"
       }
@@ -28816,7 +28828,7 @@ return (
     <GlassCard
       title="Serven Success Fee"
       value={
-        hasOperationalData
+        hasFullRecoveryData
           ? `$${Number((servenSuccessFee || 0) * 12).toLocaleString()}`
           : "Awaiting Data"
       }
@@ -28861,7 +28873,7 @@ return (
   ><GlassCard
   title="Monthly Recovery"
   value={
-    hasOperationalData
+    hasFullRecoveryData
       ? `$${Number(totalAIRecoveryOpportunity || 0).toLocaleString()}`
       : "Upload POS Data"
   }
@@ -28871,7 +28883,7 @@ return (
 <GlassCard
   title="Recovery Progress"
   value={
-    hasOperationalData
+    hasFullRecoveryData
       ? `${Math.min(
           100,
           Math.round(
@@ -28888,7 +28900,7 @@ return (
 <GlassCard
   title="Annual Impact"
   value={
-    hasOperationalData
+    hasFullRecoveryData
       ? `$${Number(annualRecoverableProfit || 0).toLocaleString()}`
       : "Upload Revenue"
   }
@@ -29016,7 +29028,7 @@ return (
        <GlassCard
   title="Operational Score"
   value={
-    hasOperationalData
+    hasFullRecoveryData
       ? `${Number(restaurantAIHealthScore || 0)}%`
       : "Awaiting Data"
   }
@@ -29026,7 +29038,7 @@ return (
 <GlassCard
   title="Profit Recovery"
   value={
-    hasOperationalData
+   hasFullRecoveryData
       ? `$${Number(totalAIRecoveryOpportunity || 0).toLocaleString()}`
       : "Awaiting Data"
   }
@@ -29036,7 +29048,7 @@ return (
 <GlassCard
   title="Forecast Confidence"
   value={
-    hasOperationalData
+   hasFullRecoveryData
       ? `${Number(realForecastConfidence || 0)}%`
       : "Simulation"
   }
@@ -29046,7 +29058,7 @@ return (
 <GlassCard
   title="Optimization Status"
   value={
-    hasOperationalData
+    hasFullRecoveryData
       ? aiOptimizationStatus || "Monitoring"
       : "Awaiting Data"
   }
@@ -29487,7 +29499,7 @@ const timeToImpact =
   ><GlassCard
   title="Profit Found"
   value={
-    hasOperationalData
+   hasFullRecoveryData
       ? `$${Number(totalAIRecoveryOpportunity || 0).toLocaleString()}`
       : "Upload POS Data"
   }
@@ -29497,7 +29509,7 @@ const timeToImpact =
 <GlassCard
   title="Profit Applied"
   value={
-    hasOperationalData
+    hasFullRecoveryData
       ? `$${Number(simulatedProfit || 0).toLocaleString()}`
       : "Apply AI Fixes"
   }
@@ -29507,7 +29519,7 @@ const timeToImpact =
 <GlassCard
   title="Remaining"
   value={
-    hasOperationalData
+  hasFullRecoveryData
       ? `$${Number(
           Math.max(
             0,
@@ -29523,7 +29535,7 @@ const timeToImpact =
 <GlassCard
   title="Recovery Rate"
   value={
-    hasOperationalData
+    hasFullRecoveryData
       ? `${Math.min(
           100,
           Math.round(
@@ -29558,19 +29570,18 @@ const timeToImpact =
       Recovery Progress
     </span>
 
-    <span style={{ color: "#86efac", fontWeight: "950" }}>
-      {Number(totalAIRecoveryOpportunity || 0) > 0
-        ? Math.min(
-            100,
-            Math.round(
-              (Number(simulatedProfit || 0) /
-                Number(totalAIRecoveryOpportunity || 1)) *
-                100
-            )
-          )
-        : 0}
-      %
-    </span>
+   <span style={{ color: "#86efac", fontWeight: "950" }}>
+  {hasFullRecoveryData
+    ? `${Math.min(
+        100,
+        Math.round(
+          (Number(simulatedProfit || 0) /
+            Number(totalAIRecoveryOpportunity || 1)) *
+            100
+        )
+      )}%`
+    : "Awaiting Analysis"}
+</span>
   </div>
 
   <div
