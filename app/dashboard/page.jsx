@@ -28550,8 +28550,7 @@ return (
         ))}
     </div>
   )}
-</div>
-{/* ✅ AI ONBOARDING PROGRESS */}
+</div>{/* ✅ AI ONBOARDING CENTER */}
 <div
   style={{
     marginBottom: "22px",
@@ -28563,25 +28562,35 @@ return (
   }}
 >
   <div style={{ color: "#86efac", fontSize: "12px", fontWeight: "900" }}>
-    AI ONBOARDING PROGRESS
+    AI ONBOARDING CENTER
+  </div>
+
+  <div
+    style={{
+      color: "#94a3b8",
+      fontSize: "13px",
+      marginTop: "6px",
+      lineHeight: 1.6,
+    }}
+  >
+    Track connected data sources, unlocked intelligence, and the next upload
+    needed to improve Serven accuracy.
   </div>
 
   <div style={{ marginTop: "14px", display: "grid", gap: "10px" }}>
     {[
-      
-  {
-  label: "POS Sales",
-  complete:
-    (dbSalesRows || []).length > 0 ||
-    (salesData || []).length > 0 ||
-    Number(realSalesMetrics?.totalRevenueFromDb || 0) > 0 ||
-    Number(liveTotalRevenue || 0) > 0,
-},
-  { label: "Labor Data", complete: (laborData || []).length > 0 },
-  { label: "Inventory Data", complete: (inventoryData || []).length > 0 },
-  { label: "Menu Items", complete: (menuItemsData || []).length > 0 },
-  { label: "Invoices", complete: (invoicesData || []).length > 0 },
-
+      {
+        label: "POS Sales",
+        complete:
+          (dbSalesRows || []).length > 0 ||
+          (salesData || []).length > 0 ||
+          Number(realSalesMetrics?.totalRevenueFromDb || 0) > 0 ||
+          Number(liveTotalRevenue || 0) > 0,
+      },
+      { label: "Labor Data", complete: (laborData || []).length > 0 },
+      { label: "Inventory Data", complete: (inventoryData || []).length > 0 },
+      { label: "Menu Items", complete: (menuItemsData || []).length > 0 },
+      { label: "Invoices", complete: (invoicesData || []).length > 0 },
     ].map((item) => (
       <div
         key={item.label}
@@ -28611,206 +28620,112 @@ return (
       </div>
     ))}
   </div>
-</div>
-{/* DATA UNLOCK STATUS */}
-<div
-  style={{
-    marginBottom: "22px",
-    padding: "20px",
-    borderRadius: "22px",
-    background:
-      "linear-gradient(135deg, rgba(79,70,229,0.12), rgba(15,23,42,0.94))",
-    border: "1px solid rgba(129,140,248,0.16)",
-  }}
->
-  <div style={{ color: "#a5b4fc", fontSize: "12px", fontWeight: "900" }}>
-    DATA UNLOCK STATUS
-  </div>
 
-  <div style={{ marginTop: "14px", display: "grid", gap: "10px" }}>
-    {[
-      {
-        label: "Revenue Intelligence",
-        unlocked:
-          (dbSalesRows || []).length > 0 ||
-          (salesData || []).length > 0 ||
-          Number(liveTotalRevenue || 0) > 0,
-        detail: "POS data unlocks revenue trends and sales performance.",
-      },
-      {
-        label: "Labor Recovery",
-        unlocked: (laborData || []).length > 0,
-        detail: "Labor data unlocks staffing efficiency and labor leakage.",
-      },
-      {
-        label: "Inventory Waste",
-        unlocked: (inventoryData || []).length > 0,
-        detail: "Inventory data unlocks waste and depletion intelligence.",
-      },
-      {
-        label: "Menu Profitability",
-        unlocked: (menuItemsData || []).length > 0,
-        detail: "Menu data unlocks item-level margin opportunities.",
-      },
-      {
-        label: "Vendor Savings",
-        unlocked: (invoicesData || []).length > 0,
-        detail: "Invoice data unlocks vendor pricing and cost recovery.",
-      },
-    ].map((item) => (
+  <div
+    style={{
+      marginTop: "18px",
+      paddingTop: "18px",
+      borderTop: "1px solid rgba(148,163,184,0.14)",
+      display: "grid",
+      gridTemplateColumns: isMobile ? "1fr" : "1fr 1.4fr",
+      gap: "16px",
+      alignItems: "start",
+    }}
+  >
+    <div>
       <div
-        key={item.label}
         style={{
-          padding: "12px",
-          borderRadius: "14px",
-          background: item.unlocked
-            ? "rgba(34,197,94,0.08)"
-            : "rgba(255,255,255,0.04)",
-          border: item.unlocked
-            ? "1px solid rgba(34,197,94,0.18)"
-            : "1px solid rgba(148,163,184,0.12)",
+          color: "#86efac",
+          fontSize: "11px",
+          fontWeight: "900",
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          marginBottom: "8px",
         }}
       >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            gap: "12px",
-            flexWrap: "wrap",
-          }}
-        >
-          <div style={{ color: "white", fontWeight: "900", fontSize: "13px" }}>
-            {item.label}
-          </div>
-
-          <div
-            style={{
-              color: item.unlocked ? "#86efac" : "#fbbf24",
-              fontWeight: "900",
-              fontSize: "12px",
-            }}
-          >
-            {item.unlocked ? "Unlocked" : "Locked"}
-          </div>
-        </div>
-
-        <div
-          style={{
-            color: "#94a3b8",
-            fontSize: "12px",
-            marginTop: "6px",
-            lineHeight: 1.5,
-          }}
-        >
-          {item.detail}
-        </div>
+        Serven Intelligence Score
       </div>
-    ))}
-  </div>
-</div>
-{/* RECOMMENDED NEXT UPLOAD */}
-<div
-  style={{
-    marginBottom: "22px",
-    padding: "20px",
-    borderRadius: "22px",
-    background:
-      "linear-gradient(135deg, rgba(245,158,11,0.12), rgba(15,23,42,0.94))",
-    border: "1px solid rgba(245,158,11,0.18)",
-  }}
->
-  <div
-    style={{
-      color: "#fbbf24",
-      fontSize: "12px",
-      fontWeight: "900",
-      marginBottom: "10px",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-    }}
-  >
-    Recommended Next Upload
-  </div>
 
-  <div
-    style={{
-      color: "white",
-      fontSize: "18px",
-      fontWeight: "900",
-      marginBottom: "8px",
-    }}
-  >
-    {!(invoicesData || []).length
-      ? "Upload Invoices"
-      : !(inventoryData || []).length
-      ? "Upload Inventory Data"
-      : !(laborData || []).length
-      ? "Upload Labor Data"
-      : !(menuItemsData || []).length
-      ? "Upload Menu Items"
-      : "All Core Intelligence Activated"}
-  </div>
+      <div
+        style={{
+          color: "white",
+          fontSize: "34px",
+          fontWeight: "1000",
+          marginBottom: "8px",
+        }}
+      >
+        {Math.round(
+          ([
+            (dbSalesRows || []).length > 0 ||
+              (salesData || []).length > 0 ||
+              Number(liveTotalRevenue || 0) > 0,
+            (laborData || []).length > 0,
+            (inventoryData || []).length > 0,
+            (menuItemsData || []).length > 0,
+            (invoicesData || []).length > 0,
+          ].filter(Boolean).length /
+            5) *
+            100
+        )}
+        /100
+      </div>
 
-  <div
-    style={{
-      color: "#cbd5e1",
-      fontSize: "13px",
-      lineHeight: 1.6,
-    }}
-  >
-    {!(invoicesData || []).length
-      ? "Invoice uploads unlock vendor inflation detection, supplier price tracking, and purchasing savings opportunities."
-      : !(inventoryData || []).length
-      ? "Inventory uploads unlock depletion tracking, waste monitoring, and shelf-life intelligence."
-      : !(laborData || []).length
-      ? "Labor uploads unlock labor recovery, overtime analysis, and staffing optimization."
-      : !(menuItemsData || []).length
-      ? "Menu uploads unlock item-level profitability, pricing intelligence, and menu engineering."
-      : "Serven has activated all core intelligence modules. Continue uploading data to improve accuracy."}
-  </div>
-</div>
-{/* SERVEN INTELLIGENCE SCORE */}
-<div
-  style={{
-    marginBottom: "22px",
-    padding: "20px",
-    borderRadius: "22px",
-    background:
-      "linear-gradient(135deg, rgba(34,197,94,0.10), rgba(15,23,42,0.94))",
-    border: "1px solid rgba(34,197,94,0.18)",
-  }}
->
-  <div style={{ color: "#86efac", fontSize: "12px", fontWeight: "900" }}>
-    SERVEN INTELLIGENCE SCORE
-  </div>
+      <div style={{ color: "#94a3b8", fontSize: "13px", lineHeight: 1.6 }}>
+        Intelligence improves as more restaurant data sources are connected.
+      </div>
+    </div>
 
-  <div
-    style={{
-      color: "white",
-      fontSize: "34px",
-      fontWeight: "1000",
-      marginTop: "12px",
-      marginBottom: "8px",
-    }}
-  >
-    {Math.round(
-      ([
-        (dbSalesRows || []).length > 0 ||
-          (salesData || []).length > 0 ||
-          Number(liveTotalRevenue || 0) > 0,
-        (laborData || []).length > 0,
-        (inventoryData || []).length > 0,
-        (menuItemsData || []).length > 0,
-        (invoicesData || []).length > 0,
-      ].filter(Boolean).length /
-        5) *
-        100
-    )}
-    /100
-  </div>
+    <div>
+      <div
+        style={{
+          color: "#fbbf24",
+          fontSize: "11px",
+          fontWeight: "900",
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          marginBottom: "8px",
+        }}
+      >
+        Recommended Next Upload
+      </div>
 
-  <div style={{ color: "#94a3b8", fontSize: "13px", lineHeight: 1.6 }}>
-    Intelligence improves as more restaurant data sources are connected.
+      <div
+        style={{
+          color: "white",
+          fontSize: "18px",
+          fontWeight: "900",
+          marginBottom: "8px",
+        }}
+      >
+        {!(invoicesData || []).length
+          ? "Upload Invoices"
+          : !(inventoryData || []).length
+          ? "Upload Inventory Data"
+          : !(laborData || []).length
+          ? "Upload Labor Data"
+          : !(menuItemsData || []).length
+          ? "Upload Menu Items"
+          : "All Core Intelligence Activated"}
+      </div>
+
+      <div
+        style={{
+          color: "#cbd5e1",
+          fontSize: "13px",
+          lineHeight: 1.6,
+        }}
+      >
+        {!(invoicesData || []).length
+          ? "Invoice uploads unlock vendor inflation detection, supplier price tracking, and purchasing savings opportunities."
+          : !(inventoryData || []).length
+          ? "Inventory uploads unlock depletion tracking, waste monitoring, and shelf-life intelligence."
+          : !(laborData || []).length
+          ? "Labor uploads unlock labor recovery, overtime analysis, and staffing optimization."
+          : !(menuItemsData || []).length
+          ? "Menu uploads unlock item-level profitability, pricing intelligence, and menu engineering."
+          : "Serven has activated all core intelligence modules. Continue uploading data to improve accuracy."}
+      </div>
+    </div>
   </div>
 </div>
 {hasOperationalData && (
@@ -28907,7 +28822,89 @@ return (
     />
   </div>
 </div>
+{/* EXECUTIVE COMMAND CENTER */}
+<div
+  style={{
+    marginBottom: "18px",
+    padding: "24px",
+    borderRadius: "24px",
+    background:
+      "radial-gradient(circle at top right, rgba(212,175,55,0.20), transparent 35%), linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.94))",
+    border: "1px solid rgba(212,175,55,0.24)",
+    boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
+  }}
+>
+  <div
+    style={{
+      color: "#d4af37",
+      fontSize: "11px",
+      fontWeight: "900",
+      letterSpacing: "0.1em",
+      textTransform: "uppercase",
+      marginBottom: "10px",
+    }}
+  >
+    Executive Command Center
+  </div>
 
+  <h3 style={sectionTitle}>Owner Summary</h3>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile ? "1fr" : "repeat(3, minmax(0, 1fr))",
+      gap: "14px",
+      marginTop: "18px",
+    }}
+  >
+    <GlassCard
+      title="Monthly Recovery"
+      value={`$${Number(totalAIRecoveryOpportunity || 0).toLocaleString()}`}
+      subtext="Total profit recovery found"
+    />
+
+    <GlassCard
+      title="Recovery Progress"
+      value={`${
+        Number(totalAIRecoveryOpportunity || 0) > 0
+          ? Math.min(
+              100,
+              Math.round(
+                (Number(simulatedProfit || 0) /
+                  Number(totalAIRecoveryOpportunity || 1)) *
+                  100
+              )
+            )
+          : 0
+      }%`}
+      subtext="Applied recovery progress"
+    />
+
+    <GlassCard
+      title="Annual Impact"
+      value={`$${Number(annualRecoverableProfit || 0).toLocaleString()}`}
+      subtext="Projected annual opportunity"
+    />
+
+    <GlassCard
+      title="Biggest Risk"
+      value={topLossCategories?.[0]?.name || "Monitoring"}
+      subtext="Largest active profit leak"
+    />
+
+    <GlassCard
+      title="Next Action"
+      value={aiProfitOpportunities?.[0]?.title || "Awaiting Data"}
+      subtext="Recommended first move"
+    />
+
+    <GlassCard
+      title="Autopilot Status"
+      value={aiProfitOpportunities?.length > 0 ? "Active" : "Waiting"}
+      subtext="AI recovery engine status"
+    />
+  </div>
+</div>
 {/* PROFIT RECOVERY OPPORTUNITY */}
 <div
   style={{
@@ -29054,6 +29051,7 @@ return (
     {Number(annualRecoverableProfit || 0).toLocaleString()}
   </div>
 </div>
+
 {/* AI RECOVERY ACTIONS */}
 <div
   style={{
@@ -29626,89 +29624,6 @@ const timeToImpact =
       Upload operational data to activate autopilot recommendations.
     </div>
   )}
-</div>
-{/* EXECUTIVE COMMAND CENTER */}
-<div
-  style={{
-    marginBottom: "18px",
-    padding: "24px",
-    borderRadius: "24px",
-    background:
-      "radial-gradient(circle at top right, rgba(212,175,55,0.20), transparent 35%), linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.94))",
-    border: "1px solid rgba(212,175,55,0.24)",
-    boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
-  }}
->
-  <div
-    style={{
-      color: "#d4af37",
-      fontSize: "11px",
-      fontWeight: "900",
-      letterSpacing: "0.1em",
-      textTransform: "uppercase",
-      marginBottom: "10px",
-    }}
-  >
-    Executive Command Center
-  </div>
-
-  <h3 style={sectionTitle}>Owner Summary</h3>
-
-  <div
-    style={{
-      display: "grid",
-      gridTemplateColumns: isMobile ? "1fr" : "repeat(3, minmax(0, 1fr))",
-      gap: "14px",
-      marginTop: "18px",
-    }}
-  >
-    <GlassCard
-      title="Monthly Recovery"
-      value={`$${Number(totalAIRecoveryOpportunity || 0).toLocaleString()}`}
-      subtext="Total profit recovery found"
-    />
-
-    <GlassCard
-      title="Recovery Progress"
-      value={`${
-        Number(totalAIRecoveryOpportunity || 0) > 0
-          ? Math.min(
-              100,
-              Math.round(
-                (Number(simulatedProfit || 0) /
-                  Number(totalAIRecoveryOpportunity || 1)) *
-                  100
-              )
-            )
-          : 0
-      }%`}
-      subtext="Applied recovery progress"
-    />
-
-    <GlassCard
-      title="Annual Impact"
-      value={`$${Number(annualRecoverableProfit || 0).toLocaleString()}`}
-      subtext="Projected annual opportunity"
-    />
-
-    <GlassCard
-      title="Biggest Risk"
-      value={topLossCategories?.[0]?.name || "Monitoring"}
-      subtext="Largest active profit leak"
-    />
-
-    <GlassCard
-      title="Next Action"
-      value={aiProfitOpportunities?.[0]?.title || "Awaiting Data"}
-      subtext="Recommended first move"
-    />
-
-    <GlassCard
-      title="Autopilot Status"
-      value={aiProfitOpportunities?.length > 0 ? "Active" : "Waiting"}
-      subtext="AI recovery engine status"
-    />
-  </div>
 </div>
    </>
 )}
