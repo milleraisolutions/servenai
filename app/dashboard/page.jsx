@@ -30247,7 +30247,7 @@ borderRadius: "14px",
                   marginTop: "4px",
                 }}
               >
-                {item.score}
+                {hasFullRecoveryData ? item.score : "—"}
               </div>
             </div>
           ))}
@@ -30281,7 +30281,9 @@ borderRadius: "14px",
               fontWeight: "900",
             }}
           >
-            {executiveBusinessHealth.weakestCategory?.label}
+            {hasFullRecoveryData
+  ? executiveBusinessHealth.weakestCategory?.label
+  : "Awaiting Operational Data"}
           </div>
 
           <div
@@ -30292,8 +30294,9 @@ borderRadius: "14px",
               lineHeight: 1.6,
             }}
           >
-            This operational category currently has the lowest AI health
-            score and should be prioritized first.
+            {hasFullRecoveryData
+  ? "This operational category currently has the lowest AI health score and should be prioritized first."
+  : "Upload POS, labor, inventory, and invoice data to activate operational health scoring."}
           </div>
         </div>
       </div>
