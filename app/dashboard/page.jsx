@@ -30740,7 +30740,7 @@ const color = !hasScore
    🧠 AI AUTOPILOT EXECUTIVE SUMMARY
 ========================= */}
 
-{hasProAccess && (
+{hasProAccess && hasFullRecoveryData && (
   <div
     style={{
       marginTop: "18px",
@@ -31018,6 +31018,8 @@ const color = !hasScore
   />
 )}
 </div>
+{hasFullRecoveryData && (
+  <div>
 {/* 👑 AI EXECUTIVE SUMMARY HERO */}
 <div
   style={{
@@ -31671,6 +31673,8 @@ const color = !hasScore
     ))}
   </div>
 </div>
+  </div>
+)}
 {/* 🧠 RESTAURANT AI HEALTH ENGINE */}
 <div
   style={{
