@@ -19041,13 +19041,16 @@ const beverageAlertsFeed = useMemo(() => {
     });
 
   if (happyHourProfitabilityData?.status === "Margin Leak") {
-    alerts.push({
-      title: "Happy hour margin leak",
-      detail: `Happy hour margin is ${Number(
-        happyHourProfitabilityData.marginPercent || 0
-      ).toFixed(1)}%. Review discount depth and featured items.`,
-      priority: "High",
-    });
+   
+  if (hasFullRecoveryData) {
+  alerts.push({
+    title: "Happy hour margin leak",
+    detail: `Happy hour margin is ${Number(
+      happyHourProfitabilityData.marginPercent || 0
+    ).toFixed(1)}%. Review discount depth and featured items.`,
+    priority: "High",
+  });
+}
   }
 
   if (!alerts.length) {
@@ -19061,16 +19064,17 @@ const beverageAlertsFeed = useMemo(() => {
 
   return alerts.slice(0, 6);
 }, [
-  alcoholVariancePercent,
-  beverageRestockData,
-  kegIntelligenceData,
-  bartenderVarianceData,
-  happyHourProfitabilityData,
-  beverageItems,
-  beverageUsage,
-  beverageSalesData,
-  alcoholInventoryData,
-  shiftLevelBeverageData,
+alcoholVariancePercent,
+beverageRestockData,
+kegIntelligenceData,
+bartenderVarianceData,
+happyHourProfitabilityData,
+beverageItems,
+beverageUsage,
+beverageSalesData,
+alcoholInventoryData,
+shiftLevelBeverageData,
+hasFullRecoveryData,
 ]);
 
 const shiftLevelBeverageInsight = useMemo(() => {
@@ -30308,7 +30312,7 @@ borderRadius: "14px",
    🤖 AI AUTOPILOT ACTION ENGINE
 ========================= */}
 
-{hasProAccess && (
+{hasProAccess && hasFullRecoveryData && (
   <div
     style={{
       marginTop: "18px",
@@ -30518,7 +30522,7 @@ borderRadius: "14px",
    ⚡ AUTOPILOT CATEGORY ACTIONS
 ========================= */}
 
-{hasProAccess && (
+{hasProAccess && hasFullRecoveryData && (
   <div
     style={{
       marginTop: "18px",
@@ -30640,7 +30644,7 @@ const color = !hasScore
    🔥 AI STRATEGIC RECOMMENDATIONS
 ========================= */}
 
-{hasProAccess && (
+{hasProAccess && hasFullRecoveryData && (
   <div
     style={{
       marginTop: "18px",
