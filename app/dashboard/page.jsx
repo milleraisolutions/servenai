@@ -44344,6 +44344,12 @@ Restaurant AI Health is currently rated{" "}
     )}
   </div>
 )}
+<div
+  style={{
+    gridColumn: "1 / -1",
+    width: "100%",
+  }}
+>
 {/* STAFF PLANNING + DEMAND FORECASTING */}
 
 <div
@@ -45196,7 +45202,7 @@ minWidth: 0,
     )}
   </div>
 </div>
-   
+   </div>
    {/* AI PROFIT RECOVERY TREND */}
 <div
   style={{
