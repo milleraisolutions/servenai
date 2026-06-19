@@ -64755,6 +64755,10 @@ return (
 {/* INVENTORY + WASTE INTELLIGENCE */}
 <div
   style={{
+    gridColumn: "span 12",
+width: "100%",
+minWidth: 0,
+boxSizing: "border-box",
     marginTop: "20px",
     padding: "24px",
     borderRadius: "22px",
@@ -64801,7 +64805,9 @@ return (
   <div
     style={{
       display: "grid",
-      gridTemplateColumns: isMobile ? "1fr" : "repeat(4, minmax(0, 1fr))",
+      gridTemplateColumns: isMobile
+  ? "1fr"
+  : "repeat(2, minmax(260px, 1fr))",
       gap: "12px",
       marginBottom: "18px",
     }}
