@@ -63982,23 +63982,19 @@ flexWrap: "wrap",
 {activeTab === "operations" && (
   <div
     style={{
-     width: "calc(100% - 125px)",
+      width: "100%",
       maxWidth: "1600px",
       minWidth: 0,
+      margin: "0 auto",
 
-     marginLeft: "6px",
-
-
-      overflowX: "visible",
+      overflowX: "hidden",
       overflowY: "visible",
 
       display: "grid",
-      gridTemplateColumns: "1fr",
-
+      gridTemplateColumns: "repeat(12, minmax(0, 1fr))",
       gap: "18px",
 
       paddingBottom: "24px",
-
       boxSizing: "border-box",
     }}
   >
@@ -64008,17 +64004,25 @@ flexWrap: "wrap",
   const usageData = expectedVsActualUsageData || [];
   const displayItems = usageData.slice(0, 6);
 
-  return (
-    <div
-      style={{
-        marginTop: "20px",
-        padding: "22px",
-        borderRadius: "22px",
-        background:
-          "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.92))",
-        border: "1px solid rgba(245,158,11,0.22)",
-      }}
-    >
+return (
+  <div
+    style={{
+      gridColumn: isMobile ? "span 12" : "span 3",
+
+      width: "100%",
+      minWidth: 0,
+      boxSizing: "border-box",
+
+      marginTop: "20px",
+      padding: "22px",
+      borderRadius: "22px",
+
+      background:
+        "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.92))",
+
+      border: "1px solid rgba(245,158,11,0.22)",
+    }}
+  >
       <div style={{ color: "#fbbf24", fontSize: "12px", fontWeight: "900", letterSpacing: "0.05em" }}>
         EXPECTED VS ACTUAL USAGE
       </div>
@@ -64324,11 +64328,10 @@ flexWrap: "wrap",
   // 🛡️ Guardrail Layer for parent objects and contextual media flags
   const prepData = yesterdayPrepData || [];
   const mobileLayout = typeof isMobile !== "undefined" ? isMobile : false;
-
 return (
   <div
     style={{
-      gridColumn: "span 12",
+      gridColumn: isMobile ? "span 12" : "span 3",
       width: "100%",
       minWidth: 0,
       boxSizing: "border-box",
@@ -64481,11 +64484,19 @@ return (
  {/* ⏱️ CULINARY COMPONENTS & PREP TIME BOTTLENECK ANALYSIS */}
 <div
   style={{
+    gridColumn: isMobile ? "span 12" : "span 3",
+
+    width: "100%",
+    minWidth: 0,
+    boxSizing: "border-box",
+
     marginTop: "20px",
     padding: "22px",
     borderRadius: "22px",
+
     background:
       "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.92))",
+
     border: "1px solid rgba(99, 102, 241, 0.22)",
   }}
 >
@@ -64755,10 +64766,11 @@ return (
 {/* INVENTORY + WASTE INTELLIGENCE */}
 <div
   style={{
-    gridColumn: "span 12",
-width: "100%",
-minWidth: 0,
-boxSizing: "border-box",
+    gridColumn: isMobile ? "span 12" : "span 3",
+    width: "100%",
+    minWidth: 0,
+    boxSizing: "border-box",
+
     marginTop: "20px",
     padding: "24px",
     borderRadius: "22px",
@@ -65001,18 +65013,27 @@ boxSizing: "border-box",
   const alertsList = predictiveAlerts || [];
   const alertCount = alertsList.length;
 
-  return (
-    <div
-      style={{
-        marginTop: "18px",
-        marginBottom: "26px",
-        padding: "20px",
-        borderRadius: "20px",
-        background:
-          "linear-gradient(135deg, rgba(127,29,29,0.14), rgba(15,23,42,0.92))",
-        border: "1px solid rgba(248,113,113,0.16)",
-      }}
-    >
+return (
+  <div
+    style={{
+      gridColumn: isMobile ? "span 12" : "span 3",
+
+      width: "100%",
+      minWidth: 0,
+      boxSizing: "border-box",
+
+      marginTop: "18px",
+      marginBottom: "26px",
+      padding: "20px",
+
+      borderRadius: "20px",
+
+      background:
+        "linear-gradient(135deg, rgba(127,29,29,0.14), rgba(15,23,42,0.92))",
+
+      border: "1px solid rgba(248,113,113,0.16)",
+    }}
+  >
       <div
         style={{
           fontSize: "12px",
@@ -65137,22 +65158,26 @@ boxSizing: "border-box",
   if (usageData.length >= 5) recoveryConfidence = "High";
   else if (usageData.length >= 2) recoveryConfidence = "Medium";
 
-  return (
-    <div
-      style={{
-        width: "100%",
-        maxWidth: "100%",
-        minWidth: 0,
-        overflow: "hidden",
-        marginTop: "18px",
-        marginBottom: "26px",
-        padding: mobileLayout ? "16px" : "20px",
-        borderRadius: "20px",
-        background:
-          "linear-gradient(135deg, rgba(5,150,105,0.14), rgba(15,23,42,0.92))",
-        border: "1px solid rgba(34,197,94,0.18)",
-      }}
-    >
+ return (
+  <div
+    style={{
+      gridColumn: isMobile ? "span 12" : "span 3",
+
+      width: "100%",
+      maxWidth: "100%",
+      minWidth: 0,
+      boxSizing: "border-box",
+
+      overflow: "hidden",
+      marginTop: "18px",
+      marginBottom: "26px",
+      padding: mobileLayout ? "16px" : "20px",
+      borderRadius: "20px",
+      background:
+        "linear-gradient(135deg, rgba(5,150,105,0.14), rgba(15,23,42,0.92))",
+      border: "1px solid rgba(34,197,94,0.18)",
+    }}
+  >
       <div
         style={{
           fontSize: "12px",
@@ -65249,16 +65274,25 @@ boxSizing: "border-box",
     }
   });
 
-  return (
-    <div
-      style={{
-        marginTop: "18px",
-        padding: "20px",
-        borderRadius: "20px",
-        background: "linear-gradient(135deg, rgba(91,33,182,0.16), rgba(15,23,42,0.92))",
-        border: "1px solid rgba(167,139,250,0.18)",
-      }}
-    >
+ return (
+  <div
+    style={{
+      gridColumn: isMobile ? "span 12" : "span 3",
+
+      width: "100%",
+      minWidth: 0,
+      boxSizing: "border-box",
+
+      marginTop: "18px",
+      padding: "20px",
+      borderRadius: "20px",
+
+      background:
+        "linear-gradient(135deg, rgba(91,33,182,0.16), rgba(15,23,42,0.92))",
+
+      border: "1px solid rgba(167,139,250,0.18)",
+    }}
+  >
       <div
         style={{
           color: "#c4b5fd",
