@@ -665,7 +665,10 @@ const deleteCustomer = async (customerId) => {
           <StatCard label="New Leads" value={stats.leads} />
           <StatCard label="Active Clients" value={stats.active} />
           <StatCard label="Open Alerts" value={stats.openAlerts} />
-          <StatCard label="Estimated MRR" value={`$${stats.totalMRR.toLocaleString()}`} />
+          <StatCard
+  label="Onboarding Needed"
+  value={customers.filter((c) => !c.lastUpload).length}
+/>
           <StatCard label="Client Revenue" value={`$${stats.totalClientRevenue.toLocaleString()}`} />
           <StatCard label="AI Profit Generated" value={`$${stats.totalAIProfitGenerated.toLocaleString()}`} />
           <StatCard label="Avg Health Score" value={`${stats.avgHealthScore}%`} />
@@ -1192,6 +1195,236 @@ const deleteCustomer = async (customerId) => {
     </div>
   )}
 </div>
+{/* LARGEST ACCOUNTS */}
+<div style={panelCard("#14b8a6")}>
+  <div style={eyebrow}>STRATEGIC ACCOUNTS</div>
+
+  <h2 style={{ color: "white", fontSize: "26px", fontWeight: "900", marginBottom: "18px" }}>
+    Largest Accounts
+  </h2>
+
+  {customers.filter((client) => Number(client.totalRevenue || 0) > 0).length === 0 ? (
+    <div style={{ color: "#94a3b8" }}>
+      No large account revenue data available yet.
+    </div>
+  ) : (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(320px,1fr))", gap: "16px" }}>
+      {customers
+        .filter((client) => Number(client.totalRevenue || 0) > 0)
+        .slice()
+        .sort((a, b) => Number(b.totalRevenue || 0) - Number(a.totalRevenue || 0))
+        .slice(0, 20)
+        .map((client, index) => (
+          <div key={client.id} style={leadCardStyle}>
+            <div style={{ color: "#14b8a6", fontSize: "12px", fontWeight: "900" }}>
+              #{index + 1} STRATEGIC ACCOUNT
+            </div>
+
+            <div style={{ color: "white", fontWeight: "900", fontSize: "18px", marginTop: "4px" }}>
+              {client.restaurant_name || "Unnamed Business"}
+            </div>
+
+            <div style={{ color: "#94a3b8", fontSize: "13px" }}>
+              {client.email}
+            </div>
+
+            <div style={leadMetaText}>
+              <div>
+                Uploaded Revenue:{" "}
+                <span style={{ color: "white", fontWeight: "900" }}>
+                  ${Number(client.totalRevenue || 0).toLocaleString()}
+                </span>
+              </div>
+
+              <div>
+                AI Profit Generated:{" "}
+                <span style={{ color: "#a855f7", fontWeight: "900" }}>
+                  ${Number(client.aiProfitGenerated || 0).toLocaleString()}
+                </span>
+              </div>
+
+              <div>Plan: {client.plan || "starter"}</div>
+              <div>Billing: {client.billingStatus}</div>
+              <div>Health Score: {client.healthScore}%</div>
+              <div>Open Alerts: {client.openAlerts}</div>
+            </div>
+
+            <div style={{ display: "flex", gap: "8px", marginTop: "14px" }}>
+              <button
+                onClick={() => markContacted(client.id)}
+                style={{
+                  ...smallActionButton,
+                  flex: 1,
+                  background: "#334155",
+                }}
+              >
+                Mark Contacted
+              </button>
+
+              <button
+                onClick={() => sendClientEmail(client, "upgrade", client.plan || "pro")}
+                style={{
+                  ...smallActionButton,
+                  flex: 1,
+                  background: "linear-gradient(135deg,#14b8a6,#0f766e)",
+                }}
+              >
+                Send Upgrade Email
+              </button>
+            </div>
+          </div>
+        ))}
+    </div>
+  )}
+</div>
+{/* ENTERPRISE ACCOUNTS */}
+<div style={panelCard("#facc15")}>
+  <div style={eyebrow}>ENTERPRISE CLIENTS</div>
+
+  <h2 style={{ color: "white", fontSize: "26px", fontWeight: "900", marginBottom: "18px" }}>
+    Enterprise Accounts
+  </h2>
+
+  {customers.filter((client) =>
+    String(client.plan || "").toLowerCase() === "enterprise" ||
+    Number(client.locations || client.location_count || 0) > 1
+  ).length === 0 ? (
+    <div style={{ color: "#94a3b8" }}>
+      No enterprise or multi-location accounts found yet.
+    </div>
+  ) : (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(320px,1fr))", gap: "16px" }}>
+      {customers
+        .filter((client) =>
+          String(client.plan || "").toLowerCase() === "enterprise" ||
+          Number(client.locations || client.location_count || 0) > 1
+        )
+        .map((client) => (
+          <div key={client.id} style={leadCardStyle}>
+            <div style={{ color: "#facc15", fontSize: "12px", fontWeight: "900" }}>
+              ENTERPRISE / MULTI-LOCATION
+            </div>
+
+            <div style={{ color: "white", fontWeight: "900", fontSize: "18px", marginTop: "4px" }}>
+              {client.restaurant_name || "Unnamed Business"}
+            </div>
+
+            <div style={{ color: "#94a3b8", fontSize: "13px" }}>
+              {client.email}
+            </div>
+
+            <div style={leadMetaText}>
+              <div>Plan: {client.plan || "unknown"}</div>
+              <div>
+                Locations:{" "}
+                {client.locations || client.location_count || "Unknown"}
+              </div>
+              <div>Billing: {client.billingStatus}</div>
+              <div>Health Score: {client.healthScore}%</div>
+              <div>
+                Uploaded Revenue: ${Number(client.totalRevenue || 0).toLocaleString()}
+              </div>
+              <div>
+                AI Profit Generated: ${Number(client.aiProfitGenerated || 0).toLocaleString()}
+              </div>
+            </div>
+
+            <button
+              onClick={() => markContacted(client.id)}
+              style={{
+                ...smallActionButton,
+                marginTop: "14px",
+                width: "100%",
+                background: "linear-gradient(135deg,#facc15,#ca8a04)",
+              }}
+            >
+              Mark Contacted
+            </button>
+          </div>
+        ))}
+    </div>
+  )}
+</div>
+{/* CUSTOMER GROWTH RATE */}
+<div style={panelCard("#38bdf8")}>
+  <div style={eyebrow}>ACCOUNT GROWTH</div>
+
+  <h2 style={{ color: "white", fontSize: "26px", fontWeight: "900", marginBottom: "18px" }}>
+    Customer Growth Rate
+  </h2>
+
+  {(() => {
+    const now = new Date();
+
+    const thisMonth = customers.filter((client) => {
+      if (!client.created_at) return false;
+      const createdDate = new Date(client.created_at);
+
+      return (
+        createdDate.getMonth() === now.getMonth() &&
+        createdDate.getFullYear() === now.getFullYear()
+      );
+    }).length;
+
+    const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+
+    const lastMonth = customers.filter((client) => {
+      if (!client.created_at) return false;
+      const createdDate = new Date(client.created_at);
+
+      return (
+        createdDate.getMonth() === lastMonthDate.getMonth() &&
+        createdDate.getFullYear() === lastMonthDate.getFullYear()
+      );
+    }).length;
+
+    const growthRate =
+      lastMonth > 0
+        ? Math.round(((thisMonth - lastMonth) / lastMonth) * 100)
+        : thisMonth > 0
+        ? 100
+        : 0;
+
+    return (
+      <div style={statsGrid}>
+        <StatCard label="New This Month" value={thisMonth} />
+        <StatCard label="New Last Month" value={lastMonth} />
+        <StatCard label="Growth Rate" value={`${growthRate}%`} />
+        <StatCard label="Total Accounts" value={customers.length} />
+      </div>
+    );
+  })()}
+</div>
+{/* CONTRACT TRACKER */}
+<div style={panelCard("#8b5cf6")}>
+  <div style={eyebrow}>CONTRACT READINESS</div>
+
+  <h2 style={{ color: "white", fontSize: "26px", fontWeight: "900", marginBottom: "18px" }}>
+    Contract Tracker
+  </h2>
+
+  <div style={statsGrid}>
+    <StatCard
+      label="Active Clients"
+      value={customers.filter((c) => String(c.customer_status || "").toLowerCase() === "active").length}
+    />
+
+    <StatCard
+      label="Leads"
+      value={customers.filter((c) => String(c.customer_status || "lead").toLowerCase() === "lead").length}
+    />
+
+    <StatCard
+      label="Needs Monthly Price"
+      value={customers.filter((c) => !c.monthly_price).length}
+    />
+
+    <StatCard
+      label="Contracts Ready"
+      value={customers.filter((c) => c.monthly_price && c.contract_start_date).length}
+    />
+  </div>
+</div>
 {/* HIGHEST AI PROFIT GENERATED */}
 <div style={panelCard("#a855f7")}>
   <div style={eyebrow}>AI VALUE LEADERBOARD</div>
@@ -1261,53 +1494,81 @@ const deleteCustomer = async (customerId) => {
     </div>
   )}
 </div>
-{/* CLIENTS WITH NO UPLOADS */}
+{/* CLIENTS NEEDING ONBOARDING */}
 <div style={panelCard("#f97316")}>
-  <div style={eyebrow}>ONBOARDING RISK</div>
+  <div style={eyebrow}>ONBOARDING PIPELINE</div>
 
   <h2 style={{ color: "white", fontSize: "26px", fontWeight: "900", marginBottom: "18px" }}>
-    Clients With No Uploads
+    Clients Needing Onboarding
   </h2>
 
   {customers.filter((client) => !client.lastUpload).length === 0 ? (
     <div style={{ color: "#94a3b8" }}>
-      Every client has uploaded data.
+      No onboarding issues right now.
     </div>
   ) : (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(320px,1fr))", gap: "16px" }}>
       {customers
         .filter((client) => !client.lastUpload)
-        .slice(0, 10)
-        .map((client) => (
-          <div key={client.id} style={leadCardStyle}>
-            <div style={{ color: "white", fontWeight: "900", fontSize: "18px" }}>
-              {client.restaurant_name || "Unnamed Business"}
-            </div>
+        .slice()
+        .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
+        .map((client) => {
+          const signupDate = client.created_at ? new Date(client.created_at) : null;
 
-            <div style={{ color: "#94a3b8", fontSize: "13px" }}>
-              {client.email}
-            </div>
+          const daysSinceSignup = signupDate
+            ? Math.floor((Date.now() - signupDate.getTime()) / (1000 * 60 * 60 * 24))
+            : null;
 
-            <div style={leadMetaText}>
-              <div>Plan: {client.plan || "starter"}</div>
-              <div>Status: {client.customer_status || "lead"}</div>
-              <div>Billing: {client.billingStatus}</div>
-              <div>Last Upload: Never</div>
-            </div>
+          return (
+            <div key={client.id} style={leadCardStyle}>
+              <div style={{ color: "white", fontWeight: "900", fontSize: "18px" }}>
+                {client.restaurant_name || "Unnamed Business"}
+              </div>
 
-            <button
-              onClick={() => sendClientEmail(client, "intro")}
-              style={{
-                ...smallActionButton,
-                marginTop: "14px",
-                width: "100%",
-                background: "linear-gradient(135deg,#f97316,#ea580c)",
-              }}
-            >
-              Send Onboarding Email
-            </button>
-          </div>
-        ))}
+              <div style={{ color: "#94a3b8", fontSize: "13px" }}>
+                {client.email}
+              </div>
+
+              <div style={leadMetaText}>
+                <div>Plan: {client.plan || "starter"}</div>
+                <div>Status: {client.customer_status || "lead"}</div>
+                <div>
+                  Signup Date:{" "}
+                  {signupDate ? signupDate.toLocaleDateString() : "Unknown"}
+                </div>
+                <div>
+                  Days Since Signup:{" "}
+                  {daysSinceSignup !== null ? daysSinceSignup : "Unknown"}
+                </div>
+                <div>Last Upload: Never</div>
+              </div>
+
+              <div style={{ display: "flex", gap: "8px", marginTop: "14px" }}>
+                <button
+                  onClick={() => sendClientEmail(client, "intro")}
+                  style={{
+                    ...smallActionButton,
+                    flex: 1,
+                    background: "linear-gradient(135deg,#f97316,#ea580c)",
+                  }}
+                >
+                  Send Onboarding Email
+                </button>
+
+                <button
+                  onClick={() => markContacted(client.id)}
+                  style={{
+                    ...smallActionButton,
+                    flex: 1,
+                    background: "#334155",
+                  }}
+                >
+                  Mark Contacted
+                </button>
+              </div>
+            </div>
+          );
+        })}
     </div>
   )}
 </div>
