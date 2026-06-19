@@ -367,6 +367,7 @@ const OWNER_EMAILS = [
 const normalizedEmail = String(user?.email || "")
   .trim()
   .toLowerCase();
+  const isServenOwner = OWNER_EMAILS.includes(normalizedEmail);
 const userRole = String(
   userProfile?.role ||
     userProfile?.account_type ||
@@ -31000,7 +31001,7 @@ const color = !hasScore
   </div>
 )}
 
-{canSeeOwnerDashboard && (
+{isServenOwner && (
   <RiskPanel
     riskPanelCardStyle={riskPanelCardStyle}
     riskStatCardStyle={riskStatCardStyle}
