@@ -42085,859 +42085,6 @@ Restaurant AI Health is currently rated{" "}
     </div>
   </div>
 </div>
-{/* STAFF PLANNING + DEMAND FORECASTING */}
-
-<div
-  style={{
-    marginTop: "10px",
-
-    display: "grid",
-
-  gridTemplateColumns: "1fr",
-
-    gap: "20px",
-
-    width: "100%",
-    minWidth: 0,
-  }}
->
-  
-  {/* STAFF PLANNING SIGNALS */}
-  
-  <div
-  style={{
-    position: "relative",
-    width: "100%",
-    minWidth: 0,
-      padding: "20px",
-      borderRadius: "22px",
-      background:
-        "radial-gradient(circle at top right, rgba(59,130,246,0.12), transparent 40%), linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.9))",
-      border: "1px solid rgba(148,163,184,0.16)",
-      boxShadow: "0 18px 40px rgba(2,6,23,0.22)",
-      overflow: "hidden",
-    }}
-  >
-    <div
-      style={{
-        filter: hasProAccess ? "none" : "blur(5px)",
-        opacity: hasProAccess ? 1 : 0.6,
-        pointerEvents: hasProAccess ? "auto" : "none",
-      }}
-    >
-      <div style={{ marginBottom: "16px" }}>
-        <div
-          style={{
-            fontSize: "12px",
-            fontWeight: "900",
-            letterSpacing: "0.08em",
-            color: "#93c5fd",
-            textTransform: "uppercase",
-          }}
-        >
-          Labor Intelligence
-        </div>
-
-        <h3
-          style={{
-            margin: "6px 0 4px",
-            color: "white",
-            fontSize: "22px",
-            fontWeight: "950",
-          }}
-        >
-          Staff planning signals
-        </h3>
-
-        <p style={{ margin: 0, color: "#94a3b8", fontSize: "13px" }}>
-          AI flags overstaffed and understaffed days before margin gets hit.
-        </p>
-      </div>
-<div
-  style={{
-    width: "100%",
-    overflowX: "auto",
-    marginBottom: "18px",
-  }}
->
-  <BarChart
-    width={760}
-    height={260}
-    data={(staffPlanningSignals || []).slice(0, 7)}
-    margin={{ top: 10, right: 20, left: 0, bottom: 20 }}
-  >
-    <XAxis
-      dataKey="day"
-      tick={{ fill: "#94a3b8", fontSize: 11 }}
-      axisLine={{ stroke: "rgba(148,163,184,0.2)" }}
-      tickLine={false}
-    />
-
-    <YAxis
-      tick={{ fill: "#94a3b8", fontSize: 11 }}
-      axisLine={{ stroke: "rgba(148,163,184,0.2)" }}
-      tickLine={false}
-    />
-
-    <Tooltip />
-
-    <Bar
-      dataKey="laborPercent"
-      fill="#60a5fa"
-      radius={[8, 8, 0, 0]}
-    />
-  </BarChart>
-</div>
-      <div
-        style={{
-          marginBottom: "16px",
-          padding: "14px",
-          borderRadius: "16px",
-          background: "rgba(59,130,246,0.10)",
-          border: "1px solid rgba(96,165,250,0.20)",
-        }}
-      >
-        <div
-          style={{
-            fontSize: "12px",
-            fontWeight: "900",
-            color: "#93c5fd",
-            marginBottom: "6px",
-          }}
-        >
-          Staffing AI insight
-        </div>
-
-        <p
-          style={{
-            margin: 0,
-            fontSize: "13px",
-            color: "#bfdbfe",
-            lineHeight: 1.6,
-          }}
-        >
-          {staffPlanningInsight ||
-            "Upload labor and revenue data to generate staff planning signals."}
-        </p>
-      </div>
-
-      {staffPlanningSignals?.length ? (
-        <div style={{ display: "grid", gap: "10px" }}>
-          {staffPlanningSignals.slice(0, 5).map((item, i) => {
-            const signal = String(item.signal || "monitor").toLowerCase();
-
-            const signalTone =
-              signal === "overstaffed"
-                ? {
-                    bg: "rgba(239,68,68,0.12)",
-                    border: "1px solid rgba(239,68,68,0.24)",
-                    color: "#fca5a5",
-                  }
-                : signal === "understaffed"
-                ? {
-                    bg: "rgba(245,158,11,0.12)",
-                    border: "1px solid rgba(245,158,11,0.24)",
-                    color: "#fde68a",
-                  }
-                : {
-                    bg: "rgba(34,197,94,0.12)",
-                    border: "1px solid rgba(34,197,94,0.22)",
-                    color: "#86efac",
-                  };
-
-            return (
-              <div
-                key={`${item.day || "staff"}-${i}`}
-                style={{
-                  padding: "14px",
-                  borderRadius: "16px",
-                  background: "rgba(255,255,255,0.04)",
-                  border: "1px solid rgba(148,163,184,0.12)",
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    gap: "12px",
-                    flexWrap: "wrap",
-                  }}
-                >
-                  <div style={{ fontWeight: "900", color: "white" }}>
-                    {item.day || "Day"}
-                  </div>
-
-                  <div
-                    style={{
-                      padding: "6px 10px",
-                      borderRadius: "999px",
-                      fontSize: "11px",
-                      fontWeight: "900",
-                      background: signalTone.bg,
-                      border: signalTone.border,
-                      color: signalTone.color,
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    {signal}
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    fontSize: "13px",
-                    color: "#94a3b8",
-                    marginTop: "6px",
-                    lineHeight: 1.6,
-                  }}
-                >
-                  {item.insight || "No insight available."}
-                </div>
-
-                <div
-                  style={{
-                    marginTop: "10px",
-                    display: "flex",
-                    justifyContent: "space-between",
-                    gap: "12px",
-                    flexWrap: "wrap",
-                  }}
-                >
-                  <div
-                    style={{
-                      color: "white",
-                      fontSize: "13px",
-                      fontWeight: "900",
-                    }}
-                  >
-                    Labor: {Number(item.laborPercent || 0).toFixed(1)}%
-                  </div>
-
-                  <div
-                    style={{
-                      color: signalTone.color,
-                      fontSize: "13px",
-                      fontWeight: "900",
-                    }}
-                  >
-                    ${Number(item.estimatedImpact || 0).toFixed(0)}/day impact
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      ) : (
-        <div
-          style={{
-            height: "180px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "#94a3b8",
-            textAlign: "center",
-            borderRadius: "18px",
-            border: "1px dashed rgba(148,163,184,0.2)",
-            background: "rgba(15,23,42,0.5)",
-            fontSize: "13px",
-          }}
-        >
-          No staff planning issues detected yet.
-        </div>
-      )}
-    </div>
-
-    {!hasProAccess && (
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          background: "rgba(15,23,42,0.85)",
-          backdropFilter: "blur(6px)",
-          textAlign: "center",
-          padding: "20px",
-        }}
-      >
-        <h4 style={{ color: "white", marginBottom: "8px" }}>
-          🔒 Unlock Staff Planning Signals
-        </h4>
-
-        <p style={{ fontSize: "12px", color: "#cbd5f5", marginBottom: "12px" }}>
-          Let AI identify overstaffed and understaffed days.
-        </p>
-
-        <button
-          onClick={() => router.push("/pricing")}
-          style={{
-            padding: "10px 16px",
-            borderRadius: "10px",
-            border: "none",
-            background: "linear-gradient(135deg, #4f46e5, #6D3DF5)",
-            color: "white",
-            fontWeight: "800",
-            boxShadow: "0 10px 25px rgba(79,70,229,0.35)",
-            cursor: "pointer",
-          }}
-        >
-          Upgrade to Pro →
-        </button>
-      </div>
-    )}
-  </div>
-
-  
-  {/* DEMAND FORECASTING */}
-  
-  <div
-    style={{
-      position: "relative",
-      width: "100%",
-minWidth: 0,
-      padding: "20px",
-      borderRadius: "22px",
-      background:
-        "radial-gradient(circle at top right, rgba(168,85,247,0.12), transparent 40%), linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.9))",
-      border: "1px solid rgba(148,163,184,0.16)",
-      boxShadow: "0 18px 40px rgba(2,6,23,0.22)",
-      overflow: "hidden",
-    }}
-  >
-    <div
-      style={{
-        filter: hasProAccess ? "none" : "blur(5px)",
-        opacity: hasProAccess ? 1 : 0.6,
-        pointerEvents: hasProAccess ? "auto" : "none",
-      }}
-    >
-      <div style={{ marginBottom: "16px" }}>
-        <div
-          style={{
-            fontSize: "12px",
-            fontWeight: "900",
-            letterSpacing: "0.08em",
-            color: "#c4b5fd",
-            textTransform: "uppercase",
-          }}
-        >
-          Forecast Intelligence
-        </div>
-
-        <h3
-          style={{
-            margin: "6px 0 4px",
-            color: "white",
-            fontSize: "22px",
-            fontWeight: "950",
-          }}
-        >
-          Demand forecasting
-        </h3>
-
-        <p style={{ margin: 0, color: "#94a3b8", fontSize: "13px" }}>
-          Predict future revenue and demand spikes before they happen.
-        </p>
-        <div
-  style={{
-    width: "100%",
-    overflowX: "auto",
-    marginBottom: "16px",
-  }}
->
-  <LineChart
-    width={620}
-    height={240}
-    data={[
-      { day: "Today", revenue: Number(liveTotalRevenue || 0) },
-      { day: "Tomorrow", revenue: Number(forecastedNextDayRevenue || 0) },
-      {
-        day: "Next 7 Days",
-        revenue: Number(forecastedNextDayRevenue || 0) * 7,
-      },
-    ]}
-    margin={{ top: 10, right: 20, left: 0, bottom: 20 }}
-  >
-    <XAxis
-      dataKey="day"
-      tick={{ fill: "#94a3b8", fontSize: 11 }}
-      axisLine={{ stroke: "rgba(148,163,184,0.2)" }}
-      tickLine={false}
-    />
-    <YAxis
-      tick={{ fill: "#94a3b8", fontSize: 11 }}
-      axisLine={{ stroke: "rgba(148,163,184,0.2)" }}
-      tickLine={false}
-    />
-    <Tooltip />
-    <Line
-      type="monotone"
-      dataKey="revenue"
-      stroke="#c084fc"
-      strokeWidth={3}
-      dot={{ r: 4 }}
-    />
-  </LineChart>
-</div>
-      </div>
-
-      <div
-        style={{
-          padding: "18px",
-          borderRadius: "18px",
-          background: "rgba(168,85,247,0.10)",
-          border: "1px solid rgba(168,85,247,0.20)",
-          marginBottom: "14px",
-        }}
-      >
-        <div
-          style={{
-            fontSize: "12px",
-            fontWeight: "900",
-            color: "#c4b5fd",
-          }}
-        >
-          Forecasted next day revenue
-        </div>
-
-        <div
-          style={{
-            fontSize: "34px",
-            fontWeight: "950",
-            color: "white",
-            marginTop: "6px",
-          }}
-        >
-          ${Number(forecastedNextDayRevenue || 0).toLocaleString()}
-        </div>
-      </div>
-
-      <div
-        style={{
-          display: "inline-flex",
-          padding: "8px 12px",
-          borderRadius: "999px",
-          fontSize: "12px",
-          fontWeight: "900",
-          background:
-            forecastConfidence === "high"
-              ? "rgba(34,197,94,0.12)"
-              : forecastConfidence === "medium"
-              ? "rgba(245,158,11,0.12)"
-              : "rgba(239,68,68,0.12)",
-          border:
-            forecastConfidence === "high"
-              ? "1px solid rgba(34,197,94,0.22)"
-              : forecastConfidence === "medium"
-              ? "1px solid rgba(245,158,11,0.22)"
-              : "1px solid rgba(239,68,68,0.22)",
-          color:
-            forecastConfidence === "high"
-              ? "#86efac"
-              : forecastConfidence === "medium"
-              ? "#fde68a"
-              : "#fca5a5",
-          textTransform: "uppercase",
-        }}
-      >
-        {forecastConfidence || "low"} confidence
-      </div>
-    </div>
-
-    {!hasProAccess && (
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          background: "rgba(15,23,42,0.85)",
-          backdropFilter: "blur(6px)",
-          textAlign: "center",
-          padding: "20px",
-        }}
-      >
-        <h4 style={{ color: "white", marginBottom: "8px" }}>
-          🔒 Unlock Demand Forecasting
-        </h4>
-
-        <p style={{ fontSize: "12px", color: "#cbd5f5", marginBottom: "12px" }}>
-          Predict future revenue and demand spikes.
-        </p>
-
-        <button
-          onClick={() => router.push("/pricing")}
-          style={{
-            padding: "10px 16px",
-            borderRadius: "10px",
-            border: "none",
-            background: "linear-gradient(135deg, #4f46e5, #6D3DF5)",
-            color: "white",
-            fontWeight: "800",
-            boxShadow: "0 10px 25px rgba(79,70,229,0.35)",
-            cursor: "pointer",
-          }}
-        >
-          Upgrade to Pro →
-        </button>
-      </div>
-    )}
-  </div>
-</div>
-
-{/* INVENTORY FORECASTING */}
-
-<div
-  style={{
-    marginTop: "10px",
-    display: "grid",
-    gridTemplateColumns: "1fr",
-    gap: "20px",
-  }}
->
-  <div
-    style={{
-      padding: "20px",
-      borderRadius: "22px",
-      background:
-        "radial-gradient(circle at top right, rgba(59,130,246,0.12), transparent 40%), linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.9))",
-      border: "1px solid rgba(148,163,184,0.16)",
-      boxShadow: "0 18px 40px rgba(2,6,23,0.22)",
-      position: "relative",
-      overflow: "hidden",
-    }}
-  >
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "flex-start",
-        gap: "12px",
-        flexWrap: "wrap",
-        marginBottom: "16px",
-      }}
-    >
-      <div>
-        <div
-          style={{
-            fontSize: "12px",
-            fontWeight: "900",
-            letterSpacing: "0.08em",
-            color: "#93c5fd",
-            textTransform: "uppercase",
-          }}
-        >
-          Inventory Intelligence
-        </div>
-
-        <h3
-          style={{
-            margin: "6px 0 4px",
-            color: "white",
-            fontSize: "22px",
-            fontWeight: "950",
-          }}
-        >
-          Inventory forecasting
-        </h3>
-
-        <p
-          style={{
-            margin: 0,
-            color: "#94a3b8",
-            fontSize: "13px",
-          }}
-        >
-          Predict shortages, inventory risk, and future restocking pressure.
-        </p>
-      </div>
-
-      <div
-        style={{
-          padding: "8px 12px",
-          borderRadius: "999px",
-          background: "rgba(59,130,246,0.12)",
-          border: "1px solid rgba(59,130,246,0.22)",
-          color: "#93c5fd",
-          fontSize: "12px",
-          fontWeight: "900",
-        }}
-      >
-        {inventoryForecast?.length || 0} tracked items
-      </div>
-    </div>
-
-    <div
-      style={{
-        filter: hasProAccess ? "none" : "blur(5px)",
-        opacity: hasProAccess ? 1 : 0.6,
-        pointerEvents: hasProAccess ? "auto" : "none",
-      }}
-    >
-      <div
-        style={{
-          marginBottom: "16px",
-          padding: "14px",
-          borderRadius: "16px",
-          background: "rgba(59,130,246,0.10)",
-          border: "1px solid rgba(96,165,250,0.20)",
-        }}
-      >
-        <div
-          style={{
-            fontSize: "12px",
-            fontWeight: "900",
-            color: "#93c5fd",
-            marginBottom: "6px",
-          }}
-        >
-          Inventory AI insight
-        </div>
-<div
-  style={{
-    width: "100%",
-    overflowX: "auto",
-    marginBottom: "16px",
-  }}
->
-  <BarChart
-    width={980}
-    height={280}
-    data={(inventoryForecast || []).slice(0, 8)}
-    margin={{ top: 10, right: 20, left: 0, bottom: 20 }}
-  >
-    <XAxis
-      dataKey="name"
-      tick={{ fill: "#94a3b8", fontSize: 11 }}
-      axisLine={{ stroke: "rgba(148,163,184,0.2)" }}
-      tickLine={false}
-    />
-    <YAxis
-      tick={{ fill: "#94a3b8", fontSize: 11 }}
-      axisLine={{ stroke: "rgba(148,163,184,0.2)" }}
-      tickLine={false}
-    />
-    <Tooltip />
-    <Bar
-      dataKey="daysRemaining"
-      fill="#60a5fa"
-      radius={[8, 8, 0, 0]}
-    />
-  </BarChart>
-</div>
-        <p
-          style={{
-            margin: 0,
-            fontSize: "13px",
-            color: "#bfdbfe",
-            lineHeight: 1.6,
-          }}
-        >
-          {inventoryForecastInsight || "Upload ingredient data to generate inventory forecasting insights."}
-        </p>
-      </div>
-
-      {inventoryForecast?.length ? (
-        <div style={{ display: "grid", gap: "10px" }}>
-          {inventoryForecast.slice(0, 5).map((item, i) => {
-            const risk = String(item.inventoryRisk || "medium").toLowerCase();
-
-            const riskStyle =
-              risk === "high"
-                ? {
-                    bg: "rgba(239,68,68,0.14)",
-                    border: "1px solid rgba(239,68,68,0.25)",
-                    color: "#fca5a5",
-                  }
-                : risk === "low"
-                ? {
-                    bg: "rgba(34,197,94,0.12)",
-                    border: "1px solid rgba(34,197,94,0.22)",
-                    color: "#86efac",
-                  }
-                : {
-                    bg: "rgba(245,158,11,0.12)",
-                    border: "1px solid rgba(245,158,11,0.22)",
-                    color: "#fde68a",
-                  };
-
-            return (
-              <div
-                key={`${item.name || "inventory"}-${i}`}
-                style={{
-                  padding: "14px",
-                  borderRadius: "16px",
-                  background: "rgba(255,255,255,0.04)",
-                  border: "1px solid rgba(148,163,184,0.12)",
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    gap: "12px",
-                    flexWrap: "wrap",
-                    alignItems: "center",
-                  }}
-                >
-                  <div>
-                    <div
-                      style={{
-                        fontWeight: "900",
-                        color: "white",
-                        fontSize: "15px",
-                      }}
-                    >
-                      {item.name || "Ingredient"}
-                    </div>
-
-                    <div
-                      style={{
-                        fontSize: "12px",
-                        color: "#94a3b8",
-                        marginTop: "5px",
-                      }}
-                    >
-                      Stock: {Number(item.currentStock || 0).toFixed(0)} • Daily use:{" "}
-                      {Number(item.dailyUsage || 0).toFixed(1)}
-                    </div>
-                  </div>
-
-                  <div
-                    style={{
-                      padding: "6px 10px",
-                      borderRadius: "999px",
-                      fontSize: "11px",
-                      fontWeight: "900",
-                      background: riskStyle.bg,
-                      border: riskStyle.border,
-                      color: riskStyle.color,
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    {risk} risk
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    marginTop: "10px",
-                    display: "grid",
-                    gridTemplateColumns: "1fr auto",
-                    gap: "12px",
-                    alignItems: "center",
-                  }}
-                >
-                  <div
-                    style={{
-                      height: "9px",
-                      borderRadius: "999px",
-                      background: "rgba(148,163,184,0.14)",
-                      overflow: "hidden",
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: `${Math.max(
-                          8,
-                          Math.min(100, Number(item.daysRemaining || 0) * 12)
-                        )}%`,
-                        height: "100%",
-                        borderRadius: "999px",
-                        background: riskStyle.color,
-                      }}
-                    />
-                  </div>
-
-                  <div
-                    style={{
-                      color: riskStyle.color,
-                      fontWeight: "900",
-                      fontSize: "13px",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {Number(item.daysRemaining || 0).toFixed(1)} days left
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      ) : (
-        <div
-          style={{
-            height: "220px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "#94a3b8",
-            textAlign: "center",
-            borderRadius: "18px",
-            border: "1px dashed rgba(148,163,184,0.2)",
-            background: "rgba(15,23,42,0.5)",
-            fontSize: "13px",
-          }}
-        >
-          Upload ingredient data to forecast inventory risk.
-        </div>
-      )}
-    </div>
-
-    {!hasProAccess && (
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          background: "rgba(15,23,42,0.85)",
-          backdropFilter: "blur(6px)",
-          textAlign: "center",
-          padding: "20px",
-        }}
-      >
-        <h4 style={{ color: "white", marginBottom: "8px" }}>
-          🔒 Unlock Inventory Forecasting
-        </h4>
-
-        <p
-          style={{
-            fontSize: "12px",
-            color: "#cbd5f5",
-            marginBottom: "12px",
-          }}
-        >
-          Predict inventory shortages before they happen.
-        </p>
-
-        <button
-          onClick={() => router.push("/pricing")}
-          style={{
-            padding: "10px 16px",
-            borderRadius: "10px",
-            border: "none",
-            background: "linear-gradient(135deg, #4f46e5, #6D3DF5)",
-            color: "white",
-            fontWeight: "800",
-            boxShadow: "0 10px 25px rgba(79,70,229,0.35)",
-            cursor: "pointer",
-          }}
-        >
-          Upgrade to Pro →
-        </button>
-      </div>
-    )}
-  </div>
-</div>
-   
 {/* PROFIT LEAKAGE TOP ITEMS */}
 <div
   style={{
@@ -45197,6 +44344,859 @@ minWidth: 0,
     )}
   </div>
 )}
+{/* STAFF PLANNING + DEMAND FORECASTING */}
+
+<div
+  style={{
+    marginTop: "10px",
+
+    display: "grid",
+
+  gridTemplateColumns: "1fr",
+
+    gap: "20px",
+
+    width: "100%",
+    minWidth: 0,
+  }}
+>
+  
+  {/* STAFF PLANNING SIGNALS */}
+  
+  <div
+  style={{
+    position: "relative",
+    width: "100%",
+    minWidth: 0,
+      padding: "20px",
+      borderRadius: "22px",
+      background:
+        "radial-gradient(circle at top right, rgba(59,130,246,0.12), transparent 40%), linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.9))",
+      border: "1px solid rgba(148,163,184,0.16)",
+      boxShadow: "0 18px 40px rgba(2,6,23,0.22)",
+      overflow: "hidden",
+    }}
+  >
+    <div
+      style={{
+        filter: hasProAccess ? "none" : "blur(5px)",
+        opacity: hasProAccess ? 1 : 0.6,
+        pointerEvents: hasProAccess ? "auto" : "none",
+      }}
+    >
+      <div style={{ marginBottom: "16px" }}>
+        <div
+          style={{
+            fontSize: "12px",
+            fontWeight: "900",
+            letterSpacing: "0.08em",
+            color: "#93c5fd",
+            textTransform: "uppercase",
+          }}
+        >
+          Labor Intelligence
+        </div>
+
+        <h3
+          style={{
+            margin: "6px 0 4px",
+            color: "white",
+            fontSize: "22px",
+            fontWeight: "950",
+          }}
+        >
+          Staff planning signals
+        </h3>
+
+        <p style={{ margin: 0, color: "#94a3b8", fontSize: "13px" }}>
+          AI flags overstaffed and understaffed days before margin gets hit.
+        </p>
+      </div>
+<div
+  style={{
+    width: "100%",
+    overflowX: "auto",
+    marginBottom: "18px",
+  }}
+>
+  <BarChart
+    width={760}
+    height={260}
+    data={(staffPlanningSignals || []).slice(0, 7)}
+    margin={{ top: 10, right: 20, left: 0, bottom: 20 }}
+  >
+    <XAxis
+      dataKey="day"
+      tick={{ fill: "#94a3b8", fontSize: 11 }}
+      axisLine={{ stroke: "rgba(148,163,184,0.2)" }}
+      tickLine={false}
+    />
+
+    <YAxis
+      tick={{ fill: "#94a3b8", fontSize: 11 }}
+      axisLine={{ stroke: "rgba(148,163,184,0.2)" }}
+      tickLine={false}
+    />
+
+    <Tooltip />
+
+    <Bar
+      dataKey="laborPercent"
+      fill="#60a5fa"
+      radius={[8, 8, 0, 0]}
+    />
+  </BarChart>
+</div>
+      <div
+        style={{
+          marginBottom: "16px",
+          padding: "14px",
+          borderRadius: "16px",
+          background: "rgba(59,130,246,0.10)",
+          border: "1px solid rgba(96,165,250,0.20)",
+        }}
+      >
+        <div
+          style={{
+            fontSize: "12px",
+            fontWeight: "900",
+            color: "#93c5fd",
+            marginBottom: "6px",
+          }}
+        >
+          Staffing AI insight
+        </div>
+
+        <p
+          style={{
+            margin: 0,
+            fontSize: "13px",
+            color: "#bfdbfe",
+            lineHeight: 1.6,
+          }}
+        >
+          {staffPlanningInsight ||
+            "Upload labor and revenue data to generate staff planning signals."}
+        </p>
+      </div>
+
+      {staffPlanningSignals?.length ? (
+        <div style={{ display: "grid", gap: "10px" }}>
+          {staffPlanningSignals.slice(0, 5).map((item, i) => {
+            const signal = String(item.signal || "monitor").toLowerCase();
+
+            const signalTone =
+              signal === "overstaffed"
+                ? {
+                    bg: "rgba(239,68,68,0.12)",
+                    border: "1px solid rgba(239,68,68,0.24)",
+                    color: "#fca5a5",
+                  }
+                : signal === "understaffed"
+                ? {
+                    bg: "rgba(245,158,11,0.12)",
+                    border: "1px solid rgba(245,158,11,0.24)",
+                    color: "#fde68a",
+                  }
+                : {
+                    bg: "rgba(34,197,94,0.12)",
+                    border: "1px solid rgba(34,197,94,0.22)",
+                    color: "#86efac",
+                  };
+
+            return (
+              <div
+                key={`${item.day || "staff"}-${i}`}
+                style={{
+                  padding: "14px",
+                  borderRadius: "16px",
+                  background: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(148,163,184,0.12)",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    gap: "12px",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <div style={{ fontWeight: "900", color: "white" }}>
+                    {item.day || "Day"}
+                  </div>
+
+                  <div
+                    style={{
+                      padding: "6px 10px",
+                      borderRadius: "999px",
+                      fontSize: "11px",
+                      fontWeight: "900",
+                      background: signalTone.bg,
+                      border: signalTone.border,
+                      color: signalTone.color,
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    {signal}
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    fontSize: "13px",
+                    color: "#94a3b8",
+                    marginTop: "6px",
+                    lineHeight: 1.6,
+                  }}
+                >
+                  {item.insight || "No insight available."}
+                </div>
+
+                <div
+                  style={{
+                    marginTop: "10px",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: "12px",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <div
+                    style={{
+                      color: "white",
+                      fontSize: "13px",
+                      fontWeight: "900",
+                    }}
+                  >
+                    Labor: {Number(item.laborPercent || 0).toFixed(1)}%
+                  </div>
+
+                  <div
+                    style={{
+                      color: signalTone.color,
+                      fontSize: "13px",
+                      fontWeight: "900",
+                    }}
+                  >
+                    ${Number(item.estimatedImpact || 0).toFixed(0)}/day impact
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div
+          style={{
+            height: "180px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "#94a3b8",
+            textAlign: "center",
+            borderRadius: "18px",
+            border: "1px dashed rgba(148,163,184,0.2)",
+            background: "rgba(15,23,42,0.5)",
+            fontSize: "13px",
+          }}
+        >
+          No staff planning issues detected yet.
+        </div>
+      )}
+    </div>
+
+    {!hasProAccess && (
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "rgba(15,23,42,0.85)",
+          backdropFilter: "blur(6px)",
+          textAlign: "center",
+          padding: "20px",
+        }}
+      >
+        <h4 style={{ color: "white", marginBottom: "8px" }}>
+          🔒 Unlock Staff Planning Signals
+        </h4>
+
+        <p style={{ fontSize: "12px", color: "#cbd5f5", marginBottom: "12px" }}>
+          Let AI identify overstaffed and understaffed days.
+        </p>
+
+        <button
+          onClick={() => router.push("/pricing")}
+          style={{
+            padding: "10px 16px",
+            borderRadius: "10px",
+            border: "none",
+            background: "linear-gradient(135deg, #4f46e5, #6D3DF5)",
+            color: "white",
+            fontWeight: "800",
+            boxShadow: "0 10px 25px rgba(79,70,229,0.35)",
+            cursor: "pointer",
+          }}
+        >
+          Upgrade to Pro →
+        </button>
+      </div>
+    )}
+  </div>
+
+  
+  {/* DEMAND FORECASTING */}
+  
+  <div
+    style={{
+      position: "relative",
+      width: "100%",
+minWidth: 0,
+      padding: "20px",
+      borderRadius: "22px",
+      background:
+        "radial-gradient(circle at top right, rgba(168,85,247,0.12), transparent 40%), linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.9))",
+      border: "1px solid rgba(148,163,184,0.16)",
+      boxShadow: "0 18px 40px rgba(2,6,23,0.22)",
+      overflow: "hidden",
+    }}
+  >
+    <div
+      style={{
+        filter: hasProAccess ? "none" : "blur(5px)",
+        opacity: hasProAccess ? 1 : 0.6,
+        pointerEvents: hasProAccess ? "auto" : "none",
+      }}
+    >
+      <div style={{ marginBottom: "16px" }}>
+        <div
+          style={{
+            fontSize: "12px",
+            fontWeight: "900",
+            letterSpacing: "0.08em",
+            color: "#c4b5fd",
+            textTransform: "uppercase",
+          }}
+        >
+          Forecast Intelligence
+        </div>
+
+        <h3
+          style={{
+            margin: "6px 0 4px",
+            color: "white",
+            fontSize: "22px",
+            fontWeight: "950",
+          }}
+        >
+          Demand forecasting
+        </h3>
+
+        <p style={{ margin: 0, color: "#94a3b8", fontSize: "13px" }}>
+          Predict future revenue and demand spikes before they happen.
+        </p>
+        <div
+  style={{
+    width: "100%",
+    overflowX: "auto",
+    marginBottom: "16px",
+  }}
+>
+  <LineChart
+    width={620}
+    height={240}
+    data={[
+      { day: "Today", revenue: Number(liveTotalRevenue || 0) },
+      { day: "Tomorrow", revenue: Number(forecastedNextDayRevenue || 0) },
+      {
+        day: "Next 7 Days",
+        revenue: Number(forecastedNextDayRevenue || 0) * 7,
+      },
+    ]}
+    margin={{ top: 10, right: 20, left: 0, bottom: 20 }}
+  >
+    <XAxis
+      dataKey="day"
+      tick={{ fill: "#94a3b8", fontSize: 11 }}
+      axisLine={{ stroke: "rgba(148,163,184,0.2)" }}
+      tickLine={false}
+    />
+    <YAxis
+      tick={{ fill: "#94a3b8", fontSize: 11 }}
+      axisLine={{ stroke: "rgba(148,163,184,0.2)" }}
+      tickLine={false}
+    />
+    <Tooltip />
+    <Line
+      type="monotone"
+      dataKey="revenue"
+      stroke="#c084fc"
+      strokeWidth={3}
+      dot={{ r: 4 }}
+    />
+  </LineChart>
+</div>
+      </div>
+
+      <div
+        style={{
+          padding: "18px",
+          borderRadius: "18px",
+          background: "rgba(168,85,247,0.10)",
+          border: "1px solid rgba(168,85,247,0.20)",
+          marginBottom: "14px",
+        }}
+      >
+        <div
+          style={{
+            fontSize: "12px",
+            fontWeight: "900",
+            color: "#c4b5fd",
+          }}
+        >
+          Forecasted next day revenue
+        </div>
+
+        <div
+          style={{
+            fontSize: "34px",
+            fontWeight: "950",
+            color: "white",
+            marginTop: "6px",
+          }}
+        >
+          ${Number(forecastedNextDayRevenue || 0).toLocaleString()}
+        </div>
+      </div>
+
+      <div
+        style={{
+          display: "inline-flex",
+          padding: "8px 12px",
+          borderRadius: "999px",
+          fontSize: "12px",
+          fontWeight: "900",
+          background:
+            forecastConfidence === "high"
+              ? "rgba(34,197,94,0.12)"
+              : forecastConfidence === "medium"
+              ? "rgba(245,158,11,0.12)"
+              : "rgba(239,68,68,0.12)",
+          border:
+            forecastConfidence === "high"
+              ? "1px solid rgba(34,197,94,0.22)"
+              : forecastConfidence === "medium"
+              ? "1px solid rgba(245,158,11,0.22)"
+              : "1px solid rgba(239,68,68,0.22)",
+          color:
+            forecastConfidence === "high"
+              ? "#86efac"
+              : forecastConfidence === "medium"
+              ? "#fde68a"
+              : "#fca5a5",
+          textTransform: "uppercase",
+        }}
+      >
+        {forecastConfidence || "low"} confidence
+      </div>
+    </div>
+
+    {!hasProAccess && (
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "rgba(15,23,42,0.85)",
+          backdropFilter: "blur(6px)",
+          textAlign: "center",
+          padding: "20px",
+        }}
+      >
+        <h4 style={{ color: "white", marginBottom: "8px" }}>
+          🔒 Unlock Demand Forecasting
+        </h4>
+
+        <p style={{ fontSize: "12px", color: "#cbd5f5", marginBottom: "12px" }}>
+          Predict future revenue and demand spikes.
+        </p>
+
+        <button
+          onClick={() => router.push("/pricing")}
+          style={{
+            padding: "10px 16px",
+            borderRadius: "10px",
+            border: "none",
+            background: "linear-gradient(135deg, #4f46e5, #6D3DF5)",
+            color: "white",
+            fontWeight: "800",
+            boxShadow: "0 10px 25px rgba(79,70,229,0.35)",
+            cursor: "pointer",
+          }}
+        >
+          Upgrade to Pro →
+        </button>
+      </div>
+    )}
+  </div>
+</div>
+
+{/* INVENTORY FORECASTING */}
+
+<div
+  style={{
+    marginTop: "10px",
+    display: "grid",
+    gridTemplateColumns: "1fr",
+    gap: "20px",
+  }}
+>
+  <div
+    style={{
+      padding: "20px",
+      borderRadius: "22px",
+      background:
+        "radial-gradient(circle at top right, rgba(59,130,246,0.12), transparent 40%), linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.9))",
+      border: "1px solid rgba(148,163,184,0.16)",
+      boxShadow: "0 18px 40px rgba(2,6,23,0.22)",
+      position: "relative",
+      overflow: "hidden",
+    }}
+  >
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "flex-start",
+        gap: "12px",
+        flexWrap: "wrap",
+        marginBottom: "16px",
+      }}
+    >
+      <div>
+        <div
+          style={{
+            fontSize: "12px",
+            fontWeight: "900",
+            letterSpacing: "0.08em",
+            color: "#93c5fd",
+            textTransform: "uppercase",
+          }}
+        >
+          Inventory Intelligence
+        </div>
+
+        <h3
+          style={{
+            margin: "6px 0 4px",
+            color: "white",
+            fontSize: "22px",
+            fontWeight: "950",
+          }}
+        >
+          Inventory forecasting
+        </h3>
+
+        <p
+          style={{
+            margin: 0,
+            color: "#94a3b8",
+            fontSize: "13px",
+          }}
+        >
+          Predict shortages, inventory risk, and future restocking pressure.
+        </p>
+      </div>
+
+      <div
+        style={{
+          padding: "8px 12px",
+          borderRadius: "999px",
+          background: "rgba(59,130,246,0.12)",
+          border: "1px solid rgba(59,130,246,0.22)",
+          color: "#93c5fd",
+          fontSize: "12px",
+          fontWeight: "900",
+        }}
+      >
+        {inventoryForecast?.length || 0} tracked items
+      </div>
+    </div>
+
+    <div
+      style={{
+        filter: hasProAccess ? "none" : "blur(5px)",
+        opacity: hasProAccess ? 1 : 0.6,
+        pointerEvents: hasProAccess ? "auto" : "none",
+      }}
+    >
+      <div
+        style={{
+          marginBottom: "16px",
+          padding: "14px",
+          borderRadius: "16px",
+          background: "rgba(59,130,246,0.10)",
+          border: "1px solid rgba(96,165,250,0.20)",
+        }}
+      >
+        <div
+          style={{
+            fontSize: "12px",
+            fontWeight: "900",
+            color: "#93c5fd",
+            marginBottom: "6px",
+          }}
+        >
+          Inventory AI insight
+        </div>
+<div
+  style={{
+    width: "100%",
+    overflowX: "auto",
+    marginBottom: "16px",
+  }}
+>
+  <BarChart
+    width={980}
+    height={280}
+    data={(inventoryForecast || []).slice(0, 8)}
+    margin={{ top: 10, right: 20, left: 0, bottom: 20 }}
+  >
+    <XAxis
+      dataKey="name"
+      tick={{ fill: "#94a3b8", fontSize: 11 }}
+      axisLine={{ stroke: "rgba(148,163,184,0.2)" }}
+      tickLine={false}
+    />
+    <YAxis
+      tick={{ fill: "#94a3b8", fontSize: 11 }}
+      axisLine={{ stroke: "rgba(148,163,184,0.2)" }}
+      tickLine={false}
+    />
+    <Tooltip />
+    <Bar
+      dataKey="daysRemaining"
+      fill="#60a5fa"
+      radius={[8, 8, 0, 0]}
+    />
+  </BarChart>
+</div>
+        <p
+          style={{
+            margin: 0,
+            fontSize: "13px",
+            color: "#bfdbfe",
+            lineHeight: 1.6,
+          }}
+        >
+          {inventoryForecastInsight || "Upload ingredient data to generate inventory forecasting insights."}
+        </p>
+      </div>
+
+      {inventoryForecast?.length ? (
+        <div style={{ display: "grid", gap: "10px" }}>
+          {inventoryForecast.slice(0, 5).map((item, i) => {
+            const risk = String(item.inventoryRisk || "medium").toLowerCase();
+
+            const riskStyle =
+              risk === "high"
+                ? {
+                    bg: "rgba(239,68,68,0.14)",
+                    border: "1px solid rgba(239,68,68,0.25)",
+                    color: "#fca5a5",
+                  }
+                : risk === "low"
+                ? {
+                    bg: "rgba(34,197,94,0.12)",
+                    border: "1px solid rgba(34,197,94,0.22)",
+                    color: "#86efac",
+                  }
+                : {
+                    bg: "rgba(245,158,11,0.12)",
+                    border: "1px solid rgba(245,158,11,0.22)",
+                    color: "#fde68a",
+                  };
+
+            return (
+              <div
+                key={`${item.name || "inventory"}-${i}`}
+                style={{
+                  padding: "14px",
+                  borderRadius: "16px",
+                  background: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(148,163,184,0.12)",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: "12px",
+                    flexWrap: "wrap",
+                    alignItems: "center",
+                  }}
+                >
+                  <div>
+                    <div
+                      style={{
+                        fontWeight: "900",
+                        color: "white",
+                        fontSize: "15px",
+                      }}
+                    >
+                      {item.name || "Ingredient"}
+                    </div>
+
+                    <div
+                      style={{
+                        fontSize: "12px",
+                        color: "#94a3b8",
+                        marginTop: "5px",
+                      }}
+                    >
+                      Stock: {Number(item.currentStock || 0).toFixed(0)} • Daily use:{" "}
+                      {Number(item.dailyUsage || 0).toFixed(1)}
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      padding: "6px 10px",
+                      borderRadius: "999px",
+                      fontSize: "11px",
+                      fontWeight: "900",
+                      background: riskStyle.bg,
+                      border: riskStyle.border,
+                      color: riskStyle.color,
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    {risk} risk
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    marginTop: "10px",
+                    display: "grid",
+                    gridTemplateColumns: "1fr auto",
+                    gap: "12px",
+                    alignItems: "center",
+                  }}
+                >
+                  <div
+                    style={{
+                      height: "9px",
+                      borderRadius: "999px",
+                      background: "rgba(148,163,184,0.14)",
+                      overflow: "hidden",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: `${Math.max(
+                          8,
+                          Math.min(100, Number(item.daysRemaining || 0) * 12)
+                        )}%`,
+                        height: "100%",
+                        borderRadius: "999px",
+                        background: riskStyle.color,
+                      }}
+                    />
+                  </div>
+
+                  <div
+                    style={{
+                      color: riskStyle.color,
+                      fontWeight: "900",
+                      fontSize: "13px",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {Number(item.daysRemaining || 0).toFixed(1)} days left
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div
+          style={{
+            height: "220px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "#94a3b8",
+            textAlign: "center",
+            borderRadius: "18px",
+            border: "1px dashed rgba(148,163,184,0.2)",
+            background: "rgba(15,23,42,0.5)",
+            fontSize: "13px",
+          }}
+        >
+          Upload ingredient data to forecast inventory risk.
+        </div>
+      )}
+    </div>
+
+    {!hasProAccess && (
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "rgba(15,23,42,0.85)",
+          backdropFilter: "blur(6px)",
+          textAlign: "center",
+          padding: "20px",
+        }}
+      >
+        <h4 style={{ color: "white", marginBottom: "8px" }}>
+          🔒 Unlock Inventory Forecasting
+        </h4>
+
+        <p
+          style={{
+            fontSize: "12px",
+            color: "#cbd5f5",
+            marginBottom: "12px",
+          }}
+        >
+          Predict inventory shortages before they happen.
+        </p>
+
+        <button
+          onClick={() => router.push("/pricing")}
+          style={{
+            padding: "10px 16px",
+            borderRadius: "10px",
+            border: "none",
+            background: "linear-gradient(135deg, #4f46e5, #6D3DF5)",
+            color: "white",
+            fontWeight: "800",
+            boxShadow: "0 10px 25px rgba(79,70,229,0.35)",
+            cursor: "pointer",
+          }}
+        >
+          Upgrade to Pro →
+        </button>
+      </div>
+    )}
+  </div>
+</div>
+   
    {/* AI PROFIT RECOVERY TREND */}
 <div
   style={{
