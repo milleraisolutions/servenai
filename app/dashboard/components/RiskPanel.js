@@ -19,7 +19,7 @@ export default function RiskPanel({
   return (
     <div style={riskPanelCardStyle}>
       {/* 🔥 RISK PANEL */}
-{isOwner && (
+{canSeeOwnerDashboard && (
   <div style={riskPanelCardStyle}>
     <div
       style={{

@@ -231,15 +231,7 @@ export default function AdminPage() {
         campaignCount,
       };
     });
-console.log(
-  "ENTERPRISE CHECK",
-  customersWithMetrics.map((c) => ({
-    email: c.email,
-    plan: c.plan,
-    locations: c.locations,
-    location_count: c.location_count,
-  }))
-);
+
     setCustomers(customersWithMetrics);
     setLoading(false);
   };
