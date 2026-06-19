@@ -94,6 +94,7 @@ export default function AdminPage() {
     const { data: usersData, error: usersError } = await supabase
       .from("users")
       .select("*")
+.or("hidden_from_admin.is.null,hidden_from_admin.eq.false")
       .order("created_at", { ascending: false });
 
     if (usersError) {
@@ -230,7 +231,15 @@ export default function AdminPage() {
         campaignCount,
       };
     });
-
+console.log(
+  "ENTERPRISE CHECK",
+  customersWithMetrics.map((c) => ({
+    email: c.email,
+    plan: c.plan,
+    locations: c.locations,
+    location_count: c.location_count,
+  }))
+);
     setCustomers(customersWithMetrics);
     setLoading(false);
   };
@@ -367,7 +376,28 @@ export default function AdminPage() {
 
     setDemoLeads((prev) => prev.filter((demo) => demo.id !== demoId));
   };
+const deleteCustomer = async (customerId) => {
+  const confirmed = window.confirm(
+    "Remove this client from the admin view?"
+  );
 
+  if (!confirmed) return;
+
+  const { error } = await supabase
+    .from("users")
+    .update({ hidden_from_admin: true })
+    .eq("id", customerId);
+
+  if (error) {
+    console.error("Client hide failed:", error);
+    alert("Could not remove client from admin view.");
+    return;
+  }
+
+  setCustomers((prev) =>
+    prev.filter((customer) => customer.id !== customerId)
+  );
+};
   const sendClientEmail = async (customer, type = "intro", selectedPlan = "starter") => {
     try {
       if (!customer?.email) {
@@ -885,6 +915,482 @@ export default function AdminPage() {
     />
   </div>
 </div>
+{/* PAST DUE BILLING */}
+<div style={panelCard("#ef4444")}>
+  <div style={eyebrow}>BILLING RISK</div>
+
+  <h2
+    style={{
+      color: "white",
+      fontSize: "26px",
+      fontWeight: "900",
+      marginBottom: "18px",
+    }}
+  >
+    Past Due Billing
+  </h2>
+
+  {customers.filter((client) =>
+    ["past_due", "unpaid", "canceled", "cancelled"].includes(
+      String(client.billingStatus || "").toLowerCase()
+    )
+  ).length === 0 ? (
+    <div style={{ color: "#94a3b8" }}>
+      No past due billing issues right now.
+    </div>
+  ) : (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit,minmax(320px,1fr))",
+        gap: "16px",
+      }}
+    >
+      {customers
+        .filter((client) =>
+          ["past_due", "unpaid", "canceled", "cancelled"].includes(
+            String(client.billingStatus || "").toLowerCase()
+          )
+        )
+        .map((client) => (
+          <div key={client.id} style={leadCardStyle}>
+            <div style={{ color: "white", fontWeight: "900", fontSize: "18px" }}>
+              {client.restaurant_name || "Unnamed Business"}
+            </div>
+
+            <div style={{ color: "#94a3b8", fontSize: "13px" }}>
+              {client.email}
+            </div>
+
+            <div style={leadMetaText}>
+              <div>Plan: {client.plan || "starter"}</div>
+              <div>
+                Billing Status:{" "}
+                <span style={{ color: "#ef4444", fontWeight: "900" }}>
+                  {client.billingStatus}
+                </span>
+              </div>
+              <div>Health Score: {client.healthScore}%</div>
+              <div>
+                Last Contacted:{" "}
+                {client.last_contacted_at
+                  ? new Date(client.last_contacted_at).toLocaleDateString()
+                  : "Never"}
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: "8px", marginTop: "14px" }}>
+              <button
+                onClick={() => markContacted(client.id)}
+                style={{ ...smallActionButton, flex: 1, background: "#334155" }}
+              >
+                Mark Contacted
+              </button>
+
+              <button
+                onClick={() => sendClientEmail(client, "activation", client.plan || "starter")}
+                style={{
+                  ...smallActionButton,
+                  flex: 1,
+                  background: "linear-gradient(135deg,#ef4444,#dc2626)",
+                }}
+              >
+                Send Billing Email
+              </button>
+            </div>
+          </div>
+        ))}
+    </div>
+  )}
+</div>
+{/* RECENT SIGNUPS */}
+<div style={panelCard("#3b82f6")}>
+  <div style={eyebrow}>NEW ACCOUNT ACTIVITY</div>
+
+  <h2 style={{ color: "white", fontSize: "26px", fontWeight: "900", marginBottom: "18px" }}>
+    Recent Signups
+  </h2>
+
+  {customers.length === 0 ? (
+    <div style={{ color: "#94a3b8" }}>No accounts found yet.</div>
+  ) : (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(320px,1fr))", gap: "16px" }}>
+      {customers
+        .slice()
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+        .slice(0, 10)
+        .map((client) => {
+          const signupDate = client.created_at ? new Date(client.created_at) : null;
+          const daysSinceSignup = signupDate
+            ? Math.floor((Date.now() - signupDate.getTime()) / (1000 * 60 * 60 * 24))
+            : null;
+
+          return (
+            <div key={client.id} style={leadCardStyle}>
+              <div style={{ color: "white", fontWeight: "900", fontSize: "18px" }}>
+                {client.restaurant_name || "Unnamed Business"}
+              </div>
+
+              <div style={{ color: "#94a3b8", fontSize: "13px" }}>
+                {client.email}
+              </div>
+
+              <div style={leadMetaText}>
+                <div>Plan: {client.plan || "starter"}</div>
+                <div>Status: {client.customer_status || "lead"}</div>
+                <div>
+                  Signup Date:{" "}
+                  {signupDate ? signupDate.toLocaleDateString() : "Unknown"}
+                </div>
+                <div>
+                  Days Since Signup:{" "}
+                  {daysSinceSignup !== null ? daysSinceSignup : "Unknown"}
+                </div>
+              </div>
+
+              <button
+                onClick={() => markContacted(client.id)}
+                style={{
+                  ...smallActionButton,
+                  marginTop: "14px",
+                  width: "100%",
+                  background: "linear-gradient(135deg,#3b82f6,#2563eb)",
+                }}
+              >
+                Mark Contacted
+              </button>
+            </div>
+          );
+        })}
+    </div>
+  )}
+</div>
+{/* CHURN WATCH LIST */}
+<div style={panelCard("#f59e0b")}>
+  <div style={eyebrow}>EARLY RETENTION WARNINGS</div>
+
+  <h2 style={{ color: "white", fontSize: "26px", fontWeight: "900", marginBottom: "18px" }}>
+    Churn Watch List
+  </h2>
+
+  {customers.filter((client) =>
+    Number(client.healthScore || 0) > 55 &&
+    Number(client.healthScore || 0) <= 80
+  ).length === 0 ? (
+    <div style={{ color: "#94a3b8" }}>No clients on churn watch right now.</div>
+  ) : (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(320px,1fr))", gap: "16px" }}>
+      {customers
+        .filter((client) =>
+          Number(client.healthScore || 0) > 55 &&
+          Number(client.healthScore || 0) <= 80
+        )
+        .map((client) => (
+          <div key={client.id} style={leadCardStyle}>
+            <div style={{ color: "white", fontWeight: "900", fontSize: "18px" }}>
+              {client.restaurant_name || "Unnamed Business"}
+            </div>
+
+            <div style={{ color: "#94a3b8", fontSize: "13px" }}>
+              {client.email}
+            </div>
+
+            <div style={leadMetaText}>
+              <div>Health Score: {client.healthScore}%</div>
+              <div>Open Alerts: {client.openAlerts}</div>
+              <div>
+                Last Upload:{" "}
+                {client.lastUpload
+                  ? new Date(client.lastUpload).toLocaleDateString()
+                  : "Never"}
+              </div>
+              <div>Billing: {client.billingStatus}</div>
+            </div>
+
+            <button
+              onClick={() => markContacted(client.id)}
+              style={{
+                ...smallActionButton,
+                marginTop: "14px",
+                width: "100%",
+                background: "linear-gradient(135deg,#f59e0b,#d97706)",
+              }}
+            >
+              Mark Contacted
+            </button>
+          </div>
+        ))}
+    </div>
+  )}
+</div>
+{/* TOP CLIENTS BY REVENUE */}
+<div style={panelCard("#22c55e")}>
+  <div style={eyebrow}>CLIENT REVENUE LEADERBOARD</div>
+
+  <h2 style={{ color: "white", fontSize: "26px", fontWeight: "900", marginBottom: "18px" }}>
+    Top Clients By Revenue
+  </h2>
+
+  {customers.filter((client) => Number(client.totalRevenue || 0) > 0).length === 0 ? (
+    <div style={{ color: "#94a3b8" }}>
+      No client revenue data uploaded yet.
+    </div>
+  ) : (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(320px,1fr))", gap: "16px" }}>
+      {customers
+        .filter((client) => Number(client.totalRevenue || 0) > 0)
+        .slice()
+        .sort((a, b) => Number(b.totalRevenue || 0) - Number(a.totalRevenue || 0))
+        .slice(0, 10)
+        .map((client, index) => (
+          <div key={client.id} style={leadCardStyle}>
+            <div style={{ color: "#22c55e", fontSize: "12px", fontWeight: "900" }}>
+              #{index + 1} TOP CLIENT
+            </div>
+
+            <div style={{ color: "white", fontWeight: "900", fontSize: "18px", marginTop: "4px" }}>
+              {client.restaurant_name || "Unnamed Business"}
+            </div>
+
+            <div style={{ color: "#94a3b8", fontSize: "13px" }}>
+              {client.email}
+            </div>
+
+            <div style={leadMetaText}>
+              <div>
+                Total Uploaded Revenue:{" "}
+                <span style={{ color: "white", fontWeight: "900" }}>
+                  ${Number(client.totalRevenue || 0).toLocaleString()}
+                </span>
+              </div>
+
+              <div>
+                AI Profit Generated:{" "}
+                <span style={{ color: "#a855f7", fontWeight: "900" }}>
+                  ${Number(client.aiProfitGenerated || 0).toLocaleString()}
+                </span>
+              </div>
+
+              <div>Plan: {client.plan || "starter"}</div>
+              <div>Billing: {client.billingStatus}</div>
+              <div>Health Score: {client.healthScore}%</div>
+            </div>
+
+            <button
+              onClick={() => markContacted(client.id)}
+              style={{
+                ...smallActionButton,
+                marginTop: "14px",
+                width: "100%",
+                background: "linear-gradient(135deg,#22c55e,#16a34a)",
+              }}
+            >
+              Mark Contacted
+            </button>
+          </div>
+        ))}
+    </div>
+  )}
+</div>
+{/* HIGHEST AI PROFIT GENERATED */}
+<div style={panelCard("#a855f7")}>
+  <div style={eyebrow}>AI VALUE LEADERBOARD</div>
+
+  <h2 style={{ color: "white", fontSize: "26px", fontWeight: "900", marginBottom: "18px" }}>
+    Highest AI Profit Generated
+  </h2>
+
+  {customers.filter((client) => Number(client.aiProfitGenerated || 0) > 0).length === 0 ? (
+    <div style={{ color: "#94a3b8" }}>
+      No AI profit impact recorded yet.
+    </div>
+  ) : (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(320px,1fr))", gap: "16px" }}>
+      {customers
+        .filter((client) => Number(client.aiProfitGenerated || 0) > 0)
+        .slice()
+        .sort((a, b) => Number(b.aiProfitGenerated || 0) - Number(a.aiProfitGenerated || 0))
+        .slice(0, 10)
+        .map((client, index) => (
+          <div key={client.id} style={leadCardStyle}>
+            <div style={{ color: "#a855f7", fontSize: "12px", fontWeight: "900" }}>
+              #{index + 1} AI VALUE CLIENT
+            </div>
+
+            <div style={{ color: "white", fontWeight: "900", fontSize: "18px", marginTop: "4px" }}>
+              {client.restaurant_name || "Unnamed Business"}
+            </div>
+
+            <div style={{ color: "#94a3b8", fontSize: "13px" }}>
+              {client.email}
+            </div>
+
+            <div style={leadMetaText}>
+              <div>
+                AI Profit Generated:{" "}
+                <span style={{ color: "#a855f7", fontWeight: "900" }}>
+                  ${Number(client.aiProfitGenerated || 0).toLocaleString()}
+                </span>
+              </div>
+
+              <div>
+                Total Uploaded Revenue:{" "}
+                <span style={{ color: "white", fontWeight: "900" }}>
+                  ${Number(client.totalRevenue || 0).toLocaleString()}
+                </span>
+              </div>
+
+              <div>Health Score: {client.healthScore}%</div>
+              <div>Plan: {client.plan || "starter"}</div>
+              <div>Billing: {client.billingStatus}</div>
+            </div>
+
+            <button
+              onClick={() => markContacted(client.id)}
+              style={{
+                ...smallActionButton,
+                marginTop: "14px",
+                width: "100%",
+                background: "linear-gradient(135deg,#a855f7,#7c3aed)",
+              }}
+            >
+              Mark Contacted
+            </button>
+          </div>
+        ))}
+    </div>
+  )}
+</div>
+{/* CLIENTS WITH NO UPLOADS */}
+<div style={panelCard("#f97316")}>
+  <div style={eyebrow}>ONBOARDING RISK</div>
+
+  <h2 style={{ color: "white", fontSize: "26px", fontWeight: "900", marginBottom: "18px" }}>
+    Clients With No Uploads
+  </h2>
+
+  {customers.filter((client) => !client.lastUpload).length === 0 ? (
+    <div style={{ color: "#94a3b8" }}>
+      Every client has uploaded data.
+    </div>
+  ) : (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(320px,1fr))", gap: "16px" }}>
+      {customers
+        .filter((client) => !client.lastUpload)
+        .slice(0, 10)
+        .map((client) => (
+          <div key={client.id} style={leadCardStyle}>
+            <div style={{ color: "white", fontWeight: "900", fontSize: "18px" }}>
+              {client.restaurant_name || "Unnamed Business"}
+            </div>
+
+            <div style={{ color: "#94a3b8", fontSize: "13px" }}>
+              {client.email}
+            </div>
+
+            <div style={leadMetaText}>
+              <div>Plan: {client.plan || "starter"}</div>
+              <div>Status: {client.customer_status || "lead"}</div>
+              <div>Billing: {client.billingStatus}</div>
+              <div>Last Upload: Never</div>
+            </div>
+
+            <button
+              onClick={() => sendClientEmail(client, "intro")}
+              style={{
+                ...smallActionButton,
+                marginTop: "14px",
+                width: "100%",
+                background: "linear-gradient(135deg,#f97316,#ea580c)",
+              }}
+            >
+              Send Onboarding Email
+            </button>
+          </div>
+        ))}
+    </div>
+  )}
+</div>
+{/* NEW CLIENTS THIS MONTH */}
+<div style={panelCard("#0ea5e9")}>
+  <div style={eyebrow}>MONTHLY GROWTH</div>
+
+  <h2 style={{ color: "white", fontSize: "26px", fontWeight: "900", marginBottom: "18px" }}>
+    New Clients This Month
+  </h2>
+
+  {customers.filter((client) => {
+    if (!client.created_at) return false;
+
+    const createdDate = new Date(client.created_at);
+    const now = new Date();
+
+    return (
+      createdDate.getMonth() === now.getMonth() &&
+      createdDate.getFullYear() === now.getFullYear()
+    );
+  }).length === 0 ? (
+    <div style={{ color: "#94a3b8" }}>
+      No new clients signed up this month.
+    </div>
+  ) : (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(320px,1fr))", gap: "16px" }}>
+      {customers
+        .filter((client) => {
+          if (!client.created_at) return false;
+
+          const createdDate = new Date(client.created_at);
+          const now = new Date();
+
+          return (
+            createdDate.getMonth() === now.getMonth() &&
+            createdDate.getFullYear() === now.getFullYear()
+          );
+        })
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+        .map((client) => (
+          <div key={client.id} style={leadCardStyle}>
+            <div style={{ color: "white", fontWeight: "900", fontSize: "18px" }}>
+              {client.restaurant_name || "Unnamed Business"}
+            </div>
+
+            <div style={{ color: "#94a3b8", fontSize: "13px" }}>
+              {client.email}
+            </div>
+
+            <div style={leadMetaText}>
+              <div>Plan: {client.plan || "starter"}</div>
+              <div>Status: {client.customer_status || "lead"}</div>
+              <div>
+                Signup Date:{" "}
+                {client.created_at
+                  ? new Date(client.created_at).toLocaleDateString()
+                  : "Unknown"}
+              </div>
+              <div>
+                Last Upload:{" "}
+                {client.lastUpload
+                  ? new Date(client.lastUpload).toLocaleDateString()
+                  : "Never"}
+              </div>
+            </div>
+
+            <button
+              onClick={() => markContacted(client.id)}
+              style={{
+                ...smallActionButton,
+                marginTop: "14px",
+                width: "100%",
+                background: "linear-gradient(135deg,#0ea5e9,#2563eb)",
+              }}
+            >
+              Mark Contacted
+            </button>
+          </div>
+        ))}
+    </div>
+  )}
+</div>
       {/* CURRENT CLIENTS DIRECTORY */}
       <div style={panelCard("#6366f1")}>
         <div style={eyebrow}>CLIENT OPERATIONS</div>
@@ -923,7 +1429,31 @@ export default function AdminPage() {
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: "16px" }}>
             {filteredCustomers.map((customer) => (
-              <div key={customer.id} style={leadCardStyle}>
+              <div key={customer.id} style={{ ...leadCardStyle, position: "relative" }}>
+                <button
+  onClick={() => deleteCustomer(customer.id)}
+  style={{
+    position: "absolute",
+    top: "14px",
+    right: "14px",
+    background: "rgba(239, 68, 68, 0.12)",
+    color: "#ef4444",
+    border: "1px solid rgba(239, 68, 68, 0.2)",
+    borderRadius: "8px",
+    width: "26px",
+    height: "26px",
+    cursor: "pointer",
+    fontWeight: "bold",
+    fontSize: "12px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 10,
+  }}
+  title="Delete Client"
+>
+  ✕
+</button>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start" }}>
                   <div>
                     <div style={{ color: "white", fontWeight: "900", fontSize: "18px" }}>{customer.restaurant_name || "Unnamed Business"}</div>
