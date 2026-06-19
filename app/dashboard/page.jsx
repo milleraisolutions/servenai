@@ -64325,15 +64325,23 @@ flexWrap: "wrap",
   const prepData = yesterdayPrepData || [];
   const mobileLayout = typeof isMobile !== "undefined" ? isMobile : false;
 
-  return (
-    <div
-      style={{
-        padding: "22px",
-        borderRadius: "22px",
-        background: "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.92))",
-        border: "1px solid rgba(245,158,11,0.22)",
-      }}
-    >
+return (
+  <div
+    style={{
+      gridColumn: "span 12",
+      width: "100%",
+      minWidth: 0,
+      boxSizing: "border-box",
+
+      padding: "22px",
+      borderRadius: "22px",
+
+      background:
+        "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.92))",
+
+      border: "1px solid rgba(245,158,11,0.22)",
+    }}
+  >
       <div
         style={{
           color: "#fbbf24",
