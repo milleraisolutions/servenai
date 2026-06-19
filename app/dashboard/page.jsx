@@ -64114,18 +64114,21 @@ return (
    AI AUTONOMOUS OPTIMIZATION ENGINE
 ========================= */}
 
+
 {hasProAccess && (
   <div
     style={{
-      gridColumn: "span 12",
+      gridColumn: "1 / -1",
+
       width: "100%",
       minWidth: 0,
+      boxSizing: "border-box",
 
       marginTop: "22px",
       padding: "28px",
       borderRadius: "32px",
 
-      overflow: "hidden",
+      overflow: "visible",
 
       background:
         "linear-gradient(135deg, rgba(34,197,94,0.16), rgba(15,23,42,0.98))",
@@ -64334,9 +64337,15 @@ return (
   <div
     style={{
       gridColumn: "auto",
+
       width: "100%",
       minWidth: 0,
       boxSizing: "border-box",
+
+      alignSelf: "start",
+      height: "fit-content",
+      maxHeight: "720px",
+      overflowY: "auto",
 
       padding: "22px",
       borderRadius: "22px",
