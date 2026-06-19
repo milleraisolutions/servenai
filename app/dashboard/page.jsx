@@ -63991,7 +63991,9 @@ flexWrap: "wrap",
       overflowY: "visible",
 
       display: "grid",
-      gridTemplateColumns: "repeat(12, minmax(0, 1fr))",
+      gridTemplateColumns: isMobile
+  ? "1fr"
+  : "repeat(3, minmax(350px, 1fr))",
       gap: "18px",
 
       paddingBottom: "24px",
@@ -64007,7 +64009,7 @@ flexWrap: "wrap",
 return (
   <div
     style={{
-      gridColumn: isMobile ? "span 12" : "span 3",
+      gridColumn: "auto",
 
       width: "100%",
       minWidth: 0,
@@ -64331,7 +64333,7 @@ return (
 return (
   <div
     style={{
-      gridColumn: isMobile ? "span 12" : "span 3",
+      gridColumn: "auto",
       width: "100%",
       minWidth: 0,
       boxSizing: "border-box",
@@ -64484,7 +64486,7 @@ return (
  {/* ⏱️ CULINARY COMPONENTS & PREP TIME BOTTLENECK ANALYSIS */}
 <div
   style={{
-    gridColumn: isMobile ? "span 12" : "span 3",
+    gridColumn: "auto",
 
     width: "100%",
     minWidth: 0,
@@ -64766,7 +64768,7 @@ return (
 {/* INVENTORY + WASTE INTELLIGENCE */}
 <div
   style={{
-    gridColumn: isMobile ? "span 12" : "span 3",
+   gridColumn: "auto",
     width: "100%",
     minWidth: 0,
     boxSizing: "border-box",
@@ -65016,7 +65018,7 @@ return (
 return (
   <div
     style={{
-      gridColumn: isMobile ? "span 12" : "span 3",
+      gridColumn: "auto",
 
       width: "100%",
       minWidth: 0,
@@ -65161,7 +65163,7 @@ return (
  return (
   <div
     style={{
-      gridColumn: isMobile ? "span 12" : "span 3",
+gridColumn: "auto",
 
       width: "100%",
       maxWidth: "100%",
@@ -65277,7 +65279,7 @@ return (
  return (
   <div
     style={{
-      gridColumn: isMobile ? "span 12" : "span 3",
+     gridColumn: "auto",
 
       width: "100%",
       minWidth: 0,
