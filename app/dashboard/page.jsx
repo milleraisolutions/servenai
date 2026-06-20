@@ -64119,7 +64119,7 @@ return (
 {hasProAccess && (
   <div
     style={{
-      gridColumn: isMobile ? "1 / -1" : "span 4",
+      gridColumn: "auto",
 
       width: "100%",
       minWidth: 0,
