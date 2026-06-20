@@ -1925,40 +1925,33 @@ const aiProfitOpportunities = useMemo(() => {
 
   return [];
 }, [generatedOpportunities]);
-  function runABTest(campaign, businessType) {
-    const versionA = {
-      title: campaign.title,
-      body: campaign.body,
-    };
+ function runABTest(campaign, businessType) {
+  const versionA = {
+    title: campaign.title,
+    body: campaign.body,
+  };
 
-    const versionB = {
-      title: `${campaign.title} 🔥`,
-      body:
-        `${campaign.body} — Today only.` +
-        (businessType === "coffee"
-          ? " Grab your favorite drink now."
-          : businessType === "restaurant"
-          ? " Reserve your table now."
-          : ""),
-    };
+  const versionB = {
+    title: `${campaign.title} 🔥`,
+    body:
+      `${campaign.body} — Today only.` +
+      (businessType === "coffee"
+        ? " Grab your favorite drink now."
+        : businessType === "restaurant"
+        ? " Reserve your table now."
+        : ""),
+  };
 
-    const scoreA = Math.floor(Math.random() * 18) + 72;
-    const scoreB = Math.floor(Math.random() * 18) + 78;
-
-    const winner = scoreB >= scoreA ? "B" : "A";
-
-    return {
-      versionA,
-      versionB,
-      scoreA,
-      scoreB,
-      winner,
-      lift:
-        winner === "B"
-          ? Math.max(200, (scoreB - scoreA) * 45)
-          : Math.max(100, (scoreA - scoreB) * 25),
-    };
-  }
+  return {
+    versionA,
+    versionB,
+    scoreA: null,
+    scoreB: null,
+    winner: null,
+    lift: 0,
+    needsLiveTest: true,
+  };
+}
 
 const handleSaveCampaign = async (campaign) => {
   try {
@@ -3218,30 +3211,7 @@ const revenueChartData = useMemo(() => {
     }))
     .sort((a, b) => new Date(a.date) - new Date(b.date));
 }, [dbSalesRows, locationSalesData]);
-const aiProfitTrendData =
-  revenueChartData?.length > 0
-    ? revenueChartData.map((row, index) => ({
-        day:
-          row.day ||
-          row.label ||
-          row.date ||
-          `Day ${index + 1}`,
 
-        baseline: Number(row.revenue || 0),
-
-        optimized:
-          Number(row.revenue || 0) +
-          Number(simulatedProfit || 0) / 30,
-
-        revenue: Number(row.revenue || 0),
-
-        projectedRevenue:
-          Number(row.revenue || 0) +
-          Number(simulatedProfit || 0) / 30,
-
-        isBestDay: row.isBestDay || false,
-      }))
-    : [];
 const projectedWeekRevenue = useMemo(() => {
   const todayIndex = new Date().getDay() + 1;
   const currentRevenue = Number(revenueTrend?.currentWeekRevenue || 0);
@@ -3278,18 +3248,7 @@ const bestRevenueDay = useMemo(() => {
 }, [revenueChartData]);
 console.log("FIRST SALE ROW:", salesData?.[0]);
 console.log("REVENUE CHART DATA:", revenueChartData);
-const foodCostChartData = useMemo(() => {
-  const base = Number(foodCostPercentage || 0);
 
-  if (!revenueTrend?.chartData?.length) {
-    return [];
-  }
-
-  return revenueTrend.chartData.map((item, index) => ({
-    day: item.day,
-    foodCost: Number((base + (index - 3) * 0.6).toFixed(1)),
-  }));
-}, [revenueTrend, foodCostPercentage]);
 
 const menuMixData = useMemo(() => {
   if (topSellingItems?.length) {
@@ -3972,37 +3931,16 @@ const getAIWhyReason = (action) => {
 
   return `AI detected this as a high-value opportunity based on current revenue, margin, labor, and cost signals across your dashboard.`;
 };
-
 const projectedRevenueLift = useMemo(() => {
   const currentRevenue = Number(totalRevenue || 0);
 
-  const rawLift = topAiActions.reduce((sum, action) => {
-    if (!appliedFixes.includes(action.title)) return sum;
-
-    return (
-      sum + Number(String(action.impact || "").replace(/[^0-9]/g, ""))
-    );
-  }, 0);
-
-  const multiplier =
-    revenueScenario === "conservative"
-      ? 0.65
-      : revenueScenario === "aggressive"
-      ? 1.2
-      : 1;
-
-  const aiLift = Math.round(rawLift * multiplier);
-  const projectedRevenue = currentRevenue + aiLift;
-  const percentLift =
-    currentRevenue > 0 ? (aiLift / currentRevenue) * 100 : 0;
-
   return {
     currentRevenue,
-    aiLift,
-    projectedRevenue,
-    percentLift,
+    aiLift: 0,
+    projectedRevenue: currentRevenue,
+    percentLift: 0,
   };
-}, [totalRevenue, topAiActions, appliedFixes, revenueScenario]);
+}, [totalRevenue]);
 const weeklyChangeSummary = useMemo(() => {
   const currentWeekRevenue =
   Number(revenueTrend?.currentWeekRevenue || 0) ||
@@ -8169,23 +8107,7 @@ useEffect(() => {
 
   return () => clearInterval(interval);
 }, [simulatedProfit]);
-const fallbackAIActions = [
-  {
-    title: "Raise price on low-margin best seller",
-    impact: 1250,
-    description: "AI detected strong demand with margin room.",
-  },
-  {
-    title: "Reduce waste on slow-moving inventory",
-    impact: 840,
-    description: "AI found inventory items at risk of waste.",
-  },
-  {
-    title: "Promote high-margin menu item",
-    impact: 980,
-    description: "AI recommends pushing a profitable item this week.",
-  },
-];
+
 const visibleAIActions =
   realProfitEngine?.actions?.length
     ? realProfitEngine.actions
@@ -8193,19 +8115,18 @@ const visibleAIActions =
     ? topAIActions
     : fixSuggestions?.length
     ? fixSuggestions
-    : fallbackAIActions;
-
+    : [];
 const autoApplyTopProfitFix = async () => {
   if (!hasProAccess || !autopilotEnabled) return;
 
- const actions =
+const actions =
   realProfitEngine?.actions?.length
     ? realProfitEngine.actions
     : topAIActions?.length
     ? topAIActions
     : fixSuggestions?.length
     ? fixSuggestions
-    : fallbackAIActions;
+    : [];
   if (!actions.length) return;
 console.log("AUTOPILOT ACTIONS:", actions);
   const topAction = actions[0];
@@ -16337,11 +16258,11 @@ const forecastingInsights = useMemo(() => {
 
   return [
     {
-      label: "Projected Monthly Revenue",
+     label: "Revenue Pace",
       value: `$${projectedMonthlyRevenue.toLocaleString(undefined, {
         maximumFractionDigits: 0,
       })}`,
-      subtext: "AI revenue forecast",
+      subtext: "Based on recent uploaded sales average",
     },
     {
       label: "Revenue Trend",
@@ -18236,20 +18157,11 @@ const shiftBeverageInsight = topBeverageShift
    BEVERAGE FORECASTING INTELLIGENCE
 ========================= */
 
-const beverageForecastData = shiftBeverageData.map((shift) => {
-  const projectedRevenue = Number(shift.revenue || 0) * 1.12;
-  const projectedOrders = Number(shift.orders || 0) * 1.08;
-
-  return {
-    ...shift,
-    projectedRevenue,
-    projectedOrders,
-  };
-});
+const beverageForecastData = [];
 
 const beverageForecastInsight =
   beverageForecastData.length > 0
-    ? `Based on current beverage patterns, ${beverageForecastData[0].shift} is projected to remain the strongest beverage window.`
+    ? `Upload more beverage history to activate beverage forecasting.`
     : "Upload beverage sales data to activate beverage forecasting.";
 
 
@@ -18405,11 +18317,10 @@ const beverageRestockData = useMemo(() => {
         .toLowerCase()
         .includes(name.toLowerCase())
     );
-
-    const avgDailyUsage =
-      recentSales.length > 0
-        ? recentSales.length / 7
-        : Math.random() * 6 + 1;
+const avgDailyUsage =
+  recentSales.length > 0
+    ? recentSales.length / 7
+    : 0;
 
     const daysRemaining =
       avgDailyUsage > 0
@@ -18501,11 +18412,10 @@ const kegIntelligenceData = useMemo(() => {
     );
 
     const remainingOz = Number(
-      keg.remaining_ounces ||
-      keg.remaining_oz ||
-      totalVolumeOz * (Math.random() * 0.7 + 0.15)
-    );
-
+  keg.remaining_ounces ||
+  keg.remaining_oz ||
+  0
+);
     const ouncesPerPour = Number(
       keg.pour_size_oz ||
       16
@@ -19417,12 +19327,12 @@ const laborForecastingData = useMemo(() => {
     const laborPercent = Number(shift.laborPercent || 0);
     const orders = Number(shift.orders || 0);
 const projectedRevenue = revenue;
-const projectedLaborCost = laborCost * 1.06;
+const projectedLaborCost = laborCost;
 
     const projectedLaborPercent =
       projectedRevenue > 0 ? (projectedLaborCost / projectedRevenue) * 100 : 0;
 
-    const projectedOrders = orders * 1.07;
+   const projectedOrders = orders;
 
     let forecastStatus = "Stable";
 
@@ -65973,14 +65883,7 @@ gridColumn: "auto",
           0
         );
 
-        const simulatedInflation =
-          totalCost * (1 + (Math.random() * 0.18 + 0.04));
-
-        const inflationPercent =
-          totalCost > 0
-            ? ((simulatedInflation - totalCost) / totalCost) * 100
-            : 0;
-
+        const inflationPercent = 0;
         return (
           <div
             key={recipe.id}
@@ -66054,8 +65957,7 @@ gridColumn: "auto",
                 lineHeight: 1.7,
               }}
             >
-              AI predicts ingredient cost instability may impact this recipe’s
-              profitability over the next purchasing cycle.
+              Upload invoice history over time to activate ingredient cost trend detection.
             </div>
           </div>
         );
@@ -74916,9 +74818,9 @@ minWidth: 0,
 >
   {[
     {
-      label: "SIMULATED GAIN",
+      label: "POTENTIAL UPSIDE",
       value: `+$${Number(simulatedProfit || 0).toLocaleString()}`,
-      subtext: "Estimated monthly upside",
+     subtext: "Estimated impact if recommendations are implemented",
       accent: "#6ee7b7",
       bg: "rgba(16,185,129,0.12)",
       border: "1px solid rgba(16,185,129,0.24)",
