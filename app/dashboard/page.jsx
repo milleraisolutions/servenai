@@ -63980,26 +63980,29 @@ flexWrap: "wrap",
   </>
 )}
 {activeTab === "operations" && (
-  <div
-    style={{
-      width: "100%",
-      maxWidth: "1600px",
-      minWidth: 0,
-      margin: "0 auto",
+<div
+  style={{
+    width: "100%",
+    maxWidth: "none",
+    minWidth: 0,
+    margin: "0",
 
-      overflowX: "hidden",
-      overflowY: "visible",
+    overflowX: "hidden",
+    overflowY: "visible",
 
-      display: "grid",
-      gridTemplateColumns: isMobile
-  ? "1fr"
-  : "repeat(3, minmax(350px, 1fr))",
-      gap: "18px",
+    display: "grid",
 
-      paddingBottom: "24px",
-      boxSizing: "border-box",
-    }}
-  >
+    gridTemplateColumns: isMobile
+      ? "1fr"
+      : "repeat(4, minmax(260px, 1fr))",
+
+    gap: "18px",
+    alignItems: "start",
+
+    paddingBottom: "24px",
+    boxSizing: "border-box",
+  }}
+>
    {/* EXPECTED VS ACTUAL USAGE */}
 {(() => {
   // 🛡️ Safe extraction layer preventing crashes during async loading periods
@@ -64118,7 +64121,7 @@ return (
 {hasProAccess && (
   <div
     style={{
-      gridColumn: "1 / -1",
+      gridColumn: isMobile ? "1 / -1" : "span 4",
 
       width: "100%",
       minWidth: 0,
