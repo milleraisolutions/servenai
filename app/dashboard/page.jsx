@@ -3212,6 +3212,9 @@ const revenueChartData = useMemo(() => {
     .sort((a, b) => new Date(a.date) - new Date(b.date));
 }, [dbSalesRows, locationSalesData]);
 
+// Temporary placeholder so old chart references don't crash
+const aiProfitTrendData = [];
+
 const projectedWeekRevenue = useMemo(() => {
   const todayIndex = new Date().getDay() + 1;
   const currentRevenue = Number(revenueTrend?.currentWeekRevenue || 0);
