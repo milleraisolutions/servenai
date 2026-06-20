@@ -64331,7 +64331,19 @@ return (
     </div>
   </div>
 )}
+<div
+  style={{
+    gridColumn: "1 / -1",
+    display: "grid",
+    gridTemplateColumns: isMobile
+      ? "1fr"
+      : "repeat(4, minmax(0, 1fr))",
+    gap: "18px",
+    alignItems: "start",
+  }}
+>
     {/* 📲 LIVE REAL-TIME POS KITCHEN TICKETS CONTAINER */}
+    
 {(() => {
   // 🛡️ Guardrail Layer for parent objects and contextual media flags
   const prepData = yesterdayPrepData || [];
@@ -64494,8 +64506,7 @@ return (
     </div>
   );
 })()}
-
- {/* ⏱️ CULINARY COMPONENTS & PREP TIME BOTTLENECK ANALYSIS */}
+{/* ⏱️ CULINARY COMPONENTS & PREP TIME BOTTLENECK ANALYSIS */}
 <div
   style={{
     gridColumn: "auto",
@@ -64503,10 +64514,12 @@ return (
     width: "100%",
     minWidth: 0,
     boxSizing: "border-box",
-alignSelf: "start",
-height: "fit-content",
-maxHeight: "500px",
-overflowY: "auto",
+
+    alignSelf: "start",
+    height: "fit-content",
+    maxHeight: "none",
+    overflowY: "visible",
+
     marginTop: "20px",
     padding: "22px",
     borderRadius: "22px",
@@ -65023,6 +65036,7 @@ overflowY: "auto",
       </div>
     )}
   </div>
+</div>
 </div>
    {/* 🔮 PREDICTIVE OPERATIONAL ALERTS */}
 {(() => {
