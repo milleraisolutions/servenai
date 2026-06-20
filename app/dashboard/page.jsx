@@ -64331,19 +64331,9 @@ return (
     </div>
   </div>
 )}
-<div
-  style={{
-    gridColumn: "1 / -1",
-    display: "grid",
-    gridTemplateColumns: isMobile
-      ? "1fr"
-      : "repeat(4, minmax(0, 1fr))",
-    gap: "18px",
-    alignItems: "start",
-  }}
->
+
     {/* 📲 LIVE REAL-TIME POS KITCHEN TICKETS CONTAINER */}
-    
+
 {(() => {
   // 🛡️ Guardrail Layer for parent objects and contextual media flags
   const prepData = yesterdayPrepData || [];
@@ -64388,7 +64378,15 @@ return (
         Ticket Prep Targets vs. POS Bump Times
       </h3>
 
-      <div style={{ display: "grid", gap: "12px" }}>
+      <div
+  style={{
+    display: "grid",
+    gridTemplateColumns: isMobile
+      ? "1fr"
+      : "repeat(2, minmax(320px, 1fr))",
+    gap: "12px",
+  }}
+>
         {prepData.length > 0 ? (
           prepData.map((order, index) => {
             // 🛡️ Clean Parsing Guards to block NaN breakdowns from corrupted POS timestamps
@@ -64588,7 +64586,15 @@ return (
     </div>
   )}
 
-  <div style={{ display: "grid", gap: "14px" }}>
+  <div
+  style={{
+    display: "grid",
+    gridTemplateColumns: isMobile
+      ? "1fr"
+      : "repeat(3, minmax(220px, 1fr))",
+    gap: "14px",
+  }}
+>
     {(
       hasOperationalData
         ? []
@@ -64945,7 +64951,15 @@ return (
     AI scans prime cost, labor, food cost, inventory, and waste signals to surface priority alerts.
   </p>
 
-  <div style={{ display: "grid", gap: "12px" }}>
+ <div
+  style={{
+    display: "grid",
+    gridTemplateColumns: isMobile
+      ? "1fr"
+      : "repeat(2, minmax(260px, 1fr))",
+    gap: "12px",
+  }}
+>
     {advancedAiAlerts?.length > 0 ? (
       advancedAiAlerts.map((alert, index) => {
         const isCritical = alert.level === "critical";
@@ -65037,7 +65051,7 @@ return (
     )}
   </div>
 </div>
-</div>
+
    {/* 🔮 PREDICTIVE OPERATIONAL ALERTS */}
 {(() => {
   // 🛡️ Data Hydration Defense to block rendering crashes during loading states
