@@ -63994,7 +63994,7 @@ flexWrap: "wrap",
 
     gridTemplateColumns: isMobile
       ? "1fr"
-     : "repeat(2, minmax(420px, 1fr))",
+     : "repeat(2, minmax(225px, 4fr))",
 
     gap: "18px",
     alignItems: "start",
