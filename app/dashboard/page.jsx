@@ -27906,9 +27906,9 @@ return (
       activeTab === "growth" ||
       activeTab === "inventory" ||
       activeTab === "labor" ||
-      activeTab === "operations"
-        ? "calc(100vw - 260px)"
-        : "1200px",
+     activeTab === "operations"
+  ? "100%"
+  : "1200px",
 
     margin: "0 0 0 -24px",
     minWidth: 0,
@@ -63983,18 +63983,18 @@ flexWrap: "wrap",
 <div
   style={{
     width: "100%",
-    maxWidth: "none",
+    maxWidth: "100%",
     minWidth: 0,
     margin: "0",
 
-    overflowX: "hidden",
+    overflowX: "visible",
     overflowY: "visible",
 
     display: "grid",
 
     gridTemplateColumns: isMobile
       ? "1fr"
-      : "repeat(4, minmax(260px, 1fr))",
+      : "repeat(4, minmax(220px, 1fr))",
 
     gap: "18px",
     alignItems: "start",
