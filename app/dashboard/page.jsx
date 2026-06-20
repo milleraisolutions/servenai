@@ -64503,7 +64503,10 @@ return (
     width: "100%",
     minWidth: 0,
     boxSizing: "border-box",
-
+alignSelf: "start",
+height: "fit-content",
+maxHeight: "500px",
+overflowY: "auto",
     marginTop: "20px",
     padding: "22px",
     borderRadius: "22px",
