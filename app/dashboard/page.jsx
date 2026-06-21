@@ -30969,6 +30969,50 @@ const color = !hasScore
   </div>
 )}
 
+<div
+  style={{
+    marginTop: "18px",
+    padding: "22px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.88))",
+    border: "1px solid rgba(148,163,184,0.16)",
+  }}
+>
+  <h3 style={sectionTitle}>Executive Loss Breakdown</h3>
+
+  <div style={{ display: "grid", gap: "10px", marginTop: "14px" }}>
+    {(topLossCategories || []).length > 0 ? (
+      topLossCategories.map((item, index) => (
+        <div
+          key={item.name}
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            gap: "12px",
+            padding: "12px",
+            borderRadius: "14px",
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(255,255,255,0.08)",
+          }}
+        >
+          <span style={{ color: "#cbd5e1", fontWeight: "800" }}>
+            #{index + 1} {item.name}
+          </span>
+
+          <span style={{ color: "#86efac", fontWeight: "950" }}>
+            ${Number(item.value || 0).toLocaleString()}/mo
+          </span>
+        </div>
+      ))
+    ) : (
+      <div style={{ color: "#94a3b8", fontSize: "14px" }}>
+        Upload POS, labor, inventory, beverage, and invoice data to identify
+        loss categories.
+      </div>
+    )}
+  </div>
+</div>
 {isServenOwner && (
   <RiskPanel
     riskPanelCardStyle={riskPanelCardStyle}
@@ -31642,8 +31686,10 @@ const color = !hasScore
     ))}
   </div>
 </div>
+
   </div>
 )}
+
 {/* 🧠 RESTAURANT AI HEALTH ENGINE */}
 <div
   style={{
@@ -57439,50 +57485,6 @@ profit recovery opportunities, AI recommendations, and forecasted trends.
   subtext="30% performance share"
 />
         </div>
-<div
-  style={{
-    marginTop: "18px",
-    padding: "22px",
-    borderRadius: "22px",
-    background:
-      "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.88))",
-    border: "1px solid rgba(148,163,184,0.16)",
-  }}
->
-  <h3 style={sectionTitle}>Executive Loss Breakdown</h3>
-
-  <div style={{ display: "grid", gap: "10px", marginTop: "14px" }}>
-    {(topLossCategories || []).length > 0 ? (
-      topLossCategories.map((item, index) => (
-        <div
-          key={item.name}
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            gap: "12px",
-            padding: "12px",
-            borderRadius: "14px",
-            background: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(255,255,255,0.08)",
-          }}
-        >
-          <span style={{ color: "#cbd5e1", fontWeight: "800" }}>
-            #{index + 1} {item.name}
-          </span>
-
-          <span style={{ color: "#86efac", fontWeight: "950" }}>
-            ${Number(item.value || 0).toLocaleString()}/mo
-          </span>
-        </div>
-      ))
-    ) : (
-      <div style={{ color: "#94a3b8", fontSize: "14px" }}>
-        Upload POS, labor, inventory, beverage, and invoice data to identify
-        loss categories.
-      </div>
-    )}
-  </div>
-</div>
 
         <div>
           <h3 style={sectionTitle}>
@@ -63914,6 +63916,68 @@ flexWrap: "wrap",
     boxSizing: "border-box",
   }}
 >
+  {hasProAccess && (
+  <div
+    style={{
+      marginTop: "18px",
+      padding: "22px",
+      borderRadius: "24px",
+      background:
+        "linear-gradient(135deg, rgba(239,68,68,0.12), rgba(15,23,42,0.94))",
+      border: "1px solid rgba(239,68,68,0.18)",
+    }}
+  >
+    <div
+      style={{
+        color: "#fca5a5",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+      }}
+    >
+      Shelf Life Exposure Intelligence
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "24px",
+        fontWeight: "900",
+        marginTop: "8px",
+      }}
+    >
+      ${Number(shelfLifeLoss || 0).toLocaleString()} at risk
+    </h3>
+
+    <p style={{ color: "#cbd5e1", marginTop: "10px" }}>
+      Inventory identified as being at risk of spoilage or expiration.
+    </p>
+
+    <div style={{ marginTop: "16px", display: "grid", gap: "10px" }}>
+      {(shelfLifeRiskItems || []).slice(0, 5).map((item, index) => (
+        <div
+          key={index}
+          style={{
+            padding: "12px",
+            borderRadius: "12px",
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(255,255,255,0.08)",
+          }}
+        >
+          <div style={{ color: "white", fontWeight: "800" }}>
+            {item.name || item.ingredient_name || "Ingredient"}
+          </div>
+
+          <div style={{ color: "#94a3b8", fontSize: "12px" }}>
+            Potential loss: $
+            {Number(item.loss || item.estimatedLoss || 0).toLocaleString()}
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
    {/* EXPECTED VS ACTUAL USAGE */}
 {(() => {
   // 🛡️ Safe extraction layer preventing crashes during async loading periods
