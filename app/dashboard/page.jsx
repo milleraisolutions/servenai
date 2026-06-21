@@ -27162,7 +27162,7 @@ if (uploadRow?.upload_type === "invoices") {
       ["client_data_uploads", "upload_id"],
       ["locations", "upload_id"],
     ];
-
+console.log("DELETE FINAL ID USED:", deleteUploadId);
     for (const [table, column] of deleteSteps) {
       const { error } = await supabase.from(table).delete().eq(column, deleteUploadId);
 
