@@ -27164,7 +27164,7 @@ if (uploadRow?.upload_type === "invoices") {
     ];
 
     for (const [table, column] of deleteSteps) {
-      const { error } = await supabase.from(table).delete().eq(column, uploadId);
+      const { error } = await supabase.from(table).delete().eq(column, deleteUploadId);
 
       if (error) {
         console.warn(`${table} delete skipped/failed:`, error);
