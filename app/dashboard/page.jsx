@@ -5613,7 +5613,8 @@ const handleFileUpload = async (e) => {
     uploadedAt: Date.now(),
     rows: menuRows,
   });
-
+setShowSourcePicker(false);
+alert(`Menu items file loaded: ${menuRows.length} rows ready. Click Confirm Import.`);
   if (!menuRows.length) {
     setMessage("Menu file loaded, but no valid menu item names were found.");
     return;
