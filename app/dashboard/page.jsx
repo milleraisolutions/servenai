@@ -6092,37 +6092,37 @@ setPendingUploadRows([]);
 };
 const handleImportMenuItems = async () => {
   try {
+    console.log("MENU IMPORT START");
     setMessage("Importing menu items...");
 
     const {
       data: { user },
     } = await supabase.auth.getUser();
 
-    if (!user?.id) {
+    const ownerId = dataOwnerId || user?.id;
+
+    if (!ownerId) {
       setMessage("You must be logged in to import menu items.");
+      alert("You must be logged in to import menu items.");
       return;
     }
 
-    const rawRowsToImport = pendingUploadSummary?.rows?.length
-      ? pendingUploadSummary.rows
-      : menuItemsData || [];
+    const rawRowsToImport =
+      pendingUploadSummary?.rows?.length
+        ? pendingUploadSummary.rows
+        : pendingUploadRows?.length
+        ? pendingUploadRows
+        : pendingUploadRowsRef?.current?.length
+        ? pendingUploadRowsRef.current
+        : menuItemsData?.length
+        ? menuItemsData
+        : [];
 
-    const rowsToImport = rawRowsToImport.filter((row) => {
-      const name = Array.isArray(row)
-        ? row[0]
-        : row.name ||
-          row.Name ||
-          row.item_name ||
-          row["Item Name"] ||
-          row.menu_item ||
-          row["Menu Item"];
+    console.log("MENU RAW ROWS:", rawRowsToImport);
 
-      const cleanName = String(name || "").trim().toLowerCase();
-      return cleanName && cleanName !== "name" && cleanName !== "item name";
-    });
-
-    if (!rowsToImport.length) {
-      setMessage("No menu items data found to import.");
+    if (!rawRowsToImport.length) {
+      setMessage("No menu rows found. Please upload the menu file again.");
+      alert("No menu rows found. Please upload the menu file again.");
       return;
     }
 
@@ -6148,7 +6148,7 @@ const handleImportMenuItems = async () => {
 
     const now = new Date().toISOString();
 
-    const cleanedRows = rowsToImport
+    const cleanedRows = rawRowsToImport
       .map((row) => {
         const isArrayRow = Array.isArray(row);
 
@@ -6162,6 +6162,7 @@ const handleImportMenuItems = async () => {
                 "Item Name",
                 "menu_item",
                 "Menu Item",
+                "Menu Item Name",
                 "item",
                 "Item",
                 "product",
@@ -6169,7 +6170,14 @@ const handleImportMenuItems = async () => {
               ])
         ).trim();
 
-        if (!name || name.toLowerCase() === "unnamed item") return null;
+        if (
+          !name ||
+          name.toLowerCase() === "name" ||
+          name.toLowerCase() === "item name" ||
+          name.toLowerCase() === "unnamed item"
+        ) {
+          return null;
+        }
 
         const category = String(
           isArrayRow
@@ -6216,7 +6224,7 @@ const handleImportMenuItems = async () => {
               ])
         );
 
-        const quantitySold = toNumber(
+        const uploadedQuantitySold = toNumber(
           isArrayRow
             ? row[4]
             : getValue(row, [
@@ -6248,8 +6256,6 @@ const handleImportMenuItems = async () => {
               ])
         );
 
-        const revenue = uploadedRevenue > 0 ? uploadedRevenue : price * quantitySold;
-
         const uploadedMargin = toNumber(
           isArrayRow
             ? row[6]
@@ -6262,57 +6268,59 @@ const handleImportMenuItems = async () => {
               ])
         );
 
+        const posRows =
+          dbSalesRows?.length
+            ? dbSalesRows
+            : locationSalesData?.length
+            ? locationSalesData
+            : salesData || [];
+
+        const matchingPOSRows = (posRows || []).filter((sale) => {
+          const saleItemName = String(
+            sale.name ||
+              sale.item ||
+              sale.menu_item ||
+              sale.item_name ||
+              sale.product ||
+              sale.product_name ||
+              sale.description ||
+              ""
+          )
+            .trim()
+            .toLowerCase();
+
+          return saleItemName === name.trim().toLowerCase();
+        });
+
+        const posQuantitySold = matchingPOSRows.reduce(
+          (sum, sale) =>
+            sum +
+            Number(
+              sale.quantity ||
+                sale.qty ||
+                sale.quantity_sold ||
+                sale.units_sold ||
+                sale.orders ||
+                0
+            ),
+          0
+        );
+
+        const finalQuantitySold =
+          uploadedQuantitySold > 0 ? uploadedQuantitySold : posQuantitySold;
+
+        const finalRevenue =
+          uploadedRevenue > 0 ? uploadedRevenue : price * finalQuantitySold;
+
         const margin =
           uploadedMargin > 0
             ? uploadedMargin
             : price > 0
             ? ((price - cost) / price) * 100
             : 0;
-const posRows =
-  dbSalesRows?.length
-    ? dbSalesRows
-    : locationSalesData?.length
-    ? locationSalesData
-    : salesData || [];
 
-const matchingPOSRows = (posRows || []).filter((sale) => {
-  const saleItemName = String(
-    sale.name ||
-      sale.item ||
-      sale.menu_item ||
-      sale.item_name ||
-      sale.product ||
-      sale.product_name ||
-      sale.description ||
-      ""
-  )
-    .trim()
-    .toLowerCase();
-
-  return saleItemName === String(name || "").trim().toLowerCase();
-});
-
-const posQuantitySold = matchingPOSRows.reduce(
-  (sum, sale) =>
-    sum +
-    Number(
-      sale.quantity ||
-        sale.qty ||
-        sale.quantity_sold ||
-        sale.units_sold ||
-        sale.orders ||
-        0
-    ),
-  0
-);
-
-const finalQuantitySold =
-  quantitySold > 0 ? quantitySold : posQuantitySold;
-
-const finalRevenue =
-  revenue > 0 ? revenue : price * finalQuantitySold;
         return {
-          user_id: user.id,
+          user_id: ownerId,
           name,
           category: category || "Uncategorized",
           price,
@@ -6327,8 +6335,11 @@ const finalRevenue =
       })
       .filter(Boolean);
 
+    console.log("MENU CLEANED ROWS:", cleanedRows);
+
     if (!cleanedRows.length) {
       setMessage("No valid menu items found after cleaning.");
+      alert("No valid menu items found after cleaning.");
       return;
     }
 
@@ -6336,7 +6347,7 @@ const finalRevenue =
       .from("uploads")
       .insert([
         {
-          user_id: user.id,
+          user_id: ownerId,
           file_name: pendingUploadSummary?.fileName || "Menu Items Upload",
           source_name: "Manual Upload",
           row_count: cleanedRows.length,
@@ -6351,10 +6362,12 @@ const finalRevenue =
 
     if (uploadError) throw uploadError;
 
+    console.log("MENU UPLOAD ROW:", uploadRow);
+
     const { data: existingRows, error: existingError } = await supabase
       .from("menu_items")
       .select("*")
-      .eq("user_id", dataOwnerId || user?.id)
+      .eq("user_id", ownerId);
 
     if (existingError) throw existingError;
 
@@ -6383,7 +6396,8 @@ const finalRevenue =
             is_active: true,
             last_seen_at: now,
           })
-          .eq("id", existing.id);
+          .eq("id", existing.id)
+          .eq("user_id", ownerId);
 
         if (error) throw error;
       } else {
@@ -6397,14 +6411,17 @@ const finalRevenue =
         if (error) throw error;
       }
     }
-const isFullMenuSync = cleanedRows.length >= 20;
+
+    const isFullMenuSync = cleanedRows.length >= 20;
+
     const menuItemsToDeactivate = isFullMenuSync
-  ? (existingRows || []).filter(
-      (item) =>
-        item.is_active !== false &&
-        !uploadedNames.includes(String(item.name || "").trim().toLowerCase())
-    )
-  : [];
+      ? (existingRows || []).filter(
+          (item) =>
+            item.is_active !== false &&
+            !uploadedNames.includes(String(item.name || "").trim().toLowerCase())
+        )
+      : [];
+
     for (const oldItem of menuItemsToDeactivate) {
       const { error } = await supabase
         .from("menu_items")
@@ -6412,7 +6429,8 @@ const isFullMenuSync = cleanedRows.length >= 20;
           is_active: false,
           last_seen_at: now,
         })
-        .eq("id", oldItem.id);
+        .eq("id", oldItem.id)
+        .eq("user_id", ownerId);
 
       if (error) throw error;
     }
@@ -6433,7 +6451,7 @@ const isFullMenuSync = cleanedRows.length >= 20;
     const { data: refreshedMenuItems, error: refreshError } = await supabase
       .from("menu_items")
       .select("*")
-     .eq("user_id", dataOwnerId || user?.id)
+      .eq("user_id", ownerId)
       .eq("is_active", true)
       .order("created_at", { ascending: false });
 
