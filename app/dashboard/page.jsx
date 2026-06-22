@@ -2579,12 +2579,7 @@ const revenueAlerts = useMemo(() => {
 
   return alerts.slice(0, 3);
 }, [revenueTrend, revenueTracker]);
-const revenueForecastConfidence = useMemo(() => {
-  if (appliedFixes.length >= 3) return 91;
-  if (appliedFixes.length === 2) return 84;
-  if (appliedFixes.length === 1) return 76;
-  return 68;
-}, [appliedFixes]);
+
 const revenueDrivers = useMemo(() => {
   let pricingTotal = 0;
   let laborTotal = 0;
@@ -3225,13 +3220,15 @@ const projectedWeekRevenue = useMemo(() => {
 }, [revenueTrend]);
 
 const foodCostTrendData =
-  revenueChartData?.length > 0
-    ? revenueChartData.map((row, index) => ({
-        day: row.day || row.label || `Day ${index + 1}`,
-        foodCostPercent: Number(foodCostPercentage || 0),
-        target: 30,
-        danger: 35,
-      }))
+  Number(foodCostPercentage || 0) > 0
+    ? [
+        {
+          date: "Current",
+          foodCostPercent: Number(foodCostPercentage || 0),
+          target: 30,
+          danger: 35,
+        },
+      ]
     : [];
     const laborVsRevenueData =
   revenueChartData?.length > 0
@@ -3298,7 +3295,10 @@ const profitLeakageChartData = useMemo(() => {
       const marginPercent =
         price > 0 ? ((price - cost) / price) * 100 : 0;
 
-      const targetMargin = 70;
+      const targetMargin =
+  Number(item.target_margin || item.targetMargin || item["Target Margin"] || 0) > 0
+    ? Number(item.target_margin || item.targetMargin || item["Target Margin"] || 0)
+    : Number(item.margin || item.margin_percent || item["Margin %"] || 0);
 
       const estimatedLoss =
         marginPercent < targetMargin && revenue > 0
@@ -3835,11 +3835,22 @@ const top3AITotalImpact = useMemo(() => {
 }, [top3AIActions]);
 
 const aiConfidenceScore = useMemo(() => {
-  if (top3AIActions.length >= 3) return 92;
-  if (top3AIActions.length === 2) return 84;
-  if (top3AIActions.length === 1) return 76;
-  return 68;
-}, [top3AIActions]);
+  const actionCount = Number(top3AIActions?.length || 0);
+  const impactScore = Number(top3AITotalImpact || 0);
+
+  if (actionCount <= 0 && impactScore <= 0) return 0;
+return Math.max(
+  0,
+  Math.min(
+    100,
+    Math.round(
+      45 +
+        actionCount * 12 +
+        Math.min(25, impactScore / 100)
+    )
+  )
+);
+}, [top3AIActions, top3AITotalImpact]);
 const proLockOverlay = (
   <div
     style={{
@@ -17208,93 +17219,67 @@ const riskProjectionTimelineData = useMemo(() => {
 }, [liveMomentumPercent, laborEfficiencyScore, livePrimeCost]);
 const clamp = (value, min = 0, max = 100) =>
   Math.max(min, Math.min(max, Math.round(Number(value || 0))));
+const clampScore = (value) => {
+  return Math.max(0, Math.min(100, Math.round(Number(value || 0))));
+};
 const aiHealthEngine = useMemo(() => {
   
+const scorePrimeCost = (() => {
+  const value = Number(livePrimeCost || primeCostPercentage || 0);
+  if (!value) return 0;
+  return clampScore(100 - Math.max(0, value - 55) * 4);
+})();
 
-  const scorePrimeCost = (() => {
-    const value = Number(livePrimeCost || primeCostPercentage || 0);
+const scoreLabor = (() => {
+  const value = Number(liveLaborIntelligence?.laborPercent || laborPercentage || 0);
+  if (!value) return 0;
+  return clampScore(100 - Math.abs(value - 25) * 4);
+})();
 
-    if (!value) return 65;
-    if (value <= 55) return 95;
-    if (value <= 60) return 85;
-    if (value <= 65) return 70;
-    if (value <= 70) return 50;
-    return 35;
-  })();
+const scoreFoodCost = (() => {
+  const value = Number(liveFoodCostPercentage || foodCostPercentage || 0);
+  if (!value) return 0;
+  return clampScore(100 - Math.max(0, value - 28) * 4);
+})();
 
-  const scoreLabor = (() => {
-    const value = Number(
-      liveLaborIntelligence?.laborPercent || laborPercentage || 0
-    );
+const scoreMargin = (() => {
+  const value = Number(liveAvgMargin || avgMargin || 0);
+  if (!value) return 0;
+  return clampScore(value * 1.25);
+})();
 
-    if (!value) return 65;
-    if (value <= 25) return 95;
-    if (value <= 30) return 85;
-    if (value <= 35) return 65;
-    if (value <= 40) return 45;
-    return 30;
-  })();
+const scoreInventory = (() => {
+  const critical = Number(criticalInventoryItems?.length || 0);
+  const totalItems = Number(inventoryDepletionData?.length || 0);
 
-  const scoreFoodCost = (() => {
-    const value = Number(liveFoodCostPercentage || foodCostPercentage || 0);
+  if (totalItems <= 0) return 0;
 
-    if (!value) return 65;
-    if (value <= 28) return 95;
-    if (value <= 31) return 82;
-    if (value <= 35) return 62;
-    if (value <= 40) return 45;
-    return 30;
-  })();
+  return clampScore(100 - critical * 12);
+})();
 
-  const scoreMargin = (() => {
-    const value = Number(liveAvgMargin || avgMargin || 0);
+const scoreWaste = (() => {
+  const wasteSignals = Number(aiWasteDetection?.length || 0);
+  const totalItems = Number(
+    locationIngredientsData?.length || inventoryData?.length || 0
+  );
 
-    if (!value) return 65;
-    if (value >= 70) return 95;
-    if (value >= 60) return 85;
-    if (value >= 50) return 65;
-    if (value >= 40) return 45;
-    return 30;
-  })();
+  if (totalItems <= 0) return 0;
 
-  const scoreInventory = (() => {
-    const critical = Number(criticalInventoryItems?.length || 0);
+  return clampScore(100 - wasteSignals * 10);
+})();
 
-    if (critical === 0) return 92;
-    if (critical <= 2) return 75;
-    if (critical <= 5) return 55;
-    return 35;
-  })();
+const scoreVendor = (() => {
+  const spikes = (vendorPriceSpikeData || []).filter(
+    (item) => Number(item.priceChange || 0) > 10
+  ).length;
 
-  const scoreWaste = (() => {
-    const wasteSignals = Number(aiWasteDetection?.length || 0);
+  return clampScore(100 - spikes * 12);
+})();
 
-    if (wasteSignals === 0) return 90;
-    if (wasteSignals <= 2) return 72;
-    if (wasteSignals <= 5) return 52;
-    return 35;
-  })();
-
-  const scoreVendor = (() => {
-    const spikes = (vendorPriceSpikeData || []).filter(
-      (item) => Number(item.priceChange || 0) > 10
-    ).length;
-
-    if (spikes === 0) return 90;
-    if (spikes <= 2) return 70;
-    if (spikes <= 5) return 50;
-    return 35;
-  })();
-
-  const scoreRevenue = (() => {
-    const momentum = Number(liveMomentumPercent || 0);
-
-    if (momentum > 10) return 95;
-    if (momentum > 3) return 85;
-    if (momentum >= 0) return 75;
-    if (momentum >= -8) return 55;
-    return 35;
-  })();
+const scoreRevenue = (() => {
+  const momentum = Number(liveMomentumPercent || 0);
+  return clampScore(70 + momentum * 2);
+})();
 
 /* =========================
    AI CONSUMABLES INTELLIGENCE
@@ -20887,9 +20872,7 @@ const advancedBeverageInsight = (() => {
    AI RESTAURANT HEALTH SYSTEM
 ========================= */
 
-const clampScore = (value) => {
-  return Math.max(0, Math.min(100, Math.round(Number(value || 0))));
-};
+
 
 
 const laborScore = clampScore(laborHealthScoreData?.score);
@@ -42573,12 +42556,14 @@ Restaurant AI Health is currently rated{" "}
           }}
         >
           {liveLaborIntelligence?.laborPercent <= 0
-            ? "--"
-            : liveLaborIntelligence.laborPercent > activeBenchmarks.labor.high
-            ? "62/100"
-            : liveLaborIntelligence.laborPercent < activeBenchmarks.labor.low
-            ? "74/100"
-            : "91/100"}
+  ? "--"
+  : `${Math.max(
+      0,
+      Math.min(
+        100,
+        Math.round(100 - Math.abs(Number(liveLaborIntelligence.laborPercent || 0) - 24) * 3)
+      )
+    )}/100`}
         </div>
       </div>
 
@@ -42641,21 +42626,27 @@ Restaurant AI Health is currently rated{" "}
           marginTop: "18px",
           marginBottom: "18px",
         }}
-      >
-        {[42, 58, 61, 48, 74, 63, 56].map((value, index) => (
-          <div
-            key={index}
-            style={{
-              flex: 1,
-              borderRadius: "8px 8px 0 0",
-              height: `${value}%`,
-              background:
-                value > 65
-                  ? "linear-gradient(to top, #ef4444, #fca5a5)"
-                  : "linear-gradient(to top, #3b82f6, #93c5fd)",
-            }}
-          />
-        ))}
+      >{(shiftOperationalData || []).map((shift, index) => {
+  const value = Math.min(
+    Math.max(Number(shift.laborPercent || 0), 10),
+    100
+  );
+
+  return (
+    <div
+      key={index}
+      style={{
+        flex: 1,
+        borderRadius: "8px 8px 0 0",
+        height: `${value}%`,
+        background:
+          shift.laborPercent > activeBenchmarks.labor.high
+            ? "linear-gradient(to top, #ef4444, #fca5a5)"
+            : "linear-gradient(to top, #3b82f6, #93c5fd)",
+      }}
+    />
+  );
+})}
       </div>
 
       <p
@@ -42714,8 +42705,19 @@ Restaurant AI Health is currently rated{" "}
           lineHeight: 1.6,
         }}
       >
-        Forecast: maintaining current staffing patterns could increase labor
-        pressure by 6% over the next 30 days if revenue slows.
+       {liveLaborIntelligence?.laborPercent <= 0
+  ? "Forecast: upload labor data to activate labor pressure forecasting."
+  : liveLaborIntelligence.laborPercent > activeBenchmarks.labor.high
+  ? `Forecast: labor pressure is elevated at ${Number(
+      liveLaborIntelligence.laborPercent || 0
+    ).toFixed(1)}%. Reducing slower-shift labor could protect margins.`
+  : liveLaborIntelligence.laborPercent < activeBenchmarks.labor.low
+  ? `Forecast: labor is low at ${Number(
+      liveLaborIntelligence.laborPercent || 0
+    ).toFixed(1)}%. Watch for service pressure during peak sales windows.`
+  : `Forecast: labor is healthy at ${Number(
+      liveLaborIntelligence.laborPercent || 0
+    ).toFixed(1)}%. Current staffing is aligned with uploaded revenue.`}
       </div>
     </div>
   </div>
@@ -43580,12 +43582,20 @@ Restaurant AI Health is currently rated{" "}
         },
         {
           label: "Inventory Health",
-          value:
-            criticalBurnItems.length > 0
-              ? "62/100"
-              : watchBurnItems.length > 0
-              ? "81/100"
-              : "96/100",
+         value:
+  inventoryDepletionData?.length > 0
+    ? `${Math.max(
+        0,
+        Math.min(
+          100,
+          Math.round(
+            100 -
+              Number(criticalBurnItems?.length || 0) * 12 -
+              Number(watchBurnItems?.length || 0) * 6
+          )
+        )
+      )}/100`
+    : "--",
           sub: "AI inventory efficiency",
         },
       ].map((item) => (
@@ -45438,7 +45448,7 @@ minWidth: 0,
           </div>
 
           <div style={{ color: "#86efac", fontSize: "18px", fontWeight: "900" }}>
-            {revenueForecastConfidence || 68}%
+            {realForecastConfidence}%
           </div>
         </div>
 
@@ -45842,7 +45852,7 @@ minWidth: 0,
             whiteSpace: "nowrap", // Prevents pill text breaking into two rows
           }}
         >
-          {Number(revenueForecastConfidence || 0)}% confidence
+          {realForecastConfidence}% confidence
         </div>
       </div>
 
