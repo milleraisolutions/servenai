@@ -28551,7 +28551,121 @@ return (
         ))}
     </div>
   )}
-</div>{/* ✅ AI ONBOARDING CENTER */}
+</div>
+
+{/* UPLOAD SUMMARY + CONFIRM */}
+{pendingUploadSummary && (
+  <div
+    style={{
+      marginTop: "14px",
+      padding: "14px 16px",
+      borderRadius: "16px",
+      background: "rgba(255,255,255,0.04)",
+      border: "1px solid rgba(148,163,184,0.16)",
+      width: "100%",
+    }}
+  >
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        gap: "12px",
+        alignItems: "flex-start",
+      }}
+    >
+      <div>
+        <div style={{ color: "white", fontWeight: "800", fontSize: "14px" }}>
+          {pendingUploadSummary.fileName || "Uploaded file"}
+        </div>
+
+        <div style={{ color: "#94a3b8", fontSize: "12px", marginTop: "4px" }}>
+          {Number(pendingUploadSummary.rowCount || 0).toLocaleString()} rows ready
+        </div>
+      </div>
+
+      <button
+        type="button"
+        onClick={() => {
+          setPendingUploadSummary(null);
+          setMenuItemsData([]);
+          setIngredientsData([]);
+          setMessage("");
+        }}
+        style={{
+          border: "none",
+          background: "rgba(239,68,68,0.12)",
+          color: "#f87171",
+          borderRadius: "10px",
+          padding: "8px 12px",
+          fontWeight: "800",
+          cursor: "pointer",
+        }}
+      >
+        X
+      </button>
+    </div>
+
+   <button
+  type="button"
+  onClick={() => {
+   const pendingType =
+  pendingUploadSummary?.uploadType &&
+  pendingUploadSummary.uploadType !== "unknown"
+    ? pendingUploadSummary.uploadType
+    : null;
+
+const currentType =
+  pendingType ||
+  selectedUploadTypeRef.current ||
+  uploadType;
+console.log("CONFIRM IMPORT CURRENT TYPE:", {
+  currentType,
+  pendingUploadSummaryType: pendingUploadSummary?.uploadType,
+  selectedUploadType: selectedUploadTypeRef.current,
+  uploadType,
+});
+if (currentType === "menu_items") {
+  handleImportMenuItems();
+
+} else if (currentType === "ingredients") {
+  handleImportIngredients();
+
+} else if (currentType === "labor") {
+  handleImportLabor();
+
+} else if (currentType === "inventory") {
+ console.log("RUNNING INVENTORY IMPORT");
+handleImportInventory();
+
+} else if (currentType === "invoices") {
+  handleImportInvoices();
+} else if (currentType === "batch_prep") {
+  handleImportBatchPrep();
+
+} else if (currentType === "pos") {
+  handleImportMappedSales();
+
+} else {
+  setMessage("No matched upload type.");
+}
+  }}
+  style={{
+    marginTop: "12px",
+    padding: "10px 14px",
+    borderRadius: "12px",
+    border: "none",
+    background: "linear-gradient(135deg, #4f46e5, #6D3DF5)",
+    color: "white",
+    fontWeight: "800",
+    cursor: "pointer",
+  }}
+>
+  Confirm Import
+</button>
+  </div>
+)}
+
+{/* ✅ AI ONBOARDING CENTER */}
 <div
   style={{
     marginBottom: "22px",
@@ -29831,117 +29945,7 @@ const timeToImpact =
 </>
 )}
 
-{/* UPLOAD SUMMARY + CONFIRM */}
-{pendingUploadSummary && (
-  <div
-    style={{
-      marginTop: "14px",
-      padding: "14px 16px",
-      borderRadius: "16px",
-      background: "rgba(255,255,255,0.04)",
-      border: "1px solid rgba(148,163,184,0.16)",
-      width: "100%",
-    }}
-  >
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        gap: "12px",
-        alignItems: "flex-start",
-      }}
-    >
-      <div>
-        <div style={{ color: "white", fontWeight: "800", fontSize: "14px" }}>
-          {pendingUploadSummary.fileName || "Uploaded file"}
-        </div>
 
-        <div style={{ color: "#94a3b8", fontSize: "12px", marginTop: "4px" }}>
-          {Number(pendingUploadSummary.rowCount || 0).toLocaleString()} rows ready
-        </div>
-      </div>
-
-      <button
-        type="button"
-        onClick={() => {
-          setPendingUploadSummary(null);
-          setMenuItemsData([]);
-          setIngredientsData([]);
-          setMessage("");
-        }}
-        style={{
-          border: "none",
-          background: "rgba(239,68,68,0.12)",
-          color: "#f87171",
-          borderRadius: "10px",
-          padding: "8px 12px",
-          fontWeight: "800",
-          cursor: "pointer",
-        }}
-      >
-        X
-      </button>
-    </div>
-
-   <button
-  type="button"
-  onClick={() => {
-   const pendingType =
-  pendingUploadSummary?.uploadType &&
-  pendingUploadSummary.uploadType !== "unknown"
-    ? pendingUploadSummary.uploadType
-    : null;
-
-const currentType =
-  pendingType ||
-  selectedUploadTypeRef.current ||
-  uploadType;
-console.log("CONFIRM IMPORT CURRENT TYPE:", {
-  currentType,
-  pendingUploadSummaryType: pendingUploadSummary?.uploadType,
-  selectedUploadType: selectedUploadTypeRef.current,
-  uploadType,
-});
-if (currentType === "menu_items") {
-  handleImportMenuItems();
-
-} else if (currentType === "ingredients") {
-  handleImportIngredients();
-
-} else if (currentType === "labor") {
-  handleImportLabor();
-
-} else if (currentType === "inventory") {
- console.log("RUNNING INVENTORY IMPORT");
-handleImportInventory();
-
-} else if (currentType === "invoices") {
-  handleImportInvoices();
-} else if (currentType === "batch_prep") {
-  handleImportBatchPrep();
-
-} else if (currentType === "pos") {
-  handleImportMappedSales();
-
-} else {
-  setMessage("No matched upload type.");
-}
-  }}
-  style={{
-    marginTop: "12px",
-    padding: "10px 14px",
-    borderRadius: "12px",
-    border: "none",
-    background: "linear-gradient(135deg, #4f46e5, #6D3DF5)",
-    color: "white",
-    fontWeight: "800",
-    cursor: "pointer",
-  }}
->
-  Confirm Import
-</button>
-  </div>
-)}
 {/* MESSAGE */}
 {message && (
   <div
