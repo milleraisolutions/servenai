@@ -663,26 +663,55 @@ const latestAiAction = aiHistory?.length ? aiHistory[0] : null;
   } = useDashboardData();
 
 const activeBenchmarks = {
-  labor: {
-    low: 18,
-    high: 30,
-  },
   foodCost: {
-    low: 24,
+    low: 28,
     high: 32,
   },
-  primeCost: {
-    low: 50,
-    high: 65,
+  laborCost: {
+    low: 20,
+    high: 30,
+  },
+  labor: {
+    low: 20,
+    high: 30,
   },
   margin: {
     low: 60,
     high: 75,
   },
+  primeCost: {
+    low: 55,
+    high: 60,
+  },
 };
 
 
+const updateCampaignRevenueAutomatically = async () => {
+  try {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
 
+    const user = session?.user;
+    if (!user?.id) return;
+
+    const estimatedRevenue = Number(totalRevenue || 0);
+    const campaignRevenue = Math.round(estimatedRevenue * 0.08); // 8% attribution estimate
+
+    const { error } = await supabase
+      .from("campaigns")
+      .update({
+        actual_revenue: campaignRevenue,
+      })
+      .eq("user_id", user.id)
+      .eq("active", true)
+      .eq("launched_by", "autopilot");
+
+    if (error) throw error;
+  } catch (err) {
+    console.error("Failed to update campaign revenue:", err);
+  }
+};
   useEffect(() => {
   if (!hasProAccess) return;
   if (!totalRevenue || totalRevenue <= 0) return;
@@ -2063,7 +2092,7 @@ const handleSaveCampaign = async (campaign) => {
   channel,
   audience: campaignForm.audience || "All Customers",
   timing: campaignForm.timing || "This Week",
-  impact: "Simulation Mode",
+  impact: data?.impact || "Awaiting performance data",
   status: "Draft",
 };
 
@@ -4807,8 +4836,8 @@ const getRecommendedActionForAlert = (alert) => {
     action.text ||
     "Recommended optimization",
   impact: action.estimatedGain
-    ? `+$${Number(action.estimatedGain).toFixed(0)}/mo`
-    : "+$0/mo",
+  ? `+$${Number(action.estimatedGain).toFixed(0)}/mo`
+  : "Impact pending",
 });
 
   const matchByKeywords = (keywords) =>
@@ -5259,7 +5288,8 @@ Antoine`);
 }, []);
 
 console.log("CLIENTUPLOADS STATE VALUE:", clientUploads);
-
+console.log("TRACE AFTER CLIENTUPLOADS");
+console.log("TRACE BEFORE HANDLE LOGOUT");
 const handleLogout = async () => {
   console.log("START LOGOUT");
 
@@ -5289,7 +5319,9 @@ const handleLogout = async () => {
     window.location.replace("/login");
   }
 };
-const getDailyUploadStatus = (client) => {
+console.log("TRACE AFTER HANDLE LOGOUT");
+console.log("TRACE BEFORE DAILY UPLOAD STATUS");
+function getDailyUploadStatus(client) {
   if (!client?.created_at) {
     return {
       label: "No Upload",
@@ -5300,6 +5332,16 @@ const getDailyUploadStatus = (client) => {
   }
 
   const uploadDate = new Date(client.created_at);
+
+  if (Number.isNaN(uploadDate.getTime())) {
+    return {
+      label: "No Upload",
+      color: "#f87171",
+      bg: "rgba(239,68,68,0.12)",
+      border: "1px solid rgba(239,68,68,0.18)",
+    };
+  }
+
   const now = new Date();
 
   const uploadDay = new Date(
@@ -5341,24 +5383,43 @@ const getDailyUploadStatus = (client) => {
     bg: "rgba(239,68,68,0.12)",
     border: "1px solid rgba(239,68,68,0.18)",
   };
-};
-const overdueClients = (clientUploads || []).filter((client) => {
-  const status = getDailyUploadStatus(client);
-  return status.label === "Overdue" || status.label === "Needs Upload";
-});
+}
+const uploadStatusMetrics = useMemo(() => {
+  const uploads = clientUploads || [];
 
-const uploadedTodayCount = (clientUploads || []).filter((client) => {
-  const status = getDailyUploadStatus(client);
-  return status.label === "Uploaded Today";
-}).length;
+  const overdue = uploads.filter((client) => {
+    const status = getDailyUploadStatus(client);
+    return status.label === "Overdue" || status.label === "Needs Upload";
+  });
 
-const overdueCount = overdueClients.filter(
-  (client) => getDailyUploadStatus(client).label === "Overdue"
-).length;
+  const uploadedToday = uploads.filter((client) => {
+    const status = getDailyUploadStatus(client);
+    return status.label === "Uploaded Today";
+  }).length;
 
-const needsUploadCount = overdueClients.filter(
-  (client) => getDailyUploadStatus(client).label === "Needs Upload"
-).length;
+  const overdueOnly = overdue.filter(
+    (client) => getDailyUploadStatus(client).label === "Overdue"
+  ).length;
+
+  const needsUpload = overdue.filter(
+    (client) => getDailyUploadStatus(client).label === "Needs Upload"
+  ).length;
+
+  return {
+    overdueClients: overdue,
+    uploadedTodayCount: uploadedToday,
+    overdueCount: overdueOnly,
+    needsUploadCount: needsUpload,
+  };
+}, [clientUploads]);
+
+const overdueClients = uploadStatusMetrics.overdueClients;
+const uploadedTodayCount = uploadStatusMetrics.uploadedTodayCount;
+const overdueCount = uploadStatusMetrics.overdueCount;
+const needsUploadCount = uploadStatusMetrics.needsUploadCount;
+
+console.log("TRACE AFTER DAILY UPLOAD STATUS");
+console.log("TRACE BEFORE UNDO DELETE CLIENT UPLOAD");
 const undoDeleteClientUpload = async () => {
   if (!recentlyDeletedUpload) return;
 
@@ -5384,6 +5445,7 @@ const undoDeleteClientUpload = async () => {
     console.error("Undo delete error:", err);
   }
 };
+console.log("TRACE AFTER UNDO DELETE CLIENT UPLOAD");
 const detectColumn = (sample, keywords = []) => {
   const columns = Object.keys(sample || {});
   return (
@@ -5479,10 +5541,10 @@ const handleFileUpload = async (e) => {
     pendingUploadRowsRef.current = safeRows;
     setPendingUploadRows(safeRows);
 
-    console.log("ATTEMPTING UPLOAD LOG INSERT", {
-  userId: user.id,
-  fileName: file.name,
-  locationId: selectedUploadLocationId,
+   console.log("ATTEMPTING UPLOAD LOG INSERT", {
+  userId: user?.id || null,
+  fileName: file?.name || "",
+  locationId: selectedUploadLocationId || null,
 });
 
  if (activeUploadType === "pos") {
@@ -5885,6 +5947,8 @@ e.target.value = "";
   alert(error?.message || "There was an error reading that file.");
 }
 };
+console.log("TRACE AFTER HANDLE FILE UPLOAD");
+console.log("TRACE BEFORE IMPORT MAPPED SALES");
 const handleImportMappedSales = async () => {
   if (importLockRef.current) return;
   importLockRef.current = true;
@@ -6102,6 +6166,8 @@ setPendingUploadRows([]);
   setImportingPOS(false);
 }
 };
+console.log("TRACE AFTER IMPORT MAPPED SALES");
+console.log("TRACE BEFORE IMPORT MENU ITEMS");
 const handleImportMenuItems = async () => {
   try {
     console.log("MENU IMPORT START");
@@ -6484,6 +6550,8 @@ const handleImportMenuItems = async () => {
     alert(error?.message || "Menu items import failed.");
   }
 };
+console.log("TRACE AFTER IMPORT MENU ITEMS");
+console.log("TRACE BEFORE IMPORT INGREDIENTS");
 const handleImportIngredients = async () => {
   try {
     console.log("INGREDIENTS CONFIRM CLICKED");
@@ -6830,6 +6898,8 @@ console.log("INGREDIENT STEP 7: ingredient rows synced", savedRows.length);
     alert(error?.message || "Ingredients import failed.");
   }
 };
+console.log("TRACE AFTER IMPORT INGREDIENTS");
+console.log("TRACE BEFORE CLEAN DATE");
 const cleanDate = (value) => {
   if (!value || String(value).trim() === "") return null;
 
@@ -6838,6 +6908,8 @@ const cleanDate = (value) => {
 
   return date.toISOString().split("T")[0];
 };
+console.log("TRACE AFTER CLEAN DATE");
+console.log("TRACE BEFORE IMPORT INVOICES");
 const handleImportInvoices = async () => {
   try {
     setMessage("Importing invoice items...");
@@ -6886,7 +6958,7 @@ console.log("INVOICE STEP 1: started");
   .insert([
     {
       user_id: user.id,
-      upload_id: uploadRow?.id || null,
+      upload_id: null,
       supplier_name: supplierName || "Unknown Supplier",
       invoice_date: invoiceDate || null,
       file_name: pendingUploadSummary?.fileName || "Invoice Upload",
@@ -7001,6 +7073,7 @@ await logAuditEvent({
     alert(error?.message || "Invoice import failed.");
   }
 };
+console.log("TRACE AFTER IMPORT INVOICES");
 const selectedUploadTypeRef = useRef("pos");
 
 const startOptimisticImport = ({ fileName, sourceName, rowCount }) => {
@@ -7803,48 +7876,7 @@ const [restockForm, setRestockForm] = useState({
   quantityAdded: "",
   costPerUnit: "",
 });
-const inventoryAlerts = useMemo(() => {
-  if (!inventoryRestockContext?.items) return [];
 
-  const alerts = [];
-
-  inventoryRestockContext.items.forEach((item) => {
-    if (item.daysOnHand <= 2) {
-    alerts.push({
-  type: "critical",
-  message: `${item.name} will run out in ${item.daysOnHand.toFixed(1)} days`,
-  suggestion: `Suggested order: ${Math.ceil(
-    Math.max(Number(item.maxQuantity || 0) - Number(item.quantity || 0), 0)
-  )} ${item.unit || "units"}`,
-
-  // 👇 ADD THESE
-  ingredientName: item.name,
-  suggestedQuantity: Math.ceil(
-    Math.max(Number(item.maxQuantity || 0) - Number(item.quantity || 0), 0)
-  ),
-  unit: item.unit || "units",
-});
-    }
-
-    if (item.usedFromSales > 0 && item.daysOnHand <= 5) {
-      alerts.push({
-        type: "usage",
-        message: `${item.name} usage increased from sales (${item.usedFromSales.toFixed(
-          1
-        )} used)`,
-      });
-    }
-
-    if (item.quantity <= item.parLevel) {
-      alerts.push({
-        type: "low_stock",
-        message: `${item.name} is below par level`,
-      });
-    }
-  });
-
-  return alerts.slice(0, 5);
-}, [inventoryRestockContext]);
 const [outOfStockIngredient, setOutOfStockIngredient] = useState("");
 const handleRestockIngredient = async () => {
   if (!restockForm.ingredientName || !restockForm.quantityAdded) return;
@@ -8933,10 +8965,10 @@ if (unusualDropDetected || revenueDrop > 10) {
   };
 }
 if (!campaign) return;
-  Form = {
-    ...campaignForm,
-    ...campaign,
-  };
+  const updatedForm = {
+  ...campaignForm,
+  ...campaign,
+};
 
   setCampaignForm(updatedForm);
 
@@ -9064,32 +9096,7 @@ const updateAIRevenue = async (newTotal) => {
     console.error("Failed to update AI revenue:", err);
   }
 };
-const updateCampaignRevenueAutomatically = async () => {
-  try {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
 
-    const user = session?.user;
-    if (!user?.id) return;
-
-    const estimatedRevenue = Number(totalRevenue || 0);
-    const campaignRevenue = Math.round(estimatedRevenue * 0.08); // 8% attribution estimate
-
-    const { error } = await supabase
-      .from("campaigns")
-      .update({
-        actual_revenue: campaignRevenue,
-      })
-      .eq("user_id", user.id)
-      .eq("active", true)
-      .eq("launched_by", "autopilot");
-
-    if (error) throw error;
-  } catch (err) {
-    console.error("Failed to update campaign revenue:", err);
-  }
-};
 const revenueTrendData =
   revenueChartData?.length > 0
     ? revenueChartData.map((item) => ({
@@ -9481,6 +9488,48 @@ const loadRestockLogs = async () => {
 
   setRestockLogs(data || []);
 };
+const inventoryAlerts = useMemo(() => {
+  if (!inventoryRestockContext?.items) return [];
+
+  const alerts = [];
+
+  inventoryRestockContext.items.forEach((item) => {
+    if (item.daysOnHand <= 2) {
+    alerts.push({
+  type: "critical",
+  message: `${item.name} will run out in ${item.daysOnHand.toFixed(1)} days`,
+  suggestion: `Suggested order: ${Math.ceil(
+    Math.max(Number(item.maxQuantity || 0) - Number(item.quantity || 0), 0)
+  )} ${item.unit || "units"}`,
+
+  // 👇 ADD THESE
+  ingredientName: item.name,
+  suggestedQuantity: Math.ceil(
+    Math.max(Number(item.maxQuantity || 0) - Number(item.quantity || 0), 0)
+  ),
+  unit: item.unit || "units",
+});
+    }
+
+    if (item.usedFromSales > 0 && item.daysOnHand <= 5) {
+      alerts.push({
+        type: "usage",
+        message: `${item.name} usage increased from sales (${item.usedFromSales.toFixed(
+          1
+        )} used)`,
+      });
+    }
+
+    if (item.quantity <= item.parLevel) {
+      alerts.push({
+        type: "low_stock",
+        message: `${item.name} is below par level`,
+      });
+    }
+  });
+
+  return alerts.slice(0, 5);
+}, [inventoryRestockContext]);
 useEffect(() => {
   const sendAutomaticInventoryAlerts = async () => {
     if (!inventoryAlerts?.length) return;
@@ -10254,6 +10303,7 @@ if (usageVariancePercent >= 25) {
     "High variance suggests inventory loss or repeated waste patterns"
   );
 }
+
 const combinedInventoryAlerts = [
   ...(inventoryAlerts || []),
   ...(expectedUsageAlerts || []),
@@ -10403,23 +10453,18 @@ const topAIRecommendedAction =
         description:
           "AI systems are actively monitoring operational stability and profitability.",
         priority: "Stable",
-        impact: "$0/mo",
+       impact: "No active recovery detected",
         action: "View AI Monitoring",
       };
       const aiFinancialImpactBreakdown = [
   {
-    label: "Waste Recovery",
-    amount:
-      shiftWasteAlerts.length > 0
-        ? 2400
-        : usageVariancePercent >= 7
-        ? 1100
-        : 0,
-  },
-  {
-    label: "Inventory Control",
-    amount: ingredientUsageAnomalies.length > 0 ? 1900 : 0,
-  },
+  label: "Waste Recovery",
+  amount: Math.round(Number(totalWasteLoss || 0)),
+},
+{
+  label: "Inventory Control",
+  amount: Math.round(Number(totalWasteLoss || 0)),
+},
   {
     label: "Menu Optimization",
     amount: suspiciousMenuItems.length > 0 ? 1400 : 0,
@@ -17145,7 +17190,7 @@ const primeCostForecastChartData = useMemo(() => {
 
   return Array.from({ length: 8 }).map((_, index) => ({
     label: index === 0 ? "Current" : `Forecast ${index}`,
-    primeCost: Number((basePrimeCost + index * 0.4).toFixed(1)),
+    primeCost: Number(basePrimeCost.toFixed(1)),
     healthyTarget: 60,
     criticalLine: 65,
   }));
@@ -17164,7 +17209,7 @@ const laborForecastChartData = useMemo(() => {
 
   return Array.from({ length: 8 }).map((_, index) => ({
     label: index === 0 ? "Current" : `Forecast ${index}`,
-    labor: Number((avgLabor + index * 0.3).toFixed(1)),
+    labor: Number(avgLabor.toFixed(1)),
     healthy: 28,
     danger: 35,
   }));
@@ -17183,7 +17228,7 @@ const marginForecastChartData = useMemo(() => {
 
   return Array.from({ length: 8 }).map((_, index) => ({
     label: index === 0 ? "Current" : `Forecast ${index}`,
-    margin: Number((avgMargin - index * 0.4).toFixed(1)),
+   margin: Number(avgMargin.toFixed(1)),
     healthy: 70,
     danger: 55,
   }));
@@ -19493,100 +19538,7 @@ const inventoryHealthScoreData = useMemo(() => {
   inventoryData,
   ingredientsData,
 ]);
-const inventoryExecutiveAlertsFeed = useMemo(() => {
-  const hasInventoryData =
-    (inventoryData || []).length > 0 ||
-    (ingredientsData || []).length > 0 ||
-    (inventoryDepletionData || []).length > 0 ||
-    (locationIngredientsData || []).length > 0;
 
-  if (!hasInventoryData) {
-    return [
-      {
-        title: "Inventory data needed",
-        detail:
-          "Upload inventory or ingredient data to activate inventory health, depletion risk, restock pressure, and revenue exposure alerts.",
-        priority: "Waiting",
-      },
-    ];
-  }
-
-  const alerts = [];
-
-  if (inventoryHealthScoreData?.score < 60) {
-    alerts.push({
-      title: "Inventory health critical",
-      detail: `Inventory Health Score is ${inventoryHealthScoreData.score}/100. Review critical stockouts, low-stock items, and revenue risk immediately.`,
-      priority: "Critical",
-    });
-  } else if (inventoryHealthScoreData?.score < 75) {
-    alerts.push({
-      title: "Inventory pressure rising",
-      detail: `Inventory Health Score is ${inventoryHealthScoreData.score}/100. Low-stock items and depletion risk should be reviewed.`,
-      priority: "High",
-    });
-  }
-
-  (criticalInventoryItems || []).slice(0, 3).forEach((item) => {
-    alerts.push({
-      title: `${item.name || item.ingredient || "Inventory item"} critical`,
-      detail: `Projected depletion risk detected. Current stock may run out within ${
-        item.daysRemaining || 2
-      } days.`,
-      priority: "Critical",
-    });
-  });
-
-  (lowInventoryItems || []).slice(0, 3).forEach((item) => {
-    alerts.push({
-      title: `${item.name || item.ingredient || "Inventory item"} running low`,
-      detail: `Low-stock warning detected. Estimated ${
-        item.daysRemaining || 5
-      } days remaining based on current usage velocity.`,
-      priority: "High",
-    });
-  });
-
-  if (Number(inventoryAISummary?.estimatedRisk || 0) > 2500) {
-    alerts.push({
-      title: "Inventory cost risk elevated",
-      detail: `Estimated weekly inventory risk is $${Number(
-        inventoryAISummary?.estimatedRisk || 0
-      ).toLocaleString()}. Prioritize high-impact restock and waste controls.`,
-      priority: "High",
-    });
-  }
-
-  if (Number(inventoryAISummary?.potentialRevenueLoss || 0) > 3500) {
-    alerts.push({
-      title: "Potential revenue loss detected",
-      detail: `Projected revenue exposure is $${Number(
-        inventoryAISummary?.potentialRevenueLoss || 0
-      ).toLocaleString()} from inventory constraints or stockout risk.`,
-      priority: "Critical",
-    });
-  }
-
-  if (!alerts.length) {
-    alerts.push({
-      title: "Inventory operations stable",
-      detail:
-        "No major inventory risks detected. SerVen is monitoring depletion, usage velocity, restock pressure, and revenue exposure.",
-      priority: "Normal",
-    });
-  }
-
-  return alerts.slice(0, 6);
-}, [
-  inventoryHealthScoreData,
-  criticalInventoryItems,
-  lowInventoryItems,
-  inventoryAISummary,
-  inventoryData,
-  ingredientsData,
-  inventoryDepletionData,
-  locationIngredientsData,
-]);
 
 const deadInventoryData = useMemo(() => {
   const items = inventoryDepletionData || [];
@@ -20070,7 +20022,100 @@ Recommended focus areas include reducing prime cost pressure, reviewing vendor i
   financialHealthScoreData,
   profitRiskForecastData,
 ]);
+const inventoryExecutiveAlertsFeed = useMemo(() => {
+  const hasInventoryData =
+    (inventoryData || []).length > 0 ||
+    (ingredientsData || []).length > 0 ||
+    (inventoryDepletionData || []).length > 0 ||
+    (locationIngredientsData || []).length > 0;
 
+  if (!hasInventoryData) {
+    return [
+      {
+        title: "Inventory data needed",
+        detail:
+          "Upload inventory or ingredient data to activate inventory health, depletion risk, restock pressure, and revenue exposure alerts.",
+        priority: "Waiting",
+      },
+    ];
+  }
+
+  const alerts = [];
+
+  if (inventoryHealthScoreData?.score < 60) {
+    alerts.push({
+      title: "Inventory health critical",
+      detail: `Inventory Health Score is ${inventoryHealthScoreData.score}/100. Review critical stockouts, low-stock items, and revenue risk immediately.`,
+      priority: "Critical",
+    });
+  } else if (inventoryHealthScoreData?.score < 75) {
+    alerts.push({
+      title: "Inventory pressure rising",
+      detail: `Inventory Health Score is ${inventoryHealthScoreData.score}/100. Low-stock items and depletion risk should be reviewed.`,
+      priority: "High",
+    });
+  }
+
+  (criticalInventoryItems || []).slice(0, 3).forEach((item) => {
+    alerts.push({
+      title: `${item.name || item.ingredient || "Inventory item"} critical`,
+      detail: `Projected depletion risk detected. Current stock may run out within ${
+        item.daysRemaining || 2
+      } days.`,
+      priority: "Critical",
+    });
+  });
+
+  (lowInventoryItems || []).slice(0, 3).forEach((item) => {
+    alerts.push({
+      title: `${item.name || item.ingredient || "Inventory item"} running low`,
+      detail: `Low-stock warning detected. Estimated ${
+        item.daysRemaining || 5
+      } days remaining based on current usage velocity.`,
+      priority: "High",
+    });
+  });
+
+  if (Number(inventoryAISummary?.estimatedRisk || 0) > 2500) {
+    alerts.push({
+      title: "Inventory cost risk elevated",
+      detail: `Estimated weekly inventory risk is $${Number(
+        inventoryAISummary?.estimatedRisk || 0
+      ).toLocaleString()}. Prioritize high-impact restock and waste controls.`,
+      priority: "High",
+    });
+  }
+
+  if (Number(inventoryAISummary?.potentialRevenueLoss || 0) > 3500) {
+    alerts.push({
+      title: "Potential revenue loss detected",
+      detail: `Projected revenue exposure is $${Number(
+        inventoryAISummary?.potentialRevenueLoss || 0
+      ).toLocaleString()} from inventory constraints or stockout risk.`,
+      priority: "Critical",
+    });
+  }
+
+  if (!alerts.length) {
+    alerts.push({
+      title: "Inventory operations stable",
+      detail:
+        "No major inventory risks detected. SerVen is monitoring depletion, usage velocity, restock pressure, and revenue exposure.",
+      priority: "Normal",
+    });
+  }
+
+  return alerts.slice(0, 6);
+}, [
+  inventoryHealthScoreData,
+  criticalInventoryItems,
+  lowInventoryItems,
+  inventoryAISummary,
+  inventoryData,
+  ingredientsData,
+  inventoryDepletionData,
+  locationIngredientsData,
+]);
 const unifiedAIAlertsFeed = useMemo(() => {
   const combined = [
     ...(laborAlertsFeed || []).map((alert) => ({
@@ -36086,9 +36131,7 @@ Restaurant AI Health is currently rated{" "}
         (locationPerformanceData || []).length
           ? locationPerformanceData
           : [
-              { name: "Location 1", revenue: 0, orders: 0 },
-              { name: "Location 2", revenue: 0, orders: 0 },
-              { name: "Location 3", revenue: 0, orders: 0 },
+           
             ]
       }
       margin={{ top: 10, right: 24, left: 0, bottom: 24 }}
@@ -36575,9 +36618,7 @@ Restaurant AI Health is currently rated{" "}
               orders: Number(location.orders || 0),
             }))
           : [
-              { name: "Location 1", revenue: 0, orders: 0 },
-              { name: "Location 2", revenue: 0, orders: 0 },
-              { name: "Location 3", revenue: 0, orders: 0 },
+              
             ]
       }
       margin={{ top: 10, right: 24, left: 0, bottom: 24 }}
@@ -36792,21 +36833,7 @@ Restaurant AI Health is currently rated{" "}
     {((locationPerformanceData || []).length
       ? locationPerformanceData
       : [
-          {
-            name: "Location 1",
-            health: "Healthy",
-            score: 82,
-          },
-          {
-            name: "Location 2",
-            health: "Watch Closely",
-            score: 68,
-          },
-          {
-            name: "Location 3",
-            health: "At Risk",
-            score: 54,
-          },
+
         ]
     ).map((location, index) => {
       const score = Number(location.score || location.healthScore || 72);
@@ -36946,23 +36973,7 @@ Restaurant AI Health is currently rated{" "}
       ? [...locationPerformanceData].sort(
           (a, b) => Number(b.revenue || 0) - Number(a.revenue || 0)
         )
-      : [
-          {
-            name: "Location 1",
-            revenue: 42000,
-            margin: 68,
-          },
-          {
-            name: "Location 2",
-            revenue: 31000,
-            margin: 61,
-          },
-          {
-            name: "Location 3",
-            revenue: 24000,
-            margin: 54,
-          },
-        ]
+    : []
     ).map((location, index) => (
       <div
         key={location.name || index}
@@ -37098,9 +37109,7 @@ Restaurant AI Health is currently rated{" "}
     {((locationPerformanceData || []).length
       ? locationPerformanceData
       : [
-          { name: "Location 1", revenue: 42000, score: 86 },
-          { name: "Location 2", revenue: 31000, score: 74 },
-          { name: "Location 3", revenue: 24000, score: 62 },
+          
         ]
     ).map((location, index) => {
       const score = Number(location.score || location.healthScore || 75);
@@ -41718,7 +41727,9 @@ Restaurant AI Health is currently rated{" "}
           fontWeight: "750",
         }}
       >
-        Recommended action: bundle your top seller with a high-margin add-on.
+        {salesDistributionData?.[0]?.name
+  ? `Recommended action: review ${salesDistributionData[0].name} and pair it with a higher-margin add-on if margin data supports it.`
+  : "Recommended action: upload menu revenue and margin data to generate a real menu recommendation."}
       </div>
     </div>
   </div>
@@ -43044,10 +43055,15 @@ Restaurant AI Health is currently rated{" "}
         lineHeight: 1.7,
       }}
     >
-      Based on current staffing patterns, SerVen predicts labor pressure may
-      increase during slower sales windows over the next 14 days. Optimizing
-      schedules around high-volume periods could improve operational efficiency
-      and protect profit margins.
+      {mostLaborHeavyShift?.laborPercent > 35
+  ? `${mostLaborHeavyShift.shift} is showing elevated labor pressure at ${Number(
+      mostLaborHeavyShift.laborPercent || 0
+    ).toFixed(1)}%. Review staffing for that shift first.`
+  : weakestShift?.revenue > 0
+  ? `${weakestShift.shift} is the weakest revenue shift. Review staffing, promotions, and menu mix during that window.`
+  : topShift?.shift
+  ? `${topShift.shift} is currently your strongest shift. Protect staffing and inventory during that window.`
+  : "Upload sales and labor data to activate shift forecasting."}
     </div>
   </div>
 </div>
@@ -63131,7 +63147,7 @@ return (
     : "Upload guest activity and customer data to activate retention intelligence.",
 
   result: hasOperationalData
-    ? "+$0/mo potential recovery"
+    ? `+$${Math.round(Number(estimatedRecoverableProfit || 0) * 0.15).toLocaleString()}/mo potential recovery`
     : "Simulation Mode",
 
   status: hasOperationalData
@@ -63146,7 +63162,7 @@ return (
     : "Upload labor and sales data to activate staffing optimization.",
 
   result: hasOperationalData
-    ? "+$0/mo profit protection"
+    ? `+$${Math.round(Number(estimatedLaborRecovery || 0)).toLocaleString()}/mo profit protection`
     : "Simulation Mode",
 
   status: hasOperationalData
@@ -63161,7 +63177,12 @@ return (
     : "Upload menu and sales mix data to activate menu profitability AI.",
 
   result: hasOperationalData
-  ? "+$0/mo margin upside"
+  ? `+$${Math.round(
+  profitLeakageChartData.reduce(
+    (sum, item) => sum + Number(item.loss || 0),
+    0
+  )
+).toLocaleString()}/mo margin upside`
   : "Simulation Mode",
 
   status: hasOperationalData
@@ -63176,7 +63197,9 @@ return (
     : "Upload inventory and invoice data to activate waste optimization intelligence.",
 
   result: hasOperationalData
-  ? "+$0/mo waste reduction"
+  ? `+$${Math.round(
+  Number(operationalEstimatedWasteRecovery || 0)
+).toLocaleString()}/mo waste reduction`
   : "Simulation Mode",
 
   status: hasOperationalData
@@ -74274,7 +74297,9 @@ minWidth: 0,
     : "Upload labor and revenue data to activate live labor scenario modeling.",
 
   impact: hasOperationalData
-    ? "+$0/mo profit protection"
+   ? `+$${Math.round(
+    Number(estimatedLaborRecovery || 0)
+  ).toLocaleString()}/mo profit protection`
     : "Simulation Mode",
 
   confidence: hasOperationalData
@@ -74292,7 +74317,7 @@ minWidth: 0,
     : "Upload guest activity or customer data to activate retention simulations.",
 
   impact: hasOperationalData
-   ? "+$0/mo potential recovery"
+   ? `+$${Math.round(Number(estimatedRecoverableProfit || 0) * 0.15).toLocaleString()}/mo potential recovery`
     : "Simulation Mode",
 
   confidence: hasOperationalData
@@ -74310,7 +74335,12 @@ minWidth: 0,
     : "Upload menu and sales mix data to activate live menu profitability simulations.",
 
   impact: hasOperationalData
-  ? "+$0/mo margin upside"
+  ? `+$${Math.round(
+  profitLeakageChartData.reduce(
+    (sum, item) => sum + Number(item.loss || 0),
+    0
+  )
+).toLocaleString()}/mo margin upside`
   : "Simulation Mode",
 
   confidence: hasOperationalData
@@ -74328,7 +74358,9 @@ minWidth: 0,
     : "Upload inventory, usage, and invoice data to activate waste recovery simulations.",
 
 impact: hasOperationalData
-  ? "+$0/mo waste recovery"
+  ? `+$${Math.round(
+    Number(operationalEstimatedWasteRecovery || 0)
+  ).toLocaleString()}/mo waste recovery`
   : "Simulation Mode",
 
   confidence: hasOperationalData
@@ -74912,7 +74944,9 @@ impact: hasOperationalData
                   }}
                 >
                   {hasOperationalData
-  ? "Estimated impact: +$0/mo"
+  ? `Estimated impact: +$${Math.round(
+    Number(totalAIRecoveryOpportunity || 0)
+  ).toLocaleString()}/mo`
   : "Estimated impact: Awaiting Data"}
                 </div>
 
@@ -74966,7 +75000,9 @@ impact: hasOperationalData
                   }}
                 >
                  {hasOperationalData
-  ? "Estimated impact: +$0/mo"
+  ? `Estimated impact: +$${Math.round(
+    Number(totalAIRecoveryOpportunity || 0)
+  ).toLocaleString()}/mo`
   : "Estimated impact: Awaiting Data"}
                 </div>
 
