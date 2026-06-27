@@ -191,7 +191,7 @@ const selectedAiFixRef = useRef(null);
 const [aiHistory, setAiHistory] = useState([]);
 const [totalAiProfit, setTotalAiProfit] = useState(0);
 const [displayTotalAiProfit, setDisplayTotalAiProfit] = useState(0);
-const [displaySimulatedProfit, setDisplaySimulatedProfit] = useState(0);
+
 const [selectedClient, setSelectedClient] = useState(null);
 const [clientSearch, setClientSearch] = useState("");
 const [selectedRiskClient, setSelectedRiskClient] = useState(null);
@@ -584,7 +584,7 @@ const [expandedAIAction, setExpandedAIAction] = useState(null);
     "Your margins can improve by optimizing pricing."
   );
 const latestAiAction = aiHistory?.length ? aiHistory[0] : null;
-  const [simulatedProfit, setSimulatedProfit] = useState(0);
+ 
   const [appliedFixes, setAppliedFixes] = useState([]);
   const [activeTab, setActiveTab] = useState("overview");
   const [autopilot, setAutopilot] = useState(false);
@@ -637,11 +637,7 @@ const latestAiAction = aiHistory?.length ? aiHistory[0] : null;
     inventoryForecastInsight,
     menuOptimization,
     menuOptimizationInsight,
-    simulatorProjectedRevenue,
-    simulatorProjectedProfit,
-    simulatorProfitLift,
-    simulatorMarginLift,
-    simulatorInsight,
+   
     priceElasticitySignals,
     elasticityInsight,
     salesAnalyzerInsight,
@@ -1704,42 +1700,54 @@ useEffect(() => {
     ...prev,
   ].slice(0, 8));
 };
-  const handleOptimizeCampaigns = () => {
-    if (!generatedPromotions) return;
+ const handleOptimizeCampaigns = () => {
+  if (!generatedPromotions) return;
 
-    const mockPerformance = {
-      impressions: 1200,
-      clicks: 180,
-      conversions: 30,
-      revenue: 2500,
-    };
+  const hasCampaignPerformance =
+    savedCampaigns.some(
+      (campaign) =>
+        Number(campaign.impressions || 0) > 0 ||
+        Number(campaign.clicks || 0) > 0 ||
+        Number(campaign.conversions || 0) > 0 ||
+        Number(campaign.actual_revenue || campaign.revenue || 0) > 0
+    );
 
-    const optimized = {
-      sms: optimizeCampaignAI(
-        generatedPromotions.sms,
-        mockPerformance,
-        businessType
-      ),
-      email: optimizeCampaignAI(
-        generatedPromotions.email,
-        mockPerformance,
-        businessType
-      ),
-      social: optimizeCampaignAI(
-        generatedPromotions.social,
-        mockPerformance,
-        businessType
-      ),
-      inStore: optimizeCampaignAI(
-        generatedPromotions.inStore,
-        mockPerformance,
-        businessType
-      ),
-    };
+  if (!hasCampaignPerformance) {
+    setOptimizedCampaigns(null);
+    setSavedMessage("Upload or connect campaign performance data first.");
+    setTimeout(() => setSavedMessage(""), 2500);
+    return;
+  }
 
-    setOptimizedCampaigns(optimized);
-    pushActivity("AI optimized campaign copy across all channels", "optimize");
+  const livePerformance = savedCampaigns.reduce(
+    (totals, campaign) => ({
+      impressions:
+        totals.impressions + Number(campaign.impressions || 0),
+      clicks: totals.clicks + Number(campaign.clicks || 0),
+      conversions:
+        totals.conversions + Number(campaign.conversions || 0),
+      revenue:
+        totals.revenue +
+        Number(campaign.actual_revenue || campaign.revenue || 0),
+    }),
+    {
+      impressions: 0,
+      clicks: 0,
+      conversions: 0,
+      revenue: 0,
+    }
+  );
+
+  const optimized = {
+    sms: optimizeCampaignAI(generatedPromotions.sms, livePerformance, businessType),
+    email: optimizeCampaignAI(generatedPromotions.email, livePerformance, businessType),
+    social: optimizeCampaignAI(generatedPromotions.social, livePerformance, businessType),
+    inStore: optimizeCampaignAI(generatedPromotions.inStore, livePerformance, businessType),
   };
+
+  setOptimizedCampaigns(optimized);
+  pushActivity("AI optimized campaign copy using live campaign performance", "optimize");
+};
 const getTabButtonStyle = (isActive, locked) => {
   return {
     width: "100%",
@@ -1840,61 +1848,51 @@ const handleGeneratePromotions = () => {
 
   
 };
-  function optimizeCampaignAI(campaign, performance, businessType) {
-    const ctr = performance.impressions
-      ? performance.clicks / performance.impressions
-      : 0;
+ function optimizeCampaignAI(campaign, performance, businessType) {
+  const ctr = performance.impressions
+    ? performance.clicks / performance.impressions
+    : 0;
 
-    const conversionRate = performance.clicks
-      ? performance.conversions / performance.clicks
-      : 0;
+  const conversionRate = performance.clicks
+    ? performance.conversions / performance.clicks
+    : 0;
 
-    let suggestions = [];
-    let optimized = { ...campaign };
-    let projectedLift = 0;
+  let suggestions = [];
+  let optimized = { ...campaign };
 
-    if (ctr < 0.15) {
-      optimized.title = `${campaign.title} 🔥 Limited Time`;
-      suggestions.push("Boost urgency in headline to increase clicks");
-      projectedLift += 400;
-    }
-
-    if (conversionRate < 0.2) {
-      optimized.body = `${campaign.body} — Exclusive deal for today only!`;
-      suggestions.push("Added urgency to increase conversions");
-      projectedLift += 650;
-    }
-
-    if (conversionRate > 0.3) {
-      suggestions.push("High-performing campaign — consider increasing ad spend");
-      projectedLift += 900;
-    }
-
-    if (businessType === "coffee") {
-      optimized.body += " ☕ Perfect for your daily coffee fix.";
-      projectedLift += 150;
-    }
-
-    if (businessType === "restaurant") {
-      optimized.body += " 🍽️ Limited reservations available!";
-      projectedLift += 250;
-    }
-
-    if (projectedLift === 0) {
-      projectedLift = 300;
-      suggestions.push(
-        "Campaign is healthy, but minor copy improvements can still lift results"
-      );
-    }
-
-    return {
-      optimized,
-      suggestions,
-      ctr: (ctr * 100).toFixed(1),
-      conversionRate: (conversionRate * 100).toFixed(1),
-      projectedLift,
-    };
+  if (ctr < 0.15) {
+    optimized.title = `${campaign.title} 🔥 Limited Time`;
+    suggestions.push("Boost urgency in headline to increase clicks");
   }
+
+  if (conversionRate < 0.2) {
+    optimized.body = `${campaign.body} — Exclusive deal for today only!`;
+    suggestions.push("Added urgency to increase conversions");
+  }
+
+  if (conversionRate > 0.3) {
+    suggestions.push("High-performing campaign — consider increasing ad spend");
+  }
+
+  if (businessType === "coffee") {
+    optimized.body += " ☕ Perfect for your daily coffee fix.";
+  }
+
+  if (businessType === "restaurant") {
+    optimized.body += " 🍽️ Limited reservations available!";
+  }
+
+  if (!suggestions.length) {
+    suggestions.push("Campaign is healthy. No major copy changes needed.");
+  }
+
+  return {
+    optimized,
+    suggestions,
+    ctr: (ctr * 100).toFixed(1),
+    conversionRate: (conversionRate * 100).toFixed(1),
+  };
+}
 /* ===============================
    🤖 AI PROFIT OPPORTUNITIES (PRO)
 ================================= */
@@ -2681,26 +2679,16 @@ const getTrend = (value, inverse = false) => {
 const revenueLiftTimeline = useMemo(() => {
   const currentRevenue = Number(totalRevenue || 0);
 
-  const aiLift = topAiActions.reduce((sum, action) => {
-    if (!appliedFixes.includes(action.title)) return sum;
-
-    return (
-      sum + Number(String(action.impact || "").replace(/[^0-9]/g, ""))
-    );
-  }, 0);
-
-  const month1 = currentRevenue;
-  const month2 = currentRevenue + aiLift * 0.4;
-  const month3 = currentRevenue + aiLift * 0.75;
-  const month4 = currentRevenue + aiLift;
-
   return [
-    { label: "Current Month", revenue: month1 },
-    { label: "Next Month", revenue: month2 },
-    { label: "Month 3", revenue: month3 },
-    { label: "Optimized Run Rate", revenue: month4 },
+    { label: "Current Month", revenue: currentRevenue },
+    {
+      label: "Applied AI Recovery",
+      revenue: currentRevenue + Number(totalAiProfit || 0),
+    },
+    { label: "Current Run Rate", revenue: currentRevenue },
+    { label: "Live Revenue Baseline", revenue: currentRevenue },
   ];
-}, [totalRevenue, topAiActions, appliedFixes]);
+}, [totalRevenue, totalAiProfit]);
 const marginTrendBadge = getTrend(Number(avgMargin || 0) - 60);
 const foodCostTrendBadge = getTrend(Number(foodCostPercentage || 0) - 30, true);
 const revenueTrendBadge = getTrend(
@@ -2917,8 +2905,8 @@ const handleLaunchCampaign = async (campaign) => {
       audience: campaignForm.audience || "All Customers",
       timing: campaignForm.timing || "This Week",
       impact: campaignForm.expectedRevenue
-        ? `+$${campaignForm.expectedRevenue}/month`
-        : "+$1,200/mo",
+  ? `+$${Number(campaignForm.expectedRevenue || 0).toLocaleString()}/month`
+  : "+$0/mo",
       status: "draft",
     };
 
@@ -3239,7 +3227,7 @@ const revenueChartData = useMemo(() => {
 // Temporary placeholder so old chart references don't crash
 const aiProfitTrendData = [];
 
-const projectedWeekRevenue = useMemo(() => {
+const estimatedWeekRevenueRunRate = useMemo(() => {
   const todayIndex = new Date().getDay() + 1;
   const currentRevenue = Number(revenueTrend?.currentWeekRevenue || 0);
 
@@ -3423,34 +3411,10 @@ useEffect(() => {
 
 
 useEffect(() => {
-  if (displaySimulatedProfit === simulatedProfit) return;
-
-  const diff = simulatedProfit - displaySimulatedProfit;
-  const step = Math.abs(diff) < 10 ? diff : diff / 8;
-
-  const timer = setTimeout(() => {
-    setDisplaySimulatedProfit((prev) => {
-      const next = prev + step;
-
-      if (
-        (diff > 0 && next >= simulatedProfit) ||
-        (diff < 0 && next <= simulatedProfit)
-      ) {
-        return simulatedProfit;
-      }
-
-      return next;
-    });
-  }, 40);
-
-  return () => clearTimeout(timer);
-}, [simulatedProfit, displaySimulatedProfit]);
-useEffect(() => {
   if (!autopilot) return;
 
   aiProfitOpportunities.forEach((item) => {
     if (!appliedFixes.includes(item.id)) {
-      setSimulatedProfit((prev) => prev + item.impact);
       setAppliedFixes((prev) => [...prev, item.id]);
     }
   });
@@ -3603,7 +3567,7 @@ setTopAiActions(
             String(topAction?.impact || 0).replace(/[^0-9]/g, "")
           ) || 0;
 
-        setSimulatedProfit((prev) => prev + value);
+   
         setAppliedFixes((prev) => [...prev, actionKey]);
 
         const savedAction = await saveAppliedAIAction({
@@ -3691,7 +3655,7 @@ useEffect(() => {
       String(nextAction.impact || "").replace(/[^0-9]/g, "")
     );
 
-    setSimulatedProfit((prev) => prev + (value || 0));
+   
 
     setAppliedFixes((prev) =>
       prev.includes(nextAction.title)
@@ -3974,16 +3938,7 @@ const getAIWhyReason = (action) => {
 
   return `AI detected this as a high-value opportunity based on current revenue, margin, labor, and cost signals across your dashboard.`;
 };
-const projectedRevenueLift = useMemo(() => {
-  const currentRevenue = Number(totalRevenue || 0);
 
-  return {
-    currentRevenue,
-    aiLift: 0,
-    projectedRevenue: currentRevenue,
-    percentLift: 0,
-  };
-}, [totalRevenue]);
 const weeklyChangeSummary = useMemo(() => {
   const currentWeekRevenue =
   Number(revenueTrend?.currentWeekRevenue || 0) ||
@@ -4424,7 +4379,7 @@ const applyTopRecommendedFix = () => {
 
   const value = Number(nextAction.estimatedGain || 0);
 
-  setSimulatedProfit((prev) => prev + value);
+ 
 
   setAppliedFixes((prev) =>
     prev.includes(nextAction.name) ? prev : [...prev, nextAction.name]
@@ -7152,44 +7107,16 @@ const runRealProfitEngine = async () => {
       return data;
     }
 
-    const fallbackProfitActions = [
-      {
-        title: "Increase price on high-demand items",
-        issue:
-          "Revenue data shows demand, but margin opportunities may be underpriced.",
-        recommendation:
-          "Test a small price increase on your strongest selling items.",
-        estimatedMonthlyImpact: 1200,
-        type: "pricing",
-      },
-      {
-        title: "Reduce food cost on low-margin items",
-        issue:
-          "Some menu items may be leaking profit through high ingredient cost.",
-        recommendation:
-          "Review portion size, supplier cost, or recipe cost on margin-risk items.",
-        estimatedMonthlyImpact: 900,
-        type: "food_cost",
-      },
-      {
-        title: "Promote higher-margin menu items",
-        issue:
-          "Sales can be shifted toward items with better profit contribution.",
-        recommendation:
-          "Run a promotion that pushes high-margin dishes during slower periods.",
-        estimatedMonthlyImpact: 1500,
-        type: "marketing",
-      },
-    ];
+  
 
     const fallbackData = {
-      actions: fallbackProfitActions,
-    };
+  actions: [],
+};
 
-    setRealProfitEngine(fallbackData);
-    setMessage("AI Profit Engine generated starter profit opportunities.");
+setRealProfitEngine(fallbackData);
+setMessage("Upload sales, menu, labor, or inventory data to generate profit opportunities.");
 
-    return fallbackData;
+return fallbackData;
   } catch (error) {
     console.error("Real Profit Engine error:", error);
     setMessage("AI Profit Engine failed.");
@@ -7652,7 +7579,7 @@ const handleApplyAiFix = async () => {
 
   const impact = 1200;
 
-  setSimulatedProfit((prev) => Number(prev || 0) + impact);
+
   handleResolveAlert(autopilotRecommendation.alert);
 
   setMessage(`Applied fix: +$${impact.toLocaleString()}/month improvement`);
@@ -7678,13 +7605,13 @@ const weeklyDashboardContext = useMemo(() => {
   const avgDailyRevenue =
     daysPassed > 0 ? currentWeekRevenue / daysPassed : 0;
 
-  const projectedRestOfWeekRevenue = avgDailyRevenue * daysLeft;
-  const projectedFullWeekRevenue =
-    currentWeekRevenue + projectedRestOfWeekRevenue;
+const estimatedRestOfWeekRevenue = avgDailyRevenue * daysLeft;
+const estimatedFullWeekRevenue =
+  currentWeekRevenue + estimatedRestOfWeekRevenue;
 
   const weeklyChangePercent =
     lastWeekRevenue > 0
-      ? ((projectedFullWeekRevenue - lastWeekRevenue) / lastWeekRevenue) * 100
+      ?((estimatedFullWeekRevenue - lastWeekRevenue) / lastWeekRevenue) * 100
       : 0;
 
   return {
@@ -7705,8 +7632,8 @@ const weeklyDashboardContext = useMemo(() => {
     currentWeekRevenue,
     lastWeekRevenue,
     avgDailyRevenue,
-    projectedRestOfWeekRevenue,
-    projectedFullWeekRevenue,
+   estimatedRestOfWeekRevenue,
+estimatedFullWeekRevenue,
     weeklyChangePercent,
   };
 }, [revenueTrend]);
@@ -7721,19 +7648,19 @@ const weeklyContext = useMemo(() => {
   const lastWeekRevenue = Number(revenueTrend?.lastWeekRevenue || 0);
 
   const avgDaily = daysPassed > 0 ? currentWeekRevenue / daysPassed : 0;
-  const projectedRest = avgDaily * daysLeft;
-  const projectedTotal = currentWeekRevenue + projectedRest;
+  const estimatedRest = avgDaily * daysLeft;
+const estimatedTotal = currentWeekRevenue + estimatedRest;
 
   const weeklyChange =
     lastWeekRevenue > 0
-      ? ((projectedTotal - lastWeekRevenue) / lastWeekRevenue) * 100
+      ?((estimatedTotal - lastWeekRevenue) / lastWeekRevenue) * 100
       : 0;
 
   return {
     daysPassed,
     daysLeft,
     avgDaily,
-    projectedTotal,
+   estimatedTotal,
     weeklyChange,
   };
 }, [revenueTrend]);
@@ -7796,7 +7723,7 @@ salesUsageNote,
 
   const items = (locationIngredientsData || []).map((item) => {
     const quantity = Number(item.quantity || 0);
-    const avgDailyUsage = Number(item.avg_daily_usage || item.daily_usage || 1);
+    const avgDailyUsage = Number(item.avg_daily_usage || item.daily_usage || 0);
     const costPerUnit = Number(item.cost_per_unit || 0);
 
     const daysOnHand =
@@ -7859,12 +7786,45 @@ const handleAutoRestockFromAlert = async (alert) => {
       unit,
       alert,
     });
+const { data: ingredientRow, error: ingredientFetchError } = await supabase
+  .from("ingredients")
+  .select("id, quantity")
+  .eq("user_id", dataOwnerId || user.id)
+  .ilike("name", ingredientName)
+  .maybeSingle();
 
-    // For now this simulates the restock action.
-    // Later we can connect this to Supabase so it updates the ingredients table.
-    await new Promise((resolve) => setTimeout(resolve, 400));
+if (ingredientFetchError || !ingredientRow) {
+  console.error("Ingredient not found for auto restock:", ingredientFetchError);
+  setInventoryAutopilotStatus(`Ingredient not found: ${ingredientName}`);
+  return false;
+}
 
-    return true;
+const newQuantity =
+  Number(ingredientRow.quantity || 0) + Number(suggestedQuantity || 0);
+
+const { error: ingredientUpdateError } = await supabase
+  .from("ingredients")
+  .update({
+    quantity: newQuantity,
+    last_seen_at: new Date().toISOString(),
+  })
+  .eq("id", ingredientRow.id);
+
+if (ingredientUpdateError) {
+  console.error("Auto restock update failed:", ingredientUpdateError);
+  setInventoryAutopilotStatus("Auto restock failed");
+  return false;
+}
+
+await supabase.from("inventory_restock_logs").insert({
+  user_id: dataOwnerId || user.id,
+  ingredient_name: ingredientName,
+  quantity_added: suggestedQuantity,
+  restock_type: "ai_restock",
+});
+
+setInventoryAutopilotStatus(`${ingredientName} restocked successfully`);
+return true;
   } catch (error) {
     console.error("Auto restock failed:", error);
     setInventoryAutopilotStatus("Auto restock failed");
@@ -8152,7 +8112,7 @@ useEffect(() => {
 }, [autopilotEnabled]);
 useEffect(() => {
   let start = Number(displayProfit || 0);
-  const end = Number(simulatedProfit || 0);
+  const end = Number(totalAiProfit || 0);
 
   if (start === end) return;
 
@@ -8171,7 +8131,7 @@ useEffect(() => {
   }, 30);
 
   return () => clearInterval(interval);
-}, [simulatedProfit]);
+}, [totalAiProfit]);
 
 const visibleAIActions =
   realProfitEngine?.actions?.length
@@ -8239,8 +8199,8 @@ const safeSales =
     : Array.isArray(realSalesMetrics?.salesData) && realSalesMetrics.salesData.length
     ? realSalesMetrics.salesData
     : [];
-const projectedRevenue =
-  Number(totalRevenue || 0) + Number(aiRecoveredProfit || 0);
+const currentRevenueWithRecoveredProfit =
+  Number(totalRevenue || 0) + Number(totalAiProfit || 0);
 const inputStyle = {
   width: "100%",
   padding: "12px 14px",
@@ -10387,12 +10347,18 @@ const estimatedShiftRecovery = shiftWasteAlerts.reduce(
   0
 );
 
-const estimatedInventoryRecovery =
-  (combinedInventoryAlerts || []).filter(
-    (alert) =>
-      alert.type === "critical" &&
-      alert.ingredientName
-  ).length * 75;
+const estimatedInventoryRecovery = (combinedInventoryAlerts || []).reduce(
+  (sum, alert) =>
+    sum +
+    Number(
+      alert.estimatedLoss ||
+        alert.riskAmount ||
+        alert.impact ||
+        alert.value ||
+        0
+    ),
+  0
+);
 
 const estimatedTotalRecovery =
   estimatedWasteRecovery +
@@ -10410,6 +10376,58 @@ const aiOperationalSummary =
     : aiLossPreventionScore >= 50
     ? "Elevated loss risk detected. Waste patterns, inventory variance, and suspicious operational signals are impacting profitability."
     : "Critical operational risk detected. AI identified significant loss exposure across food usage, inventory control, and shift activity.";
+const formatMonthlyImpact = (value) => {
+  const amount = Math.max(0, Math.round(Number(value || 0)));
+
+  return amount > 0
+    ? `$${amount.toLocaleString()}/mo`
+    : "No active recovery detected";
+};
+
+const getMenuRecoveryImpact = (item) => {
+  const price = Number(item?.price || item?.menu_price || 0);
+  const cost = Number(
+    item?.cost ||
+      item?.recipeCost ||
+      item?.recipe_cost ||
+      item?.food_cost ||
+      0
+  );
+
+  const quantitySold = Number(
+    item?.quantitySold ||
+      item?.quantity_sold ||
+      item?.qtySold ||
+      item?.unitsSold ||
+      item?.sold ||
+      0
+  );
+
+  if (price <= 0 || quantitySold <= 0) return 0;
+
+  const targetMargin = 0.65;
+  const currentProfitPerUnit = Math.max(0, price - cost);
+  const targetProfitPerUnit = price * targetMargin;
+  const recoverablePerUnit = Math.max(
+    0,
+    targetProfitPerUnit - currentProfitPerUnit
+  );
+
+  return recoverablePerUnit * quantitySold;
+};
+
+const shiftWasteImpact = Number(shiftWasteAlerts?.[0]?.riskAmount || 0);
+
+const ingredientUsageImpact = Number(
+  ingredientUsageAnomalies?.[0]?.estimatedLoss ||
+    ingredientUsageAnomalies?.[0]?.riskAmount ||
+    ingredientUsageAnomalies?.[0]?.impact ||
+    0
+);
+
+const suspiciousMenuImpact = getMenuRecoveryImpact(suspiciousMenuItems?.[0]);
+
+const usageVarianceImpact = Math.max(Number(usageVariance || 0), 0) * 0.35;
 
 const topAIRecommendedAction =
   shiftWasteAlerts.length > 0
@@ -10418,7 +10436,7 @@ const topAIRecommendedAction =
         description:
           "AI detected elevated voids, refunds, or comps during this shift window.",
         priority: "Critical",
-        impact: "$2,400/mo",
+        impact: formatMonthlyImpact(shiftWasteImpact),
         action: "Open Shift Waste Review",
       }
     : ingredientUsageAnomalies.length > 0
@@ -10427,7 +10445,7 @@ const topAIRecommendedAction =
         description:
           "Inventory intelligence detected ingredient usage variance outside expected recipe behavior.",
         priority: "High",
-        impact: "$1,900/mo",
+        impact: formatMonthlyImpact(ingredientUsageImpact),
         action: "Open Ingredient Audit",
       }
     : suspiciousMenuItems.length > 0
@@ -10436,7 +10454,7 @@ const topAIRecommendedAction =
         description:
           "Menu intelligence detected possible pricing, portioning, or margin inefficiencies.",
         priority: "Medium",
-        impact: "$1,400/mo",
+        impact: formatMonthlyImpact(suspiciousMenuImpact),
         action: "Open Menu Review",
       }
     : usageVariancePercent >= 7
@@ -10445,7 +10463,7 @@ const topAIRecommendedAction =
         description:
           "Actual kitchen usage is drifting above expected prep and recipe consumption.",
         priority: "Medium",
-        impact: "$1,100/mo",
+        impact: formatMonthlyImpact(usageVarianceImpact),
         action: "Open Variance Review",
       }
     : {
@@ -10453,24 +10471,38 @@ const topAIRecommendedAction =
         description:
           "AI systems are actively monitoring operational stability and profitability.",
         priority: "Stable",
-       impact: "No active recovery detected",
+        impact: "No active recovery detected",
         action: "View AI Monitoring",
       };
-      const aiFinancialImpactBreakdown = [
+
+const aiFinancialImpactBreakdown = [
   {
-  label: "Waste Recovery",
-  amount: Math.round(Number(totalWasteLoss || 0)),
-},
-{
-  label: "Inventory Control",
-  amount: Math.round(Number(totalWasteLoss || 0)),
-},
+    label: "Waste Recovery",
+    amount: Math.round(Number(totalWasteLoss || 0)),
+  },
+  {
+    label: "Inventory Control",
+    amount: (combinedInventoryAlerts || []).reduce(
+      (sum, alert) =>
+        sum +
+        Number(
+          alert.estimatedLoss ||
+            alert.riskAmount ||
+            alert.impact ||
+            alert.value ||
+            0
+        ),
+      0
+    ),
+  },
   {
     label: "Menu Optimization",
-    amount: suspiciousMenuItems.length > 0 ? 1400 : 0,
+    amount: (suspiciousMenuItems || []).reduce(
+      (sum, item) => sum + getMenuRecoveryImpact(item),
+      0
+    ),
   },
 ];
-
       const totalAIFinancialImpact = aiFinancialImpactBreakdown.reduce(
   (sum, item) => sum + Number(item.amount || 0),
   0
@@ -11456,7 +11488,7 @@ const dynamicMenuPricingImpact = topUnderpricedItems.reduce(
 const estimatedMenuPricingImpact =
   dynamicMenuPricingImpact > 0
     ? dynamicMenuPricingImpact
-    : Math.round(monthlyRevenueForImpact * 0.015);
+    : 0;
     let recommendedAction = {
   title:
   topUnderpricedItems.length > 0
@@ -12608,7 +12640,355 @@ const totalAIRecoveryOpportunity =
   
   const annualRecoverableProfit =
   Number(totalAIRecoveryOpportunity || 0) * 12;
+const verifiedRecoveryActions = (aiHistory || []).filter((action) => {
+  const status = String(action.status || action.recovery_status || "").toLowerCase();
 
+  return (
+    status === "verified" ||
+    status === "completed" ||
+    action.verified === true ||
+    action.is_verified === true
+  );
+});
+
+const verifiedRecoveredProfit = verifiedRecoveryActions.reduce((sum, action) => {
+  const value = Number(
+    action.actual_recovery ||
+      action.actualRecovery ||
+      action.recovered_profit ||
+      action.recoveredProfit ||
+      action.impact_value ||
+      action.impactValue ||
+      0
+  );
+
+  return sum + (Number.isFinite(value) ? value : 0);
+}, 0);
+
+const profitRecoverySummary = useMemo(() => {
+  const estimatedRecoverable = Number(totalAIRecoveryOpportunity || 0);
+  const verifiedRecovered = Number(verifiedRecoveredProfit || 0);
+
+  const remaining = Math.max(0, estimatedRecoverable - verifiedRecovered);
+
+  const recoveryProgress =
+    estimatedRecoverable > 0
+      ? Math.min(
+          100,
+          Math.round((verifiedRecovered / estimatedRecoverable) * 100)
+        )
+      : 0;
+
+  const getCategoryRecovered = (categoryLabel) => {
+    return (verifiedRecoveryActions || []).reduce((sum, action) => {
+      const actionCategory = String(action.category || "")
+        .trim()
+        .toLowerCase();
+
+      const targetCategory = String(categoryLabel || "")
+        .trim()
+        .toLowerCase();
+
+      const recoveredValue = Number(
+  action.actual_recovery ||
+    action.actualRecovery ||
+    action.recovered_profit ||
+    action.recoveredProfit ||
+    action.impact_value ||
+    action.impactValue ||
+    action.verified_recovered ||
+    action.recovered ||
+    action.impact ||
+    action.value ||
+    0
+);
+
+      return actionCategory === targetCategory ? sum + recoveredValue : sum;
+    }, 0);
+  };
+
+  const buildCategory = ({ icon, label, route, action, opportunity }) => {
+    const safeOpportunity = Number(opportunity || 0);
+    const recovered = getCategoryRecovered(label);
+    const categoryRemaining = Math.max(0, safeOpportunity - recovered);
+
+    const progress =
+      safeOpportunity > 0
+        ? Math.min(100, Math.round((recovered / safeOpportunity) * 100))
+        : 0;
+
+    return {
+      icon,
+      label,
+      route,
+      action,
+      opportunity: safeOpportunity,
+      recovered,
+      remaining: categoryRemaining,
+      progress,
+    };
+  };
+
+  return {
+    monthlyRecoverable: estimatedRecoverable,
+    annualRecoverable: Number(annualRecoverableProfit || 0),
+    verifiedRecovered,
+    remaining,
+    recoveryProgress,
+    verifiedActionCount: verifiedRecoveryActions.length,
+
+    categories: [
+      buildCategory({
+        icon: "👥",
+        label: "Labor",
+        route: "labor",
+        action: "Review schedule pressure, overtime, and low-revenue shifts.",
+        opportunity: estimatedLaborRecovery,
+      }),
+      buildCategory({
+        icon: "📦",
+        label: "Inventory",
+        route: "inventory",
+        action: "Review waste exposure, depletion risk, and over-ordering.",
+        opportunity: operationalEstimatedWasteRecovery,
+      }),
+      buildCategory({
+        icon: "🍽",
+        label: "Menu",
+        route: "menu",
+        action: "Review low-margin items, pricing gaps, and menu mix drag.",
+        opportunity: estimatedFoodRecovery,
+      }),
+      buildCategory({
+        icon: "🍸",
+        label: "Beverage",
+        route: "beverage",
+        action: "Review pour variance, alcohol cost, and beverage margin leakage.",
+        opportunity: estimatedAlcoholRecovery,
+      }),
+    ]
+      .filter((category) => Number(category.opportunity || 0) > 0)
+      .sort((a, b) => b.opportunity - a.opportunity),
+  };
+}, [
+  totalAIRecoveryOpportunity,
+  annualRecoverableProfit,
+  verifiedRecoveredProfit,
+  verifiedRecoveryActions,
+  estimatedLaborRecovery,
+  operationalEstimatedWasteRecovery,
+  estimatedFoodRecovery,
+  estimatedAlcoholRecovery,
+]);
+const recoveryVelocity = useMemo(() => {
+  const actions = verifiedRecoveryActions || [];
+
+  const datedActions = actions
+    .map((action) => {
+      const recoveredValue = Number(
+        action.actual_recovery ||
+          action.actualRecovery ||
+          action.recovered_profit ||
+          action.recoveredProfit ||
+          action.impact_value ||
+          action.impactValue ||
+          action.verified_recovered ||
+          action.recovered ||
+          action.impact ||
+          action.value ||
+          0
+      );
+
+      const completedDate = new Date(
+        action.completed_at ||
+          action.completedAt ||
+          action.updated_at ||
+          action.updatedAt ||
+          action.created_at ||
+          action.createdAt ||
+          Date.now()
+      );
+
+      return {
+        recoveredValue: Number.isFinite(recoveredValue) ? recoveredValue : 0,
+        completedDate,
+      };
+    })
+    .filter(
+      (action) =>
+        action.recoveredValue > 0 &&
+        action.completedDate instanceof Date &&
+        !Number.isNaN(action.completedDate.getTime())
+    );
+
+  const totalRecovered = datedActions.reduce(
+    (sum, action) => sum + action.recoveredValue,
+    0
+  );
+
+  const firstDate = datedActions.length
+    ? datedActions.reduce(
+        (oldest, action) =>
+          action.completedDate < oldest ? action.completedDate : oldest,
+        datedActions[0].completedDate
+      )
+    : null;
+
+  const daysTracked = firstDate
+    ? Math.max(
+        1,
+        Math.ceil((new Date() - firstDate) / (1000 * 60 * 60 * 24))
+      )
+    : 0;
+
+  const dailyPace = daysTracked > 0 ? totalRecovered / daysTracked : 0;
+  const weeklyPace = dailyPace * 7;
+
+  return {
+    totalRecovered,
+    daysTracked,
+    dailyPace,
+    weeklyPace,
+    hasVelocity: datedActions.length > 0 && weeklyPace > 0,
+  };
+}, [verifiedRecoveryActions]);
+const estimatedRecoveryDays = useMemo(() => {
+  if (profitRecoverySummary.remaining <= 0) return 0;
+
+  if (recoveryVelocity.hasVelocity && recoveryVelocity.dailyPace > 0) {
+    return Math.max(
+      1,
+      Math.ceil(profitRecoverySummary.remaining / recoveryVelocity.dailyPace)
+    );
+  }
+
+  if (profitRecoverySummary.monthlyRecoverable <= 0) return 0;
+
+  return Math.max(
+    7,
+    Math.ceil(
+      profitRecoverySummary.remaining /
+        Math.max(1, profitRecoverySummary.monthlyRecoverable / 30)
+    )
+  );
+}, [
+  profitRecoverySummary.remaining,
+  profitRecoverySummary.monthlyRecoverable,
+  recoveryVelocity.hasVelocity,
+  recoveryVelocity.dailyPace,
+]);
+const estimatedRecoveryDate = useMemo(() => {
+  if (!estimatedRecoveryDays) return null;
+
+  const date = new Date();
+
+  date.setDate(date.getDate() + estimatedRecoveryDays);
+
+  return date.toLocaleDateString(undefined, {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+}, [estimatedRecoveryDays]);
+const executiveRecoveryInsight = useMemo(() => {
+  const topCategory = profitRecoverySummary.categories?.[0] || null;
+  const secondCategory = profitRecoverySummary.categories?.[1] || null;
+  const thirdCategory = profitRecoverySummary.categories?.[2] || null;
+
+  const topOpportunity = Number(topCategory?.remaining || topCategory?.opportunity || 0);
+
+  const topThreeOpportunity = (profitRecoverySummary.categories || [])
+    .slice(0, 3)
+    .reduce(
+      (sum, category) =>
+        sum + Number(category.remaining || category.opportunity || 0),
+      0
+    );
+
+  const weeklyPace = recoveryVelocity.hasVelocity
+    ? recoveryVelocity.weeklyPace
+    : profitRecoverySummary.monthlyRecoverable / 4;
+
+  if (!topCategory || profitRecoverySummary.monthlyRecoverable <= 0) {
+   return {
+  headline: "Upload operational data to generate executive recovery insight.",
+
+  situation:
+    "Serven needs POS, labor, inventory, menu, beverage, or invoice data before it can identify recoverable profit.",
+
+  keyRisk:
+    "Key recovery risks will appear after operational data has been uploaded.",
+
+  recommendation:
+    "Upload current operational data to unlock prioritized recovery guidance.",
+
+  expectedOutcome:
+    "Once data is available, Serven will summarize the highest-impact recovery opportunity, estimated timeline, and recommended next move.",
+
+  pace:
+    "Recovery pace will appear after recoverable profit or verified recovery actions are available.",
+
+  topThree:
+    "Top recovery priorities will appear after Serven analyzes your operational data.",
+
+  confidence: `${
+    profitRecoverySummary.monthlyRecoverable > 0
+      ? recoveryVelocity.hasVelocity
+        ? 96
+        : 82
+      : 0
+  }%`,
+};
+  }
+
+  return {
+    headline: `${topCategory.label} is currently your largest recovery opportunity at $${topOpportunity.toLocaleString()}.`,
+
+    situation: secondCategory
+      ? `${topCategory.label} is creating the highest remaining profit recovery opportunity, followed by ${secondCategory.label}${
+          thirdCategory ? ` and ${thirdCategory.label}` : ""
+        }.`
+      : `${topCategory.label} is currently the primary recovery opportunity based on uploaded operational data.`,
+keyRisk:
+  topOpportunity > 0 && profitRecoverySummary.remaining > 0
+    ? `${topCategory.label} represents ${Math.round(
+        (topOpportunity / profitRecoverySummary.remaining) * 100
+      )}% of remaining recovery opportunity.`
+    : "Key recovery risks will appear once remaining opportunity is available.",
+    recommendation:
+      topCategory.action ||
+      `Prioritize ${topCategory.label.toLowerCase()} recovery before moving to lower-impact items.`,
+
+    expectedOutcome:
+      estimatedRecoveryDays > 0
+        ? `At the current recovery pace, Serven estimates the current recovery plan can be completed in ${estimatedRecoveryDays} days${
+            estimatedRecoveryDate ? `, with an expected completion date of ${estimatedRecoveryDate}` : ""
+          }.`
+        : "Serven will estimate completion timing once recovery pace or remaining opportunity is available.",
+
+    pace: recoveryVelocity.hasVelocity
+      ? `Current verified recovery pace is $${Math.round(
+          recoveryVelocity.weeklyPace
+        ).toLocaleString()} per week based on ${recoveryVelocity.daysTracked} tracked day${
+          recoveryVelocity.daysTracked === 1 ? "" : "s"
+        } of completed recovery actions.`
+      : `Projected recovery pace is $${Math.round(
+          weeklyPace
+        ).toLocaleString()} per week until enough verified recovery history is available.`,
+
+    topThree:
+      topThreeOpportunity > 0
+        ? `Completing the top three recovery priorities could address approximately $${topThreeOpportunity.toLocaleString()} in remaining opportunity.`
+        : "Top recovery priorities will appear as more operational data becomes available.",
+
+    confidence: `${profitRecoverySummary.monthlyRecoverable > 0 ? recoveryVelocity.hasVelocity ? 96 : 82 : 0}%`,
+  };
+}, [
+  profitRecoverySummary,
+  recoveryVelocity,
+  estimatedRecoveryDays,
+  estimatedRecoveryDate,
+]);
 const restaurantRetains =
   Number(totalAIRecoveryOpportunity || 0) * 0.7;
 
@@ -12660,107 +13040,7 @@ const hasFullRecoveryData =
   ((laborData || []).length > 0 ||
     (inventoryData || []).length > 0 ||
     (invoicesData || []).length > 0);
-const fallbackProfitOpportunities = [
-  {
-    id: 1,
 
-    title: "Menu Price Optimization",
-
-    description: hasOperationalData
-      ? "Increase prices on underpriced high-demand items"
-      : "Upload menu and sales mix data to activate pricing optimization AI.",
-
-    impact: hasOperationalData
-      ? 0
-      : null,
-
-    difficulty: hasOperationalData
-      ? "Easy"
-      : "Simulation",
-
-    category: "Revenue Boost",
-  },
-
-  {
-    id: 2,
-
-    title: "Reduce Ingredient Waste",
-
-    description: hasOperationalData
-      ? "Optimize portion sizes and prep tracking"
-      : "Upload inventory and invoice data to activate waste reduction intelligence.",
-
-   impact: hasOperationalData
-  ? 0
-  : null,
-
-    difficulty: hasOperationalData
-      ? "Medium"
-      : "Simulation",
-
-    category: "Cost Reduction",
-  },
-
-  {
-    id: 3,
-
-    title: "Upsell Optimization",
-
-    description: hasOperationalData
-      ? "Improve add-on attach rates (drinks, sides)"
-      : "Upload guest purchase data to activate upsell intelligence.",
-
-    impact: hasOperationalData
-      ? 0
-      : null,
-
-    difficulty: hasOperationalData
-      ? "Easy"
-      : "Simulation",
-
-    category: "Revenue Boost",
-  },
-
-  {
-    id: 4,
-
-    title: "Supplier Cost Adjustment",
-
-    description: hasOperationalData
-      ? "Switch suppliers or renegotiate pricing"
-      : "Upload vendor and invoice data to activate supplier optimization AI.",
-
-    impact: hasOperationalData
-      ? 0
-      : null,
-
-    difficulty: hasOperationalData
-      ? "Medium"
-      : "Simulation",
-
-    category: "Cost Reduction",
-  },
-
-  {
-    id: 5,
-
-    title: "Labor Efficiency Fix",
-
-    description: hasOperationalData
-      ? "Adjust staffing on low-efficiency days"
-      : "Upload labor and revenue data to activate staffing optimization AI.",
-
-    impact: hasOperationalData
-      ? 0
-      : null,
-
-    difficulty: hasOperationalData
-      ? "Hard"
-      : "Simulation",
-
-    category: "Labor Optimization",
-  },
-];
   const aiRecoveryStatus =
   totalAIRecoveryOpportunity <= 0
     ? "Optimized"
@@ -13053,15 +13333,19 @@ const lowMarginMenuItems = menuProfitRows.filter(
   (item) => Number(item.margin || 0) < 65
 );
 
-const menuOptimizationOpportunity =
-  lowMarginMenuItems.reduce(
-    (sum, item) =>
-      sum +
-      Math.max(0, (65 - Number(item.margin || 0)) / 100) *
-        Number(item.price || 0) *
-        100,
-    0
+const menuOptimizationOpportunity = lowMarginMenuItems.reduce((sum, item) => {
+  const marginGap = Math.max(0, (65 - Number(item.margin || 0)) / 100);
+  const price = Number(item.price || 0);
+  const quantitySold = Number(
+    item.quantitySold ||
+      item.quantity_sold ||
+      item.qtySold ||
+      item.unitsSold ||
+      0
   );
+
+  return sum + marginGap * price * quantitySold;
+}, 0);
 
 const menuEngineeringInsight =
   lowMarginMenuItems.length > 0
@@ -14529,11 +14813,11 @@ const invoiceRecoveryOpportunity = (vendorPriceSpikeData || []).reduce(
 
     const unitIncrease = Math.max(0, latestCost - previousCost);
 
-    const monthlyQuantity =
-      Number(item.quantity || 0) ||
-      Number(item.totalQuantity || 0) ||
-      Number(item.monthlyQuantity || 0) ||
-      100;
+   const monthlyQuantity =
+  Number(item.quantity || 0) ||
+  Number(item.totalQuantity || 0) ||
+  Number(item.monthlyQuantity || 0) ||
+  0;
 
     return sum + unitIncrease * monthlyQuantity;
   },
@@ -14991,7 +15275,16 @@ const aiActionImpact = useMemo(() => {
           const increase =
             Number(item.latestCost || 0) - Number(item.previousCost || 0);
 
-          return total + Math.max(0, increase * 100);
+         const affectedQuantity = Number(
+  item.quantity ||
+    item.quantityPurchased ||
+    item.quantity_purchased ||
+    item.units ||
+    item.caseQuantity ||
+    0
+);
+
+return total + Math.max(0, increase * affectedQuantity);
         }, 0)
       );
     }
@@ -15464,28 +15757,34 @@ const sidebarTabs = isKitchenManagerRole
     ]
 
   : isExecutiveRole || isOwnerRole || isCorporateAdminRole
-  ? [
-      { key: "overview", label: "Overview", icon: "📊" },
-      { key: "ai", label: "AI Insights", icon: "🧠" },
-      { key: "client_alerts", label: "Client Alerts", icon: "🚨" },
-      { key: "analytics", label: "Analytics", icon: "📈" },
-      { key: "inventory", label: "Inventory", icon: "📦" },
-      { key: "financial", label: "Financial Intelligence", icon: "💰" },
-      { key: "labor", label: "Labor Intelligence", icon: "👥" },
-      { key: "operations", label: "Operations Intelligence", icon: "⚙️" },
-      { key: "recipes", label: "Menu Intelligence", icon: "🍽️" },
-      { key: "beverage", label: "Beverage Intelligence", icon: "🍸" },
-      { key: "ai_alerts", label: "AI Alerts", icon: "🚨" },
-      { key: "marketing", label: "Marketing", icon: "📣" },
-      { key: "pro_ai", label: "Pro AI", icon: "⚡" },
-      { key: "kitchen_manager", label: "Kitchen", icon: "🍳" },
-      { key: "multi_location", label: "Enterprise", icon: "🏢" },
-      { key: "team_management", label: "Team", icon: "👥" },
-      { key: "admin", label: "Account Center", icon: "⚙️" },
-      { key: "audit_trail", label: "Audit Trail", icon: "🛡️" },
-    ]
+? [
+    { key: "overview", label: "Overview", icon: "📊" },
+    { key: "ai", label: "AI Insights", icon: "🧠" },
+    { key: "client_alerts", label: "Client Alerts", icon: "🚨" },
+    { key: "analytics", label: "Analytics", icon: "📈" },
+    { key: "inventory", label: "Inventory", icon: "📦" },
+    { key: "financial", label: "Financial Intelligence", icon: "💰" },
 
-  : [];
+    // NEW
+    { key: "profit_recovery", label: "Profit Recovery", icon: "💵" },
+
+    { key: "labor", label: "Labor Intelligence", icon: "👥" },
+    { key: "operations", label: "Operations Intelligence", icon: "⚙️" },
+    { key: "recipes", label: "Menu Intelligence", icon: "🍽️" },
+    { key: "beverage", label: "Beverage Intelligence", icon: "🍸" },
+    { key: "ai_alerts", label: "AI Alerts", icon: "🚨" },
+    { key: "marketing", label: "Marketing", icon: "📣" },
+    { key: "pro_ai", label: "Pro AI", icon: "⚡" },
+    { key: "kitchen_manager", label: "Kitchen", icon: "🍳" },
+    { key: "multi_location", label: "Enterprise", icon: "🏢" },
+    { key: "team_management", label: "Team", icon: "👥" },
+    { key: "admin", label: "Account Center", icon: "⚙️" },
+    { key: "audit_trail", label: "Audit Trail", icon: "🛡️" },
+  ]
+
+: [];
+
+ 
 const deleteLead = async (leadId) => {
   if (!leadId) return;
 
@@ -16295,7 +16594,7 @@ const forecastingInsights = useMemo(() => {
   const avgRevenue =
     recentSales.length > 0 ? recentTotalRevenue / recentSales.length : 0;
 
-  const projectedMonthlyRevenue = avgRevenue * 30;
+  const estimatedMonthlyRunRate = avgRevenue * 30;
 
   let revenueTrend = "Stable";
 
@@ -16335,7 +16634,7 @@ const forecastingInsights = useMemo(() => {
   return [
     {
      label: "Revenue Pace",
-      value: `$${projectedMonthlyRevenue.toLocaleString(undefined, {
+      value: `$${estimatedMonthlyRunRate.toLocaleString(undefined, {
         maximumFractionDigits: 0,
       })}`,
       subtext: "Based on recent uploaded sales average",
@@ -16348,12 +16647,12 @@ const forecastingInsights = useMemo(() => {
     {
       label: "Operational Risk",
       value: operationalRisk,
-      subtext: "AI operational forecast",
+      subtext: "Based on current operational performance",
     },
     {
-      label: "Projected Avg Margin",
+      label: "Current Avg Margin",
       value: `${avgMargin.toFixed(1)}%`,
-      subtext: "Forecasted profitability health",
+     subtext: "Based on current uploaded sales and cost signals",
     },
   ];
 }, [locationSalesData, salesData, shiftOperationalData, recipeCostingData]);
@@ -16384,17 +16683,19 @@ const topAIAction = useMemo(() => {
       (priorityOrder[a.severity] || 0)
   )[0];
 
-  let estimatedImpact = "+$500/mo";
+ const alertImpact = Number(
+  topAlert.estimatedImpact ||
+    topAlert.estimatedLoss ||
+    topAlert.recoverableProfit ||
+    topAlert.riskAmount ||
+    topAlert.value ||
+    0
+);
 
-  if (topAlert.type === "Margin Risk") {
-    estimatedImpact = "+$2,000/mo";
-  } else if (topAlert.type === "Waste Detection") {
-    estimatedImpact = "+$3,500/mo";
-  } else if (topAlert.type === "Labor Efficiency") {
-    estimatedImpact = "+$1,800/mo";
-  } else if (topAlert.type === "Vendor Cost Increase") {
-    estimatedImpact = "+$1,200/mo";
-  }
+const estimatedImpact =
+  alertImpact > 0
+    ? `+$${Math.round(alertImpact).toLocaleString()}/mo`
+    : "Impact pending uploaded data";
 
   return {
     title: topAlert.title,
@@ -16450,21 +16751,30 @@ const aiProfitRecoveryData = useMemo(() => {
   const alerts = operationalAlerts || [];
   const actions = autopilotActions || [];
 
-  let recovered = 0;
-  let projected = 0;
+  const projected = alerts.reduce((sum, alert) => {
+    const alertImpact = Number(
+      alert.impact ||
+        alert.estimatedImpact ||
+        alert.estimatedLoss ||
+        alert.recoverableProfit ||
+        alert.value ||
+        0
+    );
 
-  alerts.forEach((alert) => {
-    if (alert.type === "Margin Risk") projected += 2000;
-    if (alert.type === "Waste Detection") projected += 3500;
-    if (alert.type === "Labor Efficiency") projected += 1800;
-    if (alert.type === "Vendor Cost Increase") projected += 1200;
-  });
+    return sum + Math.max(0, alertImpact);
+  }, 0);
 
-  actions.forEach((action) => {
-    if (action.priority === "Critical") recovered += 750;
-    if (action.priority === "Opportunity") recovered += 500;
-    if (action.priority === "Watch") recovered += 250;
-  });
+  const recovered = actions.reduce((sum, action) => {
+    const actionImpact = Number(
+      action.impact ||
+        action.recoveredValue ||
+        action.estimatedRecovery ||
+        action.value ||
+        0
+    );
+
+    return sum + Math.max(0, actionImpact);
+  }, 0);
 
   const totalOpportunity = projected + recovered;
 
@@ -16982,7 +17292,16 @@ const inventoryWasteIntelligence = useMemo(() => {
   usageVarianceData,
   expectedVsActualUsageData,
 ]);
+const stationPrepData = useMemo(() => {
+  if (!hasOperationalData) return [];
 
+  return (yesterdayPrepData || []).map((item) => ({
+    name: item.item_name || "Unknown Item",
+    basePrep: Number(item.target_prep_time || 0),
+    station: item.station || "Unassigned",
+    components: [],
+  }));
+}, [hasOperationalData, yesterdayPrepData]);
 const advancedAiAlerts = useMemo(() => {
   const alerts = [];
 
@@ -17033,38 +17352,37 @@ const advancedAiAlerts = useMemo(() => {
 
 const forecastingIntelligence = useMemo(() => {
   const currentRevenue = Number(liveTotalRevenue || totalRevenue || 0);
-  const momentum = Number(liveMomentumPercent || 0);
   const foodCost = Number(foodCostPercentage || 0);
   const laborPercent = Number(liveLaborIntelligence?.laborPercent || 0);
 
-  const projectedRevenue =
-    currentRevenue + currentRevenue * (momentum / 100);
+  const foodCostStatus =
+    foodCost > activeBenchmarks?.foodCost?.high
+      ? "High"
+      : foodCost > activeBenchmarks?.foodCost?.low
+      ? "Watch"
+      : "Controlled";
 
-  const projectedFoodCost =
-    foodCost > 0 ? foodCost + (foodCost > 30 ? 1.5 : 0.5) : 0;
-
-  const projectedLaborRisk =
+  const laborRisk =
     laborPercent > activeBenchmarks?.labor?.high
       ? "High"
       : laborPercent > activeBenchmarks?.labor?.low
       ? "Moderate"
       : "Low";
 
-  const projectedProfitOpportunity =
+  const profitOpportunity =
     Number(primeCostIntelligence?.primeCost || 0) > 60
       ? Math.round(currentRevenue * 0.06)
       : Math.round(currentRevenue * 0.03);
 
   return {
-    projectedRevenue,
-    projectedFoodCost,
-    projectedLaborRisk,
-    projectedProfitOpportunity,
+    currentRevenue,
+    foodCostStatus,
+    laborRisk,
+    profitOpportunity,
   };
 }, [
   liveTotalRevenue,
   totalRevenue,
-  liveMomentumPercent,
   foodCostPercentage,
   liveLaborIntelligence,
   activeBenchmarks,
@@ -17557,18 +17875,11 @@ const categoryScores = {
       : overallScore >= 60
       ? "#fbbf24"
       : "#f87171";
-
-  const projectedScore = clamp(
-    overallScore +
-      (Number(liveMomentumPercent || 0) > 0 ? 3 : -3) -
-      (Number(aiWasteDetection?.length || 0) > 2 ? 4 : 0) -
-      (Number(criticalInventoryItems?.length || 0) > 2 ? 4 : 0)
-  );
-
+const currentScore = overallScore;
   const trend =
-    projectedScore > overallScore + 2
+    Number(liveMomentumPercent || 0) > 0
       ? "Improving"
-      : projectedScore < overallScore - 2
+      : Number(liveMomentumPercent || 0) < 0
       ? "Declining"
       : "Stable";
 
@@ -17597,7 +17908,7 @@ const categoryScores = {
       console.log("AI HEALTH ENGINE DEBUG", {
   overallScore,
   grade,
-  projectedScore,
+currentScore,
   trend,
   primaryRisk,
 });
@@ -17605,7 +17916,7 @@ const categoryScores = {
     overallScore,
     grade,
     statusColor,
-    projectedScore,
+currentScore,
     trend,
     primaryRisk,
     insight,
@@ -17626,8 +17937,7 @@ const categoryScores = {
   liveMomentumPercent,
 ]);
 const safeRestaurantHealthScore = Number(aiHealthEngine?.overallScore || 0);
-const safeRestaurantProjectedScore = Number(aiHealthEngine?.projectedScore || 0);
-
+const safeRestaurantCurrentScore = Number(aiHealthEngine?.currentScore || 0);
 const restaurantHealthScore = safeRestaurantHealthScore;
 const restaurantAIHealthScore = restaurantHealthScore;
 const aiOptimizationStatus =
@@ -17642,7 +17952,7 @@ const aiOptimizationStatus =
 const restaurantHealthGrade =
   aiHealthEngine?.grade || (safeRestaurantHealthScore > 0 ? "Stable" : "Waiting for data");
 const restaurantHealthColor = aiHealthEngine?.statusColor || "#94a3b8";
-const restaurantHealthProjectedScore = safeRestaurantProjectedScore;
+const restaurantHealthCurrentScore = safeRestaurantCurrentScore;
 const restaurantHealthTrend =
   aiHealthEngine?.trend || (safeRestaurantHealthScore > 0 ? "Stable" : "Waiting for data");
 const restaurantHealthPrimaryRisk =
@@ -18425,7 +18735,7 @@ const beverageRestockInsight = useMemo(() => {
   );
 
   if (criticalItems.length > 0) {
-    return `${criticalItems[0].name} is projected to run out in ${Number(
+    return `${criticalItems[0].name} may run out in ${Number(
       criticalItems[0].daysRemaining || 0
     ).toFixed(
       1
@@ -19376,30 +19686,30 @@ const laborForecastingData = useMemo(() => {
     const laborCost = Number(shift.laborCost || 0);
     const laborPercent = Number(shift.laborPercent || 0);
     const orders = Number(shift.orders || 0);
-const projectedRevenue = revenue;
-const projectedLaborCost = laborCost;
+const currentRevenue = revenue;
+const currentLaborCost = laborCost;
 
-    const projectedLaborPercent =
-      projectedRevenue > 0 ? (projectedLaborCost / projectedRevenue) * 100 : 0;
+const currentLaborPercent =
+  currentRevenue > 0 ? (currentLaborCost / currentRevenue) * 100 : 0;
 
-   const projectedOrders = orders;
+const currentOrders = orders;
 
     let forecastStatus = "Stable";
 
-    if (projectedLaborPercent > 38) {
+   if (currentLaborPercent > 38) {
       forecastStatus = "Critical";
-    } else if (projectedLaborPercent > 32) {
+   } else if (currentLaborPercent > 32) {
       forecastStatus = "Watch";
-    } else if (projectedLaborPercent < 24 && projectedRevenue > 0) {
+   } else if (currentLaborPercent < 24 && currentRevenue > 0) {
       forecastStatus = "Efficient";
     }
 
     return {
       shift: shift.shift,
-      projectedRevenue,
-      projectedLaborCost,
-      projectedLaborPercent,
-      projectedOrders,
+     currentRevenue,
+currentLaborCost,
+currentLaborPercent,
+currentOrders,
       forecastStatus,
       currentLaborPercent: laborPercent,
     };
@@ -19692,7 +20002,7 @@ SerVen detected ${criticalCount} critical inventory items, ${lowStockCount} low-
 
 ${
   topRiskItem
-    ? `${topRiskItem.name || topRiskItem.ingredient || "A high-risk inventory item"} should be reviewed first based on depletion risk and projected usage pressure.`
+    ? `${topRiskItem.name || topRiskItem.ingredient || "A high-risk inventory item"} should be reviewed first based on depletion risk and current usage pressure.`
     : "No single high-risk inventory item is currently dominating the risk profile."
 }
 
@@ -19776,8 +20086,7 @@ const financialHealthScoreData = useMemo(() => {
   let status = "Excellent";
   let color = "#22c55e";
   let insight =
-    "Financial operations are healthy. Prime cost, vendor variance, and controllable expenses are operating within a stable range.";
-
+  "Financial operations are healthy based on the current uploaded data. Prime cost, vendor variance, and controllable expenses are operating within the target range.";
   if (finalScore < 60) {
     status = "Critical";
     color = "#f87171";
@@ -19935,38 +20244,38 @@ const profitRiskForecastData = useMemo(() => {
 
   const invoiceRiskCount = (invoiceMismatchItems || []).length;
 
-  const projectedPrimeCost =
+ const currentPrimeCostPressure =
     primeCost > 0
       ? primeCost + vendorSpikeCount * 0.8 + invoiceRiskCount * 0.4
       : foodCost + laborCost;
 
-  const projectedMarginPressure =
-    projectedPrimeCost > 70
-      ? "Critical"
-      : projectedPrimeCost > 65
-      ? "High"
-      : projectedPrimeCost > 60
-      ? "Watch"
-      : "Stable";
+const marginPressureStatus =
+  currentPrimeCostPressure > 70
+    ? "Critical"
+    : currentPrimeCostPressure > 65
+    ? "High"
+    : currentPrimeCostPressure > 60
+    ? "Watch"
+    : "Stable";
 
-  const projectedProfitLeak =
-    recoverableProfit +
-    vendorSpikeCount * 450 +
-    invoiceRiskCount * 275;
-
-  const forecastInsight =
-    projectedMarginPressure === "Critical"
-      ? "Prime cost is projected to remain under heavy pressure. Review vendor increases, invoice mismatches, food cost, and labor cost immediately."
-      : projectedMarginPressure === "High"
-      ? "Profit pressure is projected to rise. Vendor cost increases and controllable costs should be reviewed before margin compression worsens."
-      : projectedMarginPressure === "Watch"
-      ? "Profit pressure is moderate. Continue monitoring prime cost, food cost, labor, and vendor variance trends."
-      : "Profit outlook is currently stable based on prime cost, vendor variance, and recoverable profit signals.";
-
+const currentProfitLeak = Math.round(
+  Number(recoverableProfit || 0) +
+    Number(invoiceRecoveryOpportunity || 0) +
+    Number(estimatedInventoryRecovery || 0) +
+    Number(liveLaborIntelligence?.laborRecoveryOpportunity || 0)
+);
+const forecastInsight =
+  marginPressureStatus === "Critical"
+    ? "Prime cost is under heavy pressure. Review vendor increases, invoice mismatches, food cost, and labor cost immediately."
+    : marginPressureStatus === "High"
+    ? "Profit pressure is elevated. Vendor cost increases and controllable costs should be reviewed."
+    : marginPressureStatus === "Watch"
+    ? "Profit pressure is moderate. Continue monitoring prime cost, food cost, labor, and vendor variance trends."
+    : "Profit conditions are currently stable based on prime cost, vendor variance, and recoverable profit signals.";
   return {
-    projectedPrimeCost,
-    projectedMarginPressure,
-    projectedProfitLeak,
+    currentPrimeCostPressure,
+   marginPressureStatus,
+   currentProfitLeak,
     vendorSpikeCount,
     invoiceRiskCount,
     forecastInsight,
@@ -19997,7 +20306,7 @@ const financialExecutiveSummary = useMemo(() => {
     Number(financialHealthScoreData?.risingVendorCosts || 0);
 
   const forecastStatus =
-    profitRiskForecastData?.projectedMarginPressure || "Stable";
+   profitRiskForecastData?.marginPressureStatus || "Stable";
 
   let tone = "stable";
 
@@ -20059,7 +20368,7 @@ const inventoryExecutiveAlertsFeed = useMemo(() => {
   (criticalInventoryItems || []).slice(0, 3).forEach((item) => {
     alerts.push({
       title: `${item.name || item.ingredient || "Inventory item"} critical`,
-      detail: `Projected depletion risk detected. Current stock may run out within ${
+      detail: `Depletion risk detected. Current stock may run out within${
         item.daysRemaining || 2
       } days.`,
       priority: "Critical",
@@ -20478,7 +20787,7 @@ const aiStrategicRecommendations = useMemo(() => {
       priority: laborHealthScoreData.score < 60 ? "Critical" : "High",
       recommendation:
         "Review overstaffed shifts, sales per labor hour, and overtime exposure to reduce labor cost pressure.",
-      impact: 1500,
+      impact: Number(liveLaborIntelligence?.laborRecoveryOpportunity || 0),
     });
   }
 
@@ -21055,7 +21364,7 @@ const operationalMemoryEvents = useMemo(() => {
       impact: Number(aiRecoveredProfit || totalAIRevenueRecovered || 0),
     });
   }
-if (Number(aiHealthEngine?.categoryScores?.consumablesHealth || 100) < 75) {
+if (Number(aiHealthEngine?.categoryScores?.consumablesHealth ?? 0) < 75) {
   events.push({
     type: "Consumables",
     severity: "High",
@@ -21180,11 +21489,10 @@ const crossSystemSignals = useMemo(() => {
       severity: "High",
       message:
         "Ounce-level variance and weak happy hour margin are occurring together. AI recommends reviewing pours, discounts, and bartender behavior.",
-      impact:
-        criticalOunceVariance.reduce(
-          (sum, item) => sum + Number(item.estimatedLoss || 0),
-          0
-        ) || 900,
+      impact: criticalOunceVariance.reduce(
+  (sum, item) => sum + Number(item.estimatedLoss || 0),
+  0
+),
     });
   }
 
@@ -21199,7 +21507,10 @@ const crossSystemSignals = useMemo(() => {
       severity: "Watch",
       message:
         "Beverage contribution is low while AOV is below premium target. AI recommends pairing beverages with high-margin menu items.",
-      impact: Math.max(750, Number(liveTotalOrders || 0) * 3),
+     impact:
+  Number(liveTotalOrders || 0) > 0
+    ? Math.round(Number(liveTotalOrders || 0) * 3)
+    : 0,
     });
   }
 
@@ -21217,7 +21528,7 @@ const crossSystemSignals = useMemo(() => {
     });
   }
 if (
-  Number(aiHealthEngine?.categoryScores?.consumablesHealth || 100) < 75 &&
+  Number(aiHealthEngine?.categoryScores?.consumablesHealth ?? 0) < 75 &&
   Number(foodCostPercentage || 0) > 32
 ) {
   signals.push({
@@ -21339,7 +21650,7 @@ const executiveSummaryNarrative = (() => {
       ).toLocaleString()} in operational recovery impact.`
     );
   }
-if (Number(aiHealthEngine?.categoryScores?.consumablesHealth || 100) < 75) {
+if (Number(aiHealthEngine?.categoryScores?.consumablesHealth ?? 0) < 75) {
   insights.push(
     `Consumables intelligence detected ${consumablesVarianceRisk.length} oil, garnish, citrus, herb, or berry variance risk(s).`
   );
@@ -21351,7 +21662,7 @@ const executivePriorityFocus = (() => {
   if (crossSystemSignals?.[0]?.title) {
     return crossSystemSignals[0].title;
   }
-if (Number(aiHealthEngine?.categoryScores?.consumablesHealth || 100) < 75) {
+if (Number(aiHealthEngine?.categoryScores?.consumablesHealth ?? 0) < 75) {
   return `Review ${consumablesVarianceRisk[0].name} consumables variance`;
 }
   if (weakestHealthCategory?.key) {
@@ -21414,11 +21725,11 @@ const predictiveRiskSignals = useMemo(() => {
       forecast: "Immediate review",
     });
   }
-if (Number(aiHealthEngine?.categoryScores?.consumablesHealth || 100) < 75) {
+if (Number(aiHealthEngine?.categoryScores?.consumablesHealth ?? 0) < 75) {
   risks.push({
     title: "Consumables Leakage Risk",
     level:
-      Number(aiHealthEngine?.categoryScores?.consumablesHealth || 100) < 60
+      Number(aiHealthEngine?.categoryScores?.consumablesHealth ?? 0) < 60
         ? "High"
         : "Watch",
 
@@ -21426,7 +21737,7 @@ if (Number(aiHealthEngine?.categoryScores?.consumablesHealth || 100) < 75) {
       "AI detected unusual consumables depletion patterns across oils, garnish, berries, herbs, citrus, or prep usage.",
 
     forecast:
-      Number(aiHealthEngine?.categoryScores?.consumablesHealth || 100) < 60
+      Number(aiHealthEngine?.categoryScores?.consumablesHealth ?? 0) < 60
         ? "Next operating week"
         : "Monitor next inventory cycle",
   });
@@ -21464,14 +21775,19 @@ const executiveActionQueue = useMemo(() => {
   }
 
   if (predictiveRiskSignals?.[0]) {
-    actions.push({
-      title: predictiveRiskSignals[0].title,
-      department: "Predictive Risk",
-      priority: predictiveRiskSignals[0].level,
-      reason: predictiveRiskSignals[0].message,
-      impact: Number(crossSystemRiskValue || 0) * 0.15 || 750,
-    });
-  }
+  actions.push({
+    title: predictiveRiskSignals[0].title,
+    department: "Predictive Risk",
+    priority: predictiveRiskSignals[0].level,
+    reason: predictiveRiskSignals[0].message,
+    impact:
+      Number(crossSystemRiskValue || 0) > 0
+        ? Math.round(
+            Number(crossSystemRiskValue || 0) * 0.15
+          )
+        : 0,
+  });
+}
 
   if (operationalMemoryEvents?.[0]) {
     actions.push({
@@ -21501,15 +21817,15 @@ const executiveActionQueue = useMemo(() => {
       reason: `Food cost is currently ${Number(foodCostPercentage || 0).toFixed(
         1
       )}%, above target.`,
-      impact: Number(totalWasteLoss || 0) || 900,
+      impact: Number(totalWasteLoss || 0),
     });
   }
-if (Number(aiHealthEngine?.categoryScores?.consumablesHealth || 100) < 75) {
+if (Number(aiHealthEngine?.categoryScores?.consumablesHealth ?? 0) < 75) {
   actions.push({
     title: "Review Consumables Depletion",
     department: "Consumables",
     priority:
-      Number(aiHealthEngine?.categoryScores?.consumablesHealth || 100) < 60
+      Number(aiHealthEngine?.categoryScores?.consumablesHealth ?? 0) < 60
         ? "Critical"
         : "High",
     reason:
@@ -21610,7 +21926,7 @@ const autonomousAIRecommendations = useMemo(() => {
   }
 
   if (
-    Number(aiHealthEngine?.categoryScores?.consumablesHealth || 100) < 75
+    Number(aiHealthEngine?.categoryScores?.consumablesHealth ?? 0) < 75
   ) {
     recommendations.push({
       title: "Reduce Consumables Waste",
@@ -22142,14 +22458,14 @@ const regionalForecastingData = useMemo(() => {
       projectedRisk = "Watch";
     }
 
-    const projectedRevenueTrend =
-      Number(location.healthScore || 0) >= 85
-        ? "Growth Expected"
-        : Number(location.healthScore || 0) >= 70
-        ? "Stable Trend"
-        : "Decline Risk";
+   const revenueHealthStatus =
+  Number(location.healthScore || 0) >= 85
+    ? "Strong"
+    : Number(location.healthScore || 0) >= 70
+    ? "Stable"
+    : "At Risk";
 
-    const projectedMarginPressure =
+const marginPressure =
       Number(location.laborPercent || 0) > 35
         ? "High"
         : Number(location.laborPercent || 0) > 30
@@ -22159,8 +22475,8 @@ const regionalForecastingData = useMemo(() => {
     return {
       ...location,
       projectedRisk,
-      projectedRevenueTrend,
-      projectedMarginPressure,
+      revenueHealthStatus,
+marginPressure,
     };
   });
 }, [multiLocationIntelligence]);
@@ -22826,7 +23142,7 @@ const aiExecutiveCloseout = {
   } monitored location(s).`,
 };
 
-const aiWhatIfSimulator = {
+const aiWhatIfScenarioEstimates = {
   reduceFoodCost2Percent: Math.round((totalRevenue || 0) * 0.02),
   reduceLaborCost15Percent: Math.round((totalRevenue || 0) * 0.015),
   improveMenuMargin3Percent: Math.round((totalRevenue || 0) * 0.03),
@@ -25362,11 +25678,11 @@ const benchmarkScores = [
   label: "Consumables",
  actual: `$${Number(
   100 -
-    Number(aiHealthEngine?.categoryScores?.consumablesHealth || 100)
+    Number(aiHealthEngine?.categoryScores?.consumablesHealth ?? 0)
 ).toLocaleString()}`,
   target: "$0 leakage",
   status:
-    Number(aiHealthEngine?.categoryScores?.consumablesHealth || 100) >= 90
+    Number(aiHealthEngine?.categoryScores?.consumablesHealth ?? 0) >= 90
       ? "Healthy"
       : Number(consumablesEstimatedLeakage || 0) <= 500
       ? "Watch"
@@ -25928,9 +26244,7 @@ const gmProfitRecovery = useMemo(() => {
 ]);
 
 const gmForecastingCenter = useMemo(() => {
-  const projectedRevenue =
-    Number(liveTotalRevenue || 0) *
-    (1 + Number(liveMomentumPercent || 0) / 100);
+  const currentRevenue = Number(liveTotalRevenue || 0);
 
   let staffingForecast = "Stable";
   let riskLevel = "Low";
@@ -25945,7 +26259,7 @@ const gmForecastingCenter = useMemo(() => {
   }
 
   return {
-    projectedRevenue,
+    currentRevenue,
     staffingForecast,
     riskLevel,
   };
@@ -26608,21 +26922,20 @@ const realEnterpriseHealth = Math.round(
     Number(100 - Math.min(50, Number(criticalInventoryItems?.length || 0) * 5))
   ) / 3
 );
-const realForecastConfidence = Math.max(
-  35,
-  Math.min(
-    98,
-    Math.round(
-      85 -
-        Number(criticalInventoryItems?.length || 0) * 6 -
-        Number(profitLeakSignals?.length || 0) * 4 -
-        Math.abs(Number(revenueTrend?.growthPercent || 0)) * 1.2 -
-        Number(kitchenDelayAlerts?.length || 0) * 3
+const realForecastConfidence = hasOperationalData
+  ? Math.round(
+      (
+        (liveTotalRevenue > 0 ? 25 : 0) +
+        (totalLaborCost > 0 ? 25 : 0) +
+        ((inventoryDepletionData?.length || 0) > 0 ? 25 : 0) +
+        ((menuItemsData?.length || 0) > 0 ? 25 : 0)
+      )
     )
-  )
-);
+  : 0;
 
-const simulationAccuracy = Number(realForecastConfidence || 0);
+const operationalConfidence = hasOperationalData
+  ? realForecastConfidence
+  : 0;
 const modeledSystemsCount = [
   liveTotalRevenue > 0,
   totalLaborCost > 0,
@@ -26658,7 +26971,9 @@ const projectedGrowthLive =
         Number(revenueTrend?.growthPercent || 0)
       )}%`;
 
-const forecastConfidenceLive = `${realForecastConfidence}%`;
+const forecastConfidenceLive = hasOperationalData
+  ? `${realForecastConfidence}%`
+  : "Awaiting Data";
 
 const expansionReadiness =
   realEnterpriseHealth >= 85
@@ -29018,7 +29333,7 @@ handleImportInventory();
       ? `${Math.min(
           100,
           Math.round(
-            (Number(simulatedProfit || 0) /
+           (Number(totalAiProfit || 0) /
               Number(totalAIRecoveryOpportunity || 1)) *
               100
           )
@@ -29139,11 +29454,11 @@ handleImportInventory();
           marginBottom: "28px",
         }}
       >
-        SerVen AI has completed a full operational analysis across revenue,
-        labor, inventory, guests, forecasting, reservations, profit leakage,
-        and optimization systems. AI predicts stable growth potential while
-        identifying opportunities to improve guest retention, increase margin
-        efficiency, and reduce operational leakage.
+       SerVen AI has completed a full operational analysis across revenue,
+labor, inventory, guests, forecasting, reservations, profit leakage,
+and optimization systems. Current operating signals indicate growth
+potential while identifying opportunities to improve guest retention,
+increase margin efficiency, and reduce operational leakage.
       </p>
 
       <div
@@ -29181,7 +29496,7 @@ handleImportInventory();
   value={
    hasFullRecoveryData
       ? `${Number(realForecastConfidence || 0)}%`
-      : "Simulation"
+      : "Awaiting Data"
   }
   subtitle="AI predictive certainty"
 />
@@ -29225,9 +29540,7 @@ handleImportInventory();
         >
           Focus immediate optimization efforts on guest retention recovery,
           high-margin menu visibility, labor efficiency during low-volume
-          periods, and inventory variance reduction. AI predicts these
-          initiatives have the highest probability of near-term profitability
-          improvement.
+          periods, and inventory variance reduction. AI analysis suggests these initiatives have the highest probability of near-term profitability
         </div>
       </div>
     </div>
@@ -29554,9 +29867,7 @@ const timeToImpact =
             onClick={() => {
               if (alreadyApplied) return;
 
-              setSimulatedProfit(
-                (prev) => prev + Number(item.impact || 0)
-              );
+            
 
               setAppliedFixes((prev) => [...prev, item.id]);
 
@@ -29641,7 +29952,7 @@ const timeToImpact =
   title="Profit Applied"
   value={
     hasFullRecoveryData
-      ? `$${Number(simulatedProfit || 0).toLocaleString()}`
+      ? `$${Number(totalAiProfit || 0).toLocaleString()}`
       : "Apply AI Fixes"
   }
   subtext="Monthly recovery from applied fixes"
@@ -29655,7 +29966,7 @@ const timeToImpact =
           Math.max(
             0,
             Number(totalAIRecoveryOpportunity || 0) -
-              Number(simulatedProfit || 0)
+             Number(totalAiProfit || 0)
           )
         ).toLocaleString()}`
       : "Awaiting Analysis"
@@ -29670,7 +29981,7 @@ const timeToImpact =
       ? `${Math.min(
           100,
           Math.round(
-            (Number(simulatedProfit || 0) /
+            (Number(totalAiProfit || 0) /
               Number(totalAIRecoveryOpportunity || 1)) *
               100
           )
@@ -29706,7 +30017,7 @@ const timeToImpact =
     ? `${Math.min(
         100,
         Math.round(
-          (Number(simulatedProfit || 0) /
+          (Number(totalAiProfit || 0) /
             Number(totalAIRecoveryOpportunity || 1)) *
             100
         )
@@ -29732,7 +30043,7 @@ const timeToImpact =
             ? Math.min(
                 100,
                 Math.round(
-                  (Number(simulatedProfit || 0) /
+                  (Number(totalAiProfit || 0) /
                     Number(totalAIRecoveryOpportunity || 1)) *
                     100
                 )
@@ -29758,7 +30069,7 @@ const timeToImpact =
     }}
   >
     <span>
-      ${Number(simulatedProfit || 0).toLocaleString()} recovered
+    ${Number(totalAiProfit || 0).toLocaleString()} recovered
     </span>
 
     <span>
@@ -29766,7 +30077,7 @@ const timeToImpact =
         Math.max(
           0,
           Number(totalAIRecoveryOpportunity || 0) -
-            Number(simulatedProfit || 0)
+            Number(totalAiProfit || 0)
         )
       ).toLocaleString()} remaining
     </span>
@@ -30119,7 +30430,7 @@ const timeToImpact =
   realProfitLoading={realProfitLoading}
   realProfitEngine={realProfitEngine}
   appliedFixes={appliedFixes}
-  setSimulatedProfit={setSimulatedProfit}
+  
   setMessage={setMessage}
   setAppliedFixes={setAppliedFixes}
 />
@@ -31818,8 +32129,8 @@ const color = !hasScore
           fontWeight: "950",
         }}
       >
-        {Number(aiHealthEngine?.projectedScore || restaurantHealthProjectedScore || 0) > 0
-  ? `${Number(aiHealthEngine?.projectedScore || restaurantHealthProjectedScore)}/100`
+        {Number(aiHealthEngine?.currentScore || restaurantHealthCurrentScore || 0) > 0
+  ? `${Number(aiHealthEngine?.currentScore || restaurantHealthCurrentScore)}/100`
   : "Waiting for data"}
       </div>
     </div>
@@ -32117,7 +32428,7 @@ const color = !hasScore
       },
       {
         label: "30 Days",
-        score: restaurantHealthProjectedScore,
+        score: restaurantHealthCurrentScore,
       },
     ].map((item) => {
       const color =
@@ -33112,7 +33423,7 @@ const color = !hasScore
       {
         label: "Tracked Consumables",
         value:
-  Number(aiHealthEngine?.categoryScores?.consumablesHealth || 100) < 75
+  Number(aiHealthEngine?.categoryScores?.consumablesHealth ?? 0) < 75
     ? 1
     : 0,
         sub: "Oil, garnish, herbs, berries, citrus",
@@ -33120,7 +33431,7 @@ const color = !hasScore
       {
         label: "Variance Risks",
         value:
-  Number(aiHealthEngine?.categoryScores?.consumablesHealth || 100) < 75
+  Number(aiHealthEngine?.categoryScores?.consumablesHealth ?? 0) < 75
     ? 1
     : 0,
         sub: "Estimated depletion concerns",
@@ -33129,7 +33440,7 @@ const color = !hasScore
         label: "Estimated Leakage",
        value: `$${Math.round(
   (100 -
-    Number(aiHealthEngine?.categoryScores?.consumablesHealth || 100)) * 25
+    Number(aiHealthEngine?.categoryScores?.consumablesHealth ?? 0)) * 25
 ).toLocaleString()}`,
         sub: "Potential monthly prep loss",
       },
@@ -33167,7 +33478,7 @@ const color = !hasScore
 
   <div style={{ display: "grid", gap: "12px" }}>
    {(
-  Number(aiHealthEngine?.categoryScores?.consumablesHealth || 100) < 75
+  Number(aiHealthEngine?.categoryScores?.consumablesHealth ?? 0) < 75
     ? [
         {
           name: "Consumables Variance",
@@ -33223,7 +33534,7 @@ const color = !hasScore
       </div>
     ))}
 
-    {Number(aiHealthEngine?.categoryScores?.consumablesHealth || 100) >= 95 && (
+   {Number(aiHealthEngine?.categoryScores?.consumablesHealth ?? 0) >= 95 && (
       <div style={itemStyle}>
         Upload ingredient or invoice rows containing oil, citrus, berries, herbs,
         or garnish items to activate consumables intelligence.
@@ -33649,21 +33960,25 @@ const color = !hasScore
 Restaurant AI Health is currently rated{" "}
 <strong>{restaurantHealthGrade || "Stable"}</strong> with a score of{" "}
 <strong>
-  {Number(
-    aiHealthEngine?.overallScore ||
-      restaurantHealthScore ||
-      overallAIHealthScore ||
-      liveScore ||
-      75
-  )}/100
+  {hasOperationalData
+  ? `${Number(
+      aiHealthEngine?.overallScore ||
+        restaurantHealthScore ||
+        overallAIHealthScore ||
+        liveScore ||
+        0
+    )}/100`
+  : "Awaiting Data"}
 </strong>. The 30-day forecast is{" "}
 <strong>
-  {Number(
-    aiHealthEngine?.projectedScore ||
-      restaurantHealthProjectedScore ||
-      restaurantHealthScore ||
-      75
-  )}/100
+  {hasOperationalData
+  ? `${Number(
+  aiHealthEngine?.currentScore ||
+  restaurantHealthCurrentScore ||
+        restaurantHealthScore ||
+        0
+    )}/100`
+  : "Awaiting Data"}
 </strong> and trending{" "}
 <strong>{restaurantHealthTrend || "Stable"}</strong>. AI is prioritizing{" "}
 <strong>{aiDailyFocus || "revenue and menu performance"}</strong>. Primary risk detected:{" "}
@@ -35852,7 +36167,9 @@ Restaurant AI Health is currently rated{" "}
         },
         {
           label: "AI Forecast Confidence",
-          value: `${realForecastConfidence}%`,
+         value: hasOperationalData
+  ? `${realForecastConfidence}%`
+  : "Awaiting Data",
         },
       ].map((item) => (
         <div
@@ -37112,7 +37429,7 @@ Restaurant AI Health is currently rated{" "}
           
         ]
     ).map((location, index) => {
-      const score = Number(location.score || location.healthScore || 75);
+     const score = Number(location.score || location.healthScore || 0);
 
       const color =
         score >= 80
@@ -39342,7 +39659,7 @@ Restaurant AI Health is currently rated{" "}
       >
         $
         {Math.round(
-          gmForecastingCenter.projectedRevenue
+         gmForecastingCenter.currentRevenue
         ).toLocaleString()}
       </div>
     </div>
@@ -41000,8 +41317,8 @@ Restaurant AI Health is currently rated{" "}
           color: "#ffffff",
         },
         {
-          label: "Projected Week",
-          value: `$${Math.round(Number(weeklyContext?.projectedFullWeekRevenue || 0)).toLocaleString()}`,
+          label: "Estimated Week Run Rate",
+          value: `$${Math.round(Number(weeklyContext?.estimatedFullWeekRevenue || 0)).toLocaleString()}`,
           color: "#86efac",
         },
         {
@@ -41068,9 +41385,9 @@ Restaurant AI Health is currently rated{" "}
         }}
       >
         You are {Number(weeklyContext?.daysPassed || 0)}/7 days into the week. At
-        your current pace, you’re projected to hit{" "}
+       your current run rate is{" "}
         <b>
-          ${Math.round(Number(weeklyContext?.projectedFullWeekRevenue || 0)).toLocaleString()}
+          ${Math.round(Number(weeklyContext?.estimatedFullWeekRevenue || 0)).toLocaleString()}
         </b>{" "}
         this week. That is{" "}
         <b
@@ -45447,7 +45764,7 @@ minWidth: 0,
           </div>
 
           <div style={{ color: "#c4b5fd", fontSize: "18px", fontWeight: "900" }}>
-            +${Number(simulatedProfit || 0).toLocaleString()}
+            +${Number(totalAiProfit || 0).toLocaleString()}
           </div>
         </div>
 
@@ -45539,7 +45856,7 @@ minWidth: 0,
           lineHeight: 1.1,
         }}
       >
-        <CountUpValue value="{projectedRevenueLift.aiLift}" prefix="+$" suffix="/mo"/>
+        <CountUpValue value={Number(totalAiProfit || 0)} prefix="$" />
       </div>
 
       <div
@@ -45579,7 +45896,7 @@ minWidth: 0,
         whiteSpace: "nowrap",
       }}
     >
-      {projectedRevenueLift.percentLift.toFixed(1)}% lift
+     Live recovery progress
     </div>
   </div>
 
@@ -45663,7 +45980,7 @@ minWidth: 0,
           color: "white",
         }}
       >
-        ${projectedRevenueLift.currentRevenue.toLocaleString()}
+       ${Number(totalRevenue || 0).toLocaleString()}
       </div>
     </div>
 
@@ -45695,7 +46012,7 @@ minWidth: 0,
           color: "#4ade80",
         }}
       >
-        +${projectedRevenueLift.aiLift.toLocaleString()}/mo
+        ${Number(totalAiProfit || 0).toLocaleString()} recovered
       </div>
     </div>
 
@@ -45727,7 +46044,7 @@ minWidth: 0,
           color: "white",
         }}
       >
-        ${projectedRevenueLift.projectedRevenue.toLocaleString()}
+        ${Number(totalRevenue || 0).toLocaleString()}
       </div>
     </div>
   </div>
@@ -45772,11 +46089,8 @@ minWidth: 0,
         <span style={{ color: "#86efac", fontWeight: "800" }}>
           {revenueScenario === "base" ? "Base Case" : revenueScenario.charAt(0).toUpperCase() + revenueScenario.slice(1)}
         </span>{" "}
-        scenario, applying {appliedFixes.length} AI fix
-        {appliedFixes.length === 1 ? "" : "es"} could move the business from $
-        {projectedRevenueLift.currentRevenue.toLocaleString()} to $
-        {projectedRevenueLift.projectedRevenue.toLocaleString()} in estimated
-        monthly revenue.
+       Current AI actions are now tracked as applied recovery, not projected future revenue.
+Recovered profit is based on saved AI action impact.
       </div>
     </div>
 
@@ -45868,7 +46182,9 @@ minWidth: 0,
             whiteSpace: "nowrap", // Prevents pill text breaking into two rows
           }}
         >
-          {realForecastConfidence}% confidence
+          {hasOperationalData
+  ? `${realForecastConfidence}% confidence`
+  : "Awaiting Data"}
         </div>
       </div>
 
@@ -46218,7 +46534,7 @@ minWidth: 0,
               fontWeight: "700",
             }}
           >
-            {progressWidth.toFixed(1)}% of projected lift
+          {progressWidth.toFixed(1)}% of recovery opportunity captured
           </div>
         </div>
       );
@@ -47419,13 +47735,15 @@ minWidth: 0,
       {[
         {
           label: "AI Health",
-          value: `${Number(
-  aiHealthEngine?.overallScore ||
-    restaurantHealthScore ||
-    overallAIHealthScore ||
-    liveScore ||
-    75
-)}/100`,
+         value: hasOperationalData
+  ? `${Number(
+      aiHealthEngine?.overallScore ||
+        restaurantHealthScore ||
+        overallAIHealthScore ||
+        liveScore ||
+        0
+    )}/100`
+  : "Awaiting Data",
         },
         {
           label: "Recovery Opportunity",
@@ -49583,7 +49901,7 @@ minWidth: 0,
                   overflowWrap: "anywhere",
                 }}
               >
-                {location.projectedRevenueTrend}
+                {location.revenueHealthStatus}
               </div>
             </div>
 
@@ -49603,11 +49921,11 @@ minWidth: 0,
                 },
                 {
                   label: "Labor Pressure",
-                  value: location.projectedMarginPressure,
+                  value: location.marginPressure,
                 },
                 {
                   label: "Revenue Outlook",
-                  value: location.projectedRevenueTrend,
+                  value: location.revenueHealthStatus,
                 },
               ].map((metric) => (
                 <div
@@ -50140,13 +50458,15 @@ minWidth: 0,
       {[
         {
           label: "AI Health",
-          value: `${Number(
-  aiHealthEngine?.overallScore ||
-    restaurantHealthScore ||
-    overallAIHealthScore ||
-    liveScore ||
-    75
-)}/100`,
+         value: hasOperationalData
+  ? `${Number(
+      aiHealthEngine?.overallScore ||
+        restaurantHealthScore ||
+        overallAIHealthScore ||
+        liveScore ||
+        0
+    )}/100`
+  : "Awaiting Data",
           subtext: aiHealthEngine?.grade || "Monitoring",
         },
         {
@@ -52022,19 +52342,17 @@ minWidth: 0,
         }}
       >
         {[
-         {
+{
   label: "Active Alerts",
-  value:
-    Number(executiveSummary?.criticalAlerts || 0) +
-    Number(executiveSummary?.warningAlerts || 0),
+  value: Number(unifiedAIAlertsFeed?.length || 0),
 },
 {
-  label: "Revenue Outlook",
-  value: executiveSummary?.projectedRevenue || "$0",
+  label: "Current Revenue",
+  value: `$${Number(totalRevenue || liveTotalRevenue || 0).toLocaleString()}`,
 },
 {
-  label: "Operational Risk",
-  value: executiveSummary?.operationalRisk || "Controlled",
+  label: "Operational Priority",
+  value: executiveSummary?.priority || "Monitoring",
 },
 {
   label: "Recoverable Profit",
@@ -52622,30 +52940,25 @@ profit recovery opportunities, AI recommendations, and forecasted trends.
         marginBottom: "18px",
       }}
     >
-      {[
-       {
-  label: "Revenue Outlook",
-  value: weeklyExecutiveSummary?.projectedRevenue || "$0",
+      {[{
+  label: "Current Week Revenue",
+  value: `$${Number(revenueTrend?.currentWeekRevenue || 0).toLocaleString()}`,
 },
 {
-  label: "Operational Risk",
-  value: weeklyExecutiveSummary?.operationalRisk || "Controlled",
+  label: "Weekly Priority",
+  value: weeklyExecutiveSummary?.tone?.label || "Stable",
 },
 {
   label: "Active Alerts",
-  value:
-    Number(weeklyExecutiveSummary?.criticalAlerts || 0) +
-    Number(weeklyExecutiveSummary?.warningAlerts || 0),
+  value: Number(unifiedAIAlertsFeed?.length || 0),
 },
 {
   label: "Recoverable Profit",
   value: `$${Number(totalAIRecoveryOpportunity || 0).toLocaleString()}`,
 },
-        {
+{
   label: "Monthly Recoverable Profit",
-  value: `$${Number(
-    totalAIRecoveryOpportunity || 0
-  ).toLocaleString()}`,
+  value: `$${Number(totalAIRecoveryOpportunity || 0).toLocaleString()}`,
 },
       ].map((metric) => (
         <div
@@ -52721,7 +53034,7 @@ profit recovery opportunities, AI recommendations, and forecasted trends.
             "Weekly executive report unavailable.",
           audience: "Restaurant Operators",
           issue: "Weekly Executive Report",
-          reason: weeklyExecutiveSummary?.operationalRisk || "Monitoring",
+         reason: weeklyExecutiveSummary?.tone?.label || "Monitoring",
         });
 
         pushActivity("Generated weekly executive report draft", "report");
@@ -56236,6 +56549,1578 @@ profit recovery opportunities, AI recommendations, and forecasted trends.
     </div>
   </div>
 )}
+{/* PROFIT RECOVERY TAB */}
+{activeTab === "profit_recovery" && (
+  <div style={{ display: "grid", gap: "24px" }}>
+
+    {/* PROFIT RECOVERY HERO */}
+    <div
+      style={{
+        padding: isMobile ? "24px" : "34px",
+        borderRadius: "30px",
+        background:
+          "radial-gradient(circle at top right, rgba(34,197,94,0.18), transparent 34%), linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.94))",
+        border: "1px solid rgba(34,197,94,0.18)",
+        boxShadow: "0 24px 70px rgba(0,0,0,0.32)",
+      }}
+    >
+      {/* HERO LABEL */}
+      <div
+        style={{
+          fontSize: "12px",
+          fontWeight: "900",
+          letterSpacing: "0.14em",
+          textTransform: "uppercase",
+          color: "#86efac",
+          marginBottom: "12px",
+        }}
+      >
+        Profit Recovery Center
+      </div>
+
+      {/* HERO TITLE */}
+      <h1
+        style={{
+          margin: 0,
+          color: "white",
+          fontSize: isMobile ? "32px" : "46px",
+          lineHeight: 1.05,
+          letterSpacing: "-0.04em",
+        }}
+      >
+        Recover lost profit with prioritized AI actions.
+      </h1>
+
+      {/* HERO DESCRIPTION */}
+      <p
+        style={{
+          marginTop: "14px",
+          maxWidth: "780px",
+          color: "#cbd5e1",
+          fontSize: "15px",
+          lineHeight: 1.7,
+        }}
+      >
+        Serven ranks recoverable profit by financial impact, tracks progress,
+        and shows exactly how much opportunity remains.
+      </p>
+
+      {/* HERO METRIC CARDS */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: isMobile ? "1fr" : "repeat(4, minmax(0, 1fr))",
+          gap: "14px",
+          marginTop: "26px",
+        }}
+      >
+        {[
+          {
+            label: "Monthly Recoverable",
+            value:
+              profitRecoverySummary.monthlyRecoverable > 0
+                ? `$${profitRecoverySummary.monthlyRecoverable.toLocaleString()}`
+                : "Awaiting Data",
+            subtext: "Profit recovery found",
+          },
+          {
+            label: "Annual Recoverable",
+            value:
+              profitRecoverySummary.annualRecoverable > 0
+                ? `$${profitRecoverySummary.annualRecoverable.toLocaleString()}`
+                : "Awaiting Data",
+            subtext: "Annualized opportunity",
+          },
+          {
+            label: "Verified Recovered",
+            value: `$${profitRecoverySummary.verifiedRecovered.toLocaleString()}`,
+            subtext: `${profitRecoverySummary.verifiedActionCount} verified action${
+              profitRecoverySummary.verifiedActionCount === 1 ? "" : "s"
+            }`,
+          },
+          {
+            label: "Remaining",
+            value:
+              profitRecoverySummary.monthlyRecoverable > 0
+                ? `$${profitRecoverySummary.remaining.toLocaleString()}`
+                : "Awaiting Data",
+            subtext: "Uncaptured opportunity",
+          },
+        ].map((metric) => (
+          <div
+            key={metric.label}
+            style={{
+              padding: "18px",
+              borderRadius: "22px",
+              background: "rgba(255,255,255,0.045)",
+              border: "1px solid rgba(255,255,255,0.08)",
+            }}
+          >
+            <div
+              style={{
+                color: "#94a3b8",
+                fontSize: "11px",
+                fontWeight: "900",
+                textTransform: "uppercase",
+                letterSpacing: "0.08em",
+              }}
+            >
+              {metric.label}
+            </div>
+
+            <div
+              style={{
+                color: "white",
+                fontSize: "26px",
+                fontWeight: "950",
+                marginTop: "8px",
+              }}
+            >
+              {metric.value}
+            </div>
+
+            <div
+              style={{
+                color: "#64748b",
+                fontSize: "12px",
+                marginTop: "6px",
+              }}
+            >
+              {metric.subtext}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* HERO RECOVERY PROGRESS BAR */}
+      <div style={{ marginTop: "24px" }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            gap: "12px",
+            color: "#cbd5e1",
+            fontSize: "13px",
+            fontWeight: "800",
+            marginBottom: "8px",
+          }}
+        >
+          <span>Recovery Progress</span>
+          <span>{profitRecoverySummary.recoveryProgress}%</span>
+        </div>
+
+        <div
+          style={{
+            height: "12px",
+            borderRadius: "999px",
+            background: "rgba(255,255,255,0.08)",
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              width: `${profitRecoverySummary.recoveryProgress}%`,
+              height: "100%",
+              borderRadius: "999px",
+              background: "linear-gradient(135deg, #22c55e, #86efac)",
+            }}
+          />
+        </div>
+      </div>
+    </div>
+{/* EXECUTIVE RECOVERY INSIGHT */}
+<div
+  style={{
+    padding: isMobile ? "22px" : "28px",
+    borderRadius: "28px",
+    background:
+      "radial-gradient(circle at top right, rgba(168,85,247,0.16), transparent 34%), linear-gradient(135deg, rgba(15,23,42,0.97), rgba(30,41,59,0.94))",
+    border: "1px solid rgba(168,85,247,0.18)",
+    boxShadow: "0 18px 50px rgba(0,0,0,0.24)",
+  }}
+>
+  {/* INSIGHT HEADER */}
+  <div style={{ marginBottom: "18px" }}>
+    <div
+      style={{
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.12em",
+        textTransform: "uppercase",
+        color: "#c4b5fd",
+        marginBottom: "8px",
+      }}
+    >
+      Executive Recovery Insight
+    </div>
+
+    <h2
+      style={{
+        margin: 0,
+        color: "white",
+        fontSize: isMobile ? "24px" : "32px",
+        letterSpacing: "-0.04em",
+      }}
+    >
+      {executiveRecoveryInsight.headline}
+    </h2>
+  </div>
+
+  {/* INSIGHT BODY */}
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile ? "1fr" : "1.2fr 0.8fr",
+      gap: "16px",
+    }}
+  >
+    {/* LEFT SIDE */}
+    <div
+      style={{
+        padding: "18px",
+        borderRadius: "22px",
+        background: "rgba(255,255,255,0.045)",
+        border: "1px solid rgba(255,255,255,0.08)",
+      }}
+    >
+      <div
+        style={{
+          color: "#94a3b8",
+          fontSize: "11px",
+          fontWeight: "900",
+          textTransform: "uppercase",
+          letterSpacing: "0.08em",
+          marginBottom: "8px",
+        }}
+      >
+        Situation
+      </div>
+
+      <div
+        style={{
+          color: "#e2e8f0",
+          fontSize: "14px",
+          lineHeight: 1.7,
+          marginBottom: "16px",
+        }}
+      >
+        {executiveRecoveryInsight.situation}
+      </div>
+<div
+  style={{
+    marginTop: "16px",
+    padding: "14px",
+    borderRadius: "16px",
+    background: "rgba(239,68,68,0.08)",
+    border: "1px solid rgba(239,68,68,0.18)",
+  }}
+>
+  <div
+    style={{
+      color: "#fca5a5",
+      fontSize: "11px",
+      fontWeight: "900",
+      textTransform: "uppercase",
+      letterSpacing: "0.08em",
+      marginBottom: "6px",
+    }}
+  >
+    Key Risk
+  </div>
+
+  <div
+    style={{
+      color: "#f8fafc",
+      fontSize: "14px",
+      lineHeight: 1.6,
+      fontWeight: "700",
+    }}
+  >
+    {executiveRecoveryInsight.keyRisk}
+  </div>
+</div>
+      <div
+        style={{
+          color: "#94a3b8",
+          fontSize: "11px",
+          fontWeight: "900",
+          textTransform: "uppercase",
+          letterSpacing: "0.08em",
+          marginBottom: "8px",
+        }}
+      >
+        Recommended Next Action
+      </div>
+
+      <div
+        style={{
+          color: "white",
+          fontSize: "15px",
+          fontWeight: "900",
+          lineHeight: 1.6,
+        }}
+      >
+        {executiveRecoveryInsight.recommendation}
+      </div>
+    </div>
+
+    {/* RIGHT SIDE */}
+    <div
+      style={{
+        padding: "18px",
+        borderRadius: "22px",
+        background: "rgba(255,255,255,0.045)",
+        border: "1px solid rgba(255,255,255,0.08)",
+      }}
+    >
+      <div
+        style={{
+          color: "#94a3b8",
+          fontSize: "11px",
+          fontWeight: "900",
+          textTransform: "uppercase",
+          letterSpacing: "0.08em",
+          marginBottom: "8px",
+        }}
+      >
+        Expected Outcome
+      </div>
+
+      <div
+        style={{
+          color: "#e2e8f0",
+          fontSize: "14px",
+          lineHeight: 1.7,
+          marginBottom: "16px",
+        }}
+      >
+        {executiveRecoveryInsight.expectedOutcome}
+      </div>
+
+      <div
+        style={{
+          color: "#94a3b8",
+          fontSize: "11px",
+          fontWeight: "900",
+          textTransform: "uppercase",
+          letterSpacing: "0.08em",
+          marginBottom: "8px",
+        }}
+      >
+        Recovery Pace
+      </div>
+
+      <div
+        style={{
+          color: "#e2e8f0",
+          fontSize: "14px",
+          lineHeight: 1.7,
+        }}
+      >
+        {executiveRecoveryInsight.pace}
+      </div>
+    </div>
+  </div>
+
+  {/* BUSINESS IMPACT STRIP */}
+  <div
+    style={{
+      marginTop: "16px",
+      padding: "16px",
+      borderRadius: "22px",
+      background: "rgba(168,85,247,0.1)",
+      border: "1px solid rgba(196,181,253,0.16)",
+      display: "grid",
+      gridTemplateColumns: isMobile ? "1fr" : "1fr auto",
+      gap: "12px",
+      alignItems: "center",
+    }}
+  >
+    <div>
+      <div
+        style={{
+          color: "#c4b5fd",
+          fontSize: "12px",
+          fontWeight: "900",
+          letterSpacing: "0.1em",
+          textTransform: "uppercase",
+          marginBottom: "6px",
+        }}
+      >
+        Business Impact
+      </div>
+
+      <div
+        style={{
+          color: "white",
+          fontSize: "14px",
+          lineHeight: 1.7,
+          fontWeight: "800",
+        }}
+      >
+        {executiveRecoveryInsight.topThree}
+      </div>
+    </div>
+
+    <div
+      style={{
+        padding: "12px 16px",
+        borderRadius: "18px",
+        background: "rgba(15,23,42,0.72)",
+        border: "1px solid rgba(255,255,255,0.08)",
+        textAlign: isMobile ? "left" : "center",
+      }}
+    >
+      <div
+        style={{
+          color: "#94a3b8",
+          fontSize: "10px",
+          fontWeight: "900",
+          textTransform: "uppercase",
+          letterSpacing: "0.08em",
+        }}
+      >
+        Confidence
+      </div>
+
+      <div
+        style={{
+          color: "white",
+          fontSize: "24px",
+          fontWeight: "950",
+          marginTop: "4px",
+        }}
+      >
+        {executiveRecoveryInsight.confidence}
+      </div>
+    </div>
+  </div>
+</div>
+{/* TODAY'S EXECUTIVE PRIORITIES */}
+<div
+  style={{
+    padding: isMobile ? "22px" : "28px",
+    borderRadius: "28px",
+    background:
+      "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.92))",
+    border: "1px solid rgba(255,255,255,0.08)",
+    boxShadow: "0 18px 50px rgba(0,0,0,0.24)",
+  }}
+>
+  {/* HEADER */}
+  <div style={{ marginBottom: "20px" }}>
+    <div
+      style={{
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.12em",
+        textTransform: "uppercase",
+        color: "#fbbf24",
+        marginBottom: "8px",
+      }}
+    >
+      Today's Executive Priorities
+    </div>
+
+    <h2
+      style={{
+        margin: 0,
+        color: "white",
+        fontSize: isMobile ? "24px" : "30px",
+        letterSpacing: "-0.03em",
+      }}
+    >
+      Focus on these recovery actions first
+    </h2>
+
+    <p
+      style={{
+        marginTop: "8px",
+        color: "#94a3b8",
+        fontSize: "13px",
+        lineHeight: 1.7,
+      }}
+    >
+      Serven ranks today's highest-impact recovery opportunities based on
+      remaining financial impact.
+    </p>
+  </div>
+
+  {/* PRIORITY LIST */}
+  <div style={{ display: "grid", gap: "14px" }}>
+    {profitRecoverySummary.categories.slice(0, 3).map((category, index) => (
+      <div
+        key={category.label}
+        style={{
+          padding: "18px",
+          borderRadius: "20px",
+          background: "rgba(15,23,42,0.72)",
+         border:
+  index === 0
+    ? "1px solid rgba(239,68,68,0.34)"
+    : index === 1
+    ? "1px solid rgba(251,191,36,0.34)"
+    : "1px solid rgba(34,197,94,0.28)",
+          display: "grid",
+          gridTemplateColumns: isMobile ? "1fr" : "1.5fr 0.6fr auto",
+          gap: "14px",
+          alignItems: "center",
+        }}
+      >
+        {/* LEFT */}
+        <div>
+          <div
+            style={{
+              color: "white",
+              fontSize: "16px",
+              fontWeight: "900",
+            }}
+          >
+            {index + 1}. {category.icon} {category.label}
+          </div>
+
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "13px",
+              marginTop: "6px",
+              lineHeight: 1.6,
+            }}
+          >
+            {category.action}
+          </div>
+        </div>
+
+        {/* IMPACT */}
+        <div>
+          <div
+            style={{
+              color: "#64748b",
+              fontSize: "11px",
+              fontWeight: "900",
+              textTransform: "uppercase",
+            }}
+          >
+            Remaining
+          </div>
+
+          <div
+            style={{
+              color: "white",
+              fontSize: "22px",
+              fontWeight: "950",
+              marginTop: "4px",
+            }}
+          >
+            $
+            {Number(
+              category.remaining || category.opportunity || 0
+            ).toLocaleString()}
+          </div>
+          <div
+  style={{
+    marginTop: "10px",
+  }}
+>
+  <div
+    style={{
+      color: "#64748b",
+      fontSize: "11px",
+      fontWeight: "900",
+      textTransform: "uppercase",
+    }}
+  >
+    Estimated Completion
+  </div>
+
+  <div
+    style={{
+      color: "#e2e8f0",
+      fontSize: "14px",
+      fontWeight: "800",
+      marginTop: "4px",
+    }}
+  >
+    {recoveryVelocity.hasVelocity
+      ? `${Math.max(
+          1,
+          Math.ceil(
+            (category.remaining || category.opportunity || 0) /
+              Math.max(recoveryVelocity.dailyPace, 1)
+          )
+        )} Days`
+      : "Calculating..."}
+  </div>
+</div>
+        </div>
+
+        {/* ACTION */}
+        <button
+          onClick={() => setActiveTab(category.route)}
+          style={{
+            border: "none",
+            borderRadius: "14px",
+            padding: "12px 18px",
+            background: "linear-gradient(135deg,#f59e0b,#fbbf24)",
+            color: "#111827",
+            fontWeight: "900",
+            cursor: "pointer",
+            whiteSpace: "nowrap",
+          }}
+        >
+        Review {category.label} →
+        </button>
+      </div>
+    ))}
+  </div>
+</div>
+    {/* RECOVERY BREAKDOWN BY CATEGORY */}
+    <div
+      style={{
+        padding: isMobile ? "22px" : "28px",
+        borderRadius: "28px",
+        background:
+          "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.92))",
+        border: "1px solid rgba(255,255,255,0.08)",
+        boxShadow: "0 18px 50px rgba(0,0,0,0.24)",
+      }}
+    >
+      {/* BREAKDOWN HEADER */}
+      <div style={{ marginBottom: "20px" }}>
+        <div
+          style={{
+            fontSize: "12px",
+            fontWeight: "900",
+            letterSpacing: "0.12em",
+            textTransform: "uppercase",
+            color: "#86efac",
+            marginBottom: "8px",
+          }}
+        >
+          Recovery Breakdown
+        </div>
+
+        <h2
+          style={{
+            margin: 0,
+            color: "white",
+            fontSize: isMobile ? "24px" : "30px",
+            letterSpacing: "-0.03em",
+          }}
+        >
+          Where recoverable profit is coming from
+        </h2>
+
+        <p
+          style={{
+            marginTop: "8px",
+            color: "#94a3b8",
+            fontSize: "13px",
+            lineHeight: 1.7,
+            maxWidth: "720px",
+          }}
+        >
+          Serven separates recovery by operational category so clients can see
+          which problems are worth fixing first.
+        </p>
+      </div>
+
+      {/* BREAKDOWN CATEGORY CARDS */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: isMobile ? "1fr" : "repeat(3, minmax(0, 1fr))",
+          gap: "14px",
+        }}
+      >
+        {(profitRecoverySummary.categories || []).map((category) => (
+          <div
+            key={category.label}
+            style={{
+              padding: "18px",
+              borderRadius: "22px",
+              background: "rgba(255,255,255,0.045)",
+              border: "1px solid rgba(255,255,255,0.08)",
+            }}
+          >
+            {/* CATEGORY NAME */}
+            <div
+              style={{
+                color: "#e2e8f0",
+                fontSize: "15px",
+                fontWeight: "900",
+                marginBottom: "14px",
+              }}
+            >
+              {category.icon} {category.label}
+            </div>
+
+            {/* CATEGORY NUMBERS */}
+            <div style={{ display: "grid", gap: "10px" }}>
+              <div>
+                <div style={{ color: "#64748b", fontSize: "11px" }}>
+                  Opportunity
+                </div>
+                <div
+                  style={{
+                    color: "white",
+                    fontSize: "22px",
+                    fontWeight: "950",
+                  }}
+                >
+                  ${Number(category.opportunity || 0).toLocaleString()}
+                </div>
+              </div>
+
+              <div>
+                <div style={{ color: "#64748b", fontSize: "11px" }}>
+                  Recovered
+                </div>
+                <div
+                  style={{
+                    color: "#86efac",
+                    fontSize: "18px",
+                    fontWeight: "900",
+                  }}
+                >
+                  ${Number(category.recovered || 0).toLocaleString()}
+                </div>
+              </div>
+
+              <div>
+                <div style={{ color: "#64748b", fontSize: "11px" }}>
+                  Remaining
+                </div>
+                <div
+                  style={{
+                    color: "#fbbf24",
+                    fontSize: "18px",
+                    fontWeight: "900",
+                  }}
+                >
+                  ${Number(category.remaining || 0).toLocaleString()}
+                </div>
+              </div>
+            </div>
+
+            {/* CATEGORY PROGRESS BAR */}
+            <div style={{ marginTop: "14px" }}>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  fontSize: "11px",
+                  color: "#94a3b8",
+                  fontWeight: "800",
+                  marginBottom: "6px",
+                }}
+              >
+                <span>Status</span>
+                <span>{category.progress}%</span>
+              </div>
+
+              <div
+                style={{
+                  height: "8px",
+                  borderRadius: "999px",
+                  background: "rgba(255,255,255,0.08)",
+                  overflow: "hidden",
+                }}
+              >
+                <div
+                  style={{
+                    width: `${category.progress}%`,
+                    height: "100%",
+                    borderRadius: "999px",
+                    background: "linear-gradient(135deg, #22c55e, #86efac)",
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* EMPTY STATE */}
+      {(!profitRecoverySummary.categories ||
+        profitRecoverySummary.categories.length === 0) && (
+        <div
+          style={{
+            marginTop: "18px",
+            padding: "18px",
+            borderRadius: "20px",
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(255,255,255,0.08)",
+            color: "#94a3b8",
+            fontSize: "13px",
+          }}
+        >
+          Upload POS, labor, inventory, menu, beverage, and invoice data to
+          generate a recovery breakdown.
+        </div>
+      )}
+    </div>
+    {/* RECOVERY COACH */}
+<div
+  style={{
+    padding: isMobile ? "22px" : "28px",
+    borderRadius: "28px",
+    background:
+      "radial-gradient(circle at top right, rgba(99,102,241,0.16), transparent 34%), linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.92))",
+    border: "1px solid rgba(99,102,241,0.18)",
+    boxShadow: "0 18px 50px rgba(0,0,0,0.24)",
+  }}
+>
+  {/* COACH HEADER */}
+  <div style={{ marginBottom: "20px" }}>
+    <div
+      style={{
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.12em",
+        textTransform: "uppercase",
+        color: "#a5b4fc",
+        marginBottom: "8px",
+      }}
+    >
+      Recovery Coach
+    </div>
+
+    <h2
+      style={{
+        margin: 0,
+        color: "white",
+        fontSize: isMobile ? "24px" : "30px",
+        letterSpacing: "-0.03em",
+      }}
+    >
+      What to fix next
+    </h2>
+
+    <p
+      style={{
+        marginTop: "8px",
+        color: "#94a3b8",
+        fontSize: "13px",
+        lineHeight: 1.7,
+        maxWidth: "720px",
+      }}
+    >
+      Serven turns recovery opportunities into clear operator actions ranked by
+      financial impact.
+    </p>
+  </div>
+{/* COACH SUMMARY */}
+{profitRecoverySummary.categories.length > 0 && (
+  <div
+    style={{
+      marginBottom: "18px",
+      padding: "16px",
+      borderRadius: "20px",
+      background: "rgba(99,102,241,0.1)",
+      border: "1px solid rgba(165,180,252,0.16)",
+    }}
+  >
+    <div
+      style={{
+        color: "#a5b4fc",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.1em",
+        textTransform: "uppercase",
+        marginBottom: "8px",
+      }}
+    >
+      Today&apos;s Recovery Focus
+    </div>
+
+    <div
+      style={{
+        color: "white",
+        fontSize: isMobile ? "20px" : "24px",
+        fontWeight: "950",
+        letterSpacing: "-0.03em",
+      }}
+    >
+      Start with {profitRecoverySummary.categories[0]?.label} — $
+      {Number(
+        profitRecoverySummary.categories[0]?.remaining ||
+          profitRecoverySummary.categories[0]?.opportunity ||
+          0
+      ).toLocaleString()} remaining.
+    </div>
+
+    <div
+      style={{
+        color: "#94a3b8",
+        fontSize: "13px",
+        lineHeight: 1.6,
+        marginTop: "8px",
+      }}
+    >
+      This is the highest-impact recovery area based on the uploaded operational
+      data.
+    </div>
+  </div>
+)}
+  {/* COACH ACTIONS */}
+  <div style={{ display: "grid", gap: "12px" }}>
+    {profitRecoverySummary.categories.slice(0, 4).map((category, index) => (
+      <div
+        key={category.label}
+        style={{
+          padding: "16px",
+          borderRadius: "20px",
+          background: "rgba(15,23,42,0.74)",
+          border: "1px solid rgba(255,255,255,0.08)",
+          display: "grid",
+          gridTemplateColumns: isMobile ? "1fr" : "1.2fr 0.6fr 0.4fr",
+          gap: "12px",
+          alignItems: "center",
+        }}
+      >
+        <div>
+          <div
+            style={{
+              color: "#e2e8f0",
+              fontSize: "15px",
+              fontWeight: "900",
+            }}
+          >
+            {index + 1}. {category.icon} Review {category.label} Recovery
+          </div>
+
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "12px",
+              marginTop: "6px",
+              lineHeight: 1.6,
+            }}
+          >
+            {category.action}
+          </div>
+        </div>
+
+        <div>
+          <div style={{ color: "#64748b", fontSize: "11px" }}>
+            Estimated Impact
+          </div>
+          <div
+            style={{
+              color: "white",
+              fontSize: "20px",
+              fontWeight: "950",
+              marginTop: "4px",
+            }}
+          >
+            ${Number(category.remaining || category.opportunity || 0).toLocaleString()}
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab(category.route || "ai_alerts")}
+          style={{
+            border: "none",
+            borderRadius: "14px",
+            padding: "11px 14px",
+            background: "linear-gradient(135deg, #6366f1, #8b5cf6)",
+            color: "white",
+            fontSize: "12px",
+            fontWeight: "900",
+            cursor: "pointer",
+          }}
+        >
+        Review {category.label} →
+        </button>
+      </div>
+    ))}
+  </div>
+
+  {/* COACH EMPTY STATE */}
+  {profitRecoverySummary.categories.length === 0 && (
+    <div
+      style={{
+        padding: "18px",
+        borderRadius: "20px",
+        background: "rgba(255,255,255,0.04)",
+        border: "1px solid rgba(255,255,255,0.08)",
+        color: "#94a3b8",
+        fontSize: "13px",
+      }}
+    >
+      Upload operational data to generate recovery coaching actions.
+    </div>
+  )}
+</div>
+    {/* RECOVERY PRIORITY RANKING */}
+{profitRecoverySummary.categories?.length > 0 && (
+  <div
+    style={{
+      marginTop: "20px",
+      padding: "18px",
+      borderRadius: "22px",
+      background: "rgba(34,197,94,0.08)",
+      border: "1px solid rgba(34,197,94,0.16)",
+    }}
+  >
+    <div
+      style={{
+        color: "#86efac",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.1em",
+        textTransform: "uppercase",
+        marginBottom: "12px",
+      }}
+    >
+      Recover These First
+    </div>
+
+    <div style={{ display: "grid", gap: "10px" }}>
+      {profitRecoverySummary.categories.slice(0, 5).map((category, index) => (
+        <div
+          key={category.label}
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            gap: "12px",
+            alignItems: "center",
+            padding: "12px 14px",
+            borderRadius: "16px",
+            background: "rgba(15,23,42,0.72)",
+            border: "1px solid rgba(255,255,255,0.07)",
+          }}
+        >
+          <span style={{ color: "#e2e8f0", fontWeight: "900" }}>
+            {index === 0 ? "🔥" : index === 1 ? "⚠️" : "✅"} {index + 1}. {category.icon} {category.label}
+          </span>
+
+          <span style={{ color: "white", fontWeight: "950" }}>
+            ${Number(category.opportunity || 0).toLocaleString()}
+          </span>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
+{/* RECOVERY FUNNEL */}
+{profitRecoverySummary.monthlyRecoverable > 0 && (
+  <div
+    style={{
+      marginTop: "20px",
+      padding: "18px",
+      borderRadius: "22px",
+      background: "rgba(255,255,255,0.04)",
+      border: "1px solid rgba(255,255,255,0.08)",
+    }}
+  >
+    <div
+      style={{
+        color: "#86efac",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.1em",
+        textTransform: "uppercase",
+        marginBottom: "14px",
+      }}
+    >
+      Recovery Funnel
+    </div>
+
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: isMobile ? "1fr" : "repeat(4, minmax(0, 1fr))",
+        gap: "12px",
+      }}
+    >
+      {[
+        {
+          label: "Detected",
+          value: profitRecoverySummary.monthlyRecoverable,
+          subtext: "Total opportunity found",
+        },
+        {
+          label: "Verified",
+          value: profitRecoverySummary.monthlyRecoverable,
+          subtext: "Backed by uploaded data",
+        },
+        {
+          label: "Actions Started",
+          value: profitRecoverySummary.verifiedRecovered,
+          subtext: `${profitRecoverySummary.verifiedActionCount} verified action${
+            profitRecoverySummary.verifiedActionCount === 1 ? "" : "s"
+          }`,
+        },
+        {
+          label: "Recovered",
+          value: profitRecoverySummary.verifiedRecovered,
+          subtext: "Confirmed recovered value",
+        },
+      ].map((stage) => (
+        <div
+          key={stage.label}
+          style={{
+            padding: "16px",
+            borderRadius: "18px",
+            background: "rgba(15,23,42,0.72)",
+            border: "1px solid rgba(255,255,255,0.07)",
+          }}
+        >
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "11px",
+              fontWeight: "900",
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+            }}
+          >
+            {stage.label}
+          </div>
+
+          <div
+            style={{
+              color: "white",
+              fontSize: "22px",
+              fontWeight: "950",
+              marginTop: "8px",
+            }}
+          >
+            ${Number(stage.value || 0).toLocaleString()}
+          </div>
+
+          <div
+            style={{
+              color: "#64748b",
+              fontSize: "12px",
+              marginTop: "6px",
+            }}
+          >
+            {stage.subtext}
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
+{/* RECOVERY TIMELINE */}
+<div
+  style={{
+    padding: isMobile ? "22px" : "28px",
+    borderRadius: "28px",
+    background:
+      "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.92))",
+    border: "1px solid rgba(255,255,255,0.08)",
+    boxShadow: "0 18px 50px rgba(0,0,0,0.24)",
+  }}
+>
+  {/* TIMELINE HEADER */}
+  <div style={{ marginBottom: "22px" }}>
+    <div
+      style={{
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.12em",
+        textTransform: "uppercase",
+        color: "#22c55e",
+        marginBottom: "8px",
+      }}
+    >
+      Recovery Timeline
+    </div>
+
+    <h2
+      style={{
+        margin: 0,
+        color: "white",
+        fontSize: isMobile ? "24px" : "30px",
+        letterSpacing: "-0.03em",
+      }}
+    >
+      Your projected recovery journey
+    </h2>
+
+    <p
+      style={{
+        marginTop: "8px",
+        color: "#94a3b8",
+        fontSize: "13px",
+        lineHeight: 1.7,
+      }}
+    >
+      Based on current recovery progress and uploaded operational data.
+    </p>
+  </div>
+
+  {/* TIMELINE METRICS */}
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile
+        ? "1fr"
+        : "repeat(3,minmax(0,1fr))",
+      gap: "14px",
+    }}
+  >
+   {[
+  {
+    label: "This Week",
+    value:
+      profitRecoverySummary.monthlyRecoverable > 0
+        ? `$${Math.round(
+           recoveryVelocity.hasVelocity
+  ? recoveryVelocity.weeklyPace
+  : profitRecoverySummary.monthlyRecoverable / 4
+          ).toLocaleString()}`
+        : "Awaiting Data",
+    subtext: "Projected near-term recovery",
+  },
+  {
+    label: "This Month",
+    value:
+      profitRecoverySummary.monthlyRecoverable > 0
+        ? `$${profitRecoverySummary.monthlyRecoverable.toLocaleString()}`
+        : "Awaiting Data",
+    subtext: "Current recovery opportunity",
+  },
+  {
+    label: "Annual Projection",
+    value:
+      profitRecoverySummary.annualRecoverable > 0
+        ? `$${profitRecoverySummary.annualRecoverable.toLocaleString()}`
+        : "Awaiting Data",
+    subtext: "Projected yearly impact",
+  },
+].map((item) => (
+  <div
+    key={item.label}
+    style={{
+      padding: "18px",
+      borderRadius: "22px",
+      background: "rgba(255,255,255,0.045)",
+      border: "1px solid rgba(255,255,255,0.08)",
+    }}
+  >
+    <div
+      style={{
+        color: "#94a3b8",
+        fontSize: "11px",
+        fontWeight: "900",
+        textTransform: "uppercase",
+        letterSpacing: "0.08em",
+      }}
+    >
+      {item.label}
+    </div>
+
+    <div
+      style={{
+        color: "white",
+        fontSize: "26px",
+        fontWeight: "950",
+        marginTop: "8px",
+      }}
+    >
+      {item.value}
+    </div>
+
+    <div
+      style={{
+        color: "#64748b",
+        fontSize: "12px",
+        marginTop: "6px",
+      }}
+    >
+      {item.subtext}
+    </div>
+  </div>
+))}
+  </div>
+
+ {/* ESTIMATED COMPLETION */}
+<div
+  style={{
+    marginTop: "18px",
+    padding: "18px",
+    borderRadius: "22px",
+    background: "rgba(34,197,94,0.08)",
+    border: "1px solid rgba(34,197,94,0.16)",
+  }}
+>
+  <div
+    style={{
+      color: "#86efac",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.1em",
+      textTransform: "uppercase",
+      marginBottom: "8px",
+    }}
+  >
+    Estimated Completion
+  </div>
+
+  <div
+    style={{
+      color: "white",
+      fontSize: isMobile ? "24px" : "32px",
+      fontWeight: "950",
+      letterSpacing: "-0.04em",
+    }}
+  >
+    {profitRecoverySummary.remaining > 0
+  ? `${estimatedRecoveryDays} Days Remaining`
+  : "Recovery Complete"}
+  </div>
+{estimatedRecoveryDate && profitRecoverySummary.remaining > 0 && (
+  <div
+    style={{
+      color: "#86efac",
+      fontSize: "14px",
+      fontWeight: "900",
+      marginTop: "8px",
+    }}
+  >
+    Expected Completion Date: {estimatedRecoveryDate}
+  </div>
+)}
+  <div
+    style={{
+      color: "#94a3b8",
+      fontSize: "13px",
+      lineHeight: 1.6,
+      marginTop: "8px",
+    }}
+  >
+    Based on current monthly recovery opportunity and remaining uncaptured value.
+  </div>
+</div>
+
+ {/* RECOVERY PACE */}
+<div
+  style={{
+    marginTop: "18px",
+    padding: "18px",
+    borderRadius: "22px",
+    background: "rgba(255,255,255,0.04)",
+    border: "1px solid rgba(255,255,255,0.08)",
+  }}
+>
+  <div
+    style={{
+      color: "#94a3b8",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.1em",
+      textTransform: "uppercase",
+      marginBottom: "8px",
+    }}
+  >
+    Current Recovery Pace
+  </div>
+
+  <div
+    style={{
+      color: "white",
+      fontSize: isMobile ? "24px" : "30px",
+      fontWeight: "950",
+      letterSpacing: "-0.04em",
+    }}
+  >
+    {profitRecoverySummary.monthlyRecoverable > 0
+      ? `$${Math.round(
+         recoveryVelocity.hasVelocity
+  ? recoveryVelocity.weeklyPace
+  : profitRecoverySummary.monthlyRecoverable / 4
+        ).toLocaleString()} / week`
+      : "Awaiting Data"}
+  </div>
+
+  <div
+    style={{
+      color: "#94a3b8",
+      fontSize: "13px",
+      lineHeight: 1.6,
+      marginTop: "8px",
+    }}
+  >
+    Based on current monthly recovery opportunity divided into weekly recovery
+    targets.
+  </div>
+</div>
+
+  {/* RECOVERY CONFIDENCE */}
+<div
+  style={{
+    marginTop: "18px",
+    padding: "18px",
+    borderRadius: "22px",
+    background: "rgba(34,197,94,0.08)",
+    border: "1px solid rgba(34,197,94,0.16)",
+  }}
+>
+  <div
+    style={{
+      color: "#86efac",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.1em",
+      textTransform: "uppercase",
+      marginBottom: "8px",
+    }}
+  >
+    Recovery Confidence
+  </div>
+
+  <div
+    style={{
+      color: "white",
+      fontSize: isMobile ? "26px" : "34px",
+      fontWeight: "950",
+      letterSpacing: "-0.04em",
+    }}
+  >
+    {realForecastConfidence || 0}%
+  </div>
+
+  <div
+    style={{
+      color: "#94a3b8",
+      fontSize: "13px",
+      lineHeight: 1.6,
+      marginTop: "8px",
+    }}
+  >
+    Forecast confidence is based on the amount of live operational data uploaded
+    into Serven.
+  </div>
+</div>
+</div>
+{/* RECOVERY HISTORY */}
+<div
+  style={{
+    padding: isMobile ? "22px" : "28px",
+    borderRadius: "28px",
+    background:
+      "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.92))",
+    border: "1px solid rgba(255,255,255,0.08)",
+    boxShadow: "0 18px 50px rgba(0,0,0,0.24)",
+  }}
+>
+  {/* HISTORY HEADER */}
+  <div style={{ marginBottom: "20px" }}>
+    <div
+      style={{
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.12em",
+        textTransform: "uppercase",
+        color: "#22c55e",
+        marginBottom: "8px",
+      }}
+    >
+      Recovery History
+    </div>
+
+    <h2
+      style={{
+        margin: 0,
+        color: "white",
+        fontSize: isMobile ? "24px" : "30px",
+        letterSpacing: "-0.03em",
+      }}
+    >
+      Verified profit recovered over time
+    </h2>
+
+    <p
+      style={{
+        marginTop: "8px",
+        color: "#94a3b8",
+        fontSize: "13px",
+        lineHeight: 1.7,
+      }}
+    >
+      Every completed recovery action is tracked to demonstrate measurable ROI.
+    </p>
+  </div>
+
+ {/* HISTORY ACTION LIST */}
+{verifiedRecoveryActions.length > 0 ? (
+  <div style={{ display: "grid", gap: "12px" }}>
+    {verifiedRecoveryActions.slice(0, 6).map((action, index) => (
+      <div
+        key={action.id || index}
+        style={{
+          padding: "16px",
+          borderRadius: "20px",
+          background: "rgba(15,23,42,0.74)",
+          border: "1px solid rgba(255,255,255,0.08)",
+          display: "grid",
+          gridTemplateColumns: isMobile ? "1fr" : "1fr auto",
+          gap: "12px",
+          alignItems: "center",
+        }}
+      >
+        <div>
+          <div
+            style={{
+              color: "white",
+              fontSize: "15px",
+              fontWeight: "900",
+            }}
+          >
+            ✓ {action.title || action.action || "Recovery action completed"}
+          </div>
+
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "12px",
+              marginTop: "6px",
+            }}
+          >
+            {action.category || "Recovery"} •{" "}
+            {action.completed_at
+              ? new Date(action.completed_at).toLocaleDateString()
+              : "Recently completed"}
+          </div>
+        </div>
+
+        <div
+          style={{
+            color: "#86efac",
+            fontSize: "20px",
+            fontWeight: "950",
+          }}
+        >
+          +${Number(action.verified_recovered || action.impact || 0).toLocaleString()}
+        </div>
+      </div>
+    ))}
+  </div>
+) : (
+  <div
+    style={{
+      padding: "18px",
+      borderRadius: "20px",
+      background: "rgba(255,255,255,0.04)",
+      border: "1px solid rgba(255,255,255,0.08)",
+      color: "#94a3b8",
+      fontSize: "13px",
+    }}
+  >
+    Completed recovery actions will appear here once verified.
+  </div>
+)}
+</div>
+
+
+  </div>
+)}
 {activeTab === "financial" && (
   <div
     style={{
@@ -56611,16 +58496,16 @@ profit recovery opportunities, AI recommendations, and forecasted trends.
     >
       {[
         [
-          "Projected Prime Cost",
-          `${Number(profitRiskForecastData.projectedPrimeCost || 0).toFixed(1)}%`,
+         "Current Prime Cost Pressure",
+`${Number(profitRiskForecastData.currentPrimeCostPressure || 0).toFixed(1)}%`,
         ],
         [
-          "Projected Profit Leak",
-          `$${Number(profitRiskForecastData.projectedProfitLeak || 0).toLocaleString()}`,
+         "Current Profit Leak",
+`$${Number(profitRiskForecastData.currentProfitLeak || 0).toLocaleString()}`,
         ],
         [
           "Forecast Status",
-          profitRiskForecastData.projectedMarginPressure,
+          profitRiskForecastData.marginPressureStatus
         ],
       ].map(([label, value]) => (
         <div
@@ -58526,8 +60411,7 @@ margin: "0",
                     lineHeight: 1.6,
                   }}
                 >
-                  AI predicts this guest may stop visiting due to low
-                  engagement frequency and declining loyalty signals.
+                 Guest engagement signals suggest this guest may stop visiting due to declining visit frequency and loyalty activity.
                 </div>
               </div>
 
@@ -59130,7 +61014,14 @@ margin: "0",
           .filter((guest) => guest.churnRisk === "High")
           .slice(0, 5)
           .map((guest, index) => {
-            const estimatedRecoveryValue = guest.avgSpend * 2.5;
+          const estimatedRecoveryValue = Number(
+  guest.recoverableValue ||
+    guest.projectedRevenueRisk ||
+    guest.lifetimeValueAtRisk ||
+    guest.estimatedValue ||
+    0
+);
+
 
             return (
               <div
@@ -59185,7 +61076,9 @@ margin: "0",
                     Recovery Value
                   </div>
                   <div style={{ color: "#86efac", fontWeight: "950" }}>
-                    ${estimatedRecoveryValue.toFixed(0)}
+                    {estimatedRecoveryValue > 0
+  ? `$${estimatedRecoveryValue.toFixed(0)}`
+  : "Needs visit history"}
                   </div>
                 </div>
 
@@ -59342,10 +61235,10 @@ margin: "0",
         {
   title: hasOperationalData
     ? "Friday Dinner Rush Forecast"
-    : "AI Reservation Simulation",
+    : "Reservation Intelligence",
 
   insight: hasOperationalData
-    ? "AI predicts elevated reservation demand between 6 PM and 8 PM."
+    ? "Current reservation signals indicate elevated demand between 6 PM and 8 PM."
     : "Upload reservation or guest activity data to activate live booking forecasts.",
 
   impact: hasOperationalData
@@ -59364,7 +61257,7 @@ margin: "0",
 
   impact: hasOperationalData
     ? "Prepare premium seating"
-    : "Simulation Mode",
+    : "Awaiting Data",
 },
 
 {
@@ -63147,8 +65040,8 @@ return (
     : "Upload guest activity and customer data to activate retention intelligence.",
 
   result: hasOperationalData
-    ? `+$${Math.round(Number(estimatedRecoverableProfit || 0) * 0.15).toLocaleString()}/mo potential recovery`
-    : "Simulation Mode",
+    ? `+$${Math.round(Number(estimatedRecoverableProfit || 0)).toLocaleString()}/mo potential recovery`
+    : "Awaiting Data",
 
   status: hasOperationalData
     ? "Ready"
@@ -63163,7 +65056,7 @@ return (
 
   result: hasOperationalData
     ? `+$${Math.round(Number(estimatedLaborRecovery || 0)).toLocaleString()}/mo profit protection`
-    : "Simulation Mode",
+    : "Awaiting Data",
 
   status: hasOperationalData
     ? "Recommended"
@@ -63183,7 +65076,7 @@ return (
     0
   )
 ).toLocaleString()}/mo margin upside`
-  : "Simulation Mode",
+  : "Awaiting Data",
 
   status: hasOperationalData
     ? "Active"
@@ -63200,7 +65093,7 @@ return (
   ? `+$${Math.round(
   Number(operationalEstimatedWasteRecovery || 0)
 ).toLocaleString()}/mo waste reduction`
-  : "Simulation Mode",
+  : "Awaiting Data",
 
   status: hasOperationalData
     ? "Monitoring"
@@ -63547,7 +65440,7 @@ return (
         textTransform: "uppercase",
       }}
     >
-      Demo Simulation • Upload kitchen execution or POS timing data to
+     Awaiting Data • Upload kitchen execution or POS timing data to
       activate live station intelligence
     </div>
   )}
@@ -63560,71 +65453,11 @@ return (
       : "repeat(3, minmax(220px, 1fr))",
     gap: "14px",
   }}
->
-    {(
-      hasOperationalData
-        ? []
-        : [
-            {
-              name: "Grilled Salmon Platter",
-              basePrep: 8,
-              station: "Grill",
-              components: [
-                {
-                  name: "Sautéed Broccoli (Veggie)",
-                  station: "Sauté",
-                  prep: 4,
-                  type: "Vegetable",
-                },
-                {
-                  name: "Side House Salad",
-                  station: "Garde Manger",
-                  prep: 2,
-                  type: "Salad",
-                },
-              ],
-            },
-
-            {
-              name: "Prime New York Strip",
-              basePrep: 12,
-              station: "Grill",
-              components: [
-                {
-                  name: "Asparagus Spears",
-                  station: "Sauté",
-                  prep: 3,
-                  type: "Vegetable",
-                },
-                {
-                  name: "Sliced Avocado Top",
-                  station: "Pantry",
-                  prep: 1.5,
-                  type: "Fruit Mod",
-                },
-              ],
-            },
-
-            {
-              name: "Artisanal Acai Bowl",
-              basePrep: 3,
-              station: "Pantry",
-              components: [
-                {
-                  name: "Sliced Strawberries & Bananas",
-                  station: "Prep Table",
-                  prep: 2,
-                  type: "Fruit",
-                },
-                {
-                  name: "Mint Garnish Leaf",
-                  station: "Prep Table",
-                  prep: 0.5,
-                  type: "Garnish",
-                },
-              ],
-            },
-          ]
+>{
+  (
+    hasOperationalData
+      ? stationPrepData || []
+      : []
     ).map((item, index) => {
       const componentMaxParallel = item.components.reduce(
         (max, c) => Math.max(max, c.prep),
@@ -65896,19 +67729,20 @@ maxWidth: "100%",
         <GlassCard
           title="Labor Efficiency Score"
           value={
-            hasScore
-              ? `${laborEfficiencyScore}/100`
-              : "Calculating..."
-          }
+  hasScore && ((laborData || []).length > 0 || (employeeShifts || []).length > 0)
+    ? `${laborEfficiencyScore}/100`
+    : "Needs labor data"
+}
           subtext="Overall productivity index"
         />
 
         <GlassCard
           title="Labor Status"
           value={
-            laborEfficiencyStatus ||
-            "Analyzing..."
-          }
+  ((laborData || []).length > 0 || (employeeShifts || []).length > 0)
+    ? laborEfficiencyStatus || "Analyzing..."
+    : "Needs labor data"
+}
           subtext="Real-time performance rating"
         />
 
@@ -65968,11 +67802,19 @@ maxWidth: "100%",
   }
 />
 
-  <GlassCard
-    title="Overstaffing Risk"
-    value={laborRiskStatus || "Stable"}
-    subtext={laborEfficiencyInsight}
-  />
+ <GlassCard
+  title="Overstaffing Risk"
+  value={
+    (laborData || []).length > 0 || (employeeShifts || []).length > 0
+      ? laborRiskStatus || "Stable"
+      : "Needs labor data"
+  }
+  subtext={
+    (laborData || []).length > 0 || (employeeShifts || []).length > 0
+      ? laborEfficiencyInsight
+      : "Upload labor data to detect overstaffing risk"
+  }
+/>
 </div>
 {/* =========================
    EMPLOYEE LABOR INTELLIGENCE
@@ -66926,7 +68768,7 @@ subtitle="Labor shifts analyzed"
                 </div>
 
                 <div style={{ color: "#94a3b8", fontSize: "12px", marginTop: "4px" }}>
-                  Projected orders: {Number(shift.projectedOrders || 0).toFixed(0)}
+                  Current orders: {Number(shift.currentOrders || 0).toFixed(0)}
                 </div>
               </div>
 
@@ -66952,23 +68794,23 @@ subtitle="Labor shifts analyzed"
               }}
             >
               <div style={laborForecastMiniCardStyle}>
-                <div style={laborForecastMiniLabelStyle}>Projected Revenue</div>
+                <div style={laborForecastMiniLabelStyle}>Current Revenue</div>
                 <div style={laborForecastMiniValueStyle}>
-                  ${Number(shift.projectedRevenue || 0).toLocaleString()}
+                  ${Number(shift.currentRevenue || 0).toLocaleString()}
                 </div>
               </div>
 
               <div style={laborForecastMiniCardStyle}>
-                <div style={laborForecastMiniLabelStyle}>Projected Labor</div>
+                <div style={laborForecastMiniLabelStyle}>Current Labor</div>
                 <div style={laborForecastMiniValueStyle}>
-                  ${Number(shift.projectedLaborCost || 0).toLocaleString()}
+                  ${Number(shift.currentLaborCost || 0).toLocaleString()}
                 </div>
               </div>
 
               <div style={laborForecastMiniCardStyle}>
-                <div style={laborForecastMiniLabelStyle}>Projected Labor %</div>
+                <div style={laborForecastMiniLabelStyle}>Current Labor %</div>
                 <div style={{ ...laborForecastMiniValueStyle, color: statusColor }}>
-                  {Number(shift.projectedLaborPercent || 0).toFixed(1)}%
+                  {Number(shift.currentLaborPercent || 0).toFixed(1)}%
                 </div>
               </div>
             </div>
@@ -73857,7 +75699,7 @@ minWidth: 0,
               fontWeight: "700",
             }}
           >
-            +${Number(simulatedProfit || 0).toLocaleString()}/mo simulated
+            +${Number(totalAiProfit || 0).toLocaleString()}/mo applied
           </div>
         </div>
       </div>{/* ================= AI / AUTOPILOT KPI STRIP ================= */}
@@ -73876,9 +75718,9 @@ minWidth: 0,
 >
   {[
     {
-      label: "POTENTIAL UPSIDE",
-      value: `+$${Number(simulatedProfit || 0).toLocaleString()}`,
-     subtext: "Estimated impact if recommendations are implemented",
+      label: "AI PROFIT RECOVERED",
+value: `+$${Number(totalAiProfit || 0).toLocaleString()}`,
+subtext: "Profit recovered from applied AI actions",
       accent: "#6ee7b7",
       bg: "rgba(16,185,129,0.12)",
       border: "1px solid rgba(16,185,129,0.24)",
@@ -73905,8 +75747,10 @@ minWidth: 0,
     },
     {
       label: "PROFIT LIFT",
-      value: `+${Number(simulatorProfitLift || 0).toFixed(1)}%`,
-      subtext: "Estimated improvement",
+      value: hasOperationalData
+  ? `${Number(avgMargin || 0).toFixed(1)}%`
+  : "Awaiting Data",
+     subtext: "Current margin performance",
       accent: "#f9a8d4",
       bg: "rgba(236,72,153,0.12)",
       border: "1px solid rgba(236,72,153,0.24)",
@@ -74129,7 +75973,7 @@ minWidth: 0,
                 onClick={() => {
                   if (applied) return;
 
-                  setSimulatedProfit((prev) => prev + Number(item.impact || 0));
+                  
                   setAppliedFixes((prev) => [...prev, itemId]);
                 }}
                 style={{
@@ -74217,7 +76061,7 @@ minWidth: 0,
         marginBottom: "14px",
       }}
     >
-      AI Simulation Of Restaurant Performance
+      AI Scenario Planning
     </h3>
 
     <p
@@ -74245,11 +76089,11 @@ minWidth: 0,
       }}
     >
       <GlassCard
-  title="Simulation Accuracy"
+  title="Forecast Confidence"
   value={
     hasOperationalData
-      ? `${Number(simulationAccuracy || realForecastConfidence || 0)}%`
-      : "Simulation"
+      ? `${Number(operationalConfidence || realForecastConfidence || 0)}%`
+      : "Awaiting Data"
   }
   subtitle="Digital twin confidence"
 />
@@ -74259,7 +76103,7 @@ minWidth: 0,
   value={
     hasOperationalData
       ? Number(modeledSystemsCount || 0)
-      : "Simulation"
+     : "Awaiting Data"
   }
   subtitle="Revenue, labor, inventory, guests"
 />
@@ -74279,7 +76123,7 @@ minWidth: 0,
   value={
     hasOperationalData
       ? "Real-Time"
-      : "Simulation"
+      : "Awaiting Data"
   }
   subtitle="AI scenario evaluation"
 />
@@ -74290,17 +76134,17 @@ minWidth: 0,
        {
   scenario: hasOperationalData
     ? "What if labor is reduced during slow periods?"
-    : "Labor Efficiency Simulation",
+    : "Labor Efficiency Scenario",
 
   result: hasOperationalData
-    ? "AI predicts improved prime cost control without major service impact."
+    ? "Labor optimization may improve prime cost control without major service impact."
     : "Upload labor and revenue data to activate live labor scenario modeling.",
 
   impact: hasOperationalData
    ? `+$${Math.round(
     Number(estimatedLaborRecovery || 0)
   ).toLocaleString()}/mo profit protection`
-    : "Simulation Mode",
+    : "Awaiting Data",
 
   confidence: hasOperationalData
     ? `${Number(realForecastConfidence || 0)}%`
@@ -74310,15 +76154,15 @@ minWidth: 0,
 {
   scenario: hasOperationalData
     ? "What if VIP campaigns launch this week?"
-    : "Guest Revenue Simulation",
+    :"Guest Revenue Scenario",
 
   result: hasOperationalData
-    ? "AI predicts higher repeat visit probability from premium guests."
-    : "Upload guest activity or customer data to activate retention simulations.",
+    ? "Guest engagement signals may support higher repeat visit rates from premium guests."
+    : "Upload guest activity or customer data to activate retention intelligence.",
 
   impact: hasOperationalData
-   ? `+$${Math.round(Number(estimatedRecoverableProfit || 0) * 0.15).toLocaleString()}/mo potential recovery`
-    : "Simulation Mode",
+   ? `+$${Math.round(Number(estimatedRecoverableProfit || 0)).toLocaleString()}/mo potential recovery`
+    : "Awaiting Data",
 
   confidence: hasOperationalData
     ? `${Number(realForecastConfidence || 0)}%`
@@ -74328,11 +76172,11 @@ minWidth: 0,
 {
   scenario: hasOperationalData
     ? "What if high-margin menu items are promoted?"
-    : "Menu Profit Simulation",
+    : "Menu Profit Scenario",
 
   result: hasOperationalData
-    ? "AI predicts improved average ticket value and stronger margin mix."
-    : "Upload menu and sales mix data to activate live menu profitability simulations.",
+    ? "Menu optimization may improve average ticket value and margin mix."
+    : "Upload menu and sales mix data to activate live menu profitability intelligence.",
 
   impact: hasOperationalData
   ? `+$${Math.round(
@@ -74341,7 +76185,7 @@ minWidth: 0,
     0
   )
 ).toLocaleString()}/mo margin upside`
-  : "Simulation Mode",
+  : "Awaiting Data",
 
   confidence: hasOperationalData
     ? `${Number(realForecastConfidence || 0)}%`
@@ -74351,17 +76195,17 @@ minWidth: 0,
 {
   scenario: hasOperationalData
     ? "What if inventory variance is reduced?"
-    : "Inventory Waste Simulation",
+    : "Inventory Waste Scenario",
 
   result: hasOperationalData
-    ? "AI predicts lower waste exposure and improved food cost control."
-    : "Upload inventory, usage, and invoice data to activate waste recovery simulations.",
+    ? "Inventory variance reduction may lower waste exposure and improve food cost control."
+    : "Upload inventory, usage, and invoice data to activate waste recovery intelligence.",
 
 impact: hasOperationalData
   ? `+$${Math.round(
     Number(operationalEstimatedWasteRecovery || 0)
   ).toLocaleString()}/mo waste recovery`
-  : "Simulation Mode",
+  : "Awaiting Data",
 
   confidence: hasOperationalData
     ? `${Number(realForecastConfidence || 0)}%`
@@ -74385,7 +76229,7 @@ impact: hasOperationalData
               marginBottom: "8px",
             }}
           >
-            Scenario Simulation
+           Scenario Planning
           </div>
 
           <div
@@ -74529,7 +76373,7 @@ impact: hasOperationalData
                       lineHeight: 1,
                     }}
                   >
-                    +${Number(simulatedProfit || 0).toLocaleString()}/month
+                   +${Number(totalAiProfit || 0).toLocaleString()}/month
                   </div>
 
                   <div
@@ -74565,11 +76409,13 @@ impact: hasOperationalData
                         fontSize: "14px",
                       }}
                     >
-                      {realForecastConfidence >= 85
+                     {!hasOperationalData
+  ? "Awaiting Data"
+  : realForecastConfidence >= 85
   ? "High Confidence"
   : realForecastConfidence >= 65
   ? "Moderate Confidence"
-  : "Low Confidence"} ({realForecastConfidence}%)
+  : "Low Confidence"} {hasOperationalData ? `(${realForecastConfidence}%)` : ""}
                     </div>
                   </div>
 
@@ -74636,7 +76482,7 @@ impact: hasOperationalData
                       const total = unapplied.reduce((sum, o) => sum + o.impact, 0);
 
                       if (unapplied.length > 0) {
-                        setSimulatedProfit((prev) => prev + total);
+                       
                         setAppliedFixes((prev) => [
                           ...new Set([...prev, ...unapplied.map((o) => o.id)]),
                         ]);
@@ -74831,7 +76677,7 @@ impact: hasOperationalData
             )}
           </div>
 
-          {/* ================= SIMULATOR ================= */}
+          {/* ================= LIVE PERFORMANCE SNAPSHOT ================= */}
           <div
             style={{
               ...sectionCard,
@@ -74849,10 +76695,10 @@ impact: hasOperationalData
                 marginBottom: "10px",
               }}
             >
-              Restaurant Simulator
+              Live Performance Snapshot
             </div>
 
-            <h3 style={sectionTitle}>Projected Outcome</h3>
+            <h3 style={sectionTitle}>Current Operating Status</h3>
 
             <div style={{ marginTop: "10px" }}>
               <div
@@ -74862,7 +76708,9 @@ impact: hasOperationalData
                   lineHeight: 1.6,
                 }}
               >
-                {simulatorInsight}
+               {hasOperationalData
+  ? "Serven is summarizing current revenue, margin, labor, and inventory signals from uploaded data."
+  : "Upload revenue, labor, menu, and inventory data to activate live performance analysis."}
               </div>
 
               <div
@@ -74873,7 +76721,9 @@ impact: hasOperationalData
                   color: "#10b981",
                 }}
               >
-                +{Number(simulatorProfitLift || 0).toFixed(1)}% projected lift
+                {hasOperationalData
+  ? `${Number(avgMargin || 0).toFixed(1)}% current margin`
+  : "Awaiting Data"}
               </div>
             </div>
           </div>
@@ -74958,7 +76808,7 @@ impact: hasOperationalData
                     fontWeight: "700",
                   }}
                 >
-                 {hasOperationalData ? "High priority" : "Simulation"}
+                 {hasOperationalData ? "High priority" : "Awaiting Data"}
                 </div>
               </div>
 
@@ -75014,7 +76864,7 @@ impact: hasOperationalData
                     fontWeight: "700",
                   }}
                 >
-                 {hasOperationalData ? "Medium priority" : "Simulation"}
+                 {hasOperationalData ? "Medium priority" : "Awaiting Data"}
                 </div>
               </div>
             </div>
