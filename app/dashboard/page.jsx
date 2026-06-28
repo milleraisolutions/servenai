@@ -12989,6 +12989,430 @@ keyRisk:
   estimatedRecoveryDays,
   estimatedRecoveryDate,
 ]);
+const executiveRecoveryScore = useMemo(() => {
+  const recoveryProgress = Number(profitRecoverySummary.recoveryProgress || 0);
+  const verifiedRecovered = Number(profitRecoverySummary.verifiedRecovered || 0);
+  const verifiedActionCount = Number(profitRecoverySummary.verifiedActionCount || 0);
+
+  const velocityScore = recoveryVelocity.hasVelocity ? 25 : 10;
+
+  const progressScore = Math.min(40, recoveryProgress * 0.4);
+
+  const actionScore = Math.min(20, verifiedActionCount * 5);
+
+  const completionScore =
+    estimatedRecoveryDays > 0 && estimatedRecoveryDays <= 30
+      ? 15
+      : estimatedRecoveryDays > 30 && estimatedRecoveryDays <= 60
+      ? 10
+      : estimatedRecoveryDays > 60
+      ? 5
+      : 0;
+
+  const score =
+    profitRecoverySummary.monthlyRecoverable > 0
+      ? Math.min(
+          100,
+          Math.round(progressScore + velocityScore + actionScore + completionScore)
+        )
+      : 0;
+
+  const status =
+    score >= 85
+      ? "Excellent"
+      : score >= 70
+      ? "Strong"
+      : score >= 50
+      ? "Developing"
+      : score > 0
+      ? "Needs Attention"
+      : "Awaiting Data";
+
+  const velocityLabel = recoveryVelocity.hasVelocity
+    ? "Verified Pace Active"
+    : profitRecoverySummary.monthlyRecoverable > 0
+    ? "Projected Pace"
+    : "Awaiting Data";
+
+  return {
+    score,
+    status,
+    velocityLabel,
+    verifiedRecovered,
+    verifiedActionCount,
+    estimatedRecoveryDays,
+  };
+}, [
+  profitRecoverySummary,
+  recoveryVelocity,
+  estimatedRecoveryDays,
+]);
+const highestROIActions = useMemo(() => {
+  const actions = [
+    {
+      title: "Optimize Labor Scheduling",
+      category: "Labor",
+      route: "labor",
+      opportunity: Number(estimatedLaborRecovery || 0),
+      effort:
+        Number(effectiveLaborCostPercent || 0) > 35
+          ? "Medium"
+          : "Low",
+      timeframe:
+        Number(effectiveLaborCostPercent || 0) > 35
+          ? "7–14 Days"
+          : "3–7 Days",
+      description:
+        "Reduce overstaffing, overtime, and low-revenue shift coverage.",
+    },
+
+    {
+      title: "Improve Menu Pricing",
+      category: "Menu",
+      route: "menu",
+      opportunity: Number(estimatedFoodRecovery || 0),
+      effort: "Low",
+      timeframe: "Immediate",
+      description:
+        "Increase margin on underpriced menu items and improve menu mix.",
+    },
+
+    {
+      title: "Reduce Inventory Waste",
+      category: "Inventory",
+      route: "inventory",
+      opportunity: Number(
+        operationalEstimatedWasteRecovery || 0
+      ),
+      effort: "Medium",
+      timeframe: "7–21 Days",
+      description:
+        "Reduce waste, over-ordering, and inventory shrink.",
+    },
+
+    {
+      title: "Control Beverage Variance",
+      category: "Beverage",
+      route: "beverage",
+      opportunity: Number(estimatedAlcoholRecovery || 0),
+      effort: "Low",
+      timeframe: "3–7 Days",
+      description:
+        "Reduce overpouring and improve beverage margins.",
+    },
+
+  ];
+const getEffortScore = (effort) => {
+  if (effort === "Low") return 30;
+  if (effort === "Medium") return 20;
+  return 10;
+};
+
+const getTimeScore = (timeframe) => {
+  if (timeframe === "Immediate") return 30;
+  if (timeframe === "3–7 Days") return 25;
+  if (timeframe === "7–14 Days") return 20;
+  if (timeframe === "7–21 Days") return 15;
+  return 10;
+};
+
+const maxOpportunity = Math.max(
+  1,
+  ...actions.map((action) => Number(action.opportunity || 0))
+);
+  return actions
+  .filter((action) => action.opportunity > 0)
+  .map((action) => {
+    const opportunityScore =
+      (Number(action.opportunity || 0) / maxOpportunity) * 40;
+
+    const roiScore = Math.min(
+      100,
+      Math.round(
+        opportunityScore +
+          getEffortScore(action.effort) +
+          getTimeScore(action.timeframe)
+      )
+    );
+
+    return {
+      ...action,
+      roiScore,
+    };
+  })
+  .sort((a, b) => b.roiScore - a.roiScore);
+}, [
+  estimatedLaborRecovery,
+  estimatedFoodRecovery,
+  operationalEstimatedWasteRecovery,
+  estimatedAlcoholRecovery,
+  effectiveLaborCostPercent,
+]);
+const executiveLaborScore = useMemo(() => {
+  const laborPercent = Number(effectiveLaborCostPercent || 0);
+  const efficiencyScore = Number(laborEfficiencyScore || 0);
+  const salesPerHour = Number(salesPerLaborHour || 0);
+  const recoveryOpportunity = Number(estimatedLaborRecovery || 0);
+  const laborHours = Number(totalLaborHours || 0);
+
+  const hasLaborInputs =
+    laborPercent > 0 ||
+    efficiencyScore > 0 ||
+    salesPerHour > 0 ||
+    recoveryOpportunity > 0 ||
+    laborHours > 0;
+
+  if (!hasLaborInputs) {
+    return {
+      score: 0,
+      status: "Awaiting Data",
+      color: "#94a3b8",
+      primaryRisk: "Upload labor data",
+      recommendation: "Upload labor schedules, hours, wages, or shift data to activate labor scoring.",
+    };
+  }
+
+  const laborPercentScore =
+    laborPercent <= 25
+      ? 35
+      : laborPercent <= 28
+      ? 30
+      : laborPercent <= 35
+      ? 20
+      : 10;
+
+  const efficiencyContribution =
+    efficiencyScore > 0 ? Math.min(30, efficiencyScore * 0.3) : 10;
+
+  const salesPerHourScore =
+    salesPerHour >= 90
+      ? 20
+      : salesPerHour >= 70
+      ? 15
+      : salesPerHour > 0
+      ? 10
+      : 5;
+
+  const recoveryRiskPenalty =
+    recoveryOpportunity > 5000
+      ? 15
+      : recoveryOpportunity > 2500
+      ? 10
+      : recoveryOpportunity > 0
+      ? 5
+      : 0;
+
+  const score = Math.max(
+    0,
+    Math.min(
+      100,
+      Math.round(
+        laborPercentScore +
+          efficiencyContribution +
+          salesPerHourScore +
+          15 -
+          recoveryRiskPenalty
+      )
+    )
+  );
+
+  const status =
+    score >= 85
+      ? "Excellent"
+      : score >= 70
+      ? "Strong"
+      : score >= 50
+      ? "Watch Closely"
+      : "Needs Attention";
+
+  const color =
+    score >= 85
+      ? "#22c55e"
+      : score >= 70
+      ? "#86efac"
+      : score >= 50
+      ? "#fbbf24"
+      : "#f87171";
+
+  const primaryRisk =
+    laborPercent > 35
+      ? "Overstaffing Risk"
+      : laborPercent > 28
+      ? "Scheduling Pressure"
+      : recoveryOpportunity > 0
+      ? "Labor Recovery Opportunity"
+      : "Labor Stable";
+
+  const recommendation =
+    laborPercent > 35
+      ? "Review schedules against sales volume and reduce low-revenue labor coverage."
+      : laborPercent > 28
+      ? "Tighten staffing around slower dayparts and monitor labor cost percentage."
+      : recoveryOpportunity > 0
+      ? "Prioritize labor recovery opportunities with the highest remaining impact."
+      : "Continue monitoring labor efficiency and shift productivity.";
+
+  return {
+    score,
+    status,
+    color,
+    primaryRisk,
+    recommendation,
+  };
+}, [
+  effectiveLaborCostPercent,
+  laborEfficiencyScore,
+  salesPerLaborHour,
+  estimatedLaborRecovery,
+  totalLaborHours,
+]);
+const shiftRecoveryIntelligence = useMemo(() => {
+  const shifts = shiftOperationalData || [];
+
+  return shifts
+    .map((shift) => {
+      const laborPercent = Number(shift.laborPercent || 0);
+      const revenue = Number(shift.revenue || 0);
+      const laborCost = Number(shift.laborCost || 0);
+
+      const targetLaborCost = revenue * 0.28;
+      const recoverable = Math.max(0, laborCost - targetLaborCost);
+
+      const status =
+        laborPercent > 35
+          ? "Overstaffed"
+          : laborPercent > 28
+          ? "Watch Closely"
+          : "Efficient";
+
+      const priority =
+        recoverable > 1000
+          ? "High"
+          : recoverable > 300
+          ? "Medium"
+          : "Low";
+
+      return {
+        shift: shift.shift || shift.label || shift.name || "Unknown Shift",
+        laborPercent,
+        revenue,
+        laborCost,
+        recoverable,
+        status,
+        priority,
+      };
+    })
+    .filter((shift) => shift.revenue > 0 || shift.laborCost > 0)
+    .sort((a, b) => b.recoverable - a.recoverable);
+}, [shiftOperationalData]);
+const highestROILaborActions = useMemo(() => {
+  const shiftActions = (shiftRecoveryIntelligence || [])
+    .filter((shift) => Number(shift.recoverable || 0) > 0)
+    .map((shift) => ({
+      title: `Reduce ${shift.shift} labor overage`,
+      category: "Labor",
+      route: "labor",
+      opportunity: Number(shift.recoverable || 0),
+      effort: shift.priority === "High" ? "Medium" : "Low",
+      timeframe: shift.priority === "High" ? "7–14 Days" : "3–7 Days",
+      priority: shift.priority,
+      description: `${shift.shift} is currently ${shift.status.toLowerCase()} with ${Number(
+        shift.laborPercent || 0
+      ).toFixed(1)}% labor cost.`,
+    }));
+
+  const laborPercentAction =
+    Number(effectiveLaborCostPercent || 0) > 28
+      ? {
+          title: "Lower overall labor cost percentage",
+          category: "Labor",
+          route: "labor",
+          opportunity: Number(estimatedLaborRecovery || 0),
+          effort:
+            Number(effectiveLaborCostPercent || 0) > 35 ? "Medium" : "Low",
+          timeframe:
+            Number(effectiveLaborCostPercent || 0) > 35
+              ? "7–14 Days"
+              : "3–7 Days",
+          priority:
+            Number(effectiveLaborCostPercent || 0) > 35 ? "High" : "Medium",
+          description: `Labor is currently ${Number(
+            effectiveLaborCostPercent || 0
+          ).toFixed(1)}% of revenue.`,
+        }
+      : null;
+
+  const productivityAction =
+    Number(salesPerLaborHour || 0) > 0
+      ? {
+          title: "Improve sales per labor hour",
+          category: "Labor",
+          route: "labor",
+          opportunity: Math.max(
+            0,
+            Number(estimatedLaborRecovery || 0) -
+              (shiftActions[0]?.opportunity || 0)
+          ),
+          effort: "Low",
+          timeframe: "3–7 Days",
+          priority: "Medium",
+          description: `Current sales per labor hour is $${Number(
+            salesPerLaborHour || 0
+          ).toFixed(2)}.`,
+        }
+      : null;
+
+  const actions = [
+    ...shiftActions,
+    laborPercentAction,
+    productivityAction,
+  ].filter((action) => Number(action?.opportunity || 0) > 0);
+
+  const maxOpportunity = Math.max(
+    1,
+    ...actions.map((action) => Number(action.opportunity || 0))
+  );
+
+  const getEffortScore = (effort) => {
+    if (effort === "Low") return 30;
+    if (effort === "Medium") return 20;
+    return 10;
+  };
+
+  const getTimeScore = (timeframe) => {
+    if (timeframe === "Immediate") return 30;
+    if (timeframe === "3–7 Days") return 25;
+    if (timeframe === "7–14 Days") return 20;
+    if (timeframe === "7–21 Days") return 15;
+    return 10;
+  };
+
+  return actions
+    .map((action) => {
+      const opportunityScore =
+        (Number(action.opportunity || 0) / maxOpportunity) * 40;
+
+      const roiScore = Math.min(
+        100,
+        Math.round(
+          opportunityScore +
+            getEffortScore(action.effort) +
+            getTimeScore(action.timeframe)
+        )
+      );
+
+      return {
+        ...action,
+        roiScore,
+      };
+    })
+    .sort((a, b) => b.roiScore - a.roiScore);
+}, [
+  shiftRecoveryIntelligence,
+  effectiveLaborCostPercent,
+  estimatedLaborRecovery,
+  salesPerLaborHour,
+]);
 const restaurantRetains =
   Number(totalAIRecoveryOpportunity || 0) * 0.7;
 
@@ -29372,7 +29796,196 @@ handleImportInventory();
 />
   </div>
 </div>
+{/* PROFIT RECOVERY SNAPSHOT */}
+<div
+  style={{
+    marginTop: "18px",
+    marginBottom: "24px",
+    padding: isMobile ? "20px" : "24px",
+    borderRadius: "26px",
+    background:
+      "radial-gradient(circle at top right, rgba(34,197,94,0.16), transparent 34%), linear-gradient(135deg, rgba(15,23,42,0.97), rgba(30,41,59,0.92))",
+    border: "1px solid rgba(34,197,94,0.18)",
+    boxShadow: "0 22px 60px rgba(2,6,23,0.28)",
+  }}
+>
+  <div
+    style={{
+      color: "#86efac",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.1em",
+      textTransform: "uppercase",
+      marginBottom: "10px",
+    }}
+  >
+    Profit Recovery Snapshot
+  </div>
 
+  <h3
+    style={{
+      margin: 0,
+      color: "white",
+      fontSize: isMobile ? "24px" : "32px",
+      fontWeight: "950",
+      letterSpacing: "-0.03em",
+    }}
+  >
+    {profitRecoverySummary.monthlyRecoverable > 0
+  ? `You're losing $${profitRecoverySummary.monthlyRecoverable.toLocaleString()}/mo`
+  : "Upload operational data to reveal profit leakage"}
+  </h3>
+
+  <p
+    style={{
+      color: "#94a3b8",
+      fontSize: "13px",
+      lineHeight: 1.7,
+      marginTop: "8px",
+      marginBottom: "18px",
+      maxWidth: "760px",
+    }}
+  >
+  {profitRecoverySummary.monthlyRecoverable > 0
+  ? "Serven detected recoverable profit leakage across labor, inventory, menu, beverage, and operational performance. Open the Recovery Center to see exactly where profit is being lost, which actions will recover it first, and how long recovery is expected to take."
+  : "Upload POS, labor, inventory, menu, beverage, and invoice data to reveal monthly profit leakage and recovery opportunities."}
+  </p>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile ? "1fr" : "repeat(5, minmax(0, 1fr))",
+      gap: "12px",
+      marginBottom: "18px",
+    }}
+  >
+    {[
+      {
+        label: "Monthly",
+        value:
+          profitRecoverySummary.monthlyRecoverable > 0
+            ? `$${profitRecoverySummary.monthlyRecoverable.toLocaleString()}`
+            : "Awaiting Data",
+        subtext: "Recoverable",
+      },
+      {
+        label: "Verified",
+        value: `$${profitRecoverySummary.verifiedRecovered.toLocaleString()}`,
+        subtext: "Recovered",
+      },
+      {
+        label: "Remaining",
+        value:
+          profitRecoverySummary.monthlyRecoverable > 0
+            ? `$${profitRecoverySummary.remaining.toLocaleString()}`
+            : "Awaiting Data",
+        subtext: "Opportunity",
+      },
+      {
+  label: "Top Category",
+  value: profitRecoverySummary.categories?.[0]?.label || "Awaiting Data",
+  subtext: "Click to investigate",
+  route: profitRecoverySummary.categories?.[0]?.route,
+},
+      {
+        label: "Progress",
+        value:
+          profitRecoverySummary.monthlyRecoverable > 0
+            ? `${profitRecoverySummary.recoveryProgress}%`
+            : "0%",
+        subtext: "Recovered",
+      },
+    ].map((item) => (
+     <div
+  key={item.label}
+  onClick={() => {
+    if (item.route) {
+      setActiveTab(item.route);
+    }
+  }}
+  style={{
+    padding: "14px",
+    borderRadius: "18px",
+    background: "rgba(255,255,255,0.045)",
+    border: "1px solid rgba(255,255,255,0.08)",
+    cursor: item.route ? "pointer" : "default",
+    transition: "all .2s ease",
+  }}
+>
+        <div
+          style={{
+            color: "#94a3b8",
+            fontSize: "10px",
+            fontWeight: "900",
+            textTransform: "uppercase",
+            letterSpacing: "0.08em",
+            marginBottom: "7px",
+          }}
+        >
+          {item.label}
+        </div>
+
+        <div
+          style={{
+            color: "white",
+            fontSize: "19px",
+            fontWeight: "950",
+            lineHeight: 1.1,
+          }}
+        >
+          {item.value}
+        </div>
+
+        <div
+          style={{
+            color: "#64748b",
+            fontSize: "11px",
+            marginTop: "6px",
+          }}
+        >
+          {item.subtext}
+        </div>
+      </div>
+    ))}
+  </div>
+
+  <div
+    style={{
+      height: "10px",
+      width: "100%",
+      borderRadius: "999px",
+      background: "rgba(148,163,184,0.16)",
+      overflow: "hidden",
+      marginBottom: "16px",
+    }}
+  >
+    <div
+      style={{
+        height: "100%",
+        width: `${profitRecoverySummary.recoveryProgress || 0}%`,
+        borderRadius: "999px",
+        background: "linear-gradient(135deg, #22c55e, #86efac)",
+      }}
+    />
+  </div>
+
+  <button
+    type="button"
+    onClick={() => setActiveTab("profit_recovery")}
+    style={{
+      border: "none",
+      borderRadius: "14px",
+      padding: "12px 16px",
+      background: "linear-gradient(135deg, #22c55e, #86efac)",
+      color: "#052e16",
+      fontSize: "13px",
+      fontWeight: "950",
+      cursor: "pointer",
+    }}
+  >
+    Open Recovery Center →
+  </button>
+</div>
 {/* =========================
    AI EXECUTIVE SUMMARY CLOSEOUT
 ========================= */}
@@ -29697,588 +30310,7 @@ increase margin efficiency, and reduce operational leakage.
   </>
 )}
 
-{/* AI RECOVERY ACTIONS */}
-<div
-  style={{
-    marginBottom: "18px",
-    padding: "22px",
-    borderRadius: "22px",
-    background:
-      "linear-gradient(135deg, rgba(79,70,229,0.14), rgba(15,23,42,0.94))",
-    border: "1px solid rgba(129,140,248,0.18)",
-  }}
->
-  <div
-    style={{
-      fontSize: "11px",
-      fontWeight: "800",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      color: "#a5b4fc",
-      marginBottom: "10px",
-    }}
-  >
-    AI Recovery Actions
-  </div>
 
-  <h3 style={sectionTitle}>Recommended Actions</h3>
-
-  <p
-    style={{
-      color: "#94a3b8",
-      fontSize: "13px",
-      marginTop: "6px",
-      marginBottom: "16px",
-      lineHeight: 1.6,
-    }}
-  >
-    Highest-impact actions Serven recommends to recover monthly profit.
-  </p>
-
-  <div
-    style={{
-      display: "flex",
-      flexDirection: "column",
-      gap: "12px",
-    }}
-  >
-   {(aiProfitOpportunities || []).slice(0, 5).map((item, index) => {
-  const alreadyApplied = appliedFixes.includes(item.id);
-
-  const actionPriority =
-    index === 0 ? "Highest Priority" : index === 1 ? "High Priority" : "Recommended";
-const timeToImpact =
-  item.difficulty === "Easy"
-    ? "1-7 Days"
-    : item.difficulty === "Medium"
-    ? "1-4 Weeks"
-    : "30+ Days";
-      return (
-        <div
-          key={item.id}
-          style={{
-            padding: "16px",
-            borderRadius: "16px",
-            background: alreadyApplied
-              ? "rgba(34,197,94,0.08)"
-              : "rgba(255,255,255,0.04)",
-            border: alreadyApplied
-              ? "1px solid rgba(34,197,94,0.22)"
-              : "1px solid rgba(255,255,255,0.08)",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            gap: "16px",
-            flexWrap: "wrap",
-          }}
-        >
-          <div style={{ minWidth: 0, flex: 1 }}>
-
-  <div
-    style={{
-      color: index === 0 ? "#fbbf24" : "#a5b4fc",
-      fontSize: "11px",
-      fontWeight: "900",
-      textTransform: "uppercase",
-      letterSpacing: "0.08em",
-      marginBottom: "6px",
-    }}
-  >
-    {actionPriority}
-  </div>
-
-  <div
-    style={{
-      color: "white",
-      fontWeight: "900",
-      fontSize: "15px",
-      marginBottom: "6px",
-    }}
-  >
-    {item.title}
-  </div>
-
-            <div
-              style={{
-                color: "#94a3b8",
-                fontSize: "13px",
-                lineHeight: 1.5,
-                marginBottom: "10px",
-              }}
-            >
-              {item.description}
-            </div>
-
-            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-              <span
-                style={{
-                  padding: "4px 10px",
-                  borderRadius: "999px",
-                  background: "rgba(79,70,229,0.16)",
-                  color: "#c7d2fe",
-                  fontSize: "11px",
-                  fontWeight: "800",
-                }}
-              >
-                {item.category}
-              </span>
-
-              <span
-                style={{
-                  padding: "4px 10px",
-                  borderRadius: "999px",
-                  background: "rgba(255,255,255,0.08)",
-                  color: "#cbd5e1",
-                  fontSize: "11px",
-                  fontWeight: "800",
-                }}
-              >
-                {item.difficulty}
-              </span>
-<span
-  style={{
-    padding: "4px 10px",
-    borderRadius: "999px",
-    background: "rgba(251,191,36,0.12)",
-    color: "#fbbf24",
-    fontSize: "11px",
-    fontWeight: "800",
-  }}
->
-  {timeToImpact}
-</span>
-              <span
-                style={{
-                  padding: "4px 10px",
-                  borderRadius: "999px",
-                  background: "rgba(34,197,94,0.14)",
-                  color: "#6ee7b7",
-                  fontSize: "11px",
-                  fontWeight: "900",
-                }}
-              >
-                +${Number(item.impact || 0).toLocaleString()}/mo
-              </span>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => {
-              if (alreadyApplied) return;
-
-            
-
-              setAppliedFixes((prev) => [...prev, item.id]);
-
-              setAiLog((prev) =>
-                [
-                  {
-                    id: Date.now(),
-                    text: `Applied fix: ${item.title} → +$${Number(
-                      item.impact || 0
-                    ).toLocaleString()}/mo`,
-                  },
-                  ...prev,
-                ].slice(0, 6)
-              );
-            }}
-            style={{
-              padding: "10px 14px",
-              borderRadius: "12px",
-              border: "none",
-              background: alreadyApplied
-                ? "rgba(34,197,94,0.16)"
-                : "linear-gradient(135deg, #4f46e5, #6D3DF5)",
-              color: "white",
-              fontWeight: "900",
-              cursor: alreadyApplied ? "default" : "pointer",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {alreadyApplied ? "Applied ✓" : "Apply Fix"}
-          </button>
-        </div>
-      );
-    })}
-  </div>
-</div>
-{/* RECOVERY TRACKING */}
-<div
-  style={{
-    marginBottom: "18px",
-    padding: "22px",
-    borderRadius: "22px",
-    background:
-      "linear-gradient(135deg, rgba(34,197,94,0.10), rgba(15,23,42,0.94))",
-    border: "1px solid rgba(34,197,94,0.18)",
-  }}
->
-  <div
-    style={{
-      fontSize: "11px",
-      fontWeight: "800",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      color: "#86efac",
-      marginBottom: "10px",
-    }}
-  >
-    Recovery Tracking
-  </div>
-
-  <h3 style={sectionTitle}>Profit Recovery Progress</h3>
-
-  <div
-    style={{
-      display: "grid",
-      gridTemplateColumns: isMobile
-        ? "1fr"
-        : "repeat(4, minmax(0, 1fr))",
-      gap: "14px",
-      marginTop: "18px",
-    }}
-  ><GlassCard
-  title="Profit Found"
-  value={
-   hasFullRecoveryData
-      ? `$${Number(totalAIRecoveryOpportunity || 0).toLocaleString()}`
-      : "Upload POS Data"
-  }
-  subtext="Monthly recovery identified"
-/>
-
-<GlassCard
-  title="Profit Applied"
-  value={
-    hasFullRecoveryData
-      ? `$${Number(totalAiProfit || 0).toLocaleString()}`
-      : "Apply AI Fixes"
-  }
-  subtext="Monthly recovery from applied fixes"
-/>
-
-<GlassCard
-  title="Remaining"
-  value={
-  hasFullRecoveryData
-      ? `$${Number(
-          Math.max(
-            0,
-            Number(totalAIRecoveryOpportunity || 0) -
-             Number(totalAiProfit || 0)
-          )
-        ).toLocaleString()}`
-      : "Awaiting Analysis"
-  }
-  subtext="Uncaptured monthly opportunity"
-/>
-
-<GlassCard
-  title="Recovery Rate"
-  value={
-    hasFullRecoveryData
-      ? `${Math.min(
-          100,
-          Math.round(
-            (Number(totalAiProfit || 0) /
-              Number(totalAIRecoveryOpportunity || 1)) *
-              100
-          )
-        )}%`
-      : "Not Started"
-  }
-  subtext="Progress toward full recovery"
-/>
-    <div
-  style={{
-    marginTop: "18px",
-    padding: "18px",
-    borderRadius: "18px",
-    background: "rgba(255,255,255,0.04)",
-    border: "1px solid rgba(255,255,255,0.08)",
-  }}
->
-  <div
-    style={{
-      display: "flex",
-      justifyContent: "space-between",
-      gap: "12px",
-      flexWrap: "wrap",
-      marginBottom: "10px",
-    }}
-  >
-    <span style={{ color: "white", fontWeight: "900" }}>
-      Recovery Progress
-    </span>
-
-   <span style={{ color: "#86efac", fontWeight: "950" }}>
-  {hasFullRecoveryData
-    ? `${Math.min(
-        100,
-        Math.round(
-          (Number(totalAiProfit || 0) /
-            Number(totalAIRecoveryOpportunity || 1)) *
-            100
-        )
-      )}%`
-    : "Awaiting Analysis"}
-</span>
-  </div>
-
-  <div
-    style={{
-      height: "12px",
-      width: "100%",
-      borderRadius: "999px",
-      background: "rgba(148,163,184,0.16)",
-      overflow: "hidden",
-    }}
-  >
-    <div
-      style={{
-        height: "100%",
-        width: `${
-          Number(totalAIRecoveryOpportunity || 0) > 0
-            ? Math.min(
-                100,
-                Math.round(
-                  (Number(totalAiProfit || 0) /
-                    Number(totalAIRecoveryOpportunity || 1)) *
-                    100
-                )
-              )
-            : 0
-        }%`,
-        borderRadius: "999px",
-        background: "linear-gradient(135deg, #22c55e, #86efac)",
-      }}
-    />
-  </div>
-
-  <div
-    style={{
-      display: "flex",
-      justifyContent: "space-between",
-      gap: "12px",
-      flexWrap: "wrap",
-      marginTop: "10px",
-      color: "#94a3b8",
-      fontSize: "12px",
-      fontWeight: "800",
-    }}
-  >
-    <span>
-    ${Number(totalAiProfit || 0).toLocaleString()} recovered
-    </span>
-
-    <span>
-      ${Number(
-        Math.max(
-          0,
-          Number(totalAIRecoveryOpportunity || 0) -
-            Number(totalAiProfit || 0)
-        )
-      ).toLocaleString()} remaining
-    </span>
-  </div>
-</div>
-  </div>
-</div>
-{/* AUTOPILOT RECOMMENDATIONS */}
-<div
-  style={{
-    marginBottom: "18px",
-    padding: "22px",
-    borderRadius: "22px",
-    background:
-      "linear-gradient(135deg, rgba(245,158,11,0.12), rgba(15,23,42,0.94))",
-    border: "1px solid rgba(245,158,11,0.20)",
-  }}
->
-  <div
-    style={{
-      fontSize: "11px",
-      fontWeight: "800",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      color: "#fbbf24",
-      marginBottom: "10px",
-    }}
-  >
-    Autopilot Recommendations
-  </div>
-
-  <h3 style={sectionTitle}>Next Best Action</h3>
-
-  <p
-    style={{
-      color: "#94a3b8",
-      fontSize: "13px",
-      marginTop: "6px",
-      marginBottom: "16px",
-      lineHeight: 1.6,
-    }}
-  >
-    Serven prioritizes the highest-impact recovery move based on current profit
-    leaks, difficulty, and expected time to impact.
-  </p>
-
-  {aiProfitOpportunities?.length > 0 ? (
-    <div
-      style={{
-        padding: "18px",
-        borderRadius: "18px",
-        background: "rgba(255,255,255,0.04)",
-        border: "1px solid rgba(255,255,255,0.08)",
-      }}
-    >
-      <div
-        style={{
-          color: "#fbbf24",
-          fontSize: "11px",
-          fontWeight: "900",
-          textTransform: "uppercase",
-          letterSpacing: "0.08em",
-          marginBottom: "8px",
-        }}
-      >
-        Recommended First
-      </div>
-
-      <div
-        style={{
-          color: "white",
-          fontSize: "20px",
-          fontWeight: "950",
-          marginBottom: "8px",
-        }}
-      >
-        {aiProfitOpportunities[0]?.title}
-      </div>
-
-      <div
-        style={{
-          color: "#cbd5e1",
-          fontSize: "13px",
-          lineHeight: 1.6,
-          marginBottom: "14px",
-        }}
-      >
-        {aiProfitOpportunities[0]?.description}
-      </div>
-
-      <div
-        style={{
-          display: "flex",
-          gap: "8px",
-          flexWrap: "wrap",
-          marginBottom: "16px",
-        }}
-      >
-        <span
-          style={{
-            padding: "5px 10px",
-            borderRadius: "999px",
-            background: "rgba(79,70,229,0.16)",
-            color: "#c7d2fe",
-            fontSize: "11px",
-            fontWeight: "800",
-          }}
-        >
-          {aiProfitOpportunities[0]?.category}
-        </span>
-
-        <span
-          style={{
-            padding: "5px 10px",
-            borderRadius: "999px",
-            background: "rgba(34,197,94,0.14)",
-            color: "#6ee7b7",
-            fontSize: "11px",
-            fontWeight: "900",
-          }}
-        >
-          +${Number(aiProfitOpportunities[0]?.impact || 0).toLocaleString()}/mo
-        </span>
-      </div>
-
-      <div
-        style={{
-          marginTop: "16px",
-          display: "grid",
-          gap: "12px",
-        }}
-      >
-        {(aiProfitOpportunities || [])
-          .slice(1, 4)
-          .map((item, index) => (
-            <div
-              key={item.id || index}
-              style={{
-                padding: "14px",
-                borderRadius: "14px",
-                background: "rgba(255,255,255,0.04)",
-                border: "1px solid rgba(255,255,255,0.08)",
-                display: "flex",
-                justifyContent: "space-between",
-                gap: "12px",
-                flexWrap: "wrap",
-              }}
-            >
-              <div style={{ flex: 1, minWidth: "220px" }}>
-                <div
-                  style={{
-                    color: "#fbbf24",
-                    fontSize: "11px",
-                    fontWeight: "900",
-                    textTransform: "uppercase",
-                    marginBottom: "6px",
-                  }}
-                >
-                  Queue #{index + 2}
-                </div>
-
-                <div
-                  style={{
-                    color: "white",
-                    fontWeight: "900",
-                    marginBottom: "6px",
-                  }}
-                >
-                  {item.title}
-                </div>
-
-                <div
-                  style={{
-                    color: "#94a3b8",
-                    fontSize: "12px",
-                    lineHeight: 1.5,
-                  }}
-                >
-                  {item.description}
-                </div>
-              </div>
-
-              <div
-                style={{
-                  color: "#6ee7b7",
-                  fontWeight: "900",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                +${Number(item.impact || 0).toLocaleString()}/mo
-              </div>
-            </div>
-          ))}
-      </div>
-    </div>
-  ) : (
-    <div style={{ color: "#94a3b8", fontSize: "14px" }}>
-      Upload operational data to activate autopilot recommendations.
-    </div>
-  )}
-</div>
    </>
 )}
 </>
@@ -35173,117 +35205,7 @@ Restaurant AI Health is currently rated{" "}
 </div>
 
 
-{/* 💰 PROFIT RECOVERY SUMMARY */}
-<div
-  style={{
-    marginBottom: "26px",
-    padding: isMobile ? "20px" : "28px",
-    borderRadius: "24px",
-    background:
-      "linear-gradient(135deg, rgba(20,83,45,0.34), rgba(15,23,42,0.96))",
-    border: "1px solid rgba(34,197,94,0.20)",
-    boxShadow: "0 18px 50px rgba(2,6,23,0.22)",
-  }}
->
-  <div
-    style={{
-      color: "#86efac",
-      fontSize: "12px",
-      fontWeight: "900",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      marginBottom: "10px",
-    }}
-  >
-    Profit Recovery
-  </div>
 
-  <h3
-    style={{
-      color: "white",
-      fontSize: isMobile ? "26px" : "34px",
-      fontWeight: "950",
-      margin: "0 0 10px",
-    }}
-  >
-    ${Number(4160).toLocaleString()}/mo in estimated opportunities found
-  </h3>
-
-  <p
-    style={{
-      color: "#cbd5e1",
-      fontSize: "15px",
-      lineHeight: 1.7,
-      maxWidth: "780px",
-      margin: "0 0 18px",
-    }}
-  >
-    SerVen identified potential savings and revenue recovery across food cost,
-    menu pricing, and labor coverage.
-  </p>
-
-  <div
-    style={{
-      display: "grid",
-      gridTemplateColumns: isMobile
-        ? "1fr"
-        : "repeat(auto-fit, minmax(180px, 1fr))",
-      gap: "14px",
-    }}
-  >
-    {[
-      {
-  label: "Food Cost Recovery",
-  value: `$${Number(
-    estimatedFoodCostImpact || 0
-  ).toLocaleString()}/mo`,
-},
-      {
-  label: "Menu Pricing Upside",
-  value: `$${Number(
-    estimatedMenuPricingImpact || 0
-  ).toLocaleString()}/mo`,
-},
-     {
-  label: "Labor Efficiency",
-  value: `$${Number(
-    estimatedLaborImpact || 0
-  ).toLocaleString()}/mo`,
-},
-    ].map((item) => (
-      <div
-        key={item.label}
-        style={{
-          padding: "16px",
-          borderRadius: "16px",
-          background: "rgba(255,255,255,0.04)",
-          border: "1px solid rgba(255,255,255,0.08)",
-        }}
-      >
-        <div
-          style={{
-            color: "#94a3b8",
-            fontSize: "12px",
-            fontWeight: "800",
-            marginBottom: "8px",
-          }}
-        >
-          {item.label}
-        </div>
-
-        <div
-          style={{
-            color: "#86efac",
-            fontSize: "22px",
-            fontWeight: "950",
-          }}
-        >
-          {item.value}
-        </div>
-      </div>
-    ))}
-  </div>
-</div>
 
 
 {/* 📈 WHAT CHANGED THIS WEEK */}
@@ -56728,6 +56650,147 @@ profit recovery opportunities, AI recommendations, and forecasted trends.
         </div>
       </div>
     </div>
+    {/* EXECUTIVE RECOVERY SCORE */}
+<div
+  style={{
+    padding: isMobile ? "22px" : "28px",
+    borderRadius: "28px",
+    background:
+      "radial-gradient(circle at top right, rgba(34,197,94,0.18), transparent 34%), linear-gradient(135deg, rgba(15,23,42,0.97), rgba(30,41,59,0.94))",
+    border: "1px solid rgba(34,197,94,0.18)",
+    boxShadow: "0 18px 50px rgba(0,0,0,0.24)",
+  }}
+>
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile ? "1fr" : "220px 1fr",
+      gap: "20px",
+      alignItems: "center",
+    }}
+  >
+    <div
+      style={{
+        width: "170px",
+        height: "170px",
+        borderRadius: "999px",
+        display: "grid",
+        placeItems: "center",
+        background: `conic-gradient(#22c55e ${executiveRecoveryScore.score}%, rgba(148,163,184,0.18) 0)`,
+        margin: isMobile ? "0 auto" : 0,
+      }}
+    >
+      <div
+        style={{
+          width: "132px",
+          height: "132px",
+          borderRadius: "999px",
+          background: "rgba(15,23,42,0.96)",
+          display: "grid",
+          placeItems: "center",
+          border: "1px solid rgba(148,163,184,0.14)",
+        }}
+      >
+        <div style={{ textAlign: "center" }}>
+          <div
+            style={{
+              color: "white",
+              fontSize: "40px",
+              fontWeight: "950",
+              lineHeight: 1,
+            }}
+          >
+            {executiveRecoveryScore.score}
+          </div>
+
+          <div
+            style={{
+              color: "#86efac",
+              fontSize: "12px",
+              fontWeight: "900",
+              marginTop: "6px",
+            }}
+          >
+            /100
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div
+        style={{
+          color: "#86efac",
+          fontSize: "12px",
+          fontWeight: "900",
+          letterSpacing: "0.1em",
+          textTransform: "uppercase",
+          marginBottom: "8px",
+        }}
+      >
+        Executive Recovery Score
+      </div>
+
+      <h2
+        style={{
+          margin: 0,
+          color: "white",
+          fontSize: isMobile ? "26px" : "34px",
+          fontWeight: "950",
+          letterSpacing: "-0.04em",
+        }}
+      >
+        {executiveRecoveryScore.status}
+      </h2>
+
+      <p
+        style={{
+          color: "#94a3b8",
+          fontSize: "13px",
+          lineHeight: 1.7,
+          marginTop: "8px",
+          maxWidth: "760px",
+        }}
+      >
+        Serven scores recovery health using verified recovery progress, recovery
+        velocity, completed actions, and estimated completion timing.
+      </p>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: isMobile
+            ? "1fr"
+            : "repeat(3, minmax(0, 1fr))",
+          gap: "12px",
+          marginTop: "18px",
+        }}
+      >
+        <GlassCard
+          title="Recovery Pace"
+          value={executiveRecoveryScore.velocityLabel}
+          subtext="Current recovery movement"
+        />
+
+        <GlassCard
+          title="Verified Actions"
+          value={executiveRecoveryScore.verifiedActionCount}
+          subtext="Completed recovery moves"
+        />
+
+        <GlassCard
+          title="Time Remaining"
+          value={
+            executiveRecoveryScore.estimatedRecoveryDays > 0
+              ? `${executiveRecoveryScore.estimatedRecoveryDays} Days`
+              : "Awaiting Data"
+          }
+          subtext="Estimated completion"
+        />
+      </div>
+    </div>
+  </div>
+</div>
 {/* EXECUTIVE RECOVERY INSIGHT */}
 <div
   style={{
@@ -56919,6 +56982,39 @@ profit recovery opportunities, AI recommendations, and forecasted trends.
       >
         {executiveRecoveryInsight.pace}
       </div>
+      <div
+  style={{
+    marginTop: "16px",
+    padding: "14px",
+    borderRadius: "16px",
+    background: "rgba(34,197,94,0.08)",
+    border: "1px solid rgba(34,197,94,0.18)",
+  }}
+>
+  <div
+    style={{
+      color: "#86efac",
+      fontSize: "11px",
+      fontWeight: "900",
+      textTransform: "uppercase",
+      letterSpacing: "0.08em",
+      marginBottom: "6px",
+    }}
+  >
+    Executive Win
+  </div>
+
+  <div
+    style={{
+      color: "#f8fafc",
+      fontSize: "14px",
+      lineHeight: 1.6,
+      fontWeight: "700",
+    }}
+  >
+    {executiveRecoveryInsight.executiveWin}
+  </div>
+</div>
     </div>
   </div>
 
@@ -57173,6 +57269,230 @@ profit recovery opportunities, AI recommendations, and forecasted trends.
       </div>
     ))}
   </div>
+</div>
+{/* HIGHEST ROI ACTIONS */}
+<div
+  style={{
+    padding: isMobile ? "22px" : "28px",
+    borderRadius: "28px",
+    background:
+      "radial-gradient(circle at top right, rgba(251,191,36,0.16), transparent 34%), linear-gradient(135deg, rgba(15,23,42,0.97), rgba(30,41,59,0.94))",
+    border: "1px solid rgba(251,191,36,0.18)",
+    boxShadow: "0 18px 50px rgba(0,0,0,0.24)",
+  }}
+>
+  <div style={{ marginBottom: "20px" }}>
+    <div
+      style={{
+        color: "#fbbf24",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.1em",
+        textTransform: "uppercase",
+        marginBottom: "8px",
+      }}
+    >
+      Highest ROI Actions
+    </div>
+
+    <h2
+      style={{
+        margin: 0,
+        color: "white",
+        fontSize: isMobile ? "24px" : "30px",
+        letterSpacing: "-0.03em",
+      }}
+    >
+      Best financial return for the least effort
+    </h2>
+
+    <p
+      style={{
+        color: "#94a3b8",
+        fontSize: "13px",
+        lineHeight: 1.7,
+        marginTop: "8px",
+      }}
+    >
+      Serven ranks recovery actions by estimated monthly opportunity, effort,
+      and expected time to impact.
+    </p>
+  </div>
+
+  {highestROIActions.length > 0 ? (
+    <div style={{ display: "grid", gap: "14px" }}>
+      {highestROIActions.slice(0, 4).map((action, index) => (
+        <div
+          key={action.title}
+          style={{
+            padding: "18px",
+            borderRadius: "20px",
+            background:
+              index === 0
+                ? "rgba(251,191,36,0.10)"
+                : "rgba(255,255,255,0.045)",
+            border:
+              index === 0
+                ? "1px solid rgba(251,191,36,0.26)"
+                : "1px solid rgba(255,255,255,0.08)",
+            display: "grid",
+            gridTemplateColumns: isMobile ? "1fr" : "1.3fr 0.6fr 0.5fr auto",
+            gap: "14px",
+            alignItems: "center",
+          }}
+        >
+          <div>
+            <div
+              style={{
+                color: index === 0 ? "#fbbf24" : "#cbd5e1",
+                fontSize: "11px",
+                fontWeight: "900",
+                textTransform: "uppercase",
+                letterSpacing: "0.08em",
+                marginBottom: "6px",
+              }}
+            >
+              {index === 0 ? "🥇 Highest ROI" : `#${index + 1} ROI Action`}
+            </div>
+
+            <div
+              style={{
+                color: "white",
+                fontSize: "16px",
+                fontWeight: "950",
+              }}
+            >
+              {action.title}
+            </div>
+
+            <div
+              style={{
+                color: "#94a3b8",
+                fontSize: "13px",
+                lineHeight: 1.6,
+                marginTop: "6px",
+              }}
+            >
+              {action.description}
+            </div>
+          </div>
+
+          <div>
+            <div
+              style={{
+                color: "#64748b",
+                fontSize: "11px",
+                fontWeight: "900",
+                textTransform: "uppercase",
+              }}
+            >
+              Monthly ROI
+            </div>
+
+            <div
+              style={{
+                color: "#86efac",
+                fontSize: "22px",
+                fontWeight: "950",
+                marginTop: "4px",
+              }}
+            >
+              ${Number(action.opportunity || 0).toLocaleString()}
+            </div>
+          </div>
+<div style={{ marginBottom: "12px" }}>
+  <div
+    style={{
+      color: "#64748b",
+      fontSize: "11px",
+      fontWeight: "900",
+      textTransform: "uppercase",
+    }}
+  >
+    ROI Score
+  </div>
+
+  <div
+    style={{
+      color: "#fbbf24",
+      fontSize: "18px",
+      fontWeight: "950",
+      marginTop: "4px",
+    }}
+  >
+    {action.roiScore}/100
+  </div>
+</div>
+          <div>
+            <div
+              style={{
+                color: "#64748b",
+                fontSize: "11px",
+                fontWeight: "900",
+                textTransform: "uppercase",
+              }}
+            >
+              Effort
+            </div>
+
+            <div
+              style={{
+                color: "white",
+                fontSize: "15px",
+                fontWeight: "900",
+                marginTop: "4px",
+              }}
+            >
+              {action.effort}
+            </div>
+
+            <div
+              style={{
+                color: "#94a3b8",
+                fontSize: "12px",
+                marginTop: "4px",
+              }}
+            >
+              {action.timeframe}
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab(action.route)}
+            style={{
+              border: "none",
+              borderRadius: "14px",
+              padding: "12px 16px",
+              background:
+                index === 0
+                  ? "linear-gradient(135deg,#f59e0b,#fbbf24)"
+                  : "linear-gradient(135deg,#6366f1,#8b5cf6)",
+              color: index === 0 ? "#111827" : "white",
+              fontWeight: "950",
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+            }}
+          >
+            Review {action.category} →
+          </button>
+        </div>
+      ))}
+    </div>
+  ) : (
+    <div
+      style={{
+        padding: "18px",
+        borderRadius: "20px",
+        background: "rgba(255,255,255,0.04)",
+        border: "1px solid rgba(255,255,255,0.08)",
+        color: "#94a3b8",
+        fontSize: "13px",
+      }}
+    >
+      Upload operational data to calculate highest ROI recovery actions.
+    </div>
+  )}
 </div>
     {/* RECOVERY BREAKDOWN BY CATEGORY */}
     <div
@@ -58117,8 +58437,716 @@ profit recovery opportunities, AI recommendations, and forecasted trends.
   </div>
 )}
 </div>
+{/* RECOVERY OPPORTUNITY BREAKDOWN */}
+<div
+  style={{
+    padding: isMobile ? "22px" : "28px",
+    borderRadius: "28px",
+    background:
+      "linear-gradient(135deg, rgba(20,83,45,0.28), rgba(15,23,42,0.96))",
+    border: "1px solid rgba(34,197,94,0.20)",
+    boxShadow: "0 18px 50px rgba(2,6,23,0.22)",
+  }}
+>
+  {/* HEADER */}
+  <div style={{ marginBottom: "20px" }}>
+    <div
+      style={{
+        color: "#86efac",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      Recovery Opportunity Breakdown
+    </div>
 
+    <h3
+      style={{
+        color: "white",
+        fontSize: isMobile ? "26px" : "34px",
+        fontWeight: "950",
+        margin: "0 0 10px",
+      }}
+    >
+      {profitRecoverySummary.monthlyRecoverable > 0
+        ? `$${profitRecoverySummary.monthlyRecoverable.toLocaleString()}/mo in recoverable profit identified`
+        : "Upload operational data to reveal recoverable profit"}
+    </h3>
 
+    <p
+      style={{
+        color: "#cbd5e1",
+        fontSize: "15px",
+        lineHeight: 1.7,
+        maxWidth: "780px",
+        margin: 0,
+      }}
+    >
+      Serven organizes recoverable profit by operational category so executives
+      can see where recovery is coming from and which areas should be addressed
+      first.
+    </p>
+  </div>
+
+  {/* CATEGORY CARDS */}
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile
+        ? "1fr"
+        : "repeat(auto-fit, minmax(190px, 1fr))",
+      gap: "14px",
+    }}
+  >
+    {(profitRecoverySummary.categories || []).length > 0 ? (
+      profitRecoverySummary.categories.map((category) => (
+        <div
+          key={category.label}
+          style={{
+            padding: "16px",
+            borderRadius: "18px",
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(255,255,255,0.08)",
+          }}
+        >
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "12px",
+              fontWeight: "800",
+              marginBottom: "8px",
+            }}
+          >
+            {category.icon} {category.label}
+          </div>
+
+          <div
+            style={{
+              color: "#86efac",
+              fontSize: "24px",
+              fontWeight: "950",
+              marginBottom: "8px",
+            }}
+          >
+            ${Number(category.opportunity || 0).toLocaleString()}/mo
+          </div>
+
+          <div
+            style={{
+              color: "#cbd5e1",
+              fontSize: "12px",
+              lineHeight: 1.6,
+            }}
+          >
+            ${Number(category.remaining || 0).toLocaleString()} remaining •{" "}
+            {Number(category.progress || 0)}% recovered
+          </div>
+        </div>
+      ))
+    ) : (
+      <div
+        style={{
+          padding: "18px",
+          borderRadius: "18px",
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(255,255,255,0.08)",
+          color: "#94a3b8",
+          fontSize: "14px",
+        }}
+      >
+        Upload POS, labor, inventory, beverage, menu, and invoice data to
+        generate recovery opportunities.
+      </div>
+    )}
+  </div>
+</div>
+
+{/* AI RECOVERY ACTIONS */}
+<div
+  style={{
+    marginBottom: "18px",
+    padding: "22px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(79,70,229,0.14), rgba(15,23,42,0.94))",
+    border: "1px solid rgba(129,140,248,0.18)",
+  }}
+>
+  <div
+    style={{
+      fontSize: "11px",
+      fontWeight: "800",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      color: "#a5b4fc",
+      marginBottom: "10px",
+    }}
+  >
+    AI Recovery Actions
+  </div>
+
+  <h3 style={sectionTitle}>Recommended Actions</h3>
+
+  <p
+    style={{
+      color: "#94a3b8",
+      fontSize: "13px",
+      marginTop: "6px",
+      marginBottom: "16px",
+      lineHeight: 1.6,
+    }}
+  >
+    Highest-impact actions Serven recommends to recover monthly profit.
+  </p>
+
+  <div
+    style={{
+      display: "flex",
+      flexDirection: "column",
+      gap: "12px",
+    }}
+  >
+   {(aiProfitOpportunities || []).slice(0, 5).map((item, index) => {
+  const alreadyApplied = appliedFixes.includes(item.id);
+
+  const actionPriority =
+    index === 0 ? "Highest Priority" : index === 1 ? "High Priority" : "Recommended";
+const timeToImpact =
+  item.difficulty === "Easy"
+    ? "1-7 Days"
+    : item.difficulty === "Medium"
+    ? "1-4 Weeks"
+    : "30+ Days";
+      return (
+        <div
+          key={item.id}
+          style={{
+            padding: "16px",
+            borderRadius: "16px",
+            background: alreadyApplied
+              ? "rgba(34,197,94,0.08)"
+              : "rgba(255,255,255,0.04)",
+            border: alreadyApplied
+              ? "1px solid rgba(34,197,94,0.22)"
+              : "1px solid rgba(255,255,255,0.08)",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: "16px",
+            flexWrap: "wrap",
+          }}
+        >
+          <div style={{ minWidth: 0, flex: 1 }}>
+
+  <div
+    style={{
+      color: index === 0 ? "#fbbf24" : "#a5b4fc",
+      fontSize: "11px",
+      fontWeight: "900",
+      textTransform: "uppercase",
+      letterSpacing: "0.08em",
+      marginBottom: "6px",
+    }}
+  >
+    {actionPriority}
+  </div>
+
+  <div
+    style={{
+      color: "white",
+      fontWeight: "900",
+      fontSize: "15px",
+      marginBottom: "6px",
+    }}
+  >
+    {item.title}
+  </div>
+
+            <div
+              style={{
+                color: "#94a3b8",
+                fontSize: "13px",
+                lineHeight: 1.5,
+                marginBottom: "10px",
+              }}
+            >
+              {item.description}
+            </div>
+
+            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+              <span
+                style={{
+                  padding: "4px 10px",
+                  borderRadius: "999px",
+                  background: "rgba(79,70,229,0.16)",
+                  color: "#c7d2fe",
+                  fontSize: "11px",
+                  fontWeight: "800",
+                }}
+              >
+                {item.category}
+              </span>
+
+              <span
+                style={{
+                  padding: "4px 10px",
+                  borderRadius: "999px",
+                  background: "rgba(255,255,255,0.08)",
+                  color: "#cbd5e1",
+                  fontSize: "11px",
+                  fontWeight: "800",
+                }}
+              >
+                {item.difficulty}
+              </span>
+<span
+  style={{
+    padding: "4px 10px",
+    borderRadius: "999px",
+    background: "rgba(251,191,36,0.12)",
+    color: "#fbbf24",
+    fontSize: "11px",
+    fontWeight: "800",
+  }}
+>
+  {timeToImpact}
+</span>
+              <span
+                style={{
+                  padding: "4px 10px",
+                  borderRadius: "999px",
+                  background: "rgba(34,197,94,0.14)",
+                  color: "#6ee7b7",
+                  fontSize: "11px",
+                  fontWeight: "900",
+                }}
+              >
+                +${Number(item.impact || 0).toLocaleString()}/mo
+              </span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              if (alreadyApplied) return;
+
+            
+
+              setAppliedFixes((prev) => [...prev, item.id]);
+
+              setAiLog((prev) =>
+                [
+                  {
+                    id: Date.now(),
+                    text: `Applied fix: ${item.title} → +$${Number(
+                      item.impact || 0
+                    ).toLocaleString()}/mo`,
+                  },
+                  ...prev,
+                ].slice(0, 6)
+              );
+            }}
+            style={{
+              padding: "10px 14px",
+              borderRadius: "12px",
+              border: "none",
+              background: alreadyApplied
+                ? "rgba(34,197,94,0.16)"
+                : "linear-gradient(135deg, #4f46e5, #6D3DF5)",
+              color: "white",
+              fontWeight: "900",
+              cursor: alreadyApplied ? "default" : "pointer",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {alreadyApplied ? "Applied ✓" : "Apply Fix"}
+          </button>
+        </div>
+      );
+    })}
+  </div>
+</div>
+{/* RECOVERY TRACKING */}
+<div
+  style={{
+    marginBottom: "18px",
+    padding: "22px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(34,197,94,0.10), rgba(15,23,42,0.94))",
+    border: "1px solid rgba(34,197,94,0.18)",
+  }}
+>
+  <div
+    style={{
+      fontSize: "11px",
+      fontWeight: "800",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      color: "#86efac",
+      marginBottom: "10px",
+    }}
+  >
+    Recovery Tracking
+  </div>
+
+  <h3 style={sectionTitle}>Profit Recovery Progress</h3>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile
+        ? "1fr"
+        : "repeat(4, minmax(0, 1fr))",
+      gap: "14px",
+      marginTop: "18px",
+    }}
+  ><GlassCard
+  title="Profit Found"
+  value={
+   hasFullRecoveryData
+      ? `$${Number(totalAIRecoveryOpportunity || 0).toLocaleString()}`
+      : "Upload POS Data"
+  }
+  subtext="Monthly recovery identified"
+/>
+
+<GlassCard
+  title="Profit Applied"
+  value={
+    hasFullRecoveryData
+      ? `$${Number(totalAiProfit || 0).toLocaleString()}`
+      : "Apply AI Fixes"
+  }
+  subtext="Monthly recovery from applied fixes"
+/>
+
+<GlassCard
+  title="Remaining"
+  value={
+  hasFullRecoveryData
+      ? `$${Number(
+          Math.max(
+            0,
+            Number(totalAIRecoveryOpportunity || 0) -
+             Number(totalAiProfit || 0)
+          )
+        ).toLocaleString()}`
+      : "Awaiting Analysis"
+  }
+  subtext="Uncaptured monthly opportunity"
+/>
+
+<GlassCard
+  title="Recovery Rate"
+  value={
+    hasFullRecoveryData
+      ? `${Math.min(
+          100,
+          Math.round(
+            (Number(totalAiProfit || 0) /
+              Number(totalAIRecoveryOpportunity || 1)) *
+              100
+          )
+        )}%`
+      : "Not Started"
+  }
+  subtext="Progress toward full recovery"
+/>
+    <div
+  style={{
+    marginTop: "18px",
+    padding: "18px",
+    borderRadius: "18px",
+    background: "rgba(255,255,255,0.04)",
+    border: "1px solid rgba(255,255,255,0.08)",
+  }}
+>
+  <div
+    style={{
+      display: "flex",
+      justifyContent: "space-between",
+      gap: "12px",
+      flexWrap: "wrap",
+      marginBottom: "10px",
+    }}
+  >
+    <span style={{ color: "white", fontWeight: "900" }}>
+      Recovery Progress
+    </span>
+
+   <span style={{ color: "#86efac", fontWeight: "950" }}>
+  {hasFullRecoveryData
+    ? `${Math.min(
+        100,
+        Math.round(
+          (Number(totalAiProfit || 0) /
+            Number(totalAIRecoveryOpportunity || 1)) *
+            100
+        )
+      )}%`
+    : "Awaiting Analysis"}
+</span>
+  </div>
+
+  <div
+    style={{
+      height: "12px",
+      width: "100%",
+      borderRadius: "999px",
+      background: "rgba(148,163,184,0.16)",
+      overflow: "hidden",
+    }}
+  >
+    <div
+      style={{
+        height: "100%",
+        width: `${
+          Number(totalAIRecoveryOpportunity || 0) > 0
+            ? Math.min(
+                100,
+                Math.round(
+                  (Number(totalAiProfit || 0) /
+                    Number(totalAIRecoveryOpportunity || 1)) *
+                    100
+                )
+              )
+            : 0
+        }%`,
+        borderRadius: "999px",
+        background: "linear-gradient(135deg, #22c55e, #86efac)",
+      }}
+    />
+  </div>
+
+  <div
+    style={{
+      display: "flex",
+      justifyContent: "space-between",
+      gap: "12px",
+      flexWrap: "wrap",
+      marginTop: "10px",
+      color: "#94a3b8",
+      fontSize: "12px",
+      fontWeight: "800",
+    }}
+  >
+    <span>
+    ${Number(totalAiProfit || 0).toLocaleString()} recovered
+    </span>
+
+    <span>
+      ${Number(
+        Math.max(
+          0,
+          Number(totalAIRecoveryOpportunity || 0) -
+            Number(totalAiProfit || 0)
+        )
+      ).toLocaleString()} remaining
+    </span>
+  </div>
+</div>
+  </div>
+</div>
+
+{/* AUTOPILOT RECOMMENDATIONS */}
+<div
+  style={{
+    marginBottom: "18px",
+    padding: "22px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(245,158,11,0.12), rgba(15,23,42,0.94))",
+    border: "1px solid rgba(245,158,11,0.20)",
+  }}
+>
+  <div
+    style={{
+      fontSize: "11px",
+      fontWeight: "800",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      color: "#fbbf24",
+      marginBottom: "10px",
+    }}
+  >
+    Autopilot Recommendations
+  </div>
+
+  <h3 style={sectionTitle}>Next Best Action</h3>
+
+  <p
+    style={{
+      color: "#94a3b8",
+      fontSize: "13px",
+      marginTop: "6px",
+      marginBottom: "16px",
+      lineHeight: 1.6,
+    }}
+  >
+    Serven prioritizes the highest-impact recovery move based on current profit
+    leaks, difficulty, and expected time to impact.
+  </p>
+
+  {aiProfitOpportunities?.length > 0 ? (
+    <div
+      style={{
+        padding: "18px",
+        borderRadius: "18px",
+        background: "rgba(255,255,255,0.04)",
+        border: "1px solid rgba(255,255,255,0.08)",
+      }}
+    >
+      <div
+        style={{
+          color: "#fbbf24",
+          fontSize: "11px",
+          fontWeight: "900",
+          textTransform: "uppercase",
+          letterSpacing: "0.08em",
+          marginBottom: "8px",
+        }}
+      >
+        Recommended First
+      </div>
+
+      <div
+        style={{
+          color: "white",
+          fontSize: "20px",
+          fontWeight: "950",
+          marginBottom: "8px",
+        }}
+      >
+        {aiProfitOpportunities[0]?.title}
+      </div>
+
+      <div
+        style={{
+          color: "#cbd5e1",
+          fontSize: "13px",
+          lineHeight: 1.6,
+          marginBottom: "14px",
+        }}
+      >
+        {aiProfitOpportunities[0]?.description}
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          gap: "8px",
+          flexWrap: "wrap",
+          marginBottom: "16px",
+        }}
+      >
+        <span
+          style={{
+            padding: "5px 10px",
+            borderRadius: "999px",
+            background: "rgba(79,70,229,0.16)",
+            color: "#c7d2fe",
+            fontSize: "11px",
+            fontWeight: "800",
+          }}
+        >
+          {aiProfitOpportunities[0]?.category}
+        </span>
+
+        <span
+          style={{
+            padding: "5px 10px",
+            borderRadius: "999px",
+            background: "rgba(34,197,94,0.14)",
+            color: "#6ee7b7",
+            fontSize: "11px",
+            fontWeight: "900",
+          }}
+        >
+          +${Number(aiProfitOpportunities[0]?.impact || 0).toLocaleString()}/mo
+        </span>
+      </div>
+
+      <div
+        style={{
+          marginTop: "16px",
+          display: "grid",
+          gap: "12px",
+        }}
+      >
+        {(aiProfitOpportunities || [])
+          .slice(1, 4)
+          .map((item, index) => (
+            <div
+              key={item.id || index}
+              style={{
+                padding: "14px",
+                borderRadius: "14px",
+                background: "rgba(255,255,255,0.04)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                display: "flex",
+                justifyContent: "space-between",
+                gap: "12px",
+                flexWrap: "wrap",
+              }}
+            >
+              <div style={{ flex: 1, minWidth: "220px" }}>
+                <div
+                  style={{
+                    color: "#fbbf24",
+                    fontSize: "11px",
+                    fontWeight: "900",
+                    textTransform: "uppercase",
+                    marginBottom: "6px",
+                  }}
+                >
+                  Queue #{index + 2}
+                </div>
+
+                <div
+                  style={{
+                    color: "white",
+                    fontWeight: "900",
+                    marginBottom: "6px",
+                  }}
+                >
+                  {item.title}
+                </div>
+
+                <div
+                  style={{
+                    color: "#94a3b8",
+                    fontSize: "12px",
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {item.description}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  color: "#6ee7b7",
+                  fontWeight: "900",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                +${Number(item.impact || 0).toLocaleString()}/mo
+              </div>
+            </div>
+          ))}
+      </div>
+    </div>
+  ) : (
+    <div style={{ color: "#94a3b8", fontSize: "14px" }}>
+      Upload operational data to activate autopilot recommendations.
+    </div>
+  )}
+</div>
   </div>
 )}
 {activeTab === "financial" && (
@@ -67657,6 +68685,439 @@ maxWidth: "100%",
     </div>
   );
 })()}
+
+{/* EXECUTIVE LABOR SCORE */}
+<div
+  style={{
+    marginBottom: "18px",
+    padding: isMobile ? "16px" : "20px",
+    borderRadius: "22px",
+    background:
+      "radial-gradient(circle at top right, rgba(59,130,246,0.16), transparent 34%), linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.92))",
+    border: `1px solid ${executiveLaborScore.color}44`,
+    boxShadow: "0 18px 50px rgba(2,6,23,0.24)",
+  }}
+>
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile ? "1fr" : "180px 1fr",
+      gap: "18px",
+      alignItems: "center",
+    }}
+  >
+    <div
+      style={{
+        width: "150px",
+        height: "150px",
+        borderRadius: "999px",
+        display: "grid",
+        placeItems: "center",
+        background: `conic-gradient(${executiveLaborScore.color} ${executiveLaborScore.score}%, rgba(148,163,184,0.18) 0)`,
+        margin: isMobile ? "0 auto" : 0,
+      }}
+    >
+      <div
+        style={{
+          width: "116px",
+          height: "116px",
+          borderRadius: "999px",
+          background: "rgba(15,23,42,0.96)",
+          display: "grid",
+          placeItems: "center",
+          border: "1px solid rgba(148,163,184,0.14)",
+        }}
+      >
+        <div style={{ textAlign: "center" }}>
+          <div
+            style={{
+              color: "white",
+              fontSize: "34px",
+              fontWeight: "950",
+              lineHeight: 1,
+            }}
+          >
+            {executiveLaborScore.score}
+          </div>
+
+          <div
+            style={{
+              color: executiveLaborScore.color,
+              fontSize: "12px",
+              fontWeight: "900",
+              marginTop: "6px",
+            }}
+          >
+            /100
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div
+        style={{
+          color: executiveLaborScore.color,
+          fontSize: "12px",
+          fontWeight: "900",
+          letterSpacing: "0.1em",
+          textTransform: "uppercase",
+          marginBottom: "8px",
+        }}
+      >
+        Executive Labor Score
+      </div>
+
+      <h2
+        style={{
+          margin: 0,
+          color: "white",
+          fontSize: isMobile ? "24px" : "30px",
+          fontWeight: "950",
+          letterSpacing: "-0.03em",
+        }}
+      >
+        {executiveLaborScore.status}
+      </h2>
+
+      <p
+        style={{
+          color: "#94a3b8",
+          fontSize: "13px",
+          lineHeight: 1.7,
+          marginTop: "8px",
+          maxWidth: "760px",
+        }}
+      >
+        {executiveLaborScore.recommendation}
+      </p>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: isMobile
+            ? "1fr"
+            : "repeat(3, minmax(0, 1fr))",
+          gap: "12px",
+          marginTop: "16px",
+        }}
+      >
+        <GlassCard
+          title="Labor Cost %"
+          value={
+            Number(effectiveLaborCostPercent || 0) > 0
+              ? `${Number(effectiveLaborCostPercent || 0).toFixed(1)}%`
+              : "Awaiting Data"
+          }
+          subtext="Labor cost versus revenue"
+        />
+
+        <GlassCard
+          title="Primary Risk"
+          value={executiveLaborScore.primaryRisk}
+          subtext="Highest labor pressure"
+        />
+
+        <GlassCard
+          title="Recovery Opportunity"
+          value={
+            estimatedLaborRecovery > 0
+              ? `$${Number(estimatedLaborRecovery || 0).toLocaleString()}`
+              : "Awaiting Data"
+          }
+          subtext="Recoverable labor profit"
+        />
+      </div>
+    </div>
+  </div>
+</div>
+{/* LABOR RECOVERY FOCUS */}
+<div
+  style={{
+    marginTop: "14px",
+    marginBottom: "18px",
+    padding: isMobile ? "16px" : "20px",
+    borderRadius: "22px",
+    background:
+      "radial-gradient(circle at top right, rgba(239,68,68,0.14), transparent 34%), linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.92))",
+    border: "1px solid rgba(239,68,68,0.18)",
+    boxShadow: "0 18px 50px rgba(2,6,23,0.24)",
+  }}
+>
+  <div
+    style={{
+      color: "#fca5a5",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.1em",
+      textTransform: "uppercase",
+      marginBottom: "8px",
+    }}
+  >
+    Labor Recovery Focus
+  </div>
+
+  <h2
+    style={{
+      margin: 0,
+      color: "white",
+      fontSize: isMobile ? "22px" : "28px",
+      fontWeight: "950",
+      letterSpacing: "-0.03em",
+    }}
+  >
+    {estimatedLaborRecovery > 0
+      ? `$${Number(estimatedLaborRecovery || 0).toLocaleString()} labor recovery opportunity`
+      : "Upload labor data to reveal recovery opportunity"}
+  </h2>
+
+  <p
+    style={{
+      marginTop: "8px",
+      color: "#94a3b8",
+      fontSize: "13px",
+      lineHeight: 1.7,
+      maxWidth: "760px",
+    }}
+  >
+    Serven highlights labor recovery first when staffing cost, overtime, or
+    low-revenue shifts are creating the largest profit opportunity.
+  </p>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile ? "1fr" : "repeat(3, minmax(0, 1fr))",
+      gap: "12px",
+      marginTop: "16px",
+    }}
+  >
+    <GlassCard
+      title="Labor Opportunity"
+      value={
+        estimatedLaborRecovery > 0
+          ? `$${Number(estimatedLaborRecovery || 0).toLocaleString()}`
+          : "Awaiting Data"
+      }
+      subtext="Recoverable labor profit"
+    />
+
+    <GlassCard
+      title="Labor Cost %"
+      value={
+        Number(effectiveLaborCostPercent || 0) > 0
+          ? `${Number(effectiveLaborCostPercent || 0).toFixed(1)}%`
+          : "Awaiting Data"
+      }
+      subtext="Labor cost versus revenue"
+    />
+
+    <GlassCard
+      title="Recommended Focus"
+      value={
+        Number(effectiveLaborCostPercent || 0) > 35
+          ? "Overstaffing Risk"
+          : Number(effectiveLaborCostPercent || 0) > 28
+          ? "Watch Scheduling"
+          : estimatedLaborRecovery > 0
+          ? "Optimize Shifts"
+          : "Awaiting Data"
+      }
+      subtext="Primary labor recovery driver"
+    />
+  </div>
+</div>
+{/* LABOR RECOVERY ACTIONS */}
+{estimatedLaborRecovery > 0 && (
+  <div
+    style={{
+      marginBottom: "18px",
+      padding: isMobile ? "16px" : "20px",
+      borderRadius: "22px",
+      background:
+        "linear-gradient(135deg, rgba(59,130,246,0.12), rgba(15,23,42,0.94))",
+      border: "1px solid rgba(96,165,250,0.16)",
+    }}
+  >
+    <div
+      style={{
+        color: "#93c5fd",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.1em",
+        textTransform: "uppercase",
+        marginBottom: "8px",
+      }}
+    >
+      Labor Recovery Actions
+    </div>
+
+    <div style={{ display: "grid", gap: "12px" }}>
+     {[
+  Number(effectiveLaborCostPercent || 0) > 35 && {
+    title: "Reduce overstaffing risk",
+    detail: `Labor is running at ${Number(
+      effectiveLaborCostPercent || 0
+    ).toFixed(1)}% of revenue. Review schedules against actual sales volume.`,
+  },
+
+  Number(effectiveLaborCostPercent || 0) > 28 &&
+    Number(effectiveLaborCostPercent || 0) <= 35 && {
+      title: "Watch labor scheduling",
+      detail: `Labor is currently ${Number(
+        effectiveLaborCostPercent || 0
+      ).toFixed(1)}% of revenue. Tighten staffing around slower dayparts.`,
+    },
+
+  Number(totalLaborHours || 0) > 0 && {
+    title: "Review scheduled labor hours",
+    detail: `${Number(totalLaborHours || 0).toLocaleString()} labor hours are currently being analyzed for efficiency and recovery opportunities.`,
+  },
+
+  Number(salesPerLaborHour || 0) > 0 && {
+    title: "Improve sales per labor hour",
+    detail: `Current sales per labor hour is $${Number(
+      salesPerLaborHour || 0
+    ).toFixed(2)}. Prioritize shifts with weak revenue productivity.`,
+  },
+
+  estimatedLaborRecovery > 0 && {
+    title: "Prioritize labor recovery",
+    detail: `Serven identified $${Number(
+      estimatedLaborRecovery || 0
+    ).toLocaleString()} in labor recovery opportunity.`,
+  },
+]
+  .filter(Boolean)
+  .slice(0, 3)
+  .map((action, index) => (
+        <div
+          key={action.title}
+          style={{
+            padding: "14px",
+            borderRadius: "16px",
+            background: "rgba(255,255,255,0.045)",
+            border: "1px solid rgba(255,255,255,0.08)",
+          }}
+        >
+          <div
+            style={{
+              color: "white",
+              fontWeight: "900",
+              fontSize: "14px",
+            }}
+          >
+            {index + 1}. {action.title}
+          </div>
+
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "12px",
+              lineHeight: 1.6,
+              marginTop: "6px",
+            }}
+          >
+            {action.detail}
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
+{/* SHIFT RECOVERY INTELLIGENCE */}
+<div
+  style={{
+    marginBottom: "18px",
+    padding: isMobile ? "16px" : "20px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(14,165,233,0.12), rgba(15,23,42,0.94))",
+    border: "1px solid rgba(56,189,248,0.16)",
+  }}
+>
+  <div
+    style={{
+      color: "#67e8f9",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.1em",
+      textTransform: "uppercase",
+      marginBottom: "8px",
+    }}
+  >
+    Shift Recovery Intelligence
+  </div>
+
+  <h3 style={{ color: "white", margin: 0 }}>
+    Labor recovery by shift
+  </h3>
+
+  <div style={{ display: "grid", gap: "12px", marginTop: "16px" }}>
+    {shiftRecoveryIntelligence.length > 0 ? (
+      shiftRecoveryIntelligence.slice(0, 5).map((shift) => (
+        <div
+          key={shift.shift}
+          style={{
+            padding: "14px",
+            borderRadius: "16px",
+            background: "rgba(255,255,255,0.045)",
+            border:
+              shift.priority === "High"
+                ? "1px solid rgba(239,68,68,0.28)"
+                : shift.priority === "Medium"
+                ? "1px solid rgba(251,191,36,0.24)"
+                : "1px solid rgba(34,197,94,0.18)",
+            display: "grid",
+            gridTemplateColumns: isMobile ? "1fr" : "1fr 0.6fr 0.6fr 0.6fr",
+            gap: "12px",
+            alignItems: "center",
+          }}
+        >
+          <div>
+            <div style={{ color: "white", fontWeight: "900" }}>
+              {shift.shift}
+            </div>
+            <div style={{ color: "#94a3b8", fontSize: "12px", marginTop: "4px" }}>
+              {shift.status} • {shift.priority} priority
+            </div>
+          </div>
+
+          <GlassCard
+            title="Labor %"
+            value={`${Number(shift.laborPercent || 0).toFixed(1)}%`}
+            subtext="Shift labor load"
+          />
+
+          <GlassCard
+            title="Labor Cost"
+            value={`$${Number(shift.laborCost || 0).toLocaleString()}`}
+            subtext="Shift cost"
+          />
+
+          <GlassCard
+            title="Recoverable"
+            value={`$${Number(shift.recoverable || 0).toLocaleString()}`}
+            subtext="Above 28% target"
+          />
+        </div>
+      ))
+    ) : (
+      <div
+        style={{
+          padding: "16px",
+          borderRadius: "16px",
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(255,255,255,0.08)",
+          color: "#94a3b8",
+          fontSize: "13px",
+        }}
+      >
+        Upload labor and revenue data to generate shift recovery intelligence.
+      </div>
+    )}
+  </div>
+</div>
  {/* LABOR EFFICIENCY INTELLIGENCE SNAPSHOT ROW */}
 <div
   style={{
