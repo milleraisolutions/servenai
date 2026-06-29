@@ -44080,8 +44080,18 @@ gridColumn: "1 / -1",
 </div>
   </>
   )}
-  {analyticsView === "labor" && (
-  <>
+ {analyticsView === "labor" && (
+  <div
+    style={{
+      width: "100%",
+      maxWidth: "100%",
+      minWidth: 0,
+      display: "flex",
+      flexDirection: "column",
+      gap: "24px",
+      overflow: "visible",
+    }}
+  >
   
   {/* STAFF PLANNING SIGNALS */}
   
@@ -44137,12 +44147,13 @@ gridColumn: "1 / -1",
 <div
   style={{
     width: "100%",
-    overflowX: "auto",
+    overflowX: "hidden",
+    overflowY: "hidden",
     marginBottom: "18px",
   }}
 >
   <BarChart
-    width={760}
+  width={isMobile ? 760 : 980}
     height={260}
     data={(staffPlanningSignals || []).slice(0, 7)}
     margin={{ top: 10, right: 20, left: 0, bottom: 20 }}
@@ -45165,7 +45176,7 @@ gridColumn: "1 / -1",
   </div>
 </div>
 
-  </>
+  </div>
   )}
   {analyticsView === "vendor" && (
   <>
