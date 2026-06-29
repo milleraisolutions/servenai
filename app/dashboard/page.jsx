@@ -66378,21 +66378,24 @@ if (!res.ok) {
 )}{inventoryView === "purchasing" && (
   <>
     {(() => {
-      const purchaseRows =
-        inventoryPurchases ||
-        purchaseHistory ||
-        restockActivity ||
-        inventoryRestockLogs ||
-        [];
+     const purchaseRows = [
+  ...((typeof restockLogs !== "undefined" && Array.isArray(restockLogs))
+    ? restockLogs
+    : []),
+  ...((typeof invoicesData !== "undefined" && Array.isArray(invoicesData))
+    ? invoicesData
+    : []),
+];
 
-      const invoiceRows = invoiceUploads || invoice_uploads || invoiceImports || [];
+const invoiceRows =
+  typeof invoiceUploads !== "undefined" && Array.isArray(invoiceUploads)
+    ? invoiceUploads
+    : [];
 
-      const activityRows = [
-        ...(inventoryRestockLogs || []),
-        ...(restockActivity || []),
-        ...(invoiceRows || []),
-      ].slice(0, 8);
-
+const activityRows = [
+  ...purchaseRows,
+  ...invoiceRows,
+].slice(0, 8);
       const totalPurchaseSpend = purchaseRows.reduce((sum, row) => {
         return (
           sum +
