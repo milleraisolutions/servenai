@@ -41335,7 +41335,7 @@ Restaurant AI Health is currently rated{" "}
     );
   })}
 </div>
-{analyticsView === "dashboard" && (
+{analyticsView === "revenue" && (
   <>
   {/* 📊 REVENUE TREND */}
 {!executiveModeEnabled && (
@@ -41640,13 +41640,13 @@ Restaurant AI Health is currently rated{" "}
     width: "100%",
     height: "360px",
     marginTop: "10px",
-    overflowX: "auto",
+    overflowX: "hidden",
     overflowY: "hidden",
   }}
 >
   {revenueChartData?.length > 0 ? (
     <LineChart
-      width={isMobile ? 900 : 1200}
+      width={isMobile ? 760 : 980}
       height={340}
       data={revenueChartData}
       margin={{ top: 20, right: 30, left: 10, bottom: 24 }}
@@ -41772,7 +41772,7 @@ Restaurant AI Health is currently rated{" "}
   >
     {revenueChartData?.length > 0 ? (
       <BarChart
-        width={isMobile ? 900 : 980}
+       width={isMobile ? 760 : 980}
         height={isMobile ? 340 : 420}
         data={revenueChartData}
         margin={{ top: 24, right: 35, left: 10, bottom: 70 }}
