@@ -211,6 +211,7 @@ const [statusPlan, setStatusPlan] = useState("");
 const [clientImports, setClientImports] = useState([]);
 const [importsLoading, setImportsLoading] = useState(false);
 const [inventoryView, setInventoryView] = useState("overview");
+const [operationsView, setOperationsView] = useState("overview");
 const [aiActionAutopilotEnabled, setAiActionAutopilotEnabled] = useState(false);
 const [appliedAIFixes, setAppliedAIFixes] = useState([]);
 const [executiveModeEnabled, setExecutiveModeEnabled] = useState(false);
@@ -69220,7 +69221,8 @@ const invoiceRows =
       );
     })()}
   </>
-)}{inventoryView === "forecast" && (
+)}
+{inventoryView === "forecast" && (
   <>
     {(() => {
       const forecastRows = inventoryForecastingData || [];
@@ -69965,6 +69967,61 @@ const invoiceRows =
   </>
 )}
 {activeTab === "operations" && (
+<>
+<div
+  style={{
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "10px",
+    marginBottom: "24px",
+  }}
+>
+  {[
+    { id: "overview", label: "🏭 Overview" },
+    { id: "kitchen", label: "🍳 Kitchen" },
+    { id: "production", label: "📦 Production" },
+    { id: "performance", label: "👷 Performance" },
+  ].map((view) => (
+    <button
+      key={view.id}
+      onClick={() => setOperationsView(view.id)}
+      style={{
+        padding: "12px 18px",
+        borderRadius: "14px",
+        border:
+          operationsView === view.id
+            ? "1px solid rgba(124,58,237,.55)"
+            : "1px solid rgba(148,163,184,.18)",
+        background:
+          operationsView === view.id
+            ? "linear-gradient(135deg,#7c3aed,#4f46e5)"
+            : "rgba(15,23,42,.65)",
+        color: "white",
+        fontWeight: "800",
+        cursor: "pointer",
+      }}
+    >
+      {view.label}
+    </button>
+  ))}
+</div>
+
+<div
+  style={{
+    width: "100%",
+    maxWidth: "100%",
+    minWidth: 0,
+    margin: "0",
+    overflowX: "visible",
+    overflowY: "visible",
+    display: "grid",
+    gridTemplateColumns: "1fr",
+    gap: "18px",
+    alignItems: "start",
+    paddingBottom: "24px",
+    boxSizing: "border-box",
+  }}
+>
 <div
   style={{
     width: "100%",
@@ -69985,1328 +70042,1672 @@ const invoiceRows =
     paddingBottom: "24px",
     boxSizing: "border-box",
   }}
->
-  {hasProAccess && (
-  <div
-    style={{
-      marginTop: "18px",
-      padding: "22px",
-      borderRadius: "24px",
-      background:
-        "linear-gradient(135deg, rgba(239,68,68,0.12), rgba(15,23,42,0.94))",
-      border: "1px solid rgba(239,68,68,0.18)",
-    }}
-  >
-    <div
-      style={{
-        color: "#fca5a5",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-      }}
-    >
-      Shelf Life Exposure Intelligence
-    </div>
+>{operationsView === "overview" && (
+  <>
+    {(() => {
+      const safeAdvancedAlerts = advancedAiAlerts || [];
+      const safePredictiveAlerts = predictiveAlerts || [];
+      const safeOperationalAlerts = operationalAlerts || [];
+      const safeOpportunities = generatedOpportunities || [];
 
-    <h3
-      style={{
-        color: "white",
-        fontSize: "24px",
-        fontWeight: "900",
-        marginTop: "8px",
-      }}
-    >
-      ${Number(shelfLifeLoss || 0).toLocaleString()} at risk
-    </h3>
-
-    <p style={{ color: "#cbd5e1", marginTop: "10px" }}>
-      Inventory identified as being at risk of spoilage or expiration.
-    </p>
-
-    <div style={{ marginTop: "16px", display: "grid", gap: "10px" }}>
-      {(shelfLifeRiskItems || []).slice(0, 5).map((item, index) => (
-        <div
-          key={index}
-          style={{
-            padding: "12px",
-            borderRadius: "12px",
-            background: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(255,255,255,0.08)",
-          }}
-        >
-          <div style={{ color: "white", fontWeight: "800" }}>
-            {item.name || item.ingredient_name || "Ingredient"}
-          </div>
-
-          <div style={{ color: "#94a3b8", fontSize: "12px" }}>
-            Potential loss: $
-            {Number(item.loss || item.estimatedLoss || 0).toLocaleString()}
-          </div>
-        </div>
-      ))}
-    </div>
-  </div>
-)}
-   {/* EXPECTED VS ACTUAL USAGE */}
-{(() => {
-  // 🛡️ Safe extraction layer preventing crashes during async loading periods
-  const usageData = expectedVsActualUsageData || [];
-  const displayItems = usageData.slice(0, 6);
-
-return (
-  <div
-    style={{
-      gridColumn: "auto",
-
-      width: "100%",
-      minWidth: 0,
-      boxSizing: "border-box",
-
-      marginTop: "20px",
-      padding: "22px",
-      borderRadius: "22px",
-
-      background:
-        "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.92))",
-
-      border: "1px solid rgba(245,158,11,0.22)",
-    }}
-  >
-      <div style={{ color: "#fbbf24", fontSize: "12px", fontWeight: "900", letterSpacing: "0.05em" }}>
-        EXPECTED VS ACTUAL USAGE
-      </div>
-
-      <h3 style={{ color: "white", fontSize: "22px", fontWeight: "950", marginTop: "4px", marginBottom: "0px" }}>
-        Ingredient Usage Variance
-      </h3>
-
-      {usageData.length === 0 ? (
-        <div style={{ color: "#94a3b8", fontSize: "14px", marginTop: "14px" }}>
-          Add recipe usage rules to compare expected ingredient usage against actual usage.
-        </div>
-      ) : (
-        <div style={{ display: "grid", gap: "12px", marginTop: "14px" }}>
-          {displayItems.map((item, index) => {
-            // 🛡️ Data Normalization Guards
-            const statusStr = String(item?.status || "").toLowerCase();
-            const isVariance = statusStr === "variance detected";
-            
-            const totalSold = Number(item?.totalSold || 0);
-            const expected = Number(item?.expectedUsage || 0);
-            const actual = Number(item?.actualUsage || 0);
-            const variancePercent = Number(item?.variancePercent || 0);
-
-            return (
-              <div
-                key={`${item?.ingredient || "ing"}-${item?.menuItem || "menu"}-${index}`}
-                style={{
-                  padding: "14px",
-                  borderRadius: "16px",
-                  background: "rgba(255,255,255,0.04)",
-                  border: isVariance
-                    ? "1px solid rgba(239,68,68,0.28)"
-                    : "1px solid rgba(34,197,94,0.20)",
-                }}
-              >
-                <div style={{ color: "white", fontWeight: "900", fontSize: "15px" }}>
-                  {item?.ingredient || "Unknown Ingredient"}
-                </div>
-
-                <div style={{ color: "#94a3b8", fontSize: "12px", marginTop: "4px" }}>
-                  Menu Item: {item?.menuItem || "Unassigned"}
-                </div>
-
-                {/* METRICS GRID */}
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
-                    gap: "10px",
-                    marginTop: "12px",
-                  }}
-                >
-                  <div style={{ color: "#cbd5e1", fontSize: "12px" }}>
-                    Sold: <strong>{totalSold}</strong>
-                  </div>
-
-                  <div style={{ color: "#cbd5e1", fontSize: "12px" }}>
-                    Expected: <strong>{expected.toFixed(2)}</strong>
-                  </div>
-
-                  <div style={{ color: "#cbd5e1", fontSize: "12px" }}>
-                    Actual: <strong>{actual.toFixed(2)}</strong>
-                  </div>
-
-                  {/* Status Indicator */}
-                  <div
-                    style={{
-                      color: isVariance ? "#fca5a5" : "#86efac",
-                      fontSize: "12px",
-                      fontWeight: "900",
-                    }}
-                  >
-                    {variancePercent.toFixed(1)}% • {item?.status || "Normal"}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-})()}
-
-
-    {/* 📲 LIVE REAL-TIME POS KITCHEN TICKETS CONTAINER */}
-
-{(() => {
-  // 🛡️ Guardrail Layer for parent objects and contextual media flags
-  const prepData = yesterdayPrepData || [];
-  const mobileLayout = typeof isMobile !== "undefined" ? isMobile : false;
-return (
-  <div
-    style={{
-      gridColumn: "auto",
-
-      width: "100%",
-      minWidth: 0,
-      boxSizing: "border-box",
-
-      alignSelf: "start",
-      height: "fit-content",
-      maxHeight: "720px",
-      overflowY: "auto",
-
-      padding: "22px",
-      borderRadius: "22px",
-
-      background:
-        "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.92))",
-
-      border: "1px solid rgba(245,158,11,0.22)",
-    }}
-  >
-      <div
-        style={{
-          color: "#fbbf24",
-          fontSize: "12px",
-          fontWeight: "900",
-          textTransform: "uppercase",
-          letterSpacing: "0.06em",
-          marginBottom: "4px",
-        }}
-      >
-        Live Kitchen Execution
-      </div>
-
-      <h3 style={{ color: "white", fontSize: "22px", fontWeight: "950", margin: "0 0 14px 0" }}>
-        Ticket Prep Targets vs. POS Bump Times
-      </h3>
-
-      <div
-  style={{
-    display: "grid",
-    gridTemplateColumns: isMobile
-      ? "1fr"
-      : "repeat(2, minmax(320px, 1fr))",
-    gap: "12px",
-  }}
->
-        {prepData.length > 0 ? (
-          prepData.map((order, index) => {
-            // 🛡️ Clean Parsing Guards to block NaN breakdowns from corrupted POS timestamps
-            const targetPrep = Number(order?.target_prep_time || 0);
-            
-            const rawCreated = order?.created_at ? new Date(order.created_at) : null;
-            const rawCompleted = order?.completed_at ? new Date(order.completed_at) : null;
-
-            // Verify both date objects are completely structurally valid
-            const isValidTimeline = 
-              rawCreated && 
-              rawCompleted && 
-              !isNaN(rawCreated.getTime()) && 
-              !isNaN(rawCompleted.getTime());
-
-            const actualMinutes = isValidTimeline
-              ? Math.max(0, Math.round((rawCompleted.getTime() - rawCreated.getTime()) / 1000 / 60))
-              : 0;
-              
-            const variance = actualMinutes - targetPrep;
-            const hasDataTracked = isValidTimeline;
-
-            // Performance Visual Routing
-            let varianceColor = "#64748b";
-            let varianceLabel = "Untracked";
-
-            if (hasDataTracked) {
-              if (variance <= 0) {
-                varianceColor = "#22c55e";
-                varianceLabel = "🎯 On Time";
-              } else if (variance <= 2) {
-                varianceColor = "#facc15";
-                varianceLabel = `⚠️ +${variance}m Slow`;
-              } else {
-                varianceColor = "#f87171";
-                varianceLabel = `⚠️ +${variance}m Slow`;
-              }
-            }
-
-            return (
-              <div
-                key={`${order?.id || "ticket"}-${index}`}
-                style={{
-                  padding: "14px",
-                  borderRadius: "16px",
-                  background: "rgba(255,255,255,0.04)",
-                  border: hasDataTracked && variance > 2
-                    ? "1px solid rgba(239,68,68,0.25)"
-                    : "1px solid rgba(255,255,255,0.06)",
-                  display: "grid",
-                  gridTemplateColumns: mobileLayout ? "1fr" : "1.5fr 1fr 1fr 1.2fr",
-                  gap: "12px",
-                  alignItems: "center",
-                }}
-              >
-                {/* Menu Item & Station */}
-                <div>
-                  <div style={{ color: "white", fontWeight: "900", fontSize: "14px" }}>
-                    {order?.item_name || "Unknown Line Item"}
-                  </div>
-                  <div style={{ color: "#94a3b8", fontSize: "12px", marginTop: "2px" }}>
-                    Station: {order?.station || "Unassigned"}
-                  </div>
-                </div>
-
-                {/* Target Prep Time */}
-                <div>
-                  <div style={{ color: "#94a3b8", fontSize: "11px", textTransform: "uppercase" }}>Target Prep</div>
-                  <div style={{ color: "white", fontWeight: "800", marginTop: "2px" }}>
-                    {targetPrep} mins
-                  </div>
-                </div>
-
-                {/* Actual Cook Time */}
-                <div>
-                  <div style={{ color: "#94a3b8", fontSize: "11px", textTransform: "uppercase" }}>Actual Time</div>
-                  <div style={{ color: "white", fontWeight: "800", marginTop: "2px" }}>
-                    {hasDataTracked ? `${actualMinutes} mins` : "⚠️ No KDS Data"}
-                  </div>
-                </div>
-
-                {/* Performance Variance */}
-                <div>
-                  <div style={{ color: "#94a3b8", fontSize: "11px", textTransform: "uppercase" }}>Performance Variance</div>
-                  <div
-                    style={{
-                      fontWeight: "950",
-                      color: varianceColor,
-                      marginTop: "2px",
-                    }}
-                  >
-                    {varianceLabel}
-                  </div>
-                </div>
-              </div>
-            );
-          })
-        ) : (
-          /* Clean fallback message for morning upload systems */
-          <div
-            style={{
-              color: "#94a3b8",
-              fontSize: "13px",
-              padding: "24px 12px",
-              textAlign: "center",
-              border: "1px dashed rgba(255,255,255,0.1)",
-              borderRadius: "16px",
-              background: "rgba(255,255,255,0.01)",
-            }}
-          >
-            📊 No performance data loaded. Upload yesterday's POS report to see kitchen ticket variance.
-          </div>
-        )}
-      </div>
-    </div>
-  );
-})()}
-{/* ⏱️ CULINARY COMPONENTS & PREP TIME BOTTLENECK ANALYSIS */}
-<div
-  style={{
-    gridColumn: "auto",
-
-    width: "100%",
-    minWidth: 0,
-    boxSizing: "border-box",
-
-    alignSelf: "start",
-    height: "fit-content",
-    maxHeight: "none",
-    overflowY: "visible",
-
-    marginTop: "20px",
-    padding: "22px",
-    borderRadius: "22px",
-
-    background:
-      "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.92))",
-
-    border: "1px solid rgba(99, 102, 241, 0.22)",
-  }}
->
-  <div
-    style={{
-      color: "#818cf8",
-      fontSize: "12px",
-      fontWeight: "900",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      marginBottom: "4px",
-    }}
-  >
-    Operations Prep Intelligence
-  </div>
-
-  <h3
-    style={{
-      color: "white",
-      fontSize: "22px",
-      fontWeight: "950",
-      margin: "0 0 6px 0",
-    }}
-  >
-    Station Prep Times & Modifications
-  </h3>
-
-  <p
-    style={{
-      color: "#94a3b8",
-      fontSize: "13px",
-      marginTop: 0,
-      marginBottom: "18px",
-      lineHeight: 1.6,
-    }}
-  >
-    Track station execution times factoring in parallel assembly items
-    to calculate real ticket completion estimates instead of simple
-    linear prep sums.
-  </p>
-
-  {!hasOperationalData && (
-    <div
-      style={{
-        marginBottom: "18px",
-        padding: "12px 14px",
-        borderRadius: "14px",
-        background: "rgba(251,191,36,0.10)",
-        border: "1px solid rgba(251,191,36,0.24)",
-        color: "#fbbf24",
-        fontSize: "12px",
-        fontWeight: "800",
-        letterSpacing: "0.05em",
-        textTransform: "uppercase",
-      }}
-    >
-     Awaiting Data • Upload kitchen execution or POS timing data to
-      activate live station intelligence
-    </div>
-  )}
-
-  <div
-  style={{
-    display: "grid",
-    gridTemplateColumns: isMobile
-      ? "1fr"
-      : "repeat(3, minmax(220px, 1fr))",
-    gap: "14px",
-  }}
->{
-  (
-    hasOperationalData
-      ? stationPrepData || []
-      : []
-    ).map((item, index) => {
-      const componentMaxParallel = item.components.reduce(
-        (max, c) => Math.max(max, c.prep),
-        0
+      const criticalOperationalAlerts = safeOperationalAlerts.filter(
+        (alert) => alert.priority === "Critical"
       );
 
-      const computedTotalTicketPrep =
-        Math.max(item.basePrep, componentMaxParallel) + 1;
+      const topPriorities = [
+        ...safeAdvancedAlerts.map((alert) => ({
+          title: alert.title || "Operational risk detected",
+          detail: alert.message || alert.action || "Review operational risk.",
+          level: alert.level === "critical" ? "Critical" : "Watch",
+          color: alert.level === "critical" ? "#f87171" : "#fbbf24",
+        })),
+        ...safePredictiveAlerts.map((alert) => ({
+          title: alert.title || "Predictive operational alert",
+          detail: alert.message || "Predictive risk requires review.",
+          level: alert.type || "Monitor",
+          color:
+            String(alert.type || "").toLowerCase() === "critical"
+              ? "#f87171"
+              : String(alert.type || "").toLowerCase() === "warning"
+              ? "#fbbf24"
+              : "#38bdf8",
+        })),
+        ...safeOpportunities.map((item) => ({
+          title: item.title || "AI opportunity",
+          detail: item.description || item.action || "Review AI opportunity.",
+          level: item.priority || "Opportunity",
+          color: "#818cf8",
+        })),
+      ].slice(0, 5);
+
+      const snapshotCards = [
+        [
+          "Operations Health",
+          `${Math.round(overallRestaurantScore || 0)}/100`,
+          "Overall restaurant operating score",
+          "#22c55e",
+        ],
+        [
+          "Critical Alerts",
+          criticalOperationalAlerts.length,
+          "Executive-level risks",
+          "#ef4444",
+        ],
+        [
+          "Prime Cost",
+          `${Number(livePrimeCost || primeCostPercentage || 0).toFixed(1)}%`,
+          "Food + labor pressure",
+          "#f59e0b",
+        ],
+        [
+          "AI Opportunities",
+          safeOpportunities.length,
+          "Actionable recovery items",
+          "#818cf8",
+        ],
+        [
+          "Waste Exposure",
+          `$${Number(
+            inventoryWasteIntelligence?.estimatedWasteExposure ||
+              estimatedWasteRecovery ||
+              totalWasteLoss ||
+              0
+          ).toLocaleString()}`,
+          "Tracked waste risk",
+          "#86efac",
+        ],
+      ];
+
+      const readout =
+        topPriorities.length > 0
+          ? "SerVen detected operational items that may need attention. Review the highest-priority alerts first, then validate kitchen execution, waste exposure, and labor performance."
+          : "SerVen is monitoring kitchen execution, labor efficiency, waste exposure, and operational alerts. No major executive-level operations issue is currently surfaced.";
 
       return (
-        <div
-          key={index}
-          style={{
-            padding: "18px",
-            borderRadius: "18px",
-            background: "rgba(15,23,42,0.74)",
-            border: "1px solid rgba(148,163,184,0.14)",
-          }}
-        >
+        <>
+          {/* =========================
+             OPERATIONS COMMAND CENTER
+          ========================= */}
           <div
             style={{
-              display: "flex",
-              justifyContent: "space-between",
-              gap: "12px",
-              flexWrap: "wrap",
-              marginBottom: "12px",
-            }}
-          >
-            <div>
-              <div
-                style={{
-                  color: "white",
-                  fontSize: "18px",
-                  fontWeight: "900",
-                }}
-              >
-                {item.name}
-              </div>
-
-              <div
-                style={{
-                  color: "#94a3b8",
-                  fontSize: "12px",
-                  marginTop: "4px",
-                }}
-              >
-                Primary Station: {item.station}
-              </div>
-            </div>
-
-            <div
-              style={{
-                padding: "10px 14px",
-                borderRadius: "14px",
-                background: "rgba(99,102,241,0.14)",
-                border: "1px solid rgba(129,140,248,0.20)",
-                textAlign: "center",
-              }}
-            >
-              <div
-                style={{
-                  color: "#c7d2fe",
-                  fontSize: "11px",
-                  fontWeight: "900",
-                  textTransform: "uppercase",
-                }}
-              >
-                Estimated Ticket Time
-              </div>
-
-              <div
-                style={{
-                  color: "white",
-                  fontSize: "20px",
-                  fontWeight: "950",
-                  marginTop: "2px",
-                }}
-              >
-                {computedTotalTicketPrep.toFixed(1)}m
-              </div>
-            </div>
-          </div>
-
-          <div
-            style={{
-              display: "grid",
-              gap: "10px",
-            }}
-          >
-            {item.components.map((component, componentIndex) => (
-              <div
-                key={componentIndex}
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  gap: "12px",
-                  padding: "10px 12px",
-                  borderRadius: "12px",
-                  background: "rgba(255,255,255,0.03)",
-                }}
-              >
-                <div>
-                  <div
-                    style={{
-                      color: "#e2e8f0",
-                      fontSize: "13px",
-                      fontWeight: "700",
-                    }}
-                  >
-                    {component.name}
-                  </div>
-
-                  <div
-                    style={{
-                      color: "#94a3b8",
-                      fontSize: "11px",
-                      marginTop: "2px",
-                    }}
-                  >
-                    {component.station} • {component.type}
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    color: "#c7d2fe",
-                    fontSize: "13px",
-                    fontWeight: "900",
-                  }}
-                >
-                  {component.prep}m
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      );
-    })}
-  </div>
-</div>
-{/* INVENTORY + WASTE INTELLIGENCE */}
-<div
-  style={{
-   gridColumn: "auto",
-    width: "100%",
-    minWidth: 0,
-    boxSizing: "border-box",
-
-    marginTop: "20px",
-    padding: "24px",
-    borderRadius: "22px",
-    background:
-      "radial-gradient(circle at top right, rgba(34,197,94,0.14), transparent 40%), linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.9))",
-    border: "1px solid rgba(34,197,94,0.18)",
-  }}
->
-  <div
-    style={{
-      color: "#86efac",
-      fontSize: "12px",
-      fontWeight: "900",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      marginBottom: "8px",
-    }}
-  >
-    Inventory + Waste Intelligence
-  </div>
-
-  <h3
-    style={{
-      color: "white",
-      margin: "0 0 10px",
-      fontSize: "22px",
-      fontWeight: "950",
-    }}
-  >
-    Stock risk and waste exposure
-  </h3>
-
-  <p
-    style={{
-      color: "#94a3b8",
-      fontSize: "13px",
-      lineHeight: 1.6,
-      marginBottom: "18px",
-    }}
-  >
-    Tracks low-stock pressure, ingredient variance, and estimated waste exposure.
-  </p>
-
-  <div
-    style={{
-      display: "grid",
-      gridTemplateColumns: isMobile
-  ? "1fr"
-  : "repeat(2, minmax(260px, 1fr))",
-      gap: "12px",
-      marginBottom: "18px",
-    }}
-  >
-    <div style={miniMetricCard}>
-      <div style={miniMetricLabel}>Risk Score</div>
-      <div style={{ ...miniMetricValue, color: inventoryWasteIntelligence.color }}>
-        {inventoryWasteIntelligence.riskScore}/100
-      </div>
-    </div>
-
-    <div style={miniMetricCard}>
-      <div style={miniMetricLabel}>Critical Stock</div>
-      <div style={miniMetricValue}>
-        {inventoryWasteIntelligence.criticalStockItems.length}
-      </div>
-    </div>
-
-    <div style={miniMetricCard}>
-      <div style={miniMetricLabel}>Waste Risk Items</div>
-      <div style={miniMetricValue}>
-        {inventoryWasteIntelligence.wasteRiskItems.length}
-      </div>
-    </div>
-
-    <div style={miniMetricCard}>
-      <div style={miniMetricLabel}>Waste Exposure</div>
-      <div style={{ ...miniMetricValue, color: "#fde68a" }}>
-        ${Number(inventoryWasteIntelligence.estimatedWasteExposure || 0).toLocaleString()}
-      </div>
-    </div>
-  </div>
-
-  <div
-    style={{
-      padding: "15px",
-      borderRadius: "16px",
-      background: "rgba(34,197,94,0.10)",
-      border: "1px solid rgba(34,197,94,0.18)",
-      color: "#bbf7d0",
-      fontSize: "13px",
-      lineHeight: 1.7,
-      fontWeight: "750",
-    }}
-  >
-    <span style={{ color: "white", fontWeight: "950" }}>AI readout:</span>{" "}
-    {inventoryWasteIntelligence.insight}
-  </div>
-</div>
-{/* ADVANCED AI ALERT SYSTEM */}
-<div
-  style={{
-    marginTop: "20px",
-    padding: "24px",
-    borderRadius: "22px",
-    background:
-      "radial-gradient(circle at top right, rgba(239,68,68,0.14), transparent 40%), linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.9))",
-    border: "1px solid rgba(248,113,113,0.20)",
-  }}
->
-  <div
-    style={{
-      color: "#fca5a5",
-      fontSize: "12px",
-      fontWeight: "900",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      marginBottom: "8px",
-    }}
-  >
-    Advanced AI Alert System
-  </div>
-
-  <h3
-    style={{
-      color: "white",
-      margin: "0 0 10px",
-      fontSize: "22px",
-      fontWeight: "950",
-    }}
-  >
-    Operational risks needing attention
-  </h3>
-
-  <p
-    style={{
-      color: "#94a3b8",
-      fontSize: "13px",
-      lineHeight: 1.6,
-      marginBottom: "18px",
-    }}
-  >
-    AI scans prime cost, labor, food cost, inventory, and waste signals to surface priority alerts.
-  </p>
-
- <div
-  style={{
-    display: "grid",
-    gridTemplateColumns: isMobile
-      ? "1fr"
-      : "repeat(2, minmax(260px, 1fr))",
-    gap: "12px",
-  }}
->
-    {advancedAiAlerts?.length > 0 ? (
-      advancedAiAlerts.map((alert, index) => {
-        const isCritical = alert.level === "critical";
-
-        return (
-          <div
-            key={`${alert.title}-${index}`}
-            style={{
-              padding: "15px",
-              borderRadius: "16px",
-              background: isCritical
-                ? "rgba(239,68,68,0.10)"
-                : "rgba(245,158,11,0.10)",
-              border: isCritical
-                ? "1px solid rgba(239,68,68,0.24)"
-                : "1px solid rgba(245,158,11,0.24)",
+              gridColumn: isMobile ? "span 1" : "span 12",
+              width: "100%",
+              padding: isMobile ? "20px" : "26px",
+              borderRadius: "26px",
+              background:
+                "linear-gradient(135deg, rgba(99,102,241,0.15), rgba(15,23,42,0.96))",
+              border: "1px solid rgba(129,140,248,0.20)",
+              boxShadow: "0 24px 70px rgba(2,6,23,0.32)",
+              marginBottom: "22px",
             }}
           >
             <div
               style={{
                 display: "flex",
                 justifyContent: "space-between",
-                gap: "12px",
+                gap: "18px",
                 flexWrap: "wrap",
-                marginBottom: "6px",
+                alignItems: "flex-start",
               }}
             >
-              <div
-                style={{
-                  color: "white",
-                  fontSize: "15px",
-                  fontWeight: "950",
-                }}
-              >
-                {alert.title}
+              <div style={{ flex: "1 1 560px", minWidth: 0 }}>
+                <div
+                  style={{
+                    color: "#a5b4fc",
+                    fontSize: "12px",
+                    fontWeight: "950",
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                    marginBottom: "10px",
+                  }}
+                >
+                  Operations Command Center
+                </div>
+
+                <h2
+                  style={{
+                    color: "white",
+                    fontSize: isMobile ? "26px" : "34px",
+                    fontWeight: "950",
+                    margin: 0,
+                    lineHeight: 1.08,
+                  }}
+                >
+                  Real-time operational intelligence
+                </h2>
+
+                <p
+                  style={{
+                    color: "#cbd5e1",
+                    fontSize: "14px",
+                    lineHeight: 1.7,
+                    marginTop: "12px",
+                    maxWidth: "900px",
+                  }}
+                >
+                  SerVen monitors kitchen execution, operational efficiency,
+                  waste exposure, labor performance, and AI alerts so operators
+                  know where attention is needed first.
+                </p>
               </div>
 
               <div
                 style={{
-                  color: isCritical ? "#fca5a5" : "#fde68a",
-                  fontSize: "11px",
-                  fontWeight: "900",
-                  textTransform: "uppercase",
+                  flex: "1 1 500px",
+                  display: "grid",
+                  gridTemplateColumns: isMobile
+                    ? "1fr"
+                    : "repeat(2,minmax(0,1fr))",
+                  gap: "12px",
                 }}
               >
-                {alert.level}
+                {snapshotCards.slice(0, 4).map(([label, value, subtext, color]) => (
+                  <div
+                    key={label}
+                    style={{
+                      padding: "16px",
+                      borderRadius: "18px",
+                      background: "rgba(15,23,42,.72)",
+                      border: `1px solid ${color}33`,
+                      minWidth: 0,
+                    }}
+                  >
+                    <div
+                      style={{
+                        color: "#94a3b8",
+                        fontSize: "11px",
+                        fontWeight: "900",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.06em",
+                      }}
+                    >
+                      {label}
+                    </div>
+
+                    <div
+                      style={{
+                        color,
+                        fontSize: "30px",
+                        fontWeight: "950",
+                        marginTop: "8px",
+                      }}
+                    >
+                      {value}
+                    </div>
+
+                    <div
+                      style={{
+                        color: "#cbd5e1",
+                        fontSize: "12px",
+                        marginTop: "4px",
+                      }}
+                    >
+                      {subtext}
+                    </div>
+                  </div>
+                ))}
               </div>
-            </div>
-
-            <div
-              style={{
-                color: "#cbd5e1",
-                fontSize: "13px",
-                lineHeight: 1.6,
-                marginBottom: "8px",
-              }}
-            >
-              {alert.message}
-            </div>
-
-            <div
-              style={{
-                color: isCritical ? "#fecaca" : "#fde68a",
-                fontSize: "13px",
-                lineHeight: 1.6,
-                fontWeight: "800",
-              }}
-            >
-              Recommended action: {alert.action}
             </div>
           </div>
-        );
-      })
-    ) : (
-      <div
-        style={{
-          padding: "15px",
-          borderRadius: "16px",
-          background: "rgba(34,197,94,0.10)",
-          border: "1px solid rgba(34,197,94,0.18)",
-          color: "#bbf7d0",
-          fontSize: "13px",
-          lineHeight: 1.6,
-          fontWeight: "800",
-        }}
-      >
-        No major operational risks detected right now. AI will continue monitoring cost, labor, inventory, and waste signals.
-      </div>
-    )}
-  </div>
-</div>
 
-   {/* 🔮 PREDICTIVE OPERATIONAL ALERTS */}
-{(() => {
-  // 🛡️ Data Hydration Defense to block rendering crashes during loading states
-  const alertsList = predictiveAlerts || [];
-  const alertCount = alertsList.length;
+          {/* =========================
+             TODAY'S OPERATIONAL PRIORITIES
+          ========================= */}
+          <div
+            style={{
+              gridColumn: isMobile ? "span 1" : "span 12",
+              width: "100%",
+              padding: "22px",
+              borderRadius: "24px",
+              background:
+                "linear-gradient(135deg, rgba(239,68,68,0.10), rgba(15,23,42,0.94))",
+              border: "1px solid rgba(248,113,113,0.18)",
+              boxShadow: "0 22px 60px rgba(2,6,23,0.24)",
+              marginBottom: "22px",
+            }}
+          >
+            <div
+              style={{
+                color: "#fca5a5",
+                fontSize: "12px",
+                fontWeight: "950",
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                marginBottom: "12px",
+              }}
+            >
+              Today's Operational Priorities
+            </div>
 
-return (
-  <div
-    style={{
-      gridColumn: "auto",
+            <div style={{ display: "grid", gap: "12px" }}>
+              {topPriorities.length > 0 ? (
+                topPriorities.map((item, index) => (
+                  <div
+                    key={`${item.title}-${index}`}
+                    style={{
+                      padding: "15px",
+                      borderRadius: "18px",
+                      background: "rgba(15,23,42,0.76)",
+                      border: `1px solid ${item.color}44`,
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        gap: "12px",
+                        flexWrap: "wrap",
+                        marginBottom: "6px",
+                      }}
+                    >
+                      <div
+                        style={{
+                          color: "white",
+                          fontSize: "15px",
+                          fontWeight: "950",
+                        }}
+                      >
+                        {item.title}
+                      </div>
 
-      width: "100%",
-      minWidth: 0,
-      boxSizing: "border-box",
+                      <div
+                        style={{
+                          color: item.color,
+                          fontSize: "11px",
+                          fontWeight: "950",
+                          textTransform: "uppercase",
+                        }}
+                      >
+                        {item.level}
+                      </div>
+                    </div>
 
-      marginTop: "18px",
-      marginBottom: "26px",
-      padding: "20px",
+                    <div
+                      style={{
+                        color: "#cbd5e1",
+                        fontSize: "13px",
+                        lineHeight: 1.6,
+                      }}
+                    >
+                      {item.detail}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div
+                  style={{
+                    padding: "16px",
+                    borderRadius: "18px",
+                    background: "rgba(255,255,255,0.04)",
+                    border: "1px solid rgba(148,163,184,0.12)",
+                    color: "#cbd5e1",
+                    fontSize: "14px",
+                    lineHeight: 1.6,
+                  }}
+                >
+                  No urgent operational priorities surfaced right now.
+                </div>
+              )}
+            </div>
+          </div>
 
-      borderRadius: "20px",
-
-      background:
-        "linear-gradient(135deg, rgba(127,29,29,0.14), rgba(15,23,42,0.92))",
-
-      border: "1px solid rgba(248,113,113,0.16)",
-    }}
-  >
-      <div
-        style={{
-          fontSize: "12px",
-          fontWeight: "900",
-          letterSpacing: "0.08em",
-          textTransform: "uppercase",
-          color: "#fca5a5",
-          marginBottom: "14px",
-        }}
-      >
-        Predictive Operational Alerts
-      </div>
-
-      <div style={{ display: "grid", gap: "12px" }}>
-        {alertCount > 0 ? (
-          alertsList.map((alert, index) => {
-            // 🛡️ Lowercase Normalization to guard against shifting backend formats
-            const normalizedType = String(alert?.type || "").toLowerCase();
-
-            // Clear, scannable style definitions decoupled from the render inline structure
-            let themeColor = "#86efac"; // Healthy Green default
-            
-            if (normalizedType === "critical") {
-              themeColor = "#f87171"; // Red
-            } else if (normalizedType === "warning") {
-              themeColor = "#fbbf24"; // Amber
-            }
-
-            return (
+          {/* =========================
+             OPERATIONS SNAPSHOT
+          ========================= */}
+          <div
+            style={{
+              gridColumn: isMobile ? "span 1" : "span 12",
+              width: "100%",
+              display: "grid",
+              gridTemplateColumns: isMobile
+                ? "1fr"
+                : "repeat(5,minmax(0,1fr))",
+              gap: "14px",
+              marginBottom: "22px",
+            }}
+          >
+            {snapshotCards.map(([label, value, subtext, color]) => (
               <div
-                key={`${alert?.title || "alert"}-${index}`}
+                key={`${label}-snapshot`}
                 style={{
-                  padding: "14px 16px",
-                  borderRadius: "16px",
-                  background: "rgba(255,255,255,0.04)",
-                  border: "1px solid rgba(148,163,184,0.12)",
+                  padding: "18px",
+                  borderRadius: "22px",
+                  background: "rgba(15,23,42,0.88)",
+                  border: `1px solid ${color}33`,
+                  boxShadow: "0 16px 45px rgba(2,6,23,0.22)",
+                  minWidth: 0,
                 }}
               >
                 <div
                   style={{
-                    color: themeColor,
-                    fontWeight: "900",
-                    marginBottom: "6px",
-                    fontSize: "14px",
+                    color: "#94a3b8",
+                    fontSize: "11px",
+                    fontWeight: "950",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.06em",
                   }}
                 >
-                  {alert?.title || "Operational Risk Flagged"}
+                  {label}
+                </div>
+
+                <div
+                  style={{
+                    color,
+                    fontSize: "27px",
+                    fontWeight: "950",
+                    marginTop: "8px",
+                  }}
+                >
+                  {value}
                 </div>
 
                 <div
                   style={{
                     color: "#cbd5e1",
-                    fontSize: "13px",
-                    lineHeight: 1.6,
+                    fontSize: "12px",
+                    marginTop: "6px",
+                    lineHeight: 1.45,
                   }}
                 >
-                  {alert?.message || "No execution details specified for this predictive event."}
+                  {subtext}
                 </div>
               </div>
-            );
-          })
-        ) : (
-          /* Empty/Healthy State Message */
+            ))}
+          </div>
+
+          {/* =========================
+             AI OPERATIONS READOUT
+          ========================= */}
           <div
             style={{
-              padding: "14px 16px",
-              borderRadius: "16px",
-              background: "rgba(255,255,255,0.04)",
-              border: "1px solid rgba(148,163,184,0.12)",
-              color: "#cbd5e1",
-              fontSize: "13px",
-              lineHeight: 1.6,
+              gridColumn: isMobile ? "span 1" : "span 12",
+              width: "100%",
+              padding: "22px",
+              borderRadius: "24px",
+              background:
+                "linear-gradient(135deg, rgba(34,197,94,0.10), rgba(15,23,42,0.94))",
+              border: "1px solid rgba(74,222,128,0.18)",
+              marginBottom: "22px",
             }}
           >
-            No predictive risks detected yet. Upload more POS, labor, invoice, and
-            inventory data to improve alert accuracy.
+            <div
+              style={{
+                color: "#86efac",
+                fontSize: "12px",
+                fontWeight: "950",
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                marginBottom: "10px",
+              }}
+            >
+              AI Operations Readout
+            </div>
+
+            <div
+              style={{
+                color: "#e2e8f0",
+                fontSize: "14px",
+                lineHeight: 1.75,
+                fontWeight: "750",
+              }}
+            >
+              {readout}
+            </div>
           </div>
-        )}
-      </div>
-    </div>
-  );
-})()}
-
-  {/* 🍏 WASTE RECOVERY INTELLIGENCE */}
-{(() => {
-  const usageData = expectedVsActualUsageData || [];
-  const mobileLayout = typeof isMobile !== "undefined" ? isMobile : false;
-
-  let totalCalculatedVariance = 0;
-  let highVarianceCount = 0;
-  let maxVariancePercentage = 0;
-
-  usageData.forEach((item) => {
-    const isVarianceDetected = item?.status === "Variance Detected";
-    const itemVariance = Number(item?.variance || 0);
-    const itemPct = Math.abs(Number(item?.variancePercent || 0));
-
-    if (isVarianceDetected) {
-      totalCalculatedVariance += itemVariance * 5;
-      highVarianceCount += 1;
-    }
-
-    if (itemPct > maxVariancePercentage) {
-      maxVariancePercentage = itemPct;
-    }
-  });
-
-  const rawRecoveryValue =
-    estimatedWasteRecovery || totalWasteLoss || Math.abs(totalCalculatedVariance);
-
-  const safeRecoveryValue = Number.isFinite(Number(rawRecoveryValue))
-    ? Number(rawRecoveryValue)
-    : 0;
-
-  const hasVarianceRisk = highVarianceCount > 0;
-
-  let wasteRiskLevel = "Controlled";
-  if (maxVariancePercentage > 15) wasteRiskLevel = "High";
-  else if (maxVariancePercentage > 5) wasteRiskLevel = "Moderate";
-
-  let recoveryConfidence = "Needs Data";
-  if (usageData.length >= 5) recoveryConfidence = "High";
-  else if (usageData.length >= 2) recoveryConfidence = "Medium";
-
- return (
-  <div
-    style={{
-gridColumn: "auto",
-
-      width: "100%",
-      maxWidth: "100%",
-      minWidth: 0,
-      boxSizing: "border-box",
-
-      overflow: "hidden",
-      marginTop: "18px",
-      marginBottom: "26px",
-      padding: mobileLayout ? "16px" : "20px",
-      borderRadius: "20px",
-      background:
-        "linear-gradient(135deg, rgba(5,150,105,0.14), rgba(15,23,42,0.92))",
-      border: "1px solid rgba(34,197,94,0.18)",
-    }}
-  >
-      <div
-        style={{
-          fontSize: "12px",
-          fontWeight: "900",
-          letterSpacing: "0.08em",
-          textTransform: "uppercase",
-          color: "#86efac",
-          marginBottom: "14px",
-        }}
-      >
-        Waste Recovery Intelligence
-      </div>
-
-      <div
-        style={{
-          width: "100%",
-          minWidth: 0,
-          display: "grid",
-          gridTemplateColumns: mobileLayout
-            ? "1fr"
-            : "repeat(2, minmax(0, 1fr))",
-          gap: "14px",
-        }}
-      >
-        <GlassCard
-          title="Estimated Waste Recovery"
-          value={`$${safeRecoveryValue.toLocaleString()}`}
-          subtext="Estimated recoverable monthly waste"
-          featured
-        />
-
-        <GlassCard
-          title="High Variance Items"
-          value={highVarianceCount}
-          subtext="Ingredients outside expected tolerance"
-        />
-
-        <GlassCard
-          title="Waste Risk Level"
-          value={wasteRiskLevel}
-          subtext="AI risk based on usage variance"
-        />
-
-        <GlassCard
-          title="Recovery Confidence"
-          value={recoveryConfidence}
-          subtext="Based on recipe and inventory coverage"
-        />
-      </div>
-
-      <div
-        style={{
-          width: "100%",
-          minWidth: 0,
-          marginTop: "16px",
-          padding: "14px 16px",
-          borderRadius: "16px",
-          background: "rgba(255,255,255,0.04)",
-          border: "1px solid rgba(148,163,184,0.12)",
-          color: "#cbd5e1",
-          fontSize: "13px",
-          lineHeight: 1.7,
-          overflowWrap: "break-word",
-        }}
-      >
-        {hasVarianceRisk
-          ? "SerVen detected ingredient usage variance that may indicate waste, over-portioning, prep loss, theft risk, or recipe inconsistency."
-          : "No major waste recovery opportunities detected yet. Add more recipe rules, ingredient usage data, and invoices to improve detection accuracy."}
-      </div>
-    </div>
-  );
-})()}
-{/* 🍳 RECIPE RULE MANAGER */}
-{(() => {
-  // 🛡️ Guardrails for contextual variables and layout flags
-  const rulesList = recipeUsageRules || [];
-  const intelligenceList = processedUsageIntelligence || [];
-  const mobileLayout = typeof isMobile !== "undefined" ? isMobile : false;
-  const safeInputStyle = typeof inputStyle !== "undefined" ? inputStyle : {
-    padding: "10px 14px",
-    borderRadius: "10px",
-    border: "1px solid rgba(255,255,255,0.1)",
-    background: "rgba(0,0,0,0.2)",
-    color: "white",
-    fontSize: "14px"
-  };
-
-  // ⚡ Performance Optimization: Transform the array into an O(1) Lookup Map
-  // This executes exactly once per render instead of deep-looping on every single row item
-  const intelligenceMap = new Map();
-  intelligenceList.forEach((item) => {
-    if (item?.name) {
-      intelligenceMap.set(item.name.toUpperCase(), item);
-    }
-  });
-
- return (
-  <div
-    style={{
-     gridColumn: "auto",
-
-      width: "100%",
-      minWidth: 0,
-      boxSizing: "border-box",
-
-      marginTop: "18px",
-      padding: "20px",
-      borderRadius: "20px",
-
-      background:
-        "linear-gradient(135deg, rgba(91,33,182,0.16), rgba(15,23,42,0.92))",
-
-      border: "1px solid rgba(167,139,250,0.18)",
-    }}
-  >
-      <div
-        style={{
-          color: "#c4b5fd",
-          fontSize: "12px",
-          fontWeight: "900",
-          letterSpacing: "0.08em",
-          textTransform: "uppercase",
-          marginBottom: "8px",
-        }}
-      >
-        Recipe Rule Manager
-      </div>
-
-      <div
-        style={{
-          fontSize: "22px",
-          fontWeight: "900",
-          color: "white",
-          marginBottom: "10px",
-        }}
-      >
-        Recipe Usage Intelligence
-      </div>
-
-      <div
-        style={{
-          color: "#94a3b8",
-          fontSize: "14px",
-          lineHeight: 1.6,
-          marginBottom: "18px",
-        }}
-      >
-        Connect menu items to ingredient depletion to power expected vs actual usage analytics.
-      </div>
-
-      {/* Input Group Matrix */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: mobileLayout ? "1fr" : "repeat(2, minmax(0, 1fr))",
-          gap: "12px",
-        }}
-      >
-        <input
-          value={recipeMenuItem || ""}
-          onChange={(e) => setRecipeMenuItem?.(e.target.value)}
-          placeholder="Menu Item"
-          style={safeInputStyle}
-        />
-
-        <input
-          value={recipeIngredient || ""}
-          onChange={(e) => setRecipeIngredient?.(e.target.value)}
-          placeholder="Ingredient"
-          style={safeInputStyle}
-        />
-
-        <input
-          type="number"
-          value={recipeQuantityUsed || ""}
-          onChange={(e) => setRecipeQuantityUsed?.(e.target.value)}
-          placeholder="Qty Used"
-          style={safeInputStyle}
-        />
-
-        <input
-          type="number"
-          value={recipeTolerance || ""}
-          onChange={(e) => setRecipeTolerance?.(e.target.value)}
-          placeholder="Tolerance %"
-          style={safeInputStyle}
-        />
-      </div>
-
-      <button
-        onClick={saveRecipeRule}
-        style={{
-          marginTop: "16px",
-          padding: "12px 18px",
-          borderRadius: "14px",
-          border: "none",
-          background: "#8b5cf6",
-          color: "white",
-          fontWeight: "900",
-          cursor: "pointer",
-        }}
-      >
-        Save Recipe Rule
-      </button>
-
-      {/* Rules Result Stream */}
-      <div style={{ marginTop: "18px", display: "grid", gap: "10px" }}>
-        {rulesList.length === 0 ? (
-          <div style={{ color: "#94a3b8", fontSize: "13px", padding: "6px 2px" }}>
-            No recipe rules saved yet.
-          </div>
-        ) : (
-          rulesList.map((rule, index) => {
-            // ⚡ O(1) Instant Lookup dictionary match
-            const ruleLookupKey = String(rule?.ingredient || "").toUpperCase();
-            const intelligenceMatch = intelligenceMap.get(ruleLookupKey);
-
-            // 🛡️ Structural Data Shielding to block toFixed() breakdown anomalies
-            const toleranceLimit = Number(rule?.variance_tolerance || 5);
-            const liveVariance = Number(intelligenceMatch?.variance || 0);
-            const liveVariancePct = Number(intelligenceMatch?.variancePercent || 0);
-            const lossCost = Number(intelligenceMatch?.lossValue || 0);
-
-            // Variance Threshold Check
-            const isOutofBounds = Math.abs(liveVariancePct) > toleranceLimit;
-
-            return (
-              <div
-                key={`${rule?.id || "rule"}-${index}`}
-                style={{
-                  padding: "14px",
-                  borderRadius: "14px",
-                  background: "rgba(255,255,255,0.04)",
-                  border: "1px solid rgba(148,163,184,0.12)",
-                  color: "#e2e8f0",
-                  fontSize: "13px",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "6px",
-                }}
-              >
-                <div>
-                  <strong style={{ color: "white" }}>{rule?.menu_item || "Unknown Item"}</strong> uses{" "}
-                  <strong style={{ color: "#c4b5fd" }}>{rule?.quantity_used || 0}</strong>{" "}
-                  {rule?.unit || "unit"} of{" "}
-                  <strong style={{ color: "white" }}>{rule?.ingredient || "Unassigned"}</strong>
-                </div>
-
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "14px", fontSize: "12px", marginTop: "2px" }}>
-                  <span style={{ color: "#94a3b8" }}>
-                    Tolerance: <span style={{ color: "#cbd5e1", fontWeight: "700" }}>{toleranceLimit}%</span>
-                  </span>
-                  
-                  {/* Dynamic Telemetry Badges */}
-                  {intelligenceMatch && (
-                    <>
-                      <span style={{ color: "#94a3b8" }}>
-                        Live Variance:{" "}
-                        <span 
-                          style={{ 
-                            fontWeight: "800",
-                            color: isOutofBounds ? "#fca5a5" : "#86efac",
-                          }}
-                        >
-                          {liveVariance > 0 ? `+${liveVariance.toFixed(1)}` : liveVariance.toFixed(1)} ({liveVariancePct.toFixed(1)}%)
-                        </span>
-                      </span>
-
-                      {lossCost > 0 && (
-                        <span style={{ color: "#fca5a5", fontWeight: "700" }}>
-                          Loss Cost: ${lossCost.toFixed(2)}
-                        </span>
-                      )}
-                    </>
-                  )}
-                </div>
-              </div>
-            );
-          })
-        )}
-      </div>
-    </div>
-  );
-})()}
-    {/* GROW-STAGE MARGIN MANAGEMENT LAYOUT */}
-{hasGrowthAccess && (
+        </>
+      );
+    })()}
+  </>
+)}{operationsView === "kitchen" && (
   <>
     {(() => {
-      // 🛡️ Safe Variable Normalization & Layout Consolidation
-      const mobileLayout = typeof isMobile !== "undefined" ? isMobile : false;
+      const prepData = yesterdayPrepData || [];
+      const stationRows =
+        typeof stationPrepData !== "undefined" && Array.isArray(stationPrepData)
+          ? stationPrepData
+          : [];
 
-      // Safe Numeric Conversions (Guards against NaN and toFixed runtime crashes)
-      const pctPrimeCost = Number(primeCostPercentage || 0);
-      const pctFoodCost = Number(foodCostPercentage || 0);
-      const pctLaborCost = Number(liveLaborIntelligence?.laborPercent || 0);
-      
-      const valExpectedUsage = Number(typeof expectedUsageValue !== 'undefined' ? expectedUsageValue : 0);
-      const valActualUsage = Number(typeof actualUsageValue !== 'undefined' ? actualUsageValue : 0);
-      const pctUsageVariance = Number(typeof operationalUsageVariancePercent !== 'undefined' ? operationalUsageVariancePercent : 0);
+      const validPrepTickets = prepData.filter((order) => {
+        const created = order?.created_at ? new Date(order.created_at) : null;
+        const completed = order?.completed_at ? new Date(order.completed_at) : null;
+
+        return (
+          created &&
+          completed &&
+          !Number.isNaN(created.getTime()) &&
+          !Number.isNaN(completed.getTime())
+        );
+      });
+
+      const lateTickets = validPrepTickets.filter((order) => {
+        const targetPrep = Number(order?.target_prep_time || 0);
+        const created = new Date(order.created_at);
+        const completed = new Date(order.completed_at);
+        const actualMinutes = Math.max(
+          0,
+          Math.round((completed.getTime() - created.getTime()) / 1000 / 60)
+        );
+
+        return actualMinutes - targetPrep > 2;
+      });
+
+      const avgTicketMinutes =
+        validPrepTickets.length > 0
+          ? validPrepTickets.reduce((sum, order) => {
+              const created = new Date(order.created_at);
+              const completed = new Date(order.completed_at);
+              return (
+                sum +
+                Math.max(
+                  0,
+                  Math.round(
+                    (completed.getTime() - created.getTime()) / 1000 / 60
+                  )
+                )
+              );
+            }, 0) / validPrepTickets.length
+          : 0;
+
+      const kitchenRisk =
+        lateTickets.length >= 5
+          ? "Critical"
+          : lateTickets.length >= 2
+          ? "Watch"
+          : validPrepTickets.length > 0
+          ? "Stable"
+          : "Needs Data";
+
+      const kitchenRiskColor =
+        kitchenRisk === "Critical"
+          ? "#f87171"
+          : kitchenRisk === "Watch"
+          ? "#fbbf24"
+          : kitchenRisk === "Stable"
+          ? "#86efac"
+          : "#94a3b8";
+
+      const kitchenCardStyle = {
+        padding: "22px",
+        borderRadius: "24px",
+        background: "rgba(15,23,42,0.90)",
+        border: "1px solid rgba(148,163,184,0.14)",
+        boxShadow: "0 22px 60px rgba(2,6,23,0.24)",
+        minWidth: 0,
+      };
 
       return (
         <>
-          {/* 📊 PRIME COST INTELLIGENCE */}
+          {/* =========================
+             KITCHEN COMMAND CENTER
+          ========================= */}
           <div
             style={{
+              gridColumn: isMobile ? "span 1" : "span 12",
+              width: "100%",
+              padding: isMobile ? "20px" : "26px",
+              borderRadius: "26px",
+              background:
+                "linear-gradient(135deg, rgba(245,158,11,0.15), rgba(15,23,42,0.96))",
+              border: "1px solid rgba(251,191,36,0.22)",
+              boxShadow: "0 24px 70px rgba(2,6,23,0.32)",
+              marginBottom: "22px",
+              minWidth: 0,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: "18px",
+                flexWrap: "wrap",
+                alignItems: "flex-start",
+              }}
+            >
+              <div style={{ flex: "1 1 560px", minWidth: 0 }}>
+                <div
+                  style={{
+                    color: "#fbbf24",
+                    fontSize: "12px",
+                    fontWeight: "950",
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                    marginBottom: "10px",
+                  }}
+                >
+                  Kitchen Execution Center
+                </div>
+
+                <h2
+                  style={{
+                    color: "white",
+                    fontSize: isMobile ? "26px" : "34px",
+                    fontWeight: "950",
+                    margin: 0,
+                    lineHeight: 1.08,
+                  }}
+                >
+                  Ticket timing, station prep, and kitchen flow
+                </h2>
+
+                <p
+                  style={{
+                    color: "#cbd5e1",
+                    fontSize: "14px",
+                    lineHeight: 1.7,
+                    marginTop: "12px",
+                    maxWidth: "900px",
+                  }}
+                >
+                  SerVen tracks kitchen ticket execution, target prep times,
+                  station bottlenecks, and prep complexity so managers can find
+                  slowdowns before service quality drops.
+                </p>
+              </div>
+
+              <div
+                style={{
+                  flex: "1 1 500px",
+                  display: "grid",
+                  gridTemplateColumns: isMobile
+                    ? "1fr"
+                    : "repeat(2,minmax(0,1fr))",
+                  gap: "12px",
+                }}
+              >
+                {[
+                  [
+                    "Kitchen Risk",
+                    kitchenRisk,
+                    "Current ticket pressure",
+                    kitchenRiskColor,
+                  ],
+                  [
+                    "Avg Ticket Time",
+                    `${avgTicketMinutes.toFixed(1)}m`,
+                    "Completed ticket average",
+                    "#fbbf24",
+                  ],
+                  [
+                    "Late Tickets",
+                    lateTickets.length,
+                    "Tickets over target",
+                    "#f87171",
+                  ],
+                  [
+                    "Stations Tracked",
+                    stationRows.length,
+                    "Prep stations detected",
+                    "#818cf8",
+                  ],
+                ].map(([label, value, subtext, color]) => (
+                  <div
+                    key={label}
+                    style={{
+                      padding: "16px",
+                      borderRadius: "18px",
+                      background: "rgba(15,23,42,.72)",
+                      border: `1px solid ${color}33`,
+                    }}
+                  >
+                    <div
+                      style={{
+                        color: "#94a3b8",
+                        fontSize: "11px",
+                        fontWeight: "900",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.06em",
+                      }}
+                    >
+                      {label}
+                    </div>
+
+                    <div
+                      style={{
+                        color,
+                        fontSize: "28px",
+                        fontWeight: "950",
+                        marginTop: "8px",
+                      }}
+                    >
+                      {value}
+                    </div>
+
+                    <div
+                      style={{
+                        color: "#cbd5e1",
+                        fontSize: "12px",
+                        marginTop: "4px",
+                      }}
+                    >
+                      {subtext}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* =========================
+             LIVE KITCHEN EXECUTION
+          ========================= */}
+          <div
+            style={{
+              gridColumn: isMobile ? "span 1" : "span 12",
+              width: "100%",
+              ...kitchenCardStyle,
+              marginBottom: "22px",
+            }}
+          >
+            <div
+              style={{
+                color: "#fbbf24",
+                fontSize: "12px",
+                fontWeight: "950",
+                textTransform: "uppercase",
+                letterSpacing: "0.08em",
+                marginBottom: "8px",
+              }}
+            >
+              Live Kitchen Execution
+            </div>
+
+            <h3
+              style={{
+                color: "white",
+                fontSize: "24px",
+                fontWeight: "950",
+                margin: "0 0 14px",
+              }}
+            >
+              Ticket prep targets vs. POS bump times
+            </h3>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: isMobile
+                  ? "1fr"
+                  : "repeat(2, minmax(320px, 1fr))",
+                gap: "12px",
+              }}
+            >
+              {prepData.length > 0 ? (
+                prepData.slice(0, 10).map((order, index) => {
+                  const targetPrep = Number(order?.target_prep_time || 0);
+
+                  const rawCreated = order?.created_at
+                    ? new Date(order.created_at)
+                    : null;
+                  const rawCompleted = order?.completed_at
+                    ? new Date(order.completed_at)
+                    : null;
+
+                  const isValidTimeline =
+                    rawCreated &&
+                    rawCompleted &&
+                    !Number.isNaN(rawCreated.getTime()) &&
+                    !Number.isNaN(rawCompleted.getTime());
+
+                  const actualMinutes = isValidTimeline
+                    ? Math.max(
+                        0,
+                        Math.round(
+                          (rawCompleted.getTime() - rawCreated.getTime()) /
+                            1000 /
+                            60
+                        )
+                      )
+                    : 0;
+
+                  const variance = actualMinutes - targetPrep;
+
+                  const varianceColor = !isValidTimeline
+                    ? "#64748b"
+                    : variance <= 0
+                    ? "#22c55e"
+                    : variance <= 2
+                    ? "#facc15"
+                    : "#f87171";
+
+                  const varianceLabel = !isValidTimeline
+                    ? "Untracked"
+                    : variance <= 0
+                    ? "🎯 On Time"
+                    : `⚠️ +${variance}m Slow`;
+
+                  return (
+                    <div
+                      key={`${order?.id || "ticket"}-${index}`}
+                      style={{
+                        padding: "15px",
+                        borderRadius: "18px",
+                        background: "rgba(255,255,255,0.04)",
+                        border:
+                          isValidTimeline && variance > 2
+                            ? "1px solid rgba(239,68,68,0.25)"
+                            : "1px solid rgba(255,255,255,0.06)",
+                        display: "grid",
+                        gridTemplateColumns: isMobile
+                          ? "1fr"
+                          : "1.3fr 0.7fr 0.7fr 0.9fr",
+                        gap: "12px",
+                        alignItems: "center",
+                      }}
+                    >
+                      <div>
+                        <div
+                          style={{
+                            color: "white",
+                            fontWeight: "950",
+                            fontSize: "14px",
+                          }}
+                        >
+                          {order?.item_name || "Unknown Line Item"}
+                        </div>
+
+                        <div
+                          style={{
+                            color: "#94a3b8",
+                            fontSize: "12px",
+                            marginTop: "3px",
+                          }}
+                        >
+                          Station: {order?.station || "Unassigned"}
+                        </div>
+                      </div>
+
+                      <div>
+                        <div style={{ color: "#94a3b8", fontSize: "11px" }}>
+                          Target
+                        </div>
+                        <div style={{ color: "white", fontWeight: "900" }}>
+                          {targetPrep}m
+                        </div>
+                      </div>
+
+                      <div>
+                        <div style={{ color: "#94a3b8", fontSize: "11px" }}>
+                          Actual
+                        </div>
+                        <div style={{ color: "white", fontWeight: "900" }}>
+                          {isValidTimeline ? `${actualMinutes}m` : "No KDS"}
+                        </div>
+                      </div>
+
+                      <div style={{ color: varianceColor, fontWeight: "950" }}>
+                        {varianceLabel}
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div
+                  style={{
+                    color: "#94a3b8",
+                    fontSize: "13px",
+                    padding: "24px 12px",
+                    textAlign: "center",
+                    border: "1px dashed rgba(255,255,255,0.1)",
+                    borderRadius: "16px",
+                    background: "rgba(255,255,255,0.01)",
+                  }}
+                >
+                  No performance data loaded. Upload yesterday&apos;s POS report
+                  to see kitchen ticket variance.
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* =========================
+             OPERATIONS PREP INTELLIGENCE
+          ========================= */}
+          <div
+            style={{
+              gridColumn: isMobile ? "span 1" : "span 12",
+              width: "100%",
+              ...kitchenCardStyle,
+              marginBottom: "22px",
+            }}
+          >
+            <div
+              style={{
+                color: "#818cf8",
+                fontSize: "12px",
+                fontWeight: "950",
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                marginBottom: "8px",
+              }}
+            >
+              Operations Prep Intelligence
+            </div>
+
+            <h3
+              style={{
+                color: "white",
+                fontSize: "24px",
+                fontWeight: "950",
+                margin: "0 0 8px",
+              }}
+            >
+              Station prep times and modifications
+            </h3>
+
+            <p
+              style={{
+                color: "#94a3b8",
+                fontSize: "13px",
+                marginTop: 0,
+                marginBottom: "18px",
+                lineHeight: 1.6,
+              }}
+            >
+              Tracks station execution times and parallel assembly items to
+              estimate realistic ticket completion instead of simple prep sums.
+            </p>
+
+            {!hasOperationalData && (
+              <div
+                style={{
+                  marginBottom: "18px",
+                  padding: "12px 14px",
+                  borderRadius: "14px",
+                  background: "rgba(251,191,36,0.10)",
+                  border: "1px solid rgba(251,191,36,0.24)",
+                  color: "#fbbf24",
+                  fontSize: "12px",
+                  fontWeight: "900",
+                  letterSpacing: "0.05em",
+                  textTransform: "uppercase",
+                }}
+              >
+                Awaiting Data • Upload kitchen execution or POS timing data to
+                activate live station intelligence
+              </div>
+            )}
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: isMobile
+                  ? "1fr"
+                  : "repeat(3, minmax(220px, 1fr))",
+                gap: "14px",
+              }}
+            >
+              {hasOperationalData && stationRows.length > 0 ? (
+                stationRows.map((item, index) => {
+                  const components = item.components || [];
+                  const componentMaxParallel = components.reduce(
+                    (max, c) => Math.max(max, Number(c.prep || 0)),
+                    0
+                  );
+
+                  const computedTotalTicketPrep =
+                    Math.max(Number(item.basePrep || 0), componentMaxParallel) + 1;
+
+                  return (
+                    <div
+                      key={`${item.name || "station"}-${index}`}
+                      style={{
+                        padding: "18px",
+                        borderRadius: "18px",
+                        background: "rgba(15,23,42,0.74)",
+                        border: "1px solid rgba(148,163,184,0.14)",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          gap: "12px",
+                          flexWrap: "wrap",
+                          marginBottom: "12px",
+                        }}
+                      >
+                        <div>
+                          <div
+                            style={{
+                              color: "white",
+                              fontSize: "18px",
+                              fontWeight: "950",
+                            }}
+                          >
+                            {item.name || "Kitchen Item"}
+                          </div>
+
+                          <div
+                            style={{
+                              color: "#94a3b8",
+                              fontSize: "12px",
+                              marginTop: "4px",
+                            }}
+                          >
+                            Primary Station: {item.station || "Unassigned"}
+                          </div>
+                        </div>
+
+                        <div
+                          style={{
+                            padding: "10px 14px",
+                            borderRadius: "14px",
+                            background: "rgba(99,102,241,0.14)",
+                            border: "1px solid rgba(129,140,248,0.20)",
+                            textAlign: "center",
+                          }}
+                        >
+                          <div
+                            style={{
+                              color: "#c7d2fe",
+                              fontSize: "11px",
+                              fontWeight: "900",
+                              textTransform: "uppercase",
+                            }}
+                          >
+                            Estimated Ticket Time
+                          </div>
+
+                          <div
+                            style={{
+                              color: "white",
+                              fontSize: "20px",
+                              fontWeight: "950",
+                              marginTop: "2px",
+                            }}
+                          >
+                            {computedTotalTicketPrep.toFixed(1)}m
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ display: "grid", gap: "10px" }}>
+                        {components.length > 0 ? (
+                          components.map((component, componentIndex) => (
+                            <div
+                              key={`${component.name || "component"}-${componentIndex}`}
+                              style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                gap: "12px",
+                                padding: "10px 12px",
+                                borderRadius: "12px",
+                                background: "rgba(255,255,255,0.03)",
+                              }}
+                            >
+                              <div>
+                                <div
+                                  style={{
+                                    color: "#e2e8f0",
+                                    fontSize: "13px",
+                                    fontWeight: "800",
+                                  }}
+                                >
+                                  {component.name || "Component"}
+                                </div>
+
+                                <div
+                                  style={{
+                                    color: "#94a3b8",
+                                    fontSize: "11px",
+                                    marginTop: "2px",
+                                  }}
+                                >
+                                  {component.station || "Station"} •{" "}
+                                  {component.type || "Prep"}
+                                </div>
+                              </div>
+
+                              <div
+                                style={{
+                                  color: "#c7d2fe",
+                                  fontSize: "13px",
+                                  fontWeight: "950",
+                                }}
+                              >
+                                {Number(component.prep || 0)}m
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div
+                            style={{
+                              color: "#94a3b8",
+                              fontSize: "13px",
+                              padding: "10px",
+                            }}
+                          >
+                            No component prep data available.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div
+                  style={{
+                    padding: "18px",
+                    borderRadius: "18px",
+                    background: "rgba(255,255,255,0.04)",
+                    border: "1px solid rgba(148,163,184,0.12)",
+                    color: "#94a3b8",
+                    fontSize: "14px",
+                    lineHeight: 1.6,
+                  }}
+                >
+                  Upload kitchen execution or POS timing data to activate station
+                  prep intelligence.
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      );
+    })()}
+  </>
+)}{operationsView === "production" && (
+  <>
+    {(() => {
+      const usageData = expectedVsActualUsageData || [];
+      const rulesList = recipeUsageRules || [];
+      const intelligenceList = processedUsageIntelligence || [];
+      const safeRecipes = recipes || [];
+      const safeRecipeIngredients = recipeIngredients || [];
+
+      const productionCardStyle = {
+        padding: "22px",
+        borderRadius: "24px",
+        background: "rgba(15,23,42,0.90)",
+        border: "1px solid rgba(148,163,184,0.14)",
+        boxShadow: "0 22px 60px rgba(2,6,23,0.24)",
+        minWidth: 0,
+      };
+
+      const tiedWasteValue = Number(
+        inventoryWasteIntelligence?.estimatedWasteExposure ||
+          estimatedWasteRecovery ||
+          totalWasteLoss ||
+          0
+      );
+
+      const highVarianceItems = usageData.filter(
+        (item) =>
+          String(item?.status || "").toLowerCase() === "variance detected"
+      );
+
+      const lowMarginRecipes = safeRecipes.filter((recipe) => {
+        const ingredients = safeRecipeIngredients.filter(
+          (item) => item.recipe_id === recipe.id
+        );
+
+        const totalCost = ingredients.reduce(
+          (sum, item) => sum + Number(item.total_cost || 0),
+          0
+        );
+
+        const price = Number(recipe.selling_price || 0);
+        if (!price) return false;
+
+        const margin = ((price - totalCost) / price) * 100;
+        return margin < 55;
+      });
+
+      return (
+        <>
+          {/* PRODUCTION COMMAND CENTER */}
+          <div
+            style={{
+              gridColumn: isMobile ? "span 1" : "span 12",
+              width: "100%",
+              padding: isMobile ? "20px" : "26px",
+              borderRadius: "26px",
+              background:
+                "linear-gradient(135deg, rgba(34,197,94,0.14), rgba(15,23,42,0.96))",
+              border: "1px solid rgba(74,222,128,0.20)",
+              boxShadow: "0 24px 70px rgba(2,6,23,0.32)",
+              marginBottom: "22px",
+            }}
+          >
+            <div style={{ color: "#86efac", fontSize: "12px", fontWeight: "950" }}>
+              Production Intelligence Center
+            </div>
+
+            <h2 style={{ color: "white", fontSize: isMobile ? "26px" : "34px", fontWeight: "950" }}>
+              Waste, recipes, shelf life, and production control
+            </h2>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: isMobile ? "1fr" : "repeat(4,minmax(0,1fr))",
+                gap: "12px",
+                marginTop: "18px",
+              }}
+            >
+              {[
+                ["Shelf Life Risk", `$${Number(shelfLifeLoss || 0).toLocaleString()}`, "#f87171"],
+                ["Waste Exposure", `$${tiedWasteValue.toLocaleString()}`, "#fbbf24"],
+                ["Usage Variance", highVarianceItems.length, "#fca5a5"],
+                ["Low Margin Recipes", lowMarginRecipes.length, "#86efac"],
+              ].map(([label, value, color]) => (
+                <div
+                  key={label}
+                  style={{
+                    padding: "16px",
+                    borderRadius: "18px",
+                    background: "rgba(15,23,42,.72)",
+                    border: `1px solid ${color}33`,
+                  }}
+                >
+                  <div style={{ color: "#94a3b8", fontSize: "11px", fontWeight: "900" }}>
+                    {label}
+                  </div>
+                  <div style={{ color, fontSize: "28px", fontWeight: "950", marginTop: "8px" }}>
+                    {value}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* SHELF LIFE + WASTE */}
+          <div
+            style={{
+              gridColumn: isMobile ? "span 1" : "span 12",
               display: "grid",
-              // Unified responsive layout assignment avoiding browser window hydration crashes
-              gridTemplateColumns: mobileLayout ? "1fr" : "repeat(2, minmax(0, 1fr))",
-              gap: "16px",
-              marginTop: "18px",
+              gridTemplateColumns: isMobile ? "1fr" : "repeat(2,minmax(0,1fr))",
+              gap: "18px",
+              marginBottom: "22px",
+            }}
+          >
+            {hasProAccess && (
+              <div style={productionCardStyle}>
+                <div style={{ color: "#fca5a5", fontSize: "12px", fontWeight: "950" }}>
+                  Shelf Life Exposure
+                </div>
+
+                <h3 style={{ color: "white", fontSize: "24px", fontWeight: "950" }}>
+                  ${Number(shelfLifeLoss || 0).toLocaleString()} at risk
+                </h3>
+
+                <div style={{ display: "grid", gap: "10px", marginTop: "16px" }}>
+                  {(shelfLifeRiskItems || []).slice(0, 5).map((item, index) => (
+                    <div
+                      key={`${item.name || index}`}
+                      style={{
+                        padding: "12px",
+                        borderRadius: "14px",
+                        background: "rgba(255,255,255,0.04)",
+                        border: "1px solid rgba(248,113,113,0.18)",
+                      }}
+                    >
+                      <div style={{ color: "white", fontWeight: "900" }}>
+                        {item.name || item.ingredient_name || "Ingredient"}
+                      </div>
+                      <div style={{ color: "#94a3b8", fontSize: "12px" }}>
+                        Potential loss: $
+                        {Number(item.loss || item.estimatedLoss || 0).toLocaleString()}
+                      </div>
+                    </div>
+                  ))}
+
+                  {(!shelfLifeRiskItems || shelfLifeRiskItems.length === 0) && (
+                    <div style={{ color: "#94a3b8", fontSize: "14px" }}>
+                      No shelf-life exposure detected right now.
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div style={productionCardStyle}>
+              <div style={{ color: "#86efac", fontSize: "12px", fontWeight: "950" }}>
+                Inventory + Waste Intelligence
+              </div>
+
+              <h3 style={{ color: "white", fontSize: "24px", fontWeight: "950" }}>
+                Stock risk and waste exposure
+              </h3>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: isMobile ? "1fr" : "repeat(2,minmax(0,1fr))",
+                  gap: "12px",
+                  marginTop: "16px",
+                }}
+              >
+                <div style={miniMetricCard}>
+                  <div style={miniMetricLabel}>Risk Score</div>
+                  <div style={{ ...miniMetricValue, color: inventoryWasteIntelligence?.color || "#86efac" }}>
+                    {inventoryWasteIntelligence?.riskScore || 0}/100
+                  </div>
+                </div>
+
+                <div style={miniMetricCard}>
+                  <div style={miniMetricLabel}>Waste Exposure</div>
+                  <div style={{ ...miniMetricValue, color: "#fde68a" }}>
+                    ${Number(tiedWasteValue || 0).toLocaleString()}
+                  </div>
+                </div>
+              </div>
+
+              <div
+                style={{
+                  marginTop: "16px",
+                  padding: "15px",
+                  borderRadius: "16px",
+                  background: "rgba(34,197,94,0.10)",
+                  border: "1px solid rgba(34,197,94,0.18)",
+                  color: "#bbf7d0",
+                  fontSize: "13px",
+                  lineHeight: 1.7,
+                  fontWeight: "750",
+                }}
+              >
+                <span style={{ color: "white", fontWeight: "950" }}>AI readout:</span>{" "}
+                {inventoryWasteIntelligence?.insight ||
+                  "SerVen is monitoring stock pressure, usage variance, and waste exposure."}
+              </div>
+            </div>
+          </div>
+
+          {/* EXPECTED VS ACTUAL + WASTE RECOVERY */}
+          <div
+            style={{
+              gridColumn: isMobile ? "span 1" : "span 12",
+              display: "grid",
+              gridTemplateColumns: isMobile ? "1fr" : "repeat(2,minmax(0,1fr))",
+              gap: "18px",
+              marginBottom: "22px",
+            }}
+          >
+            <div style={productionCardStyle}>
+              <div style={{ color: "#fbbf24", fontSize: "12px", fontWeight: "950" }}>
+                Expected vs Actual Usage
+              </div>
+
+              <h3 style={{ color: "white", fontSize: "24px", fontWeight: "950" }}>
+                Ingredient usage variance
+              </h3>
+
+              <div style={{ display: "grid", gap: "12px", marginTop: "14px" }}>
+                {usageData.length > 0 ? (
+                  usageData.slice(0, 6).map((item, index) => {
+                    const isVariance =
+                      String(item?.status || "").toLowerCase() === "variance detected";
+
+                    return (
+                      <div
+                        key={`${item?.ingredient || "item"}-${index}`}
+                        style={{
+                          padding: "14px",
+                          borderRadius: "16px",
+                          background: "rgba(255,255,255,0.04)",
+                          border: isVariance
+                            ? "1px solid rgba(239,68,68,0.28)"
+                            : "1px solid rgba(34,197,94,0.20)",
+                        }}
+                      >
+                        <div style={{ color: "white", fontWeight: "900" }}>
+                          {item?.ingredient || "Unknown Ingredient"}
+                        </div>
+
+                        <div style={{ color: "#94a3b8", fontSize: "12px", marginTop: "4px" }}>
+                          Menu Item: {item?.menuItem || "Unassigned"}
+                        </div>
+
+                        <div
+                          style={{
+                            marginTop: "10px",
+                            color: isVariance ? "#fca5a5" : "#86efac",
+                            fontWeight: "900",
+                            fontSize: "13px",
+                          }}
+                        >
+                          {Number(item?.variancePercent || 0).toFixed(1)}% •{" "}
+                          {item?.status || "Normal"}
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div style={{ color: "#94a3b8", fontSize: "14px" }}>
+                    Add recipe usage rules to compare expected ingredient usage against actual usage.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div style={productionCardStyle}>
+              <div style={{ color: "#86efac", fontSize: "12px", fontWeight: "950" }}>
+                Waste Recovery Intelligence
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: isMobile ? "1fr" : "repeat(2,minmax(0,1fr))",
+                  gap: "14px",
+                  marginTop: "14px",
+                }}
+              >
+                <GlassCard
+                  title="Estimated Waste Recovery"
+                  value={`$${Number(
+                    estimatedWasteRecovery || totalWasteLoss || 0
+                  ).toLocaleString()}`}
+                  subtext="Estimated recoverable monthly waste"
+                  featured
+                />
+
+                <GlassCard
+                  title="High Variance Items"
+                  value={highVarianceItems.length}
+                  subtext="Ingredients outside expected tolerance"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* RECIPE RULE MANAGER */}
+          <div style={{ gridColumn: isMobile ? "span 1" : "span 12", ...productionCardStyle, marginBottom: "22px" }}>
+            <div style={{ color: "#c4b5fd", fontSize: "12px", fontWeight: "950" }}>
+              Recipe Rule Manager
+            </div>
+
+            <h3 style={{ color: "white", fontSize: "24px", fontWeight: "950" }}>
+              Recipe usage intelligence
+            </h3>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: isMobile ? "1fr" : "repeat(2,minmax(0,1fr))",
+                gap: "12px",
+                marginTop: "14px",
+              }}
+            >
+              <input value={recipeMenuItem || ""} onChange={(e) => setRecipeMenuItem?.(e.target.value)} placeholder="Menu Item" style={inputStyle} />
+              <input value={recipeIngredient || ""} onChange={(e) => setRecipeIngredient?.(e.target.value)} placeholder="Ingredient" style={inputStyle} />
+              <input type="number" value={recipeQuantityUsed || ""} onChange={(e) => setRecipeQuantityUsed?.(e.target.value)} placeholder="Qty Used" style={inputStyle} />
+              <input type="number" value={recipeTolerance || ""} onChange={(e) => setRecipeTolerance?.(e.target.value)} placeholder="Tolerance %" style={inputStyle} />
+            </div>
+
+            <button
+              onClick={saveRecipeRule}
+              style={{
+                marginTop: "16px",
+                padding: "12px 18px",
+                borderRadius: "14px",
+                border: "none",
+                background: "#8b5cf6",
+                color: "white",
+                fontWeight: "900",
+                cursor: "pointer",
+              }}
+            >
+              Save Recipe Rule
+            </button>
+          </div>
+
+          {/* RECIPE CARD INTELLIGENCE */}
+          {hasProAccess && (
+            <div style={{ gridColumn: isMobile ? "span 1" : "span 12", ...productionCardStyle }}>
+              <div style={{ color: "#fde68a", fontSize: "12px", fontWeight: "950" }}>
+                Recipe Card Intelligence
+              </div>
+
+              <h3 style={{ color: "white", fontSize: "24px", fontWeight: "950" }}>
+                Menu recipes and ingredient costing
+              </h3>
+
+              <div
+                style={{
+                  marginTop: "18px",
+                  display: "grid",
+                  gridTemplateColumns: isMobile ? "1fr" : "repeat(4,minmax(0,1fr))",
+                  gap: "14px",
+                }}
+              >
+                <GlassCard title="Recipes Uploaded" value={safeRecipes.length} subtitle="Total recipe cards" />
+                <GlassCard title="Recipe Ingredients" value={safeRecipeIngredients.length} subtitle="Linked ingredient rows" />
+                <GlassCard
+                  title="Avg Recipe Cost"
+                  value={`$${(
+                    safeRecipeIngredients.reduce(
+                      (sum, item) => sum + Number(item.total_cost || 0),
+                      0
+                    ) / (safeRecipes.length || 1)
+                  ).toFixed(2)}`}
+                  subtitle="Average cost per recipe"
+                />
+                <GlassCard title="Low Margin Recipes" value={lowMarginRecipes.length} subtitle="Recipes below margin target" />
+              </div>
+
+              <div style={{ marginTop: "18px", display: "grid", gap: "14px" }}>
+                {safeRecipes.length > 0 ? (
+                  safeRecipes.slice(0, 6).map((recipe) => {
+                    const ingredients = safeRecipeIngredients.filter(
+                      (item) => item.recipe_id === recipe.id
+                    );
+
+                    const totalCost = ingredients.reduce(
+                      (sum, item) => sum + Number(item.total_cost || 0),
+                      0
+                    );
+
+                    const price = Number(recipe.selling_price || 0);
+                    const margin = price > 0 ? ((price - totalCost) / price) * 100 : 0;
+
+                    return (
+                      <div
+                        key={recipe.id}
+                        style={{
+                          padding: "18px",
+                          borderRadius: "20px",
+                          background: "rgba(15,23,42,0.74)",
+                          border: margin < 55
+                            ? "1px solid rgba(248,113,113,0.22)"
+                            : "1px solid rgba(251,191,36,0.14)",
+                        }}
+                      >
+                        <div style={{ color: "white", fontSize: "17px", fontWeight: "900" }}>
+                          {recipe.recipe_name}
+                        </div>
+
+                        <div style={{ color: "#94a3b8", fontSize: "12px", marginTop: "4px" }}>
+                          ${price.toFixed(2)} selling price • {margin.toFixed(1)}% margin
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div style={{ color: "#94a3b8", fontSize: "14px" }}>
+                    Upload recipe cards to activate recipe intelligence.
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </>
+      );
+    })()}
+  </>
+)}{operationsView === "performance" && (
+  <>
+    {(() => {
+      const dailyRows = dailyLaborEfficiency || [];
+      const shiftRows = shiftLaborIntelligence || [];
+      const shiftPerfRows = shiftPerformanceArray || [];
+
+      const pctPrimeCost = Number(primeCostPercentage || livePrimeCost || 0);
+      const pctFoodCost = Number(foodCostPercentage || 0);
+      const pctLaborCost = Number(liveLaborIntelligence?.laborPercent || 0);
+
+      const avgDailyLaborPercent =
+        dailyRows.length > 0
+          ? dailyRows.reduce((sum, day) => sum + Number(day.laborPercent || 0), 0) /
+            dailyRows.length
+          : 0;
+
+      const overstaffedDays = dailyRows.filter(
+        (day) => day.status === "Overstaffed"
+      );
+
+      const overstaffedShifts = shiftRows.filter(
+        (shift) => shift.status === "Overstaffed"
+      );
+
+      const performanceRisk =
+        pctPrimeCost > 65 || overstaffedDays.length >= 3 || overstaffedShifts.length >= 3
+          ? "Critical"
+          : pctPrimeCost > 60 || overstaffedDays.length > 0 || overstaffedShifts.length > 0
+          ? "Watch"
+          : dailyRows.length > 0 || shiftRows.length > 0
+          ? "Stable"
+          : "Needs Data";
+
+      const performanceRiskColor =
+        performanceRisk === "Critical"
+          ? "#f87171"
+          : performanceRisk === "Watch"
+          ? "#fbbf24"
+          : performanceRisk === "Stable"
+          ? "#86efac"
+          : "#94a3b8";
+
+      const performanceCardStyle = {
+        padding: "22px",
+        borderRadius: "24px",
+        background: "rgba(15,23,42,0.90)",
+        border: "1px solid rgba(148,163,184,0.14)",
+        boxShadow: "0 22px 60px rgba(2,6,23,0.24)",
+        minWidth: 0,
+      };
+
+      const statusTheme = (status) => {
+        if (status === "Overstaffed") {
+          return { bg: "rgba(239,68,68,0.16)", text: "#fca5a5" };
+        }
+
+        if (status === "Watch Closely") {
+          return { bg: "rgba(245,158,11,0.16)", text: "#facc15" };
+        }
+
+        if (status === "Possibly Understaffed") {
+          return { bg: "rgba(59,130,246,0.16)", text: "#93c5fd" };
+        }
+
+        if (status === "Healthy") {
+          return { bg: "rgba(34,197,94,0.16)", text: "#86efac" };
+        }
+
+        return { bg: "rgba(148,163,184,0.14)", text: "#cbd5e1" };
+      };
+
+      return (
+        <>
+          {/* PERFORMANCE COMMAND CENTER */}
+          <div
+            style={{
+              gridColumn: isMobile ? "span 1" : "span 12",
+              width: "100%",
+              padding: isMobile ? "20px" : "26px",
+              borderRadius: "26px",
+              background:
+                "linear-gradient(135deg, rgba(14,165,233,0.15), rgba(15,23,42,0.96))",
+              border: "1px solid rgba(56,189,248,0.22)",
+              boxShadow: "0 24px 70px rgba(2,6,23,0.32)",
+              marginBottom: "22px",
+            }}
+          >
+            <div style={{ color: "#7dd3fc", fontSize: "12px", fontWeight: "950" }}>
+              Performance Intelligence Center
+            </div>
+
+            <h2
+              style={{
+                color: "white",
+                fontSize: isMobile ? "26px" : "34px",
+                fontWeight: "950",
+                margin: "8px 0 0",
+              }}
+            >
+              Labor, prime cost, and operational performance
+            </h2>
+
+            <p
+              style={{
+                color: "#cbd5e1",
+                fontSize: "14px",
+                lineHeight: 1.7,
+                marginTop: "12px",
+                maxWidth: "900px",
+              }}
+            >
+              SerVen compares labor cost, food cost, revenue, shifts, and prime
+              cost pressure so managers can see where performance is helping or
+              hurting profitability.
+            </p>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: isMobile ? "1fr" : "repeat(4,minmax(0,1fr))",
+                gap: "12px",
+                marginTop: "18px",
+              }}
+            >
+              {[
+                ["Performance Risk", performanceRisk, "#7dd3fc"],
+                ["Prime Cost", `${pctPrimeCost.toFixed(1)}%`, "#fbbf24"],
+                ["Avg Labor %", `${avgDailyLaborPercent.toFixed(1)}%`, "#38bdf8"],
+                ["Overstaffed Shifts", overstaffedShifts.length, "#f87171"],
+              ].map(([label, value, color]) => (
+                <div
+                  key={label}
+                  style={{
+                    padding: "16px",
+                    borderRadius: "18px",
+                    background: "rgba(15,23,42,.72)",
+                    border: `1px solid ${color}33`,
+                  }}
+                >
+                  <div style={{ color: "#94a3b8", fontSize: "11px", fontWeight: "900" }}>
+                    {label}
+                  </div>
+                  <div
+                    style={{
+                      color: label === "Performance Risk" ? performanceRiskColor : color,
+                      fontSize: "28px",
+                      fontWeight: "950",
+                      marginTop: "8px",
+                    }}
+                  >
+                    {value}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* PRIME COST INTELLIGENCE */}
+          <div
+            style={{
+              gridColumn: isMobile ? "span 1" : "span 12",
+              display: "grid",
+              gridTemplateColumns: isMobile ? "1fr" : "repeat(4,minmax(0,1fr))",
+              gap: "14px",
+              marginBottom: "22px",
             }}
           >
             <GlassCard
               title="Prime Cost %"
               value={`${pctPrimeCost.toFixed(1)}%`}
               subtext="Food cost + labor cost combined"
-              featured={pctPrimeCost > 65} // Triggers visual callout if operations cross critical 65% threshold
+              featured={pctPrimeCost > 65}
             />
 
             <GlassCard
@@ -71327,768 +71728,352 @@ gridColumn: "auto",
               subtext="Staffing efficiency against revenue"
             />
           </div>
-{/* =========================
-   RECIPE CARD INTELLIGENCE
-========================= */}
 
-{hasProAccess && (
-  <div
-    style={{
-      marginTop: "22px",
-      padding: "24px",
-      borderRadius: "28px",
-      background:
-        "linear-gradient(135deg, rgba(245,158,11,0.14), rgba(15,23,42,0.96))",
-      border: "1px solid rgba(251,191,36,0.22)",
-      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
-    }}
-  >
-    <div style={{ color: "#fde68a", fontSize: "12px", fontWeight: "900" }}>
-      Recipe Card Intelligence
-    </div>
-
-    <h3 style={{ color: "white", fontSize: "24px", fontWeight: "950" }}>
-      Menu Recipes & Ingredient Costing
-    </h3>
-{/* =========================
-   RECIPE INTELLIGENCE KPI STRIP
-========================= */}
-
-<div
-  style={{
-    marginTop: "18px",
-    display: "grid",
-    gridTemplateColumns: isMobile
-      ? "1fr"
-      : "repeat(4,minmax(0,1fr))",
-    gap: "14px",
-  }}
->
-  <GlassCard
-    title="Recipes Uploaded"
-    value={recipes.length}
-    subtitle="Total recipe cards"
-  />
-
-  <GlassCard
-    title="Recipe Ingredients"
-    value={recipeIngredients.length}
-    subtitle="Linked ingredient rows"
-  />
-
-  <GlassCard
-    title="Avg Recipe Cost"
-    value={`$${(
-      recipeIngredients.reduce(
-        (sum, item) => sum + Number(item.total_cost || 0),
-        0
-      ) / (recipes.length || 1)
-    ).toFixed(2)}`}
-    subtitle="Average cost per recipe"
-  />
-
-  <GlassCard
-    title="Low Margin Recipes"
-    value={
-      recipes.filter((recipe) => {
-        const ingredients = recipeIngredients.filter(
-          (item) => item.recipe_id === recipe.id
-        );
-
-        const totalCost = ingredients.reduce(
-          (sum, item) => sum + Number(item.total_cost || 0),
-          0
-        );
-
-        const price = Number(recipe.selling_price || 0);
-
-        if (!price) return false;
-
-        const margin = ((price - totalCost) / price) * 100;
-
-        return margin < 55;
-      }).length
-    }
-    subtitle="Recipes below margin target"
-  />
-</div>
-{/* =========================
-   AI RECIPE MARGIN ALERTS
-========================= */}
-
-<div
-  style={{
-    marginTop: "18px",
-    display: "grid",
-    gap: "12px",
-  }}
->
-  {recipes
-    .filter((recipe) => {
-      const ingredients = recipeIngredients.filter(
-        (item) => item.recipe_id === recipe.id
-      );
-
-      const totalCost = ingredients.reduce(
-        (sum, item) => sum + Number(item.total_cost || 0),
-        0
-      );
-
-      const price = Number(recipe.selling_price || 0);
-
-      if (!price) return false;
-
-      const margin = ((price - totalCost) / price) * 100;
-
-      return margin < 55;
-    })
-    .slice(0, 4)
-    .map((recipe) => {
-      const ingredients = recipeIngredients.filter(
-        (item) => item.recipe_id === recipe.id
-      );
-
-      const totalCost = ingredients.reduce(
-        (sum, item) => sum + Number(item.total_cost || 0),
-        0
-      );
-
-      const price = Number(recipe.selling_price || 0);
-
-      const margin =
-        price > 0 ? ((price - totalCost) / price) * 100 : 0;
-
-      return (
-        <div
-          key={recipe.id}
-          style={{
-            padding: "16px",
-            borderRadius: "18px",
-            background:
-              "linear-gradient(135deg, rgba(239,68,68,0.12), rgba(15,23,42,0.86))",
-            border: "1px solid rgba(248,113,113,0.18)",
-          }}
-        >
+          {/* DAILY LABOR EFFICIENCY */}
           <div
             style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: isMobile ? "flex-start" : "center",
-              flexDirection: isMobile ? "column" : "row",
-              gap: "14px",
+              gridColumn: isMobile ? "span 1" : "span 12",
+              ...performanceCardStyle,
+              marginBottom: "22px",
             }}
           >
-            <div>
-              <div
-                style={{
-                  color: "white",
-                  fontSize: "17px",
-                  fontWeight: "900",
-                  marginBottom: "5px",
-                }}
-              >
-                {recipe.recipe_name}
+            <div style={{ color: "#7dd3fc", fontSize: "12px", fontWeight: "950" }}>
+              Daily Labor Efficiency
+            </div>
+
+            <h3 style={{ color: "white", fontSize: "24px", fontWeight: "950" }}>
+              Labor cost against revenue by day
+            </h3>
+
+            {dailyRows.length === 0 ? (
+              <div style={{ color: "#94a3b8", fontSize: "14px", padding: "8px 0" }}>
+                Upload labor and POS sales data to unlock daily labor analysis.
               </div>
-
-              <div
-                style={{
-                  color: "#fca5a5",
-                  fontSize: "13px",
-                  lineHeight: 1.6,
-                }}
-              >
-                AI detected a low-profitability recipe with elevated food cost exposure.
-              </div>
-            </div>
-
-            <div
-              style={{
-                padding: "10px 12px",
-                borderRadius: "14px",
-                background: "rgba(239,68,68,0.14)",
-                border: "1px solid rgba(248,113,113,0.22)",
-                color: "#fca5a5",
-                fontWeight: "900",
-                fontSize: "13px",
-              }}
-            >
-              {margin.toFixed(1)}% Margin
-            </div>
-          </div>
-        </div>
-      );
-    })}
-</div>
-{/* =========================
-   AI RECIPE OPTIMIZATION RECOMMENDATIONS
-========================= */}
-
-<div
-  style={{
-    marginTop: "18px",
-    display: "grid",
-    gap: "14px",
-  }}
->
-  {recipes.slice(0, 6).map((recipe) => {
-    const ingredients = recipeIngredients.filter(
-      (item) => item.recipe_id === recipe.id
-    );
-
-    const totalCost = ingredients.reduce(
-      (sum, item) => sum + Number(item.total_cost || 0),
-      0
-    );
-
-    const price = Number(recipe.selling_price || 0);
-
-    const margin =
-      price > 0 ? ((price - totalCost) / price) * 100 : 0;
-
-    let recommendation =
-      "Recipe profitability is healthy and operating within target margins.";
-
-    if (margin < 40) {
-      recommendation =
-        "Urgent pricing or ingredient optimization recommended. Margin is critically low.";
-    } else if (margin < 55) {
-      recommendation =
-        "Recipe margin is below ideal range. Review ingredient costs or pricing.";
-    } else if (margin < 70) {
-      recommendation =
-        "Recipe performance is stable but still has optimization opportunity.";
-    }
-
-    return (
-      <div
-        key={recipe.id}
-        style={{
-          padding: "18px",
-          borderRadius: "20px",
-          background:
-            "linear-gradient(135deg, rgba(15,23,42,0.84), rgba(30,41,59,0.82))",
-          border: "1px solid rgba(148,163,184,0.12)",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: isMobile ? "flex-start" : "center",
-            flexDirection: isMobile ? "column" : "row",
-            gap: "12px",
-            marginBottom: "10px",
-          }}
-        >
-          <div>
-            <div
-              style={{
-                color: "white",
-                fontSize: "17px",
-                fontWeight: "900",
-              }}
-            >
-              {recipe.recipe_name}
-            </div>
-
-            <div
-              style={{
-                color: "#94a3b8",
-                fontSize: "12px",
-                marginTop: "4px",
-              }}
-            >
-              ${price.toFixed(2)} selling price •{" "}
-              {margin.toFixed(1)}% margin
-            </div>
-          </div>
-
-          <div
-            style={{
-              padding: "8px 12px",
-              borderRadius: "999px",
-              background:
-                margin >= 70
-                  ? "rgba(34,197,94,0.14)"
-                  : margin >= 55
-                  ? "rgba(250,204,21,0.14)"
-                  : "rgba(239,68,68,0.14)",
-              color:
-                margin >= 70
-                  ? "#86efac"
-                  : margin >= 55
-                  ? "#fde68a"
-                  : "#fca5a5",
-              fontWeight: "900",
-              fontSize: "12px",
-            }}
-          >
-            {margin >= 70
-              ? "High Profit"
-              : margin >= 55
-              ? "Optimization Opportunity"
-              : "Margin Risk"}
-          </div>
-        </div>
-
-        <div
-          style={{
-            color: "#cbd5e1",
-            fontSize: "13px",
-            lineHeight: 1.7,
-          }}
-        >
-          {recommendation}
-        </div>
-      </div>
-    );
-  })}
-</div>
-{/* =========================
-   AI RECIPE OPTIMIZATION RECOMMENDATIONS
-========================= */}
-
-<div
-  style={{
-    marginTop: "18px",
-    display: "grid",
-    gap: "14px",
-  }}
->
-  {recipes.length > 0 ? (
-    recipes.slice(0, 6).map((recipe) => {
-      // keep your existing recipe recommendation code here
-    })
-  ) : (
-    <div
-      style={{
-        padding: "20px",
-        borderRadius: "18px",
-        background: "rgba(15,23,42,0.72)",
-        border: "1px solid rgba(148,163,184,0.14)",
-        color: "#94a3b8",
-        fontSize: "14px",
-        textAlign: "center",
-      }}
-    >
-      Upload recipe cards to activate AI recipe optimization recommendations.
-    </div>
-  )}
-</div>
-{/* =========================
-   AI RECIPE COST TREND INTELLIGENCE
-========================= */}
-
-<div
-  style={{
-    marginTop: "18px",
-    padding: "22px",
-    borderRadius: "24px",
-    background:
-      "linear-gradient(135deg, rgba(59,130,246,0.12), rgba(15,23,42,0.92))",
-    border: "1px solid rgba(96,165,250,0.18)",
-  }}
->
-  <div
-    style={{
-      color: "#93c5fd",
-      fontSize: "12px",
-      fontWeight: "900",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      marginBottom: "10px",
-    }}
-  >
-    AI Recipe Cost Trend Intelligence
-  </div>
-
-  <h3
-    style={{
-      color: "white",
-      fontSize: "24px",
-      fontWeight: "950",
-      marginBottom: "10px",
-    }}
-  >
-    Ingredient Inflation & Cost Pressure Detection
-  </h3>
-
-  <p
-    style={{
-      color: "#94a3b8",
-      fontSize: "13px",
-      lineHeight: 1.7,
-      marginBottom: "18px",
-    }}
-  >
-    AI monitors ingredient-linked recipe costs to identify unstable margins,
-    rising food costs, and future pricing pressure across menu items.
-  </p>
-
-  <div
-    style={{
-      display: "grid",
-      gap: "14px",
-    }}
-  >
-    {recipes.length > 0 ? (
-      recipes.slice(0, 6).map((recipe) => {
-        const ingredients = recipeIngredients.filter(
-          (item) => item.recipe_id === recipe.id
-        );
-
-        const totalCost = ingredients.reduce(
-          (sum, item) => sum + Number(item.total_cost || 0),
-          0
-        );
-
-        const inflationPercent = 0;
-        return (
-          <div
-            key={recipe.id}
-            style={{
-              padding: "16px",
-              borderRadius: "18px",
-              background: "rgba(15,23,42,0.72)",
-              border: "1px solid rgba(96,165,250,0.14)",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: isMobile ? "flex-start" : "center",
-                flexDirection: isMobile ? "column" : "row",
-                gap: "14px",
-                marginBottom: "12px",
-              }}
-            >
-              <div>
-                <div
+            ) : (
+              <div style={{ overflowX: "auto" }}>
+                <table
                   style={{
+                    width: "100%",
+                    borderCollapse: "collapse",
                     color: "white",
-                    fontSize: "17px",
-                    fontWeight: "900",
+                    fontSize: "13px",
+                    minWidth: "900px",
                   }}
                 >
-                  {recipe.recipe_name}
-                </div>
+                  <thead>
+                    <tr style={{ color: "#94a3b8", textAlign: "left" }}>
+                      {["Date", "Revenue", "Labor Cost", "Labor %", "Status", "AI Recommendation"].map(
+                        (header) => (
+                          <th
+                            key={header}
+                            style={{
+                              padding: "10px",
+                              borderBottom: "1px solid rgba(148,163,184,0.18)",
+                            }}
+                          >
+                            {header}
+                          </th>
+                        )
+                      )}
+                    </tr>
+                  </thead>
 
-                <div
+                  <tbody>
+                    {dailyRows.slice(0, 12).map((day) => {
+                      const theme = statusTheme(day.status);
+
+                      return (
+                        <tr key={day.date || day.label}>
+                          <td style={{ padding: "10px", borderBottom: "1px solid rgba(148,163,184,0.1)" }}>
+                            {day.label}
+                          </td>
+
+                          <td style={{ padding: "10px", borderBottom: "1px solid rgba(148,163,184,0.1)" }}>
+                            ${Number(day.revenue || 0).toLocaleString()}
+                          </td>
+
+                          <td style={{ padding: "10px", borderBottom: "1px solid rgba(148,163,184,0.1)" }}>
+                            ${Number(day.laborCost || 0).toLocaleString()}
+                          </td>
+
+                          <td style={{ padding: "10px", borderBottom: "1px solid rgba(148,163,184,0.1)" }}>
+                            {typeof day.laborPercent === "number"
+                              ? `${day.laborPercent.toFixed(1)}%`
+                              : "N/A"}
+                          </td>
+
+                          <td style={{ padding: "10px", borderBottom: "1px solid rgba(148,163,184,0.1)" }}>
+                            <span
+                              style={{
+                                padding: "6px 10px",
+                                borderRadius: "999px",
+                                fontWeight: "800",
+                                fontSize: "12px",
+                                background: theme.bg,
+                                color: theme.text,
+                                display: "inline-block",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              {day.status || "Unclassified"}
+                            </span>
+                          </td>
+
+                          <td
+                            style={{
+                              padding: "10px",
+                              borderBottom: "1px solid rgba(148,163,184,0.1)",
+                              color: "#e2e8f0",
+                              minWidth: "240px",
+                              lineHeight: 1.45,
+                            }}
+                          >
+                            {day.recommendation ||
+                              "System calibrating. Maintain baseline schedules."}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* SHIFT LABOR INTELLIGENCE */}
+          <div
+            style={{
+              gridColumn: isMobile ? "span 1" : "span 12",
+              ...performanceCardStyle,
+              marginBottom: "22px",
+            }}
+          >
+            <div style={{ color: "#c4b5fd", fontSize: "12px", fontWeight: "950" }}>
+              Shift Labor Intelligence
+            </div>
+
+            <h3 style={{ color: "white", fontSize: "24px", fontWeight: "950" }}>
+              Shift-level labor performance
+            </h3>
+
+            {shiftRows.length === 0 ? (
+              <div style={{ color: "#94a3b8", fontSize: "14px", padding: "8px 0" }}>
+                Upload labor and sales data with shift or time fields to unlock shift intelligence.
+              </div>
+            ) : (
+              <div style={{ overflowX: "auto" }}>
+                <table
                   style={{
-                    color: "#94a3b8",
-                    fontSize: "12px",
-                    marginTop: "4px",
+                    width: "100%",
+                    borderCollapse: "collapse",
+                    color: "white",
+                    fontSize: "13px",
+                    minWidth: "1000px",
                   }}
                 >
-                  Current Recipe Cost: ${totalCost.toFixed(2)}
-                </div>
-              </div>
+                  <thead>
+                    <tr style={{ color: "#94a3b8", textAlign: "left" }}>
+                      {[
+                        "Shift",
+                        "Revenue",
+                        "Labor Cost",
+                        "Labor Hours",
+                        "Labor %",
+                        "Sales / Labor Hour",
+                        "Status",
+                        "AI Recommendation",
+                      ].map((header) => (
+                        <th
+                          key={header}
+                          style={{
+                            padding: "10px",
+                            borderBottom: "1px solid rgba(148,163,184,0.18)",
+                          }}
+                        >
+                          {header}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
 
-              <div
-                style={{
-                  padding: "8px 12px",
-                  borderRadius: "999px",
-                  background:
-                    inflationPercent >= 15
-                      ? "rgba(239,68,68,0.14)"
-                      : inflationPercent >= 8
-                      ? "rgba(250,204,21,0.14)"
-                      : "rgba(34,197,94,0.14)",
-                  color:
-                    inflationPercent >= 15
-                      ? "#fca5a5"
-                      : inflationPercent >= 8
-                      ? "#fde68a"
-                      : "#86efac",
-                  fontWeight: "900",
-                  fontSize: "12px",
-                }}
-              >
-                +{inflationPercent.toFixed(1)}% Cost Pressure
+                  <tbody>
+                    {shiftRows.slice(0, 12).map((shift) => {
+                      const theme = statusTheme(shift.status);
+                      const rev = Number(shift.revenue || 0);
+                      const cost = Number(shift.laborCost || 0);
+                      const hours = Number(shift.laborHours || 0);
+                      const splh = Number(shift.salesPerLaborHour || 0);
+
+                      return (
+                        <tr key={shift.shift}>
+                          <td style={{ padding: "10px", borderBottom: "1px solid rgba(148,163,184,0.1)", fontWeight: "700" }}>
+                            {shift.shift}
+                          </td>
+
+                          <td style={{ padding: "10px", borderBottom: "1px solid rgba(148,163,184,0.1)" }}>
+                            ${rev.toLocaleString()}
+                          </td>
+
+                          <td style={{ padding: "10px", borderBottom: "1px solid rgba(148,163,184,0.1)" }}>
+                            ${cost.toLocaleString()}
+                          </td>
+
+                          <td style={{ padding: "10px", borderBottom: "1px solid rgba(148,163,184,0.1)" }}>
+                            {hours.toFixed(1)}
+                          </td>
+
+                          <td style={{ padding: "10px", borderBottom: "1px solid rgba(148,163,184,0.1)" }}>
+                            {rev > 0
+                              ? typeof shift.laborPercent === "number"
+                                ? `${shift.laborPercent.toFixed(1)}%`
+                                : "0.0%"
+                              : "No Sales"}
+                          </td>
+
+                          <td style={{ padding: "10px", borderBottom: "1px solid rgba(148,163,184,0.1)" }}>
+                            {rev === 0 ? (
+                              <span style={{ color: "#64748b" }}>No Sales</span>
+                            ) : hours === 0 ? (
+                              <span style={{ color: "#64748b" }}>No Hours</span>
+                            ) : (
+                              `$${splh.toLocaleString(undefined, {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              })}`
+                            )}
+                          </td>
+
+                          <td style={{ padding: "10px", borderBottom: "1px solid rgba(148,163,184,0.1)" }}>
+                            <span
+                              style={{
+                                padding: "6px 10px",
+                                borderRadius: "999px",
+                                fontWeight: "800",
+                                fontSize: "12px",
+                                background: theme.bg,
+                                color: theme.text,
+                                display: "inline-block",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              {shift.status || "Unclassified"}
+                            </span>
+                          </td>
+
+                          <td
+                            style={{
+                              padding: "10px",
+                              borderBottom: "1px solid rgba(148,163,184,0.1)",
+                              color: "#e2e8f0",
+                              minWidth: "240px",
+                              lineHeight: 1.45,
+                            }}
+                          >
+                            {shift.recommendation || "System auditing shift markers..."}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
+            )}
+          </div>
+
+          {/* AI LABOR RECOMMENDATION */}
+          <div
+            style={{
+              gridColumn: isMobile ? "span 1" : "span 12",
+              padding: "18px",
+              borderRadius: "18px",
+              background:
+                "linear-gradient(135deg, rgba(2,132,199,0.14), rgba(15,23,42,0.92))",
+              border: "1px solid rgba(56,189,248,0.14)",
+              marginBottom: "22px",
+            }}
+          >
+            <div style={{ color: "#7dd3fc", fontSize: "12px", fontWeight: "950" }}>
+              AI Labor Recommendation
             </div>
 
             <div
               style={{
-                color: "#cbd5e1",
-                fontSize: "13px",
+                color: "#e2e8f0",
+                fontSize: "14px",
                 lineHeight: 1.7,
+                marginTop: "10px",
               }}
             >
-              Upload invoice history over time to activate ingredient cost trend detection.
+              {laborEfficiencyInsight ||
+                "Analyzing shift data across labor hours and point-of-sale velocity..."}
             </div>
-          </div>
-        );
-      })
-    ) : (
-      <div
-        style={{
-          padding: "18px",
-          borderRadius: "18px",
-          background: "rgba(15,23,42,0.72)",
-          border: "1px solid rgba(148,163,184,0.14)",
-          color: "#94a3b8",
-          textAlign: "center",
-        }}
-      >
-        Upload recipe cards to activate AI recipe cost trend analysis.
-      </div>
-    )}
-  </div>
-</div>
 
-    <div style={{ marginTop: "18px", display: "grid", gap: "14px" }}>
-      {recipes.length > 0 ? (
-        recipes.slice(0, 8).map((recipe) => {
-          const ingredients = recipeIngredients.filter(
-            (item) => item.recipe_id === recipe.id
-          );
-
-          const totalCost = ingredients.reduce(
-            (sum, item) => sum + Number(item.total_cost || 0),
-            0
-          );
-
-          const margin =
-            Number(recipe.selling_price || 0) > 0
-              ? ((Number(recipe.selling_price || 0) - totalCost) /
-                  Number(recipe.selling_price || 0)) *
-                100
-              : 0;
-
-          return (
-            <div
-              key={recipe.id}
-              style={{
-                padding: "18px",
-                borderRadius: "22px",
-                background: "rgba(15,23,42,0.74)",
-                border: "1px solid rgba(251,191,36,0.14)",
-              }}
-            >
-              <div style={{ color: "white", fontSize: "18px", fontWeight: "900" }}>
-                {recipe.recipe_name}
-              </div>
-
-              <div style={{ color: "#94a3b8", fontSize: "12px", marginTop: "4px" }}>
-                {recipe.category || "Uncategorized"} • {ingredients.length} ingredients
-              </div>
-
+            {laborEfficiencyStatus && (
               <div
                 style={{
-                  marginTop: "14px",
-                  display: "grid",
-                  gridTemplateColumns: isMobile
-                    ? "1fr"
-                    : "repeat(3,minmax(0,1fr))",
-                  gap: "12px",
+                  display: "inline-flex",
+                  marginTop: "12px",
+                  padding: "8px 14px",
+                  borderRadius: "999px",
+                  background: "rgba(255,255,255,0.06)",
+                  border: "1px solid rgba(125,211,252,0.18)",
+                  color: laborEfficiencyColor || "#7dd3fc",
+                  fontSize: "12px",
+                  fontWeight: "900",
                 }}
               >
-                <GlassCard
-                  title="Recipe Cost"
-                  value={`$${totalCost.toFixed(2)}`}
-                  subtitle="Calculated ingredient cost"
-                />
-
-                <GlassCard
-                  title="Selling Price"
-                  value={`$${Number(recipe.selling_price || 0).toFixed(2)}`}
-                  subtitle="Menu item price"
-                />
-
-                <GlassCard
-                  title="Estimated Margin"
-                  value={`${margin.toFixed(1)}%`}
-                  subtitle="Recipe profitability"
-                />
+                {laborEfficiencyStatus}
               </div>
-              <div
-  style={{
-    marginTop: "18px",
-    display: "grid",
-    gap: "10px",
-  }}
->
-  {ingredients.length > 0 ? (
-    ingredients.map((ingredient) => (
-      <div
-        key={ingredient.id}
-        style={{
-          padding: "12px 14px",
-          borderRadius: "16px",
-          background: "rgba(255,255,255,0.04)",
-          border: "1px solid rgba(255,255,255,0.08)",
-          display: "grid",
-          gridTemplateColumns: isMobile
-            ? "1fr"
-            : "1.3fr 0.8fr 0.8fr 0.8fr",
-          gap: "12px",
-          alignItems: "center",
-        }}
-      >
-        <div>
-          <div
-            style={{
-              color: "white",
-              fontWeight: "900",
-            }}
-          >
-            {ingredient.ingredient_name}
+            )}
           </div>
 
+          {/* SHIFT PERFORMANCE INTELLIGENCE */}
           <div
             style={{
-              color: "#94a3b8",
-              fontSize: "11px",
-              marginTop: "4px",
+              gridColumn: isMobile ? "span 1" : "span 12",
+              ...performanceCardStyle,
+              marginBottom: "22px",
             }}
           >
-            Recipe ingredient
-          </div>
-        </div>
-
-        <div>
-          <div
-            style={{
-              color: "#94a3b8",
-              fontSize: "11px",
-            }}
-          >
-            Quantity
-          </div>
-
-          <div
-            style={{
-              color: "white",
-              fontWeight: "800",
-            }}
-          >
-            {Number(ingredient.quantity || 0).toFixed(2)}{" "}
-            {ingredient.unit || ""}
-          </div>
-        </div>
-
-        <div>
-          <div
-            style={{
-              color: "#94a3b8",
-              fontSize: "11px",
-            }}
-          >
-            Unit Cost
-          </div>
-
-          <div
-            style={{
-              color: "white",
-              fontWeight: "800",
-            }}
-          >
-            ${Number(ingredient.cost_per_unit || 0).toFixed(2)}
-          </div>
-        </div>
-
-        <div>
-          <div
-            style={{
-              color: "#94a3b8",
-              fontSize: "11px",
-            }}
-          >
-            Total Cost
-          </div>
-
-          <div
-            style={{
-              color: "#fbbf24",
-              fontWeight: "900",
-            }}
-          >
-            ${Number(ingredient.total_cost || 0).toFixed(2)}
-          </div>
-        </div>
-      </div>
-    ))
-  ) : (
-    <div
-      style={{
-        color: "#94a3b8",
-        fontSize: "13px",
-      }}
-    >
-      No ingredients linked to this recipe yet.
-    </div>
-  )}
-</div>
-            </div>
-          );
-        })
-      ) : (
-        <div style={{ color: "#94a3b8", fontSize: "14px" }}>
-          No recipe cards uploaded yet.
-        </div>
-      )}
-    </div>
-  </div>
-)}
-
-          {/* ⚖️ ACTUAL VS EXPECTED USAGE INTELLIGENCE */}
-          <div
-            style={{
-              marginTop: "18px",
-              marginBottom: "26px",
-              padding: "20px",
-              borderRadius: "20px",
-              background: "linear-gradient(135deg, rgba(120,53,15,0.14), rgba(15,23,42,0.92))",
-              border: "1px solid rgba(251,191,36,0.16)",
-            }}
-          >
-            <div
-              style={{
-                fontSize: "12px",
-                fontWeight: "900",
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-                color: "#fbbf24",
-                marginBottom: "14px",
-              }}
-            >
-              Actual vs Expected Usage Intelligence
+            <div style={{ color: "#93c5fd", fontSize: "12px", fontWeight: "950" }}>
+              Shift Performance Intelligence
             </div>
 
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: mobileLayout
+                gridTemplateColumns: isMobile
                   ? "1fr"
                   : "repeat(auto-fit, minmax(180px, 1fr))",
                 gap: "14px",
+                marginTop: "14px",
               }}
             >
-              <GlassCard
-                title="Expected Usage"
-                value={`$${valExpectedUsage.toLocaleString()}`}
-                subtext="Projected cost based on current data"
-              />
+              {shiftPerfRows.length > 0 ? (
+                <>
+                  {shiftPerfRows.map((shift) => (
+                    <GlassCard
+                      key={shift.shift}
+                      title={shift.shift}
+                      value={`$${Number(shift.revenue || 0).toLocaleString()}`}
+                      subtext={`${Number(shift.orders || 0).toLocaleString()} orders detected`}
+                    />
+                  ))}
 
-              <GlassCard
-                title="Actual Usage"
-                value={`$${valActualUsage.toLocaleString()}`}
-                subtext="Detected cost from current data"
-              />
-
-              <GlassCard
-                title="Usage Variance"
-                value={`${pctUsageVariance.toFixed(1)}%`}
-                subtext={operationalUsageVarianceStatus || "No variance tracked"}
-              />
-
-              <GlassCard
-                title="Waste Risk"
-                value={operationalUsageVarianceStatus || "Unavailable"}
-                subtext={operationalUsageVarianceInsight || "Endpoint connection pending"}
-              />
+                  <GlassCard
+                    title="Top Shift"
+                    value={topShift?.shift || "Unclassified"}
+                    subtext={`$${Number(topShift?.revenue || 0).toLocaleString()} detected revenue`}
+                    featured
+                  />
+                </>
+              ) : (
+                <GlassCard
+                  title="Shift Performance"
+                  value="Needs time data"
+                  subtext="Upload POS files containing timestamps to unlock shift-level velocity intelligence."
+                />
+              )}
             </div>
           </div>
         </>
@@ -72096,425 +72081,9 @@ gridColumn: "auto",
     })()}
   </>
 )}
-
-    {hasGrowthAccess ? (
-      <>
-        {/* DAILY LABOR EFFICIENCY METRIC MATRIX */}
-<div
-  style={{
-    marginTop: "18px",
-    padding: "18px",
-    borderRadius: "18px",
-    background: "rgba(15,23,42,0.92)",
-    border: "1px solid rgba(148,163,184,0.18)",
-  }}
->
-  <div
-    style={{
-      fontSize: "18px",
-      fontWeight: "900",
-      color: "white",
-      marginBottom: "6px",
-    }}
-  >
-    Daily Labor Efficiency
-  </div>
-
-  <div
-    style={{
-      fontSize: "13px",
-      color: "#94a3b8",
-      marginBottom: "14px",
-    }}
-  >
-    Compares labor cost against revenue by day so clients can see where they were overstaffed or understaffed.
-  </div>
-
-  {!dailyLaborEfficiency || dailyLaborEfficiency.length === 0 ? (
-    <div style={{ color: "#94a3b8", fontSize: "14px", padding: "8px 0" }}>
-      Upload labor and POS sales data to unlock daily labor analysis.
-    </div>
-  ) : (
-    <div style={{ overflowX: "auto" }}>
-      <table
-        style={{
-          width: "100%",
-          borderCollapse: "collapse",
-          color: "white",
-          fontSize: "13px",
-        }}
-      >
-        <thead>
-          <tr style={{ color: "#94a3b8", textAlign: "left" }}>
-            <th style={{ padding: "10px", borderBottom: "1px solid rgba(148,163,184,0.18)" }}>Date</th>
-            <th style={{ padding: "10px", borderBottom: "1px solid rgba(148,163,184,0.18)" }}>Revenue</th>
-            <th style={{ padding: "10px", borderBottom: "1px solid rgba(148,163,184,0.18)" }}>Labor Cost</th>
-            <th style={{ padding: "10px", borderBottom: "1px solid rgba(148,163,184,0.18)" }}>Labor %</th>
-            <th style={{ padding: "10px", borderBottom: "1px solid rgba(148,163,184,0.18)" }}>Status</th>
-            {/* Set explicit constraints to protect layout from variable string lengths */}
-            <th style={{ padding: "10px", borderBottom: "1px solid rgba(148,163,184,0.18)", minWidth: "220px", maxWidth: "340px" }}>AI Recommendation</th>
-          </tr>
-        </thead>
-
-        <tbody>
-          {dailyLaborEfficiency.map((day) => {
-            // Clean dictionary mapping replaces complex inline conditional nests
-            const statusThemes = {
-              "Overstaffed": { bg: "rgba(239,68,68,0.16)", text: "#fca5a5" },
-              "Watch Closely": { bg: "rgba(245,158,11,0.16)", text: "#facc15" },
-              "Possibly Understaffed": { bg: "rgba(59,130,246,0.16)", text: "#93c5fd" },
-              "Healthy": { bg: "rgba(34,197,94,0.16)", text: "#86efac" }
-            };
-
-            const currentTheme = statusThemes[day.status] || { bg: "rgba(148,163,184,0.14)", text: "#cbd5e1" };
-
-            return (
-              <tr key={day.date || day.label}>
-                <td style={{ padding: "10px", borderBottom: "1px solid rgba(148,163,184,0.1)", whiteSpace: "nowrap" }}>
-                  {day.label}
-                </td>
-                <td style={{ padding: "10px", borderBottom: "1px solid rgba(148,163,184,0.1)" }}>
-                  ${Number(day.revenue || 0).toLocaleString()}
-                </td>
-                <td style={{ padding: "10px", borderBottom: "1px solid rgba(148,163,184,0.1)" }}>
-                  ${Number(day.laborCost || 0).toLocaleString()}
-                </td>
-                <td style={{ padding: "10px", borderBottom: "1px solid rgba(148,163,184,0.1)" }}>
-                  {/* Fixed strict verification handling for true 0% conditions */}
-                  {typeof day.laborPercent === 'number' ? `${day.laborPercent.toFixed(1)}%` : "N/A"}
-                </td>
-                <td style={{ padding: "10px", borderBottom: "1px solid rgba(148,163,184,0.1)" }}>
-                  <span
-                    style={{
-                      padding: "6px 10px",
-                      borderRadius: "999px",
-                      fontWeight: "800",
-                      fontSize: "12px",
-                      background: currentTheme.bg,
-                      color: currentTheme.text,
-                      display: "inline-block",
-                      whiteSpace: "nowrap"
-                    }}
-                  >
-                    {day.status || "Unclassified"}
-                  </span>
-                </td>
-                <td 
-                  style={{ 
-                    padding: "10px", 
-                    borderBottom: "1px solid rgba(148,163,184,0.1)",
-                    minWidth: "220px",
-                    maxWidth: "340px",
-                    lineHeight: "1.4",
-                    color: "#e2e8f0"
-                  }}
-                >
-                  {day.recommendation || "System calibrating. Maintain baseline schedules."}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
-  )}
 </div>
-
-      {/* SHIFT-LEVEL LABOR PERFORMANCE SCORECARD */}
-<div
-  style={{
-    marginTop: "18px",
-    padding: "18px",
-    borderRadius: "18px",
-    background: "rgba(15,23,42,0.92)",
-    border: "1px solid rgba(148,163,184,0.18)",
-  }}
->
-  <div
-    style={{
-      color: "#c4b5fd",
-      fontSize: "12px",
-      fontWeight: "900",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      marginBottom: "8px",
-    }}
-  >
-    Shift Labor Intelligence
-  </div>
-
-  <div
-    style={{
-      fontSize: "22px",
-      fontWeight: "900",
-      color: "white",
-      marginBottom: "8px",
-    }}
-  >
-    Shift-Level Labor Performance
-  </div>
-
-  <div
-    style={{
-      color: "#94a3b8",
-      fontSize: "14px",
-      lineHeight: 1.6,
-      marginBottom: "16px",
-    }}
-  >
-    AI compares revenue, labor cost, and labor hours by shift to detect overstaffed and understaffed periods.
-  </div>
-
-  {!shiftLaborIntelligence || shiftLaborIntelligence.length === 0 ? (
-    <div style={{ color: "#94a3b8", fontSize: "14px", padding: "8px 0" }}>
-      Upload labor and sales data with shift or time fields to unlock shift intelligence.
-    </div>
-  ) : (
-    <div style={{ overflowX: "auto" }}>
-      <table
-        style={{
-          width: "100%",
-          borderCollapse: "collapse",
-          color: "white",
-          fontSize: "13px",
-        }}
-      >
-        <thead>
-          <tr style={{ color: "#94a3b8", textAlign: "left" }}>
-            <th style={{ padding: "10px", borderBottom: "1px solid rgba(148,163,184,0.18)" }}>Shift</th>
-            <th style={{ padding: "10px", borderBottom: "1px solid rgba(148,163,184,0.18)" }}>Revenue</th>
-            <th style={{ padding: "10px", borderBottom: "1px solid rgba(148,163,184,0.18)" }}>Labor Cost</th>
-            <th style={{ padding: "10px", borderBottom: "1px solid rgba(148,163,184,0.18)" }}>Labor Hours</th>
-            <th style={{ padding: "10px", borderBottom: "1px solid rgba(148,163,184,0.18)" }}>Labor %</th>
-            <th style={{ padding: "10px", borderBottom: "1px solid rgba(148,163,184,0.18)" }}>Sales / Labor Hour</th>
-            <th style={{ padding: "10px", borderBottom: "1px solid rgba(148,163,184,0.18)" }}>Status</th>
-            <th style={{ padding: "10px", borderBottom: "1px solid rgba(148,163,184,0.18)", minWidth: "220px", maxWidth: "340px" }}>AI Recommendation</th>
-          </tr>
-        </thead>
-
-        <tbody>
-          {shiftLaborIntelligence.map((shift) => {
-            // Clean dictionary mapping for rapid token maintenance
-            const statusThemes = {
-              "Overstaffed": { bg: "rgba(239,68,68,0.16)", text: "#fca5a5" },
-              "Watch Closely": { bg: "rgba(245,158,11,0.16)", text: "#facc15" },
-              "Possibly Understaffed": { bg: "rgba(59,130,246,0.16)", text: "#93c5fd" },
-              "Healthy": { bg: "rgba(34,197,94,0.16)", text: "#86efac" }
-            };
-
-            const currentTheme = statusThemes[shift.status] || { bg: "rgba(148,163,184,0.14)", text: "#cbd5e1" };
-
-            // Explicit value normalizations
-            const rev = Number(shift.revenue || 0);
-            const cost = Number(shift.laborCost || 0);
-            const hours = Number(shift.laborHours || 0);
-            const splh = Number(shift.salesPerLaborHour || 0);
-
-            return (
-              <tr key={shift.shift}>
-                <td style={{ padding: "10px", borderBottom: "1px solid rgba(148,163,184,0.1)", whiteSpace: "nowrap", fontWeight: "600" }}>
-                  {shift.shift}
-                </td>
-                <td style={{ padding: "10px", borderBottom: "1px solid rgba(148,163,184,0.1)" }}>
-                  ${rev.toLocaleString()}
-                </td>
-                <td style={{ padding: "10px", borderBottom: "1px solid rgba(148,163,184,0.1)" }}>
-                  ${cost.toLocaleString()}
-                </td>
-                <td style={{ padding: "10px", borderBottom: "1px solid rgba(148,163,184,0.1)" }}>
-                  {hours.toFixed(1)}
-                </td>
-                <td style={{ padding: "10px", borderBottom: "1px solid rgba(148,163,184,0.1)" }}>
-                  {/* Robust, context-aware layout cell fallbacks */}
-                  {rev > 0 
-                    ? (typeof shift.laborPercent === 'number' ? `${shift.laborPercent.toFixed(1)}%` : "0.0%") 
-                    : "No Sales"
-                  }
-                </td>
-                <td style={{ padding: "10px", borderBottom: "1px solid rgba(148,163,184,0.1)" }}>
-                  {/* Clean validation path distinguishing exactly why an index cannot generate */}
-                  {rev === 0 ? (
-                    <span style={{ color: "#64748b" }}>No Sales</span>
-                  ) : hours === 0 ? (
-                    <span style={{ color: "#64748b" }}>No Hours</span>
-                  ) : (
-                    `$${splh.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                  )}
-                </td>
-                <td style={{ padding: "10px", borderBottom: "1px solid rgba(148,163,184,0.1)" }}>
-                  <span
-                    style={{
-                      padding: "6px 10px",
-                      borderRadius: "999px",
-                      fontWeight: "800",
-                      fontSize: "12px",
-                      background: currentTheme.bg,
-                      color: currentTheme.text,
-                      display: "inline-block",
-                      whiteSpace: "nowrap"
-                    }}
-                  >
-                    {shift.status || "Unclassified"}
-                  </span>
-                </td>
-                <td 
-                  style={{ 
-                    padding: "10px", 
-                    borderBottom: "1px solid rgba(148,163,184,0.1)",
-                    minWidth: "220px",
-                    maxWidth: "340px",
-                    lineHeight: "1.4",
-                    color: "#e2e8f0"
-                  }}
-                >
-                  {shift.recommendation || "System auditing shift markers..."}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
-  )}
 </div>
-
-       {/* AI LABOR ACTION RECOMMENDATIONS CONTAINER */}
-<div
-  style={{
-    marginTop: "16px",
-    marginBottom: "26px",
-    padding: "18px",
-    borderRadius: "18px",
-    // Premium multi-stop gradient tailored for high-contrast data visualization
-    background: "linear-gradient(135deg, rgba(2,132,199,0.14), rgba(15,23,42,0.92))",
-    border: "1px solid rgba(56,189,248,0.14)",
-  }}
->
-  <div
-    style={{
-      fontSize: "12px",
-      fontWeight: "900",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      color: "#7dd3fc",
-      marginBottom: "12px",
-    }}
-  >
-    AI Labor Recommendation
-  </div>
-
-  <div
-    style={{
-      color: "#e2e8f0",
-      fontSize: "14px",
-      lineHeight: 1.7,
-      marginBottom: laborEfficiencyStatus ? "12px" : "0px", // Removes unnecessary spacing if badge is hidden
-    }}
-  >
-    {/* Clean fallback text preserves layout integrity during initial load sequences */}
-    {laborEfficiencyInsight || "Analyzing shift data across labor hours and point-of-sale velocity..."}
-  </div>
-
-  {/* 🛡️ Conditional short-circuit prevents rendering empty styling wrappers */}
-  {laborEfficiencyStatus && (
-    <div
-      style={{
-        display: "inline-flex",
-        padding: "8px 14px",
-        borderRadius: "999px",
-        background: "rgba(255,255,255,0.06)",
-        border: "1px solid rgba(125,211,252,0.18)",
-        // Safe color assignment protects accessibility defaults
-        color: laborEfficiencyColor || "#7dd3fc",
-        fontSize: "12px",
-        fontWeight: "900",
-        whiteSpace: "nowrap"
-      }}
-    >
-      {laborEfficiencyStatus}
-    </div>
-  )}
-</div>
-
-       {/* SHIFT PERFORMANCE INTELLIGENCE GRID */}
-<div
-  style={{
-    marginTop: "18px",
-    marginBottom: "26px",
-    padding: "20px",
-    borderRadius: "20px",
-    background: "linear-gradient(135deg, rgba(30,64,175,0.14), rgba(15,23,42,0.92))",
-    border: "1px solid rgba(96,165,250,0.16)",
-  }}
->
-  <div
-    style={{
-      fontSize: "12px",
-      fontWeight: "900",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      color: "#93c5fd",
-      marginBottom: "14px",
-    }}
-  >
-    Shift Performance Intelligence
-  </div>
-
-  {/* Safe array assignment prevents runtime crashes if the data payload is missing */}
-  {(() => {
-    const shifts = shiftPerformanceArray || [];
-    const hasData = shifts.length > 0;
-    const mobileLayout = typeof isMobile !== "undefined" ? isMobile : false;
-
-    return (
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: mobileLayout
-            ? "1fr"
-            : "repeat(auto-fit, minmax(180px, 1fr))",
-          gap: "14px",
-        }}
-      >
-        {hasData ? (
-          <>
-            {/* 1. Render actual individual shift performance metrics */}
-            {shifts.map((shift) => (
-              <GlassCard
-                key={shift.shift}
-                title={shift.shift}
-                value={`$${Number(shift.revenue || 0).toLocaleString()}`}
-                subtext={`${Number(shift.orders || 0).toLocaleString()} orders detected`}
-              />
-            ))}
-
-            {/* 2. Safely append top shift summary card only when supporting data exists */}
-            <GlassCard
-              title="Top Shift"
-              value={topShift?.shift || "Unclassified"}
-              subtext={`$${Number(topShift?.revenue || 0).toLocaleString()} detected revenue`}
-              featured // Adds visual emphasis to the top-performing timeframe
-            />
-          </>
-        ) : (
-          /* Clean, unified fallback card spans full layout context when timeline data is empty */
-          <GlassCard
-            title="Shift Performance"
-            value="Needs time data"
-            subtext="Upload point-of-sale invoices containing timestamps to unlock shift-level velocity intelligence."
-          />
-        )}
-      </div>
-    );
-  })()}
-</div>
-      </>
-    ) : (
-      <div>Growth locked card here</div>
-    )}
-
-  </div>
-  
+ </> 
 )}
 
 {activeTab === "labor" && (
