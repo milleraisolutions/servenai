@@ -299,8 +299,8 @@ const importLockRef = useRef(false);
 const [importingPOS, setImportingPOS] = useState(false);
 const [auditLogs, setAuditLogs] = useState([]);
 const [auditLogsLoading, setAuditLogsLoading] = useState(false);
-
-
+const [enterpriseView, setEnterpriseView] = useState("overview");
+const [analyticsView, setAnalyticsView] = useState("revenue");
 
 
 const loadAdminData = async () => {
@@ -33574,72 +33574,7 @@ const color = !hasScore
     )}
   </div>
 </div>
-{/* 📍 MULTI-LOCATION INTELLIGENCE */}
-<div
-  style={{
-    marginBottom: "22px",
-    padding: isMobile ? "20px" : "24px",
-    borderRadius: "26px",
-    background:
-      "radial-gradient(circle at top right, rgba(59,130,246,0.18), transparent 34%), linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.94))",
-    border: "1px solid rgba(96,165,250,0.22)",
-  }}
->
-  <div style={{ color: "#93c5fd", fontSize: "12px", fontWeight: "950" }}>
-    Multi-Location Intelligence
-  </div>
 
-  <h3 style={{ color: "white", fontSize: "28px", fontWeight: "1000" }}>
-    AI compares performance across every location.
-  </h3>
-
-  <p style={{ color: "#cbd5e1", fontSize: "14px", lineHeight: 1.8 }}>
-    {multiLocationSummary}
-  </p>
-
-  <div
-    style={{
-      display: "grid",
-      gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
-      gap: "14px",
-      marginTop: "18px",
-    }}
-  >
-    {(locationPerformanceData || []).slice(0, 3).map((loc) => (
-      <div
-        key={loc.name}
-        style={{
-          padding: "16px",
-          borderRadius: "18px",
-          background: "rgba(15,23,42,0.72)",
-          border: "1px solid rgba(148,163,184,0.14)",
-        }}
-      >
-        <div style={{ color: "#93c5fd", fontSize: "13px", fontWeight: "900" }}>
-          {loc.name}
-        </div>
-
-        <div style={{ color: "white", fontSize: "26px", fontWeight: "1000", marginTop: "8px" }}>
-          ${Number(loc.revenue || 0).toLocaleString()}
-        </div>
-
-        <div style={{ color: "#cbd5e1", fontSize: "12px", marginTop: "6px" }}>
-          Orders: {loc.orders || 0}
-        </div>
-
-        <div style={{ color: "#cbd5e1", fontSize: "12px", marginTop: "4px" }}>
-          Health: {loc.health || 0}/100
-        </div>
-      </div>
-    ))}
-
-    {!locationPerformanceData?.length && (
-      <div style={itemStyle}>
-        Upload sales data with location fields to activate multi-location intelligence.
-      </div>
-    )}
-  </div>
-</div>
 {/* 🧠 AI SETUP INTELLIGENCE */}
 {!hasOperationalData && (
   <div
@@ -35981,7 +35916,7 @@ Restaurant AI Health is currently rated{" "}
 {activeTab === "multi_location" && (
   <>
   {/* ENTERPRISE COMMAND CENTER HEADER */}
-
+ 
 <div
   style={{
     marginBottom: "20px",
@@ -36198,117 +36133,168 @@ Restaurant AI Health is currently rated{" "}
 })}
 </div>
 </div>
-    <div
-      style={{
-        padding: "24px",
-        borderRadius: "24px",
-        background:
-          "radial-gradient(circle at top right, rgba(99,102,241,0.14), transparent 40%), linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.9))",
-        border: "1px solid rgba(148,163,184,0.16)",
-        boxShadow: "0 18px 40px rgba(2,6,23,0.22)",
-      }}
-    >
-      <div
+ 
+
+   {/* ENTERPRISE SUB NAV */}
+<div
+  style={{
+    display: "flex",
+    gap: "10px",
+    flexWrap: "wrap",
+    marginBottom: "22px",
+  }}
+>
+  {[
+    { id: "overview", label: "Overview" },
+    { id: "rankings", label: "Rankings" },
+    { id: "alerts", label: "Alerts" },
+    { id: "forecast", label: "Forecast" },
+    { id: "actions", label: "AI Actions" },
+  ].map((tab) => {
+    const active = enterpriseView === tab.id;
+
+    return (
+      <button
+        key={tab.id}
+        type="button"
+        onClick={() => setEnterpriseView(tab.id)}
         style={{
-          color: "#c7d2fe",
+          padding: "10px 14px",
+          borderRadius: "999px",
+          border: active
+            ? "1px solid rgba(129,140,248,0.65)"
+            : "1px solid rgba(148,163,184,0.18)",
+          background: active
+            ? "rgba(99,102,241,0.22)"
+            : "rgba(15,23,42,0.72)",
+          color: active ? "#c7d2fe" : "#94a3b8",
           fontSize: "12px",
           fontWeight: "900",
-          letterSpacing: "0.08em",
-          textTransform: "uppercase",
-          marginBottom: "8px",
+          cursor: "pointer",
         }}
       >
-        Enterprise Intelligence
-      </div>
+        {tab.label}
+      </button>
+    );
+  })}
+</div>
+{enterpriseView === "overview" && (
+  <>
+{/* ENTERPRISE EXECUTIVE SUMMARY */}
 
-      <h2
-        style={{
-          margin: 0,
-          color: "white",
-          fontSize: "30px",
-          fontWeight: "950",
-        }}
-      >
-        Multi-location command center
-      </h2>
+<div
+  style={{
+    marginTop: "18px",
+    padding: "28px",
+    borderRadius: "28px",
+    background:
+      "radial-gradient(circle at top right, rgba(250,204,21,0.16), transparent 35%), linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.94))",
+    border: "1px solid rgba(250,204,21,0.18)",
+    boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
+  }}
+>
+  <div
+    style={{
+      color: "#fde68a",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "10px",
+    }}
+  >
+    Enterprise Executive Summary
+  </div>
 
-      <p
-        style={{
-          marginTop: "12px",
-          color: "#94a3b8",
-          fontSize: "14px",
-          lineHeight: 1.7,
-          maxWidth: "760px",
-        }}
-      >
-        Compare restaurant locations, identify operational leaks,
-        monitor labor efficiency, and track enterprise-wide profitability.
-      </p>
+  <h2
+    style={{
+      margin: 0,
+      color: "white",
+      fontSize: "34px",
+      fontWeight: "1000",
+      lineHeight: 1.1,
+      maxWidth: "900px",
+    }}
+  >
+    Enterprise operations are stabilizing, but margin pressure remains
+    across lower-performing locations.
+  </h2>
 
+  <p
+    style={{
+      marginTop: "16px",
+      color: "#cbd5e1",
+      fontSize: "15px",
+      lineHeight: 1.8,
+      maxWidth: "920px",
+    }}
+  >
+    SerVen AI identified labor inefficiencies, inventory variance,
+    and operational inconsistency across multiple locations.
+    Enterprise forecasting models project continued revenue growth,
+    but AI recommends immediate focus on underperforming stores
+    to protect long-term margins.
+  </p>
+
+  <div
+    style={{
+      marginTop: "24px",
+      display: "grid",
+      gridTemplateColumns: isMobile
+        ? "1fr"
+        : "repeat(3, minmax(0, 1fr))",
+      gap: "16px",
+    }}
+  >
+    {[
+      {
+        title: "Top Priority",
+        value: "Location Performance Recovery",
+      },
+      {
+        title: "Enterprise Trend",
+        value: "Revenue Growth Accelerating",
+      },
+      {
+        title: "AI Confidence",
+        value: "92%",
+      },
+    ].map((item) => (
       <div
+        key={item.title}
         style={{
-          marginTop: "20px",
-          display: "grid",
-          gridTemplateColumns: isMobile
-            ? "1fr"
-            : "repeat(3, minmax(0, 1fr))",
-          gap: "14px",
+          padding: "18px",
+          borderRadius: "20px",
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(148,163,184,0.12)",
         }}
       >
-        {[
-          [
-  {
-    label: "Locations",
-    value: (locationPerformanceData || []).length,
-  },
-  {
-    label: "Top Location",
-    value:
-      (locationPerformanceData || []).length
-        ? [...locationPerformanceData].sort(
-            (a, b) => Number(b.revenue || 0) - Number(a.revenue || 0)
-          )[0]?.name || "Unknown"
-        : "Awaiting Data",
-  },
-  {
-    label: "Enterprise Health",
-    value: `${realEnterpriseHealth}/100`,
-  },
-]
-        ].map((item) => (
-          <div
-            key={item.label}
-            style={{
-              padding: "18px",
-              borderRadius: "18px",
-              background: "rgba(255,255,255,0.04)",
-              border: "1px solid rgba(148,163,184,0.12)",
-            }}
-          >
-            <div
-              style={{
-                color: "#94a3b8",
-                fontSize: "11px",
-                fontWeight: "800",
-                marginBottom: "8px",
-              }}
-            >
-              {item.label}
-            </div>
+        <div
+          style={{
+            color: "#94a3b8",
+            fontSize: "11px",
+            fontWeight: "900",
+            marginBottom: "10px",
+            textTransform: "uppercase",
+          }}
+        >
+          {item.title}
+        </div>
 
-            <div
-              style={{
-                color: "white",
-                fontSize: "28px",
-                fontWeight: "950",
-              }}
-            >
-              {item.value}
-            </div>
-          </div>
-        ))}
+        <div
+          style={{
+            color: "white",
+            fontSize: "24px",
+            fontWeight: "950",
+            lineHeight: 1.3,
+          }}
+        >
+          {item.value}
+        </div>
       </div>
-    </div>
+    ))}
+  </div>
+</div>
     {/* CROSS-LOCATION COMPARISON GRAPH */}
 
 <div
@@ -36399,6 +36385,131 @@ Restaurant AI Health is currently rated{" "}
     </BarChart>
   </div>
 </div>
+{/* ENTERPRISE RECOVERABLE PROFIT */}
+
+<div
+  style={{
+    marginTop: "18px",
+    padding: "26px",
+    borderRadius: "28px",
+    background:
+      "radial-gradient(circle at top right, rgba(34,197,94,0.18), transparent 35%), linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.94))",
+    border: "1px solid rgba(74,222,128,0.22)",
+    boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
+  }}
+>
+  <div
+    style={{
+      color: "#86efac",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "10px",
+    }}
+  >
+    Enterprise Recoverable Profit
+  </div>
+
+  <h2
+    style={{
+      margin: 0,
+      color: "white",
+      fontSize: "34px",
+      fontWeight: "1000",
+      lineHeight: 1.1,
+    }}
+  >
+    $
+    {Number(
+      (locationPerformanceData || []).reduce(
+        (sum, location) =>
+          sum + Number(location.revenue || 0) * 0.08,
+        0
+      ) || 0
+    ).toLocaleString()}
+  </h2>
+
+  <p
+    style={{
+      marginTop: "12px",
+      color: "#cbd5e1",
+      fontSize: "15px",
+      lineHeight: 1.7,
+      maxWidth: "780px",
+    }}
+  >
+    SerVen AI estimates your enterprise group could recover this
+    monthly revenue through labor optimization, inventory controls,
+    vendor management, and AI operational automation.
+  </p>
+
+  <div
+    style={{
+      marginTop: "20px",
+      display: "grid",
+      gridTemplateColumns: isMobile
+        ? "1fr"
+        : "repeat(4, minmax(0, 1fr))",
+      gap: "14px",
+    }}
+  >
+    {[
+      {
+  label: "Labor Optimization",
+  value: `$${Math.round(enterpriseRecoverableProfit * 0.28).toLocaleString()}`,
+},
+{
+  label: "Inventory Recovery",
+  value: `$${Math.round(enterpriseRecoverableProfit * 0.21).toLocaleString()}`,
+},
+{
+  label: "Vendor Savings",
+  value: `$${Math.round(enterpriseRecoverableProfit * 0.17).toLocaleString()}`,
+},
+{
+  label: "AI Automation",
+  value: `$${Math.round(enterpriseRecoverableProfit * 0.34).toLocaleString()}`,
+},
+    ].map((item) => (
+      <div
+        key={item.label}
+        style={{
+          padding: "16px",
+          borderRadius: "18px",
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(148,163,184,0.12)",
+        }}
+      >
+        <div
+          style={{
+            color: "#94a3b8",
+            fontSize: "11px",
+            fontWeight: "900",
+            marginBottom: "8px",
+            textTransform: "uppercase",
+          }}
+        >
+          {item.label}
+        </div>
+
+        <div
+          style={{
+            color: "#86efac",
+            fontSize: "28px",
+            fontWeight: "1000",
+          }}
+        >
+          {item.value}
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+  </>
+)}
+{enterpriseView === "rankings" && (
+  <>
 {/* LOCATION RANKING CARDS */}
 
 <div
@@ -36497,7 +36608,949 @@ Restaurant AI Health is currently rated{" "}
       </div>
     ))}
 </div>
-{/* WORST PERFORMING LOCATION */}
+{/* ENTERPRISE GM SCORECARDS */}
+
+<div
+  style={{
+    marginTop: "18px",
+    padding: "24px",
+    borderRadius: "24px",
+    background:
+      "linear-gradient(135deg, rgba(34,197,94,0.14), rgba(15,23,42,0.96))",
+    border: "1px solid rgba(74,222,128,0.22)",
+    boxShadow: "0 18px 40px rgba(2,6,23,0.22)",
+  }}
+>
+  <div
+    style={{
+      color: "#86efac",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "8px",
+    }}
+  >
+    GM Performance Intelligence
+  </div>
+
+  <h3
+    style={{
+      margin: 0,
+      color: "white",
+      fontSize: "24px",
+      fontWeight: "950",
+    }}
+  >
+    General manager scorecards
+  </h3>
+
+  <div
+    style={{
+      marginTop: "18px",
+      display: "grid",
+      gridTemplateColumns: isMobile
+        ? "1fr"
+        : "repeat(auto-fit, minmax(260px, 1fr))",
+      gap: "14px",
+    }}
+  >
+    {((locationPerformanceData || []).length
+      ? locationPerformanceData
+      : [
+          
+        ]
+    ).map((location, index) => {
+     const score = Number(location.score || location.healthScore || 0);
+
+      const color =
+        score >= 80
+          ? "#22c55e"
+          : score >= 70
+          ? "#38bdf8"
+          : score >= 60
+          ? "#fbbf24"
+          : "#f87171";
+
+      return (
+        <div
+          key={location.name || index}
+          style={{
+            padding: "18px",
+            borderRadius: "20px",
+            background: "rgba(15,23,42,0.72)",
+            border: `1px solid ${color}40`,
+          }}
+        >
+          <div
+            style={{
+              color: "white",
+              fontSize: "18px",
+              fontWeight: "950",
+              marginBottom: "10px",
+            }}
+          >
+            {location.name || `Location ${index + 1}`}
+          </div>
+
+          <div
+            style={{
+              color,
+              fontSize: "42px",
+              fontWeight: "1000",
+              lineHeight: 1,
+            }}
+          >
+            {score}
+          </div>
+
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "12px",
+              marginTop: "6px",
+              fontWeight: "800",
+            }}
+          >
+            GM Operational Score
+          </div>
+
+          <div
+            style={{
+              marginTop: "14px",
+              display: "grid",
+              gap: "8px",
+            }}
+          >
+            {[
+              ["Labor Control", score >= 75 ? "Strong" : "Needs Review"],
+              ["Inventory Discipline", score >= 70 ? "Stable" : "At Risk"],
+              ["Revenue Execution", score >= 80 ? "High" : "Monitor"],
+            ].map(([label, value]) => (
+              <div
+                key={label}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: "12px",
+                  fontSize: "12px",
+                }}
+              >
+                <span style={{ color: "#94a3b8" }}>{label}</span>
+                <span style={{ color: "white", fontWeight: "900" }}>
+                  {value}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    })}
+  </div>
+</div>
+
+{/* ENTERPRISE BENCHMARK LEADERBOARD */}
+
+<div
+  style={{
+    marginTop: "18px",
+    padding: "24px",
+    borderRadius: "24px",
+    background:
+      "linear-gradient(135deg, rgba(99,102,241,0.14), rgba(15,23,42,0.96))",
+    border: "1px solid rgba(129,140,248,0.22)",
+    boxShadow: "0 18px 40px rgba(2,6,23,0.22)",
+  }}
+>
+  <div
+    style={{
+      color: "#c7d2fe",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "8px",
+    }}
+  >
+    Enterprise Benchmarking
+  </div>
+
+  <h3
+    style={{
+      margin: 0,
+      color: "white",
+      fontSize: "24px",
+      fontWeight: "950",
+    }}
+  >
+    Location performance leaderboard
+  </h3>
+
+  <div
+    style={{
+      marginTop: "18px",
+      display: "grid",
+      gap: "12px",
+    }}
+  >
+    {((locationPerformanceData || []).length
+      ? [...locationPerformanceData].sort(
+          (a, b) => Number(b.revenue || 0) - Number(a.revenue || 0)
+        )
+    : []
+    ).map((location, index) => (
+      <div
+        key={location.name || index}
+        style={{
+          padding: "16px",
+          borderRadius: "18px",
+          background: "rgba(15,23,42,0.72)",
+          border: "1px solid rgba(148,163,184,0.12)",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: "12px",
+          flexWrap: "wrap",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "14px",
+          }}
+        >
+          <div
+            style={{
+              width: "38px",
+              height: "38px",
+              borderRadius: "999px",
+              background:
+                index === 0
+                  ? "rgba(250,204,21,0.18)"
+                  : index === 1
+                  ? "rgba(148,163,184,0.18)"
+                  : "rgba(180,83,9,0.18)",
+              color:
+                index === 0
+                  ? "#fde68a"
+                  : index === 1
+                  ? "#cbd5e1"
+                  : "#fdba74",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontWeight: "950",
+              fontSize: "16px",
+            }}
+          >
+            #{index + 1}
+          </div>
+
+          <div>
+            <div
+              style={{
+                color: "white",
+                fontSize: "16px",
+                fontWeight: "900",
+              }}
+            >
+              {location.name || `Location ${index + 1}`}
+            </div>
+
+            <div
+              style={{
+                color: "#94a3b8",
+                fontSize: "12px",
+                marginTop: "4px",
+              }}
+            >
+              Margin: {location.margin || 0}%
+            </div>
+          </div>
+        </div>
+
+        <div
+          style={{
+            color: "#22c55e",
+            fontSize: "24px",
+            fontWeight: "950",
+          }}
+        >
+          ${Number(location.revenue || 0).toLocaleString()}
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+
+{/* ENTERPRISE LOCATION HEALTH GRID */}
+
+<div
+  style={{
+    marginTop: "18px",
+    padding: "24px",
+    borderRadius: "24px",
+    background:
+      "linear-gradient(135deg, rgba(6,182,212,0.14), rgba(15,23,42,0.96))",
+    border: "1px solid rgba(34,211,238,0.22)",
+    boxShadow: "0 18px 40px rgba(2,6,23,0.22)",
+  }}
+>
+  <div
+    style={{
+      color: "#67e8f9",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      marginBottom: "8px",
+    }}
+  >
+    Enterprise Health Grid
+  </div>
+
+  <h3
+    style={{
+      margin: 0,
+      color: "white",
+      fontSize: "24px",
+      fontWeight: "950",
+    }}
+  >
+    Location operational health
+  </h3>
+
+  <div
+    style={{
+      marginTop: "18px",
+      display: "grid",
+      gridTemplateColumns: isMobile
+        ? "1fr"
+        : "repeat(auto-fit, minmax(240px, 1fr))",
+      gap: "14px",
+    }}
+  >
+    {((locationPerformanceData || []).length
+      ? locationPerformanceData
+      : [
+
+        ]
+    ).map((location, index) => {
+      const score = Number(location.score || location.healthScore || 72);
+
+      const color =
+        score >= 80
+          ? "#22c55e"
+          : score >= 70
+          ? "#38bdf8"
+          : score >= 60
+          ? "#fbbf24"
+          : "#f87171";
+
+      return (
+        <div
+          key={location.name || index}
+          style={{
+            padding: "18px",
+            borderRadius: "20px",
+            background: "rgba(15,23,42,0.72)",
+            border: `1px solid ${color}40`,
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: "12px",
+              marginBottom: "12px",
+              alignItems: "center",
+            }}
+          >
+            <div
+              style={{
+                color: "white",
+                fontSize: "18px",
+                fontWeight: "950",
+              }}
+            >
+              {location.name || `Location ${index + 1}`}
+            </div>
+
+            <div
+              style={{
+                color,
+                fontSize: "13px",
+                fontWeight: "950",
+              }}
+            >
+              {score}/100
+            </div>
+          </div>
+
+          <div
+            style={{
+              width: "100%",
+              height: "8px",
+              borderRadius: "999px",
+              background: "rgba(255,255,255,0.08)",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                width: `${Math.max(6, Math.min(100, score))}%`,
+                height: "100%",
+                borderRadius: "999px",
+                background: color,
+              }}
+            />
+          </div>
+
+          <div
+            style={{
+              marginTop: "12px",
+              display: "inline-flex",
+              padding: "7px 10px",
+              borderRadius: "999px",
+              background: `${color}18`,
+              color,
+              fontSize: "11px",
+              fontWeight: "900",
+            }}
+          >
+            {location.health || "Healthy"}
+          </div>
+        </div>
+      );
+    })}
+  </div>
+</div>
+
+  </>
+)}  
+{enterpriseView === "forecast" && (
+  <>
+    {/* ENTERPRISE FORECAST ENGINE */}
+
+    <div
+      style={{
+        marginTop: "18px",
+        padding: "24px",
+        borderRadius: "24px",
+        background:
+          "linear-gradient(135deg, rgba(236,72,153,0.14), rgba(15,23,42,0.96))",
+        border: "1px solid rgba(244,114,182,0.22)",
+        boxShadow: "0 18px 40px rgba(2,6,23,0.22)",
+      }}
+    >
+      <div
+        style={{
+          color: "#f9a8d4",
+          fontSize: "12px",
+          fontWeight: "900",
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          marginBottom: "8px",
+        }}
+      >
+        Enterprise Forecast Engine
+      </div>
+
+      <h3
+        style={{
+          margin: 0,
+          color: "white",
+          fontSize: "24px",
+          fontWeight: "950",
+        }}
+      >
+        Enterprise revenue forecast
+      </h3>
+
+      <p
+        style={{
+          margin: "8px 0 18px",
+          color: "#94a3b8",
+          fontSize: "13px",
+          lineHeight: 1.6,
+        }}
+      >
+        Forecast based on uploaded location revenue and operational data.
+      </p>
+
+      <div style={{ width: "100%", overflowX: "auto", marginBottom: "20px" }}>
+        <AreaChart
+          width={980}
+          height={320}
+          data={
+            hasOperationalData
+              ? [
+                  {
+                    period: "Current",
+                    revenue: Number(
+                      (locationPerformanceData || []).reduce(
+                        (sum, location) =>
+                          sum + Number(location.revenue || 0),
+                        0
+                      )
+                    ),
+                  },
+                  {
+                    period: "30 Days",
+                    revenue:
+                      Number(
+                        (locationPerformanceData || []).reduce(
+                          (sum, location) =>
+                            sum + Number(location.revenue || 0),
+                          0
+                        )
+                      ) * 1.08,
+                  },
+                  {
+                    period: "60 Days",
+                    revenue:
+                      Number(
+                        (locationPerformanceData || []).reduce(
+                          (sum, location) =>
+                            sum + Number(location.revenue || 0),
+                          0
+                        )
+                      ) * 1.16,
+                  },
+                  {
+                    period: "90 Days",
+                    revenue:
+                      Number(
+                        (locationPerformanceData || []).reduce(
+                          (sum, location) =>
+                            sum + Number(location.revenue || 0),
+                          0
+                        )
+                      ) * 1.24,
+                  },
+                ]
+              : []
+          }
+          margin={{ top: 10, right: 24, left: 0, bottom: 24 }}
+        >
+          <defs>
+            <linearGradient
+              id="enterpriseForecastFill"
+              x1="0"
+              y1="0"
+              x2="0"
+              y2="1"
+            >
+              <stop offset="0%" stopColor="#f472b6" stopOpacity={0.35} />
+              <stop offset="100%" stopColor="#f472b6" stopOpacity={0.02} />
+            </linearGradient>
+          </defs>
+
+          <XAxis
+            dataKey="period"
+            tick={{ fill: "#94a3b8", fontSize: 11 }}
+            axisLine={{ stroke: "rgba(148,163,184,0.2)" }}
+            tickLine={false}
+          />
+
+          <YAxis
+            tick={{ fill: "#94a3b8", fontSize: 11 }}
+            axisLine={{ stroke: "rgba(148,163,184,0.2)" }}
+            tickLine={false}
+            tickFormatter={(value) =>
+              `$${Number(value || 0).toLocaleString()}`
+            }
+          />
+
+          <Tooltip
+            formatter={(value) => [
+              `$${Number(value || 0).toLocaleString()}`,
+              "Projected Revenue",
+            ]}
+          />
+
+          <Area
+            type="monotone"
+            dataKey="revenue"
+            stroke="#f472b6"
+            strokeWidth={3}
+            fill="url(#enterpriseForecastFill)"
+            isAnimationActive={false}
+          />
+        </AreaChart>
+      </div>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: isMobile
+            ? "1fr"
+            : "repeat(3, minmax(0, 1fr))",
+          gap: "14px",
+        }}
+      >
+        {[
+          {
+            label: "Projected Growth",
+            value: hasOperationalData ? projectedGrowthLive : "Awaiting Data",
+          },
+          {
+            label: "Forecast Confidence",
+            value: hasOperationalData
+              ? forecastConfidenceLive
+              : "Awaiting Data",
+          },
+          {
+            label: "Expansion Readiness",
+            value: hasOperationalData ? expansionReadiness : "Awaiting Data",
+          },
+        ].map((item) => (
+          <div
+            key={item.label}
+            style={{
+              padding: "16px",
+              borderRadius: "18px",
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(148,163,184,0.12)",
+            }}
+          >
+            <div
+              style={{
+                color: "#94a3b8",
+                fontSize: "11px",
+                fontWeight: "900",
+                marginBottom: "8px",
+                textTransform: "uppercase",
+              }}
+            >
+              {item.label}
+            </div>
+
+            <div
+              style={{
+                color: "white",
+                fontSize: "28px",
+                fontWeight: "1000",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {item.value}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+
+    {/* LOCATION REVENUE TREND */}
+
+    <div
+      style={{
+        marginTop: "18px",
+        padding: "24px",
+        borderRadius: "24px",
+        background:
+          "linear-gradient(135deg, rgba(168,85,247,0.14), rgba(15,23,42,0.96))",
+        border: "1px solid rgba(168,85,247,0.22)",
+        boxShadow: "0 18px 40px rgba(2,6,23,0.22)",
+      }}
+    >
+      <div
+        style={{
+          color: "#d8b4fe",
+          fontSize: "12px",
+          fontWeight: "900",
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          marginBottom: "8px",
+        }}
+      >
+        Enterprise Revenue Trend
+      </div>
+
+      <h3
+        style={{
+          margin: 0,
+          color: "white",
+          fontSize: "24px",
+          fontWeight: "950",
+        }}
+      >
+        Revenue trend by location
+      </h3>
+
+      <p
+        style={{
+          margin: "8px 0 18px",
+          color: "#94a3b8",
+          fontSize: "13px",
+          lineHeight: 1.6,
+        }}
+      >
+        Track how each location contributes to enterprise-wide revenue.
+      </p>
+
+      <div style={{ width: "100%", overflowX: "auto" }}>
+        <LineChart
+          width={980}
+          height={320}
+          data={
+            (locationPerformanceData || []).length
+              ? locationPerformanceData.map((location, index) => ({
+                  name:
+                    location.name ||
+                    location.location ||
+                    `Location ${index + 1}`,
+                  revenue: Number(location.revenue || 0),
+                  orders: Number(location.orders || 0),
+                }))
+              : []
+          }
+          margin={{ top: 10, right: 24, left: 0, bottom: 24 }}
+        >
+          <XAxis
+            dataKey="name"
+            tick={{ fill: "#94a3b8", fontSize: 11 }}
+            axisLine={{ stroke: "rgba(148,163,184,0.2)" }}
+            tickLine={false}
+          />
+
+          <YAxis
+            tick={{ fill: "#94a3b8", fontSize: 11 }}
+            axisLine={{ stroke: "rgba(148,163,184,0.2)" }}
+            tickLine={false}
+            tickFormatter={(value) =>
+              `$${Number(value || 0).toLocaleString()}`
+            }
+          />
+
+          <Tooltip
+            formatter={(value) => [
+              `$${Number(value || 0).toLocaleString()}`,
+              "Revenue",
+            ]}
+          />
+
+          <Line
+            type="monotone"
+            dataKey="revenue"
+            stroke="#c084fc"
+            strokeWidth={3}
+            dot={{ r: 4 }}
+            isAnimationActive={false}
+          />
+        </LineChart>
+      </div>
+    </div>
+  </>
+)}
+{enterpriseView === "alerts" && (
+  <>
+    {/* ENTERPRISE RISK HEATMAP */}
+
+    <div
+      style={{
+        marginTop: "18px",
+        padding: "24px",
+        borderRadius: "24px",
+        background:
+          "linear-gradient(135deg, rgba(239,68,68,0.12), rgba(15,23,42,0.96))",
+        border: "1px solid rgba(248,113,113,0.22)",
+        boxShadow: "0 18px 40px rgba(2,6,23,0.22)",
+      }}
+    >
+      <div
+        style={{
+          color: "#fca5a5",
+          fontSize: "12px",
+          fontWeight: "900",
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          marginBottom: "8px",
+        }}
+      >
+        Enterprise Risk Heatmap
+      </div>
+
+      <h3 style={{ margin: 0, color: "white", fontSize: "24px", fontWeight: "950" }}>
+        Operational risk by category
+      </h3>
+
+      <div
+        style={{
+          marginTop: "18px",
+          display: "grid",
+          gridTemplateColumns: isMobile ? "1fr" : "repeat(4, minmax(0, 1fr))",
+          gap: "12px",
+        }}
+      >
+        {[
+          { label: "Labor", score: Number(laborHealthScore || 0) },
+          { label: "Inventory", score: Number(inventoryHealthScore || 0) },
+          { label: "Vendor", score: Number(vendorHealthScore || 0) },
+          { label: "Food Cost", score: Number(financialHealthScore || 0) },
+          { label: "Waste", score: Number(wasteHealthScore || 0) },
+          { label: "Beverage", score: Number(beverageHealthScoreData?.score || 0) },
+          { label: "Sales", score: Number(scoreRevenue || 0) },
+          { label: "Forecast", score: Number(forecastStability || 0) },
+        ].map((item) => {
+          const color =
+            item.score >= 80
+              ? "#22c55e"
+              : item.score >= 70
+              ? "#38bdf8"
+              : item.score >= 60
+              ? "#fbbf24"
+              : "#f87171";
+
+          return (
+            <div
+              key={item.label}
+              style={{
+                padding: "16px",
+                borderRadius: "18px",
+                background: `${color}14`,
+                border: `1px solid ${color}35`,
+              }}
+            >
+              <div style={{ color: "#cbd5e1", fontSize: "12px", fontWeight: "900" }}>
+                {item.label}
+              </div>
+
+              <div style={{ color, fontSize: "30px", fontWeight: "1000", marginTop: "10px" }}>
+                {hasOperationalData ? item.score : "--"}
+              </div>
+
+              <div
+                style={{
+                  marginTop: "10px",
+                  height: "7px",
+                  borderRadius: "999px",
+                  background: "rgba(255,255,255,0.10)",
+                  overflow: "hidden",
+                }}
+              >
+                <div
+                  style={{
+                    width: `${hasOperationalData ? Math.max(0, Math.min(100, item.score)) : 0}%`,
+                    height: "100%",
+                    borderRadius: "999px",
+                    background: color,
+                  }}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+
+    {/* ENTERPRISE AI NOTIFICATIONS */}
+
+    <div
+      style={{
+        marginTop: "18px",
+        padding: "24px",
+        borderRadius: "24px",
+        background:
+          "linear-gradient(135deg, rgba(59,130,246,0.12), rgba(15,23,42,0.96))",
+        border: "1px solid rgba(96,165,250,0.22)",
+        boxShadow: "0 18px 40px rgba(2,6,23,0.22)",
+      }}
+    >
+      <div
+        style={{
+          color: "#93c5fd",
+          fontSize: "12px",
+          fontWeight: "900",
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          marginBottom: "8px",
+        }}
+      >
+        Enterprise AI Feed
+      </div>
+
+      <h3 style={{ margin: 0, color: "white", fontSize: "24px", fontWeight: "950" }}>
+        Live enterprise notifications
+      </h3>
+
+      <div style={{ marginTop: "18px", display: "grid", gap: "12px" }}>
+        {[
+          {
+            title: (locationPerformanceData || []).length
+              ? "Enterprise location data analyzed"
+              : "Upload multi-location data to activate enterprise alerts",
+            time: (locationPerformanceData || []).length ? "Live" : "Awaiting Data",
+            severity: (locationPerformanceData || []).length ? "Positive" : "Medium",
+          },
+          {
+            title: (locationPerformanceData || []).length
+              ? "AI is monitoring labor performance across locations"
+              : "Upload labor data by location to detect staffing spikes",
+            time: (locationPerformanceData || []).length ? "Live" : "Awaiting Data",
+            severity: "Medium",
+          },
+          {
+            title: (locationPerformanceData || []).length
+              ? "AI is monitoring food cost and inventory variance"
+              : "Upload inventory and invoice data by location to detect variance",
+            time: (locationPerformanceData || []).length ? "Live" : "Awaiting Data",
+            severity: "Medium",
+          },
+        ].map((item) => {
+          const color =
+            item.severity === "High"
+              ? "#f87171"
+              : item.severity === "Medium"
+              ? "#fbbf24"
+              : "#22c55e";
+
+          return (
+            <div
+              key={item.title}
+              style={{
+                padding: "16px",
+                borderRadius: "18px",
+                background: "rgba(15,23,42,0.72)",
+                border: `1px solid ${color}30`,
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: "12px",
+                flexWrap: "wrap",
+              }}
+            >
+              <div>
+                <div style={{ color: "white", fontSize: "15px", fontWeight: "900" }}>
+                  {item.title}
+                </div>
+
+                <div style={{ color: "#94a3b8", fontSize: "12px", marginTop: "4px" }}>
+                  {item.time}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  padding: "7px 10px",
+                  borderRadius: "999px",
+                  background: `${color}18`,
+                  color,
+                  fontSize: "11px",
+                  fontWeight: "900",
+                }}
+              >
+                {item.severity}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+    {/* WORST PERFORMING LOCATION */}
 
 <div
   style={{
@@ -36669,968 +37722,6 @@ Restaurant AI Health is currently rated{" "}
         </div>
       ))}
     </div>
-  </div>
-</div>
-{/* ENTERPRISE RECOVERABLE PROFIT */}
-
-<div
-  style={{
-    marginTop: "18px",
-    padding: "26px",
-    borderRadius: "28px",
-    background:
-      "radial-gradient(circle at top right, rgba(34,197,94,0.18), transparent 35%), linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.94))",
-    border: "1px solid rgba(74,222,128,0.22)",
-    boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
-  }}
->
-  <div
-    style={{
-      color: "#86efac",
-      fontSize: "12px",
-      fontWeight: "900",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      marginBottom: "10px",
-    }}
-  >
-    Enterprise Recoverable Profit
-  </div>
-
-  <h2
-    style={{
-      margin: 0,
-      color: "white",
-      fontSize: "34px",
-      fontWeight: "1000",
-      lineHeight: 1.1,
-    }}
-  >
-    $
-    {Number(
-      (locationPerformanceData || []).reduce(
-        (sum, location) =>
-          sum + Number(location.revenue || 0) * 0.08,
-        0
-      ) || 0
-    ).toLocaleString()}
-  </h2>
-
-  <p
-    style={{
-      marginTop: "12px",
-      color: "#cbd5e1",
-      fontSize: "15px",
-      lineHeight: 1.7,
-      maxWidth: "780px",
-    }}
-  >
-    SerVen AI estimates your enterprise group could recover this
-    monthly revenue through labor optimization, inventory controls,
-    vendor management, and AI operational automation.
-  </p>
-
-  <div
-    style={{
-      marginTop: "20px",
-      display: "grid",
-      gridTemplateColumns: isMobile
-        ? "1fr"
-        : "repeat(4, minmax(0, 1fr))",
-      gap: "14px",
-    }}
-  >
-    {[
-      {
-  label: "Labor Optimization",
-  value: `$${Math.round(enterpriseRecoverableProfit * 0.28).toLocaleString()}`,
-},
-{
-  label: "Inventory Recovery",
-  value: `$${Math.round(enterpriseRecoverableProfit * 0.21).toLocaleString()}`,
-},
-{
-  label: "Vendor Savings",
-  value: `$${Math.round(enterpriseRecoverableProfit * 0.17).toLocaleString()}`,
-},
-{
-  label: "AI Automation",
-  value: `$${Math.round(enterpriseRecoverableProfit * 0.34).toLocaleString()}`,
-},
-    ].map((item) => (
-      <div
-        key={item.label}
-        style={{
-          padding: "16px",
-          borderRadius: "18px",
-          background: "rgba(255,255,255,0.04)",
-          border: "1px solid rgba(148,163,184,0.12)",
-        }}
-      >
-        <div
-          style={{
-            color: "#94a3b8",
-            fontSize: "11px",
-            fontWeight: "900",
-            marginBottom: "8px",
-            textTransform: "uppercase",
-          }}
-        >
-          {item.label}
-        </div>
-
-        <div
-          style={{
-            color: "#86efac",
-            fontSize: "28px",
-            fontWeight: "1000",
-          }}
-        >
-          {item.value}
-        </div>
-      </div>
-    ))}
-  </div>
-</div>
-{/* LOCATION REVENUE TREND */}
-
-<div
-  style={{
-    marginTop: "18px",
-    padding: "24px",
-    borderRadius: "24px",
-    background:
-      "linear-gradient(135deg, rgba(168,85,247,0.14), rgba(15,23,42,0.96))",
-    border: "1px solid rgba(168,85,247,0.22)",
-    boxShadow: "0 18px 40px rgba(2,6,23,0.22)",
-  }}
->
-  <div
-    style={{
-      color: "#d8b4fe",
-      fontSize: "12px",
-      fontWeight: "900",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      marginBottom: "8px",
-    }}
-  >
-    Enterprise Revenue Trend
-  </div>
-
-  <h3
-    style={{
-      margin: 0,
-      color: "white",
-      fontSize: "24px",
-      fontWeight: "950",
-    }}
-  >
-    Revenue trend by location
-  </h3>
-
-  <p
-    style={{
-      margin: "8px 0 18px",
-      color: "#94a3b8",
-      fontSize: "13px",
-      lineHeight: 1.6,
-    }}
-  >
-    Track how each location is contributing to enterprise-wide revenue.
-  </p>
-
-  <div
-    style={{
-      width: "100%",
-      overflowX: "auto",
-    }}
-  >
-    <LineChart
-      width={980}
-      height={320}
-      data={
-        (locationPerformanceData || []).length
-          ? locationPerformanceData.map((location, index) => ({
-              name: location.name || location.location || `Location ${index + 1}`,
-              revenue: Number(location.revenue || 0),
-              orders: Number(location.orders || 0),
-            }))
-          : [
-              
-            ]
-      }
-      margin={{ top: 10, right: 24, left: 0, bottom: 24 }}
-    >
-      <XAxis
-        dataKey="name"
-        tick={{ fill: "#94a3b8", fontSize: 11 }}
-        axisLine={{ stroke: "rgba(148,163,184,0.2)" }}
-        tickLine={false}
-      />
-
-      <YAxis
-        tick={{ fill: "#94a3b8", fontSize: 11 }}
-        axisLine={{ stroke: "rgba(148,163,184,0.2)" }}
-        tickLine={false}
-      />
-
-      <Tooltip />
-
-      <Line
-        type="monotone"
-        dataKey="revenue"
-        stroke="#c084fc"
-        strokeWidth={3}
-        dot={{ r: 4 }}
-      />
-    </LineChart>
-  </div>
-</div>
-{/* ENTERPRISE AI ACTION QUEUE */}
-
-<div
-  style={{
-    marginTop: "18px",
-    padding: "24px",
-    borderRadius: "24px",
-    background:
-      "linear-gradient(135deg, rgba(245,158,11,0.14), rgba(15,23,42,0.96))",
-    border: "1px solid rgba(251,191,36,0.22)",
-    boxShadow: "0 18px 40px rgba(2,6,23,0.22)",
-  }}
->
-  <div
-    style={{
-      color: "#fde68a",
-      fontSize: "12px",
-      fontWeight: "900",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      marginBottom: "8px",
-    }}
-  >
-    Enterprise AI Action Queue
-  </div>
-
-  <h3
-    style={{
-      margin: 0,
-      color: "white",
-      fontSize: "24px",
-      fontWeight: "950",
-    }}
-  >
-    Highest-impact actions across locations
-  </h3>
-
-  <div
-    style={{
-      marginTop: "18px",
-      display: "grid",
-      gap: "12px",
-    }}
-  >
-    {[
-      [
-  {
-    title:
-      (locationPerformanceData || []).length
-        ? `Review ${
-            [...locationPerformanceData].sort(
-              (a, b) => Number(a.revenue || 0) - Number(b.revenue || 0)
-            )[0]?.name || "Lowest Performing Location"
-          }`
-        : "Upload Multi-Location Data",
-
-    impact:
-      (locationPerformanceData || []).length
-        ? `$${Math.round(
-            enterpriseRecoverableProfit * 0.4
-          ).toLocaleString()}/mo`
-        : "Awaiting Data",
-
-    priority: "High",
-  },
-
-  {
-    title: "Compare Labor Performance Across Locations",
-
-    impact:
-      (locationPerformanceData || []).length
-        ? `$${Math.round(
-            enterpriseRecoverableProfit * 0.3
-          ).toLocaleString()}/mo`
-        : "Awaiting Data",
-
-    priority: "Medium",
-  },
-
-  {
-    title: "Audit Inventory Variance Across Locations",
-
-    impact:
-      (locationPerformanceData || []).length
-        ? `$${Math.round(
-            enterpriseRecoverableProfit * 0.3
-          ).toLocaleString()}/mo`
-        : "Awaiting Data",
-
-    priority: "Medium",
-  },
-]
-    ].map((item) => (
-      <div
-        key={item.title}
-        style={{
-          padding: "16px",
-          borderRadius: "18px",
-          background: "rgba(15,23,42,0.72)",
-          border: "1px solid rgba(148,163,184,0.12)",
-          display: "flex",
-          justifyContent: "space-between",
-          gap: "12px",
-          flexWrap: "wrap",
-          alignItems: "center",
-        }}
-      >
-        <div>
-          <div style={{ color: "white", fontSize: "15px", fontWeight: "900" }}>
-            {item.title}
-          </div>
-          <div style={{ color: "#94a3b8", fontSize: "12px", marginTop: "4px" }}>
-            Estimated impact: {item.impact}
-          </div>
-        </div>
-
-        <div
-          style={{
-            padding: "7px 10px",
-            borderRadius: "999px",
-            background:
-              item.priority === "High"
-                ? "rgba(239,68,68,0.14)"
-                : "rgba(245,158,11,0.14)",
-            color: item.priority === "High" ? "#fca5a5" : "#fde68a",
-            fontSize: "11px",
-            fontWeight: "900",
-          }}
-        >
-          {item.priority}
-        </div>
-      </div>
-    ))}
-  </div>
-</div>
-{/* ENTERPRISE LOCATION HEALTH GRID */}
-
-<div
-  style={{
-    marginTop: "18px",
-    padding: "24px",
-    borderRadius: "24px",
-    background:
-      "linear-gradient(135deg, rgba(6,182,212,0.14), rgba(15,23,42,0.96))",
-    border: "1px solid rgba(34,211,238,0.22)",
-    boxShadow: "0 18px 40px rgba(2,6,23,0.22)",
-  }}
->
-  <div
-    style={{
-      color: "#67e8f9",
-      fontSize: "12px",
-      fontWeight: "900",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      marginBottom: "8px",
-    }}
-  >
-    Enterprise Health Grid
-  </div>
-
-  <h3
-    style={{
-      margin: 0,
-      color: "white",
-      fontSize: "24px",
-      fontWeight: "950",
-    }}
-  >
-    Location operational health
-  </h3>
-
-  <div
-    style={{
-      marginTop: "18px",
-      display: "grid",
-      gridTemplateColumns: isMobile
-        ? "1fr"
-        : "repeat(auto-fit, minmax(240px, 1fr))",
-      gap: "14px",
-    }}
-  >
-    {((locationPerformanceData || []).length
-      ? locationPerformanceData
-      : [
-
-        ]
-    ).map((location, index) => {
-      const score = Number(location.score || location.healthScore || 72);
-
-      const color =
-        score >= 80
-          ? "#22c55e"
-          : score >= 70
-          ? "#38bdf8"
-          : score >= 60
-          ? "#fbbf24"
-          : "#f87171";
-
-      return (
-        <div
-          key={location.name || index}
-          style={{
-            padding: "18px",
-            borderRadius: "20px",
-            background: "rgba(15,23,42,0.72)",
-            border: `1px solid ${color}40`,
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              gap: "12px",
-              marginBottom: "12px",
-              alignItems: "center",
-            }}
-          >
-            <div
-              style={{
-                color: "white",
-                fontSize: "18px",
-                fontWeight: "950",
-              }}
-            >
-              {location.name || `Location ${index + 1}`}
-            </div>
-
-            <div
-              style={{
-                color,
-                fontSize: "13px",
-                fontWeight: "950",
-              }}
-            >
-              {score}/100
-            </div>
-          </div>
-
-          <div
-            style={{
-              width: "100%",
-              height: "8px",
-              borderRadius: "999px",
-              background: "rgba(255,255,255,0.08)",
-              overflow: "hidden",
-            }}
-          >
-            <div
-              style={{
-                width: `${Math.max(6, Math.min(100, score))}%`,
-                height: "100%",
-                borderRadius: "999px",
-                background: color,
-              }}
-            />
-          </div>
-
-          <div
-            style={{
-              marginTop: "12px",
-              display: "inline-flex",
-              padding: "7px 10px",
-              borderRadius: "999px",
-              background: `${color}18`,
-              color,
-              fontSize: "11px",
-              fontWeight: "900",
-            }}
-          >
-            {location.health || "Healthy"}
-          </div>
-        </div>
-      );
-    })}
-  </div>
-</div>
-{/* ENTERPRISE BENCHMARK LEADERBOARD */}
-
-<div
-  style={{
-    marginTop: "18px",
-    padding: "24px",
-    borderRadius: "24px",
-    background:
-      "linear-gradient(135deg, rgba(99,102,241,0.14), rgba(15,23,42,0.96))",
-    border: "1px solid rgba(129,140,248,0.22)",
-    boxShadow: "0 18px 40px rgba(2,6,23,0.22)",
-  }}
->
-  <div
-    style={{
-      color: "#c7d2fe",
-      fontSize: "12px",
-      fontWeight: "900",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      marginBottom: "8px",
-    }}
-  >
-    Enterprise Benchmarking
-  </div>
-
-  <h3
-    style={{
-      margin: 0,
-      color: "white",
-      fontSize: "24px",
-      fontWeight: "950",
-    }}
-  >
-    Location performance leaderboard
-  </h3>
-
-  <div
-    style={{
-      marginTop: "18px",
-      display: "grid",
-      gap: "12px",
-    }}
-  >
-    {((locationPerformanceData || []).length
-      ? [...locationPerformanceData].sort(
-          (a, b) => Number(b.revenue || 0) - Number(a.revenue || 0)
-        )
-    : []
-    ).map((location, index) => (
-      <div
-        key={location.name || index}
-        style={{
-          padding: "16px",
-          borderRadius: "18px",
-          background: "rgba(15,23,42,0.72)",
-          border: "1px solid rgba(148,163,184,0.12)",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          gap: "12px",
-          flexWrap: "wrap",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "14px",
-          }}
-        >
-          <div
-            style={{
-              width: "38px",
-              height: "38px",
-              borderRadius: "999px",
-              background:
-                index === 0
-                  ? "rgba(250,204,21,0.18)"
-                  : index === 1
-                  ? "rgba(148,163,184,0.18)"
-                  : "rgba(180,83,9,0.18)",
-              color:
-                index === 0
-                  ? "#fde68a"
-                  : index === 1
-                  ? "#cbd5e1"
-                  : "#fdba74",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontWeight: "950",
-              fontSize: "16px",
-            }}
-          >
-            #{index + 1}
-          </div>
-
-          <div>
-            <div
-              style={{
-                color: "white",
-                fontSize: "16px",
-                fontWeight: "900",
-              }}
-            >
-              {location.name || `Location ${index + 1}`}
-            </div>
-
-            <div
-              style={{
-                color: "#94a3b8",
-                fontSize: "12px",
-                marginTop: "4px",
-              }}
-            >
-              Margin: {location.margin || 0}%
-            </div>
-          </div>
-        </div>
-
-        <div
-          style={{
-            color: "#22c55e",
-            fontSize: "24px",
-            fontWeight: "950",
-          }}
-        >
-          ${Number(location.revenue || 0).toLocaleString()}
-        </div>
-      </div>
-    ))}
-  </div>
-</div>
-{/* ENTERPRISE GM SCORECARDS */}
-
-<div
-  style={{
-    marginTop: "18px",
-    padding: "24px",
-    borderRadius: "24px",
-    background:
-      "linear-gradient(135deg, rgba(34,197,94,0.14), rgba(15,23,42,0.96))",
-    border: "1px solid rgba(74,222,128,0.22)",
-    boxShadow: "0 18px 40px rgba(2,6,23,0.22)",
-  }}
->
-  <div
-    style={{
-      color: "#86efac",
-      fontSize: "12px",
-      fontWeight: "900",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      marginBottom: "8px",
-    }}
-  >
-    GM Performance Intelligence
-  </div>
-
-  <h3
-    style={{
-      margin: 0,
-      color: "white",
-      fontSize: "24px",
-      fontWeight: "950",
-    }}
-  >
-    General manager scorecards
-  </h3>
-
-  <div
-    style={{
-      marginTop: "18px",
-      display: "grid",
-      gridTemplateColumns: isMobile
-        ? "1fr"
-        : "repeat(auto-fit, minmax(260px, 1fr))",
-      gap: "14px",
-    }}
-  >
-    {((locationPerformanceData || []).length
-      ? locationPerformanceData
-      : [
-          
-        ]
-    ).map((location, index) => {
-     const score = Number(location.score || location.healthScore || 0);
-
-      const color =
-        score >= 80
-          ? "#22c55e"
-          : score >= 70
-          ? "#38bdf8"
-          : score >= 60
-          ? "#fbbf24"
-          : "#f87171";
-
-      return (
-        <div
-          key={location.name || index}
-          style={{
-            padding: "18px",
-            borderRadius: "20px",
-            background: "rgba(15,23,42,0.72)",
-            border: `1px solid ${color}40`,
-          }}
-        >
-          <div
-            style={{
-              color: "white",
-              fontSize: "18px",
-              fontWeight: "950",
-              marginBottom: "10px",
-            }}
-          >
-            {location.name || `Location ${index + 1}`}
-          </div>
-
-          <div
-            style={{
-              color,
-              fontSize: "42px",
-              fontWeight: "1000",
-              lineHeight: 1,
-            }}
-          >
-            {score}
-          </div>
-
-          <div
-            style={{
-              color: "#94a3b8",
-              fontSize: "12px",
-              marginTop: "6px",
-              fontWeight: "800",
-            }}
-          >
-            GM Operational Score
-          </div>
-
-          <div
-            style={{
-              marginTop: "14px",
-              display: "grid",
-              gap: "8px",
-            }}
-          >
-            {[
-              ["Labor Control", score >= 75 ? "Strong" : "Needs Review"],
-              ["Inventory Discipline", score >= 70 ? "Stable" : "At Risk"],
-              ["Revenue Execution", score >= 80 ? "High" : "Monitor"],
-            ].map(([label, value]) => (
-              <div
-                key={label}
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  gap: "12px",
-                  fontSize: "12px",
-                }}
-              >
-                <span style={{ color: "#94a3b8" }}>{label}</span>
-                <span style={{ color: "white", fontWeight: "900" }}>
-                  {value}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      );
-    })}
-  </div>
-</div>
-{/* ENTERPRISE AI FORECAST ENGINE */}
-
-<div
-  style={{
-    marginTop: "18px",
-    padding: "24px",
-    borderRadius: "24px",
-    background:
-      "linear-gradient(135deg, rgba(236,72,153,0.14), rgba(15,23,42,0.96))",
-    border: "1px solid rgba(244,114,182,0.22)",
-    boxShadow: "0 18px 40px rgba(2,6,23,0.22)",
-  }}
->
-  <div
-    style={{
-      color: "#f9a8d4",
-      fontSize: "12px",
-      fontWeight: "900",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      marginBottom: "8px",
-    }}
-  >
-    Enterprise Forecast Engine
-  </div>
-
-  <h3
-    style={{
-      margin: 0,
-      color: "white",
-      fontSize: "24px",
-      fontWeight: "950",
-    }}
-  >
-    Predicted enterprise revenue
-  </h3>
-
-  <p
-    style={{
-      margin: "8px 0 18px",
-      color: "#94a3b8",
-      fontSize: "13px",
-      lineHeight: 1.6,
-    }}
-  >
-    AI projections based on enterprise sales momentum and operational trends.
-  </p>
-
-  <div
-    style={{
-      width: "100%",
-      overflowX: "auto",
-      marginBottom: "20px",
-    }}
-  >
-    <AreaChart
-      width={980}
-      height={320}
-      data={[
-        {
-          period: "Current",
-          revenue: Number(
-            (locationPerformanceData || []).reduce(
-              (sum, location) => sum + Number(location.revenue || 0),
-              0
-            )
-          ),
-        },
-        {
-          period: "30 Days",
-          revenue:
-            Number(
-              (locationPerformanceData || []).reduce(
-                (sum, location) => sum + Number(location.revenue || 0),
-                0
-              )
-            ) * 1.08,
-        },
-        {
-          period: "60 Days",
-          revenue:
-            Number(
-              (locationPerformanceData || []).reduce(
-                (sum, location) => sum + Number(location.revenue || 0),
-                0
-              )
-            ) * 1.16,
-        },
-        {
-          period: "90 Days",
-          revenue:
-            Number(
-              (locationPerformanceData || []).reduce(
-                (sum, location) => sum + Number(location.revenue || 0),
-                0
-              )
-            ) * 1.24,
-        },
-      ]}
-      margin={{ top: 10, right: 24, left: 0, bottom: 24 }}
-    >
-      <defs>
-        <linearGradient id="enterpriseForecastFill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#f472b6" stopOpacity={0.35} />
-          <stop offset="100%" stopColor="#f472b6" stopOpacity={0.02} />
-        </linearGradient>
-      </defs>
-
-      <XAxis
-        dataKey="period"
-        tick={{ fill: "#94a3b8", fontSize: 11 }}
-        axisLine={{ stroke: "rgba(148,163,184,0.2)" }}
-        tickLine={false}
-      />
-
-      <YAxis
-        tick={{ fill: "#94a3b8", fontSize: 11 }}
-        axisLine={{ stroke: "rgba(148,163,184,0.2)" }}
-        tickLine={false}
-      />
-
-      <Tooltip />
-
-      <Area
-        type="monotone"
-        dataKey="revenue"
-        stroke="#f472b6"
-        strokeWidth={3}
-        fill="url(#enterpriseForecastFill)"
-      />
-    </AreaChart>
-  </div>
-
-  <div
-    style={{
-      display: "grid",
-      gridTemplateColumns: isMobile
-        ? "1fr"
-        : "repeat(3, minmax(0, 1fr))",
-      gap: "14px",
-    }}
-  >
-    {[
-      {
-  label: "Projected Growth",
-  value: projectedGrowthLive,
-},
-      {
-  label: "Forecast Confidence",
-  value: forecastConfidenceLive,
-},
-      {
-  label: "Expansion Readiness",
-  value: expansionReadiness,
-},
-    ].map((item) => (
-      <div
-        key={item.label}
-        style={{
-          padding: "16px",
-          borderRadius: "18px",
-          background: "rgba(255,255,255,0.04)",
-          border: "1px solid rgba(148,163,184,0.12)",
-        }}
-      >
-        <div
-          style={{
-            color: "#94a3b8",
-            fontSize: "11px",
-            fontWeight: "900",
-            marginBottom: "8px",
-            textTransform: "uppercase",
-          }}
-        >
-          {item.label}
-        </div>
-<div
-  style={{
-    color: "white",
-    fontSize:
-      item.label === "Enterprise Revenue"
-        ? "22px"
-        : "28px",
-    fontWeight: "1000",
-    whiteSpace: "nowrap",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-  }}
->
-  {item.value}
-</div>
-      </div>
-    ))}
   </div>
 </div>
 {/* ENTERPRISE RISK HEATMAP */}
@@ -37916,17 +38007,21 @@ Restaurant AI Health is currently rated{" "}
     })}
   </div>
 </div>
-{/* ENTERPRISE EXECUTIVE SUMMARY */}
+  </>
+)}
+{enterpriseView === "actions" && (
+  <>
+  {/* ENTERPRISE AI ACTION QUEUE */}
 
 <div
   style={{
     marginTop: "18px",
-    padding: "28px",
-    borderRadius: "28px",
+    padding: "24px",
+    borderRadius: "24px",
     background:
-      "radial-gradient(circle at top right, rgba(250,204,21,0.16), transparent 35%), linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.94))",
-    border: "1px solid rgba(250,204,21,0.18)",
-    boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
+      "linear-gradient(135deg, rgba(245,158,11,0.14), rgba(15,23,42,0.96))",
+    border: "1px solid rgba(251,191,36,0.22)",
+    boxShadow: "0 18px 40px rgba(2,6,23,0.22)",
   }}
 >
   <div
@@ -37936,96 +38031,116 @@ Restaurant AI Health is currently rated{" "}
       fontWeight: "900",
       letterSpacing: "0.08em",
       textTransform: "uppercase",
-      marginBottom: "10px",
+      marginBottom: "8px",
     }}
   >
-    Enterprise Executive Summary
+    Enterprise AI Action Queue
   </div>
 
-  <h2
+  <h3
     style={{
       margin: 0,
       color: "white",
-      fontSize: "34px",
-      fontWeight: "1000",
-      lineHeight: 1.1,
-      maxWidth: "900px",
+      fontSize: "24px",
+      fontWeight: "950",
     }}
   >
-    Enterprise operations are stabilizing, but margin pressure remains
-    across lower-performing locations.
-  </h2>
-
-  <p
-    style={{
-      marginTop: "16px",
-      color: "#cbd5e1",
-      fontSize: "15px",
-      lineHeight: 1.8,
-      maxWidth: "920px",
-    }}
-  >
-    SerVen AI identified labor inefficiencies, inventory variance,
-    and operational inconsistency across multiple locations.
-    Enterprise forecasting models project continued revenue growth,
-    but AI recommends immediate focus on underperforming stores
-    to protect long-term margins.
-  </p>
+    Highest-impact actions across locations
+  </h3>
 
   <div
     style={{
-      marginTop: "24px",
+      marginTop: "18px",
       display: "grid",
-      gridTemplateColumns: isMobile
-        ? "1fr"
-        : "repeat(3, minmax(0, 1fr))",
-      gap: "16px",
+      gap: "12px",
     }}
   >
     {[
-      {
-        title: "Top Priority",
-        value: "Location Performance Recovery",
-      },
-      {
-        title: "Enterprise Trend",
-        value: "Revenue Growth Accelerating",
-      },
-      {
-        title: "AI Confidence",
-        value: "92%",
-      },
+      [
+  {
+    title:
+      (locationPerformanceData || []).length
+        ? `Review ${
+            [...locationPerformanceData].sort(
+              (a, b) => Number(a.revenue || 0) - Number(b.revenue || 0)
+            )[0]?.name || "Lowest Performing Location"
+          }`
+        : "Upload Multi-Location Data",
+
+    impact:
+      (locationPerformanceData || []).length
+        ? `$${Math.round(
+            enterpriseRecoverableProfit * 0.4
+          ).toLocaleString()}/mo`
+        : "Awaiting Data",
+
+    priority: "High",
+  },
+
+  {
+    title: "Compare Labor Performance Across Locations",
+
+    impact:
+      (locationPerformanceData || []).length
+        ? `$${Math.round(
+            enterpriseRecoverableProfit * 0.3
+          ).toLocaleString()}/mo`
+        : "Awaiting Data",
+
+    priority: "Medium",
+  },
+
+  {
+    title: "Audit Inventory Variance Across Locations",
+
+    impact:
+      (locationPerformanceData || []).length
+        ? `$${Math.round(
+            enterpriseRecoverableProfit * 0.3
+          ).toLocaleString()}/mo`
+        : "Awaiting Data",
+
+    priority: "Medium",
+  },
+]
     ].map((item) => (
       <div
         key={item.title}
         style={{
-          padding: "18px",
-          borderRadius: "20px",
-          background: "rgba(255,255,255,0.04)",
+          padding: "16px",
+          borderRadius: "18px",
+          background: "rgba(15,23,42,0.72)",
           border: "1px solid rgba(148,163,184,0.12)",
+          display: "flex",
+          justifyContent: "space-between",
+          gap: "12px",
+          flexWrap: "wrap",
+          alignItems: "center",
         }}
       >
-        <div
-          style={{
-            color: "#94a3b8",
-            fontSize: "11px",
-            fontWeight: "900",
-            marginBottom: "10px",
-            textTransform: "uppercase",
-          }}
-        >
-          {item.title}
+        <div>
+          <div style={{ color: "white", fontSize: "15px", fontWeight: "900" }}>
+            {item.title}
+          </div>
+          <div style={{ color: "#94a3b8", fontSize: "12px", marginTop: "4px" }}>
+            Estimated impact: {item.impact}
+          </div>
         </div>
 
         <div
           style={{
-            color: "white",
-            fontSize: "24px",
-            fontWeight: "950",
-            lineHeight: 1.3,
+            padding: "7px 10px",
+            borderRadius: "999px",
+            background:
+              item.priority === "High"
+                ? "rgba(239,68,68,0.14)"
+                : "rgba(245,158,11,0.14)",
+            color: item.priority === "High" ? "#fca5a5" : "#fde68a",
+            fontSize: "11px",
+            fontWeight: "900",
           }}
         >
-          {item.value}
+          {item.priority}
         </div>
       </div>
     ))}
@@ -38186,6 +38301,75 @@ Restaurant AI Health is currently rated{" "}
     </button>
   </div>
 </div>
+{/* 📍 MULTI-LOCATION INTELLIGENCE */}
+<div
+  style={{
+    marginBottom: "22px",
+    padding: isMobile ? "20px" : "24px",
+    borderRadius: "26px",
+    background:
+      "radial-gradient(circle at top right, rgba(59,130,246,0.18), transparent 34%), linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.94))",
+    border: "1px solid rgba(96,165,250,0.22)",
+  }}
+>
+  <div style={{ color: "#93c5fd", fontSize: "12px", fontWeight: "950" }}>
+    Multi-Location Intelligence
+  </div>
+
+  <h3 style={{ color: "white", fontSize: "28px", fontWeight: "1000" }}>
+    AI compares performance across every location.
+  </h3>
+
+  <p style={{ color: "#cbd5e1", fontSize: "14px", lineHeight: 1.8 }}>
+    {multiLocationSummary}
+  </p>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
+      gap: "14px",
+      marginTop: "18px",
+    }}
+  >
+    {(locationPerformanceData || []).slice(0, 3).map((loc) => (
+      <div
+        key={loc.name}
+        style={{
+          padding: "16px",
+          borderRadius: "18px",
+          background: "rgba(15,23,42,0.72)",
+          border: "1px solid rgba(148,163,184,0.14)",
+        }}
+      >
+        <div style={{ color: "#93c5fd", fontSize: "13px", fontWeight: "900" }}>
+          {loc.name}
+        </div>
+
+        <div style={{ color: "white", fontSize: "26px", fontWeight: "1000", marginTop: "8px" }}>
+          ${Number(loc.revenue || 0).toLocaleString()}
+        </div>
+
+        <div style={{ color: "#cbd5e1", fontSize: "12px", marginTop: "6px" }}>
+          Orders: {loc.orders || 0}
+        </div>
+
+        <div style={{ color: "#cbd5e1", fontSize: "12px", marginTop: "4px" }}>
+          Health: {loc.health || 0}/100
+        </div>
+      </div>
+    ))}
+
+    {!locationPerformanceData?.length && (
+      <div style={itemStyle}>
+        Upload sales data with location fields to activate multi-location intelligence.
+      </div>
+    )}
+  </div>
+</div>
+  </>
+)}
+
   </>
 )}
 {/* =========================
@@ -41088,6 +41272,7 @@ Restaurant AI Health is currently rated{" "}
   </div>
 )}
  {activeTab === "analytics" && (
+  
   <div
     style={{
       width: "100%",
@@ -41103,36 +41288,56 @@ Restaurant AI Health is currently rated{" "}
       paddingBottom: "24px",
     }}
   >
-   {/* PRIMARY CHART */}
+   {/* ANALYTICS SUB NAV */}
+
 <div
   style={{
-    ...sectionCard,
-    width: "100%",
-    maxWidth: "100%",
-    minWidth: 0,
-
     gridColumn: isMobile ? "span 1" : "span 2",
-
-    borderRadius: "20px",
-    padding: "22px",
-    overflow: "hidden",
-    boxSizing: "border-box",
+    display: "flex",
+    gap: "10px",
+    flexWrap: "wrap",
+    marginBottom: "24px",
   }}
 >
-      <div
+  {[
+  { id: "revenue", label: "Revenue" },
+  { id: "menu", label: "Menu" },
+  { id: "cost", label: "Cost" },
+  { id: "labor", label: "Labor" },
+  { id: "inventory", label: "Inventory" },
+  { id: "vendor", label: "Vendor" },
+  { id: "forecast", label: "Forecast" },
+].map((tab) => {
+    const active = analyticsView === tab.id;
+
+    return (
+      <button
+        key={tab.id}
+        type="button"
+        onClick={() => setAnalyticsView(tab.id)}
         style={{
-          fontSize: "11px",
-          fontWeight: "800",
-          letterSpacing: "0.08em",
-          textTransform: "uppercase",
-          color: "#a5b4fc",
-          marginBottom: "10px",
+          padding: "10px 15px",
+          borderRadius: "999px",
+          border: active
+            ? "1px solid rgba(129,140,248,0.60)"
+            : "1px solid rgba(148,163,184,0.18)",
+          background: active
+            ? "rgba(99,102,241,0.22)"
+            : "rgba(15,23,42,0.72)",
+          color: active ? "#c7d2fe" : "#94a3b8",
+          fontSize: "12px",
+          fontWeight: "900",
+          cursor: "pointer",
         }}
       >
-        Revenue Intelligence
-      </div>
-
-{/* 📊 REVENUE TREND */}
+        {tab.label}
+      </button>
+    );
+  })}
+</div>
+{analyticsView === "dashboard" && (
+  <>
+  {/* 📊 REVENUE TREND */}
 {!executiveModeEnabled && (
   <div
    style={{
@@ -41507,34 +41712,7 @@ Restaurant AI Health is currently rated{" "}
 </div>
 </div>
 )}
-{!executiveModeEnabled && (
-  <>
-    <div style={{ marginTop: "24px" }}>
-      <div
-        style={{
-          color: "#94a3b8",
-          fontSize: "11px",
-          fontWeight: "900",
-          letterSpacing: "0.08em",
-          textTransform: "uppercase",
-          marginBottom: "14px",
-        }}
-      >
-        CORE ANALYTICS
-      </div>
 
-  <div
-  style={{
-    display: "grid",
-    gridTemplateColumns: "1fr",
-    gap: "16px",
-    width: "100%",
-    maxWidth: "100%",
-    minWidth: 0,
-    overflow: "visible",
-    alignItems: "start",
-  }}
->
 {/* REVENUE BY DAY BAR CHART */}
 <div
   style={{
@@ -41702,4592 +41880,6 @@ Restaurant AI Health is currently rated{" "}
     </div>
   )}
 </div>
-{/* MENU MIX / SALES DISTRIBUTION */}
-<div
-  style={{
-    gridColumn: isMobile ? "span 1" : "span 12",
-    width: "100%",
-    minWidth: 0,
-    maxWidth: "100%",
-    padding: "22px",
-    borderRadius: "22px",
-    minHeight: "420px",
-    display: "flex",
-    flexDirection: "column",
-    background:
-      "radial-gradient(circle at top right, rgba(34,197,94,0.12), transparent 40%), linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.9))",
-    border: "1px solid rgba(148,163,184,0.16)",
-    boxShadow: "0 18px 40px rgba(2,6,23,0.22)",
-    overflow: "hidden",
-    boxSizing: "border-box",
-    alignSelf: "start",
-  }}
->
-  <div
-    style={{
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "flex-start",
-      gap: "12px",
-      flexWrap: "wrap",
-      marginBottom: "18px",
-    }}
-  >
-    <div>
-      <div
-        style={{
-          fontSize: "12px",
-          fontWeight: "900",
-          letterSpacing: "0.08em",
-          color: "#22c55e",
-          textTransform: "uppercase",
-        }}
-      >
-        Menu Mix
-      </div>
-
-      <h3
-        style={{
-          margin: "6px 0 4px",
-          color: "white",
-          fontSize: "22px",
-          fontWeight: "950",
-        }}
-      >
-        Sales distribution
-      </h3>
-
-      <p style={{ margin: 0, color: "#94a3b8", fontSize: "13px" }}>
-        See which menu items or categories are driving the most revenue.
-      </p>
-    </div>
-
-    <div
-      style={{
-        padding: "8px 12px",
-        borderRadius: "999px",
-        background: "rgba(34,197,94,0.12)",
-        border: "1px solid rgba(34,197,94,0.22)",
-        color: "#86efac",
-        fontSize: "12px",
-        fontWeight: "900",
-      }}
-    >
-      {salesDistributionData?.length || 0} segments
-    </div>
-  </div>
-
-  <div
-    style={{
-      display: "grid",
-      gridTemplateColumns: "1fr",
-      gap: "18px",
-      alignItems: "start",
-      width: "100%",
-    }}
-  ><div
-  style={{
-    width: "100%",
-    height: "320px",
-    minHeight: "320px",
-    overflowX: "auto",
-    overflowY: "hidden",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-  }}
->
-  {salesDistributionData?.length > 0 ? (
-   <PieChart width={520} height={320}>
-  <Pie
-    data={salesDistributionData}
-    dataKey="value"
-    nameKey="name"
-    cx="50%"
-    cy="50%"
-    outerRadius={105}
-    innerRadius={52}
-    paddingAngle={3}
-  >
-    {(salesDistributionData || []).map((entry, index) => {
-      const colors = [
-        "#4f46e5",
-        "#22c55e",
-        "#f59e0b",
-        "#ef4444",
-        "#06b6d4",
-        "#a855f7",
-      ];
-
-      return (
-        <Cell
-          key={`menu-mix-cell-${index}`}
-          fill={colors[index % colors.length]}
-        />
-      );
-    })}
-  </Pie>
-
-  <Tooltip
-    formatter={(value) => [
-      `$${Number(value || 0).toLocaleString()}`,
-      "Revenue",
-    ]}
-    contentStyle={{
-      background: "#020617",
-      border: "1px solid rgba(148,163,184,0.24)",
-      borderRadius: "14px",
-      color: "white",
-    }}
-  />
-
-  <Legend
-    verticalAlign="bottom"
-    height={36}
-    wrapperStyle={{
-      color: "#cbd5e1",
-      fontSize: "12px",
-      paddingTop: "10px",
-    }}
-  />
-</PieChart>
-  ) : (
-    <div
-      style={{
-        color: "#94a3b8",
-        height: "100%",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        textAlign: "center",
-      }}
-    >
-      No sales distribution data available yet.
-    </div>
-  )}
-</div>
-
-    <div
-      style={{
-        padding: "16px",
-        borderRadius: "18px",
-        background:
-          "linear-gradient(135deg, rgba(15,23,42,0.84), rgba(30,41,59,0.72))",
-        border: "1px solid rgba(148,163,184,0.14)",
-        display: "grid",
-        gap: "12px",
-      }}
-    >
-      <div>
-        <div
-          style={{
-            color: "#86efac",
-            fontSize: "12px",
-            fontWeight: "900",
-            letterSpacing: "0.08em",
-            textTransform: "uppercase",
-            marginBottom: "10px",
-          }}
-        >
-          AI Menu Readout
-        </div>
-
-        <div style={{ color: "white", fontSize: "18px", fontWeight: "950" }}>
-          Top seller concentration
-        </div>
-
-        <p
-          style={{
-            marginTop: "8px",
-            color: "#94a3b8",
-            fontSize: "13px",
-            lineHeight: 1.6,
-          }}
-        >
-          Your highest revenue item is driving a large share of sales.
-        </p>
-      </div>
-
-      <div
-        style={{
-          padding: "13px",
-          borderRadius: "14px",
-          background: "rgba(255,255,255,0.04)",
-          border: "1px solid rgba(148,163,184,0.10)",
-        }}
-      >
-        <div style={{ color: "#94a3b8", fontSize: "11px" }}>
-          Top Segment
-        </div>
-
-        <div
-          style={{
-            color: "white",
-            fontSize: "18px",
-            fontWeight: "900",
-          }}
-        >
-          {salesDistributionData?.[0]?.name || "Waiting for menu data"}
-        </div>
-      </div>
-
-      <div
-        style={{
-          padding: "13px",
-          borderRadius: "14px",
-          background: "rgba(255,255,255,0.04)",
-          border: "1px solid rgba(148,163,184,0.10)",
-        }}
-      >
-        <div style={{ color: "#94a3b8", fontSize: "11px" }}>
-          Top Segment Revenue
-        </div>
-
-        <div
-          style={{
-            color: "#86efac",
-            fontSize: "18px",
-            fontWeight: "900",
-          }}
-        >
-          ${Number(salesDistributionData?.[0]?.value || 0).toLocaleString()}
-        </div>
-      </div>
-
-      <div
-        style={{
-          padding: "13px",
-          borderRadius: "14px",
-          background: "rgba(34,197,94,0.10)",
-          border: "1px solid rgba(34,197,94,0.18)",
-          color: "#bbf7d0",
-          fontSize: "13px",
-          lineHeight: 1.6,
-          fontWeight: "750",
-        }}
-      >
-        {salesDistributionData?.[0]?.name
-  ? `Recommended action: review ${salesDistributionData[0].name} and pair it with a higher-margin add-on if margin data supports it.`
-  : "Recommended action: upload menu revenue and margin data to generate a real menu recommendation."}
-      </div>
-    </div>
-  </div>
-
-  {salesDistributionInsight && (
-    <div
-      style={{
-        marginTop: "18px",
-        padding: "14px 16px",
-        borderRadius: "16px",
-        background: "rgba(255,255,255,0.04)",
-        border: "1px solid rgba(148,163,184,0.12)",
-        color: "#e2e8f0",
-        fontSize: "13px",
-        lineHeight: 1.6,
-      }}
-    >
-      {salesDistributionInsight}
-    </div>
-  )}
-</div>
-{/* FOOD COST % TREND */}
-<div
-  style={{
-    gridColumn: isMobile ? "span 1" : "span 12",
-    width: "100%",
-    minWidth: 0,
-    maxWidth: "100%",
-    padding: "22px",
-    borderRadius: "22px",
-    minHeight: "420px",
-    display: "flex",
-    flexDirection: "column",
-    background:
-      "radial-gradient(circle at top right, rgba(239,68,68,0.12), transparent 40%), linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.9))",
-    border: "1px solid rgba(148,163,184,0.16)",
-    boxShadow: "0 18px 40px rgba(2,6,23,0.22)",
-    overflow: "hidden",
-    boxSizing: "border-box",
-    alignSelf: "start",
-  }}
->
-  <div
-    style={{
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "flex-start",
-      gap: "12px",
-      flexWrap: "wrap",
-      marginBottom: "18px",
-    }}
-  >
-    <div>
-      <div
-        style={{
-          fontSize: "12px",
-          fontWeight: "900",
-          letterSpacing: "0.08em",
-          color: "#fca5a5",
-          textTransform: "uppercase",
-        }}
-      >
-        Cost Control
-      </div>
-
-      <h3
-        style={{
-          margin: "6px 0 4px",
-          color: "white",
-          fontSize: "22px",
-          fontWeight: "950",
-        }}
-      >
-        Food cost % trend
-      </h3>
-
-      <p style={{ margin: 0, color: "#94a3b8", fontSize: "13px" }}>
-        Tracks food cost pressure against your target and danger zones.
-      </p>
-    </div>
-
-    <div
-      style={{
-        padding: "8px 12px",
-        borderRadius: "999px",
-        background:
-          Number(foodCostPercentage || 0) >= 35
-            ? "rgba(239,68,68,0.14)"
-            : Number(foodCostPercentage || 0) >= 30
-            ? "rgba(245,158,11,0.14)"
-            : "rgba(34,197,94,0.12)",
-        border:
-          Number(foodCostPercentage || 0) >= 35
-            ? "1px solid rgba(239,68,68,0.25)"
-            : Number(foodCostPercentage || 0) >= 30
-            ? "1px solid rgba(245,158,11,0.25)"
-            : "1px solid rgba(34,197,94,0.22)",
-        color:
-          Number(foodCostPercentage || 0) >= 35
-            ? "#fca5a5"
-            : Number(foodCostPercentage || 0) >= 30
-            ? "#fde68a"
-            : "#86efac",
-        fontSize: "12px",
-        fontWeight: "900",
-      }}
-    >
-      Current: {Number(foodCostPercentage || 0).toFixed(1)}%
-    </div>
-  </div>
-
-  <div
-    style={{
-      display: "grid",
-      gridTemplateColumns: "1fr",
-      gap: "18px",
-      width: "100%",
-    }}
-  ><div
-  style={{
-    width: "100%",
-    height: "340px",
-    minHeight: "340px",
-    overflowX: "auto",
-    overflowY: "hidden",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-  }}
->
-  {foodCostTrendData?.length > 0 ? (
-   <LineChart
-  width={isMobile ? 900 : 820}
-  height={340}
-  data={foodCostTrendData}
-  margin={{ top: 24, right: 30, left: 10, bottom: 30 }}
->
-  <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.12)" />
-
-  <XAxis
-    dataKey="date"
-    tick={{ fill: "#94a3b8", fontSize: 10 }}
-    axisLine={{ stroke: "rgba(148,163,184,0.18)" }}
-    tickLine={false}
-  />
-
-  <YAxis
-    tickFormatter={(value) => `${Number(value || 0).toFixed(0)}%`}
-    tick={{ fill: "#94a3b8", fontSize: 10 }}
-    width={60}
-    axisLine={{ stroke: "rgba(148,163,184,0.18)" }}
-    tickLine={false}
-  />
-
-  <Tooltip
-    formatter={(value, name) => [
-      `${Number(value || 0).toFixed(1)}%`,
-      name,
-    ]}
-    contentStyle={{
-      background: "#020617",
-      border: "1px solid rgba(148,163,184,0.24)",
-      borderRadius: "14px",
-      color: "white",
-    }}
-  />
-
-  <Legend
-    wrapperStyle={{
-      color: "#cbd5e1",
-      fontSize: "12px",
-      paddingTop: "10px",
-    }}
-  />
-
-  <Line
-    type="monotone"
-    dataKey="target"
-    name="Target"
-    stroke="#22c55e"
-    strokeWidth={2}
-    strokeDasharray="5 5"
-    dot={false}
-    connectNulls
-    isAnimationActive={false}
-  />
-
-  <Line
-    type="monotone"
-    dataKey="danger"
-    name="Danger"
-    stroke="#ef4444"
-    strokeWidth={2}
-    strokeDasharray="5 5"
-    dot={false}
-    connectNulls
-    isAnimationActive={false}
-  />
-
-  <Line
-    type="monotone"
-    dataKey="foodCostPercent"
-    name="Food Cost %"
-    stroke="#f59e0b"
-    strokeWidth={4}
-    dot={{ r: 3 }}
-    activeDot={{
-      r: 6,
-      fill: "#fbbf24",
-      stroke: "white",
-      strokeWidth: 2,
-    }}
-    connectNulls
-    isAnimationActive={false}
-  />
-</LineChart>
-  ) : (
-    <div
-      style={{
-        color: "#94a3b8",
-        height: "100%",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        textAlign: "center",
-      }}
-    >
-      No food cost trend data available yet.
-    </div>
-  )}
-</div>
-
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: isMobile
-          ? "1fr"
-          : "repeat(3,minmax(0,1fr))",
-        gap: "12px",
-      }}
-    >
-      <div
-        style={{
-          padding: "14px",
-          borderRadius: "16px",
-          background: "rgba(255,255,255,0.04)",
-          border: "1px solid rgba(148,163,184,0.10)",
-        }}
-      >
-        <div style={{ color: "#94a3b8", fontSize: "11px" }}>
-          Current Food Cost
-        </div>
-
-        <div
-          style={{
-            color:
-              Number(foodCostPercentage || 0) >= 35
-                ? "#fca5a5"
-                : Number(foodCostPercentage || 0) >= 30
-                ? "#fde68a"
-                : "#86efac",
-            fontSize: "20px",
-            fontWeight: "900",
-          }}
-        >
-          {Number(foodCostPercentage || 0).toFixed(1)}%
-        </div>
-      </div>
-
-      <div
-        style={{
-          padding: "14px",
-          borderRadius: "16px",
-          background: "rgba(255,255,255,0.04)",
-          border: "1px solid rgba(148,163,184,0.10)",
-        }}
-      >
-        <div style={{ color: "#94a3b8", fontSize: "11px" }}>
-          Target Range
-        </div>
-
-        <div
-          style={{
-            color: "#86efac",
-            fontSize: "20px",
-            fontWeight: "900",
-          }}
-        >
-          28%–30%
-        </div>
-      </div>
-
-      <div
-        style={{
-          padding: "14px",
-          borderRadius: "16px",
-          background:
-            Number(foodCostPercentage || 0) >= 35
-              ? "rgba(239,68,68,0.10)"
-              : Number(foodCostPercentage || 0) >= 30
-              ? "rgba(245,158,11,0.10)"
-              : "rgba(34,197,94,0.10)",
-          border:
-            Number(foodCostPercentage || 0) >= 35
-              ? "1px solid rgba(239,68,68,0.18)"
-              : Number(foodCostPercentage || 0) >= 30
-              ? "1px solid rgba(245,158,11,0.18)"
-              : "1px solid rgba(34,197,94,0.18)",
-          color:
-            Number(foodCostPercentage || 0) >= 35
-              ? "#fecaca"
-              : Number(foodCostPercentage || 0) >= 30
-              ? "#fde68a"
-              : "#bbf7d0",
-          fontSize: "13px",
-          lineHeight: 1.6,
-          fontWeight: "750",
-        }}
-      >
-        {Number(foodCostPercentage || 0) >= 35
-          ? "Critical: food cost is above danger zone."
-          : Number(foodCostPercentage || 0) >= 30
-          ? "Watch closely: food cost is above target."
-          : "Healthy: food cost is currently under target."}
-      </div>
-    </div>
-  </div>
-</div>
-{/* PROFIT LEAKAGE TOP ITEMS */}
-<div
-  style={{
-    gridColumn: isMobile ? "span 1" : "span 12",
-    width: "100%",
-    minWidth: 0,
-    maxWidth: "100%",
-    padding: "22px",
-    borderRadius: "22px",
-    minHeight: "420px",
-    display: "flex",
-    flexDirection: "column",
-    background:
-      "radial-gradient(circle at top right, rgba(249,115,22,0.12), transparent 40%), linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.9))",
-    border: "1px solid rgba(148,163,184,0.16)",
-    boxShadow: "0 18px 40px rgba(2,6,23,0.22)",
-    overflow: "hidden",
-    boxSizing: "border-box",
-    alignSelf: "start",
-  }}
->
-  <div
-    style={{
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "flex-start",
-      gap: "12px",
-      flexWrap: "wrap",
-      marginBottom: "18px",
-    }}
-  >
-    <div>
-      <div
-        style={{
-          fontSize: "12px",
-          fontWeight: "900",
-          letterSpacing: "0.08em",
-          color: "#f97316",
-          textTransform: "uppercase",
-        }}
-      >
-        Profit Leakage
-      </div>
-
-      <h3
-        style={{
-          margin: "6px 0 4px",
-          color: "white",
-          fontSize: "22px",
-          fontWeight: "950",
-        }}
-      >
-        Top margin leak items
-      </h3>
-
-      <p style={{ margin: 0, color: "#94a3b8", fontSize: "13px" }}>
-        Flags items that may be selling but leaking profit.
-      </p>
-    </div>
-
-    <div
-      style={{
-        padding: "8px 12px",
-        borderRadius: "999px",
-        background: "rgba(249,115,22,0.12)",
-        border: "1px solid rgba(249,115,22,0.22)",
-        color: "#fdba74",
-        fontSize: "12px",
-        fontWeight: "900",
-      }}
-    >
-      {profitLeakageChartData?.length || 0} leak items
-    </div>
-  </div>
-
-  <div
-    style={{
-      display: "grid",
-      gridTemplateColumns: "1fr",
-      gap: "18px",
-      width: "100%",
-    }}
-  ><div
-  style={{
-    width: "100%",
-    height: "340px",
-    minHeight: "340px",
-    overflowX: "auto",
-    overflowY: "hidden",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-  }}
->
-  {profitLeakageChartData?.length > 0 ? (
-    <BarChart
-      width={isMobile ? 900 : 820}
-      height={340}
-      data={profitLeakageChartData}
-      margin={{ top: 24, right: 30, left: 10, bottom: 40 }}
-    >
-      <CartesianGrid
-        strokeDasharray="3 3"
-        stroke="rgba(148,163,184,0.14)"
-        vertical={false}
-      />
-
-      <XAxis
-        dataKey="name"
-        tick={{ fill: "#94a3b8", fontSize: 10 }}
-        axisLine={false}
-        tickLine={false}
-        interval={0}
-      />
-
-      <YAxis
-        tick={{ fill: "#94a3b8", fontSize: 10 }}
-        axisLine={false}
-        tickLine={false}
-        width={70}
-        tickFormatter={(value) => `$${Number(value || 0).toLocaleString()}`}
-      />
-
-      <Tooltip
-        formatter={(value) => [
-          `$${Number(value || 0).toLocaleString()}`,
-          "Estimated Loss",
-        ]}
-        contentStyle={{
-          background: "#020617",
-          border: "1px solid rgba(148,163,184,0.24)",
-          borderRadius: "14px",
-          color: "white",
-        }}
-      />
-
-      <Bar
-        dataKey="loss"
-        fill="#f97316"
-        radius={[10, 10, 0, 0]}
-        barSize={34}
-        isAnimationActive={false}
-      />
-    </BarChart>
-  ) : (
-    <div
-      style={{
-        color: "#94a3b8",
-        height: "100%",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        textAlign: "center",
-      }}
-    >
-      No profit leakage data available yet.
-    </div>
-  )}
-</div>
-
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: isMobile
-          ? "1fr"
-          : "repeat(3,minmax(0,1fr))",
-        gap: "12px",
-      }}
-    >
-      <div
-        style={{
-          padding: "14px",
-          borderRadius: "16px",
-          background: "rgba(255,255,255,0.04)",
-          border: "1px solid rgba(148,163,184,0.10)",
-        }}
-      >
-        <div style={{ color: "#94a3b8", fontSize: "11px" }}>
-          Priority Item
-        </div>
-
-        <div
-          style={{
-            color: "white",
-            fontSize: "20px",
-            fontWeight: "900",
-          }}
-        >
-          {profitLeakageChartData?.[0]?.name || "Waiting for menu data"}
-        </div>
-      </div>
-
-      <div
-        style={{
-          padding: "14px",
-          borderRadius: "16px",
-          background: "rgba(255,255,255,0.04)",
-          border: "1px solid rgba(148,163,184,0.10)",
-        }}
-      >
-        <div style={{ color: "#94a3b8", fontSize: "11px" }}>
-          Recoverable Margin
-        </div>
-
-        <div
-          style={{
-            color: "#fdba74",
-            fontSize: "20px",
-            fontWeight: "900",
-          }}
-        >
-          ${Number(
-            profitLeakageChartData?.[0]?.loss || 0
-          ).toLocaleString()}
-        </div>
-      </div>
-
-      <div
-        style={{
-          padding: "14px",
-          borderRadius: "16px",
-          background: "rgba(249,115,22,0.10)",
-          border: "1px solid rgba(249,115,22,0.18)",
-          color: "#fed7aa",
-          fontSize: "13px",
-          lineHeight: 1.6,
-          fontWeight: "750",
-        }}
-      >
-        Review recipe cost, portions, vendor pricing, and menu pricing on your
-        highest leaking items first.
-      </div>
-    </div>
-  </div>
-</div>
-{/* PRIME COST INTELLIGENCE */}
-<div
-  style={{
-    gridColumn: isMobile ? "span 1" : "span 12",
-    width: "100%",
-    minWidth: 0,
-    maxWidth: "100%",
-    padding: "22px",
-    borderRadius: "22px",
-    minHeight: "360px",
-    display: "flex",
-    flexDirection: "column",
-    background:
-      "radial-gradient(circle at top right, rgba(212,175,55,0.14), transparent 40%), linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.9))",
-    border: "1px solid rgba(148,163,184,0.16)",
-    boxShadow: "0 18px 40px rgba(2,6,23,0.22)",
-    overflow: "hidden",
-    boxSizing: "border-box",
-    alignSelf: "start",
-  }}
->
-  <div style={{ marginBottom: "18px" }}>
-    <div
-      style={{
-        color: "#d4af37",
-        fontWeight: "900",
-        fontSize: "12px",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-      }}
-    >
-      Prime Cost Intelligence
-    </div>
-
-    <h3
-      style={{
-        margin: "6px 0 4px",
-        color: "white",
-        fontSize: "22px",
-        fontWeight: "950",
-      }}
-    >
-      Food cost + labor cost pressure
-    </h3>
-
-    <p style={{ margin: 0, color: "#94a3b8", fontSize: "13px" }}>
-      Measures whether your two biggest costs are protecting or damaging profit.
-    </p>
-  </div>
-
-  <div
-    style={{
-      display: "grid",
-      gridTemplateColumns: isMobile
-        ? "1fr"
-        : "repeat(2, minmax(0, 1fr))",
-      gap: "12px",
-      marginBottom: "18px",
-    }}
-  >
-    <div style={miniMetricCard}>
-      <div style={miniMetricLabel}>Prime Cost</div>
-      <div style={{ ...miniMetricValue, color: primeCostIntelligence.color }}>
-        {primeCostIntelligence.primeCost > 0
-          ? `${Number(primeCostIntelligence.primeCost).toFixed(1)}%`
-          : "Needs data"}
-      </div>
-    </div>
-
-    <div style={miniMetricCard}>
-      <div style={miniMetricLabel}>Food Cost $</div>
-      <div style={miniMetricValue}>
-        ${Number(primeCostIntelligence.foodCostDollars || 0).toLocaleString()}
-      </div>
-    </div>
-
-    <div style={miniMetricCard}>
-      <div style={miniMetricLabel}>Labor Cost $</div>
-      <div style={miniMetricValue}>
-        ${Number(primeCostIntelligence.laborCost || 0).toLocaleString()}
-      </div>
-    </div>
-
-    <div style={miniMetricCard}>
-      <div style={miniMetricLabel}>Status</div>
-      <div style={{ ...miniMetricValue, color: primeCostIntelligence.color }}>
-        {primeCostIntelligence.status}
-      </div>
-    </div>
-  </div>
-
-  <div
-    style={{
-      padding: "16px",
-      borderRadius: "16px",
-      background: "rgba(212,175,55,0.10)",
-      border: "1px solid rgba(212,175,55,0.22)",
-      color: "#fde68a",
-      fontSize: "13px",
-      lineHeight: 1.7,
-      fontWeight: "750",
-      overflowWrap: "anywhere",
-    }}
-  >
-    <span style={{ color: "white", fontWeight: "950" }}>AI readout:</span>{" "}
-    {primeCostIntelligence.insight}
-  </div>
-</div>
-{/* 👥 LABOR INTELLIGENCE */}
-<div
-  style={{
-    gridColumn: isMobile ? "span 1" : "span 12",
-    width: "100%",
-    minWidth: 0,
-    maxWidth: "100%",
-    marginBottom: "0px",
-    padding: "24px",
-    borderRadius: "22px",
-    minHeight: "520px",
-    display: "flex",
-    flexDirection: "column",
-    background:
-      "radial-gradient(circle at top right, rgba(59,130,246,0.14), transparent 40%), linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.9))",
-    border: "1px solid rgba(148,163,184,0.16)",
-    boxShadow: "0 18px 40px rgba(2,6,23,0.22)",
-    overflow: "hidden",
-  }}
->
-  <div style={{ marginBottom: "18px" }}>
-    <div
-      style={{
-        color: "#93c5fd",
-        fontWeight: "900",
-        fontSize: "12px",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-      }}
-    >
-      Labor Intelligence
-    </div>
-
-    <h3
-      style={{
-        margin: "6px 0 4px",
-        color: "white",
-        fontSize: "22px",
-        fontWeight: "950",
-      }}
-    >
-      Staffing and labor cost risk
-    </h3>
-
-    <p
-      style={{
-        margin: 0,
-        color: "#94a3b8",
-        fontSize: "13px",
-        lineHeight: 1.6,
-      }}
-    >
-      Tracks uploaded labor cost as a percentage of live revenue and flags staffing risk.
-    </p>
-  </div>
-
-  <div
-    style={{
-      display: "grid",
-      gridTemplateColumns: isMobile ? "1fr" : "1fr 1.15fr",
-      gap: "22px",
-      flex: 1,
-    }}
-  >
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: isMobile
-          ? "1fr"
-          : "repeat(2, minmax(0, 1fr))",
-        gap: "12px",
-        alignContent: "start",
-      }}
-    >
-      <div
-        style={{
-          padding: "16px",
-          borderRadius: "16px",
-          background: "rgba(255,255,255,0.04)",
-          border: "1px solid rgba(148,163,184,0.10)",
-        }}
-      >
-        <div style={{ color: "#94a3b8", fontSize: "11px" }}>Labor Cost</div>
-        <div style={{ color: "white", fontSize: "24px", fontWeight: "950" }}>
-          {liveLaborIntelligence?.totalLaborCost > 0
-            ? `$${Number(liveLaborIntelligence.totalLaborCost).toLocaleString()}`
-            : "Needs data"}
-        </div>
-      </div>
-
-      <div
-        style={{
-          padding: "16px",
-          borderRadius: "16px",
-          background: "rgba(255,255,255,0.04)",
-          border: "1px solid rgba(148,163,184,0.10)",
-        }}
-      >
-        <div style={{ color: "#94a3b8", fontSize: "11px" }}>Labor %</div>
-        <div
-          style={{
-            color:
-              liveLaborIntelligence?.laborPercent <= 0
-                ? "#94a3b8"
-                : liveLaborIntelligence.laborPercent > activeBenchmarks.labor.high
-                ? "#fca5a5"
-                : liveLaborIntelligence.laborPercent < activeBenchmarks.labor.low
-                ? "#fde68a"
-                : "#86efac",
-            fontSize: "24px",
-            fontWeight: "950",
-          }}
-        >
-          {liveLaborIntelligence?.laborPercent > 0
-            ? `${Number(liveLaborIntelligence.laborPercent).toFixed(1)}%`
-            : "Waiting"}
-        </div>
-      </div>
-
-      <div
-        style={{
-          padding: "16px",
-          borderRadius: "16px",
-          background: "rgba(255,255,255,0.04)",
-          border: "1px solid rgba(148,163,184,0.10)",
-        }}
-      >
-        <div style={{ color: "#94a3b8", fontSize: "11px" }}>Status</div>
-        <div style={{ color: "white", fontSize: "16px", fontWeight: "950" }}>
-          {liveLaborIntelligence?.laborPercent <= 0
-            ? "Waiting for upload"
-            : liveLaborIntelligence.laborPercent > activeBenchmarks.labor.high
-            ? "Overstaffed risk"
-            : liveLaborIntelligence.laborPercent < activeBenchmarks.labor.low
-            ? "Understaffed risk"
-            : "Healthy range"}
-        </div>
-      </div>
-
-      <div
-        style={{
-          padding: "16px",
-          borderRadius: "16px",
-          background: "rgba(255,255,255,0.04)",
-          border: "1px solid rgba(148,163,184,0.10)",
-        }}
-      >
-        <div style={{ color: "#94a3b8", fontSize: "11px" }}>
-          Efficiency Score
-        </div>
-
-        <div
-          style={{
-            color:
-              liveLaborIntelligence?.laborPercent <= 0
-                ? "#94a3b8"
-                : liveLaborIntelligence.laborPercent > activeBenchmarks.labor.high
-                ? "#fca5a5"
-                : liveLaborIntelligence.laborPercent < activeBenchmarks.labor.low
-                ? "#fde68a"
-                : "#86efac",
-            fontSize: "24px",
-            fontWeight: "950",
-          }}
-        >
-          {liveLaborIntelligence?.laborPercent <= 0
-  ? "--"
-  : `${Math.max(
-      0,
-      Math.min(
-        100,
-        Math.round(100 - Math.abs(Number(liveLaborIntelligence.laborPercent || 0) - 24) * 3)
-      )
-    )}/100`}
-        </div>
-      </div>
-
-      <div
-        style={{
-          gridColumn: isMobile ? "auto" : "1 / -1",
-          marginTop: "4px",
-          padding: "16px",
-          borderRadius: "16px",
-          background: "rgba(59,130,246,0.10)",
-          border: "1px solid rgba(96,165,250,0.18)",
-          color: "#bfdbfe",
-          fontSize: "13px",
-          lineHeight: 1.6,
-          fontWeight: "750",
-        }}
-      >
-        {liveLaborIntelligence?.laborPercent <= 0
-          ? "Upload labor data with hours, rates, or labor cost to calculate real labor efficiency."
-          : liveLaborIntelligence.laborPercent > activeBenchmarks.labor.high
-          ? "Labor cost is above benchmark. Review staffing levels against revenue patterns."
-          : liveLaborIntelligence.laborPercent < activeBenchmarks.labor.low
-          ? "Labor cost is below benchmark. Watch for service pressure during peak hours."
-          : "Labor cost is within benchmark range based on uploaded labor data."}
-      </div>
-    </div>
-
-    <div
-      style={{
-        padding: "18px",
-        borderRadius: "18px",
-        background:
-          "linear-gradient(135deg, rgba(15,23,42,0.84), rgba(30,41,59,0.72))",
-        border: "1px solid rgba(148,163,184,0.14)",
-      }}
-    >
-      <div
-        style={{
-          color: "#93c5fd",
-          fontSize: "12px",
-          fontWeight: "900",
-          letterSpacing: "0.08em",
-          textTransform: "uppercase",
-          marginBottom: "10px",
-        }}
-      >
-        AI Labor Readout
-      </div>
-
-      <div style={{ color: "white", fontSize: "20px", fontWeight: "950" }}>
-        Staffing efficiency check
-      </div>
-
-      <div
-        style={{
-          display: "flex",
-          alignItems: "flex-end",
-          gap: "6px",
-          height: "70px",
-          marginTop: "18px",
-          marginBottom: "18px",
-        }}
-      >{(shiftOperationalData || []).map((shift, index) => {
-  const value = Math.min(
-    Math.max(Number(shift.laborPercent || 0), 10),
-    100
-  );
-
-  return (
-    <div
-      key={index}
-      style={{
-        flex: 1,
-        borderRadius: "8px 8px 0 0",
-        height: `${value}%`,
-        background:
-          shift.laborPercent > activeBenchmarks.labor.high
-            ? "linear-gradient(to top, #ef4444, #fca5a5)"
-            : "linear-gradient(to top, #3b82f6, #93c5fd)",
-      }}
-    />
-  );
-})}
-      </div>
-
-      <p
-        style={{
-          marginTop: "8px",
-          color: "#94a3b8",
-          fontSize: "13px",
-          lineHeight: 1.6,
-        }}
-      >
-        SerVen compares labor spend against live revenue so managers can spot
-        overstaffing, understaffing, or service-pressure risk before it affects profit.
-      </p>
-
-      <div
-        style={{
-          marginTop: "16px",
-          padding: "13px",
-          borderRadius: "14px",
-          background: "rgba(59,130,246,0.10)",
-          border: "1px solid rgba(96,165,250,0.18)",
-          color: "#bfdbfe",
-          fontSize: "13px",
-          lineHeight: 1.6,
-          fontWeight: "750",
-        }}
-      >
-        Recommended action: compare labor % against your busiest revenue days
-        and adjust schedules around peak windows.
-      </div>
-
-      {liveLaborIntelligence?.laborPercent > activeBenchmarks.labor.high && (
-        <div
-          style={{
-            marginTop: "12px",
-            padding: "14px",
-            borderRadius: "14px",
-            background: "rgba(239,68,68,0.10)",
-            border: "1px solid rgba(248,113,113,0.20)",
-            color: "#fecaca",
-            fontSize: "13px",
-            lineHeight: 1.6,
-            fontWeight: "700",
-          }}
-        >
-          AI detected labor inefficiency during lower revenue windows.
-          Consider reducing staffing during slower shifts to protect margins.
-        </div>
-      )}
-
-      <div
-        style={{
-          marginTop: "14px",
-          color: "#cbd5e1",
-          fontSize: "12px",
-          lineHeight: 1.6,
-        }}
-      >
-       {liveLaborIntelligence?.laborPercent <= 0
-  ? "Forecast: upload labor data to activate labor pressure forecasting."
-  : liveLaborIntelligence.laborPercent > activeBenchmarks.labor.high
-  ? `Forecast: labor pressure is elevated at ${Number(
-      liveLaborIntelligence.laborPercent || 0
-    ).toFixed(1)}%. Reducing slower-shift labor could protect margins.`
-  : liveLaborIntelligence.laborPercent < activeBenchmarks.labor.low
-  ? `Forecast: labor is low at ${Number(
-      liveLaborIntelligence.laborPercent || 0
-    ).toFixed(1)}%. Watch for service pressure during peak sales windows.`
-  : `Forecast: labor is healthy at ${Number(
-      liveLaborIntelligence.laborPercent || 0
-    ).toFixed(1)}%. Current staffing is aligned with uploaded revenue.`}
-      </div>
-    </div>
-  </div>
-</div>
-{/* 👥 SHIFT PERFORMANCE INTELLIGENCE */}
-<div
-  style={{
-    gridColumn: isMobile ? "span 1" : "span 12",
-    width: "100%",
-    minWidth: 0,
-    maxWidth: "100%",
-    marginBottom: "22px",
-    padding: isMobile ? "20px" : "24px",
-    borderRadius: "24px",
-    background:
-      "radial-gradient(circle at top right, rgba(34,211,238,0.16), transparent 34%), linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.92))",
-    border: "1px solid rgba(34,211,238,0.18)",
-    boxShadow: "0 22px 60px rgba(2,6,23,0.28)",
-    overflow: "hidden",
-  }}
->
-  <div style={{ color: "#67e8f9", fontSize: "12px", fontWeight: "950" }}>
-    Shift Performance Intelligence
-  </div>
-
-  <h3 style={{ color: "white", fontSize: "26px", fontWeight: "950" }}>
-    AI shift profitability analysis
-  </h3>
-
-  <p
-    style={{
-      color: "#cbd5e1",
-      fontSize: "14px",
-      lineHeight: 1.7,
-      maxWidth: "920px",
-    }}
-  >
-    {shiftPerformanceInsight}
-  </p>
-
-  {/* EXECUTIVE SUMMARY */}
-  <div
-    style={{
-      marginTop: "12px",
-      padding: "12px 14px",
-      borderRadius: "14px",
-      background: "rgba(255,255,255,0.05)",
-      border: "1px solid rgba(34,211,238,0.14)",
-      color: "#e2e8f0",
-      fontSize: "13px",
-      fontWeight: "800",
-      lineHeight: 1.6,
-    }}
-  >
-    {shiftExecutiveSummary}
-  </div>
-
-  {/* RECOMMENDED ACTION */}
-  <div
-    style={{
-      marginTop: "12px",
-      padding: "12px 14px",
-      borderRadius: "14px",
-      background: "rgba(34,211,238,0.08)",
-      border: "1px solid rgba(34,211,238,0.18)",
-      color: "#cffafe",
-      fontSize: "13px",
-      fontWeight: "900",
-      lineHeight: 1.6,
-    }}
-  >
-    Recommended Action: {shiftActionRecommendation}
-  </div>
-
-  {/* AI SHIFT TREND */}
-  <div
-    style={{
-      marginTop: "20px",
-      padding: "18px",
-      borderRadius: "18px",
-      background:
-        "linear-gradient(135deg, rgba(8,47,73,0.55), rgba(15,23,42,0.82))",
-      border: "1px solid rgba(34,211,238,0.14)",
-    }}
-  >
-    <div
-      style={{
-        color: "#67e8f9",
-        fontSize: "11px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "14px",
-      }}
-    >
-      Shift Pressure Trend
-    </div>
-
-    <div
-      style={{
-        display: "flex",
-        alignItems: "flex-end",
-        gap: "8px",
-        height: "90px",
-      }}
-    >
-      {(shiftOperationalData || []).map((shift, index) => {
-        const laborHeight = Math.min(
-          Math.max(Number(shift.laborPercent || 0), 20),
-          100
-        );
-
-        const color =
-          shift.status === "Overstaffed"
-            ? "linear-gradient(to top, #ef4444, #fca5a5)"
-            : shift.status === "Watch Closely"
-            ? "linear-gradient(to top, #f59e0b, #fde68a)"
-            : "linear-gradient(to top, #06b6d4, #67e8f9)";
-
-        return (
-          <div
-            key={index}
-            style={{
-              flex: 1,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: "8px",
-            }}
-          >
-            <div
-              style={{
-                width: "100%",
-                borderRadius: "10px 10px 0 0",
-                height: `${laborHeight}%`,
-                background: color,
-                minHeight: "24px",
-                transition: "0.3s ease",
-              }}
-            />
-
-            <div
-              style={{
-                color: "#94a3b8",
-                fontSize: "10px",
-                fontWeight: "800",
-              }}
-            >
-              {shift.shift}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  </div>
-
-  {/* SHIFT CARDS */}
-  <div
-    style={{
-      display: "grid",
-      gridTemplateColumns: isMobile
-        ? "1fr"
-        : "repeat(auto-fit, minmax(220px, 1fr))",
-      gap: "14px",
-      marginTop: "20px",
-    }}
-  >
-    {(shiftOperationalData || []).map((shift) => {
-      const color =
-        shift.status === "Overstaffed"
-          ? "#f87171"
-          : shift.status === "Watch Closely"
-          ? "#fbbf24"
-          : "#86efac";
-
-      return (
-        <div
-          key={shift.shift}
-          style={{
-            padding: "18px",
-            borderRadius: "20px",
-            background:
-              "linear-gradient(135deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02))",
-            border: `1px solid ${color}35`,
-            backdropFilter: "blur(10px)",
-            position: "relative",
-            overflow: "hidden",
-          }}
-        >
-          <div
-            style={{
-              position: "absolute",
-              top: "-40px",
-              right: "-30px",
-              width: "100px",
-              height: "100px",
-              borderRadius: "999px",
-              background: `${color}12`,
-            }}
-          />
-
-          <div
-            style={{
-              color: "#94a3b8",
-              fontSize: "11px",
-              fontWeight: "900",
-              letterSpacing: "0.06em",
-              textTransform: "uppercase",
-            }}
-          >
-            {shift.shift}
-          </div>
-
-          <div
-            style={{
-              marginTop: "8px",
-              color: "white",
-              fontSize: "28px",
-              fontWeight: "950",
-            }}
-          >
-            ${Number(shift.revenue || 0).toLocaleString()}
-          </div>
-
-          <div
-            style={{
-              marginTop: "6px",
-              color: "#cbd5e1",
-              fontSize: "12px",
-              lineHeight: 1.6,
-            }}
-          >
-            {Number(shift.orders || 0).toLocaleString()} orders
-          </div>
-
-          <div
-            style={{
-              marginTop: "2px",
-              color: "#94a3b8",
-              fontSize: "12px",
-            }}
-          >
-            Avg Order: $
-            {Number(shift.avgOrderValue || 0).toFixed(2)}
-          </div>
-
-          <div
-            style={{
-              marginTop: "14px",
-              padding: "10px",
-              borderRadius: "12px",
-              background: `${color}12`,
-              border: `1px solid ${color}22`,
-            }}
-          >
-            <div
-              style={{
-                color,
-                fontSize: "12px",
-                fontWeight: "900",
-              }}
-            >
-              Labor: {Number(shift.laborPercent || 0).toFixed(1)}%
-            </div>
-
-            <div
-              style={{
-                marginTop: "4px",
-                color: "#e2e8f0",
-                fontSize: "12px",
-                fontWeight: "700",
-              }}
-            >
-              {shift.status}
-            </div>
-          </div>
-
-          {/* AI SIGNAL */}
-          <div
-            style={{
-              marginTop: "14px",
-              color: "#cbd5e1",
-              fontSize: "12px",
-              lineHeight: 1.6,
-            }}
-          >
-            {shift.status === "Overstaffed"
-              ? "AI detected excess labor pressure during this shift."
-              : shift.status === "Watch Closely"
-              ? "Shift performance is approaching risk threshold."
-              : "Shift profitability is operating within healthy range."}
-          </div>
-        </div>
-      );
-    })}
-  </div>
-
-  {/* AI FORECAST */}
-  <div
-    style={{
-      marginTop: "20px",
-      padding: "18px",
-      borderRadius: "18px",
-      background:
-        "linear-gradient(135deg, rgba(6,182,212,0.08), rgba(15,23,42,0.92))",
-      border: "1px solid rgba(34,211,238,0.16)",
-    }}
-  >
-    <div
-      style={{
-        color: "#67e8f9",
-        fontSize: "12px",
-        fontWeight: "900",
-        marginBottom: "10px",
-      }}
-    >
-      AI Forecast
-    </div>
-
-    <div
-      style={{
-        color: "#e2e8f0",
-        fontSize: "13px",
-        lineHeight: 1.7,
-      }}
-    >
-      {mostLaborHeavyShift?.laborPercent > 35
-  ? `${mostLaborHeavyShift.shift} is showing elevated labor pressure at ${Number(
-      mostLaborHeavyShift.laborPercent || 0
-    ).toFixed(1)}%. Review staffing for that shift first.`
-  : weakestShift?.revenue > 0
-  ? `${weakestShift.shift} is the weakest revenue shift. Review staffing, promotions, and menu mix during that window.`
-  : topShift?.shift
-  ? `${topShift.shift} is currently your strongest shift. Protect staffing and inventory during that window.`
-  : "Upload sales and labor data to activate shift forecasting."}
-    </div>
-  </div>
-</div>
-{/* =========================
-   🧾 VENDOR INTELLIGENCE
-========================= */}
-
-{hasProAccess && (
-  <div
-    style={{
-      gridColumn: isMobile ? "span 1" : "span 12",
-      marginTop: "18px",
-      padding: "24px",
-      borderRadius: "26px",
-      background:
-        "linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.92))",
-      border: "1px solid rgba(251,191,36,0.24)",
-      boxShadow: "0 24px 70px rgba(2,6,23,0.35)",
-      overflow: "hidden",
-    }}
-  >
-    <div
-      style={{
-        color: "#facc15",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      Vendor Intelligence
-    </div>
-
-    <h3
-      style={{
-        color: "white",
-        fontSize: "24px",
-        fontWeight: "900",
-        margin: 0,
-      }}
-    >
-      Invoice Matching & Vendor Cost Control
-    </h3>
-
-    {/* KPI CARDS */}
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: isMobile ? "1fr" : "repeat(4, 1fr)",
-        gap: "14px",
-        marginTop: "20px",
-      }}
-    >
-      {[
-        {
-          label: "Invoice Match Rate",
-          value: `${invoiceMatchRate || 0}%`,
-          sub: "Healthy invoice accuracy",
-        },
-        {
-          label: "Matched / Review",
-          value: `${vendorInvoiceData.length - invoiceMismatchItems.length}`,
-          sub: "Invoices not flagged critical",
-        },
-        {
-          label: "Needs Review",
-          value: `${invoiceReviewItems.length}`,
-          sub: "Moderate variance detected",
-        },
-        {
-          label: "Mismatch Risk",
-          value: `${invoiceMismatchItems.length}`,
-          sub: "High variance detected",
-        },
-      ].map((item) => (
-        <div
-          key={item.label}
-          style={{
-            padding: "12px",
-            borderRadius: "14px",
-            background: "rgba(15,23,42,0.76)",
-            border: "1px solid rgba(148,163,184,0.16)",
-          }}
-        >
-          <div style={{ color: "#94a3b8", fontSize: "12px", fontWeight: "800" }}>
-            {item.label}
-          </div>
-
-          <div
-            style={{
-              color: "white",
-              fontSize: "24px",
-              fontWeight: "900",
-              marginTop: "8px",
-            }}
-          >
-            {item.value}
-          </div>
-
-          <div style={{ color: "#94a3b8", fontSize: "12px", marginTop: "4px" }}>
-            {item.sub}
-          </div>
-        </div>
-      ))}
-    </div>
-
-    {/* VENDOR SPEND BY SUPPLIER */}
-    <div
-      style={{
-        marginTop: "20px",
-        padding: "18px",
-        borderRadius: "20px",
-        background: "rgba(2,6,23,0.42)",
-        border: "1px solid rgba(148,163,184,0.14)",
-      }}
-    >
-      <div
-        style={{
-          color: "#fde68a",
-          fontSize: "13px",
-          fontWeight: "900",
-          marginBottom: "14px",
-        }}
-      >
-        Vendor Spend by Supplier
-      </div>
-
-      {vendorSpendData.length > 0 ? (
-        <div style={{ display: "grid", gap: "12px" }}>
-          {vendorSpendData.map((vendor) => {
-            const maxSpend = Math.max(
-              ...vendorSpendData.map((item) => Number(item.spend || 0)),
-              1
-            );
-
-            const widthPercent = Math.min(
-              100,
-              (Number(vendor.spend || 0) / maxSpend) * 100
-            );
-
-            return (
-              <div key={vendor.vendor}>
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    gap: "12px",
-                    marginBottom: "6px",
-                  }}
-                >
-                  <span style={{ color: "white", fontSize: "13px", fontWeight: "800" }}>
-                    {vendor.vendor}
-                  </span>
-
-                  <span style={{ color: "#cbd5e1", fontSize: "13px", fontWeight: "800" }}>
-                    ${Number(vendor.spend || 0).toLocaleString()}
-                  </span>
-                </div>
-
-                <div
-                  style={{
-                    height: "9px",
-                    borderRadius: "999px",
-                    background: "rgba(148,163,184,0.16)",
-                    overflow: "hidden",
-                  }}
-                >
-                  <div
-                    style={{
-                      width: `${widthPercent}%`,
-                      height: "100%",
-                      borderRadius: "999px",
-                      background:
-                        vendor.mismatches > 0
-                          ? "linear-gradient(90deg, #ef4444, #f97316)"
-                          : vendor.reviews > 0
-                          ? "linear-gradient(90deg, #facc15, #f97316)"
-                          : "linear-gradient(90deg, #22c55e, #84cc16)",
-                    }}
-                  />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      ) : (
-        <p style={{ color: "#94a3b8", fontSize: "14px" }}>
-          Vendor spend will appear after invoice or ingredient cost uploads.
-        </p>
-      )}
-    </div>
-
-    {/* VENDOR COST TREND INTELLIGENCE */}
-    <div
-      style={{
-        marginTop: "20px",
-        padding: "18px",
-        borderRadius: "20px",
-        background:
-          "linear-gradient(135deg, rgba(59,130,246,0.10), rgba(15,23,42,0.82))",
-        border: "1px solid rgba(96,165,250,0.16)",
-      }}
-    >
-      <div
-        style={{
-          color: "#93c5fd",
-          fontSize: "13px",
-          fontWeight: "900",
-          marginBottom: "14px",
-        }}
-      >
-        Vendor Cost Trend Intelligence
-      </div>
-
-      {vendorCostTrendData.length > 0 ? (
-        <div style={{ display: "grid", gap: "12px" }}>
-          {vendorCostTrendData.map((vendor, index) => (
-            <div
-              key={index}
-              style={{
-                padding: "14px",
-                borderRadius: "16px",
-                background: "rgba(15,23,42,0.72)",
-                border: "1px solid rgba(148,163,184,0.12)",
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  gap: "12px",
-                }}
-              >
-                <div>
-                  <div style={{ color: "white", fontSize: "14px", fontWeight: "800" }}>
-                    {vendor.vendor}
-                  </div>
-
-                  <div style={{ color: "#94a3b8", fontSize: "12px", marginTop: "4px" }}>
-                    Previous: ${Number(vendor.previousSpend || 0).toLocaleString()}
-                  </div>
-                </div>
-
-                <div style={{ textAlign: "right" }}>
-                  <div style={{ color: "#e2e8f0", fontSize: "14px", fontWeight: "800" }}>
-                    ${Number(vendor.currentSpend || 0).toLocaleString()}
-                  </div>
-
-                  <div
-                    style={{
-                      color:
-                        vendor.changePercent > 12
-                          ? "#f87171"
-                          : vendor.changePercent > 5
-                          ? "#facc15"
-                          : "#34d399",
-                      fontSize: "12px",
-                      fontWeight: "900",
-                      marginTop: "4px",
-                    }}
-                  >
-                    {vendor.changePercent > 0 ? "+" : ""}
-                    {vendor.changePercent}%
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <p style={{ color: "#94a3b8", fontSize: "14px" }}>
-          Vendor trend intelligence will appear after invoice uploads.
-        </p>
-      )}
-    </div>
-
-    {/* REVIEW QUEUE + AI RECOMMENDATION */}
-    <div
-      style={{
-        marginTop: "20px",
-        display: "grid",
-        gridTemplateColumns: isMobile ? "1fr" : "1.2fr 0.8fr",
-        gap: "16px",
-      }}
-    >
-      <div
-        style={{
-          padding: "18px",
-          borderRadius: "20px",
-          background: "rgba(2,6,23,0.42)",
-          border: "1px solid rgba(148,163,184,0.14)",
-        }}
-      >
-        <div
-          style={{
-            color: "#fde68a",
-            fontSize: "13px",
-            fontWeight: "900",
-            marginBottom: "14px",
-          }}
-        >
-          Invoice Review Queue
-        </div>
-
-        {vendorInvoiceData.length > 0 ? (
-          <div style={{ display: "grid", gap: "10px" }}>
-            {vendorInvoiceData.slice(0, 6).map((invoice, index) => (
-              <div
-                key={index}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: isMobile ? "1fr" : "1fr 0.8fr 0.8fr 0.6fr",
-                  gap: "10px",
-                  alignItems: "center",
-                  padding: "12px",
-                  borderRadius: "14px",
-                  background: "rgba(15,23,42,0.72)",
-                  border: "1px solid rgba(148,163,184,0.12)",
-                }}
-              >
-                <div>
-                  <div style={{ color: "white", fontSize: "14px", fontWeight: "800" }}>
-                    {invoice.vendor}
-                  </div>
-
-                  <div style={{ color: "#94a3b8", fontSize: "12px" }}>
-                    {invoice.name ||
-                      invoice.ingredient_name ||
-                      invoice.item ||
-                      "Invoice item"}
-                  </div>
-                </div>
-
-                <div style={{ color: "#cbd5e1", fontSize: "13px" }}>
-                  Invoice: ${Number(invoice.invoiceTotal || 0).toLocaleString()}
-                </div>
-
-                <div style={{ color: "#cbd5e1", fontSize: "13px" }}>
-                  Expected: ${Number(invoice.expectedTotal || 0).toLocaleString()}
-                </div>
-
-                <div
-                  style={{
-                    color:
-                      invoice.matchStatus === "Mismatch"
-                        ? "#f87171"
-                        : invoice.matchStatus === "Review"
-                        ? "#facc15"
-                        : "#34d399",
-                    fontSize: "12px",
-                    fontWeight: "900",
-                  }}
-                >
-                  {invoice.matchStatus}
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p style={{ color: "#94a3b8", fontSize: "14px" }}>
-            Upload invoice or ingredient cost data to activate vendor intelligence.
-          </p>
-        )}
-      </div>
-
-      <div
-        style={{
-          padding: "18px",
-          borderRadius: "20px",
-          background:
-            "linear-gradient(135deg, rgba(251,191,36,0.12), rgba(15,23,42,0.82))",
-          border: "1px solid rgba(251,191,36,0.18)",
-        }}
-      >
-        <div
-          style={{
-            color: "#facc15",
-            fontSize: "13px",
-            fontWeight: "900",
-            marginBottom: "12px",
-          }}
-        >
-          AI Vendor Recommendation
-        </div>
-
-        <div
-          style={{
-            marginBottom: "14px",
-            padding: "14px",
-            borderRadius: "16px",
-            background: "rgba(15,23,42,0.68)",
-            border: "1px solid rgba(148,163,184,0.14)",
-          }}
-        >
-          <div
-            style={{
-              color: "#94a3b8",
-              fontSize: "12px",
-              fontWeight: "800",
-              marginBottom: "6px",
-            }}
-          >
-            Vendor Risk Score
-          </div>
-
-          <div
-            style={{
-              color: vendorRiskColor,
-              fontSize: "28px",
-              fontWeight: "900",
-              lineHeight: 1,
-            }}
-          >
-            {vendorRiskScore}/100
-          </div>
-
-          <div
-            style={{
-              color: "#cbd5e1",
-              fontSize: "12px",
-              marginTop: "6px",
-              fontWeight: "800",
-            }}
-          >
-            {vendorRiskLabel}
-          </div>
-        </div>
-
-        <p
-          style={{
-            color: "#e2e8f0",
-            fontSize: "14px",
-            lineHeight: "1.65",
-            margin: 0,
-          }}
-        >
-          {invoiceMismatchItems.length > 0
-            ? `${invoiceMismatchItems.length} vendor cost mismatch detected. Review invoice totals, supplier pricing, and expected ingredient costs before approving payment.`
-            : invoiceReviewItems.length > 0
-            ? `${invoiceReviewItems.length} invoice item needs review. Costs are close, but the variance is high enough to verify.`
-            : vendorInvoiceData.length > 0
-            ? "Vendor invoice matching looks healthy. No major supplier cost mismatches detected."
-            : "Vendor intelligence is ready. Upload invoice or ingredient cost data to detect supplier overcharges and cost creep."}
-        </p>
-      </div>
-    </div>
-  </div>
-)}{/* =========================
-   📦 INVENTORY BURN RATE INTELLIGENCE
-========================= */}
-
-{hasProAccess && (
-  <div
-    style={{
-      gridColumn: isMobile ? "span 1" : "span 12",
-      marginTop: "18px",
-      padding: "24px",
-      borderRadius: "26px",
-      background:
-        "linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.92))",
-      border: "1px solid rgba(34,197,94,0.22)",
-      boxShadow: "0 24px 70px rgba(2,6,23,0.35)",
-      overflow: "hidden",
-    }}
-  >
-    <div
-      style={{
-        color: "#86efac",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      Inventory Burn Rate Intelligence
-    </div>
-
-    <h3
-      style={{
-        color: "white",
-        fontSize: "24px",
-        fontWeight: "900",
-        margin: "0 0 8px",
-      }}
-    >
-      Ingredient Depletion & Stock Risk
-    </h3>
-
-    <p
-      style={{
-        color: "#cbd5e1",
-        fontSize: "14px",
-        lineHeight: "1.6",
-        marginBottom: "20px",
-      }}
-    >
-      Tracks how fast ingredients are being consumed against expected usage to
-      detect low-stock risk, waste, overuse, and abnormal depletion patterns.
-    </p>
-
-    {/* KPI CARDS */}
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: isMobile ? "1fr" : "repeat(5, 1fr)",
-        gap: "14px",
-      }}
-    >
-      {[
-        {
-          label: "Tracked Ingredients",
-          value: `${inventoryBurnRateData.length}`,
-          sub: "Items monitored",
-        },
-        {
-          label: "Critical Burn Items",
-          value: `${criticalBurnItems.length}`,
-          sub: "Fast depletion risk",
-        },
-        {
-          label: "Watch Closely",
-          value: `${watchBurnItems.length}`,
-          sub: "Moderate usage pressure",
-        },
-        {
-          label: "Avg Days Remaining",
-          value: `${averageDaysRemaining}`,
-          sub: "Across inventory",
-        },
-        {
-          label: "Inventory Health",
-         value:
-  inventoryDepletionData?.length > 0
-    ? `${Math.max(
-        0,
-        Math.min(
-          100,
-          Math.round(
-            100 -
-              Number(criticalBurnItems?.length || 0) * 12 -
-              Number(watchBurnItems?.length || 0) * 6
-          )
-        )
-      )}/100`
-    : "--",
-          sub: "AI inventory efficiency",
-        },
-      ].map((item) => (
-        <div
-          key={item.label}
-          style={{
-            padding: "16px",
-            borderRadius: "18px",
-            background: "rgba(15,23,42,0.76)",
-            border: "1px solid rgba(148,163,184,0.16)",
-          }}
-        >
-          <div
-            style={{
-              color: "#94a3b8",
-              fontSize: "12px",
-              fontWeight: "800",
-            }}
-          >
-            {item.label}
-          </div>
-
-          <div
-            style={{
-              color: "white",
-              fontSize: "24px",
-              fontWeight: "900",
-              marginTop: "8px",
-            }}
-          >
-            {item.value}
-          </div>
-
-          <div
-            style={{
-              color: "#94a3b8",
-              fontSize: "12px",
-              marginTop: "4px",
-            }}
-          >
-            {item.sub}
-          </div>
-        </div>
-      ))}
-    </div>
-
-    <div
-      style={{
-        marginTop: "20px",
-        display: "grid",
-        gridTemplateColumns: isMobile ? "1fr" : "1.2fr 0.8fr",
-        gap: "16px",
-      }}
-    >
-      {/* BURN RATE REVIEW QUEUE */}
-      <div
-        style={{
-          padding: "18px",
-          borderRadius: "20px",
-          background: "rgba(2,6,23,0.42)",
-          border: "1px solid rgba(148,163,184,0.14)",
-        }}
-      >
-        <div
-          style={{
-            color: "#86efac",
-            fontSize: "13px",
-            fontWeight: "900",
-            marginBottom: "14px",
-          }}
-        >
-          Burn Rate Review Queue
-        </div>
-
-        {/* BURN PRESSURE VISUALIZATION */}
-        {inventoryBurnRateData.length > 0 && (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "flex-end",
-              gap: "8px",
-              height: "90px",
-              marginBottom: "18px",
-            }}
-          >
-            {(inventoryBurnRateData || []).slice(0, 7).map((item, index) => {
-              const level = Math.min(
-                Math.max(Number(item.actualDailyUsage || 10), 15),
-                100
-              );
-
-              const color =
-                item.status === "Critical Burn"
-                  ? "linear-gradient(to top, #ef4444, #fca5a5)"
-                  : item.status === "Watch Closely"
-                  ? "linear-gradient(to top, #f59e0b, #fde68a)"
-                  : "linear-gradient(to top, #22c55e, #86efac)";
-
-              return (
-                <div
-                  key={index}
-                  style={{
-                    flex: 1,
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    gap: "6px",
-                  }}
-                >
-                  <div
-                    style={{
-                      width: "100%",
-                      height: `${level}%`,
-                      minHeight: "18px",
-                      borderRadius: "10px 10px 0 0",
-                      background: color,
-                    }}
-                  />
-
-                  <div
-                    style={{
-                      color: "#94a3b8",
-                      fontSize: "10px",
-                      fontWeight: "800",
-                      textAlign: "center",
-                    }}
-                  >
-                    {item.name?.slice(0, 8)}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {inventoryBurnRateData.length > 0 ? (
-          <div style={{ display: "grid", gap: "10px" }}>
-            {inventoryBurnRateData.slice(0, 7).map((item, index) => (
-              <div
-                key={`${item.name}-${index}`}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: isMobile
-                    ? "1fr"
-                    : "1.1fr 0.7fr 0.7fr 0.7fr 0.8fr",
-                  gap: "10px",
-                  alignItems: "center",
-                  padding: "14px",
-                  borderRadius: "16px",
-                  background: "rgba(15,23,42,0.72)",
-                  border: "1px solid rgba(148,163,184,0.12)",
-                  boxShadow:
-                    item.status === "Critical Burn"
-                      ? "0 0 18px rgba(239,68,68,0.16)"
-                      : item.status === "Watch Closely"
-                      ? "0 0 16px rgba(250,204,21,0.12)"
-                      : "0 0 14px rgba(34,197,94,0.10)",
-                }}
-              >
-                <div>
-                  <div
-                    style={{
-                      color: "white",
-                      fontSize: "14px",
-                      fontWeight: "800",
-                    }}
-                  >
-                    {item.name}
-                  </div>
-
-                  <div style={{ color: "#94a3b8", fontSize: "12px" }}>
-                    Current stock:{" "}
-                    {Number(item.currentStock || 0).toLocaleString()}
-                  </div>
-                </div>
-
-                <div style={{ color: "#cbd5e1", fontSize: "13px" }}>
-                  Expected:{" "}
-                  {Number(item.expectedDailyUsage || 0).toLocaleString()}/day
-                </div>
-
-                <div style={{ color: "#cbd5e1", fontSize: "13px" }}>
-                  Actual:{" "}
-                  {Number(item.actualDailyUsage || 0).toLocaleString()}/day
-                </div>
-
-                <div style={{ color: "#cbd5e1", fontSize: "13px" }}>
-                  {Number(item.daysRemaining || 0).toFixed(1)} days
-                </div>
-
-                <div
-                  style={{
-                    color:
-                      item.status === "Critical Burn"
-                        ? "#f87171"
-                        : item.status === "Watch Closely"
-                        ? "#facc15"
-                        : "#34d399",
-                    fontSize: "12px",
-                    fontWeight: "900",
-                  }}
-                >
-                  {item.status}
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p style={{ color: "#94a3b8", fontSize: "14px" }}>
-            Upload ingredient inventory data to activate burn rate intelligence.
-          </p>
-        )}
-      </div>
-
-      {/* AI INVENTORY RECOMMENDATION */}
-      <div
-        style={{
-          padding: "18px",
-          borderRadius: "20px",
-          background:
-            "linear-gradient(135deg, rgba(34,197,94,0.12), rgba(15,23,42,0.82))",
-          border: "1px solid rgba(34,197,94,0.18)",
-        }}
-      >
-        <div
-          style={{
-            color: "#86efac",
-            fontSize: "13px",
-            fontWeight: "900",
-            marginBottom: "12px",
-          }}
-        >
-          AI Inventory Recommendation
-        </div>
-
-        <p
-          style={{
-            color: "#e2e8f0",
-            fontSize: "14px",
-            lineHeight: "1.65",
-            margin: 0,
-          }}
-        >
-          {criticalBurnItems.length > 0
-            ? `${criticalBurnItems.length} inventory item${
-                criticalBurnItems.length > 1 ? "s are" : " is"
-              } depleting at a critical rate. Review prep usage, waste, sales volume, and possible over-portioning.`
-            : watchBurnItems.length > 0
-            ? `${watchBurnItems.length} inventory item${
-                watchBurnItems.length > 1 ? "s need" : " needs"
-              } monitoring. Usage is above expected levels or stock may run low soon.`
-            : inventoryBurnRateData.length > 0
-            ? "Inventory burn rate looks healthy. No major depletion risks detected."
-            : "Inventory burn rate intelligence is ready. Upload ingredient stock and usage data to detect fast-moving inventory risks."}
-        </p>
-
-        {/* AI FORECAST */}
-        <div
-          style={{
-            marginTop: "16px",
-            padding: "14px",
-            borderRadius: "14px",
-            background: "rgba(15,23,42,0.66)",
-            border: "1px solid rgba(148,163,184,0.12)",
-          }}
-        >
-          <div
-            style={{
-              color: "#86efac",
-              fontSize: "12px",
-              fontWeight: "900",
-              marginBottom: "8px",
-            }}
-          >
-            AI Forecast
-          </div>
-
-          <div
-            style={{
-              color: "#cbd5e1",
-              fontSize: "12px",
-              lineHeight: 1.6,
-            }}
-          >
-            Based on current depletion patterns, SerVen predicts inventory
-            pressure could increase over the next 7 days if usage trends
-            continue.
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-)}{/* =========================
-   🚨 INVENTORY RISK ALERTS
-========================= */}
-
-{hasProAccess && (
-  <div
-    style={{
-      gridColumn: isMobile ? "span 1" : "span 12",
-      width: "100%",
-      minWidth: 0,
-      maxWidth: "100%",
-      marginTop: "18px",
-      padding: "22px",
-      borderRadius: "24px",
-      background:
-        "linear-gradient(135deg, rgba(127,29,29,0.22), rgba(15,23,42,0.96))",
-      border: "1px solid rgba(248,113,113,0.22)",
-      boxShadow: "0 20px 60px rgba(2,6,23,0.30)",
-      overflow: "hidden",
-    }}
-  >
-    <div
-      style={{
-        color: "#fca5a5",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      Inventory Risk Alerts
-    </div>
-
-    <h3
-      style={{
-        color: "white",
-        fontSize: "24px",
-        fontWeight: "900",
-        margin: "0 0 12px",
-      }}
-    >
-      AI Inventory Alert System
-    </h3>
-
-    <p
-      style={{
-        color: "#cbd5e1",
-        fontSize: "14px",
-        lineHeight: "1.7",
-        marginBottom: "20px",
-        maxWidth: "900px",
-      }}
-    >
-      Detects abnormal inventory depletion, low-stock risk, unusual usage spikes,
-      and possible waste patterns before operational issues impact service or profitability.
-    </p>
-
-    {/* ALERT SUMMARY STRIP */}
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: isMobile ? "1fr" : "repeat(4, 1fr)",
-        gap: "12px",
-        marginBottom: "20px",
-      }}
-    >
-      {[
-        {
-          label: "Critical Alerts",
-          value: inventoryRiskAlerts.filter(
-            (a) => a.severity === "Critical"
-          ).length,
-          color: "#f87171",
-        },
-        {
-          label: "High Risk",
-          value: inventoryRiskAlerts.filter(
-            (a) => a.severity === "High"
-          ).length,
-          color: "#facc15",
-        },
-        {
-          label: "Total Alerts",
-          value: inventoryRiskAlerts.length,
-          color: "#93c5fd",
-        },
-        {
-          label: "Inventory Status",
-          value:
-            inventoryRiskAlerts.length > 5
-              ? "At Risk"
-              : inventoryRiskAlerts.length > 0
-              ? "Monitoring"
-              : "Healthy",
-          color:
-            inventoryRiskAlerts.length > 5
-              ? "#f87171"
-              : inventoryRiskAlerts.length > 0
-              ? "#facc15"
-              : "#34d399",
-        },
-      ].map((item) => (
-        <div
-          key={item.label}
-          style={{
-            padding: "14px",
-            borderRadius: "16px",
-            background: "rgba(15,23,42,0.72)",
-            border: `1px solid ${item.color}25`,
-          }}
-        >
-          <div
-            style={{
-              color: "#94a3b8",
-              fontSize: "11px",
-              fontWeight: "800",
-            }}
-          >
-            {item.label}
-          </div>
-
-          <div
-            style={{
-              color: item.color,
-              fontSize: "24px",
-              fontWeight: "950",
-              marginTop: "8px",
-            }}
-          >
-            {item.value}
-          </div>
-        </div>
-      ))}
-    </div>
-
-    {/* LIVE ALERT FEED */}
-    {inventoryRiskAlerts.length > 0 ? (
-      <div style={{ display: "grid", gap: "12px" }}>
-        {inventoryRiskAlerts.slice(0, 8).map((alert, index) => (
-          <div
-            key={`${alert.ingredient}-${index}`}
-            style={{
-              padding: "16px",
-              borderRadius: "18px",
-              background: "rgba(15,23,42,0.72)",
-              border:
-                alert.severity === "Critical"
-                  ? "1px solid rgba(248,113,113,0.28)"
-                  : alert.severity === "High"
-                  ? "1px solid rgba(250,204,21,0.24)"
-                  : "1px solid rgba(148,163,184,0.14)",
-
-              boxShadow:
-                alert.severity === "Critical"
-                  ? "0 0 18px rgba(248,113,113,0.16)"
-                  : alert.severity === "High"
-                  ? "0 0 16px rgba(250,204,21,0.12)"
-                  : "0 0 14px rgba(96,165,250,0.10)",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                gap: "12px",
-                alignItems: "center",
-                marginBottom: "10px",
-              }}
-            >
-              <div
-                style={{
-                  color: "white",
-                  fontSize: "15px",
-                  fontWeight: "900",
-                }}
-              >
-                {alert.ingredient}
-              </div>
-
-              <div
-                style={{
-                  padding: "6px 10px",
-                  borderRadius: "999px",
-                  background:
-                    alert.severity === "Critical"
-                      ? "rgba(248,113,113,0.12)"
-                      : alert.severity === "High"
-                      ? "rgba(250,204,21,0.12)"
-                      : "rgba(59,130,246,0.12)",
-
-                  color:
-                    alert.severity === "Critical"
-                      ? "#f87171"
-                      : alert.severity === "High"
-                      ? "#facc15"
-                      : "#93c5fd",
-
-                  fontSize: "11px",
-                  fontWeight: "900",
-                  letterSpacing: "0.04em",
-                  textTransform: "uppercase",
-                }}
-              >
-                {alert.severity}
-              </div>
-            </div>
-
-            <div
-              style={{
-                color: "#e2e8f0",
-                fontSize: "14px",
-                lineHeight: "1.7",
-              }}
-            >
-              {alert.message}
-            </div>
-
-            {/* AI ACTION */}
-            <div
-              style={{
-                marginTop: "12px",
-                padding: "12px",
-                borderRadius: "14px",
-                background: "rgba(255,255,255,0.04)",
-                border: "1px solid rgba(148,163,184,0.10)",
-              }}
-            >
-              <div
-                style={{
-                  color: "#fca5a5",
-                  fontSize: "11px",
-                  fontWeight: "900",
-                  marginBottom: "6px",
-                }}
-              >
-                AI Recommended Action
-              </div>
-
-              <div
-                style={{
-                  color: "#cbd5e1",
-                  fontSize: "12px",
-                  lineHeight: "1.6",
-                }}
-              >
-                {alert.severity === "Critical"
-                  ? "Review prep usage immediately and verify recent inventory counts."
-                  : alert.severity === "High"
-                  ? "Monitor depletion closely and prepare restock planning."
-                  : "Continue monitoring usage behavior for abnormal changes."}
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    ) : (
-      <div
-        style={{
-          padding: "18px",
-          borderRadius: "18px",
-          background: "rgba(255,255,255,0.04)",
-          border: "1px solid rgba(255,255,255,0.08)",
-          color: "#94a3b8",
-          fontSize: "14px",
-        }}
-      >
-        No inventory risks detected right now.
-      </div>
-    )}
-
-    {/* AI FORECAST */}
-    <div
-      style={{
-        marginTop: "20px",
-        padding: "16px",
-        borderRadius: "18px",
-        background:
-          "linear-gradient(135deg, rgba(248,113,113,0.08), rgba(15,23,42,0.88))",
-        border: "1px solid rgba(248,113,113,0.14)",
-      }}
-    >
-      <div
-        style={{
-          color: "#fca5a5",
-          fontSize: "12px",
-          fontWeight: "900",
-          marginBottom: "8px",
-        }}
-      >
-        AI Inventory Forecast
-      </div>
-
-      <div
-        style={{
-          color: "#e2e8f0",
-          fontSize: "13px",
-          lineHeight: "1.7",
-        }}
-      >
-        Based on current depletion patterns and ingredient movement,
-        SerVen predicts inventory pressure may increase over the next
-        5–7 days if current usage trends continue.
-      </div>
-    </div>
-  </div>
-)}{/* =========================
-   🔮 PREDICTIVE RESTOCK INTELLIGENCE
-========================= */}
-
-{hasProAccess && (
-  <div
-    style={{
-      gridColumn: isMobile ? "span 1" : "span 12",
-      width: "100%",
-      minWidth: 0,
-      maxWidth: "100%",
-      marginTop: "18px",
-      padding: "22px",
-      borderRadius: "24px",
-      background:
-        "linear-gradient(135deg, rgba(59,130,246,0.16), rgba(15,23,42,0.96))",
-      border: "1px solid rgba(96,165,250,0.22)",
-      boxShadow: "0 20px 60px rgba(2,6,23,0.30)",
-    }}
-  >
-    <div
-      style={{
-        color: "#93c5fd",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      Predictive Restock Intelligence
-    </div>
-
-    <h3
-      style={{
-        color: "white",
-        fontSize: "22px",
-        fontWeight: "900",
-        margin: "0 0 12px",
-      }}
-    >
-      AI Reorder Timing & Stock Forecast
-    </h3>
-
-    <p
-      style={{
-        color: "#cbd5e1",
-        fontSize: "14px",
-        lineHeight: "1.6",
-        marginBottom: "18px",
-      }}
-    >
-      Forecasts which ingredients are likely to run low first and recommends
-      reorder timing based on burn rate, par levels, and current stock.
-    </p>
-
-    {predictiveRestockData.length > 0 ? (
-      <div style={{ display: "grid", gap: "12px" }}>
-        {predictiveRestockData.slice(0, 8).map((item, index) => (
-          <div
-            key={`${item.name}-${index}`}
-            style={{
-              padding: "14px",
-              borderRadius: "16px",
-              background: "rgba(15,23,42,0.72)",
-              border:
-                item.urgency === "Urgent"
-                  ? "1px solid rgba(248,113,113,0.28)"
-                  : item.urgency === "Soon"
-                  ? "1px solid rgba(250,204,21,0.24)"
-                  : "1px solid rgba(148,163,184,0.14)",
-              display: "grid",
-              gridTemplateColumns: isMobile
-                ? "1fr"
-                : "1.2fr 0.7fr 0.7fr 0.8fr",
-              gap: "12px",
-              alignItems: "center",
-            }}
-          >
-            <div>
-              <div style={{ color: "white", fontSize: "15px", fontWeight: "900" }}>
-                {item.name}
-              </div>
-              <div style={{ color: "#94a3b8", fontSize: "12px" }}>
-                Current stock: {Number(item.currentStock || 0).toLocaleString()}
-              </div>
-            </div>
-
-            <div>
-              <div style={{ color: "#94a3b8", fontSize: "11px" }}>
-                Days Left
-              </div>
-              <div style={{ color: "white", fontWeight: "900" }}>
-                {Number(item.daysRemaining || 0).toFixed(1)}
-              </div>
-            </div>
-
-            <div>
-              <div style={{ color: "#94a3b8", fontSize: "11px" }}>
-                Reorder Qty
-              </div>
-              <div style={{ color: "white", fontWeight: "900" }}>
-                {Number(item.suggestedReorderQty || 0).toLocaleString()}
-              </div>
-            </div>
-
-            <div
-              style={{
-                color:
-                  item.urgency === "Urgent"
-                    ? "#f87171"
-                    : item.urgency === "Soon"
-                    ? "#facc15"
-                    : "#34d399",
-                fontSize: "12px",
-                fontWeight: "900",
-              }}
-            >
-              {item.urgency}
-            </div>
-          </div>
-        ))}
-      </div>
-    ) : (
-      <div
-        style={{
-          padding: "16px",
-          borderRadius: "16px",
-          background: "rgba(255,255,255,0.04)",
-          border: "1px solid rgba(255,255,255,0.08)",
-          color: "#94a3b8",
-          fontSize: "14px",
-        }}
-      >
-        Predictive restock recommendations will appear after inventory uploads.
-      </div>
-    )}
-  </div>
-)}
-<div
-  style={{
-    gridColumn: "1 / -1",
-    width: "100%",
-  }}
->
-{/* STAFF PLANNING + DEMAND FORECASTING */}
-
-<div
-  style={{
-    marginTop: "10px",
-
-    display: "grid",
-
-  gridTemplateColumns: "1fr",
-
-    gap: "20px",
-
-    width: "100%",
-    minWidth: 0,
-  }}
->
-  
-  {/* STAFF PLANNING SIGNALS */}
-  
-  <div
-  style={{
-    position: "relative",
-    width: "100%",
-    minWidth: 0,
-      padding: "20px",
-      borderRadius: "22px",
-      background:
-        "radial-gradient(circle at top right, rgba(59,130,246,0.12), transparent 40%), linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.9))",
-      border: "1px solid rgba(148,163,184,0.16)",
-      boxShadow: "0 18px 40px rgba(2,6,23,0.22)",
-      overflow: "hidden",
-    }}
-  >
-    <div
-      style={{
-        filter: hasProAccess ? "none" : "blur(5px)",
-        opacity: hasProAccess ? 1 : 0.6,
-        pointerEvents: hasProAccess ? "auto" : "none",
-      }}
-    >
-      <div style={{ marginBottom: "16px" }}>
-        <div
-          style={{
-            fontSize: "12px",
-            fontWeight: "900",
-            letterSpacing: "0.08em",
-            color: "#93c5fd",
-            textTransform: "uppercase",
-          }}
-        >
-          Labor Intelligence
-        </div>
-
-        <h3
-          style={{
-            margin: "6px 0 4px",
-            color: "white",
-            fontSize: "22px",
-            fontWeight: "950",
-          }}
-        >
-          Staff planning signals
-        </h3>
-
-        <p style={{ margin: 0, color: "#94a3b8", fontSize: "13px" }}>
-          AI flags overstaffed and understaffed days before margin gets hit.
-        </p>
-      </div>
-<div
-  style={{
-    width: "100%",
-    overflowX: "auto",
-    marginBottom: "18px",
-  }}
->
-  <BarChart
-    width={760}
-    height={260}
-    data={(staffPlanningSignals || []).slice(0, 7)}
-    margin={{ top: 10, right: 20, left: 0, bottom: 20 }}
-  >
-    <XAxis
-      dataKey="day"
-      tick={{ fill: "#94a3b8", fontSize: 11 }}
-      axisLine={{ stroke: "rgba(148,163,184,0.2)" }}
-      tickLine={false}
-    />
-
-    <YAxis
-      tick={{ fill: "#94a3b8", fontSize: 11 }}
-      axisLine={{ stroke: "rgba(148,163,184,0.2)" }}
-      tickLine={false}
-    />
-
-    <Tooltip />
-
-    <Bar
-      dataKey="laborPercent"
-      fill="#60a5fa"
-      radius={[8, 8, 0, 0]}
-    />
-  </BarChart>
-</div>
-      <div
-        style={{
-          marginBottom: "16px",
-          padding: "14px",
-          borderRadius: "16px",
-          background: "rgba(59,130,246,0.10)",
-          border: "1px solid rgba(96,165,250,0.20)",
-        }}
-      >
-        <div
-          style={{
-            fontSize: "12px",
-            fontWeight: "900",
-            color: "#93c5fd",
-            marginBottom: "6px",
-          }}
-        >
-          Staffing AI insight
-        </div>
-
-        <p
-          style={{
-            margin: 0,
-            fontSize: "13px",
-            color: "#bfdbfe",
-            lineHeight: 1.6,
-          }}
-        >
-          {staffPlanningInsight ||
-            "Upload labor and revenue data to generate staff planning signals."}
-        </p>
-      </div>
-
-      {staffPlanningSignals?.length ? (
-        <div style={{ display: "grid", gap: "10px" }}>
-          {staffPlanningSignals.slice(0, 5).map((item, i) => {
-            const signal = String(item.signal || "monitor").toLowerCase();
-
-            const signalTone =
-              signal === "overstaffed"
-                ? {
-                    bg: "rgba(239,68,68,0.12)",
-                    border: "1px solid rgba(239,68,68,0.24)",
-                    color: "#fca5a5",
-                  }
-                : signal === "understaffed"
-                ? {
-                    bg: "rgba(245,158,11,0.12)",
-                    border: "1px solid rgba(245,158,11,0.24)",
-                    color: "#fde68a",
-                  }
-                : {
-                    bg: "rgba(34,197,94,0.12)",
-                    border: "1px solid rgba(34,197,94,0.22)",
-                    color: "#86efac",
-                  };
-
-            return (
-              <div
-                key={`${item.day || "staff"}-${i}`}
-                style={{
-                  padding: "14px",
-                  borderRadius: "16px",
-                  background: "rgba(255,255,255,0.04)",
-                  border: "1px solid rgba(148,163,184,0.12)",
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    gap: "12px",
-                    flexWrap: "wrap",
-                  }}
-                >
-                  <div style={{ fontWeight: "900", color: "white" }}>
-                    {item.day || "Day"}
-                  </div>
-
-                  <div
-                    style={{
-                      padding: "6px 10px",
-                      borderRadius: "999px",
-                      fontSize: "11px",
-                      fontWeight: "900",
-                      background: signalTone.bg,
-                      border: signalTone.border,
-                      color: signalTone.color,
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    {signal}
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    fontSize: "13px",
-                    color: "#94a3b8",
-                    marginTop: "6px",
-                    lineHeight: 1.6,
-                  }}
-                >
-                  {item.insight || "No insight available."}
-                </div>
-
-                <div
-                  style={{
-                    marginTop: "10px",
-                    display: "flex",
-                    justifyContent: "space-between",
-                    gap: "12px",
-                    flexWrap: "wrap",
-                  }}
-                >
-                  <div
-                    style={{
-                      color: "white",
-                      fontSize: "13px",
-                      fontWeight: "900",
-                    }}
-                  >
-                    Labor: {Number(item.laborPercent || 0).toFixed(1)}%
-                  </div>
-
-                  <div
-                    style={{
-                      color: signalTone.color,
-                      fontSize: "13px",
-                      fontWeight: "900",
-                    }}
-                  >
-                    ${Number(item.estimatedImpact || 0).toFixed(0)}/day impact
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      ) : (
-        <div
-          style={{
-            height: "180px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "#94a3b8",
-            textAlign: "center",
-            borderRadius: "18px",
-            border: "1px dashed rgba(148,163,184,0.2)",
-            background: "rgba(15,23,42,0.5)",
-            fontSize: "13px",
-          }}
-        >
-          No staff planning issues detected yet.
-        </div>
-      )}
-    </div>
-
-    {!hasProAccess && (
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          background: "rgba(15,23,42,0.85)",
-          backdropFilter: "blur(6px)",
-          textAlign: "center",
-          padding: "20px",
-        }}
-      >
-        <h4 style={{ color: "white", marginBottom: "8px" }}>
-          🔒 Unlock Staff Planning Signals
-        </h4>
-
-        <p style={{ fontSize: "12px", color: "#cbd5f5", marginBottom: "12px" }}>
-          Let AI identify overstaffed and understaffed days.
-        </p>
-
-        <button
-          onClick={() => router.push("/pricing")}
-          style={{
-            padding: "10px 16px",
-            borderRadius: "10px",
-            border: "none",
-            background: "linear-gradient(135deg, #4f46e5, #6D3DF5)",
-            color: "white",
-            fontWeight: "800",
-            boxShadow: "0 10px 25px rgba(79,70,229,0.35)",
-            cursor: "pointer",
-          }}
-        >
-          Upgrade to Pro →
-        </button>
-      </div>
-    )}
-  </div>
-
-  
-  {/* DEMAND FORECASTING */}
-  
-  <div
-    style={{
-      position: "relative",
-      width: "100%",
-minWidth: 0,
-      padding: "20px",
-      borderRadius: "22px",
-      background:
-        "radial-gradient(circle at top right, rgba(168,85,247,0.12), transparent 40%), linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.9))",
-      border: "1px solid rgba(148,163,184,0.16)",
-      boxShadow: "0 18px 40px rgba(2,6,23,0.22)",
-      overflow: "hidden",
-    }}
-  >
-    <div
-      style={{
-        filter: hasProAccess ? "none" : "blur(5px)",
-        opacity: hasProAccess ? 1 : 0.6,
-        pointerEvents: hasProAccess ? "auto" : "none",
-      }}
-    >
-      <div style={{ marginBottom: "16px" }}>
-        <div
-          style={{
-            fontSize: "12px",
-            fontWeight: "900",
-            letterSpacing: "0.08em",
-            color: "#c4b5fd",
-            textTransform: "uppercase",
-          }}
-        >
-          Forecast Intelligence
-        </div>
-
-        <h3
-          style={{
-            margin: "6px 0 4px",
-            color: "white",
-            fontSize: "22px",
-            fontWeight: "950",
-          }}
-        >
-          Demand forecasting
-        </h3>
-
-        <p style={{ margin: 0, color: "#94a3b8", fontSize: "13px" }}>
-          Predict future revenue and demand spikes before they happen.
-        </p>
-        <div
-  style={{
-    width: "100%",
-    overflowX: "auto",
-    marginBottom: "16px",
-  }}
->
-  <LineChart
-    width={620}
-    height={240}
-    data={[
-      { day: "Today", revenue: Number(liveTotalRevenue || 0) },
-      { day: "Tomorrow", revenue: Number(forecastedNextDayRevenue || 0) },
-      {
-        day: "Next 7 Days",
-        revenue: Number(forecastedNextDayRevenue || 0) * 7,
-      },
-    ]}
-    margin={{ top: 10, right: 20, left: 0, bottom: 20 }}
-  >
-    <XAxis
-      dataKey="day"
-      tick={{ fill: "#94a3b8", fontSize: 11 }}
-      axisLine={{ stroke: "rgba(148,163,184,0.2)" }}
-      tickLine={false}
-    />
-    <YAxis
-      tick={{ fill: "#94a3b8", fontSize: 11 }}
-      axisLine={{ stroke: "rgba(148,163,184,0.2)" }}
-      tickLine={false}
-    />
-    <Tooltip />
-    <Line
-      type="monotone"
-      dataKey="revenue"
-      stroke="#c084fc"
-      strokeWidth={3}
-      dot={{ r: 4 }}
-    />
-  </LineChart>
-</div>
-      </div>
-
-      <div
-        style={{
-          padding: "18px",
-          borderRadius: "18px",
-          background: "rgba(168,85,247,0.10)",
-          border: "1px solid rgba(168,85,247,0.20)",
-          marginBottom: "14px",
-        }}
-      >
-        <div
-          style={{
-            fontSize: "12px",
-            fontWeight: "900",
-            color: "#c4b5fd",
-          }}
-        >
-          Forecasted next day revenue
-        </div>
-
-        <div
-          style={{
-            fontSize: "34px",
-            fontWeight: "950",
-            color: "white",
-            marginTop: "6px",
-          }}
-        >
-          ${Number(forecastedNextDayRevenue || 0).toLocaleString()}
-        </div>
-      </div>
-
-      <div
-        style={{
-          display: "inline-flex",
-          padding: "8px 12px",
-          borderRadius: "999px",
-          fontSize: "12px",
-          fontWeight: "900",
-          background:
-            forecastConfidence === "high"
-              ? "rgba(34,197,94,0.12)"
-              : forecastConfidence === "medium"
-              ? "rgba(245,158,11,0.12)"
-              : "rgba(239,68,68,0.12)",
-          border:
-            forecastConfidence === "high"
-              ? "1px solid rgba(34,197,94,0.22)"
-              : forecastConfidence === "medium"
-              ? "1px solid rgba(245,158,11,0.22)"
-              : "1px solid rgba(239,68,68,0.22)",
-          color:
-            forecastConfidence === "high"
-              ? "#86efac"
-              : forecastConfidence === "medium"
-              ? "#fde68a"
-              : "#fca5a5",
-          textTransform: "uppercase",
-        }}
-      >
-        {forecastConfidence || "low"} confidence
-      </div>
-    </div>
-
-    {!hasProAccess && (
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          background: "rgba(15,23,42,0.85)",
-          backdropFilter: "blur(6px)",
-          textAlign: "center",
-          padding: "20px",
-        }}
-      >
-        <h4 style={{ color: "white", marginBottom: "8px" }}>
-          🔒 Unlock Demand Forecasting
-        </h4>
-
-        <p style={{ fontSize: "12px", color: "#cbd5f5", marginBottom: "12px" }}>
-          Predict future revenue and demand spikes.
-        </p>
-
-        <button
-          onClick={() => router.push("/pricing")}
-          style={{
-            padding: "10px 16px",
-            borderRadius: "10px",
-            border: "none",
-            background: "linear-gradient(135deg, #4f46e5, #6D3DF5)",
-            color: "white",
-            fontWeight: "800",
-            boxShadow: "0 10px 25px rgba(79,70,229,0.35)",
-            cursor: "pointer",
-          }}
-        >
-          Upgrade to Pro →
-        </button>
-      </div>
-    )}
-  </div>
-</div>
-
-{/* INVENTORY FORECASTING */}
-
-<div
-  style={{
-    marginTop: "10px",
-    display: "grid",
-    gridTemplateColumns: "1fr",
-    gap: "20px",
-  }}
->
-  <div
-    style={{
-      padding: "20px",
-      borderRadius: "22px",
-      background:
-        "radial-gradient(circle at top right, rgba(59,130,246,0.12), transparent 40%), linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.9))",
-      border: "1px solid rgba(148,163,184,0.16)",
-      boxShadow: "0 18px 40px rgba(2,6,23,0.22)",
-      position: "relative",
-      overflow: "hidden",
-    }}
-  >
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "flex-start",
-        gap: "12px",
-        flexWrap: "wrap",
-        marginBottom: "16px",
-      }}
-    >
-      <div>
-        <div
-          style={{
-            fontSize: "12px",
-            fontWeight: "900",
-            letterSpacing: "0.08em",
-            color: "#93c5fd",
-            textTransform: "uppercase",
-          }}
-        >
-          Inventory Intelligence
-        </div>
-
-        <h3
-          style={{
-            margin: "6px 0 4px",
-            color: "white",
-            fontSize: "22px",
-            fontWeight: "950",
-          }}
-        >
-          Inventory forecasting
-        </h3>
-
-        <p
-          style={{
-            margin: 0,
-            color: "#94a3b8",
-            fontSize: "13px",
-          }}
-        >
-          Predict shortages, inventory risk, and future restocking pressure.
-        </p>
-      </div>
-
-      <div
-        style={{
-          padding: "8px 12px",
-          borderRadius: "999px",
-          background: "rgba(59,130,246,0.12)",
-          border: "1px solid rgba(59,130,246,0.22)",
-          color: "#93c5fd",
-          fontSize: "12px",
-          fontWeight: "900",
-        }}
-      >
-        {inventoryForecast?.length || 0} tracked items
-      </div>
-    </div>
-
-    <div
-      style={{
-        filter: hasProAccess ? "none" : "blur(5px)",
-        opacity: hasProAccess ? 1 : 0.6,
-        pointerEvents: hasProAccess ? "auto" : "none",
-      }}
-    >
-      <div
-        style={{
-          marginBottom: "16px",
-          padding: "14px",
-          borderRadius: "16px",
-          background: "rgba(59,130,246,0.10)",
-          border: "1px solid rgba(96,165,250,0.20)",
-        }}
-      >
-        <div
-          style={{
-            fontSize: "12px",
-            fontWeight: "900",
-            color: "#93c5fd",
-            marginBottom: "6px",
-          }}
-        >
-          Inventory AI insight
-        </div>
-<div
-  style={{
-    width: "100%",
-    overflowX: "auto",
-    marginBottom: "16px",
-  }}
->
-  <BarChart
-    width={980}
-    height={280}
-    data={(inventoryForecast || []).slice(0, 8)}
-    margin={{ top: 10, right: 20, left: 0, bottom: 20 }}
-  >
-    <XAxis
-      dataKey="name"
-      tick={{ fill: "#94a3b8", fontSize: 11 }}
-      axisLine={{ stroke: "rgba(148,163,184,0.2)" }}
-      tickLine={false}
-    />
-    <YAxis
-      tick={{ fill: "#94a3b8", fontSize: 11 }}
-      axisLine={{ stroke: "rgba(148,163,184,0.2)" }}
-      tickLine={false}
-    />
-    <Tooltip />
-    <Bar
-      dataKey="daysRemaining"
-      fill="#60a5fa"
-      radius={[8, 8, 0, 0]}
-    />
-  </BarChart>
-</div>
-        <p
-          style={{
-            margin: 0,
-            fontSize: "13px",
-            color: "#bfdbfe",
-            lineHeight: 1.6,
-          }}
-        >
-          {inventoryForecastInsight || "Upload ingredient data to generate inventory forecasting insights."}
-        </p>
-      </div>
-
-      {inventoryForecast?.length ? (
-        <div style={{ display: "grid", gap: "10px" }}>
-          {inventoryForecast.slice(0, 5).map((item, i) => {
-            const risk = String(item.inventoryRisk || "medium").toLowerCase();
-
-            const riskStyle =
-              risk === "high"
-                ? {
-                    bg: "rgba(239,68,68,0.14)",
-                    border: "1px solid rgba(239,68,68,0.25)",
-                    color: "#fca5a5",
-                  }
-                : risk === "low"
-                ? {
-                    bg: "rgba(34,197,94,0.12)",
-                    border: "1px solid rgba(34,197,94,0.22)",
-                    color: "#86efac",
-                  }
-                : {
-                    bg: "rgba(245,158,11,0.12)",
-                    border: "1px solid rgba(245,158,11,0.22)",
-                    color: "#fde68a",
-                  };
-
-            return (
-              <div
-                key={`${item.name || "inventory"}-${i}`}
-                style={{
-                  padding: "14px",
-                  borderRadius: "16px",
-                  background: "rgba(255,255,255,0.04)",
-                  border: "1px solid rgba(148,163,184,0.12)",
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    gap: "12px",
-                    flexWrap: "wrap",
-                    alignItems: "center",
-                  }}
-                >
-                  <div>
-                    <div
-                      style={{
-                        fontWeight: "900",
-                        color: "white",
-                        fontSize: "15px",
-                      }}
-                    >
-                      {item.name || "Ingredient"}
-                    </div>
-
-                    <div
-                      style={{
-                        fontSize: "12px",
-                        color: "#94a3b8",
-                        marginTop: "5px",
-                      }}
-                    >
-                      Stock: {Number(item.currentStock || 0).toFixed(0)} • Daily use:{" "}
-                      {Number(item.dailyUsage || 0).toFixed(1)}
-                    </div>
-                  </div>
-
-                  <div
-                    style={{
-                      padding: "6px 10px",
-                      borderRadius: "999px",
-                      fontSize: "11px",
-                      fontWeight: "900",
-                      background: riskStyle.bg,
-                      border: riskStyle.border,
-                      color: riskStyle.color,
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    {risk} risk
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    marginTop: "10px",
-                    display: "grid",
-                    gridTemplateColumns: "1fr auto",
-                    gap: "12px",
-                    alignItems: "center",
-                  }}
-                >
-                  <div
-                    style={{
-                      height: "9px",
-                      borderRadius: "999px",
-                      background: "rgba(148,163,184,0.14)",
-                      overflow: "hidden",
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: `${Math.max(
-                          8,
-                          Math.min(100, Number(item.daysRemaining || 0) * 12)
-                        )}%`,
-                        height: "100%",
-                        borderRadius: "999px",
-                        background: riskStyle.color,
-                      }}
-                    />
-                  </div>
-
-                  <div
-                    style={{
-                      color: riskStyle.color,
-                      fontWeight: "900",
-                      fontSize: "13px",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {Number(item.daysRemaining || 0).toFixed(1)} days left
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      ) : (
-        <div
-          style={{
-            height: "220px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "#94a3b8",
-            textAlign: "center",
-            borderRadius: "18px",
-            border: "1px dashed rgba(148,163,184,0.2)",
-            background: "rgba(15,23,42,0.5)",
-            fontSize: "13px",
-          }}
-        >
-          Upload ingredient data to forecast inventory risk.
-        </div>
-      )}
-    </div>
-
-    {!hasProAccess && (
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          background: "rgba(15,23,42,0.85)",
-          backdropFilter: "blur(6px)",
-          textAlign: "center",
-          padding: "20px",
-        }}
-      >
-        <h4 style={{ color: "white", marginBottom: "8px" }}>
-          🔒 Unlock Inventory Forecasting
-        </h4>
-
-        <p
-          style={{
-            fontSize: "12px",
-            color: "#cbd5f5",
-            marginBottom: "12px",
-          }}
-        >
-          Predict inventory shortages before they happen.
-        </p>
-
-        <button
-          onClick={() => router.push("/pricing")}
-          style={{
-            padding: "10px 16px",
-            borderRadius: "10px",
-            border: "none",
-            background: "linear-gradient(135deg, #4f46e5, #6D3DF5)",
-            color: "white",
-            fontWeight: "800",
-            boxShadow: "0 10px 25px rgba(79,70,229,0.35)",
-            cursor: "pointer",
-          }}
-        >
-          Upgrade to Pro →
-        </button>
-      </div>
-    )}
-  </div>
-</div>
-   </div>
-   {/* AI PROFIT RECOVERY TREND */}
-<div
-  style={{
-    gridColumn: isMobile ? "span 1" : "span 12",
-    width: "100%",
-    minWidth: 0,
-    maxWidth: "100%",
-    marginBottom: "24px",
-    padding: "24px",
-    borderRadius: "22px",
-    minHeight: "auto",
-    display: "flex",
-    flexDirection: "column",
-    background:
-      "radial-gradient(circle at top right, rgba(109,61,245,0.14), transparent 34%), linear-gradient(135deg, rgba(15,23,42,0.92), rgba(30,41,59,0.86))",
-    border: "1px solid rgba(148,163,184,0.16)",
-    boxShadow: "0 18px 42px rgba(2,6,23,0.22)",
-    overflow: "hidden",
-  }}
->
-  <div style={{ marginBottom: "18px" }}>
-    <div
-      style={{
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        color: "#c4b5fd",
-        marginBottom: "6px",
-      }}
-    >
-      AI Profit Intelligence
-    </div>
-
-    <h3
-      style={{
-        margin: 0,
-        color: "white",
-        fontSize: "22px",
-        fontWeight: "950",
-      }}
-    >
-      AI profit recovery trend
-    </h3>
-
-    <p
-      style={{
-        margin: "6px 0 0",
-        color: "#94a3b8",
-        fontSize: "13px",
-        lineHeight: 1.6,
-      }}
-    >
-      Compare baseline revenue against projected AI-optimized revenue.
-    </p>
-  </div>
-
-  <div
-    style={{
-      display: "grid",
-      gridTemplateColumns: isMobile ? "1fr" : "2fr 1fr",
-      gap: "22px",
-      alignItems: "stretch",
-      flex: 1,
-    }}
-  >
-    <div
-      style={{
-        width: "100%",
-        minHeight: isMobile ? "340px" : "420px",
-        padding: "12px",
-        borderRadius: "18px",
-        background: "rgba(15,23,42,0.35)",
-        border: "1px solid rgba(148,163,184,0.10)",
-        overflowX: "auto",
-        overflowY: "hidden",
-      }}
-    >
-      {aiProfitTrendData?.length > 0 ? (
-        <LineChart
-          width={isMobile ? 900 : 760}
-          height={isMobile ? 340 : 420}
-          data={aiProfitTrendData}
-         margin={{ top: 24, right: 35, left: 10, bottom: 70 }}
-        >
-          <CartesianGrid
-            strokeDasharray="3 3"
-            stroke="rgba(148,163,184,0.12)"
-          />
-
-          <XAxis
-  dataKey="date"
-  tick={{ fill: "#94a3b8", fontSize: 10 }}
-  axisLine={{ stroke: "rgba(148,163,184,0.18)" }}
-  tickLine={false}
-  interval={4}
-  angle={-35}
-  textAnchor="end"
-  height={60}
-  tickMargin={12}
-  tickFormatter={(value) =>
-    new Date(value).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-    })
-  }
-/>
-          <YAxis
-            tickFormatter={(value) =>
-              isMobile
-                ? `$${Math.round(Number(value || 0) / 1000)}k`
-                : `$${Number(value || 0).toLocaleString()}`
-            }
-            tick={{ fill: "#94a3b8", fontSize: 10 }}
-            width={65}
-            axisLine={{ stroke: "rgba(148,163,184,0.18)" }}
-            tickLine={false}
-            domain={[0, "auto"]}
-          />
-
-          <Tooltip
-            wrapperStyle={{ pointerEvents: "none" }}
-            formatter={(value, name) => [
-              `$${Number(value || 0).toLocaleString()}`,
-              name === "optimized"
-                ? "AI Optimized Revenue"
-                : "Baseline Revenue",
-            ]}
-            contentStyle={{
-              background: "rgba(15,23,42,0.97)",
-              border: "1px solid rgba(148,163,184,0.18)",
-              borderRadius: "14px",
-              color: "white",
-            }}
-            labelStyle={{ color: "#e5e7eb" }}
-          />
-
-          <Legend
-            wrapperStyle={{
-              color: "#94a3b8",
-              fontSize: "12px",
-              fontWeight: "800",
-            }}
-          />
-
-          <Line
-            type="monotone"
-            dataKey="baseline"
-            name="Baseline Revenue"
-            stroke="#64748b"
-            strokeWidth={3}
-            strokeDasharray="6 6"
-            dot={false}
-            connectNulls
-            isAnimationActive={false}
-          />
-
-          <Line
-            type="monotone"
-            dataKey="optimized"
-            name="AI Optimized Revenue"
-            stroke="#8b5cf6"
-            strokeWidth={4}
-            dot={{ r: 3 }}
-            activeDot={{
-              r: 7,
-              fill: "#c4b5fd",
-              stroke: "white",
-              strokeWidth: 2,
-            }}
-            connectNulls
-            isAnimationActive={false}
-          />
-        </LineChart>
-      ) : (
-        <div style={{ color: "#94a3b8", padding: "24px" }}>
-          No AI profit trend data available yet.
-        </div>
-      )}
-    </div>
-
-    <div
-      style={{
-        padding: "18px",
-        borderRadius: "18px",
-        background:
-          "linear-gradient(135deg, rgba(15,23,42,0.84), rgba(30,41,59,0.72))",
-        border: "1px solid rgba(148,163,184,0.14)",
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "space-between",
-        gap: "14px",
-      }}
-    >
-      <div>
-        <div
-          style={{
-            color: "#c4b5fd",
-            fontSize: "12px",
-            fontWeight: "900",
-            letterSpacing: "0.08em",
-            textTransform: "uppercase",
-            marginBottom: "10px",
-          }}
-        >
-          AI Recovery Readout
-        </div>
-
-        <div style={{ color: "white", fontSize: "20px", fontWeight: "950" }}>
-          Projected recovery path
-        </div>
-
-        <p
-          style={{
-            marginTop: "8px",
-            color: "#94a3b8",
-            fontSize: "13px",
-            lineHeight: 1.6,
-          }}
-        >
-          This compares your baseline revenue against the projected revenue after
-          AI recommendations are applied.
-        </p>
-      </div>
-
-      <div style={{ display: "grid", gap: "10px" }}>
-        <div
-          style={{
-            padding: "13px",
-            borderRadius: "14px",
-            background: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(148,163,184,0.10)",
-          }}
-        >
-          <div style={{ color: "#94a3b8", fontSize: "11px" }}>
-            Projected Profit Lift
-          </div>
-
-          <div style={{ color: "#c4b5fd", fontSize: "18px", fontWeight: "900" }}>
-            +${Number(totalAiProfit || 0).toLocaleString()}
-          </div>
-        </div>
-
-        <div
-          style={{
-            padding: "13px",
-            borderRadius: "14px",
-            background: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(148,163,184,0.10)",
-          }}
-        >
-          <div style={{ color: "#94a3b8", fontSize: "11px" }}>
-            Recovery Confidence
-          </div>
-
-          <div style={{ color: "#86efac", fontSize: "18px", fontWeight: "900" }}>
-            {realForecastConfidence}%
-          </div>
-        </div>
-
-        <div
-          style={{
-            padding: "13px",
-            borderRadius: "14px",
-            background: "rgba(139,92,246,0.10)",
-            border: "1px solid rgba(139,92,246,0.18)",
-            color: "#ddd6fe",
-            fontSize: "13px",
-            lineHeight: 1.6,
-            fontWeight: "750",
-          }}
-        >
-          Recommended action: apply the highest-impact AI fix first, then watch
-          the optimized line separate from baseline revenue over time.
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-      </div>
-    </div>
-  </>
-)}
-    {!executiveModeEnabled && (
-      <>
-{/* 💸 PROJECTED REVENUE LIFT */}
-<div
-  style={{
-    marginTop: "24px",
-    padding: "24px",
-    borderRadius: "24px",
-    background:
-      "radial-gradient(circle at top right, rgba(34,197,94,0.12), transparent 35%), linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.94))",
-    border: "1px solid rgba(148,163,184,0.16)",
-    boxShadow: "0 24px 60px rgba(2,6,23,0.28)",
-    overflow: "visible",
-    position: "relative",
-  }}
->
-  
-  <div
-    style={{
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "flex-start",
-      gap: "20px",
-      flexWrap: "wrap",
-    }}
-  >
-    <div>
-      <div
-        style={{
-          fontSize: "13px",
-          fontWeight: "800",
-          letterSpacing: "0.08em",
-          textTransform: "uppercase",
-          color: "#4ade80",
-          marginBottom: "8px",
-        }}
-      >
-        Projected Revenue Lift
-      </div>
-
-      <div
-        style={{
-          fontSize: "28px",
-          fontWeight: "900",
-          color: "white",
-          lineHeight: 1.1,
-        }}
-      >
-        <CountUpValue value={Number(totalAiProfit || 0)} prefix="$" />
-      </div>
-
-      <div
-        style={{
-          fontSize: "12px",
-          color: "#4ade80",
-          marginTop: "4px",
-          fontWeight: "700",
-        }}
-      >
-        AI-optimized revenue potential
-      </div>
-
-      <div
-        style={{
-          fontSize: "13px",
-          color: "#94a3b8",
-          marginTop: "6px",
-          lineHeight: 1.6,
-          maxWidth: "520px",
-        }}
-      >
-        If your current AI fixes are applied, Serven projects an estimated
-        monthly revenue increase based on your active profit opportunities.
-      </div>
-    </div>
-
-    <div
-      style={{
-        padding: "10px 14px",
-        borderRadius: "999px",
-        background: "rgba(34,197,94,0.12)",
-        border: "1px solid rgba(34,197,94,0.18)",
-        color: "#4ade80",
-        fontSize: "13px",
-        fontWeight: "800",
-        whiteSpace: "nowrap",
-      }}
-    >
-     Live recovery progress
-    </div>
-  </div>
-
-  
-  <div
-    style={{
-      display: "flex",
-      gap: "8px",
-      flexWrap: "wrap",
-      marginTop: "18px",
-      marginBottom: "4px",
-    }}
-  >
-    {[
-      { key: "conservative", label: "Conservative" },
-      { key: "base", label: "Base Case" },
-      { key: "aggressive", label: "Aggressive" },
-    ].map((scenario) => {
-      const isActive = revenueScenario === scenario.key;
-
-      return (
-        <button
-          key={scenario.key}
-          type="button"
-          onClick={() => setRevenueScenario(scenario.key)}
-          style={{
-            padding: "8px 12px",
-            borderRadius: "999px",
-            border: isActive
-              ? "1px solid rgba(34,197,94,0.24)"
-              : "1px solid rgba(148,163,184,0.16)",
-            background: isActive
-              ? "rgba(34,197,94,0.12)"
-              : "rgba(255,255,255,0.04)",
-            color: isActive ? "#86efac" : "#cbd5e1",
-            fontSize: "12px",
-            fontWeight: "800",
-            cursor: "pointer",
-          }}
-        >
-          {scenario.label}
-        </button>
-      );
-    })}
-  </div>
-
-  
-  <div
-    style={{
-      display: "grid",
-      gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", // 📱 Responsive Fix
-      gap: "16px",
-      marginTop: "22px",
-    }}
-  >
-    <div
-      style={{
-        padding: "16px",
-        borderRadius: "18px",
-        background: "rgba(255,255,255,0.04)",
-        border: "1px solid rgba(148,163,184,0.12)",
-      }}
-    >
-      <div
-        style={{
-          fontSize: "11px",
-          color: "#94a3b8",
-          fontWeight: "700",
-          textTransform: "uppercase",
-          letterSpacing: "0.06em",
-          marginBottom: "8px",
-        }}
-      >
-        Current Revenue
-      </div>
-
-      <div
-        style={{
-          fontSize: "24px",
-          fontWeight: "900",
-          color: "white",
-        }}
-      >
-       ${Number(totalRevenue || 0).toLocaleString()}
-      </div>
-    </div>
-
-    <div
-      style={{
-        padding: "16px",
-        borderRadius: "18px",
-        background: "rgba(34,197,94,0.08)",
-        border: "1px solid rgba(34,197,94,0.16)",
-      }}
-    >
-      <div
-        style={{
-          fontSize: "11px",
-          color: "#4ade80",
-          fontWeight: "700",
-          textTransform: "uppercase",
-          letterSpacing: "0.06em",
-          marginBottom: "8px",
-        }}
-      >
-        AI Revenue Lift
-      </div>
-
-      <div
-        style={{
-          fontSize: "24px",
-          fontWeight: "900",
-          color: "#4ade80",
-        }}
-      >
-        ${Number(totalAiProfit || 0).toLocaleString()} recovered
-      </div>
-    </div>
-
-    <div
-      style={{
-        padding: "16px",
-        borderRadius: "18px",
-        background: "rgba(255,255,255,0.04)",
-        border: "1px solid rgba(148,163,184,0.12)",
-      }}
-    >
-      <div
-        style={{
-          fontSize: "11px",
-          color: "#94a3b8",
-          fontWeight: "700",
-          textTransform: "uppercase",
-          letterSpacing: "0.06em",
-          marginBottom: "8px",
-        }}
-      >
-        Projected Revenue
-      </div>
-
-      <div
-        style={{
-          fontSize: "24px",
-          fontWeight: "900",
-          color: "white",
-        }}
-      >
-        ${Number(totalRevenue || 0).toLocaleString()}
-      </div>
-    </div>
-  </div>
-
-  
-  <div
-    style={{
-      marginTop: "22px",
-      padding: "14px 16px",
-      borderRadius: "16px",
-      background: "rgba(255,255,255,0.03)",
-      border: "1px solid rgba(148,163,184,0.12)",
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-      gap: "12px",
-      flexWrap: "wrap",
-    }}
-  >
-    <div style={{ flex: "1 1 300px" }}>
-      <div
-        style={{
-          fontSize: "11px",
-          color: "#94a3b8",
-          fontWeight: "700",
-          textTransform: "uppercase",
-          letterSpacing: "0.06em",
-          marginBottom: "4px",
-        }}
-      >
-        Revenue Forecast Summary
-      </div>
-
-      <div
-        style={{
-          fontSize: "13px",
-          color: "#e2e8f0",
-          lineHeight: 1.6,
-        }}
-      >
-        In the{" "}
-        <span style={{ color: "#86efac", fontWeight: "800" }}>
-          {revenueScenario === "base" ? "Base Case" : revenueScenario.charAt(0).toUpperCase() + revenueScenario.slice(1)}
-        </span>{" "}
-       Current AI actions are now tracked as applied recovery, not projected future revenue.
-Recovered profit is based on saved AI action impact.
-      </div>
-    </div>
-
-    <button
-      type="button"
-      onClick={() => runAutopilotAI("Revenue lift refresh")}
-      style={{
-        padding: "10px 14px",
-        borderRadius: "12px",
-        border: "none",
-        background: "linear-gradient(135deg, #22c55e, #16a34a)",
-        color: "white",
-        fontWeight: "800",
-        cursor: "pointer",
-        whiteSpace: "nowrap",
-      }}
-    >
-      Refresh Projection
-    </button>
-  </div>
-</div>
-{/* 🧠 FORECAST CONFIDENCE */}
-{(() => {
-  // Quick dynamic status generator based on your variable
-  const confidenceVal = Number(overallAIConfidence || 0);
-  let confidenceLabel = "High confidence";
-  if (confidenceVal < 40) confidenceLabel = "Low confidence";
-  else if (confidenceVal < 75) confidenceLabel = "Moderate confidence";
-
-  return (
-    <div
-      style={{
-        marginTop: "20px",
-        padding: "22px",
-        borderRadius: "22px",
-        background:
-          "linear-gradient(135deg, rgba(15,23,42,0.95), rgba(30,41,59,0.92))",
-        border: "1px solid rgba(148,163,184,0.16)",
-        boxShadow: "0 20px 50px rgba(2,6,23,0.24)",
-      }}
-    >
-      {/* HEADER */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-          gap: "16px",
-          flexWrap: "wrap",
-          marginBottom: "18px",
-        }}
-      >
-        <div>
-          <div
-            style={{
-              fontSize: "12px",
-              fontWeight: "800",
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
-              color: "#c4b5fd",
-              marginBottom: "8px",
-            }}
-          >
-            Forecast Confidence
-          </div>
-
-          <div
-            style={{
-              fontSize: "13px",
-              color: "#94a3b8",
-              lineHeight: 1.6,
-              maxWidth: "560px",
-            }}
-          >
-            AI confidence reflects the number of applied fixes, revenue signal
-            quality, and how much optimization data is already confirmed.
-          </div>
-        </div>
-
-        <div
-          style={{
-            padding: "8px 12px",
-            borderRadius: "999px",
-            background: "rgba(168,85,247,0.12)",
-            border: "1px solid rgba(168,85,247,0.18)",
-            color: "#d8b4fe",
-            fontSize: "12px",
-            fontWeight: "800",
-            whiteSpace: "nowrap", // Prevents pill text breaking into two rows
-          }}
-        >
-          {hasOperationalData
-  ? `${realForecastConfidence}% confidence`
-  : "Awaiting Data"}
-        </div>
-      </div>
-
-      {/* ASSUMPTION CARDS - Pure CSS Responsive Grid */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-          gap: "14px",
-        }}
-      >
-        <div
-          style={{
-            padding: "16px",
-            borderRadius: "18px",
-            background: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(148,163,184,0.12)",
-          }}
-        >
-          <div
-            style={{
-              fontSize: "11px",
-              color: "#94a3b8",
-              fontWeight: "700",
-              textTransform: "uppercase",
-              letterSpacing: "0.06em",
-              marginBottom: "8px",
-            }}
-          >
-            Assumption 1
-          </div>
-
-          <div
-            style={{
-              fontSize: "13px",
-              color: "#e2e8f0",
-              lineHeight: 1.6,
-            }}
-          >
-            Revenue lift assumes current AI fixes are applied consistently and
-            maintained across the month.
-          </div>
-        </div>
-
-        <div
-          style={{
-            padding: "16px",
-            borderRadius: "18px",
-            background: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(148,163,184,0.12)",
-          }}
-        >
-          <div
-            style={{
-              fontSize: "11px",
-              color: "#94a3b8",
-              fontWeight: "700",
-              textTransform: "uppercase",
-              letterSpacing: "0.06em",
-              marginBottom: "8px",
-            }}
-          >
-            Assumption 2
-          </div>
-
-          <div
-            style={{
-              fontSize: "13px",
-              color: "#e2e8f0",
-              lineHeight: 1.6,
-            }}
-          >
-            Forecast assumes current traffic demand remains stable while menu,
-            labor, and cost improvements raise efficiency.
-          </div>
-        </div>
-
-        <div
-          style={{
-            padding: "16px",
-            borderRadius: "18px",
-            background: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(148,163,184,0.12)",
-          }}
-        >
-          <div
-            style={{
-              fontSize: "11px",
-              color: "#94a3b8",
-              fontWeight: "700",
-              textTransform: "uppercase",
-              letterSpacing: "0.06em",
-              marginBottom: "8px",
-            }}
-          >
-            Assumption 3
-          </div>
-
-          <div
-            style={{
-              fontSize: "13px",
-              color: "#e2e8f0",
-              lineHeight: 1.6,
-            }}
-          >
-            More applied AI fixes and stronger data quality increase forecast
-            confidence over time.
-          </div>
-        </div>
-      </div>
-
-      {/* SUMMARY BANNER */}
-      <div
-        style={{
-          marginTop: "18px",
-          padding: "14px 16px",
-          borderRadius: "16px",
-          background: "rgba(168,85,247,0.08)",
-          border: "1px solid rgba(168,85,247,0.16)",
-        }}
-      >
-        <div
-          style={{
-            color: "#d8b4fe",
-            fontSize: "12px",
-            fontWeight: "900",
-            marginBottom: "8px",
-            letterSpacing: "0.06em",
-          }}
-        >
-          AI CONFIDENCE LEVEL
-        </div>
-
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            gap: "14px",
-            flexWrap: "wrap",
-          }}
-        >
-          <div>
-            <div
-              style={{
-                color: "white",
-                fontSize: "28px",
-                fontWeight: "950",
-              }}
-            >
-              {confidenceVal}%
-            </div>
-
-            <div
-              style={{
-                color: "#e9d5ff",
-                fontWeight: "800",
-                fontSize: "13px",
-              }}
-            >
-              {confidenceLabel} {/* 🔮 Dynamic text fix */}
-            </div>
-          </div>
-
-          <div
-            style={{
-              fontSize: "13px",
-              color: "#ddd6fe",
-              lineHeight: 1.7,
-              maxWidth: "420px",
-              flex: "1 1 300px",
-            }}
-          >
-            Serven AI becomes more accurate as more inventory, menu,
-            and operational data is uploaded into the system.
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-})()}
 {/* 🚀 REVENUE DRIVERS */}
 <div
   style={{
@@ -47152,6 +42744,7 @@ Recovered profit is based on saved AI action impact.
     </div>
   );
 })()}
+
 {/* ✅ WEEKLY AI ACTION PLAN */}
 {(() => {
   // 🛡️ Safe Extraction Layer to guarantee the dashboard never crashes during fetching states
@@ -47369,6 +42962,5152 @@ Recovered profit is based on saved AI action impact.
     </div>
   );
 })()}
+  </>
+)}
+  {analyticsView === "menu" && (
+  <>
+  
+{/* MENU MIX / SALES DISTRIBUTION */}
+<div
+  style={{
+    gridColumn: isMobile ? "span 1" : "span 12",
+    width: "100%",
+    minWidth: 0,
+    maxWidth: "100%",
+    padding: "22px",
+    borderRadius: "22px",
+    minHeight: "420px",
+    display: "flex",
+    flexDirection: "column",
+    background:
+      "radial-gradient(circle at top right, rgba(34,197,94,0.12), transparent 40%), linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.9))",
+    border: "1px solid rgba(148,163,184,0.16)",
+    boxShadow: "0 18px 40px rgba(2,6,23,0.22)",
+    overflow: "hidden",
+    boxSizing: "border-box",
+    alignSelf: "start",
+  }}
+>
+  <div
+    style={{
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "flex-start",
+      gap: "12px",
+      flexWrap: "wrap",
+      marginBottom: "18px",
+    }}
+  >
+    <div>
+      <div
+        style={{
+          fontSize: "12px",
+          fontWeight: "900",
+          letterSpacing: "0.08em",
+          color: "#22c55e",
+          textTransform: "uppercase",
+        }}
+      >
+        Menu Mix
+      </div>
+
+      <h3
+        style={{
+          margin: "6px 0 4px",
+          color: "white",
+          fontSize: "22px",
+          fontWeight: "950",
+        }}
+      >
+        Sales distribution
+      </h3>
+
+      <p style={{ margin: 0, color: "#94a3b8", fontSize: "13px" }}>
+        See which menu items or categories are driving the most revenue.
+      </p>
+    </div>
+
+    <div
+      style={{
+        padding: "8px 12px",
+        borderRadius: "999px",
+        background: "rgba(34,197,94,0.12)",
+        border: "1px solid rgba(34,197,94,0.22)",
+        color: "#86efac",
+        fontSize: "12px",
+        fontWeight: "900",
+      }}
+    >
+      {salesDistributionData?.length || 0} segments
+    </div>
+  </div>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: "1fr",
+      gap: "18px",
+      alignItems: "start",
+      width: "100%",
+    }}
+  ><div
+  style={{
+    width: "100%",
+    height: "320px",
+    minHeight: "320px",
+    overflowX: "auto",
+    overflowY: "hidden",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+  }}
+>
+  {salesDistributionData?.length > 0 ? (
+   <PieChart width={520} height={320}>
+  <Pie
+    data={salesDistributionData}
+    dataKey="value"
+    nameKey="name"
+    cx="50%"
+    cy="50%"
+    outerRadius={105}
+    innerRadius={52}
+    paddingAngle={3}
+  >
+    {(salesDistributionData || []).map((entry, index) => {
+      const colors = [
+        "#4f46e5",
+        "#22c55e",
+        "#f59e0b",
+        "#ef4444",
+        "#06b6d4",
+        "#a855f7",
+      ];
+
+      return (
+        <Cell
+          key={`menu-mix-cell-${index}`}
+          fill={colors[index % colors.length]}
+        />
+      );
+    })}
+  </Pie>
+
+  <Tooltip
+    formatter={(value) => [
+      `$${Number(value || 0).toLocaleString()}`,
+      "Revenue",
+    ]}
+    contentStyle={{
+      background: "#020617",
+      border: "1px solid rgba(148,163,184,0.24)",
+      borderRadius: "14px",
+      color: "white",
+    }}
+  />
+
+  <Legend
+    verticalAlign="bottom"
+    height={36}
+    wrapperStyle={{
+      color: "#cbd5e1",
+      fontSize: "12px",
+      paddingTop: "10px",
+    }}
+  />
+</PieChart>
+  ) : (
+    <div
+      style={{
+        color: "#94a3b8",
+        height: "100%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        textAlign: "center",
+      }}
+    >
+      No sales distribution data available yet.
+    </div>
+  )}
+</div>
+
+    <div
+      style={{
+        padding: "16px",
+        borderRadius: "18px",
+        background:
+          "linear-gradient(135deg, rgba(15,23,42,0.84), rgba(30,41,59,0.72))",
+        border: "1px solid rgba(148,163,184,0.14)",
+        display: "grid",
+        gap: "12px",
+      }}
+    >
+      <div>
+        <div
+          style={{
+            color: "#86efac",
+            fontSize: "12px",
+            fontWeight: "900",
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            marginBottom: "10px",
+          }}
+        >
+          AI Menu Readout
+        </div>
+
+        <div style={{ color: "white", fontSize: "18px", fontWeight: "950" }}>
+          Top seller concentration
+        </div>
+
+        <p
+          style={{
+            marginTop: "8px",
+            color: "#94a3b8",
+            fontSize: "13px",
+            lineHeight: 1.6,
+          }}
+        >
+          Your highest revenue item is driving a large share of sales.
+        </p>
+      </div>
+
+      <div
+        style={{
+          padding: "13px",
+          borderRadius: "14px",
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(148,163,184,0.10)",
+        }}
+      >
+        <div style={{ color: "#94a3b8", fontSize: "11px" }}>
+          Top Segment
+        </div>
+
+        <div
+          style={{
+            color: "white",
+            fontSize: "18px",
+            fontWeight: "900",
+          }}
+        >
+          {salesDistributionData?.[0]?.name || "Waiting for menu data"}
+        </div>
+      </div>
+
+      <div
+        style={{
+          padding: "13px",
+          borderRadius: "14px",
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(148,163,184,0.10)",
+        }}
+      >
+        <div style={{ color: "#94a3b8", fontSize: "11px" }}>
+          Top Segment Revenue
+        </div>
+
+        <div
+          style={{
+            color: "#86efac",
+            fontSize: "18px",
+            fontWeight: "900",
+          }}
+        >
+          ${Number(salesDistributionData?.[0]?.value || 0).toLocaleString()}
+        </div>
+      </div>
+
+      <div
+        style={{
+          padding: "13px",
+          borderRadius: "14px",
+          background: "rgba(34,197,94,0.10)",
+          border: "1px solid rgba(34,197,94,0.18)",
+          color: "#bbf7d0",
+          fontSize: "13px",
+          lineHeight: 1.6,
+          fontWeight: "750",
+        }}
+      >
+        {salesDistributionData?.[0]?.name
+  ? `Recommended action: review ${salesDistributionData[0].name} and pair it with a higher-margin add-on if margin data supports it.`
+  : "Recommended action: upload menu revenue and margin data to generate a real menu recommendation."}
+      </div>
+    </div>
+  </div>
+
+  {salesDistributionInsight && (
+    <div
+      style={{
+        marginTop: "18px",
+        padding: "14px 16px",
+        borderRadius: "16px",
+        background: "rgba(255,255,255,0.04)",
+        border: "1px solid rgba(148,163,184,0.12)",
+        color: "#e2e8f0",
+        fontSize: "13px",
+        lineHeight: 1.6,
+      }}
+    >
+      {salesDistributionInsight}
+    </div>
+  )}
+</div>
+
+{/* PROFIT LEAKAGE TOP ITEMS */}
+<div
+  style={{
+    gridColumn: isMobile ? "span 1" : "span 12",
+    width: "100%",
+    minWidth: 0,
+    maxWidth: "100%",
+    padding: "22px",
+    borderRadius: "22px",
+    minHeight: "420px",
+    display: "flex",
+    flexDirection: "column",
+    background:
+      "radial-gradient(circle at top right, rgba(249,115,22,0.12), transparent 40%), linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.9))",
+    border: "1px solid rgba(148,163,184,0.16)",
+    boxShadow: "0 18px 40px rgba(2,6,23,0.22)",
+    overflow: "hidden",
+    boxSizing: "border-box",
+    alignSelf: "start",
+  }}
+>
+  <div
+    style={{
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "flex-start",
+      gap: "12px",
+      flexWrap: "wrap",
+      marginBottom: "18px",
+    }}
+  >
+    <div>
+      <div
+        style={{
+          fontSize: "12px",
+          fontWeight: "900",
+          letterSpacing: "0.08em",
+          color: "#f97316",
+          textTransform: "uppercase",
+        }}
+      >
+        Profit Leakage
+      </div>
+
+      <h3
+        style={{
+          margin: "6px 0 4px",
+          color: "white",
+          fontSize: "22px",
+          fontWeight: "950",
+        }}
+      >
+        Top margin leak items
+      </h3>
+
+      <p style={{ margin: 0, color: "#94a3b8", fontSize: "13px" }}>
+        Flags items that may be selling but leaking profit.
+      </p>
+    </div>
+
+    <div
+      style={{
+        padding: "8px 12px",
+        borderRadius: "999px",
+        background: "rgba(249,115,22,0.12)",
+        border: "1px solid rgba(249,115,22,0.22)",
+        color: "#fdba74",
+        fontSize: "12px",
+        fontWeight: "900",
+      }}
+    >
+      {profitLeakageChartData?.length || 0} leak items
+    </div>
+  </div>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: "1fr",
+      gap: "18px",
+      width: "100%",
+    }}
+  ><div
+  style={{
+    width: "100%",
+    height: "340px",
+    minHeight: "340px",
+    overflowX: "auto",
+    overflowY: "hidden",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+  }}
+>
+  {profitLeakageChartData?.length > 0 ? (
+    <BarChart
+      width={isMobile ? 900 : 820}
+      height={340}
+      data={profitLeakageChartData}
+      margin={{ top: 24, right: 30, left: 10, bottom: 40 }}
+    >
+      <CartesianGrid
+        strokeDasharray="3 3"
+        stroke="rgba(148,163,184,0.14)"
+        vertical={false}
+      />
+
+      <XAxis
+        dataKey="name"
+        tick={{ fill: "#94a3b8", fontSize: 10 }}
+        axisLine={false}
+        tickLine={false}
+        interval={0}
+      />
+
+      <YAxis
+        tick={{ fill: "#94a3b8", fontSize: 10 }}
+        axisLine={false}
+        tickLine={false}
+        width={70}
+        tickFormatter={(value) => `$${Number(value || 0).toLocaleString()}`}
+      />
+
+      <Tooltip
+        formatter={(value) => [
+          `$${Number(value || 0).toLocaleString()}`,
+          "Estimated Loss",
+        ]}
+        contentStyle={{
+          background: "#020617",
+          border: "1px solid rgba(148,163,184,0.24)",
+          borderRadius: "14px",
+          color: "white",
+        }}
+      />
+
+      <Bar
+        dataKey="loss"
+        fill="#f97316"
+        radius={[10, 10, 0, 0]}
+        barSize={34}
+        isAnimationActive={false}
+      />
+    </BarChart>
+  ) : (
+    <div
+      style={{
+        color: "#94a3b8",
+        height: "100%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        textAlign: "center",
+      }}
+    >
+      No profit leakage data available yet.
+    </div>
+  )}
+</div>
+
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: isMobile
+          ? "1fr"
+          : "repeat(3,minmax(0,1fr))",
+        gap: "12px",
+      }}
+    >
+      <div
+        style={{
+          padding: "14px",
+          borderRadius: "16px",
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(148,163,184,0.10)",
+        }}
+      >
+        <div style={{ color: "#94a3b8", fontSize: "11px" }}>
+          Priority Item
+        </div>
+
+        <div
+          style={{
+            color: "white",
+            fontSize: "20px",
+            fontWeight: "900",
+          }}
+        >
+          {profitLeakageChartData?.[0]?.name || "Waiting for menu data"}
+        </div>
+      </div>
+
+      <div
+        style={{
+          padding: "14px",
+          borderRadius: "16px",
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(148,163,184,0.10)",
+        }}
+      >
+        <div style={{ color: "#94a3b8", fontSize: "11px" }}>
+          Recoverable Margin
+        </div>
+
+        <div
+          style={{
+            color: "#fdba74",
+            fontSize: "20px",
+            fontWeight: "900",
+          }}
+        >
+          ${Number(
+            profitLeakageChartData?.[0]?.loss || 0
+          ).toLocaleString()}
+        </div>
+      </div>
+
+      <div
+        style={{
+          padding: "14px",
+          borderRadius: "16px",
+          background: "rgba(249,115,22,0.10)",
+          border: "1px solid rgba(249,115,22,0.18)",
+          color: "#fed7aa",
+          fontSize: "13px",
+          lineHeight: 1.6,
+          fontWeight: "750",
+        }}
+      >
+        Review recipe cost, portions, vendor pricing, and menu pricing on your
+        highest leaking items first.
+      </div>
+    </div>
+  </div>
+</div>
+  </>
+  )}
+  {analyticsView === "cost" && (
+  <>
+  
+   {/* 💰 PRIME COST FORECAST TREND */}
+
+{hasProAccess && (
+  <div
+    style={{
+      gridColumn: "1 / -1",
+      minWidth: 0,
+      marginTop: "18px",
+      padding: "22px",
+      borderRadius: "24px",
+      background:
+        "linear-gradient(135deg, rgba(245,158,11,0.12), rgba(15,23,42,0.96))",
+      border: "1px solid rgba(245,158,11,0.22)",
+      boxShadow: "0 22px 60px rgba(2,6,23,0.28)",
+    }}
+  >
+    <div
+      style={{
+        color: "#fbbf24",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      Prime Cost Forecast
+    </div>
+
+    <h3 style={{ color: "white", fontSize: "24px", fontWeight: "950" }}>
+      Prime Cost Risk Trend
+    </h3>
+
+    <p style={{ color: "#94a3b8", fontSize: "13px", lineHeight: 1.6 }}>
+      Forecasts whether combined food and labor pressure is moving toward a
+      healthy, warning, or critical range.
+    </p>
+
+    <div
+      style={{
+        width: "100%",
+        height: isMobile ? "260px" : "360px",
+        marginTop: "18px",
+        overflow: "visible",
+      }}
+    >
+      <LineChart
+        width={isMobile ? 320 : 980}
+        height={isMobile ? 260 : 320}
+        data={primeCostForecastChartData}
+        /* 🛠️ FIX: Reset left margin to 0 to stop percentages from clipping off the card edge */
+        margin={{ top: 10, right: 35, left: 0, bottom: 10 }}
+      >
+        <CartesianGrid
+          strokeDasharray="3 3"
+          stroke="rgba(148,163,184,0.14)"
+        />
+
+        <XAxis
+          dataKey="label"
+          tick={{ fill: "#94a3b8", fontSize: 11 }}
+          axisLine={false}
+          tickLine={false}
+        />
+
+        <YAxis
+          /* 🛠️ FIX: Set to 50 so there is plenty of pixel space for '100%' or '80%' to render fully */
+          width={50}
+          tick={{ fill: "#94a3b8", fontSize: 11 }}
+          axisLine={false}
+          tickLine={false}
+          tickFormatter={(value) => `${value}%`}
+        />
+
+        <Tooltip
+          formatter={(value, name) => {
+            const labels = {
+              primeCost: "Prime Cost",
+              healthyTarget: "Healthy Target",
+              criticalLine: "Critical Line",
+            };
+
+            return [
+              `${Number(value || 0).toFixed(1)}%`,
+              labels[name] || name,
+            ];
+          }}
+          contentStyle={{
+            background: "#020617",
+            border: "1px solid rgba(148,163,184,0.2)",
+            borderRadius: "12px",
+            color: "white",
+          }}
+        />
+
+        <Legend
+          verticalAlign="bottom"
+          height={36}
+          iconType="circle"
+          iconSize={8}
+          wrapperStyle={{
+            fontSize: "12px",
+            color: "#94a3b8",
+            paddingTop: "15px",
+          }}
+        />
+
+        <Line
+          name="Prime Cost"
+          type="monotone"
+          dataKey="primeCost"
+          stroke="#f97316"
+          strokeWidth={3}
+          dot={false}
+          isAnimationActive={false}
+        />
+
+        <Line
+          name="Healthy Target"
+          type="monotone"
+          dataKey="healthyTarget"
+          stroke="#22c55e"
+          strokeWidth={2}
+          strokeDasharray="5 5"
+          dot={false}
+          isAnimationActive={false}
+        />
+
+        <Line
+          name="Critical Line"
+          type="monotone"
+          dataKey="criticalLine"
+          stroke="#ef4444"
+          strokeWidth={2}
+          strokeDasharray="5 5"
+          dot={false}
+          isAnimationActive={false}
+        />
+      </LineChart>
+    </div>
+  </div>
+)}
+{/* PRIME COST INTELLIGENCE */}
+<div
+  style={{
+    gridColumn: isMobile ? "span 1" : "span 12",
+    width: "100%",
+    minWidth: 0,
+    maxWidth: "100%",
+    padding: "22px",
+    borderRadius: "22px",
+    minHeight: "360px",
+    display: "flex",
+    flexDirection: "column",
+    background:
+      "radial-gradient(circle at top right, rgba(212,175,55,0.14), transparent 40%), linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.9))",
+    border: "1px solid rgba(148,163,184,0.16)",
+    boxShadow: "0 18px 40px rgba(2,6,23,0.22)",
+    overflow: "hidden",
+    boxSizing: "border-box",
+    alignSelf: "start",
+  }}
+>
+  <div style={{ marginBottom: "18px" }}>
+    <div
+      style={{
+        color: "#d4af37",
+        fontWeight: "900",
+        fontSize: "12px",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+      }}
+    >
+      Prime Cost Intelligence
+    </div>
+
+    <h3
+      style={{
+        margin: "6px 0 4px",
+        color: "white",
+        fontSize: "22px",
+        fontWeight: "950",
+      }}
+    >
+      Food cost + labor cost pressure
+    </h3>
+
+    <p style={{ margin: 0, color: "#94a3b8", fontSize: "13px" }}>
+      Measures whether your two biggest costs are protecting or damaging profit.
+    </p>
+  </div>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile
+        ? "1fr"
+        : "repeat(2, minmax(0, 1fr))",
+      gap: "12px",
+      marginBottom: "18px",
+    }}
+  >
+    <div style={miniMetricCard}>
+      <div style={miniMetricLabel}>Prime Cost</div>
+      <div style={{ ...miniMetricValue, color: primeCostIntelligence.color }}>
+        {primeCostIntelligence.primeCost > 0
+          ? `${Number(primeCostIntelligence.primeCost).toFixed(1)}%`
+          : "Needs data"}
+      </div>
+    </div>
+
+    <div style={miniMetricCard}>
+      <div style={miniMetricLabel}>Food Cost $</div>
+      <div style={miniMetricValue}>
+        ${Number(primeCostIntelligence.foodCostDollars || 0).toLocaleString()}
+      </div>
+    </div>
+
+    <div style={miniMetricCard}>
+      <div style={miniMetricLabel}>Labor Cost $</div>
+      <div style={miniMetricValue}>
+        ${Number(primeCostIntelligence.laborCost || 0).toLocaleString()}
+      </div>
+    </div>
+
+    <div style={miniMetricCard}>
+      <div style={miniMetricLabel}>Status</div>
+      <div style={{ ...miniMetricValue, color: primeCostIntelligence.color }}>
+        {primeCostIntelligence.status}
+      </div>
+    </div>
+  </div>
+
+  <div
+    style={{
+      padding: "16px",
+      borderRadius: "16px",
+      background: "rgba(212,175,55,0.10)",
+      border: "1px solid rgba(212,175,55,0.22)",
+      color: "#fde68a",
+      fontSize: "13px",
+      lineHeight: 1.7,
+      fontWeight: "750",
+      overflowWrap: "anywhere",
+    }}
+  >
+    <span style={{ color: "white", fontWeight: "950" }}>AI readout:</span>{" "}
+    {primeCostIntelligence.insight}
+  </div>
+</div>
+{/* FOOD COST % TREND */}
+<div
+  style={{
+    gridColumn: isMobile ? "span 1" : "span 12",
+    width: "100%",
+    minWidth: 0,
+    maxWidth: "100%",
+    padding: "22px",
+    borderRadius: "22px",
+    minHeight: "420px",
+    display: "flex",
+    flexDirection: "column",
+    background:
+      "radial-gradient(circle at top right, rgba(239,68,68,0.12), transparent 40%), linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.9))",
+    border: "1px solid rgba(148,163,184,0.16)",
+    boxShadow: "0 18px 40px rgba(2,6,23,0.22)",
+    overflow: "hidden",
+    boxSizing: "border-box",
+    alignSelf: "start",
+  }}
+>
+  <div
+    style={{
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "flex-start",
+      gap: "12px",
+      flexWrap: "wrap",
+      marginBottom: "18px",
+    }}
+  >
+    <div>
+      <div
+        style={{
+          fontSize: "12px",
+          fontWeight: "900",
+          letterSpacing: "0.08em",
+          color: "#fca5a5",
+          textTransform: "uppercase",
+        }}
+      >
+        Cost Control
+      </div>
+
+      <h3
+        style={{
+          margin: "6px 0 4px",
+          color: "white",
+          fontSize: "22px",
+          fontWeight: "950",
+        }}
+      >
+        Food cost % trend
+      </h3>
+
+      <p style={{ margin: 0, color: "#94a3b8", fontSize: "13px" }}>
+        Tracks food cost pressure against your target and danger zones.
+      </p>
+    </div>
+
+    <div
+      style={{
+        padding: "8px 12px",
+        borderRadius: "999px",
+        background:
+          Number(foodCostPercentage || 0) >= 35
+            ? "rgba(239,68,68,0.14)"
+            : Number(foodCostPercentage || 0) >= 30
+            ? "rgba(245,158,11,0.14)"
+            : "rgba(34,197,94,0.12)",
+        border:
+          Number(foodCostPercentage || 0) >= 35
+            ? "1px solid rgba(239,68,68,0.25)"
+            : Number(foodCostPercentage || 0) >= 30
+            ? "1px solid rgba(245,158,11,0.25)"
+            : "1px solid rgba(34,197,94,0.22)",
+        color:
+          Number(foodCostPercentage || 0) >= 35
+            ? "#fca5a5"
+            : Number(foodCostPercentage || 0) >= 30
+            ? "#fde68a"
+            : "#86efac",
+        fontSize: "12px",
+        fontWeight: "900",
+      }}
+    >
+      Current: {Number(foodCostPercentage || 0).toFixed(1)}%
+    </div>
+  </div>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: "1fr",
+      gap: "18px",
+      width: "100%",
+    }}
+  ><div
+  style={{
+    width: "100%",
+    height: "340px",
+    minHeight: "340px",
+    overflowX: "auto",
+    overflowY: "hidden",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+  }}
+>
+  {foodCostTrendData?.length > 0 ? (
+   <LineChart
+  width={isMobile ? 900 : 820}
+  height={340}
+  data={foodCostTrendData}
+  margin={{ top: 24, right: 30, left: 10, bottom: 30 }}
+>
+  <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.12)" />
+
+  <XAxis
+    dataKey="date"
+    tick={{ fill: "#94a3b8", fontSize: 10 }}
+    axisLine={{ stroke: "rgba(148,163,184,0.18)" }}
+    tickLine={false}
+  />
+
+  <YAxis
+    tickFormatter={(value) => `${Number(value || 0).toFixed(0)}%`}
+    tick={{ fill: "#94a3b8", fontSize: 10 }}
+    width={60}
+    axisLine={{ stroke: "rgba(148,163,184,0.18)" }}
+    tickLine={false}
+  />
+
+  <Tooltip
+    formatter={(value, name) => [
+      `${Number(value || 0).toFixed(1)}%`,
+      name,
+    ]}
+    contentStyle={{
+      background: "#020617",
+      border: "1px solid rgba(148,163,184,0.24)",
+      borderRadius: "14px",
+      color: "white",
+    }}
+  />
+
+  <Legend
+    wrapperStyle={{
+      color: "#cbd5e1",
+      fontSize: "12px",
+      paddingTop: "10px",
+    }}
+  />
+
+  <Line
+    type="monotone"
+    dataKey="target"
+    name="Target"
+    stroke="#22c55e"
+    strokeWidth={2}
+    strokeDasharray="5 5"
+    dot={false}
+    connectNulls
+    isAnimationActive={false}
+  />
+
+  <Line
+    type="monotone"
+    dataKey="danger"
+    name="Danger"
+    stroke="#ef4444"
+    strokeWidth={2}
+    strokeDasharray="5 5"
+    dot={false}
+    connectNulls
+    isAnimationActive={false}
+  />
+
+  <Line
+    type="monotone"
+    dataKey="foodCostPercent"
+    name="Food Cost %"
+    stroke="#f59e0b"
+    strokeWidth={4}
+    dot={{ r: 3 }}
+    activeDot={{
+      r: 6,
+      fill: "#fbbf24",
+      stroke: "white",
+      strokeWidth: 2,
+    }}
+    connectNulls
+    isAnimationActive={false}
+  />
+</LineChart>
+  ) : (
+    <div
+      style={{
+        color: "#94a3b8",
+        height: "100%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        textAlign: "center",
+      }}
+    >
+      No food cost trend data available yet.
+    </div>
+  )}
+</div>
+
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: isMobile
+          ? "1fr"
+          : "repeat(3,minmax(0,1fr))",
+        gap: "12px",
+      }}
+    >
+      <div
+        style={{
+          padding: "14px",
+          borderRadius: "16px",
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(148,163,184,0.10)",
+        }}
+      >
+        <div style={{ color: "#94a3b8", fontSize: "11px" }}>
+          Current Food Cost
+        </div>
+
+        <div
+          style={{
+            color:
+              Number(foodCostPercentage || 0) >= 35
+                ? "#fca5a5"
+                : Number(foodCostPercentage || 0) >= 30
+                ? "#fde68a"
+                : "#86efac",
+            fontSize: "20px",
+            fontWeight: "900",
+          }}
+        >
+          {Number(foodCostPercentage || 0).toFixed(1)}%
+        </div>
+      </div>
+
+      <div
+        style={{
+          padding: "14px",
+          borderRadius: "16px",
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(148,163,184,0.10)",
+        }}
+      >
+        <div style={{ color: "#94a3b8", fontSize: "11px" }}>
+          Target Range
+        </div>
+
+        <div
+          style={{
+            color: "#86efac",
+            fontSize: "20px",
+            fontWeight: "900",
+          }}
+        >
+          28%–30%
+        </div>
+      </div>
+
+      <div
+        style={{
+          padding: "14px",
+          borderRadius: "16px",
+          background:
+            Number(foodCostPercentage || 0) >= 35
+              ? "rgba(239,68,68,0.10)"
+              : Number(foodCostPercentage || 0) >= 30
+              ? "rgba(245,158,11,0.10)"
+              : "rgba(34,197,94,0.10)",
+          border:
+            Number(foodCostPercentage || 0) >= 35
+              ? "1px solid rgba(239,68,68,0.18)"
+              : Number(foodCostPercentage || 0) >= 30
+              ? "1px solid rgba(245,158,11,0.18)"
+              : "1px solid rgba(34,197,94,0.18)",
+          color:
+            Number(foodCostPercentage || 0) >= 35
+              ? "#fecaca"
+              : Number(foodCostPercentage || 0) >= 30
+              ? "#fde68a"
+              : "#bbf7d0",
+          fontSize: "13px",
+          lineHeight: 1.6,
+          fontWeight: "750",
+        }}
+      >
+        {Number(foodCostPercentage || 0) >= 35
+          ? "Critical: food cost is above danger zone."
+          : Number(foodCostPercentage || 0) >= 30
+          ? "Watch closely: food cost is above target."
+          : "Healthy: food cost is currently under target."}
+      </div>
+    </div>
+  </div>
+</div>
+  </>
+  )}
+  {analyticsView === "labor" && (
+  <>
+  
+  {/* STAFF PLANNING SIGNALS */}
+  
+  <div
+  style={{
+    position: "relative",
+    width: "100%",
+    minWidth: 0,
+      padding: "20px",
+      borderRadius: "22px",
+      background:
+        "radial-gradient(circle at top right, rgba(59,130,246,0.12), transparent 40%), linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.9))",
+      border: "1px solid rgba(148,163,184,0.16)",
+      boxShadow: "0 18px 40px rgba(2,6,23,0.22)",
+      overflow: "hidden",
+    }}
+  >
+    <div
+      style={{
+        filter: hasProAccess ? "none" : "blur(5px)",
+        opacity: hasProAccess ? 1 : 0.6,
+        pointerEvents: hasProAccess ? "auto" : "none",
+      }}
+    >
+      <div style={{ marginBottom: "16px" }}>
+        <div
+          style={{
+            fontSize: "12px",
+            fontWeight: "900",
+            letterSpacing: "0.08em",
+            color: "#93c5fd",
+            textTransform: "uppercase",
+          }}
+        >
+          Labor Intelligence
+        </div>
+
+        <h3
+          style={{
+            margin: "6px 0 4px",
+            color: "white",
+            fontSize: "22px",
+            fontWeight: "950",
+          }}
+        >
+          Staff planning signals
+        </h3>
+
+        <p style={{ margin: 0, color: "#94a3b8", fontSize: "13px" }}>
+          AI flags overstaffed and understaffed days before margin gets hit.
+        </p>
+      </div>
+<div
+  style={{
+    width: "100%",
+    overflowX: "auto",
+    marginBottom: "18px",
+  }}
+>
+  <BarChart
+    width={760}
+    height={260}
+    data={(staffPlanningSignals || []).slice(0, 7)}
+    margin={{ top: 10, right: 20, left: 0, bottom: 20 }}
+  >
+    <XAxis
+      dataKey="day"
+      tick={{ fill: "#94a3b8", fontSize: 11 }}
+      axisLine={{ stroke: "rgba(148,163,184,0.2)" }}
+      tickLine={false}
+    />
+
+    <YAxis
+      tick={{ fill: "#94a3b8", fontSize: 11 }}
+      axisLine={{ stroke: "rgba(148,163,184,0.2)" }}
+      tickLine={false}
+    />
+
+    <Tooltip />
+
+    <Bar
+      dataKey="laborPercent"
+      fill="#60a5fa"
+      radius={[8, 8, 0, 0]}
+    />
+  </BarChart>
+</div>
+      <div
+        style={{
+          marginBottom: "16px",
+          padding: "14px",
+          borderRadius: "16px",
+          background: "rgba(59,130,246,0.10)",
+          border: "1px solid rgba(96,165,250,0.20)",
+        }}
+      >
+        <div
+          style={{
+            fontSize: "12px",
+            fontWeight: "900",
+            color: "#93c5fd",
+            marginBottom: "6px",
+          }}
+        >
+          Staffing AI insight
+        </div>
+
+        <p
+          style={{
+            margin: 0,
+            fontSize: "13px",
+            color: "#bfdbfe",
+            lineHeight: 1.6,
+          }}
+        >
+          {staffPlanningInsight ||
+            "Upload labor and revenue data to generate staff planning signals."}
+        </p>
+      </div>
+
+      {staffPlanningSignals?.length ? (
+        <div style={{ display: "grid", gap: "10px" }}>
+          {staffPlanningSignals.slice(0, 5).map((item, i) => {
+            const signal = String(item.signal || "monitor").toLowerCase();
+
+            const signalTone =
+              signal === "overstaffed"
+                ? {
+                    bg: "rgba(239,68,68,0.12)",
+                    border: "1px solid rgba(239,68,68,0.24)",
+                    color: "#fca5a5",
+                  }
+                : signal === "understaffed"
+                ? {
+                    bg: "rgba(245,158,11,0.12)",
+                    border: "1px solid rgba(245,158,11,0.24)",
+                    color: "#fde68a",
+                  }
+                : {
+                    bg: "rgba(34,197,94,0.12)",
+                    border: "1px solid rgba(34,197,94,0.22)",
+                    color: "#86efac",
+                  };
+
+            return (
+              <div
+                key={`${item.day || "staff"}-${i}`}
+                style={{
+                  padding: "14px",
+                  borderRadius: "16px",
+                  background: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(148,163,184,0.12)",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    gap: "12px",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <div style={{ fontWeight: "900", color: "white" }}>
+                    {item.day || "Day"}
+                  </div>
+
+                  <div
+                    style={{
+                      padding: "6px 10px",
+                      borderRadius: "999px",
+                      fontSize: "11px",
+                      fontWeight: "900",
+                      background: signalTone.bg,
+                      border: signalTone.border,
+                      color: signalTone.color,
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    {signal}
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    fontSize: "13px",
+                    color: "#94a3b8",
+                    marginTop: "6px",
+                    lineHeight: 1.6,
+                  }}
+                >
+                  {item.insight || "No insight available."}
+                </div>
+
+                <div
+                  style={{
+                    marginTop: "10px",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: "12px",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <div
+                    style={{
+                      color: "white",
+                      fontSize: "13px",
+                      fontWeight: "900",
+                    }}
+                  >
+                    Labor: {Number(item.laborPercent || 0).toFixed(1)}%
+                  </div>
+
+                  <div
+                    style={{
+                      color: signalTone.color,
+                      fontSize: "13px",
+                      fontWeight: "900",
+                    }}
+                  >
+                    ${Number(item.estimatedImpact || 0).toFixed(0)}/day impact
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div
+          style={{
+            height: "180px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "#94a3b8",
+            textAlign: "center",
+            borderRadius: "18px",
+            border: "1px dashed rgba(148,163,184,0.2)",
+            background: "rgba(15,23,42,0.5)",
+            fontSize: "13px",
+          }}
+        >
+          No staff planning issues detected yet.
+        </div>
+      )}
+    </div>
+
+    {!hasProAccess && (
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "rgba(15,23,42,0.85)",
+          backdropFilter: "blur(6px)",
+          textAlign: "center",
+          padding: "20px",
+        }}
+      >
+        <h4 style={{ color: "white", marginBottom: "8px" }}>
+          🔒 Unlock Staff Planning Signals
+        </h4>
+
+        <p style={{ fontSize: "12px", color: "#cbd5f5", marginBottom: "12px" }}>
+          Let AI identify overstaffed and understaffed days.
+        </p>
+
+        <button
+          onClick={() => router.push("/pricing")}
+          style={{
+            padding: "10px 16px",
+            borderRadius: "10px",
+            border: "none",
+            background: "linear-gradient(135deg, #4f46e5, #6D3DF5)",
+            color: "white",
+            fontWeight: "800",
+            boxShadow: "0 10px 25px rgba(79,70,229,0.35)",
+            cursor: "pointer",
+          }}
+        >
+          Upgrade to Pro →
+        </button>
+      </div>
+    )}
+  </div>
+{/* 👥 LABOR FORECAST TREND */}
+
+{hasProAccess && (
+  <div
+    style={{
+      gridColumn: "1 / -1", // Upgraded to full-width matching the rest of the layout
+      minWidth: 0,
+      marginTop: "18px",
+      padding: "22px",
+      borderRadius: "24px",
+      background:
+        "linear-gradient(135deg, rgba(6,182,212,0.12), rgba(15,23,42,0.96))",
+      border: "1px solid rgba(34,211,238,0.22)",
+      boxShadow: "0 22px 60px rgba(2,6,23,0.28)",
+    }}
+  >
+    <div
+      style={{
+        color: "#67e8f9",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      Labor Forecast
+    </div>
+
+    <h3 style={{ color: "white", fontSize: "24px", fontWeight: "950" }}>
+      Labor Pressure Trend
+    </h3>
+
+    <p style={{ color: "#94a3b8", fontSize: "13px", lineHeight: 1.6 }}>
+      Forecasts labor efficiency and staffing pressure against healthy labor
+      benchmarks.
+    </p>
+
+    <div
+      style={{
+        width: "100%",
+        height: isMobile ? "260px" : "360px",
+        marginTop: "18px",
+        overflow: "visible",
+      }}
+    >
+      <LineChart
+        width={isMobile ? 320 : 980} // Upgraded wide-screen scaling
+        height={isMobile ? 260 : 320}
+        data={laborForecastChartData}
+        margin={{ top: 10, right: 35, left: -15, bottom: 10 }} // Aligned safely to the left edge
+      >
+        <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.14)" />
+
+        <XAxis
+          dataKey="label"
+          tick={{ fill: "#94a3b8", fontSize: 11 }}
+          axisLine={false}
+          tickLine={false}
+        />
+
+        <YAxis
+          width={40}
+          tick={{ fill: "#94a3b8", fontSize: 11 }}
+          axisLine={false}
+          tickLine={false}
+          tickFormatter={(value) => `${value}%`}
+        />
+
+        <Tooltip
+          formatter={(value) => [`${Number(value || 0).toFixed(1)}%`, ""]}
+          contentStyle={{
+            background: "#020617",
+            border: "1px solid rgba(148,163,184,0.2)",
+            borderRadius: "12px",
+            color: "white",
+          }}
+        />
+
+        {/* 🛠️ ADDED: Clean, high-contrast legend block to display line labels */}
+        <Legend
+          verticalAlign="bottom"
+          height={36}
+          iconType="circle"
+          iconSize={8}
+          wrapperStyle={{
+            fontSize: "12px",
+            color: "#94a3b8",
+            paddingTop: "15px",
+          }}
+        />
+
+        <Line
+          type="monotone"
+          dataKey="labor"
+          name="Labor Pressure" // 🛠️ ADDED: Custom label for the legend
+          stroke="#06b6d4"
+          strokeWidth={3}
+          dot={false}
+          isAnimationActive={false}
+        />
+
+        <Line
+          type="monotone"
+          dataKey="healthy"
+          name="Healthy Benchmark" // 🛠️ ADDED: Custom label for the legend
+          stroke="#22c55e"
+          strokeWidth={2}
+          strokeDasharray="5 5"
+          dot={false}
+          isAnimationActive={false}
+        />
+
+        <Line
+          type="monotone"
+          dataKey="danger"
+          name="Danger Zone" // 🛠️ ADDED: Custom label for the legend
+          stroke="#ef4444"
+          strokeWidth={2}
+          strokeDasharray="5 5"
+          dot={false}
+          isAnimationActive={false}
+        />
+      </LineChart>
+    </div>
+  </div>
+)}
+{/* STAFF PLANNING + DEMAND FORECASTING */}
+
+<div
+  style={{
+    marginTop: "10px",
+
+    display: "grid",
+
+  gridTemplateColumns: "1fr",
+
+    gap: "20px",
+
+    width: "100%",
+    minWidth: 0,
+  }}
+>
+  
+  {/* STAFF PLANNING SIGNALS */}
+  
+  <div
+  style={{
+    position: "relative",
+    width: "100%",
+    minWidth: 0,
+      padding: "20px",
+      borderRadius: "22px",
+      background:
+        "radial-gradient(circle at top right, rgba(59,130,246,0.12), transparent 40%), linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.9))",
+      border: "1px solid rgba(148,163,184,0.16)",
+      boxShadow: "0 18px 40px rgba(2,6,23,0.22)",
+      overflow: "hidden",
+    }}
+  >
+    <div
+      style={{
+        filter: hasProAccess ? "none" : "blur(5px)",
+        opacity: hasProAccess ? 1 : 0.6,
+        pointerEvents: hasProAccess ? "auto" : "none",
+      }}
+    >
+      <div style={{ marginBottom: "16px" }}>
+        <div
+          style={{
+            fontSize: "12px",
+            fontWeight: "900",
+            letterSpacing: "0.08em",
+            color: "#93c5fd",
+            textTransform: "uppercase",
+          }}
+        >
+          Labor Intelligence
+        </div>
+
+        <h3
+          style={{
+            margin: "6px 0 4px",
+            color: "white",
+            fontSize: "22px",
+            fontWeight: "950",
+          }}
+        >
+          Staff planning signals
+        </h3>
+
+        <p style={{ margin: 0, color: "#94a3b8", fontSize: "13px" }}>
+          AI flags overstaffed and understaffed days before margin gets hit.
+        </p>
+      </div>
+<div
+  style={{
+    width: "100%",
+    overflowX: "auto",
+    marginBottom: "18px",
+  }}
+>
+  <BarChart
+    width={760}
+    height={260}
+    data={(staffPlanningSignals || []).slice(0, 7)}
+    margin={{ top: 10, right: 20, left: 0, bottom: 20 }}
+  >
+    <XAxis
+      dataKey="day"
+      tick={{ fill: "#94a3b8", fontSize: 11 }}
+      axisLine={{ stroke: "rgba(148,163,184,0.2)" }}
+      tickLine={false}
+    />
+
+    <YAxis
+      tick={{ fill: "#94a3b8", fontSize: 11 }}
+      axisLine={{ stroke: "rgba(148,163,184,0.2)" }}
+      tickLine={false}
+    />
+
+    <Tooltip />
+
+    <Bar
+      dataKey="laborPercent"
+      fill="#60a5fa"
+      radius={[8, 8, 0, 0]}
+    />
+  </BarChart>
+</div>
+      <div
+        style={{
+          marginBottom: "16px",
+          padding: "14px",
+          borderRadius: "16px",
+          background: "rgba(59,130,246,0.10)",
+          border: "1px solid rgba(96,165,250,0.20)",
+        }}
+      >
+        <div
+          style={{
+            fontSize: "12px",
+            fontWeight: "900",
+            color: "#93c5fd",
+            marginBottom: "6px",
+          }}
+        >
+          Staffing AI insight
+        </div>
+
+        <p
+          style={{
+            margin: 0,
+            fontSize: "13px",
+            color: "#bfdbfe",
+            lineHeight: 1.6,
+          }}
+        >
+          {staffPlanningInsight ||
+            "Upload labor and revenue data to generate staff planning signals."}
+        </p>
+      </div>
+
+      {staffPlanningSignals?.length ? (
+        <div style={{ display: "grid", gap: "10px" }}>
+          {staffPlanningSignals.slice(0, 5).map((item, i) => {
+            const signal = String(item.signal || "monitor").toLowerCase();
+
+            const signalTone =
+              signal === "overstaffed"
+                ? {
+                    bg: "rgba(239,68,68,0.12)",
+                    border: "1px solid rgba(239,68,68,0.24)",
+                    color: "#fca5a5",
+                  }
+                : signal === "understaffed"
+                ? {
+                    bg: "rgba(245,158,11,0.12)",
+                    border: "1px solid rgba(245,158,11,0.24)",
+                    color: "#fde68a",
+                  }
+                : {
+                    bg: "rgba(34,197,94,0.12)",
+                    border: "1px solid rgba(34,197,94,0.22)",
+                    color: "#86efac",
+                  };
+
+            return (
+              <div
+                key={`${item.day || "staff"}-${i}`}
+                style={{
+                  padding: "14px",
+                  borderRadius: "16px",
+                  background: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(148,163,184,0.12)",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    gap: "12px",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <div style={{ fontWeight: "900", color: "white" }}>
+                    {item.day || "Day"}
+                  </div>
+
+                  <div
+                    style={{
+                      padding: "6px 10px",
+                      borderRadius: "999px",
+                      fontSize: "11px",
+                      fontWeight: "900",
+                      background: signalTone.bg,
+                      border: signalTone.border,
+                      color: signalTone.color,
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    {signal}
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    fontSize: "13px",
+                    color: "#94a3b8",
+                    marginTop: "6px",
+                    lineHeight: 1.6,
+                  }}
+                >
+                  {item.insight || "No insight available."}
+                </div>
+
+                <div
+                  style={{
+                    marginTop: "10px",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: "12px",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <div
+                    style={{
+                      color: "white",
+                      fontSize: "13px",
+                      fontWeight: "900",
+                    }}
+                  >
+                    Labor: {Number(item.laborPercent || 0).toFixed(1)}%
+                  </div>
+
+                  <div
+                    style={{
+                      color: signalTone.color,
+                      fontSize: "13px",
+                      fontWeight: "900",
+                    }}
+                  >
+                    ${Number(item.estimatedImpact || 0).toFixed(0)}/day impact
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div
+          style={{
+            height: "180px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "#94a3b8",
+            textAlign: "center",
+            borderRadius: "18px",
+            border: "1px dashed rgba(148,163,184,0.2)",
+            background: "rgba(15,23,42,0.5)",
+            fontSize: "13px",
+          }}
+        >
+          No staff planning issues detected yet.
+        </div>
+      )}
+    </div>
+
+    {!hasProAccess && (
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "rgba(15,23,42,0.85)",
+          backdropFilter: "blur(6px)",
+          textAlign: "center",
+          padding: "20px",
+        }}
+      >
+        <h4 style={{ color: "white", marginBottom: "8px" }}>
+          🔒 Unlock Staff Planning Signals
+        </h4>
+
+        <p style={{ fontSize: "12px", color: "#cbd5f5", marginBottom: "12px" }}>
+          Let AI identify overstaffed and understaffed days.
+        </p>
+
+        <button
+          onClick={() => router.push("/pricing")}
+          style={{
+            padding: "10px 16px",
+            borderRadius: "10px",
+            border: "none",
+            background: "linear-gradient(135deg, #4f46e5, #6D3DF5)",
+            color: "white",
+            fontWeight: "800",
+            boxShadow: "0 10px 25px rgba(79,70,229,0.35)",
+            cursor: "pointer",
+          }}
+        >
+          Upgrade to Pro →
+        </button>
+      </div>
+    )}
+  </div>
+</div>
+{/* 👥 LABOR INTELLIGENCE */}
+<div
+  style={{
+    gridColumn: isMobile ? "span 1" : "span 12",
+    width: "100%",
+    minWidth: 0,
+    maxWidth: "100%",
+    marginBottom: "0px",
+    padding: "24px",
+    borderRadius: "22px",
+    minHeight: "520px",
+    display: "flex",
+    flexDirection: "column",
+    background:
+      "radial-gradient(circle at top right, rgba(59,130,246,0.14), transparent 40%), linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.9))",
+    border: "1px solid rgba(148,163,184,0.16)",
+    boxShadow: "0 18px 40px rgba(2,6,23,0.22)",
+    overflow: "hidden",
+  }}
+>
+  <div style={{ marginBottom: "18px" }}>
+    <div
+      style={{
+        color: "#93c5fd",
+        fontWeight: "900",
+        fontSize: "12px",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+      }}
+    >
+      Labor Intelligence
+    </div>
+
+    <h3
+      style={{
+        margin: "6px 0 4px",
+        color: "white",
+        fontSize: "22px",
+        fontWeight: "950",
+      }}
+    >
+      Staffing and labor cost risk
+    </h3>
+
+    <p
+      style={{
+        margin: 0,
+        color: "#94a3b8",
+        fontSize: "13px",
+        lineHeight: 1.6,
+      }}
+    >
+      Tracks uploaded labor cost as a percentage of live revenue and flags staffing risk.
+    </p>
+  </div>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile ? "1fr" : "1fr 1.15fr",
+      gap: "22px",
+      flex: 1,
+    }}
+  >
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: isMobile
+          ? "1fr"
+          : "repeat(2, minmax(0, 1fr))",
+        gap: "12px",
+        alignContent: "start",
+      }}
+    >
+      <div
+        style={{
+          padding: "16px",
+          borderRadius: "16px",
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(148,163,184,0.10)",
+        }}
+      >
+        <div style={{ color: "#94a3b8", fontSize: "11px" }}>Labor Cost</div>
+        <div style={{ color: "white", fontSize: "24px", fontWeight: "950" }}>
+          {liveLaborIntelligence?.totalLaborCost > 0
+            ? `$${Number(liveLaborIntelligence.totalLaborCost).toLocaleString()}`
+            : "Needs data"}
+        </div>
+      </div>
+
+      <div
+        style={{
+          padding: "16px",
+          borderRadius: "16px",
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(148,163,184,0.10)",
+        }}
+      >
+        <div style={{ color: "#94a3b8", fontSize: "11px" }}>Labor %</div>
+        <div
+          style={{
+            color:
+              liveLaborIntelligence?.laborPercent <= 0
+                ? "#94a3b8"
+                : liveLaborIntelligence.laborPercent > activeBenchmarks.labor.high
+                ? "#fca5a5"
+                : liveLaborIntelligence.laborPercent < activeBenchmarks.labor.low
+                ? "#fde68a"
+                : "#86efac",
+            fontSize: "24px",
+            fontWeight: "950",
+          }}
+        >
+          {liveLaborIntelligence?.laborPercent > 0
+            ? `${Number(liveLaborIntelligence.laborPercent).toFixed(1)}%`
+            : "Waiting"}
+        </div>
+      </div>
+
+      <div
+        style={{
+          padding: "16px",
+          borderRadius: "16px",
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(148,163,184,0.10)",
+        }}
+      >
+        <div style={{ color: "#94a3b8", fontSize: "11px" }}>Status</div>
+        <div style={{ color: "white", fontSize: "16px", fontWeight: "950" }}>
+          {liveLaborIntelligence?.laborPercent <= 0
+            ? "Waiting for upload"
+            : liveLaborIntelligence.laborPercent > activeBenchmarks.labor.high
+            ? "Overstaffed risk"
+            : liveLaborIntelligence.laborPercent < activeBenchmarks.labor.low
+            ? "Understaffed risk"
+            : "Healthy range"}
+        </div>
+      </div>
+
+      <div
+        style={{
+          padding: "16px",
+          borderRadius: "16px",
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(148,163,184,0.10)",
+        }}
+      >
+        <div style={{ color: "#94a3b8", fontSize: "11px" }}>
+          Efficiency Score
+        </div>
+
+        <div
+          style={{
+            color:
+              liveLaborIntelligence?.laborPercent <= 0
+                ? "#94a3b8"
+                : liveLaborIntelligence.laborPercent > activeBenchmarks.labor.high
+                ? "#fca5a5"
+                : liveLaborIntelligence.laborPercent < activeBenchmarks.labor.low
+                ? "#fde68a"
+                : "#86efac",
+            fontSize: "24px",
+            fontWeight: "950",
+          }}
+        >
+          {liveLaborIntelligence?.laborPercent <= 0
+  ? "--"
+  : `${Math.max(
+      0,
+      Math.min(
+        100,
+        Math.round(100 - Math.abs(Number(liveLaborIntelligence.laborPercent || 0) - 24) * 3)
+      )
+    )}/100`}
+        </div>
+      </div>
+
+      <div
+        style={{
+          gridColumn: isMobile ? "auto" : "1 / -1",
+          marginTop: "4px",
+          padding: "16px",
+          borderRadius: "16px",
+          background: "rgba(59,130,246,0.10)",
+          border: "1px solid rgba(96,165,250,0.18)",
+          color: "#bfdbfe",
+          fontSize: "13px",
+          lineHeight: 1.6,
+          fontWeight: "750",
+        }}
+      >
+        {liveLaborIntelligence?.laborPercent <= 0
+          ? "Upload labor data with hours, rates, or labor cost to calculate real labor efficiency."
+          : liveLaborIntelligence.laborPercent > activeBenchmarks.labor.high
+          ? "Labor cost is above benchmark. Review staffing levels against revenue patterns."
+          : liveLaborIntelligence.laborPercent < activeBenchmarks.labor.low
+          ? "Labor cost is below benchmark. Watch for service pressure during peak hours."
+          : "Labor cost is within benchmark range based on uploaded labor data."}
+      </div>
+    </div>
+
+    <div
+      style={{
+        padding: "18px",
+        borderRadius: "18px",
+        background:
+          "linear-gradient(135deg, rgba(15,23,42,0.84), rgba(30,41,59,0.72))",
+        border: "1px solid rgba(148,163,184,0.14)",
+      }}
+    >
+      <div
+        style={{
+          color: "#93c5fd",
+          fontSize: "12px",
+          fontWeight: "900",
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          marginBottom: "10px",
+        }}
+      >
+        AI Labor Readout
+      </div>
+
+      <div style={{ color: "white", fontSize: "20px", fontWeight: "950" }}>
+        Staffing efficiency check
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          alignItems: "flex-end",
+          gap: "6px",
+          height: "70px",
+          marginTop: "18px",
+          marginBottom: "18px",
+        }}
+      >{(shiftOperationalData || []).map((shift, index) => {
+  const value = Math.min(
+    Math.max(Number(shift.laborPercent || 0), 10),
+    100
+  );
+
+  return (
+    <div
+      key={index}
+      style={{
+        flex: 1,
+        borderRadius: "8px 8px 0 0",
+        height: `${value}%`,
+        background:
+          shift.laborPercent > activeBenchmarks.labor.high
+            ? "linear-gradient(to top, #ef4444, #fca5a5)"
+            : "linear-gradient(to top, #3b82f6, #93c5fd)",
+      }}
+    />
+  );
+})}
+      </div>
+
+      <p
+        style={{
+          marginTop: "8px",
+          color: "#94a3b8",
+          fontSize: "13px",
+          lineHeight: 1.6,
+        }}
+      >
+        SerVen compares labor spend against live revenue so managers can spot
+        overstaffing, understaffing, or service-pressure risk before it affects profit.
+      </p>
+
+      <div
+        style={{
+          marginTop: "16px",
+          padding: "13px",
+          borderRadius: "14px",
+          background: "rgba(59,130,246,0.10)",
+          border: "1px solid rgba(96,165,250,0.18)",
+          color: "#bfdbfe",
+          fontSize: "13px",
+          lineHeight: 1.6,
+          fontWeight: "750",
+        }}
+      >
+        Recommended action: compare labor % against your busiest revenue days
+        and adjust schedules around peak windows.
+      </div>
+
+      {liveLaborIntelligence?.laborPercent > activeBenchmarks.labor.high && (
+        <div
+          style={{
+            marginTop: "12px",
+            padding: "14px",
+            borderRadius: "14px",
+            background: "rgba(239,68,68,0.10)",
+            border: "1px solid rgba(248,113,113,0.20)",
+            color: "#fecaca",
+            fontSize: "13px",
+            lineHeight: 1.6,
+            fontWeight: "700",
+          }}
+        >
+          AI detected labor inefficiency during lower revenue windows.
+          Consider reducing staffing during slower shifts to protect margins.
+        </div>
+      )}
+
+      <div
+        style={{
+          marginTop: "14px",
+          color: "#cbd5e1",
+          fontSize: "12px",
+          lineHeight: 1.6,
+        }}
+      >
+       {liveLaborIntelligence?.laborPercent <= 0
+  ? "Forecast: upload labor data to activate labor pressure forecasting."
+  : liveLaborIntelligence.laborPercent > activeBenchmarks.labor.high
+  ? `Forecast: labor pressure is elevated at ${Number(
+      liveLaborIntelligence.laborPercent || 0
+    ).toFixed(1)}%. Reducing slower-shift labor could protect margins.`
+  : liveLaborIntelligence.laborPercent < activeBenchmarks.labor.low
+  ? `Forecast: labor is low at ${Number(
+      liveLaborIntelligence.laborPercent || 0
+    ).toFixed(1)}%. Watch for service pressure during peak sales windows.`
+  : `Forecast: labor is healthy at ${Number(
+      liveLaborIntelligence.laborPercent || 0
+    ).toFixed(1)}%. Current staffing is aligned with uploaded revenue.`}
+      </div>
+    </div>
+  </div>
+</div>
+
+{/* 👥 SHIFT PERFORMANCE INTELLIGENCE */}
+<div
+  style={{
+    gridColumn: isMobile ? "span 1" : "span 12",
+    width: "100%",
+    minWidth: 0,
+    maxWidth: "100%",
+    marginBottom: "22px",
+    padding: isMobile ? "20px" : "24px",
+    borderRadius: "24px",
+    background:
+      "radial-gradient(circle at top right, rgba(34,211,238,0.16), transparent 34%), linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.92))",
+    border: "1px solid rgba(34,211,238,0.18)",
+    boxShadow: "0 22px 60px rgba(2,6,23,0.28)",
+    overflow: "hidden",
+  }}
+>
+  <div style={{ color: "#67e8f9", fontSize: "12px", fontWeight: "950" }}>
+    Shift Performance Intelligence
+  </div>
+
+  <h3 style={{ color: "white", fontSize: "26px", fontWeight: "950" }}>
+    AI shift profitability analysis
+  </h3>
+
+  <p
+    style={{
+      color: "#cbd5e1",
+      fontSize: "14px",
+      lineHeight: 1.7,
+      maxWidth: "920px",
+    }}
+  >
+    {shiftPerformanceInsight}
+  </p>
+
+  {/* EXECUTIVE SUMMARY */}
+  <div
+    style={{
+      marginTop: "12px",
+      padding: "12px 14px",
+      borderRadius: "14px",
+      background: "rgba(255,255,255,0.05)",
+      border: "1px solid rgba(34,211,238,0.14)",
+      color: "#e2e8f0",
+      fontSize: "13px",
+      fontWeight: "800",
+      lineHeight: 1.6,
+    }}
+  >
+    {shiftExecutiveSummary}
+  </div>
+
+  {/* RECOMMENDED ACTION */}
+  <div
+    style={{
+      marginTop: "12px",
+      padding: "12px 14px",
+      borderRadius: "14px",
+      background: "rgba(34,211,238,0.08)",
+      border: "1px solid rgba(34,211,238,0.18)",
+      color: "#cffafe",
+      fontSize: "13px",
+      fontWeight: "900",
+      lineHeight: 1.6,
+    }}
+  >
+    Recommended Action: {shiftActionRecommendation}
+  </div>
+
+  {/* AI SHIFT TREND */}
+  <div
+    style={{
+      marginTop: "20px",
+      padding: "18px",
+      borderRadius: "18px",
+      background:
+        "linear-gradient(135deg, rgba(8,47,73,0.55), rgba(15,23,42,0.82))",
+      border: "1px solid rgba(34,211,238,0.14)",
+    }}
+  >
+    <div
+      style={{
+        color: "#67e8f9",
+        fontSize: "11px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "14px",
+      }}
+    >
+      Shift Pressure Trend
+    </div>
+
+    <div
+      style={{
+        display: "flex",
+        alignItems: "flex-end",
+        gap: "8px",
+        height: "90px",
+      }}
+    >
+      {(shiftOperationalData || []).map((shift, index) => {
+        const laborHeight = Math.min(
+          Math.max(Number(shift.laborPercent || 0), 20),
+          100
+        );
+
+        const color =
+          shift.status === "Overstaffed"
+            ? "linear-gradient(to top, #ef4444, #fca5a5)"
+            : shift.status === "Watch Closely"
+            ? "linear-gradient(to top, #f59e0b, #fde68a)"
+            : "linear-gradient(to top, #06b6d4, #67e8f9)";
+
+        return (
+          <div
+            key={index}
+            style={{
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: "8px",
+            }}
+          >
+            <div
+              style={{
+                width: "100%",
+                borderRadius: "10px 10px 0 0",
+                height: `${laborHeight}%`,
+                background: color,
+                minHeight: "24px",
+                transition: "0.3s ease",
+              }}
+            />
+
+            <div
+              style={{
+                color: "#94a3b8",
+                fontSize: "10px",
+                fontWeight: "800",
+              }}
+            >
+              {shift.shift}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  </div>
+
+  {/* SHIFT CARDS */}
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile
+        ? "1fr"
+        : "repeat(auto-fit, minmax(220px, 1fr))",
+      gap: "14px",
+      marginTop: "20px",
+    }}
+  >
+    {(shiftOperationalData || []).map((shift) => {
+      const color =
+        shift.status === "Overstaffed"
+          ? "#f87171"
+          : shift.status === "Watch Closely"
+          ? "#fbbf24"
+          : "#86efac";
+
+      return (
+        <div
+          key={shift.shift}
+          style={{
+            padding: "18px",
+            borderRadius: "20px",
+            background:
+              "linear-gradient(135deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02))",
+            border: `1px solid ${color}35`,
+            backdropFilter: "blur(10px)",
+            position: "relative",
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              position: "absolute",
+              top: "-40px",
+              right: "-30px",
+              width: "100px",
+              height: "100px",
+              borderRadius: "999px",
+              background: `${color}12`,
+            }}
+          />
+
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "11px",
+              fontWeight: "900",
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+            }}
+          >
+            {shift.shift}
+          </div>
+
+          <div
+            style={{
+              marginTop: "8px",
+              color: "white",
+              fontSize: "28px",
+              fontWeight: "950",
+            }}
+          >
+            ${Number(shift.revenue || 0).toLocaleString()}
+          </div>
+
+          <div
+            style={{
+              marginTop: "6px",
+              color: "#cbd5e1",
+              fontSize: "12px",
+              lineHeight: 1.6,
+            }}
+          >
+            {Number(shift.orders || 0).toLocaleString()} orders
+          </div>
+
+          <div
+            style={{
+              marginTop: "2px",
+              color: "#94a3b8",
+              fontSize: "12px",
+            }}
+          >
+            Avg Order: $
+            {Number(shift.avgOrderValue || 0).toFixed(2)}
+          </div>
+
+          <div
+            style={{
+              marginTop: "14px",
+              padding: "10px",
+              borderRadius: "12px",
+              background: `${color}12`,
+              border: `1px solid ${color}22`,
+            }}
+          >
+            <div
+              style={{
+                color,
+                fontSize: "12px",
+                fontWeight: "900",
+              }}
+            >
+              Labor: {Number(shift.laborPercent || 0).toFixed(1)}%
+            </div>
+
+            <div
+              style={{
+                marginTop: "4px",
+                color: "#e2e8f0",
+                fontSize: "12px",
+                fontWeight: "700",
+              }}
+            >
+              {shift.status}
+            </div>
+          </div>
+
+          {/* AI SIGNAL */}
+          <div
+            style={{
+              marginTop: "14px",
+              color: "#cbd5e1",
+              fontSize: "12px",
+              lineHeight: 1.6,
+            }}
+          >
+            {shift.status === "Overstaffed"
+              ? "AI detected excess labor pressure during this shift."
+              : shift.status === "Watch Closely"
+              ? "Shift performance is approaching risk threshold."
+              : "Shift profitability is operating within healthy range."}
+          </div>
+        </div>
+      );
+    })}
+  </div>
+
+  {/* AI FORECAST */}
+  <div
+    style={{
+      marginTop: "20px",
+      padding: "18px",
+      borderRadius: "18px",
+      background:
+        "linear-gradient(135deg, rgba(6,182,212,0.08), rgba(15,23,42,0.92))",
+      border: "1px solid rgba(34,211,238,0.16)",
+    }}
+  >
+    <div
+      style={{
+        color: "#67e8f9",
+        fontSize: "12px",
+        fontWeight: "900",
+        marginBottom: "10px",
+      }}
+    >
+      AI Forecast
+    </div>
+
+    <div
+      style={{
+        color: "#e2e8f0",
+        fontSize: "13px",
+        lineHeight: 1.7,
+      }}
+    >
+      {mostLaborHeavyShift?.laborPercent > 35
+  ? `${mostLaborHeavyShift.shift} is showing elevated labor pressure at ${Number(
+      mostLaborHeavyShift.laborPercent || 0
+    ).toFixed(1)}%. Review staffing for that shift first.`
+  : weakestShift?.revenue > 0
+  ? `${weakestShift.shift} is the weakest revenue shift. Review staffing, promotions, and menu mix during that window.`
+  : topShift?.shift
+  ? `${topShift.shift} is currently your strongest shift. Protect staffing and inventory during that window.`
+  : "Upload sales and labor data to activate shift forecasting."}
+    </div>
+  </div>
+</div>
+
+  </>
+  )}
+  {analyticsView === "vendor" && (
+  <>
+  
+{/* =========================
+   🧾 VENDOR INTELLIGENCE
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      gridColumn: isMobile ? "span 1" : "span 12",
+      marginTop: "18px",
+      padding: "24px",
+      borderRadius: "26px",
+      background:
+        "linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.92))",
+      border: "1px solid rgba(251,191,36,0.24)",
+      boxShadow: "0 24px 70px rgba(2,6,23,0.35)",
+      overflow: "hidden",
+    }}
+  >
+    <div
+      style={{
+        color: "#facc15",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      Vendor Intelligence
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "24px",
+        fontWeight: "900",
+        margin: 0,
+      }}
+    >
+      Invoice Matching & Vendor Cost Control
+    </h3>
+
+    {/* KPI CARDS */}
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: isMobile ? "1fr" : "repeat(4, 1fr)",
+        gap: "14px",
+        marginTop: "20px",
+      }}
+    >
+      {[
+        {
+          label: "Invoice Match Rate",
+          value: `${invoiceMatchRate || 0}%`,
+          sub: "Healthy invoice accuracy",
+        },
+        {
+          label: "Matched / Review",
+          value: `${vendorInvoiceData.length - invoiceMismatchItems.length}`,
+          sub: "Invoices not flagged critical",
+        },
+        {
+          label: "Needs Review",
+          value: `${invoiceReviewItems.length}`,
+          sub: "Moderate variance detected",
+        },
+        {
+          label: "Mismatch Risk",
+          value: `${invoiceMismatchItems.length}`,
+          sub: "High variance detected",
+        },
+      ].map((item) => (
+        <div
+          key={item.label}
+          style={{
+            padding: "12px",
+            borderRadius: "14px",
+            background: "rgba(15,23,42,0.76)",
+            border: "1px solid rgba(148,163,184,0.16)",
+          }}
+        >
+          <div style={{ color: "#94a3b8", fontSize: "12px", fontWeight: "800" }}>
+            {item.label}
+          </div>
+
+          <div
+            style={{
+              color: "white",
+              fontSize: "24px",
+              fontWeight: "900",
+              marginTop: "8px",
+            }}
+          >
+            {item.value}
+          </div>
+
+          <div style={{ color: "#94a3b8", fontSize: "12px", marginTop: "4px" }}>
+            {item.sub}
+          </div>
+        </div>
+      ))}
+    </div>
+
+    {/* VENDOR SPEND BY SUPPLIER */}
+    <div
+      style={{
+        marginTop: "20px",
+        padding: "18px",
+        borderRadius: "20px",
+        background: "rgba(2,6,23,0.42)",
+        border: "1px solid rgba(148,163,184,0.14)",
+      }}
+    >
+      <div
+        style={{
+          color: "#fde68a",
+          fontSize: "13px",
+          fontWeight: "900",
+          marginBottom: "14px",
+        }}
+      >
+        Vendor Spend by Supplier
+      </div>
+
+      {vendorSpendData.length > 0 ? (
+        <div style={{ display: "grid", gap: "12px" }}>
+          {vendorSpendData.map((vendor) => {
+            const maxSpend = Math.max(
+              ...vendorSpendData.map((item) => Number(item.spend || 0)),
+              1
+            );
+
+            const widthPercent = Math.min(
+              100,
+              (Number(vendor.spend || 0) / maxSpend) * 100
+            );
+
+            return (
+              <div key={vendor.vendor}>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: "12px",
+                    marginBottom: "6px",
+                  }}
+                >
+                  <span style={{ color: "white", fontSize: "13px", fontWeight: "800" }}>
+                    {vendor.vendor}
+                  </span>
+
+                  <span style={{ color: "#cbd5e1", fontSize: "13px", fontWeight: "800" }}>
+                    ${Number(vendor.spend || 0).toLocaleString()}
+                  </span>
+                </div>
+
+                <div
+                  style={{
+                    height: "9px",
+                    borderRadius: "999px",
+                    background: "rgba(148,163,184,0.16)",
+                    overflow: "hidden",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: `${widthPercent}%`,
+                      height: "100%",
+                      borderRadius: "999px",
+                      background:
+                        vendor.mismatches > 0
+                          ? "linear-gradient(90deg, #ef4444, #f97316)"
+                          : vendor.reviews > 0
+                          ? "linear-gradient(90deg, #facc15, #f97316)"
+                          : "linear-gradient(90deg, #22c55e, #84cc16)",
+                    }}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <p style={{ color: "#94a3b8", fontSize: "14px" }}>
+          Vendor spend will appear after invoice or ingredient cost uploads.
+        </p>
+      )}
+    </div>
+
+    {/* VENDOR COST TREND INTELLIGENCE */}
+    <div
+      style={{
+        marginTop: "20px",
+        padding: "18px",
+        borderRadius: "20px",
+        background:
+          "linear-gradient(135deg, rgba(59,130,246,0.10), rgba(15,23,42,0.82))",
+        border: "1px solid rgba(96,165,250,0.16)",
+      }}
+    >
+      <div
+        style={{
+          color: "#93c5fd",
+          fontSize: "13px",
+          fontWeight: "900",
+          marginBottom: "14px",
+        }}
+      >
+        Vendor Cost Trend Intelligence
+      </div>
+
+      {vendorCostTrendData.length > 0 ? (
+        <div style={{ display: "grid", gap: "12px" }}>
+          {vendorCostTrendData.map((vendor, index) => (
+            <div
+              key={index}
+              style={{
+                padding: "14px",
+                borderRadius: "16px",
+                background: "rgba(15,23,42,0.72)",
+                border: "1px solid rgba(148,163,184,0.12)",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: "12px",
+                }}
+              >
+                <div>
+                  <div style={{ color: "white", fontSize: "14px", fontWeight: "800" }}>
+                    {vendor.vendor}
+                  </div>
+
+                  <div style={{ color: "#94a3b8", fontSize: "12px", marginTop: "4px" }}>
+                    Previous: ${Number(vendor.previousSpend || 0).toLocaleString()}
+                  </div>
+                </div>
+
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ color: "#e2e8f0", fontSize: "14px", fontWeight: "800" }}>
+                    ${Number(vendor.currentSpend || 0).toLocaleString()}
+                  </div>
+
+                  <div
+                    style={{
+                      color:
+                        vendor.changePercent > 12
+                          ? "#f87171"
+                          : vendor.changePercent > 5
+                          ? "#facc15"
+                          : "#34d399",
+                      fontSize: "12px",
+                      fontWeight: "900",
+                      marginTop: "4px",
+                    }}
+                  >
+                    {vendor.changePercent > 0 ? "+" : ""}
+                    {vendor.changePercent}%
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p style={{ color: "#94a3b8", fontSize: "14px" }}>
+          Vendor trend intelligence will appear after invoice uploads.
+        </p>
+      )}
+    </div>
+
+    {/* REVIEW QUEUE + AI RECOMMENDATION */}
+    <div
+      style={{
+        marginTop: "20px",
+        display: "grid",
+        gridTemplateColumns: isMobile ? "1fr" : "1.2fr 0.8fr",
+        gap: "16px",
+      }}
+    >
+      <div
+        style={{
+          padding: "18px",
+          borderRadius: "20px",
+          background: "rgba(2,6,23,0.42)",
+          border: "1px solid rgba(148,163,184,0.14)",
+        }}
+      >
+        <div
+          style={{
+            color: "#fde68a",
+            fontSize: "13px",
+            fontWeight: "900",
+            marginBottom: "14px",
+          }}
+        >
+          Invoice Review Queue
+        </div>
+
+        {vendorInvoiceData.length > 0 ? (
+          <div style={{ display: "grid", gap: "10px" }}>
+            {vendorInvoiceData.slice(0, 6).map((invoice, index) => (
+              <div
+                key={index}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: isMobile ? "1fr" : "1fr 0.8fr 0.8fr 0.6fr",
+                  gap: "10px",
+                  alignItems: "center",
+                  padding: "12px",
+                  borderRadius: "14px",
+                  background: "rgba(15,23,42,0.72)",
+                  border: "1px solid rgba(148,163,184,0.12)",
+                }}
+              >
+                <div>
+                  <div style={{ color: "white", fontSize: "14px", fontWeight: "800" }}>
+                    {invoice.vendor}
+                  </div>
+
+                  <div style={{ color: "#94a3b8", fontSize: "12px" }}>
+                    {invoice.name ||
+                      invoice.ingredient_name ||
+                      invoice.item ||
+                      "Invoice item"}
+                  </div>
+                </div>
+
+                <div style={{ color: "#cbd5e1", fontSize: "13px" }}>
+                  Invoice: ${Number(invoice.invoiceTotal || 0).toLocaleString()}
+                </div>
+
+                <div style={{ color: "#cbd5e1", fontSize: "13px" }}>
+                  Expected: ${Number(invoice.expectedTotal || 0).toLocaleString()}
+                </div>
+
+                <div
+                  style={{
+                    color:
+                      invoice.matchStatus === "Mismatch"
+                        ? "#f87171"
+                        : invoice.matchStatus === "Review"
+                        ? "#facc15"
+                        : "#34d399",
+                    fontSize: "12px",
+                    fontWeight: "900",
+                  }}
+                >
+                  {invoice.matchStatus}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p style={{ color: "#94a3b8", fontSize: "14px" }}>
+            Upload invoice or ingredient cost data to activate vendor intelligence.
+          </p>
+        )}
+      </div>
+
+      <div
+        style={{
+          padding: "18px",
+          borderRadius: "20px",
+          background:
+            "linear-gradient(135deg, rgba(251,191,36,0.12), rgba(15,23,42,0.82))",
+          border: "1px solid rgba(251,191,36,0.18)",
+        }}
+      >
+        <div
+          style={{
+            color: "#facc15",
+            fontSize: "13px",
+            fontWeight: "900",
+            marginBottom: "12px",
+          }}
+        >
+          AI Vendor Recommendation
+        </div>
+
+        <div
+          style={{
+            marginBottom: "14px",
+            padding: "14px",
+            borderRadius: "16px",
+            background: "rgba(15,23,42,0.68)",
+            border: "1px solid rgba(148,163,184,0.14)",
+          }}
+        >
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "12px",
+              fontWeight: "800",
+              marginBottom: "6px",
+            }}
+          >
+            Vendor Risk Score
+          </div>
+
+          <div
+            style={{
+              color: vendorRiskColor,
+              fontSize: "28px",
+              fontWeight: "900",
+              lineHeight: 1,
+            }}
+          >
+            {vendorRiskScore}/100
+          </div>
+
+          <div
+            style={{
+              color: "#cbd5e1",
+              fontSize: "12px",
+              marginTop: "6px",
+              fontWeight: "800",
+            }}
+          >
+            {vendorRiskLabel}
+          </div>
+        </div>
+
+        <p
+          style={{
+            color: "#e2e8f0",
+            fontSize: "14px",
+            lineHeight: "1.65",
+            margin: 0,
+          }}
+        >
+          {invoiceMismatchItems.length > 0
+            ? `${invoiceMismatchItems.length} vendor cost mismatch detected. Review invoice totals, supplier pricing, and expected ingredient costs before approving payment.`
+            : invoiceReviewItems.length > 0
+            ? `${invoiceReviewItems.length} invoice item needs review. Costs are close, but the variance is high enough to verify.`
+            : vendorInvoiceData.length > 0
+            ? "Vendor invoice matching looks healthy. No major supplier cost mismatches detected."
+            : "Vendor intelligence is ready. Upload invoice or ingredient cost data to detect supplier overcharges and cost creep."}
+        </p>
+      </div>
+    </div>
+  </div>
+)}
+  </>
+  )}
+  {analyticsView === "inventory" && (
+  <>
+   
+{/* =========================
+   📦 INVENTORY BURN RATE INTELLIGENCE
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      gridColumn: isMobile ? "span 1" : "span 12",
+      marginTop: "18px",
+      padding: "24px",
+      borderRadius: "26px",
+      background:
+        "linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.92))",
+      border: "1px solid rgba(34,197,94,0.22)",
+      boxShadow: "0 24px 70px rgba(2,6,23,0.35)",
+      overflow: "hidden",
+    }}
+  >
+    <div
+      style={{
+        color: "#86efac",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      Inventory Burn Rate Intelligence
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "24px",
+        fontWeight: "900",
+        margin: "0 0 8px",
+      }}
+    >
+      Ingredient Depletion & Stock Risk
+    </h3>
+
+    <p
+      style={{
+        color: "#cbd5e1",
+        fontSize: "14px",
+        lineHeight: "1.6",
+        marginBottom: "20px",
+      }}
+    >
+      Tracks how fast ingredients are being consumed against expected usage to
+      detect low-stock risk, waste, overuse, and abnormal depletion patterns.
+    </p>
+
+    {/* KPI CARDS */}
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: isMobile ? "1fr" : "repeat(5, 1fr)",
+        gap: "14px",
+      }}
+    >
+      {[
+        {
+          label: "Tracked Ingredients",
+          value: `${inventoryBurnRateData.length}`,
+          sub: "Items monitored",
+        },
+        {
+          label: "Critical Burn Items",
+          value: `${criticalBurnItems.length}`,
+          sub: "Fast depletion risk",
+        },
+        {
+          label: "Watch Closely",
+          value: `${watchBurnItems.length}`,
+          sub: "Moderate usage pressure",
+        },
+        {
+          label: "Avg Days Remaining",
+          value: `${averageDaysRemaining}`,
+          sub: "Across inventory",
+        },
+        {
+          label: "Inventory Health",
+         value:
+  inventoryDepletionData?.length > 0
+    ? `${Math.max(
+        0,
+        Math.min(
+          100,
+          Math.round(
+            100 -
+              Number(criticalBurnItems?.length || 0) * 12 -
+              Number(watchBurnItems?.length || 0) * 6
+          )
+        )
+      )}/100`
+    : "--",
+          sub: "AI inventory efficiency",
+        },
+      ].map((item) => (
+        <div
+          key={item.label}
+          style={{
+            padding: "16px",
+            borderRadius: "18px",
+            background: "rgba(15,23,42,0.76)",
+            border: "1px solid rgba(148,163,184,0.16)",
+          }}
+        >
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "12px",
+              fontWeight: "800",
+            }}
+          >
+            {item.label}
+          </div>
+
+          <div
+            style={{
+              color: "white",
+              fontSize: "24px",
+              fontWeight: "900",
+              marginTop: "8px",
+            }}
+          >
+            {item.value}
+          </div>
+
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "12px",
+              marginTop: "4px",
+            }}
+          >
+            {item.sub}
+          </div>
+        </div>
+      ))}
+    </div>
+
+    <div
+      style={{
+        marginTop: "20px",
+        display: "grid",
+        gridTemplateColumns: isMobile ? "1fr" : "1.2fr 0.8fr",
+        gap: "16px",
+      }}
+    >
+      {/* BURN RATE REVIEW QUEUE */}
+      <div
+        style={{
+          padding: "18px",
+          borderRadius: "20px",
+          background: "rgba(2,6,23,0.42)",
+          border: "1px solid rgba(148,163,184,0.14)",
+        }}
+      >
+        <div
+          style={{
+            color: "#86efac",
+            fontSize: "13px",
+            fontWeight: "900",
+            marginBottom: "14px",
+          }}
+        >
+          Burn Rate Review Queue
+        </div>
+
+        {/* BURN PRESSURE VISUALIZATION */}
+        {inventoryBurnRateData.length > 0 && (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "flex-end",
+              gap: "8px",
+              height: "90px",
+              marginBottom: "18px",
+            }}
+          >
+            {(inventoryBurnRateData || []).slice(0, 7).map((item, index) => {
+              const level = Math.min(
+                Math.max(Number(item.actualDailyUsage || 10), 15),
+                100
+              );
+
+              const color =
+                item.status === "Critical Burn"
+                  ? "linear-gradient(to top, #ef4444, #fca5a5)"
+                  : item.status === "Watch Closely"
+                  ? "linear-gradient(to top, #f59e0b, #fde68a)"
+                  : "linear-gradient(to top, #22c55e, #86efac)";
+
+              return (
+                <div
+                  key={index}
+                  style={{
+                    flex: 1,
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: "6px",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: "100%",
+                      height: `${level}%`,
+                      minHeight: "18px",
+                      borderRadius: "10px 10px 0 0",
+                      background: color,
+                    }}
+                  />
+
+                  <div
+                    style={{
+                      color: "#94a3b8",
+                      fontSize: "10px",
+                      fontWeight: "800",
+                      textAlign: "center",
+                    }}
+                  >
+                    {item.name?.slice(0, 8)}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {inventoryBurnRateData.length > 0 ? (
+          <div style={{ display: "grid", gap: "10px" }}>
+            {inventoryBurnRateData.slice(0, 7).map((item, index) => (
+              <div
+                key={`${item.name}-${index}`}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: isMobile
+                    ? "1fr"
+                    : "1.1fr 0.7fr 0.7fr 0.7fr 0.8fr",
+                  gap: "10px",
+                  alignItems: "center",
+                  padding: "14px",
+                  borderRadius: "16px",
+                  background: "rgba(15,23,42,0.72)",
+                  border: "1px solid rgba(148,163,184,0.12)",
+                  boxShadow:
+                    item.status === "Critical Burn"
+                      ? "0 0 18px rgba(239,68,68,0.16)"
+                      : item.status === "Watch Closely"
+                      ? "0 0 16px rgba(250,204,21,0.12)"
+                      : "0 0 14px rgba(34,197,94,0.10)",
+                }}
+              >
+                <div>
+                  <div
+                    style={{
+                      color: "white",
+                      fontSize: "14px",
+                      fontWeight: "800",
+                    }}
+                  >
+                    {item.name}
+                  </div>
+
+                  <div style={{ color: "#94a3b8", fontSize: "12px" }}>
+                    Current stock:{" "}
+                    {Number(item.currentStock || 0).toLocaleString()}
+                  </div>
+                </div>
+
+                <div style={{ color: "#cbd5e1", fontSize: "13px" }}>
+                  Expected:{" "}
+                  {Number(item.expectedDailyUsage || 0).toLocaleString()}/day
+                </div>
+
+                <div style={{ color: "#cbd5e1", fontSize: "13px" }}>
+                  Actual:{" "}
+                  {Number(item.actualDailyUsage || 0).toLocaleString()}/day
+                </div>
+
+                <div style={{ color: "#cbd5e1", fontSize: "13px" }}>
+                  {Number(item.daysRemaining || 0).toFixed(1)} days
+                </div>
+
+                <div
+                  style={{
+                    color:
+                      item.status === "Critical Burn"
+                        ? "#f87171"
+                        : item.status === "Watch Closely"
+                        ? "#facc15"
+                        : "#34d399",
+                    fontSize: "12px",
+                    fontWeight: "900",
+                  }}
+                >
+                  {item.status}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p style={{ color: "#94a3b8", fontSize: "14px" }}>
+            Upload ingredient inventory data to activate burn rate intelligence.
+          </p>
+        )}
+      </div>
+
+      {/* AI INVENTORY RECOMMENDATION */}
+      <div
+        style={{
+          padding: "18px",
+          borderRadius: "20px",
+          background:
+            "linear-gradient(135deg, rgba(34,197,94,0.12), rgba(15,23,42,0.82))",
+          border: "1px solid rgba(34,197,94,0.18)",
+        }}
+      >
+        <div
+          style={{
+            color: "#86efac",
+            fontSize: "13px",
+            fontWeight: "900",
+            marginBottom: "12px",
+          }}
+        >
+          AI Inventory Recommendation
+        </div>
+
+        <p
+          style={{
+            color: "#e2e8f0",
+            fontSize: "14px",
+            lineHeight: "1.65",
+            margin: 0,
+          }}
+        >
+          {criticalBurnItems.length > 0
+            ? `${criticalBurnItems.length} inventory item${
+                criticalBurnItems.length > 1 ? "s are" : " is"
+              } depleting at a critical rate. Review prep usage, waste, sales volume, and possible over-portioning.`
+            : watchBurnItems.length > 0
+            ? `${watchBurnItems.length} inventory item${
+                watchBurnItems.length > 1 ? "s need" : " needs"
+              } monitoring. Usage is above expected levels or stock may run low soon.`
+            : inventoryBurnRateData.length > 0
+            ? "Inventory burn rate looks healthy. No major depletion risks detected."
+            : "Inventory burn rate intelligence is ready. Upload ingredient stock and usage data to detect fast-moving inventory risks."}
+        </p>
+
+        {/* AI FORECAST */}
+        <div
+          style={{
+            marginTop: "16px",
+            padding: "14px",
+            borderRadius: "14px",
+            background: "rgba(15,23,42,0.66)",
+            border: "1px solid rgba(148,163,184,0.12)",
+          }}
+        >
+          <div
+            style={{
+              color: "#86efac",
+              fontSize: "12px",
+              fontWeight: "900",
+              marginBottom: "8px",
+            }}
+          >
+            AI Forecast
+          </div>
+
+          <div
+            style={{
+              color: "#cbd5e1",
+              fontSize: "12px",
+              lineHeight: 1.6,
+            }}
+          >
+            Based on current depletion patterns, SerVen predicts inventory
+            pressure could increase over the next 7 days if usage trends
+            continue.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
+
+   
+{/* =========================
+   🚨 INVENTORY RISK ALERTS
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      gridColumn: isMobile ? "span 1" : "span 12",
+      width: "100%",
+      minWidth: 0,
+      maxWidth: "100%",
+      marginTop: "18px",
+      padding: "22px",
+      borderRadius: "24px",
+      background:
+        "linear-gradient(135deg, rgba(127,29,29,0.22), rgba(15,23,42,0.96))",
+      border: "1px solid rgba(248,113,113,0.22)",
+      boxShadow: "0 20px 60px rgba(2,6,23,0.30)",
+      overflow: "hidden",
+    }}
+  >
+    <div
+      style={{
+        color: "#fca5a5",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      Inventory Risk Alerts
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "24px",
+        fontWeight: "900",
+        margin: "0 0 12px",
+      }}
+    >
+      AI Inventory Alert System
+    </h3>
+
+    <p
+      style={{
+        color: "#cbd5e1",
+        fontSize: "14px",
+        lineHeight: "1.7",
+        marginBottom: "20px",
+        maxWidth: "900px",
+      }}
+    >
+      Detects abnormal inventory depletion, low-stock risk, unusual usage spikes,
+      and possible waste patterns before operational issues impact service or profitability.
+    </p>
+
+    {/* ALERT SUMMARY STRIP */}
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: isMobile ? "1fr" : "repeat(4, 1fr)",
+        gap: "12px",
+        marginBottom: "20px",
+      }}
+    >
+      {[
+        {
+          label: "Critical Alerts",
+          value: inventoryRiskAlerts.filter(
+            (a) => a.severity === "Critical"
+          ).length,
+          color: "#f87171",
+        },
+        {
+          label: "High Risk",
+          value: inventoryRiskAlerts.filter(
+            (a) => a.severity === "High"
+          ).length,
+          color: "#facc15",
+        },
+        {
+          label: "Total Alerts",
+          value: inventoryRiskAlerts.length,
+          color: "#93c5fd",
+        },
+        {
+          label: "Inventory Status",
+          value:
+            inventoryRiskAlerts.length > 5
+              ? "At Risk"
+              : inventoryRiskAlerts.length > 0
+              ? "Monitoring"
+              : "Healthy",
+          color:
+            inventoryRiskAlerts.length > 5
+              ? "#f87171"
+              : inventoryRiskAlerts.length > 0
+              ? "#facc15"
+              : "#34d399",
+        },
+      ].map((item) => (
+        <div
+          key={item.label}
+          style={{
+            padding: "14px",
+            borderRadius: "16px",
+            background: "rgba(15,23,42,0.72)",
+            border: `1px solid ${item.color}25`,
+          }}
+        >
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "11px",
+              fontWeight: "800",
+            }}
+          >
+            {item.label}
+          </div>
+
+          <div
+            style={{
+              color: item.color,
+              fontSize: "24px",
+              fontWeight: "950",
+              marginTop: "8px",
+            }}
+          >
+            {item.value}
+          </div>
+        </div>
+      ))}
+    </div>
+
+    {/* LIVE ALERT FEED */}
+    {inventoryRiskAlerts.length > 0 ? (
+      <div style={{ display: "grid", gap: "12px" }}>
+        {inventoryRiskAlerts.slice(0, 8).map((alert, index) => (
+          <div
+            key={`${alert.ingredient}-${index}`}
+            style={{
+              padding: "16px",
+              borderRadius: "18px",
+              background: "rgba(15,23,42,0.72)",
+              border:
+                alert.severity === "Critical"
+                  ? "1px solid rgba(248,113,113,0.28)"
+                  : alert.severity === "High"
+                  ? "1px solid rgba(250,204,21,0.24)"
+                  : "1px solid rgba(148,163,184,0.14)",
+
+              boxShadow:
+                alert.severity === "Critical"
+                  ? "0 0 18px rgba(248,113,113,0.16)"
+                  : alert.severity === "High"
+                  ? "0 0 16px rgba(250,204,21,0.12)"
+                  : "0 0 14px rgba(96,165,250,0.10)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: "12px",
+                alignItems: "center",
+                marginBottom: "10px",
+              }}
+            >
+              <div
+                style={{
+                  color: "white",
+                  fontSize: "15px",
+                  fontWeight: "900",
+                }}
+              >
+                {alert.ingredient}
+              </div>
+
+              <div
+                style={{
+                  padding: "6px 10px",
+                  borderRadius: "999px",
+                  background:
+                    alert.severity === "Critical"
+                      ? "rgba(248,113,113,0.12)"
+                      : alert.severity === "High"
+                      ? "rgba(250,204,21,0.12)"
+                      : "rgba(59,130,246,0.12)",
+
+                  color:
+                    alert.severity === "Critical"
+                      ? "#f87171"
+                      : alert.severity === "High"
+                      ? "#facc15"
+                      : "#93c5fd",
+
+                  fontSize: "11px",
+                  fontWeight: "900",
+                  letterSpacing: "0.04em",
+                  textTransform: "uppercase",
+                }}
+              >
+                {alert.severity}
+              </div>
+            </div>
+
+            <div
+              style={{
+                color: "#e2e8f0",
+                fontSize: "14px",
+                lineHeight: "1.7",
+              }}
+            >
+              {alert.message}
+            </div>
+
+            {/* AI ACTION */}
+            <div
+              style={{
+                marginTop: "12px",
+                padding: "12px",
+                borderRadius: "14px",
+                background: "rgba(255,255,255,0.04)",
+                border: "1px solid rgba(148,163,184,0.10)",
+              }}
+            >
+              <div
+                style={{
+                  color: "#fca5a5",
+                  fontSize: "11px",
+                  fontWeight: "900",
+                  marginBottom: "6px",
+                }}
+              >
+                AI Recommended Action
+              </div>
+
+              <div
+                style={{
+                  color: "#cbd5e1",
+                  fontSize: "12px",
+                  lineHeight: "1.6",
+                }}
+              >
+                {alert.severity === "Critical"
+                  ? "Review prep usage immediately and verify recent inventory counts."
+                  : alert.severity === "High"
+                  ? "Monitor depletion closely and prepare restock planning."
+                  : "Continue monitoring usage behavior for abnormal changes."}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    ) : (
+      <div
+        style={{
+          padding: "18px",
+          borderRadius: "18px",
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(255,255,255,0.08)",
+          color: "#94a3b8",
+          fontSize: "14px",
+        }}
+      >
+        No inventory risks detected right now.
+      </div>
+    )}
+
+    {/* AI FORECAST */}
+    <div
+      style={{
+        marginTop: "20px",
+        padding: "16px",
+        borderRadius: "18px",
+        background:
+          "linear-gradient(135deg, rgba(248,113,113,0.08), rgba(15,23,42,0.88))",
+        border: "1px solid rgba(248,113,113,0.14)",
+      }}
+    >
+      <div
+        style={{
+          color: "#fca5a5",
+          fontSize: "12px",
+          fontWeight: "900",
+          marginBottom: "8px",
+        }}
+      >
+        AI Inventory Forecast
+      </div>
+
+      <div
+        style={{
+          color: "#e2e8f0",
+          fontSize: "13px",
+          lineHeight: "1.7",
+        }}
+      >
+        Based on current depletion patterns and ingredient movement,
+        SerVen predicts inventory pressure may increase over the next
+        5–7 days if current usage trends continue.
+      </div>
+    </div>
+  </div>
+)}
+
+    
+{/* =========================
+   🔮 PREDICTIVE RESTOCK INTELLIGENCE
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      gridColumn: isMobile ? "span 1" : "span 12",
+      width: "100%",
+      minWidth: 0,
+      maxWidth: "100%",
+      marginTop: "18px",
+      padding: "22px",
+      borderRadius: "24px",
+      background:
+        "linear-gradient(135deg, rgba(59,130,246,0.16), rgba(15,23,42,0.96))",
+      border: "1px solid rgba(96,165,250,0.22)",
+      boxShadow: "0 20px 60px rgba(2,6,23,0.30)",
+    }}
+  >
+    <div
+      style={{
+        color: "#93c5fd",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      Predictive Restock Intelligence
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "22px",
+        fontWeight: "900",
+        margin: "0 0 12px",
+      }}
+    >
+      AI Reorder Timing & Stock Forecast
+    </h3>
+
+    <p
+      style={{
+        color: "#cbd5e1",
+        fontSize: "14px",
+        lineHeight: "1.6",
+        marginBottom: "18px",
+      }}
+    >
+      Forecasts which ingredients are likely to run low first and recommends
+      reorder timing based on burn rate, par levels, and current stock.
+    </p>
+
+    {predictiveRestockData.length > 0 ? (
+      <div style={{ display: "grid", gap: "12px" }}>
+        {predictiveRestockData.slice(0, 8).map((item, index) => (
+          <div
+            key={`${item.name}-${index}`}
+            style={{
+              padding: "14px",
+              borderRadius: "16px",
+              background: "rgba(15,23,42,0.72)",
+              border:
+                item.urgency === "Urgent"
+                  ? "1px solid rgba(248,113,113,0.28)"
+                  : item.urgency === "Soon"
+                  ? "1px solid rgba(250,204,21,0.24)"
+                  : "1px solid rgba(148,163,184,0.14)",
+              display: "grid",
+              gridTemplateColumns: isMobile
+                ? "1fr"
+                : "1.2fr 0.7fr 0.7fr 0.8fr",
+              gap: "12px",
+              alignItems: "center",
+            }}
+          >
+            <div>
+              <div style={{ color: "white", fontSize: "15px", fontWeight: "900" }}>
+                {item.name}
+              </div>
+              <div style={{ color: "#94a3b8", fontSize: "12px" }}>
+                Current stock: {Number(item.currentStock || 0).toLocaleString()}
+              </div>
+            </div>
+
+            <div>
+              <div style={{ color: "#94a3b8", fontSize: "11px" }}>
+                Days Left
+              </div>
+              <div style={{ color: "white", fontWeight: "900" }}>
+                {Number(item.daysRemaining || 0).toFixed(1)}
+              </div>
+            </div>
+
+            <div>
+              <div style={{ color: "#94a3b8", fontSize: "11px" }}>
+                Reorder Qty
+              </div>
+              <div style={{ color: "white", fontWeight: "900" }}>
+                {Number(item.suggestedReorderQty || 0).toLocaleString()}
+              </div>
+            </div>
+
+            <div
+              style={{
+                color:
+                  item.urgency === "Urgent"
+                    ? "#f87171"
+                    : item.urgency === "Soon"
+                    ? "#facc15"
+                    : "#34d399",
+                fontSize: "12px",
+                fontWeight: "900",
+              }}
+            >
+              {item.urgency}
+            </div>
+          </div>
+        ))}
+      </div>
+    ) : (
+      <div
+        style={{
+          padding: "16px",
+          borderRadius: "16px",
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(255,255,255,0.08)",
+          color: "#94a3b8",
+          fontSize: "14px",
+        }}
+      >
+        Predictive restock recommendations will appear after inventory uploads.
+      </div>
+    )}
+  </div>
+)}
+
+    
+{/* INVENTORY FORECASTING */}
+
+<div
+  style={{
+    marginTop: "10px",
+    display: "grid",
+    gridTemplateColumns: "1fr",
+    gap: "20px",
+  }}
+>
+  <div
+    style={{
+      padding: "20px",
+      borderRadius: "22px",
+      background:
+        "radial-gradient(circle at top right, rgba(59,130,246,0.12), transparent 40%), linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.9))",
+      border: "1px solid rgba(148,163,184,0.16)",
+      boxShadow: "0 18px 40px rgba(2,6,23,0.22)",
+      position: "relative",
+      overflow: "hidden",
+    }}
+  >
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "flex-start",
+        gap: "12px",
+        flexWrap: "wrap",
+        marginBottom: "16px",
+      }}
+    >
+      <div>
+        <div
+          style={{
+            fontSize: "12px",
+            fontWeight: "900",
+            letterSpacing: "0.08em",
+            color: "#93c5fd",
+            textTransform: "uppercase",
+          }}
+        >
+          Inventory Intelligence
+        </div>
+
+        <h3
+          style={{
+            margin: "6px 0 4px",
+            color: "white",
+            fontSize: "22px",
+            fontWeight: "950",
+          }}
+        >
+          Inventory forecasting
+        </h3>
+
+        <p
+          style={{
+            margin: 0,
+            color: "#94a3b8",
+            fontSize: "13px",
+          }}
+        >
+          Predict shortages, inventory risk, and future restocking pressure.
+        </p>
+      </div>
+
+      <div
+        style={{
+          padding: "8px 12px",
+          borderRadius: "999px",
+          background: "rgba(59,130,246,0.12)",
+          border: "1px solid rgba(59,130,246,0.22)",
+          color: "#93c5fd",
+          fontSize: "12px",
+          fontWeight: "900",
+        }}
+      >
+        {inventoryForecast?.length || 0} tracked items
+      </div>
+    </div>
+
+    <div
+      style={{
+        filter: hasProAccess ? "none" : "blur(5px)",
+        opacity: hasProAccess ? 1 : 0.6,
+        pointerEvents: hasProAccess ? "auto" : "none",
+      }}
+    >
+      <div
+        style={{
+          marginBottom: "16px",
+          padding: "14px",
+          borderRadius: "16px",
+          background: "rgba(59,130,246,0.10)",
+          border: "1px solid rgba(96,165,250,0.20)",
+        }}
+      >
+        <div
+          style={{
+            fontSize: "12px",
+            fontWeight: "900",
+            color: "#93c5fd",
+            marginBottom: "6px",
+          }}
+        >
+          Inventory AI insight
+        </div>
+<div
+  style={{
+    width: "100%",
+    overflowX: "auto",
+    marginBottom: "16px",
+  }}
+>
+  <BarChart
+    width={980}
+    height={280}
+    data={(inventoryForecast || []).slice(0, 8)}
+    margin={{ top: 10, right: 20, left: 0, bottom: 20 }}
+  >
+    <XAxis
+      dataKey="name"
+      tick={{ fill: "#94a3b8", fontSize: 11 }}
+      axisLine={{ stroke: "rgba(148,163,184,0.2)" }}
+      tickLine={false}
+    />
+    <YAxis
+      tick={{ fill: "#94a3b8", fontSize: 11 }}
+      axisLine={{ stroke: "rgba(148,163,184,0.2)" }}
+      tickLine={false}
+    />
+    <Tooltip />
+    <Bar
+      dataKey="daysRemaining"
+      fill="#60a5fa"
+      radius={[8, 8, 0, 0]}
+    />
+  </BarChart>
+</div>
+        <p
+          style={{
+            margin: 0,
+            fontSize: "13px",
+            color: "#bfdbfe",
+            lineHeight: 1.6,
+          }}
+        >
+          {inventoryForecastInsight || "Upload ingredient data to generate inventory forecasting insights."}
+        </p>
+      </div>
+
+      {inventoryForecast?.length ? (
+        <div style={{ display: "grid", gap: "10px" }}>
+          {inventoryForecast.slice(0, 5).map((item, i) => {
+            const risk = String(item.inventoryRisk || "medium").toLowerCase();
+
+            const riskStyle =
+              risk === "high"
+                ? {
+                    bg: "rgba(239,68,68,0.14)",
+                    border: "1px solid rgba(239,68,68,0.25)",
+                    color: "#fca5a5",
+                  }
+                : risk === "low"
+                ? {
+                    bg: "rgba(34,197,94,0.12)",
+                    border: "1px solid rgba(34,197,94,0.22)",
+                    color: "#86efac",
+                  }
+                : {
+                    bg: "rgba(245,158,11,0.12)",
+                    border: "1px solid rgba(245,158,11,0.22)",
+                    color: "#fde68a",
+                  };
+
+            return (
+              <div
+                key={`${item.name || "inventory"}-${i}`}
+                style={{
+                  padding: "14px",
+                  borderRadius: "16px",
+                  background: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(148,163,184,0.12)",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: "12px",
+                    flexWrap: "wrap",
+                    alignItems: "center",
+                  }}
+                >
+                  <div>
+                    <div
+                      style={{
+                        fontWeight: "900",
+                        color: "white",
+                        fontSize: "15px",
+                      }}
+                    >
+                      {item.name || "Ingredient"}
+                    </div>
+
+                    <div
+                      style={{
+                        fontSize: "12px",
+                        color: "#94a3b8",
+                        marginTop: "5px",
+                      }}
+                    >
+                      Stock: {Number(item.currentStock || 0).toFixed(0)} • Daily use:{" "}
+                      {Number(item.dailyUsage || 0).toFixed(1)}
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      padding: "6px 10px",
+                      borderRadius: "999px",
+                      fontSize: "11px",
+                      fontWeight: "900",
+                      background: riskStyle.bg,
+                      border: riskStyle.border,
+                      color: riskStyle.color,
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    {risk} risk
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    marginTop: "10px",
+                    display: "grid",
+                    gridTemplateColumns: "1fr auto",
+                    gap: "12px",
+                    alignItems: "center",
+                  }}
+                >
+                  <div
+                    style={{
+                      height: "9px",
+                      borderRadius: "999px",
+                      background: "rgba(148,163,184,0.14)",
+                      overflow: "hidden",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: `${Math.max(
+                          8,
+                          Math.min(100, Number(item.daysRemaining || 0) * 12)
+                        )}%`,
+                        height: "100%",
+                        borderRadius: "999px",
+                        background: riskStyle.color,
+                      }}
+                    />
+                  </div>
+
+                  <div
+                    style={{
+                      color: riskStyle.color,
+                      fontWeight: "900",
+                      fontSize: "13px",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {Number(item.daysRemaining || 0).toFixed(1)} days left
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div
+          style={{
+            height: "220px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "#94a3b8",
+            textAlign: "center",
+            borderRadius: "18px",
+            border: "1px dashed rgba(148,163,184,0.2)",
+            background: "rgba(15,23,42,0.5)",
+            fontSize: "13px",
+          }}
+        >
+          Upload ingredient data to forecast inventory risk.
+        </div>
+      )}
+    </div>
+
+    {!hasProAccess && (
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "rgba(15,23,42,0.85)",
+          backdropFilter: "blur(6px)",
+          textAlign: "center",
+          padding: "20px",
+        }}
+      >
+        <h4 style={{ color: "white", marginBottom: "8px" }}>
+          🔒 Unlock Inventory Forecasting
+        </h4>
+
+        <p
+          style={{
+            fontSize: "12px",
+            color: "#cbd5f5",
+            marginBottom: "12px",
+          }}
+        >
+          Predict inventory shortages before they happen.
+        </p>
+
+        <button
+          onClick={() => router.push("/pricing")}
+          style={{
+            padding: "10px 16px",
+            borderRadius: "10px",
+            border: "none",
+            background: "linear-gradient(135deg, #4f46e5, #6D3DF5)",
+            color: "white",
+            fontWeight: "800",
+            boxShadow: "0 10px 25px rgba(79,70,229,0.35)",
+            cursor: "pointer",
+          }}
+        >
+          Upgrade to Pro →
+        </button>
+      </div>
+    )}
+  </div>
+</div>
+   
+  </>
+)}
+  {analyticsView === "forecast" && (
+  <>
+  {/* 🧠 FORECAST CONFIDENCE */}
+{(() => {
+  // Quick dynamic status generator based on your variable
+  const confidenceVal = Number(overallAIConfidence || 0);
+  let confidenceLabel = "High confidence";
+  if (confidenceVal < 40) confidenceLabel = "Low confidence";
+  else if (confidenceVal < 75) confidenceLabel = "Moderate confidence";
+
+  return (
+    <div
+      style={{
+        marginTop: "20px",
+        padding: "22px",
+        borderRadius: "22px",
+        background:
+          "linear-gradient(135deg, rgba(15,23,42,0.95), rgba(30,41,59,0.92))",
+        border: "1px solid rgba(148,163,184,0.16)",
+        boxShadow: "0 20px 50px rgba(2,6,23,0.24)",
+      }}
+    >
+      {/* HEADER */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          gap: "16px",
+          flexWrap: "wrap",
+          marginBottom: "18px",
+        }}
+      >
+        <div>
+          <div
+            style={{
+              fontSize: "12px",
+              fontWeight: "800",
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+              color: "#c4b5fd",
+              marginBottom: "8px",
+            }}
+          >
+            Forecast Confidence
+          </div>
+
+          <div
+            style={{
+              fontSize: "13px",
+              color: "#94a3b8",
+              lineHeight: 1.6,
+              maxWidth: "560px",
+            }}
+          >
+            AI confidence reflects the number of applied fixes, revenue signal
+            quality, and how much optimization data is already confirmed.
+          </div>
+        </div>
+
+        <div
+          style={{
+            padding: "8px 12px",
+            borderRadius: "999px",
+            background: "rgba(168,85,247,0.12)",
+            border: "1px solid rgba(168,85,247,0.18)",
+            color: "#d8b4fe",
+            fontSize: "12px",
+            fontWeight: "800",
+            whiteSpace: "nowrap", // Prevents pill text breaking into two rows
+          }}
+        >
+          {hasOperationalData
+  ? `${realForecastConfidence}% confidence`
+  : "Awaiting Data"}
+        </div>
+      </div>
+
+      {/* ASSUMPTION CARDS - Pure CSS Responsive Grid */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+          gap: "14px",
+        }}
+      >
+        <div
+          style={{
+            padding: "16px",
+            borderRadius: "18px",
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(148,163,184,0.12)",
+          }}
+        >
+          <div
+            style={{
+              fontSize: "11px",
+              color: "#94a3b8",
+              fontWeight: "700",
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+              marginBottom: "8px",
+            }}
+          >
+            Assumption 1
+          </div>
+
+          <div
+            style={{
+              fontSize: "13px",
+              color: "#e2e8f0",
+              lineHeight: 1.6,
+            }}
+          >
+            Revenue lift assumes current AI fixes are applied consistently and
+            maintained across the month.
+          </div>
+        </div>
+
+        <div
+          style={{
+            padding: "16px",
+            borderRadius: "18px",
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(148,163,184,0.12)",
+          }}
+        >
+          <div
+            style={{
+              fontSize: "11px",
+              color: "#94a3b8",
+              fontWeight: "700",
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+              marginBottom: "8px",
+            }}
+          >
+            Assumption 2
+          </div>
+
+          <div
+            style={{
+              fontSize: "13px",
+              color: "#e2e8f0",
+              lineHeight: 1.6,
+            }}
+          >
+            Forecast assumes current traffic demand remains stable while menu,
+            labor, and cost improvements raise efficiency.
+          </div>
+        </div>
+
+        <div
+          style={{
+            padding: "16px",
+            borderRadius: "18px",
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(148,163,184,0.12)",
+          }}
+        >
+          <div
+            style={{
+              fontSize: "11px",
+              color: "#94a3b8",
+              fontWeight: "700",
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+              marginBottom: "8px",
+            }}
+          >
+            Assumption 3
+          </div>
+
+          <div
+            style={{
+              fontSize: "13px",
+              color: "#e2e8f0",
+              lineHeight: 1.6,
+            }}
+          >
+            More applied AI fixes and stronger data quality increase forecast
+            confidence over time.
+          </div>
+        </div>
+      </div>
+
+      {/* SUMMARY BANNER */}
+      <div
+        style={{
+          marginTop: "18px",
+          padding: "14px 16px",
+          borderRadius: "16px",
+          background: "rgba(168,85,247,0.08)",
+          border: "1px solid rgba(168,85,247,0.16)",
+        }}
+      >
+        <div
+          style={{
+            color: "#d8b4fe",
+            fontSize: "12px",
+            fontWeight: "900",
+            marginBottom: "8px",
+            letterSpacing: "0.06em",
+          }}
+        >
+          AI CONFIDENCE LEVEL
+        </div>
+
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: "14px",
+            flexWrap: "wrap",
+          }}
+        >
+          <div>
+            <div
+              style={{
+                color: "white",
+                fontSize: "28px",
+                fontWeight: "950",
+              }}
+            >
+              {confidenceVal}%
+            </div>
+
+            <div
+              style={{
+                color: "#e9d5ff",
+                fontWeight: "800",
+                fontSize: "13px",
+              }}
+            >
+              {confidenceLabel} {/* 🔮 Dynamic text fix */}
+            </div>
+          </div>
+
+          <div
+            style={{
+              fontSize: "13px",
+              color: "#ddd6fe",
+              lineHeight: 1.7,
+              maxWidth: "420px",
+              flex: "1 1 300px",
+            }}
+          >
+            Serven AI becomes more accurate as more inventory, menu,
+            and operational data is uploaded into the system.
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+})()}
+
+   {/* AI PROFIT RECOVERY TREND */}
+<div
+  style={{
+    gridColumn: isMobile ? "span 1" : "span 12",
+    width: "100%",
+    minWidth: 0,
+    maxWidth: "100%",
+    marginBottom: "24px",
+    padding: "24px",
+    borderRadius: "22px",
+    minHeight: "auto",
+    display: "flex",
+    flexDirection: "column",
+    background:
+      "radial-gradient(circle at top right, rgba(109,61,245,0.14), transparent 34%), linear-gradient(135deg, rgba(15,23,42,0.92), rgba(30,41,59,0.86))",
+    border: "1px solid rgba(148,163,184,0.16)",
+    boxShadow: "0 18px 42px rgba(2,6,23,0.22)",
+    overflow: "hidden",
+  }}
+>
+  <div style={{ marginBottom: "18px" }}>
+    <div
+      style={{
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        color: "#c4b5fd",
+        marginBottom: "6px",
+      }}
+    >
+      AI Profit Intelligence
+    </div>
+
+    <h3
+      style={{
+        margin: 0,
+        color: "white",
+        fontSize: "22px",
+        fontWeight: "950",
+      }}
+    >
+      AI profit recovery trend
+    </h3>
+
+    <p
+      style={{
+        margin: "6px 0 0",
+        color: "#94a3b8",
+        fontSize: "13px",
+        lineHeight: 1.6,
+      }}
+    >
+      Compare baseline revenue against projected AI-optimized revenue.
+    </p>
+  </div>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile ? "1fr" : "2fr 1fr",
+      gap: "22px",
+      alignItems: "stretch",
+      flex: 1,
+    }}
+  >
+    <div
+      style={{
+        width: "100%",
+        minHeight: isMobile ? "340px" : "420px",
+        padding: "12px",
+        borderRadius: "18px",
+        background: "rgba(15,23,42,0.35)",
+        border: "1px solid rgba(148,163,184,0.10)",
+        overflowX: "auto",
+        overflowY: "hidden",
+      }}
+    >
+      {aiProfitTrendData?.length > 0 ? (
+        <LineChart
+          width={isMobile ? 900 : 760}
+          height={isMobile ? 340 : 420}
+          data={aiProfitTrendData}
+         margin={{ top: 24, right: 35, left: 10, bottom: 70 }}
+        >
+          <CartesianGrid
+            strokeDasharray="3 3"
+            stroke="rgba(148,163,184,0.12)"
+          />
+
+          <XAxis
+  dataKey="date"
+  tick={{ fill: "#94a3b8", fontSize: 10 }}
+  axisLine={{ stroke: "rgba(148,163,184,0.18)" }}
+  tickLine={false}
+  interval={4}
+  angle={-35}
+  textAnchor="end"
+  height={60}
+  tickMargin={12}
+  tickFormatter={(value) =>
+    new Date(value).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    })
+  }
+/>
+          <YAxis
+            tickFormatter={(value) =>
+              isMobile
+                ? `$${Math.round(Number(value || 0) / 1000)}k`
+                : `$${Number(value || 0).toLocaleString()}`
+            }
+            tick={{ fill: "#94a3b8", fontSize: 10 }}
+            width={65}
+            axisLine={{ stroke: "rgba(148,163,184,0.18)" }}
+            tickLine={false}
+            domain={[0, "auto"]}
+          />
+
+          <Tooltip
+            wrapperStyle={{ pointerEvents: "none" }}
+            formatter={(value, name) => [
+              `$${Number(value || 0).toLocaleString()}`,
+              name === "optimized"
+                ? "AI Optimized Revenue"
+                : "Baseline Revenue",
+            ]}
+            contentStyle={{
+              background: "rgba(15,23,42,0.97)",
+              border: "1px solid rgba(148,163,184,0.18)",
+              borderRadius: "14px",
+              color: "white",
+            }}
+            labelStyle={{ color: "#e5e7eb" }}
+          />
+
+          <Legend
+            wrapperStyle={{
+              color: "#94a3b8",
+              fontSize: "12px",
+              fontWeight: "800",
+            }}
+          />
+
+          <Line
+            type="monotone"
+            dataKey="baseline"
+            name="Baseline Revenue"
+            stroke="#64748b"
+            strokeWidth={3}
+            strokeDasharray="6 6"
+            dot={false}
+            connectNulls
+            isAnimationActive={false}
+          />
+
+          <Line
+            type="monotone"
+            dataKey="optimized"
+            name="AI Optimized Revenue"
+            stroke="#8b5cf6"
+            strokeWidth={4}
+            dot={{ r: 3 }}
+            activeDot={{
+              r: 7,
+              fill: "#c4b5fd",
+              stroke: "white",
+              strokeWidth: 2,
+            }}
+            connectNulls
+            isAnimationActive={false}
+          />
+        </LineChart>
+      ) : (
+        <div style={{ color: "#94a3b8", padding: "24px" }}>
+          No AI profit trend data available yet.
+        </div>
+      )}
+    </div>
+
+    <div
+      style={{
+        padding: "18px",
+        borderRadius: "18px",
+        background:
+          "linear-gradient(135deg, rgba(15,23,42,0.84), rgba(30,41,59,0.72))",
+        border: "1px solid rgba(148,163,184,0.14)",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between",
+        gap: "14px",
+      }}
+    >
+      <div>
+        <div
+          style={{
+            color: "#c4b5fd",
+            fontSize: "12px",
+            fontWeight: "900",
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            marginBottom: "10px",
+          }}
+        >
+          AI Recovery Readout
+        </div>
+
+        <div style={{ color: "white", fontSize: "20px", fontWeight: "950" }}>
+          Projected recovery path
+        </div>
+
+        <p
+          style={{
+            marginTop: "8px",
+            color: "#94a3b8",
+            fontSize: "13px",
+            lineHeight: 1.6,
+          }}
+        >
+          This compares your baseline revenue against the projected revenue after
+          AI recommendations are applied.
+        </p>
+      </div>
+
+      <div style={{ display: "grid", gap: "10px" }}>
+        <div
+          style={{
+            padding: "13px",
+            borderRadius: "14px",
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(148,163,184,0.10)",
+          }}
+        >
+          <div style={{ color: "#94a3b8", fontSize: "11px" }}>
+            Projected Profit Lift
+          </div>
+
+          <div style={{ color: "#c4b5fd", fontSize: "18px", fontWeight: "900" }}>
+            +${Number(totalAiProfit || 0).toLocaleString()}
+          </div>
+        </div>
+
+        <div
+          style={{
+            padding: "13px",
+            borderRadius: "14px",
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(148,163,184,0.10)",
+          }}
+        >
+          <div style={{ color: "#94a3b8", fontSize: "11px" }}>
+            Recovery Confidence
+          </div>
+
+          <div style={{ color: "#86efac", fontSize: "18px", fontWeight: "900" }}>
+            {realForecastConfidence}%
+          </div>
+        </div>
+
+        <div
+          style={{
+            padding: "13px",
+            borderRadius: "14px",
+            background: "rgba(139,92,246,0.10)",
+            border: "1px solid rgba(139,92,246,0.18)",
+            color: "#ddd6fe",
+            fontSize: "13px",
+            lineHeight: 1.6,
+            fontWeight: "750",
+          }}
+        >
+          Recommended action: apply the highest-impact AI fix first, then watch
+          the optimized line separate from baseline revenue over time.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+  
+  {/* DEMAND FORECASTING */}
+  
+  <div
+    style={{
+      position: "relative",
+      width: "100%",
+minWidth: 0,
+      padding: "20px",
+      borderRadius: "22px",
+      background:
+        "radial-gradient(circle at top right, rgba(168,85,247,0.12), transparent 40%), linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.9))",
+      border: "1px solid rgba(148,163,184,0.16)",
+      boxShadow: "0 18px 40px rgba(2,6,23,0.22)",
+      overflow: "hidden",
+    }}
+  >
+    <div
+      style={{
+        filter: hasProAccess ? "none" : "blur(5px)",
+        opacity: hasProAccess ? 1 : 0.6,
+        pointerEvents: hasProAccess ? "auto" : "none",
+      }}
+    >
+      <div style={{ marginBottom: "16px" }}>
+        <div
+          style={{
+            fontSize: "12px",
+            fontWeight: "900",
+            letterSpacing: "0.08em",
+            color: "#c4b5fd",
+            textTransform: "uppercase",
+          }}
+        >
+          Forecast Intelligence
+        </div>
+
+        <h3
+          style={{
+            margin: "6px 0 4px",
+            color: "white",
+            fontSize: "22px",
+            fontWeight: "950",
+          }}
+        >
+          Demand forecasting
+        </h3>
+
+        <p style={{ margin: 0, color: "#94a3b8", fontSize: "13px" }}>
+          Predict future revenue and demand spikes before they happen.
+        </p>
+        <div
+  style={{
+    width: "100%",
+    overflowX: "auto",
+    marginBottom: "16px",
+  }}
+>
+  <LineChart
+    width={620}
+    height={240}
+    data={[
+      { day: "Today", revenue: Number(liveTotalRevenue || 0) },
+      { day: "Tomorrow", revenue: Number(forecastedNextDayRevenue || 0) },
+      {
+        day: "Next 7 Days",
+        revenue: Number(forecastedNextDayRevenue || 0) * 7,
+      },
+    ]}
+    margin={{ top: 10, right: 20, left: 0, bottom: 20 }}
+  >
+    <XAxis
+      dataKey="day"
+      tick={{ fill: "#94a3b8", fontSize: 11 }}
+      axisLine={{ stroke: "rgba(148,163,184,0.2)" }}
+      tickLine={false}
+    />
+    <YAxis
+      tick={{ fill: "#94a3b8", fontSize: 11 }}
+      axisLine={{ stroke: "rgba(148,163,184,0.2)" }}
+      tickLine={false}
+    />
+    <Tooltip />
+    <Line
+      type="monotone"
+      dataKey="revenue"
+      stroke="#c084fc"
+      strokeWidth={3}
+      dot={{ r: 4 }}
+    />
+  </LineChart>
+</div>
+      </div>
+
+      <div
+        style={{
+          padding: "18px",
+          borderRadius: "18px",
+          background: "rgba(168,85,247,0.10)",
+          border: "1px solid rgba(168,85,247,0.20)",
+          marginBottom: "14px",
+        }}
+      >
+        <div
+          style={{
+            fontSize: "12px",
+            fontWeight: "900",
+            color: "#c4b5fd",
+          }}
+        >
+          Forecasted next day revenue
+        </div>
+
+        <div
+          style={{
+            fontSize: "34px",
+            fontWeight: "950",
+            color: "white",
+            marginTop: "6px",
+          }}
+        >
+          ${Number(forecastedNextDayRevenue || 0).toLocaleString()}
+        </div>
+      </div>
+
+      <div
+        style={{
+          display: "inline-flex",
+          padding: "8px 12px",
+          borderRadius: "999px",
+          fontSize: "12px",
+          fontWeight: "900",
+          background:
+            forecastConfidence === "high"
+              ? "rgba(34,197,94,0.12)"
+              : forecastConfidence === "medium"
+              ? "rgba(245,158,11,0.12)"
+              : "rgba(239,68,68,0.12)",
+          border:
+            forecastConfidence === "high"
+              ? "1px solid rgba(34,197,94,0.22)"
+              : forecastConfidence === "medium"
+              ? "1px solid rgba(245,158,11,0.22)"
+              : "1px solid rgba(239,68,68,0.22)",
+          color:
+            forecastConfidence === "high"
+              ? "#86efac"
+              : forecastConfidence === "medium"
+              ? "#fde68a"
+              : "#fca5a5",
+          textTransform: "uppercase",
+        }}
+      >
+        {forecastConfidence || "low"} confidence
+      </div>
+    </div>
+
+    {!hasProAccess && (
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "rgba(15,23,42,0.85)",
+          backdropFilter: "blur(6px)",
+          textAlign: "center",
+          padding: "20px",
+        }}
+      >
+        <h4 style={{ color: "white", marginBottom: "8px" }}>
+          🔒 Unlock Demand Forecasting
+        </h4>
+
+        <p style={{ fontSize: "12px", color: "#cbd5f5", marginBottom: "12px" }}>
+          Predict future revenue and demand spikes.
+        </p>
+
+        <button
+          onClick={() => router.push("/pricing")}
+          style={{
+            padding: "10px 16px",
+            borderRadius: "10px",
+            border: "none",
+            background: "linear-gradient(135deg, #4f46e5, #6D3DF5)",
+            color: "white",
+            fontWeight: "800",
+            boxShadow: "0 10px 25px rgba(79,70,229,0.35)",
+            cursor: "pointer",
+          }}
+        >
+          Upgrade to Pro →
+        </button>
+      </div>
+    )}
+  </div>
+{/* 📉 MARGIN FORECAST TREND */}
+
+{hasProAccess && (
+  <div
+    style={{
+      gridColumn: "1 / -1",
+      minWidth: 0,
+      marginTop: "18px",
+      padding: "22px",
+      borderRadius: "24px",
+      background:
+        "linear-gradient(135deg, rgba(168,85,247,0.12), rgba(15,23,42,0.96))",
+      border: "1px solid rgba(168,85,247,0.22)",
+      boxShadow: "0 22px 60px rgba(2,6,23,0.28)",
+    }}
+  >
+    <div
+      style={{
+        color: "#c4b5fd",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      Margin Forecast
+    </div>
+
+    <h3 style={{ color: "white", fontSize: "24px", fontWeight: "950" }}>
+      Profit Margin Trend
+    </h3>
+
+    <p style={{ color: "#94a3b8", fontSize: "13px", lineHeight: 1.6 }}>
+      Forecasts projected menu profitability and margin pressure against
+      operational benchmarks.
+    </p>
+
+    <div
+      style={{
+        width: "100%",
+        height: isMobile ? "260px" : "360px",
+        marginTop: "18px",
+        overflow: "visible",
+      }}
+    >
+      <LineChart
+        width={isMobile ? 320 : 980}
+        height={isMobile ? 260 : 320}
+        data={marginForecastChartData}
+        /* 🛠️ FIX: Reset left margin to 0 to give the percentage text labels breathing room */
+        margin={{ top: 10, right: 35, left: 0, bottom: 10 }}
+      >
+        <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.14)" />
+
+        <XAxis
+          dataKey="label"
+          tick={{ fill: "#94a3b8", fontSize: 11 }}
+          axisLine={false}
+          tickLine={false}
+        />
+
+        <YAxis
+          /* 🛠️ FIX: Bumped width to 50 so double/triple digit values like '100%' or '20%' don't clip off the left card edge */
+          width={50}
+          tick={{ fill: "#94a3b8", fontSize: 11 }}
+          axisLine={false}
+          tickLine={false}
+          tickFormatter={(value) => `${value}%`}
+        />
+
+        <Tooltip
+          formatter={(value, name) => {
+            const labels = {
+              margin: "Profit Margin",
+              healthy: "Healthy Benchmark",
+              danger: "Danger Zone",
+            };
+
+            return [
+              `${Number(value || 0).toFixed(1)}%`,
+              labels[name] || name,
+            ];
+          }}
+          contentStyle={{
+            background: "#020617",
+            border: "1px solid rgba(148,163,184,0.2)",
+            borderRadius: "12px",
+            color: "white",
+          }}
+        />
+
+        <Legend
+          verticalAlign="bottom"
+          height={36}
+          iconType="circle"
+          iconSize={8}
+          wrapperStyle={{
+            fontSize: "12px",
+            color: "#94a3b8",
+            paddingTop: "15px",
+          }}
+        />
+
+        <Line
+          type="monotone"
+          dataKey="margin"
+          name="Profit Margin"
+          stroke="#a855f7"
+          strokeWidth={3}
+          dot={false}
+          isAnimationActive={false}
+        />
+
+        <Line
+          type="monotone"
+          dataKey="healthy"
+          name="Healthy Benchmark"
+          stroke="#22c55e"
+          strokeWidth={2}
+          strokeDasharray="5 5"
+          dot={false}
+          isAnimationActive={false}
+        />
+
+        <Line
+          type="monotone"
+          dataKey="danger"
+          name="Danger Zone"
+          stroke="#ef4444"
+          strokeWidth={2}
+          strokeDasharray="5 5"
+          dot={false}
+          isAnimationActive={false}
+        />
+      </LineChart>
+    </div>
+  </div>
+)}
+{/* 🚦 RISK PROJECTION TIMELINE */}
+
+{hasProAccess && (
+  <div
+    style={{
+      gridColumn: "1 / -1", // Upgraded to full-width to perfectly track with your other forecast views
+      minWidth: 0,
+      marginTop: "18px",
+      padding: "22px",
+      borderRadius: "24px",
+      background:
+        "linear-gradient(135deg, rgba(239,68,68,0.10), rgba(15,23,42,0.96))",
+      border: "1px solid rgba(239,68,68,0.20)",
+      boxShadow: "0 22px 60px rgba(2,6,23,0.28)",
+    }}
+  >
+    <div
+      style={{
+        color: "#fca5a5",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      Risk Projection Timeline
+    </div>
+
+    <h3 style={{ color: "white", fontSize: "24px", fontWeight: "950" }}>
+      30-Day Operational Risk Forecast
+    </h3>
+
+    <p style={{ color: "#94a3b8", fontSize: "13px", lineHeight: 1.6 }}>
+      Projects how revenue, labor, and margin risk may change over the next
+      operating window.
+    </p>
+
+    <div
+      style={{
+        width: "100%",
+        height: isMobile ? "300px" : "380px", // 🛠️ FIX: Extended container height to comfortably fit the canvas + the new legend rows
+        marginTop: "18px",
+        overflow: "visible", // 🛠️ FIX: Prevents layout slicing
+      }}
+    >
+      <LineChart
+        width={isMobile ? 320 : 980} // 🛠️ FIX: Scaled canvas out wide to eliminate massive empty card gaps
+        height={isMobile ? 280 : 340}
+        data={riskProjectionTimelineData}
+        margin={{ top: 10, right: 35, left: 0, bottom: 10 }} // 🛠️ FIX: Balanced margins so rightmost timeline points don't clip
+      >
+        <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.14)" />
+
+        <XAxis
+          dataKey="label"
+          tick={{ fill: "#94a3b8", fontSize: 11 }}
+          axisLine={false}
+          tickLine={false}
+        />
+
+        <YAxis
+          width={50} // 🛠️ FIX: Allocates safe pixel buffer so percentage digits like '100%' never clip on the left edge
+          tick={{ fill: "#94a3b8", fontSize: 11 }}
+          axisLine={false}
+          tickLine={false}
+          domain={[0, 100]}
+          tickFormatter={(value) => `${value}%`}
+        />
+
+        <Tooltip
+          formatter={(value, name) => {
+            const labels = {
+              revenueRisk: "Revenue Risk",
+              laborRisk: "Labor Risk",
+              marginRisk: "Margin Risk",
+            };
+
+            return [
+              `${Number(value || 0).toFixed(0)}%`,
+              labels[name] || name,
+            ];
+          }}
+          contentStyle={{
+            background: "#020617",
+            border: "1px solid rgba(148,163,184,0.2)",
+            borderRadius: "12px",
+            color: "white",
+          }}
+        />
+
+        {/* 🛠️ ADDED: Integrated native legend element so user knows exactly what each distinct color represents */}
+        <Legend
+          verticalAlign="bottom"
+          height={36}
+          iconType="circle"
+          iconSize={8}
+          wrapperStyle={{
+            fontSize: "12px",
+            color: "#94a3b8",
+            paddingTop: "15px",
+          }}
+        />
+
+        <Line
+          name="Revenue Risk" // 🛠️ ADDED: Clean, user-facing label mapping
+          type="monotone"
+          dataKey="revenueRisk"
+          stroke="#38bdf8"
+          strokeWidth={3}
+          dot={false}
+          isAnimationActive={false}
+        />
+
+        <Line
+          name="Labor Risk" // 🛠️ ADDED: Clean, user-facing label mapping
+          type="monotone"
+          dataKey="laborRisk"
+          stroke="#facc15"
+          strokeWidth={3}
+          dot={false}
+          isAnimationActive={false}
+        />
+
+        <Line
+          name="Margin Risk" // 🛠️ ADDED: Clean, user-facing label mapping
+          type="monotone"
+          dataKey="marginRisk"
+          stroke="#ef4444"
+          strokeWidth={3}
+          dot={false}
+          isAnimationActive={false}
+        />
+      </LineChart>
+    </div>
+  </div>
+)}
+
+
 {/* 📈 REVENUE GROWTH TIMELINE */}
 {(() => {
   // 🛡️ Data Hydration Defenses
@@ -47555,9 +48294,312 @@ Recovered profit is based on saved AI action impact.
     </div>
   );
 })()} 
-</>
-    )}
+
+{/* 💸 PROJECTED REVENUE LIFT */}
+<div
+  style={{
+    marginTop: "24px",
+    padding: "24px",
+    borderRadius: "24px",
+    background:
+      "radial-gradient(circle at top right, rgba(34,197,94,0.12), transparent 35%), linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.94))",
+    border: "1px solid rgba(148,163,184,0.16)",
+    boxShadow: "0 24px 60px rgba(2,6,23,0.28)",
+    overflow: "visible",
+    position: "relative",
+  }}
+>
+  
+  <div
+    style={{
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "flex-start",
+      gap: "20px",
+      flexWrap: "wrap",
+    }}
+  >
+    <div>
+      <div
+        style={{
+          fontSize: "13px",
+          fontWeight: "800",
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          color: "#4ade80",
+          marginBottom: "8px",
+        }}
+      >
+        Projected Revenue Lift
+      </div>
+
+      <div
+        style={{
+          fontSize: "28px",
+          fontWeight: "900",
+          color: "white",
+          lineHeight: 1.1,
+        }}
+      >
+        <CountUpValue value={Number(totalAiProfit || 0)} prefix="$" />
+      </div>
+
+      <div
+        style={{
+          fontSize: "12px",
+          color: "#4ade80",
+          marginTop: "4px",
+          fontWeight: "700",
+        }}
+      >
+        AI-optimized revenue potential
+      </div>
+
+      <div
+        style={{
+          fontSize: "13px",
+          color: "#94a3b8",
+          marginTop: "6px",
+          lineHeight: 1.6,
+          maxWidth: "520px",
+        }}
+      >
+        If your current AI fixes are applied, Serven projects an estimated
+        monthly revenue increase based on your active profit opportunities.
+      </div>
+    </div>
+
+    <div
+      style={{
+        padding: "10px 14px",
+        borderRadius: "999px",
+        background: "rgba(34,197,94,0.12)",
+        border: "1px solid rgba(34,197,94,0.18)",
+        color: "#4ade80",
+        fontSize: "13px",
+        fontWeight: "800",
+        whiteSpace: "nowrap",
+      }}
+    >
+     Live recovery progress
+    </div>
   </div>
+
+  
+  <div
+    style={{
+      display: "flex",
+      gap: "8px",
+      flexWrap: "wrap",
+      marginTop: "18px",
+      marginBottom: "4px",
+    }}
+  >
+    {[
+      { key: "conservative", label: "Conservative" },
+      { key: "base", label: "Base Case" },
+      { key: "aggressive", label: "Aggressive" },
+    ].map((scenario) => {
+      const isActive = revenueScenario === scenario.key;
+
+      return (
+        <button
+          key={scenario.key}
+          type="button"
+          onClick={() => setRevenueScenario(scenario.key)}
+          style={{
+            padding: "8px 12px",
+            borderRadius: "999px",
+            border: isActive
+              ? "1px solid rgba(34,197,94,0.24)"
+              : "1px solid rgba(148,163,184,0.16)",
+            background: isActive
+              ? "rgba(34,197,94,0.12)"
+              : "rgba(255,255,255,0.04)",
+            color: isActive ? "#86efac" : "#cbd5e1",
+            fontSize: "12px",
+            fontWeight: "800",
+            cursor: "pointer",
+          }}
+        >
+          {scenario.label}
+        </button>
+      );
+    })}
+  </div>
+
+  
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", // 📱 Responsive Fix
+      gap: "16px",
+      marginTop: "22px",
+    }}
+  >
+    <div
+      style={{
+        padding: "16px",
+        borderRadius: "18px",
+        background: "rgba(255,255,255,0.04)",
+        border: "1px solid rgba(148,163,184,0.12)",
+      }}
+    >
+      <div
+        style={{
+          fontSize: "11px",
+          color: "#94a3b8",
+          fontWeight: "700",
+          textTransform: "uppercase",
+          letterSpacing: "0.06em",
+          marginBottom: "8px",
+        }}
+      >
+        Current Revenue
+      </div>
+
+      <div
+        style={{
+          fontSize: "24px",
+          fontWeight: "900",
+          color: "white",
+        }}
+      >
+       ${Number(totalRevenue || 0).toLocaleString()}
+      </div>
+    </div>
+
+    <div
+      style={{
+        padding: "16px",
+        borderRadius: "18px",
+        background: "rgba(34,197,94,0.08)",
+        border: "1px solid rgba(34,197,94,0.16)",
+      }}
+    >
+      <div
+        style={{
+          fontSize: "11px",
+          color: "#4ade80",
+          fontWeight: "700",
+          textTransform: "uppercase",
+          letterSpacing: "0.06em",
+          marginBottom: "8px",
+        }}
+      >
+        AI Revenue Lift
+      </div>
+
+      <div
+        style={{
+          fontSize: "24px",
+          fontWeight: "900",
+          color: "#4ade80",
+        }}
+      >
+        ${Number(totalAiProfit || 0).toLocaleString()} recovered
+      </div>
+    </div>
+
+    <div
+      style={{
+        padding: "16px",
+        borderRadius: "18px",
+        background: "rgba(255,255,255,0.04)",
+        border: "1px solid rgba(148,163,184,0.12)",
+      }}
+    >
+      <div
+        style={{
+          fontSize: "11px",
+          color: "#94a3b8",
+          fontWeight: "700",
+          textTransform: "uppercase",
+          letterSpacing: "0.06em",
+          marginBottom: "8px",
+        }}
+      >
+        Projected Revenue
+      </div>
+
+      <div
+        style={{
+          fontSize: "24px",
+          fontWeight: "900",
+          color: "white",
+        }}
+      >
+        ${Number(totalRevenue || 0).toLocaleString()}
+      </div>
+    </div>
+  </div>
+
+  
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "14px 16px",
+      borderRadius: "16px",
+      background: "rgba(255,255,255,0.03)",
+      border: "1px solid rgba(148,163,184,0.12)",
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      gap: "12px",
+      flexWrap: "wrap",
+    }}
+  >
+    <div style={{ flex: "1 1 300px" }}>
+      <div
+        style={{
+          fontSize: "11px",
+          color: "#94a3b8",
+          fontWeight: "700",
+          textTransform: "uppercase",
+          letterSpacing: "0.06em",
+          marginBottom: "4px",
+        }}
+      >
+        Revenue Forecast Summary
+      </div>
+
+      <div
+        style={{
+          fontSize: "13px",
+          color: "#e2e8f0",
+          lineHeight: 1.6,
+        }}
+      >
+        In the{" "}
+        <span style={{ color: "#86efac", fontWeight: "800" }}>
+          {revenueScenario === "base" ? "Base Case" : revenueScenario.charAt(0).toUpperCase() + revenueScenario.slice(1)}
+        </span>{" "}
+       Current AI actions are now tracked as applied recovery, not projected future revenue.
+Recovered profit is based on saved AI action impact.
+      </div>
+    </div>
+
+    <button
+      type="button"
+      onClick={() => runAutopilotAI("Revenue lift refresh")}
+      style={{
+        padding: "10px 14px",
+        borderRadius: "12px",
+        border: "none",
+        background: "linear-gradient(135deg, #22c55e, #16a34a)",
+        color: "white",
+        fontWeight: "800",
+        cursor: "pointer",
+        whiteSpace: "nowrap",
+      }}
+    >
+      Refresh Projection
+    </button>
+  </div>
+</div>
+
+  </>
+  )}
 </div>
   
 )}
@@ -47975,159 +49017,7 @@ Recovered profit is based on saved AI action impact.
     </div>
   </div>
 )}
-{/* =========================
-   AI TASK ASSIGNMENT SYSTEM
-========================= */}
 
-{hasProAccess && (
-  <div
-    style={{
-      marginBottom: "22px",
-      padding: "24px",
-      borderRadius: "28px",
-      background:
-        "linear-gradient(135deg, rgba(124,58,237,0.18), rgba(15,23,42,0.98))",
-      border: "1px solid rgba(167,139,250,0.22)",
-      boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
-      width: "100%",
-      boxSizing: "border-box",
-      overflow: "hidden",
-    }}
-  >
-    <div
-      style={{
-        color: "#c4b5fd",
-        fontSize: "12px",
-        fontWeight: "900",
-      }}
-    >
-      AI TASK ASSIGNMENT SYSTEM
-    </div>
-
-    <h3
-      style={{
-        color: "white",
-        fontSize: "26px",
-        fontWeight: "950",
-        marginTop: "8px",
-      }}
-    >
-      Manager Action Assignments
-    </h3>
-
-    <button
-      type="button"
-      onClick={handleRunAutopilotWorkflow}
-      style={{
-        marginTop: "12px",
-        padding: "12px 16px",
-        borderRadius: "14px",
-        border: "none",
-        background: "linear-gradient(135deg, #8b5cf6, #6366f1)",
-        color: "white",
-        fontWeight: "950",
-        cursor: "pointer",
-        width: isMobile ? "100%" : "auto",
-      }}
-    >
-      Run Top Autopilot Workflow
-    </button>
-
-    <div
-      style={{
-        display: "grid",
-        gap: "12px",
-        marginTop: "18px",
-      }}
-    >
-      {(aiTaskAssignments || []).length > 0 ? (
-        aiTaskAssignments.map((task, index) => (
-          <div
-            key={`${task.title}-${index}`}
-            style={{
-              padding: "16px",
-              borderRadius: "18px",
-              background: "rgba(255,255,255,0.05)",
-              border: "1px solid rgba(148,163,184,0.12)",
-              minWidth: 0,
-            }}
-          >
-            <div
-              style={{
-                color: "white",
-                fontSize: "15px",
-                fontWeight: "900",
-                overflowWrap: "anywhere",
-              }}
-            >
-              {task.title}
-            </div>
-
-            <div
-              style={{
-                color:
-                  task.priority === "Critical"
-                    ? "#fca5a5"
-                    : task.priority === "High"
-                    ? "#fde68a"
-                    : "#93c5fd",
-                fontSize: "12px",
-                fontWeight: "900",
-                marginTop: "4px",
-                overflowWrap: "anywhere",
-              }}
-            >
-              {task.owner} • {task.priority} • Due {task.due}
-            </div>
-
-            <p
-              style={{
-                color: "#cbd5e1",
-                fontSize: "13px",
-                lineHeight: 1.6,
-                overflowWrap: "anywhere",
-              }}
-            >
-              {task.action}
-            </p>
-
-            <button
-              type="button"
-              onClick={() => handleCompleteAITask(task)}
-              style={{
-                marginTop: "10px",
-                padding: "10px 14px",
-                borderRadius: "12px",
-                border: "1px solid rgba(34,197,94,0.28)",
-                background: "rgba(34,197,94,0.14)",
-                color: "#bbf7d0",
-                fontSize: "12px",
-                fontWeight: "900",
-                cursor: "pointer",
-                width: isMobile ? "100%" : "auto",
-              }}
-            >
-              Mark Task Completed
-            </button>
-          </div>
-        ))
-      ) : (
-        <div
-          style={{
-            padding: "16px",
-            borderRadius: "18px",
-            background: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(148,163,184,0.10)",
-            color: "#94a3b8",
-            fontSize: "14px",
-          }}
-        >
-          No manager tasks needed right now.
-        </div>
-      )}
-    </div>
-  </div>
-)}
       {/* =========================
    AI OPERATIONAL COMMAND CENTER
 ========================= */}
@@ -48355,1965 +49245,7 @@ Recovered profit is based on saved AI action impact.
     </div>
   </div>
 )}
-{/* =========================
-   MULTI-LOCATION INTELLIGENCE
-========================= */}
 
-{hasProAccess && (
-  <div
-    style={{
-      marginTop: "22px",
-      padding: "26px",
-      borderRadius: "30px",
-      background:
-        "linear-gradient(135deg, rgba(14,165,233,0.18), rgba(15,23,42,0.98))",
-      border: "1px solid rgba(56,189,248,0.22)",
-      boxShadow: "0 24px 70px rgba(2,6,23,0.36)",
-      width: "100%",
-      boxSizing: "border-box",
-      overflow: "hidden",
-    }}
-  >
-    <div
-      style={{
-        color: "#7dd3fc",
-        fontSize: "12px",
-        fontWeight: "900",
-      }}
-    >
-      MULTI-LOCATION INTELLIGENCE
-    </div>
-
-    <h3
-      style={{
-        color: "white",
-        fontSize: "26px",
-        fontWeight: "950",
-        marginTop: "8px",
-      }}
-    >
-      Location Performance Command
-    </h3>
-
-    <p
-      style={{
-        color: "#cbd5e1",
-        fontSize: "14px",
-        lineHeight: 1.7,
-        overflowWrap: "anywhere",
-      }}
-    >
-      SerVen AI compares location performance across revenue, labor pressure,
-      order volume, inventory activity, and operating health.
-    </p>
-
-    <div
-      style={{
-        marginTop: "22px",
-        display: "grid",
-        gridTemplateColumns:
-          isMobile ? "1fr" : "repeat(4, minmax(0, 1fr))",
-        gap: "14px",
-      }}
-    >
-      {[
-        {
-          label: "Locations",
-          value: multiLocationIntelligence?.totalLocations || 0,
-        },
-        {
-          label: "Total Revenue",
-          value: `$${Number(
-            multiLocationIntelligence?.totalRevenue || 0
-          ).toLocaleString()}`,
-        },
-        {
-          label: "Avg Health",
-          value: `${multiLocationIntelligence?.averageHealth || 0}/100`,
-        },
-        {
-          label: "Top Location",
-          value: multiLocationIntelligence?.topLocation?.name || "N/A",
-        },
-      ].map((item) => (
-        <div
-          key={item.label}
-          style={{
-            padding: "16px",
-            borderRadius: "20px",
-            background: "rgba(255,255,255,0.05)",
-            border: "1px solid rgba(148,163,184,0.12)",
-            minWidth: 0,
-          }}
-        >
-          <div
-            style={{
-              color: "#bae6fd",
-              fontSize: "11px",
-              fontWeight: "900",
-            }}
-          >
-            {item.label}
-          </div>
-
-          <div
-            style={{
-              color: "white",
-              fontSize: "22px",
-              fontWeight: "950",
-              marginTop: "6px",
-              overflowWrap: "anywhere",
-            }}
-          >
-            {item.value}
-          </div>
-        </div>
-      ))}
-    </div>
-
-    <div
-      style={{
-        marginTop: "20px",
-        display: "grid",
-        gap: "12px",
-      }}
-    >
-      {(multiLocationIntelligence?.locations || []).length > 0 ? (
-        multiLocationIntelligence.locations.map((location, index) => (
-          <div
-            key={location.name}
-            style={{
-              padding: "16px",
-              borderRadius: "20px",
-              background: "rgba(255,255,255,0.05)",
-              border: "1px solid rgba(148,163,184,0.12)",
-              minWidth: 0,
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                gap: "14px",
-                flexWrap: "wrap",
-              }}
-            >
-              <div style={{ minWidth: 0 }}>
-                <div
-                  style={{
-                    color: "white",
-                    fontSize: "16px",
-                    fontWeight: "900",
-                    overflowWrap: "anywhere",
-                  }}
-                >
-                  #{index + 1} {location.name}
-                </div>
-
-                <div
-                  style={{
-                    color:
-                      location.status === "High Performer"
-                        ? "#86efac"
-                        : location.status === "Stable"
-                        ? "#93c5fd"
-                        : location.status === "Watch"
-                        ? "#fde68a"
-                        : "#fca5a5",
-                    fontSize: "12px",
-                    fontWeight: "900",
-                    marginTop: "4px",
-                    overflowWrap: "anywhere",
-                  }}
-                >
-                  {location.status} • {location.healthScore}/100
-                </div>
-              </div>
-
-              <div
-                style={{
-                  color: "#86efac",
-                  fontSize: "15px",
-                  fontWeight: "950",
-                  overflowWrap: "anywhere",
-                }}
-              >
-                ${Number(location.revenue || 0).toLocaleString()}
-              </div>
-            </div>
-
-            <div
-              style={{
-                marginTop: "12px",
-                display: "grid",
-                gridTemplateColumns:
-                  isMobile ? "1fr" : "repeat(3, minmax(0, 1fr))",
-                gap: "10px",
-              }}
-            >
-              <div
-                style={{
-                  color: "#cbd5e1",
-                  fontSize: "12px",
-                }}
-              >
-                Orders: {Number(location.orders || 0).toLocaleString()}
-              </div>
-
-              <div
-                style={{
-                  color: "#cbd5e1",
-                  fontSize: "12px",
-                }}
-              >
-                Labor: {Number(location.laborPercent || 0).toFixed(1)}%
-              </div>
-
-              <div
-                style={{
-                  color: "#cbd5e1",
-                  fontSize: "12px",
-                }}
-              >
-                AOV: ${Number(location.averageOrder || 0).toFixed(2)}
-              </div>
-            </div>
-          </div>
-        ))
-      ) : (
-        <div
-          style={{
-            padding: "16px",
-            borderRadius: "18px",
-            background: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(148,163,184,0.10)",
-            color: "#94a3b8",
-            fontSize: "14px",
-          }}
-        >
-          Multi-location intelligence will activate once location-level data is
-          available.
-        </div>
-      )}
-    </div>
-  </div>
-)}
-{/* =========================
-   MULTI-LOCATION ENTERPRISE INTELLIGENCE
-========================= */}
-
-{hasProAccess && (
-  <div
-    style={{
-      marginTop: "22px",
-      padding: "24px",
-      borderRadius: "28px",
-      background:
-        "linear-gradient(135deg, rgba(99,102,241,0.14), rgba(15,23,42,0.96))",
-      border: "1px solid rgba(129,140,248,0.22)",
-      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
-      width: "100%",
-      boxSizing: "border-box",
-      overflow: "hidden",
-    }}
-  >
-    <div
-      style={{
-        color: "#a5b4fc",
-        fontSize: "12px",
-        fontWeight: "900",
-      }}
-    >
-      Multi-Location Enterprise Intelligence
-    </div>
-
-    <h3
-      style={{
-        color: "white",
-        fontSize: "24px",
-        fontWeight: "950",
-        marginTop: "8px",
-      }}
-    >
-      Location Performance & Cross-Store Benchmarking
-    </h3>
-
-    <div
-      style={{
-        marginTop: "18px",
-        display: "grid",
-        gridTemplateColumns: isMobile ? "1fr" : "repeat(4, minmax(0, 1fr))",
-        gap: "14px",
-      }}
-    >
-      <GlassCard
-        title="Locations Tracked"
-        value={locations.length}
-        subtitle="Active restaurant units"
-      />
-
-      <GlassCard
-        title="Total Revenue"
-        value={`$${locations
-          .reduce((sum, loc) => sum + Number(loc.monthly_revenue || 0), 0)
-          .toLocaleString()}`}
-        subtitle="Combined monthly revenue"
-      />
-
-      <GlassCard
-        title="Avg Health Score"
-        value={`${(
-          locations.reduce(
-            (sum, loc) => sum + Number(loc.health_score || 0),
-            0
-          ) / (locations.length || 1)
-        ).toFixed(0)}/100`}
-        subtitle="Enterprise operating health"
-      />
-
-      <GlassCard
-        title="At-Risk Locations"
-        value={
-          locations.filter((loc) => Number(loc.health_score || 0) < 65).length
-        }
-        subtitle="Locations needing attention"
-      />
-    </div>
-
-    <div
-      style={{
-        marginTop: "18px",
-        display: "grid",
-        gap: "14px",
-      }}
-    >
-      {locations.length > 0 ? (
-        locations.slice(0, 10).map((loc) => (
-          <div
-            key={loc.id}
-            style={{
-              padding: "18px",
-              borderRadius: "22px",
-              background: "rgba(15,23,42,0.74)",
-              border: "1px solid rgba(129,140,248,0.14)",
-              display: "grid",
-              gridTemplateColumns: isMobile
-                ? "1fr"
-                : "1.3fr minmax(0, 0.8fr) minmax(0, 0.8fr) minmax(0, 0.8fr)",
-              gap: "14px",
-              alignItems: "center",
-              minWidth: 0,
-            }}
-          >
-            <div style={{ minWidth: 0 }}>
-              <div
-                style={{
-                  color: "white",
-                  fontSize: "17px",
-                  fontWeight: "900",
-                  overflowWrap: "anywhere",
-                }}
-              >
-                {loc.location_name}
-              </div>
-
-              <div
-                style={{
-                  color: "#94a3b8",
-                  fontSize: "12px",
-                  marginTop: "4px",
-                  overflowWrap: "anywhere",
-                }}
-              >
-                {[loc.city, loc.state].filter(Boolean).join(", ") ||
-                  "No location details"}
-              </div>
-            </div>
-
-            <div style={{ minWidth: 0 }}>
-              <div style={{ color: "#94a3b8", fontSize: "11px" }}>
-                Revenue
-              </div>
-
-              <div
-                style={{
-                  color: "#86efac",
-                  fontWeight: "900",
-                  overflowWrap: "anywhere",
-                }}
-              >
-                ${Number(loc.monthly_revenue || 0).toLocaleString()}
-              </div>
-            </div>
-
-            <div style={{ minWidth: 0 }}>
-              <div style={{ color: "#94a3b8", fontSize: "11px" }}>
-                Prime Cost
-              </div>
-
-              <div
-                style={{
-                  color:
-                    Number(loc.prime_cost_percent || 0) > 65
-                      ? "#f87171"
-                      : Number(loc.prime_cost_percent || 0) > 60
-                      ? "#fbbf24"
-                      : "#86efac",
-                  fontWeight: "900",
-                  overflowWrap: "anywhere",
-                }}
-              >
-                {Number(loc.prime_cost_percent || 0).toFixed(1)}%
-              </div>
-            </div>
-
-            <div style={{ minWidth: 0 }}>
-              <div style={{ color: "#94a3b8", fontSize: "11px" }}>
-                Health
-              </div>
-
-              <div
-                style={{
-                  color:
-                    Number(loc.health_score || 0) >= 80
-                      ? "#86efac"
-                      : Number(loc.health_score || 0) >= 65
-                      ? "#fbbf24"
-                      : "#f87171",
-                  fontWeight: "950",
-                  overflowWrap: "anywhere",
-                }}
-              >
-                {Number(loc.health_score || 0).toFixed(0)}/100
-              </div>
-            </div>
-          </div>
-        ))
-      ) : (
-        <div
-          style={{
-            padding: "16px",
-            borderRadius: "18px",
-            background: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(148,163,184,0.10)",
-            color: "#94a3b8",
-            fontSize: "14px",
-          }}
-        >
-          Upload location data to activate multi-location intelligence.
-        </div>
-      )}
-    </div>
-  </div>
-)}
-{/* =========================
-   AI CROSS-LOCATION RISK ALERTS
-========================= */}
-
-{hasProAccess && (
-  <div
-    style={{
-      marginTop: "22px",
-      padding: "24px",
-      borderRadius: "28px",
-      background:
-        "linear-gradient(135deg, rgba(239,68,68,0.12), rgba(15,23,42,0.96))",
-      border: "1px solid rgba(248,113,113,0.20)",
-      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
-      width: "100%",
-      boxSizing: "border-box",
-      overflow: "hidden",
-    }}
-  >
-    <div
-      style={{
-        color: "#fca5a5",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      AI Cross-Location Risk Alerts
-    </div>
-
-    <h3
-      style={{
-        color: "white",
-        fontSize: "24px",
-        fontWeight: "950",
-        marginBottom: "16px",
-      }}
-    >
-      At-Risk Location Signals
-    </h3>
-
-    <div
-      style={{
-        display: "grid",
-        gap: "12px",
-      }}
-    >
-      {locations.filter(
-        (loc) =>
-          Number(loc.health_score || 0) < 65 ||
-          Number(loc.prime_cost_percent || 0) > 65
-      ).length > 0 ? (
-        locations
-          .filter(
-            (loc) =>
-              Number(loc.health_score || 0) < 65 ||
-              Number(loc.prime_cost_percent || 0) > 65
-          )
-          .slice(0, 6)
-          .map((loc) => (
-            <div
-              key={loc.id}
-              style={{
-                padding: "18px",
-                borderRadius: "20px",
-                background:
-                  "linear-gradient(135deg, rgba(239,68,68,0.12), rgba(15,23,42,0.86))",
-                border: "1px solid rgba(248,113,113,0.18)",
-                minWidth: 0,
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: isMobile ? "flex-start" : "center",
-                  flexDirection: isMobile ? "column" : "row",
-                  gap: "12px",
-                }}
-              >
-                <div style={{ minWidth: 0 }}>
-                  <div
-                    style={{
-                      color: "white",
-                      fontSize: "17px",
-                      fontWeight: "900",
-                      marginBottom: "4px",
-                      overflowWrap: "anywhere",
-                    }}
-                  >
-                    {loc.location_name}
-                  </div>
-
-                  <div
-                    style={{
-                      color: "#fca5a5",
-                      fontSize: "13px",
-                      lineHeight: 1.7,
-                      overflowWrap: "anywhere",
-                    }}
-                  >
-                    AI detected operational instability, elevated prime cost exposure,
-                    or declining health performance at this location.
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    padding: "10px 12px",
-                    borderRadius: "14px",
-                    background: "rgba(239,68,68,0.14)",
-                    border: "1px solid rgba(248,113,113,0.22)",
-                    color: "#fca5a5",
-                    fontWeight: "900",
-                    fontSize: "13px",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {Number(loc.health_score || 0).toFixed(0)}/100 Health
-                </div>
-              </div>
-            </div>
-          ))
-      ) : (
-        <div
-          style={{
-            padding: "16px",
-            borderRadius: "18px",
-            background: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(148,163,184,0.10)",
-            color: "#94a3b8",
-            fontSize: "14px",
-          }}
-        >
-          No high-risk cross-location signals detected right now.
-        </div>
-      )}
-    </div>
-  </div>
-)}
-{/* =========================
-   CROSS-LOCATION ALERTS
-========================= */}
-
-{hasProAccess && (
-  <div
-    style={{
-      marginTop: "22px",
-      padding: "24px",
-      borderRadius: "28px",
-      background:
-        "linear-gradient(135deg, rgba(59,130,246,0.12), rgba(15,23,42,0.96))",
-      border: "1px solid rgba(96,165,250,0.20)",
-      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
-      width: "100%",
-      boxSizing: "border-box",
-      overflow: "hidden",
-    }}
-  >
-    <div
-      style={{
-        color: "#93c5fd",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      Cross-Location Alerts
-    </div>
-
-    <h3
-      style={{
-        color: "white",
-        fontSize: "24px",
-        fontWeight: "950",
-        marginBottom: "16px",
-      }}
-    >
-      Enterprise Alert Feed
-    </h3>
-
-    <div
-      style={{
-        display: "grid",
-        gap: "12px",
-      }}
-    >
-      {(crossLocationAlerts || []).length > 0 ? (
-        crossLocationAlerts.map((alert, index) => (
-          <div
-            key={`${alert.location}-${index}`}
-            style={{
-              padding: "16px",
-              borderRadius: "18px",
-              background:
-                alert.severity === "Critical"
-                  ? "rgba(239,68,68,0.10)"
-                  : alert.severity === "High"
-                  ? "rgba(245,158,11,0.10)"
-                  : "rgba(59,130,246,0.10)",
-              border:
-                alert.severity === "Critical"
-                  ? "1px solid rgba(239,68,68,0.24)"
-                  : alert.severity === "High"
-                  ? "1px solid rgba(245,158,11,0.22)"
-                  : "1px solid rgba(59,130,246,0.22)",
-              minWidth: 0,
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                gap: "12px",
-                flexWrap: "wrap",
-              }}
-            >
-              <div style={{ minWidth: 0 }}>
-                <div
-                  style={{
-                    color: "white",
-                    fontSize: "15px",
-                    fontWeight: "900",
-                    overflowWrap: "anywhere",
-                  }}
-                >
-                  {alert.title}
-                </div>
-
-                <div
-                  style={{
-                    color: "#94a3b8",
-                    fontSize: "12px",
-                    marginTop: "4px",
-                    overflowWrap: "anywhere",
-                  }}
-                >
-                  {alert.location} • {alert.severity}
-                </div>
-              </div>
-
-              <div
-                style={{
-                  color:
-                    alert.severity === "Critical"
-                      ? "#fca5a5"
-                      : alert.severity === "High"
-                      ? "#fde68a"
-                      : "#93c5fd",
-                  fontSize: "12px",
-                  fontWeight: "900",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                AI DETECTED
-              </div>
-            </div>
-
-            <div
-              style={{
-                marginTop: "10px",
-                color: "#cbd5e1",
-                fontSize: "13px",
-                lineHeight: 1.6,
-                overflowWrap: "anywhere",
-              }}
-            >
-              {alert.message}
-            </div>
-          </div>
-        ))
-      ) : (
-        <div
-          style={{
-            padding: "16px",
-            borderRadius: "18px",
-            background: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(148,163,184,0.10)",
-            color: "#94a3b8",
-            fontSize: "14px",
-          }}
-        >
-          No major cross-location operational instability detected.
-        </div>
-      )}
-    </div>
-  </div>
-)}
-{/* =========================
-   AI ENTERPRISE OPTIMIZATION RECOMMENDATIONS
-========================= */}
-
-{hasProAccess && (
-  <div
-    style={{
-      marginTop: "22px",
-      padding: "24px",
-      borderRadius: "28px",
-      background:
-        "linear-gradient(135deg, rgba(34,197,94,0.12), rgba(15,23,42,0.96))",
-      border: "1px solid rgba(74,222,128,0.20)",
-      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
-      width: "100%",
-      boxSizing: "border-box",
-      overflow: "hidden",
-    }}
-  >
-    <div
-      style={{
-        color: "#86efac",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      AI Enterprise Optimization Recommendations
-    </div>
-
-    <h3
-      style={{
-        color: "white",
-        fontSize: "24px",
-        fontWeight: "950",
-        marginBottom: "16px",
-      }}
-    >
-      Location Optimization Plan
-    </h3>
-
-    <div
-      style={{
-        display: "grid",
-        gap: "14px",
-      }}
-    >
-      {locations.length > 0 ? (
-        locations.slice(0, 8).map((loc) => {
-          const health = Number(loc.health_score || 0);
-          const primeCost = Number(loc.prime_cost_percent || 0);
-
-          let recommendation =
-            "Location performance is operating within healthy enterprise benchmarks.";
-
-          if (health < 55 || primeCost > 68) {
-            recommendation =
-              "Critical operational intervention recommended. AI detected severe profitability pressure and operational instability.";
-          } else if (health < 70 || primeCost > 62) {
-            recommendation =
-              "Location performance is below target. AI recommends labor, food cost, and operational optimization review.";
-          } else if (health < 80) {
-            recommendation =
-              "Location performance is stable but still has optimization opportunity.";
-          }
-
-          return (
-            <div
-              key={loc.id}
-              style={{
-                padding: "18px",
-                borderRadius: "20px",
-                background:
-                  "linear-gradient(135deg, rgba(15,23,42,0.84), rgba(30,41,59,0.82))",
-                border: "1px solid rgba(148,163,184,0.12)",
-                minWidth: 0,
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: isMobile ? "flex-start" : "center",
-                  flexDirection: isMobile ? "column" : "row",
-                  gap: "12px",
-                  marginBottom: "10px",
-                }}
-              >
-                <div style={{ minWidth: 0 }}>
-                  <div
-                    style={{
-                      color: "white",
-                      fontSize: "17px",
-                      fontWeight: "900",
-                      overflowWrap: "anywhere",
-                    }}
-                  >
-                    {loc.location_name}
-                  </div>
-
-                  <div
-                    style={{
-                      color: "#94a3b8",
-                      fontSize: "12px",
-                      marginTop: "4px",
-                      overflowWrap: "anywhere",
-                    }}
-                  >
-                    ${Number(loc.monthly_revenue || 0).toLocaleString()} revenue •{" "}
-                    {primeCost.toFixed(1)}% prime cost
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    padding: "8px 12px",
-                    borderRadius: "999px",
-                    background:
-                      health >= 80
-                        ? "rgba(34,197,94,0.14)"
-                        : health >= 65
-                        ? "rgba(250,204,21,0.14)"
-                        : "rgba(239,68,68,0.14)",
-                    color:
-                      health >= 80
-                        ? "#86efac"
-                        : health >= 65
-                        ? "#fde68a"
-                        : "#fca5a5",
-                    fontWeight: "900",
-                    fontSize: "12px",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {health >= 80
-                    ? "Enterprise Healthy"
-                    : health >= 65
-                    ? "Optimization Opportunity"
-                    : "Critical Risk"}
-                </div>
-              </div>
-
-              <div
-                style={{
-                  color: "#cbd5e1",
-                  fontSize: "13px",
-                  lineHeight: 1.7,
-                  overflowWrap: "anywhere",
-                }}
-              >
-                {recommendation}
-              </div>
-            </div>
-          );
-        })
-      ) : (
-        <div
-          style={{
-            padding: "18px",
-            borderRadius: "18px",
-            background: "rgba(15,23,42,0.72)",
-            border: "1px solid rgba(148,163,184,0.14)",
-            color: "#94a3b8",
-            textAlign: "center",
-            fontSize: "14px",
-          }}
-        >
-          Upload location data to activate enterprise AI optimization recommendations.
-        </div>
-      )}
-    </div>
-  </div>
-)}
-{/* =========================
-   ENTERPRISE LOCATION RANKINGS
-========================= */}
-
-{hasProAccess && (
-  <div
-    style={{
-      marginTop: "22px",
-      padding: "22px",
-      borderRadius: "24px",
-      background:
-        "linear-gradient(135deg, rgba(34,197,94,0.12), rgba(15,23,42,0.92))",
-      border: "1px solid rgba(74,222,128,0.18)",
-      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
-      width: "100%",
-      boxSizing: "border-box",
-      overflow: "hidden",
-    }}
-  >
-    <div
-      style={{
-        color: "#86efac",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      Enterprise Location Rankings
-    </div>
-
-    <h3
-      style={{
-        color: "white",
-        fontSize: "24px",
-        fontWeight: "950",
-        marginBottom: "16px",
-      }}
-    >
-      AI Top Performing Locations
-    </h3>
-
-    <div
-      style={{
-        display: "grid",
-        gap: "14px",
-      }}
-    >
-      {locations.length > 0 ? (
-        [...locations]
-          .sort(
-            (a, b) =>
-              Number(b.health_score || 0) -
-              Number(a.health_score || 0)
-          )
-          .slice(0, 5)
-          .map((loc, index) => (
-            <div
-              key={loc.id}
-              style={{
-                padding: "18px",
-                borderRadius: "20px",
-                background: "rgba(15,23,42,0.74)",
-                border: "1px solid rgba(74,222,128,0.14)",
-                display: "grid",
-                gridTemplateColumns: isMobile
-                  ? "1fr"
-                  : "0.5fr 1.2fr minmax(0,0.8fr) minmax(0,0.8fr)",
-                gap: "14px",
-                alignItems: "center",
-                minWidth: 0,
-              }}
-            >
-              <div
-                style={{
-                  width: "44px",
-                  height: "44px",
-                  borderRadius: "999px",
-                  background:
-                    index === 0
-                      ? "rgba(250,204,21,0.18)"
-                      : "rgba(148,163,184,0.14)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color:
-                    index === 0 ? "#fde68a" : "#cbd5e1",
-                  fontWeight: "950",
-                  fontSize: "18px",
-                  flexShrink: 0,
-                }}
-              >
-                #{index + 1}
-              </div>
-
-              <div style={{ minWidth: 0 }}>
-                <div
-                  style={{
-                    color: "white",
-                    fontSize: "17px",
-                    fontWeight: "900",
-                    overflowWrap: "anywhere",
-                  }}
-                >
-                  {loc.location_name}
-                </div>
-
-                <div
-                  style={{
-                    color: "#94a3b8",
-                    fontSize: "12px",
-                    marginTop: "4px",
-                    overflowWrap: "anywhere",
-                  }}
-                >
-                  {[loc.city, loc.state]
-                    .filter(Boolean)
-                    .join(", ")}
-                </div>
-              </div>
-
-              <div style={{ minWidth: 0 }}>
-                <div
-                  style={{
-                    color: "#94a3b8",
-                    fontSize: "11px",
-                  }}
-                >
-                  Revenue
-                </div>
-
-                <div
-                  style={{
-                    color: "#86efac",
-                    fontWeight: "900",
-                    overflowWrap: "anywhere",
-                  }}
-                >
-                  $
-                  {Number(
-                    loc.monthly_revenue || 0
-                  ).toLocaleString()}
-                </div>
-              </div>
-
-              <div style={{ minWidth: 0 }}>
-                <div
-                  style={{
-                    color: "#94a3b8",
-                    fontSize: "11px",
-                  }}
-                >
-                  Health Score
-                </div>
-
-                <div
-                  style={{
-                    color: "#86efac",
-                    fontWeight: "950",
-                    overflowWrap: "anywhere",
-                  }}
-                >
-                  {Number(loc.health_score || 0).toFixed(0)}
-                  /100
-                </div>
-              </div>
-            </div>
-          ))
-      ) : (
-        <div
-          style={{
-            padding: "18px",
-            borderRadius: "18px",
-            background: "rgba(15,23,42,0.72)",
-            border: "1px solid rgba(148,163,184,0.14)",
-            color: "#94a3b8",
-            textAlign: "center",
-            fontSize: "14px",
-          }}
-        >
-          Upload location data to activate enterprise rankings.
-        </div>
-      )}
-    </div>
-  </div>
-)}
-{/* =========================
-   LOCATION PERFORMANCE RANKING
-========================= */}
-
-{hasProAccess && (
-  <div
-    style={{
-      marginTop: "22px",
-      padding: "24px",
-      borderRadius: "28px",
-      background:
-        "linear-gradient(135deg, rgba(30,64,175,0.18), rgba(15,23,42,0.96))",
-      border: "1px solid rgba(96,165,250,0.20)",
-      boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
-      width: "100%",
-      boxSizing: "border-box",
-      overflow: "hidden",
-    }}
-  >
-    <div
-      style={{
-        color: "#93c5fd",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-      }}
-    >
-      LOCATION PERFORMANCE RANKING
-    </div>
-
-    <h3
-      style={{
-        color: "white",
-        fontSize: "26px",
-        fontWeight: "950",
-        marginTop: "8px",
-      }}
-    >
-      AI Location Ranking System
-    </h3>
-
-    <p
-      style={{
-        color: "#cbd5e1",
-        fontSize: "14px",
-        lineHeight: 1.7,
-        marginBottom: "22px",
-        overflowWrap: "anywhere",
-      }}
-    >
-      SerVen AI ranks restaurant locations using operational health,
-      revenue efficiency, labor pressure, and order performance.
-    </p>
-
-    <div
-      style={{
-        display: "grid",
-        gap: "14px",
-      }}
-    >
-      {(multiLocationIntelligence?.locations || []).length > 0 ? (
-        multiLocationIntelligence.locations.map((location, index) => (
-          <div
-            key={location.name}
-            style={{
-              padding: "18px",
-              borderRadius: "20px",
-              background: "rgba(255,255,255,0.05)",
-              border: "1px solid rgba(148,163,184,0.12)",
-              minWidth: 0,
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                gap: "14px",
-                flexWrap: "wrap",
-              }}
-            >
-              <div style={{ minWidth: 0 }}>
-                <div
-                  style={{
-                    color: "white",
-                    fontSize: "18px",
-                    fontWeight: "950",
-                    overflowWrap: "anywhere",
-                  }}
-                >
-                  #{index + 1} {location.name}
-                </div>
-
-                <div
-                  style={{
-                    marginTop: "4px",
-                    color:
-                      location.status === "High Performer"
-                        ? "#86efac"
-                        : location.status === "Stable"
-                        ? "#93c5fd"
-                        : location.status === "Watch"
-                        ? "#fde68a"
-                        : "#fca5a5",
-                    fontSize: "12px",
-                    fontWeight: "900",
-                    overflowWrap: "anywhere",
-                  }}
-                >
-                  {location.status}
-                </div>
-              </div>
-
-              <div
-                style={{
-                  color: "white",
-                  fontSize: "26px",
-                  fontWeight: "950",
-                  overflowWrap: "anywhere",
-                }}
-              >
-                {location.healthScore}/100
-              </div>
-            </div>
-
-            <div
-              style={{
-                marginTop: "16px",
-                width: "100%",
-                height: "10px",
-                borderRadius: "999px",
-                background: "rgba(255,255,255,0.08)",
-                overflow: "hidden",
-              }}
-            >
-              <div
-                style={{
-                  width: `${location.healthScore}%`,
-                  height: "100%",
-                  borderRadius: "999px",
-                  background:
-                    location.healthScore >= 85
-                      ? "linear-gradient(90deg,#22c55e,#4ade80)"
-                      : location.healthScore >= 70
-                      ? "linear-gradient(90deg,#3b82f6,#60a5fa)"
-                      : location.healthScore >= 60
-                      ? "linear-gradient(90deg,#f59e0b,#facc15)"
-                      : "linear-gradient(90deg,#ef4444,#f87171)",
-                }}
-              />
-            </div>
-
-            <div
-              style={{
-                marginTop: "16px",
-                display: "grid",
-                gridTemplateColumns:
-                  isMobile
-                    ? "1fr"
-                    : "repeat(4, minmax(0, 1fr))",
-                gap: "12px",
-              }}
-            >
-              {[
-                {
-                  label: "Revenue",
-                  value: `$${Number(
-                    location.revenue || 0
-                  ).toLocaleString()}`,
-                },
-                {
-                  label: "Orders",
-                  value: Number(
-                    location.orders || 0
-                  ).toLocaleString(),
-                },
-                {
-                  label: "Labor %",
-                  value: `${Number(
-                    location.laborPercent || 0
-                  ).toFixed(1)}%`,
-                },
-                {
-                  label: "AOV",
-                  value: `$${Number(
-                    location.averageOrder || 0
-                  ).toFixed(2)}`,
-                },
-              ].map((metric) => (
-                <div
-                  key={metric.label}
-                  style={{
-                    padding: "12px",
-                    borderRadius: "14px",
-                    background: "rgba(255,255,255,0.04)",
-                    border: "1px solid rgba(148,163,184,0.08)",
-                    minWidth: 0,
-                  }}
-                >
-                  <div
-                    style={{
-                      color: "#94a3b8",
-                      fontSize: "11px",
-                      fontWeight: "900",
-                    }}
-                  >
-                    {metric.label}
-                  </div>
-
-                  <div
-                    style={{
-                      color: "white",
-                      fontSize: "16px",
-                      fontWeight: "900",
-                      marginTop: "4px",
-                      overflowWrap: "anywhere",
-                    }}
-                  >
-                    {metric.value}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ))
-      ) : (
-        <div
-          style={{
-            padding: "18px",
-            borderRadius: "18px",
-            background: "rgba(15,23,42,0.72)",
-            border: "1px solid rgba(148,163,184,0.14)",
-            color: "#94a3b8",
-            textAlign: "center",
-            fontSize: "14px",
-          }}
-        >
-          No location ranking data available yet.
-        </div>
-      )}
-    </div>
-  </div>
-)}
-
-{/* =========================
-   REGIONAL FORECAST PANEL
-========================= */}
-
-{hasProAccess && (
-  <div
-    style={{
-      marginTop: "22px",
-      padding: "24px",
-      borderRadius: "28px",
-      background:
-        "linear-gradient(135deg, rgba(8,145,178,0.18), rgba(15,23,42,0.96))",
-      border: "1px solid rgba(34,211,238,0.20)",
-      boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
-      width: "100%",
-      boxSizing: "border-box",
-      overflow: "hidden",
-    }}
-  >
-    <div
-      style={{
-        color: "#67e8f9",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-      }}
-    >
-      REGIONAL FORECASTING
-    </div>
-
-    <h3
-      style={{
-        color: "white",
-        fontSize: "26px",
-        fontWeight: "950",
-        marginTop: "8px",
-      }}
-    >
-      Predictive Location Intelligence
-    </h3>
-
-    <p
-      style={{
-        color: "#cbd5e1",
-        fontSize: "14px",
-        lineHeight: 1.7,
-        marginBottom: "22px",
-        overflowWrap: "anywhere",
-      }}
-    >
-      SerVen AI forecasts future operational instability, labor pressure, and
-      revenue risk across restaurant locations.
-    </p>
-
-    <div
-      style={{
-        display: "grid",
-        gap: "14px",
-      }}
-    >
-      {(regionalForecastingData || []).length > 0 ? (
-        regionalForecastingData.map((location, index) => (
-          <div
-            key={`${location.name}-${index}`}
-            style={{
-              padding: "18px",
-              borderRadius: "20px",
-              background: "rgba(255,255,255,0.05)",
-              border: "1px solid rgba(148,163,184,0.12)",
-              minWidth: 0,
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                gap: "12px",
-                flexWrap: "wrap",
-              }}
-            >
-              <div style={{ minWidth: 0 }}>
-                <div
-                  style={{
-                    color: "white",
-                    fontSize: "18px",
-                    fontWeight: "950",
-                    overflowWrap: "anywhere",
-                  }}
-                >
-                  {location.name}
-                </div>
-
-                <div
-                  style={{
-                    marginTop: "4px",
-                    color:
-                      location.projectedRisk === "Critical"
-                        ? "#fca5a5"
-                        : location.projectedRisk === "Watch"
-                        ? "#fde68a"
-                        : "#86efac",
-                    fontSize: "12px",
-                    fontWeight: "900",
-                    overflowWrap: "anywhere",
-                  }}
-                >
-                  {location.projectedRisk} FORECAST
-                </div>
-              </div>
-
-              <div
-                style={{
-                  color: "#67e8f9",
-                  fontSize: "14px",
-                  fontWeight: "900",
-                  overflowWrap: "anywhere",
-                }}
-              >
-                {location.revenueHealthStatus}
-              </div>
-            </div>
-
-            <div
-              style={{
-                marginTop: "14px",
-                display: "grid",
-                gridTemplateColumns:
-                  isMobile ? "1fr" : "repeat(3, minmax(0, 1fr))",
-                gap: "12px",
-              }}
-            >
-              {[
-                {
-                  label: "Health Score",
-                  value: `${location.healthScore}/100`,
-                },
-                {
-                  label: "Labor Pressure",
-                  value: location.marginPressure,
-                },
-                {
-                  label: "Revenue Outlook",
-                  value: location.revenueHealthStatus,
-                },
-              ].map((metric) => (
-                <div
-                  key={metric.label}
-                  style={{
-                    padding: "12px",
-                    borderRadius: "14px",
-                    background: "rgba(255,255,255,0.04)",
-                    border: "1px solid rgba(148,163,184,0.08)",
-                    minWidth: 0,
-                  }}
-                >
-                  <div
-                    style={{
-                      color: "#94a3b8",
-                      fontSize: "11px",
-                      fontWeight: "900",
-                    }}
-                  >
-                    {metric.label}
-                  </div>
-
-                  <div
-                    style={{
-                      color: "white",
-                      fontSize: "16px",
-                      fontWeight: "900",
-                      marginTop: "4px",
-                      overflowWrap: "anywhere",
-                    }}
-                  >
-                    {metric.value}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ))
-      ) : (
-        <div
-          style={{
-            padding: "18px",
-            borderRadius: "18px",
-            background: "rgba(15,23,42,0.72)",
-            border: "1px solid rgba(148,163,184,0.14)",
-            color: "#94a3b8",
-            textAlign: "center",
-            fontSize: "14px",
-          }}
-        >
-          No regional forecast data available yet.
-        </div>
-      )}
-    </div>
-  </div>
-)}
-{/* =========================
-   ENTERPRISE OPERATOR SCOREBOARD
-========================= */}
-
-{hasProAccess && (
-  <div
-    style={{
-      marginTop: "22px",
-      padding: "24px",
-      borderRadius: "28px",
-      background:
-        "linear-gradient(135deg, rgba(88,28,135,0.20), rgba(15,23,42,0.96))",
-      border: "1px solid rgba(168,85,247,0.20)",
-      boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
-      width: "100%",
-      boxSizing: "border-box",
-      overflow: "hidden",
-    }}
-  >
-    <div
-      style={{
-        color: "#d8b4fe",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-      }}
-    >
-      ENTERPRISE OPERATOR SCOREBOARD
-    </div>
-
-    <h3
-      style={{
-        color: "white",
-        fontSize: "26px",
-        fontWeight: "950",
-        marginTop: "8px",
-      }}
-    >
-      Multi-Location Operating Scoreboard
-    </h3>
-
-    <p
-      style={{
-        color: "#cbd5e1",
-        fontSize: "14px",
-        lineHeight: 1.7,
-        overflowWrap: "anywhere",
-      }}
-    >
-      Compare every location side-by-side across health, revenue, labor,
-      order volume, and forecasted operating risk.
-    </p>
-
-    <div
-      style={{
-        marginTop: "22px",
-        overflowX: "auto",
-        WebkitOverflowScrolling: "touch",
-      }}
-    >
-      <div style={{ minWidth: isMobile ? "760px" : "100%" }}>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1.4fr 1fr 1fr 1fr 1fr 1fr",
-            gap: "10px",
-            padding: "12px 14px",
-            color: "#94a3b8",
-            fontSize: "11px",
-            fontWeight: "900",
-            textTransform: "uppercase",
-          }}
-        >
-          <div>Location</div>
-          <div>Health</div>
-          <div>Revenue</div>
-          <div>Orders</div>
-          <div>Labor</div>
-          <div>Risk</div>
-        </div>
-
-        {(regionalForecastingData || []).length > 0 ? (
-          regionalForecastingData.map((location, index) => (
-            <div
-              key={`${location.name}-${index}`}
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1.4fr 1fr 1fr 1fr 1fr 1fr",
-                gap: "10px",
-                alignItems: "center",
-                padding: "14px",
-                marginBottom: "10px",
-                borderRadius: "18px",
-                background: "rgba(255,255,255,0.05)",
-                border: "1px solid rgba(148,163,184,0.12)",
-                minWidth: 0,
-              }}
-            >
-              <div
-                style={{
-                  color: "white",
-                  fontWeight: "900",
-                  overflowWrap: "anywhere",
-                }}
-              >
-                #{index + 1} {location.name}
-              </div>
-
-              <div
-                style={{
-                  color: "#cbd5e1",
-                  fontWeight: "800",
-                  overflowWrap: "anywhere",
-                }}
-              >
-                {location.healthScore}/100
-              </div>
-
-              <div
-                style={{
-                  color: "#86efac",
-                  fontWeight: "900",
-                  overflowWrap: "anywhere",
-                }}
-              >
-                ${Number(location.revenue || 0).toLocaleString()}
-              </div>
-
-              <div
-                style={{
-                  color: "#cbd5e1",
-                  fontWeight: "800",
-                  overflowWrap: "anywhere",
-                }}
-              >
-                {Number(location.orders || 0).toLocaleString()}
-              </div>
-
-              <div
-                style={{
-                  color:
-                    Number(location.laborPercent || 0) > 35
-                      ? "#fca5a5"
-                      : Number(location.laborPercent || 0) > 30
-                      ? "#fde68a"
-                      : "#cbd5e1",
-                  fontWeight: "900",
-                  overflowWrap: "anywhere",
-                }}
-              >
-                {Number(location.laborPercent || 0).toFixed(1)}%
-              </div>
-
-              <div
-                style={{
-                  color:
-                    location.projectedRisk === "Critical"
-                      ? "#fca5a5"
-                      : location.projectedRisk === "Watch"
-                      ? "#fde68a"
-                      : "#86efac",
-                  fontWeight: "900",
-                  overflowWrap: "anywhere",
-                }}
-              >
-                {location.projectedRisk}
-              </div>
-            </div>
-          ))
-        ) : (
-          <div
-            style={{
-              padding: "18px",
-              borderRadius: "18px",
-              background: "rgba(15,23,42,0.72)",
-              border: "1px solid rgba(148,163,184,0.14)",
-              color: "#94a3b8",
-              textAlign: "center",
-              fontSize: "14px",
-            }}
-          >
-            No enterprise scoreboard data available yet.
-          </div>
-        )}
-      </div>
-    </div>
-  </div>
-)}
-{/* =========================
-   MULTI-LOCATION AI ACTION PLAN
-========================= */}
-
-{hasProAccess && (
-  <div
-    style={{
-      marginTop: "22px",
-      padding: "24px",
-      borderRadius: "28px",
-      background:
-        "linear-gradient(135deg, rgba(127,29,29,0.18), rgba(15,23,42,0.96))",
-      border: "1px solid rgba(248,113,113,0.20)",
-      boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
-      width: "100%",
-      boxSizing: "border-box",
-      overflow: "hidden",
-    }}
-  >
-    <div
-      style={{
-        color: "#fca5a5",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-      }}
-    >
-      MULTI-LOCATION AI ACTION PLAN
-    </div>
-
-    <h3
-      style={{
-        color: "white",
-        fontSize: "26px",
-        fontWeight: "950",
-        marginTop: "8px",
-      }}
-    >
-      Location-Specific Recommendations
-    </h3>
-
-    <div
-      style={{
-        display: "grid",
-        gap: "14px",
-        marginTop: "20px",
-      }}
-    >
-      {(regionalForecastingData || []).filter(
-        (location) =>
-          location.projectedRisk === "Critical" ||
-          location.projectedRisk === "Watch"
-      ).length > 0 ? (
-        (regionalForecastingData || [])
-          .filter(
-            (location) =>
-              location.projectedRisk === "Critical" ||
-              location.projectedRisk === "Watch"
-          )
-          .map((location) => {
-            const action =
-              Number(location.laborPercent || 0) > 35
-                ? "Review labor scheduling and reduce low-efficiency coverage."
-                : Number(location.averageOrder || 0) < 18
-                ? "Improve upsell strategy and premium item attachment."
-                : Number(location.healthScore || 0) < 70
-                ? "Review operating health, inventory activity, and sales trends."
-                : "Continue monitoring this location.";
-
-            return (
-              <div
-                key={location.name}
-                style={{
-                  padding: "18px",
-                  borderRadius: "20px",
-                  background: "rgba(255,255,255,0.05)",
-                  border: "1px solid rgba(148,163,184,0.12)",
-                  minWidth: 0,
-                }}
-              >
-                <div
-                  style={{
-                    color: "white",
-                    fontSize: "17px",
-                    fontWeight: "900",
-                    overflowWrap: "anywhere",
-                  }}
-                >
-                  {location.name}
-                </div>
-
-                <div
-                  style={{
-                    color: "#fca5a5",
-                    fontSize: "12px",
-                    fontWeight: "900",
-                    marginTop: "4px",
-                    overflowWrap: "anywhere",
-                  }}
-                >
-                  {location.projectedRisk} • {location.healthScore}/100
-                </div>
-
-                <p
-                  style={{
-                    color: "#cbd5e1",
-                    fontSize: "13px",
-                    lineHeight: 1.7,
-                    overflowWrap: "anywhere",
-                  }}
-                >
-                  {action}
-                </p>
-              </div>
-            );
-          })
-      ) : (
-        <div
-          style={{
-            padding: "18px",
-            borderRadius: "18px",
-            background: "rgba(15,23,42,0.72)",
-            border: "1px solid rgba(148,163,184,0.14)",
-            color: "#94a3b8",
-            textAlign: "center",
-            fontSize: "14px",
-          }}
-        >
-          No urgent multi-location action plan needed right now.
-        </div>
-      )}
-    </div>
-  </div>
-)}
-{/* =========================
-   MULTI-LOCATION EXECUTIVE SUMMARY
-========================= */}
-
-{hasProAccess && (
-  <div
-    style={{
-      marginTop: "22px",
-      display: "grid",
-      gap: "18px",
-      width: "100%",
-      boxSizing: "border-box",
-    }}
-  >
-    {[
-      "MULTI-LOCATION EXECUTIVE SUMMARY",
-      "AI LOCATION RANKING ENGINE",
-      "AI CROSS-LOCATION RISK DETECTION",
-      "AI EXECUTIVE BENCHMARKING",
-      "AI ENTERPRISE SCORECARD",
-      "AI PORTFOLIO INTELLIGENCE",
-      "AI PORTFOLIO ACTION PLAN",
-      "AI EXECUTIVE RECOMMENDATIONS",
-      "AI ENTERPRISE RISK FORECAST",
-      "AI EXECUTIVE KPI MATRIX",
-      "AI CORPORATE COMMAND CENTER",
-      "AI ENTERPRISE RECOVERY PLANNER",
-      "AI EXECUTIVE ALERTS FEED",
-      "AI ENTERPRISE PERFORMANCE FORECAST",
-      "AI CEO SUMMARY",
-      "AI EXECUTIVE CLOSEOUT",
-      "AI WHAT-IF SIMULATOR",
-      "AI AUTONOMOUS PROFIT RECOVERY ENGINE",
-      "PREDICTIVE SCHEDULING AI",
-      "AI VENDOR NEGOTIATION INTELLIGENCE",
-      "BEVERAGE THEFT DETECTION AI",
-      "FRANCHISE BENCHMARK INTELLIGENCE",
-      "AI LIVE OPERATIONS COPILOT",
-      "AI VOICE OPERATIONS ASSISTANT",
-      "AUTONOMOUS RESTAURANT CONTROL LAYER",
-      "AI LIVE CHAT COPILOT",
-      "AI PREDICTIVE SALES ENGINE",
-      "AI SMART PURCHASING SYSTEM",
-      "AI STAFF PERFORMANCE INTELLIGENCE",
-    ].map((title) => (
-      <div
-        key={title}
-        style={{
-          padding: "24px",
-          borderRadius: "24px",
-          background:
-            "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.92))",
-          border: "1px solid rgba(148,163,184,0.16)",
-          boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
-          width: "100%",
-          boxSizing: "border-box",
-          overflow: "hidden",
-        }}
-      >
-        <div
-          style={{
-            color: "#c7d2fe",
-            fontSize: "12px",
-            fontWeight: "900",
-            letterSpacing: "0.08em",
-            textTransform: "uppercase",
-            marginBottom: "10px",
-          }}
-        >
-          {title}
-        </div>
-
-        <div
-          style={{
-            color: "#cbd5e1",
-            fontSize: "14px",
-            lineHeight: 1.7,
-          }}
-        >
-          AI module active. Add this section’s real content here after the layout
-          is stable.
-        </div>
-      </div>
-    ))}
-  </div>
-)}
 {/* =========================
    EXECUTIVE RISK RADAR
 ========================= */}
@@ -54230,551 +53162,6 @@ profit recovery opportunities, AI recommendations, and forecasted trends.
   </div>
 )}
       </div>
-   {/* 💰 PRIME COST FORECAST TREND */}
-
-{hasProAccess && (
-  <div
-    style={{
-      gridColumn: "1 / -1",
-      minWidth: 0,
-      marginTop: "18px",
-      padding: "22px",
-      borderRadius: "24px",
-      background:
-        "linear-gradient(135deg, rgba(245,158,11,0.12), rgba(15,23,42,0.96))",
-      border: "1px solid rgba(245,158,11,0.22)",
-      boxShadow: "0 22px 60px rgba(2,6,23,0.28)",
-    }}
-  >
-    <div
-      style={{
-        color: "#fbbf24",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      Prime Cost Forecast
-    </div>
-
-    <h3 style={{ color: "white", fontSize: "24px", fontWeight: "950" }}>
-      Prime Cost Risk Trend
-    </h3>
-
-    <p style={{ color: "#94a3b8", fontSize: "13px", lineHeight: 1.6 }}>
-      Forecasts whether combined food and labor pressure is moving toward a
-      healthy, warning, or critical range.
-    </p>
-
-    <div
-      style={{
-        width: "100%",
-        height: isMobile ? "260px" : "360px",
-        marginTop: "18px",
-        overflow: "visible",
-      }}
-    >
-      <LineChart
-        width={isMobile ? 320 : 980}
-        height={isMobile ? 260 : 320}
-        data={primeCostForecastChartData}
-        /* 🛠️ FIX: Reset left margin to 0 to stop percentages from clipping off the card edge */
-        margin={{ top: 10, right: 35, left: 0, bottom: 10 }}
-      >
-        <CartesianGrid
-          strokeDasharray="3 3"
-          stroke="rgba(148,163,184,0.14)"
-        />
-
-        <XAxis
-          dataKey="label"
-          tick={{ fill: "#94a3b8", fontSize: 11 }}
-          axisLine={false}
-          tickLine={false}
-        />
-
-        <YAxis
-          /* 🛠️ FIX: Set to 50 so there is plenty of pixel space for '100%' or '80%' to render fully */
-          width={50}
-          tick={{ fill: "#94a3b8", fontSize: 11 }}
-          axisLine={false}
-          tickLine={false}
-          tickFormatter={(value) => `${value}%`}
-        />
-
-        <Tooltip
-          formatter={(value, name) => {
-            const labels = {
-              primeCost: "Prime Cost",
-              healthyTarget: "Healthy Target",
-              criticalLine: "Critical Line",
-            };
-
-            return [
-              `${Number(value || 0).toFixed(1)}%`,
-              labels[name] || name,
-            ];
-          }}
-          contentStyle={{
-            background: "#020617",
-            border: "1px solid rgba(148,163,184,0.2)",
-            borderRadius: "12px",
-            color: "white",
-          }}
-        />
-
-        <Legend
-          verticalAlign="bottom"
-          height={36}
-          iconType="circle"
-          iconSize={8}
-          wrapperStyle={{
-            fontSize: "12px",
-            color: "#94a3b8",
-            paddingTop: "15px",
-          }}
-        />
-
-        <Line
-          name="Prime Cost"
-          type="monotone"
-          dataKey="primeCost"
-          stroke="#f97316"
-          strokeWidth={3}
-          dot={false}
-          isAnimationActive={false}
-        />
-
-        <Line
-          name="Healthy Target"
-          type="monotone"
-          dataKey="healthyTarget"
-          stroke="#22c55e"
-          strokeWidth={2}
-          strokeDasharray="5 5"
-          dot={false}
-          isAnimationActive={false}
-        />
-
-        <Line
-          name="Critical Line"
-          type="monotone"
-          dataKey="criticalLine"
-          stroke="#ef4444"
-          strokeWidth={2}
-          strokeDasharray="5 5"
-          dot={false}
-          isAnimationActive={false}
-        />
-      </LineChart>
-    </div>
-  </div>
-)}
-{/* 👥 LABOR FORECAST TREND */}
-
-{hasProAccess && (
-  <div
-    style={{
-      gridColumn: "1 / -1", // Upgraded to full-width matching the rest of the layout
-      minWidth: 0,
-      marginTop: "18px",
-      padding: "22px",
-      borderRadius: "24px",
-      background:
-        "linear-gradient(135deg, rgba(6,182,212,0.12), rgba(15,23,42,0.96))",
-      border: "1px solid rgba(34,211,238,0.22)",
-      boxShadow: "0 22px 60px rgba(2,6,23,0.28)",
-    }}
-  >
-    <div
-      style={{
-        color: "#67e8f9",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      Labor Forecast
-    </div>
-
-    <h3 style={{ color: "white", fontSize: "24px", fontWeight: "950" }}>
-      Labor Pressure Trend
-    </h3>
-
-    <p style={{ color: "#94a3b8", fontSize: "13px", lineHeight: 1.6 }}>
-      Forecasts labor efficiency and staffing pressure against healthy labor
-      benchmarks.
-    </p>
-
-    <div
-      style={{
-        width: "100%",
-        height: isMobile ? "260px" : "360px",
-        marginTop: "18px",
-        overflow: "visible",
-      }}
-    >
-      <LineChart
-        width={isMobile ? 320 : 980} // Upgraded wide-screen scaling
-        height={isMobile ? 260 : 320}
-        data={laborForecastChartData}
-        margin={{ top: 10, right: 35, left: -15, bottom: 10 }} // Aligned safely to the left edge
-      >
-        <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.14)" />
-
-        <XAxis
-          dataKey="label"
-          tick={{ fill: "#94a3b8", fontSize: 11 }}
-          axisLine={false}
-          tickLine={false}
-        />
-
-        <YAxis
-          width={40}
-          tick={{ fill: "#94a3b8", fontSize: 11 }}
-          axisLine={false}
-          tickLine={false}
-          tickFormatter={(value) => `${value}%`}
-        />
-
-        <Tooltip
-          formatter={(value) => [`${Number(value || 0).toFixed(1)}%`, ""]}
-          contentStyle={{
-            background: "#020617",
-            border: "1px solid rgba(148,163,184,0.2)",
-            borderRadius: "12px",
-            color: "white",
-          }}
-        />
-
-        {/* 🛠️ ADDED: Clean, high-contrast legend block to display line labels */}
-        <Legend
-          verticalAlign="bottom"
-          height={36}
-          iconType="circle"
-          iconSize={8}
-          wrapperStyle={{
-            fontSize: "12px",
-            color: "#94a3b8",
-            paddingTop: "15px",
-          }}
-        />
-
-        <Line
-          type="monotone"
-          dataKey="labor"
-          name="Labor Pressure" // 🛠️ ADDED: Custom label for the legend
-          stroke="#06b6d4"
-          strokeWidth={3}
-          dot={false}
-          isAnimationActive={false}
-        />
-
-        <Line
-          type="monotone"
-          dataKey="healthy"
-          name="Healthy Benchmark" // 🛠️ ADDED: Custom label for the legend
-          stroke="#22c55e"
-          strokeWidth={2}
-          strokeDasharray="5 5"
-          dot={false}
-          isAnimationActive={false}
-        />
-
-        <Line
-          type="monotone"
-          dataKey="danger"
-          name="Danger Zone" // 🛠️ ADDED: Custom label for the legend
-          stroke="#ef4444"
-          strokeWidth={2}
-          strokeDasharray="5 5"
-          dot={false}
-          isAnimationActive={false}
-        />
-      </LineChart>
-    </div>
-  </div>
-)}
-{/* 📉 MARGIN FORECAST TREND */}
-
-{hasProAccess && (
-  <div
-    style={{
-      gridColumn: "1 / -1",
-      minWidth: 0,
-      marginTop: "18px",
-      padding: "22px",
-      borderRadius: "24px",
-      background:
-        "linear-gradient(135deg, rgba(168,85,247,0.12), rgba(15,23,42,0.96))",
-      border: "1px solid rgba(168,85,247,0.22)",
-      boxShadow: "0 22px 60px rgba(2,6,23,0.28)",
-    }}
-  >
-    <div
-      style={{
-        color: "#c4b5fd",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      Margin Forecast
-    </div>
-
-    <h3 style={{ color: "white", fontSize: "24px", fontWeight: "950" }}>
-      Profit Margin Trend
-    </h3>
-
-    <p style={{ color: "#94a3b8", fontSize: "13px", lineHeight: 1.6 }}>
-      Forecasts projected menu profitability and margin pressure against
-      operational benchmarks.
-    </p>
-
-    <div
-      style={{
-        width: "100%",
-        height: isMobile ? "260px" : "360px",
-        marginTop: "18px",
-        overflow: "visible",
-      }}
-    >
-      <LineChart
-        width={isMobile ? 320 : 980}
-        height={isMobile ? 260 : 320}
-        data={marginForecastChartData}
-        /* 🛠️ FIX: Reset left margin to 0 to give the percentage text labels breathing room */
-        margin={{ top: 10, right: 35, left: 0, bottom: 10 }}
-      >
-        <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.14)" />
-
-        <XAxis
-          dataKey="label"
-          tick={{ fill: "#94a3b8", fontSize: 11 }}
-          axisLine={false}
-          tickLine={false}
-        />
-
-        <YAxis
-          /* 🛠️ FIX: Bumped width to 50 so double/triple digit values like '100%' or '20%' don't clip off the left card edge */
-          width={50}
-          tick={{ fill: "#94a3b8", fontSize: 11 }}
-          axisLine={false}
-          tickLine={false}
-          tickFormatter={(value) => `${value}%`}
-        />
-
-        <Tooltip
-          formatter={(value, name) => {
-            const labels = {
-              margin: "Profit Margin",
-              healthy: "Healthy Benchmark",
-              danger: "Danger Zone",
-            };
-
-            return [
-              `${Number(value || 0).toFixed(1)}%`,
-              labels[name] || name,
-            ];
-          }}
-          contentStyle={{
-            background: "#020617",
-            border: "1px solid rgba(148,163,184,0.2)",
-            borderRadius: "12px",
-            color: "white",
-          }}
-        />
-
-        <Legend
-          verticalAlign="bottom"
-          height={36}
-          iconType="circle"
-          iconSize={8}
-          wrapperStyle={{
-            fontSize: "12px",
-            color: "#94a3b8",
-            paddingTop: "15px",
-          }}
-        />
-
-        <Line
-          type="monotone"
-          dataKey="margin"
-          name="Profit Margin"
-          stroke="#a855f7"
-          strokeWidth={3}
-          dot={false}
-          isAnimationActive={false}
-        />
-
-        <Line
-          type="monotone"
-          dataKey="healthy"
-          name="Healthy Benchmark"
-          stroke="#22c55e"
-          strokeWidth={2}
-          strokeDasharray="5 5"
-          dot={false}
-          isAnimationActive={false}
-        />
-
-        <Line
-          type="monotone"
-          dataKey="danger"
-          name="Danger Zone"
-          stroke="#ef4444"
-          strokeWidth={2}
-          strokeDasharray="5 5"
-          dot={false}
-          isAnimationActive={false}
-        />
-      </LineChart>
-    </div>
-  </div>
-)}
-{/* 🚦 RISK PROJECTION TIMELINE */}
-
-{hasProAccess && (
-  <div
-    style={{
-      gridColumn: "1 / -1", // Upgraded to full-width to perfectly track with your other forecast views
-      minWidth: 0,
-      marginTop: "18px",
-      padding: "22px",
-      borderRadius: "24px",
-      background:
-        "linear-gradient(135deg, rgba(239,68,68,0.10), rgba(15,23,42,0.96))",
-      border: "1px solid rgba(239,68,68,0.20)",
-      boxShadow: "0 22px 60px rgba(2,6,23,0.28)",
-    }}
-  >
-    <div
-      style={{
-        color: "#fca5a5",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      Risk Projection Timeline
-    </div>
-
-    <h3 style={{ color: "white", fontSize: "24px", fontWeight: "950" }}>
-      30-Day Operational Risk Forecast
-    </h3>
-
-    <p style={{ color: "#94a3b8", fontSize: "13px", lineHeight: 1.6 }}>
-      Projects how revenue, labor, and margin risk may change over the next
-      operating window.
-    </p>
-
-    <div
-      style={{
-        width: "100%",
-        height: isMobile ? "300px" : "380px", // 🛠️ FIX: Extended container height to comfortably fit the canvas + the new legend rows
-        marginTop: "18px",
-        overflow: "visible", // 🛠️ FIX: Prevents layout slicing
-      }}
-    >
-      <LineChart
-        width={isMobile ? 320 : 980} // 🛠️ FIX: Scaled canvas out wide to eliminate massive empty card gaps
-        height={isMobile ? 280 : 340}
-        data={riskProjectionTimelineData}
-        margin={{ top: 10, right: 35, left: 0, bottom: 10 }} // 🛠️ FIX: Balanced margins so rightmost timeline points don't clip
-      >
-        <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.14)" />
-
-        <XAxis
-          dataKey="label"
-          tick={{ fill: "#94a3b8", fontSize: 11 }}
-          axisLine={false}
-          tickLine={false}
-        />
-
-        <YAxis
-          width={50} // 🛠️ FIX: Allocates safe pixel buffer so percentage digits like '100%' never clip on the left edge
-          tick={{ fill: "#94a3b8", fontSize: 11 }}
-          axisLine={false}
-          tickLine={false}
-          domain={[0, 100]}
-          tickFormatter={(value) => `${value}%`}
-        />
-
-        <Tooltip
-          formatter={(value, name) => {
-            const labels = {
-              revenueRisk: "Revenue Risk",
-              laborRisk: "Labor Risk",
-              marginRisk: "Margin Risk",
-            };
-
-            return [
-              `${Number(value || 0).toFixed(0)}%`,
-              labels[name] || name,
-            ];
-          }}
-          contentStyle={{
-            background: "#020617",
-            border: "1px solid rgba(148,163,184,0.2)",
-            borderRadius: "12px",
-            color: "white",
-          }}
-        />
-
-        {/* 🛠️ ADDED: Integrated native legend element so user knows exactly what each distinct color represents */}
-        <Legend
-          verticalAlign="bottom"
-          height={36}
-          iconType="circle"
-          iconSize={8}
-          wrapperStyle={{
-            fontSize: "12px",
-            color: "#94a3b8",
-            paddingTop: "15px",
-          }}
-        />
-
-        <Line
-          name="Revenue Risk" // 🛠️ ADDED: Clean, user-facing label mapping
-          type="monotone"
-          dataKey="revenueRisk"
-          stroke="#38bdf8"
-          strokeWidth={3}
-          dot={false}
-          isAnimationActive={false}
-        />
-
-        <Line
-          name="Labor Risk" // 🛠️ ADDED: Clean, user-facing label mapping
-          type="monotone"
-          dataKey="laborRisk"
-          stroke="#facc15"
-          strokeWidth={3}
-          dot={false}
-          isAnimationActive={false}
-        />
-
-        <Line
-          name="Margin Risk" // 🛠️ ADDED: Clean, user-facing label mapping
-          type="monotone"
-          dataKey="marginRisk"
-          stroke="#ef4444"
-          strokeWidth={3}
-          dot={false}
-          isAnimationActive={false}
-        />
-      </LineChart>
-    </div>
-  </div>
-)}
 
 
     </>
@@ -55101,7 +53488,2032 @@ profit recovery opportunities, AI recommendations, and forecasted trends.
     ))}
   </div>
 </div>
+{/* =========================
+   AI TASK ASSIGNMENT SYSTEM
+========================= */}
 
+{hasProAccess && (
+  <div
+    style={{
+      marginBottom: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+      background:
+        "linear-gradient(135deg, rgba(124,58,237,0.18), rgba(15,23,42,0.98))",
+      border: "1px solid rgba(167,139,250,0.22)",
+      boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
+      width: "100%",
+      boxSizing: "border-box",
+      overflow: "hidden",
+    }}
+  >
+    <div
+      style={{
+        color: "#c4b5fd",
+        fontSize: "12px",
+        fontWeight: "900",
+      }}
+    >
+      AI TASK ASSIGNMENT SYSTEM
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "26px",
+        fontWeight: "950",
+        marginTop: "8px",
+      }}
+    >
+      Manager Action Assignments
+    </h3>
+
+    <button
+      type="button"
+      onClick={handleRunAutopilotWorkflow}
+      style={{
+        marginTop: "12px",
+        padding: "12px 16px",
+        borderRadius: "14px",
+        border: "none",
+        background: "linear-gradient(135deg, #8b5cf6, #6366f1)",
+        color: "white",
+        fontWeight: "950",
+        cursor: "pointer",
+        width: isMobile ? "100%" : "auto",
+      }}
+    >
+      Run Top Autopilot Workflow
+    </button>
+
+    <div
+      style={{
+        display: "grid",
+        gap: "12px",
+        marginTop: "18px",
+      }}
+    >
+      {(aiTaskAssignments || []).length > 0 ? (
+        aiTaskAssignments.map((task, index) => (
+          <div
+            key={`${task.title}-${index}`}
+            style={{
+              padding: "16px",
+              borderRadius: "18px",
+              background: "rgba(255,255,255,0.05)",
+              border: "1px solid rgba(148,163,184,0.12)",
+              minWidth: 0,
+            }}
+          >
+            <div
+              style={{
+                color: "white",
+                fontSize: "15px",
+                fontWeight: "900",
+                overflowWrap: "anywhere",
+              }}
+            >
+              {task.title}
+            </div>
+
+            <div
+              style={{
+                color:
+                  task.priority === "Critical"
+                    ? "#fca5a5"
+                    : task.priority === "High"
+                    ? "#fde68a"
+                    : "#93c5fd",
+                fontSize: "12px",
+                fontWeight: "900",
+                marginTop: "4px",
+                overflowWrap: "anywhere",
+              }}
+            >
+              {task.owner} • {task.priority} • Due {task.due}
+            </div>
+
+            <p
+              style={{
+                color: "#cbd5e1",
+                fontSize: "13px",
+                lineHeight: 1.6,
+                overflowWrap: "anywhere",
+              }}
+            >
+              {task.action}
+            </p>
+
+            <button
+              type="button"
+              onClick={() => handleCompleteAITask(task)}
+              style={{
+                marginTop: "10px",
+                padding: "10px 14px",
+                borderRadius: "12px",
+                border: "1px solid rgba(34,197,94,0.28)",
+                background: "rgba(34,197,94,0.14)",
+                color: "#bbf7d0",
+                fontSize: "12px",
+                fontWeight: "900",
+                cursor: "pointer",
+                width: isMobile ? "100%" : "auto",
+              }}
+            >
+              Mark Task Completed
+            </button>
+          </div>
+        ))
+      ) : (
+        <div
+          style={{
+            padding: "16px",
+            borderRadius: "18px",
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(148,163,184,0.10)",
+            color: "#94a3b8",
+            fontSize: "14px",
+          }}
+        >
+          No manager tasks needed right now.
+        </div>
+      )}
+    </div>
+  </div>
+)}
+{/* =========================
+   MULTI-LOCATION INTELLIGENCE
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "26px",
+      borderRadius: "30px",
+      background:
+        "linear-gradient(135deg, rgba(14,165,233,0.18), rgba(15,23,42,0.98))",
+      border: "1px solid rgba(56,189,248,0.22)",
+      boxShadow: "0 24px 70px rgba(2,6,23,0.36)",
+      width: "100%",
+      boxSizing: "border-box",
+      overflow: "hidden",
+    }}
+  >
+    <div
+      style={{
+        color: "#7dd3fc",
+        fontSize: "12px",
+        fontWeight: "900",
+      }}
+    >
+      MULTI-LOCATION INTELLIGENCE
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "26px",
+        fontWeight: "950",
+        marginTop: "8px",
+      }}
+    >
+      Location Performance Command
+    </h3>
+
+    <p
+      style={{
+        color: "#cbd5e1",
+        fontSize: "14px",
+        lineHeight: 1.7,
+        overflowWrap: "anywhere",
+      }}
+    >
+      SerVen AI compares location performance across revenue, labor pressure,
+      order volume, inventory activity, and operating health.
+    </p>
+
+    <div
+      style={{
+        marginTop: "22px",
+        display: "grid",
+        gridTemplateColumns:
+          isMobile ? "1fr" : "repeat(4, minmax(0, 1fr))",
+        gap: "14px",
+      }}
+    >
+      {[
+        {
+          label: "Locations",
+          value: multiLocationIntelligence?.totalLocations || 0,
+        },
+        {
+          label: "Total Revenue",
+          value: `$${Number(
+            multiLocationIntelligence?.totalRevenue || 0
+          ).toLocaleString()}`,
+        },
+        {
+          label: "Avg Health",
+          value: `${multiLocationIntelligence?.averageHealth || 0}/100`,
+        },
+        {
+          label: "Top Location",
+          value: multiLocationIntelligence?.topLocation?.name || "N/A",
+        },
+      ].map((item) => (
+        <div
+          key={item.label}
+          style={{
+            padding: "16px",
+            borderRadius: "20px",
+            background: "rgba(255,255,255,0.05)",
+            border: "1px solid rgba(148,163,184,0.12)",
+            minWidth: 0,
+          }}
+        >
+          <div
+            style={{
+              color: "#bae6fd",
+              fontSize: "11px",
+              fontWeight: "900",
+            }}
+          >
+            {item.label}
+          </div>
+
+          <div
+            style={{
+              color: "white",
+              fontSize: "22px",
+              fontWeight: "950",
+              marginTop: "6px",
+              overflowWrap: "anywhere",
+            }}
+          >
+            {item.value}
+          </div>
+        </div>
+      ))}
+    </div>
+
+    <div
+      style={{
+        marginTop: "20px",
+        display: "grid",
+        gap: "12px",
+      }}
+    >
+      {(multiLocationIntelligence?.locations || []).length > 0 ? (
+        multiLocationIntelligence.locations.map((location, index) => (
+          <div
+            key={location.name}
+            style={{
+              padding: "16px",
+              borderRadius: "20px",
+              background: "rgba(255,255,255,0.05)",
+              border: "1px solid rgba(148,163,184,0.12)",
+              minWidth: 0,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: "14px",
+                flexWrap: "wrap",
+              }}
+            >
+              <div style={{ minWidth: 0 }}>
+                <div
+                  style={{
+                    color: "white",
+                    fontSize: "16px",
+                    fontWeight: "900",
+                    overflowWrap: "anywhere",
+                  }}
+                >
+                  #{index + 1} {location.name}
+                </div>
+
+                <div
+                  style={{
+                    color:
+                      location.status === "High Performer"
+                        ? "#86efac"
+                        : location.status === "Stable"
+                        ? "#93c5fd"
+                        : location.status === "Watch"
+                        ? "#fde68a"
+                        : "#fca5a5",
+                    fontSize: "12px",
+                    fontWeight: "900",
+                    marginTop: "4px",
+                    overflowWrap: "anywhere",
+                  }}
+                >
+                  {location.status} • {location.healthScore}/100
+                </div>
+              </div>
+
+              <div
+                style={{
+                  color: "#86efac",
+                  fontSize: "15px",
+                  fontWeight: "950",
+                  overflowWrap: "anywhere",
+                }}
+              >
+                ${Number(location.revenue || 0).toLocaleString()}
+              </div>
+            </div>
+
+            <div
+              style={{
+                marginTop: "12px",
+                display: "grid",
+                gridTemplateColumns:
+                  isMobile ? "1fr" : "repeat(3, minmax(0, 1fr))",
+                gap: "10px",
+              }}
+            >
+              <div
+                style={{
+                  color: "#cbd5e1",
+                  fontSize: "12px",
+                }}
+              >
+                Orders: {Number(location.orders || 0).toLocaleString()}
+              </div>
+
+              <div
+                style={{
+                  color: "#cbd5e1",
+                  fontSize: "12px",
+                }}
+              >
+                Labor: {Number(location.laborPercent || 0).toFixed(1)}%
+              </div>
+
+              <div
+                style={{
+                  color: "#cbd5e1",
+                  fontSize: "12px",
+                }}
+              >
+                AOV: ${Number(location.averageOrder || 0).toFixed(2)}
+              </div>
+            </div>
+          </div>
+        ))
+      ) : (
+        <div
+          style={{
+            padding: "16px",
+            borderRadius: "18px",
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(148,163,184,0.10)",
+            color: "#94a3b8",
+            fontSize: "14px",
+          }}
+        >
+          Multi-location intelligence will activate once location-level data is
+          available.
+        </div>
+      )}
+    </div>
+  </div>
+)}
+{/* =========================
+   MULTI-LOCATION ENTERPRISE INTELLIGENCE
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+      background:
+        "linear-gradient(135deg, rgba(99,102,241,0.14), rgba(15,23,42,0.96))",
+      border: "1px solid rgba(129,140,248,0.22)",
+      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
+      width: "100%",
+      boxSizing: "border-box",
+      overflow: "hidden",
+    }}
+  >
+    <div
+      style={{
+        color: "#a5b4fc",
+        fontSize: "12px",
+        fontWeight: "900",
+      }}
+    >
+      Multi-Location Enterprise Intelligence
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "24px",
+        fontWeight: "950",
+        marginTop: "8px",
+      }}
+    >
+      Location Performance & Cross-Store Benchmarking
+    </h3>
+
+    <div
+      style={{
+        marginTop: "18px",
+        display: "grid",
+        gridTemplateColumns: isMobile ? "1fr" : "repeat(4, minmax(0, 1fr))",
+        gap: "14px",
+      }}
+    >
+      <GlassCard
+        title="Locations Tracked"
+        value={locations.length}
+        subtitle="Active restaurant units"
+      />
+
+      <GlassCard
+        title="Total Revenue"
+        value={`$${locations
+          .reduce((sum, loc) => sum + Number(loc.monthly_revenue || 0), 0)
+          .toLocaleString()}`}
+        subtitle="Combined monthly revenue"
+      />
+
+      <GlassCard
+        title="Avg Health Score"
+        value={`${(
+          locations.reduce(
+            (sum, loc) => sum + Number(loc.health_score || 0),
+            0
+          ) / (locations.length || 1)
+        ).toFixed(0)}/100`}
+        subtitle="Enterprise operating health"
+      />
+
+      <GlassCard
+        title="At-Risk Locations"
+        value={
+          locations.filter((loc) => Number(loc.health_score || 0) < 65).length
+        }
+        subtitle="Locations needing attention"
+      />
+    </div>
+
+    <div
+      style={{
+        marginTop: "18px",
+        display: "grid",
+        gap: "14px",
+      }}
+    >
+      {locations.length > 0 ? (
+        locations.slice(0, 10).map((loc) => (
+          <div
+            key={loc.id}
+            style={{
+              padding: "18px",
+              borderRadius: "22px",
+              background: "rgba(15,23,42,0.74)",
+              border: "1px solid rgba(129,140,248,0.14)",
+              display: "grid",
+              gridTemplateColumns: isMobile
+                ? "1fr"
+                : "1.3fr minmax(0, 0.8fr) minmax(0, 0.8fr) minmax(0, 0.8fr)",
+              gap: "14px",
+              alignItems: "center",
+              minWidth: 0,
+            }}
+          >
+            <div style={{ minWidth: 0 }}>
+              <div
+                style={{
+                  color: "white",
+                  fontSize: "17px",
+                  fontWeight: "900",
+                  overflowWrap: "anywhere",
+                }}
+              >
+                {loc.location_name}
+              </div>
+
+              <div
+                style={{
+                  color: "#94a3b8",
+                  fontSize: "12px",
+                  marginTop: "4px",
+                  overflowWrap: "anywhere",
+                }}
+              >
+                {[loc.city, loc.state].filter(Boolean).join(", ") ||
+                  "No location details"}
+              </div>
+            </div>
+
+            <div style={{ minWidth: 0 }}>
+              <div style={{ color: "#94a3b8", fontSize: "11px" }}>
+                Revenue
+              </div>
+
+              <div
+                style={{
+                  color: "#86efac",
+                  fontWeight: "900",
+                  overflowWrap: "anywhere",
+                }}
+              >
+                ${Number(loc.monthly_revenue || 0).toLocaleString()}
+              </div>
+            </div>
+
+            <div style={{ minWidth: 0 }}>
+              <div style={{ color: "#94a3b8", fontSize: "11px" }}>
+                Prime Cost
+              </div>
+
+              <div
+                style={{
+                  color:
+                    Number(loc.prime_cost_percent || 0) > 65
+                      ? "#f87171"
+                      : Number(loc.prime_cost_percent || 0) > 60
+                      ? "#fbbf24"
+                      : "#86efac",
+                  fontWeight: "900",
+                  overflowWrap: "anywhere",
+                }}
+              >
+                {Number(loc.prime_cost_percent || 0).toFixed(1)}%
+              </div>
+            </div>
+
+            <div style={{ minWidth: 0 }}>
+              <div style={{ color: "#94a3b8", fontSize: "11px" }}>
+                Health
+              </div>
+
+              <div
+                style={{
+                  color:
+                    Number(loc.health_score || 0) >= 80
+                      ? "#86efac"
+                      : Number(loc.health_score || 0) >= 65
+                      ? "#fbbf24"
+                      : "#f87171",
+                  fontWeight: "950",
+                  overflowWrap: "anywhere",
+                }}
+              >
+                {Number(loc.health_score || 0).toFixed(0)}/100
+              </div>
+            </div>
+          </div>
+        ))
+      ) : (
+        <div
+          style={{
+            padding: "16px",
+            borderRadius: "18px",
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(148,163,184,0.10)",
+            color: "#94a3b8",
+            fontSize: "14px",
+          }}
+        >
+          Upload location data to activate multi-location intelligence.
+        </div>
+      )}
+    </div>
+  </div>
+)}
+{/* =========================
+   AI CROSS-LOCATION RISK ALERTS
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+      background:
+        "linear-gradient(135deg, rgba(239,68,68,0.12), rgba(15,23,42,0.96))",
+      border: "1px solid rgba(248,113,113,0.20)",
+      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
+      width: "100%",
+      boxSizing: "border-box",
+      overflow: "hidden",
+    }}
+  >
+    <div
+      style={{
+        color: "#fca5a5",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      AI Cross-Location Risk Alerts
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "24px",
+        fontWeight: "950",
+        marginBottom: "16px",
+      }}
+    >
+      At-Risk Location Signals
+    </h3>
+
+    <div
+      style={{
+        display: "grid",
+        gap: "12px",
+      }}
+    >
+      {locations.filter(
+        (loc) =>
+          Number(loc.health_score || 0) < 65 ||
+          Number(loc.prime_cost_percent || 0) > 65
+      ).length > 0 ? (
+        locations
+          .filter(
+            (loc) =>
+              Number(loc.health_score || 0) < 65 ||
+              Number(loc.prime_cost_percent || 0) > 65
+          )
+          .slice(0, 6)
+          .map((loc) => (
+            <div
+              key={loc.id}
+              style={{
+                padding: "18px",
+                borderRadius: "20px",
+                background:
+                  "linear-gradient(135deg, rgba(239,68,68,0.12), rgba(15,23,42,0.86))",
+                border: "1px solid rgba(248,113,113,0.18)",
+                minWidth: 0,
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: isMobile ? "flex-start" : "center",
+                  flexDirection: isMobile ? "column" : "row",
+                  gap: "12px",
+                }}
+              >
+                <div style={{ minWidth: 0 }}>
+                  <div
+                    style={{
+                      color: "white",
+                      fontSize: "17px",
+                      fontWeight: "900",
+                      marginBottom: "4px",
+                      overflowWrap: "anywhere",
+                    }}
+                  >
+                    {loc.location_name}
+                  </div>
+
+                  <div
+                    style={{
+                      color: "#fca5a5",
+                      fontSize: "13px",
+                      lineHeight: 1.7,
+                      overflowWrap: "anywhere",
+                    }}
+                  >
+                    AI detected operational instability, elevated prime cost exposure,
+                    or declining health performance at this location.
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    padding: "10px 12px",
+                    borderRadius: "14px",
+                    background: "rgba(239,68,68,0.14)",
+                    border: "1px solid rgba(248,113,113,0.22)",
+                    color: "#fca5a5",
+                    fontWeight: "900",
+                    fontSize: "13px",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {Number(loc.health_score || 0).toFixed(0)}/100 Health
+                </div>
+              </div>
+            </div>
+          ))
+      ) : (
+        <div
+          style={{
+            padding: "16px",
+            borderRadius: "18px",
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(148,163,184,0.10)",
+            color: "#94a3b8",
+            fontSize: "14px",
+          }}
+        >
+          No high-risk cross-location signals detected right now.
+        </div>
+      )}
+    </div>
+  </div>
+)}
+{/* =========================
+   CROSS-LOCATION ALERTS
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+      background:
+        "linear-gradient(135deg, rgba(59,130,246,0.12), rgba(15,23,42,0.96))",
+      border: "1px solid rgba(96,165,250,0.20)",
+      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
+      width: "100%",
+      boxSizing: "border-box",
+      overflow: "hidden",
+    }}
+  >
+    <div
+      style={{
+        color: "#93c5fd",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      Cross-Location Alerts
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "24px",
+        fontWeight: "950",
+        marginBottom: "16px",
+      }}
+    >
+      Enterprise Alert Feed
+    </h3>
+
+    <div
+      style={{
+        display: "grid",
+        gap: "12px",
+      }}
+    >
+      {(crossLocationAlerts || []).length > 0 ? (
+        crossLocationAlerts.map((alert, index) => (
+          <div
+            key={`${alert.location}-${index}`}
+            style={{
+              padding: "16px",
+              borderRadius: "18px",
+              background:
+                alert.severity === "Critical"
+                  ? "rgba(239,68,68,0.10)"
+                  : alert.severity === "High"
+                  ? "rgba(245,158,11,0.10)"
+                  : "rgba(59,130,246,0.10)",
+              border:
+                alert.severity === "Critical"
+                  ? "1px solid rgba(239,68,68,0.24)"
+                  : alert.severity === "High"
+                  ? "1px solid rgba(245,158,11,0.22)"
+                  : "1px solid rgba(59,130,246,0.22)",
+              minWidth: 0,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: "12px",
+                flexWrap: "wrap",
+              }}
+            >
+              <div style={{ minWidth: 0 }}>
+                <div
+                  style={{
+                    color: "white",
+                    fontSize: "15px",
+                    fontWeight: "900",
+                    overflowWrap: "anywhere",
+                  }}
+                >
+                  {alert.title}
+                </div>
+
+                <div
+                  style={{
+                    color: "#94a3b8",
+                    fontSize: "12px",
+                    marginTop: "4px",
+                    overflowWrap: "anywhere",
+                  }}
+                >
+                  {alert.location} • {alert.severity}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  color:
+                    alert.severity === "Critical"
+                      ? "#fca5a5"
+                      : alert.severity === "High"
+                      ? "#fde68a"
+                      : "#93c5fd",
+                  fontSize: "12px",
+                  fontWeight: "900",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                AI DETECTED
+              </div>
+            </div>
+
+            <div
+              style={{
+                marginTop: "10px",
+                color: "#cbd5e1",
+                fontSize: "13px",
+                lineHeight: 1.6,
+                overflowWrap: "anywhere",
+              }}
+            >
+              {alert.message}
+            </div>
+          </div>
+        ))
+      ) : (
+        <div
+          style={{
+            padding: "16px",
+            borderRadius: "18px",
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(148,163,184,0.10)",
+            color: "#94a3b8",
+            fontSize: "14px",
+          }}
+        >
+          No major cross-location operational instability detected.
+        </div>
+      )}
+    </div>
+  </div>
+)}
+{/* =========================
+   AI ENTERPRISE OPTIMIZATION RECOMMENDATIONS
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+      background:
+        "linear-gradient(135deg, rgba(34,197,94,0.12), rgba(15,23,42,0.96))",
+      border: "1px solid rgba(74,222,128,0.20)",
+      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
+      width: "100%",
+      boxSizing: "border-box",
+      overflow: "hidden",
+    }}
+  >
+    <div
+      style={{
+        color: "#86efac",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      AI Enterprise Optimization Recommendations
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "24px",
+        fontWeight: "950",
+        marginBottom: "16px",
+      }}
+    >
+      Location Optimization Plan
+    </h3>
+
+    <div
+      style={{
+        display: "grid",
+        gap: "14px",
+      }}
+    >
+      {locations.length > 0 ? (
+        locations.slice(0, 8).map((loc) => {
+          const health = Number(loc.health_score || 0);
+          const primeCost = Number(loc.prime_cost_percent || 0);
+
+          let recommendation =
+            "Location performance is operating within healthy enterprise benchmarks.";
+
+          if (health < 55 || primeCost > 68) {
+            recommendation =
+              "Critical operational intervention recommended. AI detected severe profitability pressure and operational instability.";
+          } else if (health < 70 || primeCost > 62) {
+            recommendation =
+              "Location performance is below target. AI recommends labor, food cost, and operational optimization review.";
+          } else if (health < 80) {
+            recommendation =
+              "Location performance is stable but still has optimization opportunity.";
+          }
+
+          return (
+            <div
+              key={loc.id}
+              style={{
+                padding: "18px",
+                borderRadius: "20px",
+                background:
+                  "linear-gradient(135deg, rgba(15,23,42,0.84), rgba(30,41,59,0.82))",
+                border: "1px solid rgba(148,163,184,0.12)",
+                minWidth: 0,
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: isMobile ? "flex-start" : "center",
+                  flexDirection: isMobile ? "column" : "row",
+                  gap: "12px",
+                  marginBottom: "10px",
+                }}
+              >
+                <div style={{ minWidth: 0 }}>
+                  <div
+                    style={{
+                      color: "white",
+                      fontSize: "17px",
+                      fontWeight: "900",
+                      overflowWrap: "anywhere",
+                    }}
+                  >
+                    {loc.location_name}
+                  </div>
+
+                  <div
+                    style={{
+                      color: "#94a3b8",
+                      fontSize: "12px",
+                      marginTop: "4px",
+                      overflowWrap: "anywhere",
+                    }}
+                  >
+                    ${Number(loc.monthly_revenue || 0).toLocaleString()} revenue •{" "}
+                    {primeCost.toFixed(1)}% prime cost
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: "999px",
+                    background:
+                      health >= 80
+                        ? "rgba(34,197,94,0.14)"
+                        : health >= 65
+                        ? "rgba(250,204,21,0.14)"
+                        : "rgba(239,68,68,0.14)",
+                    color:
+                      health >= 80
+                        ? "#86efac"
+                        : health >= 65
+                        ? "#fde68a"
+                        : "#fca5a5",
+                    fontWeight: "900",
+                    fontSize: "12px",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {health >= 80
+                    ? "Enterprise Healthy"
+                    : health >= 65
+                    ? "Optimization Opportunity"
+                    : "Critical Risk"}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  color: "#cbd5e1",
+                  fontSize: "13px",
+                  lineHeight: 1.7,
+                  overflowWrap: "anywhere",
+                }}
+              >
+                {recommendation}
+              </div>
+            </div>
+          );
+        })
+      ) : (
+        <div
+          style={{
+            padding: "18px",
+            borderRadius: "18px",
+            background: "rgba(15,23,42,0.72)",
+            border: "1px solid rgba(148,163,184,0.14)",
+            color: "#94a3b8",
+            textAlign: "center",
+            fontSize: "14px",
+          }}
+        >
+          Upload location data to activate enterprise AI optimization recommendations.
+        </div>
+      )}
+    </div>
+  </div>
+)}
+{/* =========================
+   ENTERPRISE LOCATION RANKINGS
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "22px",
+      borderRadius: "24px",
+      background:
+        "linear-gradient(135deg, rgba(34,197,94,0.12), rgba(15,23,42,0.92))",
+      border: "1px solid rgba(74,222,128,0.18)",
+      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
+      width: "100%",
+      boxSizing: "border-box",
+      overflow: "hidden",
+    }}
+  >
+    <div
+      style={{
+        color: "#86efac",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      Enterprise Location Rankings
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "24px",
+        fontWeight: "950",
+        marginBottom: "16px",
+      }}
+    >
+      AI Top Performing Locations
+    </h3>
+
+    <div
+      style={{
+        display: "grid",
+        gap: "14px",
+      }}
+    >
+      {locations.length > 0 ? (
+        [...locations]
+          .sort(
+            (a, b) =>
+              Number(b.health_score || 0) -
+              Number(a.health_score || 0)
+          )
+          .slice(0, 5)
+          .map((loc, index) => (
+            <div
+              key={loc.id}
+              style={{
+                padding: "18px",
+                borderRadius: "20px",
+                background: "rgba(15,23,42,0.74)",
+                border: "1px solid rgba(74,222,128,0.14)",
+                display: "grid",
+                gridTemplateColumns: isMobile
+                  ? "1fr"
+                  : "0.5fr 1.2fr minmax(0,0.8fr) minmax(0,0.8fr)",
+                gap: "14px",
+                alignItems: "center",
+                minWidth: 0,
+              }}
+            >
+              <div
+                style={{
+                  width: "44px",
+                  height: "44px",
+                  borderRadius: "999px",
+                  background:
+                    index === 0
+                      ? "rgba(250,204,21,0.18)"
+                      : "rgba(148,163,184,0.14)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color:
+                    index === 0 ? "#fde68a" : "#cbd5e1",
+                  fontWeight: "950",
+                  fontSize: "18px",
+                  flexShrink: 0,
+                }}
+              >
+                #{index + 1}
+              </div>
+
+              <div style={{ minWidth: 0 }}>
+                <div
+                  style={{
+                    color: "white",
+                    fontSize: "17px",
+                    fontWeight: "900",
+                    overflowWrap: "anywhere",
+                  }}
+                >
+                  {loc.location_name}
+                </div>
+
+                <div
+                  style={{
+                    color: "#94a3b8",
+                    fontSize: "12px",
+                    marginTop: "4px",
+                    overflowWrap: "anywhere",
+                  }}
+                >
+                  {[loc.city, loc.state]
+                    .filter(Boolean)
+                    .join(", ")}
+                </div>
+              </div>
+
+              <div style={{ minWidth: 0 }}>
+                <div
+                  style={{
+                    color: "#94a3b8",
+                    fontSize: "11px",
+                  }}
+                >
+                  Revenue
+                </div>
+
+                <div
+                  style={{
+                    color: "#86efac",
+                    fontWeight: "900",
+                    overflowWrap: "anywhere",
+                  }}
+                >
+                  $
+                  {Number(
+                    loc.monthly_revenue || 0
+                  ).toLocaleString()}
+                </div>
+              </div>
+
+              <div style={{ minWidth: 0 }}>
+                <div
+                  style={{
+                    color: "#94a3b8",
+                    fontSize: "11px",
+                  }}
+                >
+                  Health Score
+                </div>
+
+                <div
+                  style={{
+                    color: "#86efac",
+                    fontWeight: "950",
+                    overflowWrap: "anywhere",
+                  }}
+                >
+                  {Number(loc.health_score || 0).toFixed(0)}
+                  /100
+                </div>
+              </div>
+            </div>
+          ))
+      ) : (
+        <div
+          style={{
+            padding: "18px",
+            borderRadius: "18px",
+            background: "rgba(15,23,42,0.72)",
+            border: "1px solid rgba(148,163,184,0.14)",
+            color: "#94a3b8",
+            textAlign: "center",
+            fontSize: "14px",
+          }}
+        >
+          Upload location data to activate enterprise rankings.
+        </div>
+      )}
+    </div>
+  </div>
+)}
+{/* =========================
+   LOCATION PERFORMANCE RANKING
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+      background:
+        "linear-gradient(135deg, rgba(30,64,175,0.18), rgba(15,23,42,0.96))",
+      border: "1px solid rgba(96,165,250,0.20)",
+      boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
+      width: "100%",
+      boxSizing: "border-box",
+      overflow: "hidden",
+    }}
+  >
+    <div
+      style={{
+        color: "#93c5fd",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+      }}
+    >
+      LOCATION PERFORMANCE RANKING
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "26px",
+        fontWeight: "950",
+        marginTop: "8px",
+      }}
+    >
+      AI Location Ranking System
+    </h3>
+
+    <p
+      style={{
+        color: "#cbd5e1",
+        fontSize: "14px",
+        lineHeight: 1.7,
+        marginBottom: "22px",
+        overflowWrap: "anywhere",
+      }}
+    >
+      SerVen AI ranks restaurant locations using operational health,
+      revenue efficiency, labor pressure, and order performance.
+    </p>
+
+    <div
+      style={{
+        display: "grid",
+        gap: "14px",
+      }}
+    >
+      {(multiLocationIntelligence?.locations || []).length > 0 ? (
+        multiLocationIntelligence.locations.map((location, index) => (
+          <div
+            key={location.name}
+            style={{
+              padding: "18px",
+              borderRadius: "20px",
+              background: "rgba(255,255,255,0.05)",
+              border: "1px solid rgba(148,163,184,0.12)",
+              minWidth: 0,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: "14px",
+                flexWrap: "wrap",
+              }}
+            >
+              <div style={{ minWidth: 0 }}>
+                <div
+                  style={{
+                    color: "white",
+                    fontSize: "18px",
+                    fontWeight: "950",
+                    overflowWrap: "anywhere",
+                  }}
+                >
+                  #{index + 1} {location.name}
+                </div>
+
+                <div
+                  style={{
+                    marginTop: "4px",
+                    color:
+                      location.status === "High Performer"
+                        ? "#86efac"
+                        : location.status === "Stable"
+                        ? "#93c5fd"
+                        : location.status === "Watch"
+                        ? "#fde68a"
+                        : "#fca5a5",
+                    fontSize: "12px",
+                    fontWeight: "900",
+                    overflowWrap: "anywhere",
+                  }}
+                >
+                  {location.status}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  color: "white",
+                  fontSize: "26px",
+                  fontWeight: "950",
+                  overflowWrap: "anywhere",
+                }}
+              >
+                {location.healthScore}/100
+              </div>
+            </div>
+
+            <div
+              style={{
+                marginTop: "16px",
+                width: "100%",
+                height: "10px",
+                borderRadius: "999px",
+                background: "rgba(255,255,255,0.08)",
+                overflow: "hidden",
+              }}
+            >
+              <div
+                style={{
+                  width: `${location.healthScore}%`,
+                  height: "100%",
+                  borderRadius: "999px",
+                  background:
+                    location.healthScore >= 85
+                      ? "linear-gradient(90deg,#22c55e,#4ade80)"
+                      : location.healthScore >= 70
+                      ? "linear-gradient(90deg,#3b82f6,#60a5fa)"
+                      : location.healthScore >= 60
+                      ? "linear-gradient(90deg,#f59e0b,#facc15)"
+                      : "linear-gradient(90deg,#ef4444,#f87171)",
+                }}
+              />
+            </div>
+
+            <div
+              style={{
+                marginTop: "16px",
+                display: "grid",
+                gridTemplateColumns:
+                  isMobile
+                    ? "1fr"
+                    : "repeat(4, minmax(0, 1fr))",
+                gap: "12px",
+              }}
+            >
+              {[
+                {
+                  label: "Revenue",
+                  value: `$${Number(
+                    location.revenue || 0
+                  ).toLocaleString()}`,
+                },
+                {
+                  label: "Orders",
+                  value: Number(
+                    location.orders || 0
+                  ).toLocaleString(),
+                },
+                {
+                  label: "Labor %",
+                  value: `${Number(
+                    location.laborPercent || 0
+                  ).toFixed(1)}%`,
+                },
+                {
+                  label: "AOV",
+                  value: `$${Number(
+                    location.averageOrder || 0
+                  ).toFixed(2)}`,
+                },
+              ].map((metric) => (
+                <div
+                  key={metric.label}
+                  style={{
+                    padding: "12px",
+                    borderRadius: "14px",
+                    background: "rgba(255,255,255,0.04)",
+                    border: "1px solid rgba(148,163,184,0.08)",
+                    minWidth: 0,
+                  }}
+                >
+                  <div
+                    style={{
+                      color: "#94a3b8",
+                      fontSize: "11px",
+                      fontWeight: "900",
+                    }}
+                  >
+                    {metric.label}
+                  </div>
+
+                  <div
+                    style={{
+                      color: "white",
+                      fontSize: "16px",
+                      fontWeight: "900",
+                      marginTop: "4px",
+                      overflowWrap: "anywhere",
+                    }}
+                  >
+                    {metric.value}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))
+      ) : (
+        <div
+          style={{
+            padding: "18px",
+            borderRadius: "18px",
+            background: "rgba(15,23,42,0.72)",
+            border: "1px solid rgba(148,163,184,0.14)",
+            color: "#94a3b8",
+            textAlign: "center",
+            fontSize: "14px",
+          }}
+        >
+          No location ranking data available yet.
+        </div>
+      )}
+    </div>
+  </div>
+)}
+
+{/* =========================
+   REGIONAL FORECAST PANEL
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+      background:
+        "linear-gradient(135deg, rgba(8,145,178,0.18), rgba(15,23,42,0.96))",
+      border: "1px solid rgba(34,211,238,0.20)",
+      boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
+      width: "100%",
+      boxSizing: "border-box",
+      overflow: "hidden",
+    }}
+  >
+    <div
+      style={{
+        color: "#67e8f9",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+      }}
+    >
+      REGIONAL FORECASTING
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "26px",
+        fontWeight: "950",
+        marginTop: "8px",
+      }}
+    >
+      Predictive Location Intelligence
+    </h3>
+
+    <p
+      style={{
+        color: "#cbd5e1",
+        fontSize: "14px",
+        lineHeight: 1.7,
+        marginBottom: "22px",
+        overflowWrap: "anywhere",
+      }}
+    >
+      SerVen AI forecasts future operational instability, labor pressure, and
+      revenue risk across restaurant locations.
+    </p>
+
+    <div
+      style={{
+        display: "grid",
+        gap: "14px",
+      }}
+    >
+      {(regionalForecastingData || []).length > 0 ? (
+        regionalForecastingData.map((location, index) => (
+          <div
+            key={`${location.name}-${index}`}
+            style={{
+              padding: "18px",
+              borderRadius: "20px",
+              background: "rgba(255,255,255,0.05)",
+              border: "1px solid rgba(148,163,184,0.12)",
+              minWidth: 0,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: "12px",
+                flexWrap: "wrap",
+              }}
+            >
+              <div style={{ minWidth: 0 }}>
+                <div
+                  style={{
+                    color: "white",
+                    fontSize: "18px",
+                    fontWeight: "950",
+                    overflowWrap: "anywhere",
+                  }}
+                >
+                  {location.name}
+                </div>
+
+                <div
+                  style={{
+                    marginTop: "4px",
+                    color:
+                      location.projectedRisk === "Critical"
+                        ? "#fca5a5"
+                        : location.projectedRisk === "Watch"
+                        ? "#fde68a"
+                        : "#86efac",
+                    fontSize: "12px",
+                    fontWeight: "900",
+                    overflowWrap: "anywhere",
+                  }}
+                >
+                  {location.projectedRisk} FORECAST
+                </div>
+              </div>
+
+              <div
+                style={{
+                  color: "#67e8f9",
+                  fontSize: "14px",
+                  fontWeight: "900",
+                  overflowWrap: "anywhere",
+                }}
+              >
+                {location.revenueHealthStatus}
+              </div>
+            </div>
+
+            <div
+              style={{
+                marginTop: "14px",
+                display: "grid",
+                gridTemplateColumns:
+                  isMobile ? "1fr" : "repeat(3, minmax(0, 1fr))",
+                gap: "12px",
+              }}
+            >
+              {[
+                {
+                  label: "Health Score",
+                  value: `${location.healthScore}/100`,
+                },
+                {
+                  label: "Labor Pressure",
+                  value: location.marginPressure,
+                },
+                {
+                  label: "Revenue Outlook",
+                  value: location.revenueHealthStatus,
+                },
+              ].map((metric) => (
+                <div
+                  key={metric.label}
+                  style={{
+                    padding: "12px",
+                    borderRadius: "14px",
+                    background: "rgba(255,255,255,0.04)",
+                    border: "1px solid rgba(148,163,184,0.08)",
+                    minWidth: 0,
+                  }}
+                >
+                  <div
+                    style={{
+                      color: "#94a3b8",
+                      fontSize: "11px",
+                      fontWeight: "900",
+                    }}
+                  >
+                    {metric.label}
+                  </div>
+
+                  <div
+                    style={{
+                      color: "white",
+                      fontSize: "16px",
+                      fontWeight: "900",
+                      marginTop: "4px",
+                      overflowWrap: "anywhere",
+                    }}
+                  >
+                    {metric.value}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))
+      ) : (
+        <div
+          style={{
+            padding: "18px",
+            borderRadius: "18px",
+            background: "rgba(15,23,42,0.72)",
+            border: "1px solid rgba(148,163,184,0.14)",
+            color: "#94a3b8",
+            textAlign: "center",
+            fontSize: "14px",
+          }}
+        >
+          No regional forecast data available yet.
+        </div>
+      )}
+    </div>
+  </div>
+)}
+{/* =========================
+   ENTERPRISE OPERATOR SCOREBOARD
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+      background:
+        "linear-gradient(135deg, rgba(88,28,135,0.20), rgba(15,23,42,0.96))",
+      border: "1px solid rgba(168,85,247,0.20)",
+      boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
+      width: "100%",
+      boxSizing: "border-box",
+      overflow: "hidden",
+    }}
+  >
+    <div
+      style={{
+        color: "#d8b4fe",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+      }}
+    >
+      ENTERPRISE OPERATOR SCOREBOARD
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "26px",
+        fontWeight: "950",
+        marginTop: "8px",
+      }}
+    >
+      Multi-Location Operating Scoreboard
+    </h3>
+
+    <p
+      style={{
+        color: "#cbd5e1",
+        fontSize: "14px",
+        lineHeight: 1.7,
+        overflowWrap: "anywhere",
+      }}
+    >
+      Compare every location side-by-side across health, revenue, labor,
+      order volume, and forecasted operating risk.
+    </p>
+
+    <div
+      style={{
+        marginTop: "22px",
+        overflowX: "auto",
+        WebkitOverflowScrolling: "touch",
+      }}
+    >
+      <div style={{ minWidth: isMobile ? "760px" : "100%" }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1.4fr 1fr 1fr 1fr 1fr 1fr",
+            gap: "10px",
+            padding: "12px 14px",
+            color: "#94a3b8",
+            fontSize: "11px",
+            fontWeight: "900",
+            textTransform: "uppercase",
+          }}
+        >
+          <div>Location</div>
+          <div>Health</div>
+          <div>Revenue</div>
+          <div>Orders</div>
+          <div>Labor</div>
+          <div>Risk</div>
+        </div>
+
+        {(regionalForecastingData || []).length > 0 ? (
+          regionalForecastingData.map((location, index) => (
+            <div
+              key={`${location.name}-${index}`}
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1.4fr 1fr 1fr 1fr 1fr 1fr",
+                gap: "10px",
+                alignItems: "center",
+                padding: "14px",
+                marginBottom: "10px",
+                borderRadius: "18px",
+                background: "rgba(255,255,255,0.05)",
+                border: "1px solid rgba(148,163,184,0.12)",
+                minWidth: 0,
+              }}
+            >
+              <div
+                style={{
+                  color: "white",
+                  fontWeight: "900",
+                  overflowWrap: "anywhere",
+                }}
+              >
+                #{index + 1} {location.name}
+              </div>
+
+              <div
+                style={{
+                  color: "#cbd5e1",
+                  fontWeight: "800",
+                  overflowWrap: "anywhere",
+                }}
+              >
+                {location.healthScore}/100
+              </div>
+
+              <div
+                style={{
+                  color: "#86efac",
+                  fontWeight: "900",
+                  overflowWrap: "anywhere",
+                }}
+              >
+                ${Number(location.revenue || 0).toLocaleString()}
+              </div>
+
+              <div
+                style={{
+                  color: "#cbd5e1",
+                  fontWeight: "800",
+                  overflowWrap: "anywhere",
+                }}
+              >
+                {Number(location.orders || 0).toLocaleString()}
+              </div>
+
+              <div
+                style={{
+                  color:
+                    Number(location.laborPercent || 0) > 35
+                      ? "#fca5a5"
+                      : Number(location.laborPercent || 0) > 30
+                      ? "#fde68a"
+                      : "#cbd5e1",
+                  fontWeight: "900",
+                  overflowWrap: "anywhere",
+                }}
+              >
+                {Number(location.laborPercent || 0).toFixed(1)}%
+              </div>
+
+              <div
+                style={{
+                  color:
+                    location.projectedRisk === "Critical"
+                      ? "#fca5a5"
+                      : location.projectedRisk === "Watch"
+                      ? "#fde68a"
+                      : "#86efac",
+                  fontWeight: "900",
+                  overflowWrap: "anywhere",
+                }}
+              >
+                {location.projectedRisk}
+              </div>
+            </div>
+          ))
+        ) : (
+          <div
+            style={{
+              padding: "18px",
+              borderRadius: "18px",
+              background: "rgba(15,23,42,0.72)",
+              border: "1px solid rgba(148,163,184,0.14)",
+              color: "#94a3b8",
+              textAlign: "center",
+              fontSize: "14px",
+            }}
+          >
+            No enterprise scoreboard data available yet.
+          </div>
+        )}
+      </div>
+    </div>
+  </div>
+)}
+{/* =========================
+   MULTI-LOCATION AI ACTION PLAN
+========================= */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+      background:
+        "linear-gradient(135deg, rgba(127,29,29,0.18), rgba(15,23,42,0.96))",
+      border: "1px solid rgba(248,113,113,0.20)",
+      boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
+      width: "100%",
+      boxSizing: "border-box",
+      overflow: "hidden",
+    }}
+  >
+    <div
+      style={{
+        color: "#fca5a5",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+      }}
+    >
+      MULTI-LOCATION AI ACTION PLAN
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "26px",
+        fontWeight: "950",
+        marginTop: "8px",
+      }}
+    >
+      Location-Specific Recommendations
+    </h3>
+
+    <div
+      style={{
+        display: "grid",
+        gap: "14px",
+        marginTop: "20px",
+      }}
+    >
+      {(regionalForecastingData || []).filter(
+        (location) =>
+          location.projectedRisk === "Critical" ||
+          location.projectedRisk === "Watch"
+      ).length > 0 ? (
+        (regionalForecastingData || [])
+          .filter(
+            (location) =>
+              location.projectedRisk === "Critical" ||
+              location.projectedRisk === "Watch"
+          )
+          .map((location) => {
+            const action =
+              Number(location.laborPercent || 0) > 35
+                ? "Review labor scheduling and reduce low-efficiency coverage."
+                : Number(location.averageOrder || 0) < 18
+                ? "Improve upsell strategy and premium item attachment."
+                : Number(location.healthScore || 0) < 70
+                ? "Review operating health, inventory activity, and sales trends."
+                : "Continue monitoring this location.";
+
+            return (
+              <div
+                key={location.name}
+                style={{
+                  padding: "18px",
+                  borderRadius: "20px",
+                  background: "rgba(255,255,255,0.05)",
+                  border: "1px solid rgba(148,163,184,0.12)",
+                  minWidth: 0,
+                }}
+              >
+                <div
+                  style={{
+                    color: "white",
+                    fontSize: "17px",
+                    fontWeight: "900",
+                    overflowWrap: "anywhere",
+                  }}
+                >
+                  {location.name}
+                </div>
+
+                <div
+                  style={{
+                    color: "#fca5a5",
+                    fontSize: "12px",
+                    fontWeight: "900",
+                    marginTop: "4px",
+                    overflowWrap: "anywhere",
+                  }}
+                >
+                  {location.projectedRisk} • {location.healthScore}/100
+                </div>
+
+                <p
+                  style={{
+                    color: "#cbd5e1",
+                    fontSize: "13px",
+                    lineHeight: 1.7,
+                    overflowWrap: "anywhere",
+                  }}
+                >
+                  {action}
+                </p>
+              </div>
+            );
+          })
+      ) : (
+        <div
+          style={{
+            padding: "18px",
+            borderRadius: "18px",
+            background: "rgba(15,23,42,0.72)",
+            border: "1px solid rgba(148,163,184,0.14)",
+            color: "#94a3b8",
+            textAlign: "center",
+            fontSize: "14px",
+          }}
+        >
+          No urgent multi-location action plan needed right now.
+        </div>
+      )}
+    </div>
+  </div>
+)}
 
   </div>
 )}
