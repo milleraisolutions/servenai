@@ -46827,8 +46827,18 @@ gridColumn: "1 / -1",
    
   </>
 )}
-  {analyticsView === "forecast" && (
-  <>
+ {analyticsView === "forecast" && (
+  <div
+    style={{
+      width: "100%",
+      maxWidth: "100%",
+      minWidth: 0,
+      display: "flex",
+      flexDirection: "column",
+      gap: "24px",
+      overflow: "visible",
+    }}
+  >
   {/* 🧠 FORECAST CONFIDENCE */}
 {(() => {
   // Quick dynamic status generator based on your variable
@@ -47158,13 +47168,13 @@ gridColumn: "1 / -1",
         borderRadius: "18px",
         background: "rgba(15,23,42,0.35)",
         border: "1px solid rgba(148,163,184,0.10)",
-        overflowX: "auto",
+       overflow: "hidden",
         overflowY: "hidden",
       }}
     >
       {aiProfitTrendData?.length > 0 ? (
         <LineChart
-          width={isMobile ? 900 : 760}
+          width={isMobile ? 340 : 980}
           height={isMobile ? 340 : 420}
           data={aiProfitTrendData}
          margin={{ top: 24, right: 35, left: 10, bottom: 70 }}
@@ -47414,15 +47424,15 @@ minWidth: 0,
         <p style={{ margin: 0, color: "#94a3b8", fontSize: "13px" }}>
           Predict future revenue and demand spikes before they happen.
         </p>
-        <div
+    <div
   style={{
     width: "100%",
-    overflowX: "auto",
+    overflow: "hidden",
     marginBottom: "16px",
   }}
 >
-  <LineChart
-    width={620}
+ <LineChart
+  width={isMobile ? 340 : 980}
     height={240}
     data={[
       { day: "Today", revenue: Number(liveTotalRevenue || 0) },
@@ -47841,30 +47851,68 @@ minWidth: 0,
 
 {/* 📈 REVENUE GROWTH TIMELINE */}
 {(() => {
-  // 🛡️ Data Hydration Defenses
   const timelineData = revenueLiftTimeline || [];
-  const safeProfit = displayProfit || 0;
-  const isAnimated = typeof timelineAnimated !== "undefined" ? timelineAnimated : true;
-  const mobileLayout = typeof isMobile !== "undefined" ? isMobile : false;
+  const safeProfit = Number(displayProfit || totalAiProfit || 0);
+  const currentRevenue = Number(totalRevenue || liveTotalRevenue || 0);
 
-  // 🏎️ Performance Fix: Calculate max revenue ONCE, saving significant processor overhead
-  const maxRevenue = timelineData.length > 0
-    ? Math.max(...timelineData.map((item) => Number(item?.revenue || 0)), 1)
-    : 1;
+  const chartData =
+    timelineData.length > 0
+      ? timelineData.map((item, index) => {
+          const revenue = Number(item?.revenue || 0);
+
+          return {
+            label: item?.label || `Month ${index + 1}`,
+            baseline: currentRevenue,
+            projected: revenue,
+            upside: Math.max(0, revenue - currentRevenue),
+          };
+        })
+      : [
+          {
+            label: "Current",
+            baseline: currentRevenue,
+            projected: currentRevenue,
+            upside: 0,
+          },
+          {
+            label: "30 Days",
+            baseline: currentRevenue,
+            projected: currentRevenue + safeProfit * 0.33,
+            upside: safeProfit * 0.33,
+          },
+          {
+            label: "60 Days",
+            baseline: currentRevenue,
+            projected: currentRevenue + safeProfit * 0.66,
+            upside: safeProfit * 0.66,
+          },
+          {
+            label: "90 Days",
+            baseline: currentRevenue,
+            projected: currentRevenue + safeProfit,
+            upside: safeProfit,
+          },
+        ];
+
+  const hasTimelineData =
+    Number(currentRevenue || 0) > 0 || Number(safeProfit || 0) > 0;
 
   return (
     <div
       style={{
-        marginTop: "20px",
-        padding: "22px",
-        borderRadius: "22px",
+        width: "100%",
+        maxWidth: "100%",
+        minWidth: 0,
+        marginTop: "0px",
+        padding: "24px",
+        borderRadius: "24px",
         background:
-          "linear-gradient(135deg, rgba(15,23,42,0.95), rgba(30,41,59,0.92))",
-        border: "1px solid rgba(148,163,184,0.16)",
-        boxShadow: "0 20px 50px rgba(2,6,23,0.24)",
+          "linear-gradient(135deg, rgba(59,130,246,0.14), rgba(15,23,42,0.96))",
+        border: "1px solid rgba(96,165,250,0.20)",
+        boxShadow: "0 22px 60px rgba(2,6,23,0.28)",
+        overflow: "hidden",
       }}
     >
-      {/* HEADER SECTION */}
       <div
         style={{
           display: "flex",
@@ -47878,153 +47926,189 @@ minWidth: 0,
         <div>
           <div
             style={{
+              color: "#93c5fd",
               fontSize: "12px",
-              fontWeight: "800",
+              fontWeight: "900",
               letterSpacing: "0.08em",
               textTransform: "uppercase",
-              color: "#60a5fa",
               marginBottom: "8px",
             }}
           >
             Revenue Growth Timeline
           </div>
 
-          <div
+          <h3
             style={{
-              fontSize: "13px",
-              color: "#94a3b8",
-              lineHeight: 1.6,
-              maxWidth: "560px",
+              margin: 0,
+              color: "white",
+              fontSize: "24px",
+              fontWeight: "950",
             }}
           >
-            This shows how revenue could climb over the next few months as AI fixes
-            are applied and performance improves.
-          </div>
+            AI revenue recovery path
+          </h3>
+
+          <p
+            style={{
+              margin: "8px 0 0",
+              color: "#94a3b8",
+              fontSize: "13px",
+              lineHeight: 1.6,
+              maxWidth: "720px",
+            }}
+          >
+            Tracks baseline revenue against projected AI-optimized revenue as
+            recovery actions are applied over time.
+          </p>
         </div>
 
-        {/* Dynamic Metric Total */}
         <div
           style={{
-            padding: "8px 12px",
+            padding: "9px 13px",
             borderRadius: "999px",
             background: "rgba(96,165,250,0.12)",
-            border: "1px solid rgba(96,165,250,0.18)",
+            border: "1px solid rgba(96,165,250,0.20)",
             color: "#93c5fd",
             fontSize: "12px",
-            fontWeight: "800",
+            fontWeight: "900",
             whiteSpace: "nowrap",
           }}
         >
           <CountUpValue
             value={Math.floor(safeProfit)}
             prefix="+$"
-            suffix=" AI-generated upside"
+            suffix=" recovery upside"
           />
         </div>
       </div>
 
-      {/* METRIC GRID */}
       <div
         style={{
-          display: "grid",
-          gridTemplateColumns: mobileLayout
-            ? "1fr"
-            : "repeat(auto-fit, minmax(180px, 1fr))",
-          gap: "14px",
+          width: "100%",
+          height: isMobile ? "300px" : "360px",
+          overflow: "hidden",
+          borderRadius: "18px",
+          background: "rgba(15,23,42,0.38)",
+          border: "1px solid rgba(148,163,184,0.10)",
+          padding: "12px",
+          boxSizing: "border-box",
         }}
       >
-        {/* Empty State Guard */}
-        {timelineData.length === 0 && (
+        {hasTimelineData ? (
+          <LineChart
+            width={isMobile ? 340 : 980}
+            height={isMobile ? 270 : 330}
+            data={chartData}
+            margin={{ top: 12, right: 28, left: 4, bottom: 18 }}
+          >
+            <CartesianGrid
+              strokeDasharray="3 3"
+              stroke="rgba(148,163,184,0.14)"
+            />
+
+            <XAxis
+              dataKey="label"
+              tick={{ fill: "#94a3b8", fontSize: 11 }}
+              axisLine={false}
+              tickLine={false}
+            />
+
+            <YAxis
+              width={70}
+              tick={{ fill: "#94a3b8", fontSize: 11 }}
+              axisLine={false}
+              tickLine={false}
+              tickFormatter={(value) =>
+                `$${Math.round(Number(value || 0) / 1000)}k`
+              }
+            />
+
+            <Tooltip
+              formatter={(value, name) => {
+                const labels = {
+                  baseline: "Baseline Revenue",
+                  projected: "Projected Revenue",
+                  upside: "Recovery Upside",
+                };
+
+                return [
+                  `$${Number(value || 0).toLocaleString()}`,
+                  labels[name] || name,
+                ];
+              }}
+              contentStyle={{
+                background: "#020617",
+                border: "1px solid rgba(148,163,184,0.2)",
+                borderRadius: "12px",
+                color: "white",
+              }}
+              labelStyle={{ color: "#e5e7eb" }}
+            />
+
+            <Legend
+              verticalAlign="bottom"
+              height={36}
+              iconType="circle"
+              iconSize={8}
+              wrapperStyle={{
+                fontSize: "12px",
+                color: "#94a3b8",
+                paddingTop: "15px",
+              }}
+            />
+
+            <Line
+              type="monotone"
+              dataKey="baseline"
+              name="Baseline Revenue"
+              stroke="#64748b"
+              strokeWidth={3}
+              strokeDasharray="6 6"
+              dot={false}
+              isAnimationActive={false}
+            />
+
+            <Line
+              type="monotone"
+              dataKey="projected"
+              name="Projected Revenue"
+              stroke="#60a5fa"
+              strokeWidth={4}
+              dot={{ r: 4 }}
+              activeDot={{ r: 7 }}
+              isAnimationActive={false}
+            />
+
+            <Line
+              type="monotone"
+              dataKey="upside"
+              name="Recovery Upside"
+              stroke="#22c55e"
+              strokeWidth={3}
+              dot={false}
+              isAnimationActive={false}
+            />
+          </LineChart>
+        ) : (
           <div
             style={{
-              padding: "20px",
-              textAlign: "center",
+              height: "100%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
               color: "#94a3b8",
+              textAlign: "center",
               fontSize: "13px",
-              background: "rgba(255,255,255,0.02)",
-              borderRadius: "18px",
-              border: "1px dashed rgba(148,163,184,0.12)",
             }}
           >
-            Generating future performance matrices...
+            Upload revenue data or apply AI recovery actions to generate a
+            revenue growth timeline.
           </div>
         )}
-
-        {/* Cards Iterator */}
-        {timelineData.map((month, index) => {
-          const currentRevenue = Number(month?.revenue || 0);
-          const barWidth = `${(currentRevenue / maxRevenue) * 100}%`;
-          const isFinal = index === timelineData.length - 1;
-
-          return (
-            <div
-              key={month?.label || `timeline-month-${index}`}
-              style={{
-                padding: "16px",
-                borderRadius: "18px",
-                background: isFinal
-                  ? "rgba(34,197,94,0.08)"
-                  : "rgba(255,255,255,0.04)",
-                border: isFinal
-                  ? "1px solid rgba(34,197,94,0.18)"
-                  : "1px solid rgba(148,163,184,0.12)",
-                transform: isAnimated ? "translateY(0px)" : "translateY(8px)",
-                opacity: isAnimated ? 1 : 0.6,
-                transition: `all 0.45s ease ${index * 0.08}s`,
-              }}
-            >
-              <div
-                style={{
-                  fontSize: "11px",
-                  color: "#94a3b8",
-                  fontWeight: "700",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.06em",
-                  marginBottom: "8px",
-                }}
-              >
-                {month?.label || "Forecast Target"}
-              </div>
-
-              <div
-                style={{
-                  fontSize: "22px",
-                  fontWeight: "900",
-                  color: "white",
-                  marginBottom: "10px",
-                }}
-              >
-                <CountUpValue value={Math.round(currentRevenue)} prefix="$" />
-              </div>
-
-              {/* Progress Bar Track */}
-              <div
-                style={{
-                  height: "8px",
-                  borderRadius: "999px",
-                  background: "rgba(148,163,184,0.14)",
-                  overflow: "hidden", // Changed from visible to hidden to maintain clean border-radius clipping on zero states
-                }}
-              >
-                <div
-                  style={{
-                    width: isAnimated ? barWidth : "0%",
-                    height: "100%",
-                    borderRadius: "999px",
-                    background: isFinal
-                      ? "linear-gradient(135deg, #22c55e, #4ade80)"
-                      : "linear-gradient(135deg, #3b82f6, #60a5fa)",
-                    transition: `width 0.9s ease ${index * 0.12}s`,
-                  }}
-                />
-              </div>
-            </div>
-          );
-        })}
       </div>
     </div>
   );
-})()} 
+})()}
 
 {/* 💸 PROJECTED REVENUE LIFT */}
 <div
@@ -48329,7 +48413,7 @@ Recovered profit is based on saved AI action impact.
   </div>
 </div>
 
-  </>
+ </div> 
   )}
 </div>
   
