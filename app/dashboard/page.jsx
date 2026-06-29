@@ -303,6 +303,11 @@ const [enterpriseView, setEnterpriseView] = useState("overview");
 const [analyticsView, setAnalyticsView] = useState("revenue");
 
 
+
+
+
+
+
 const loadAdminData = async () => {
   const { data: usersData, error: usersError } = await supabase
     .from("users")
@@ -16176,7 +16181,7 @@ const sidebarTabs = isKitchenManagerRole
       { key: "recipes", label: "Recipes", icon: "📋" },
       { key: "operations", label: "Operations", icon: "⚙️" },
       { key: "beverage", label: "Beverage", icon: "🍸" },
-      { key: "marketing", label: "Marketing", icon: "📣" },
+      
       { key: "kitchen_manager", label: "Kitchen", icon: "🍳" },
     ]
 
@@ -16197,7 +16202,6 @@ const sidebarTabs = isKitchenManagerRole
     { key: "recipes", label: "Menu Intelligence", icon: "🍽️" },
     { key: "beverage", label: "Beverage Intelligence", icon: "🍸" },
     { key: "ai_alerts", label: "AI Alerts", icon: "🚨" },
-    { key: "marketing", label: "Marketing", icon: "📣" },
     { key: "pro_ai", label: "Pro AI", icon: "⚡" },
     { key: "kitchen_manager", label: "Kitchen", icon: "🍳" },
     { key: "multi_location", label: "Enterprise", icon: "🏢" },
@@ -64745,6 +64749,51 @@ if (!res.ok) {
 
 {activeTab === "inventory" && (
   <>
+  {/* INVENTORY SUB NAV */}
+<div
+  style={{
+    width: "100%",
+    display: "flex",
+    gap: "10px",
+    flexWrap: "wrap",
+    marginBottom: "24px",
+  }}
+>
+  {[
+    { id: "overview", label: "Overview" },
+    { id: "stock", label: "Stock" },
+    { id: "purchasing", label: "Purchasing" },
+    { id: "vendors", label: "Vendors" },
+    { id: "waste", label: "Waste" },
+    { id: "forecast", label: "Forecast" },
+  ].map((tab) => {
+    const active = inventoryView === tab.id;
+
+    return (
+      <button
+        key={tab.id}
+        type="button"
+        onClick={() => setInventoryView(tab.id)}
+        style={{
+          padding: "10px 15px",
+          borderRadius: "999px",
+          border: active
+            ? "1px solid rgba(34,197,94,0.60)"
+            : "1px solid rgba(148,163,184,0.18)",
+          background: active
+            ? "rgba(34,197,94,0.18)"
+            : "rgba(15,23,42,0.72)",
+          color: active ? "#86efac" : "#94a3b8",
+          fontSize: "12px",
+          fontWeight: "900",
+          cursor: "pointer",
+        }}
+      >
+        {tab.label}
+      </button>
+    );
+  })}
+</div>
  <div
   style={{
     width: "100%",
@@ -64783,468 +64832,1533 @@ if (!res.ok) {
     height: "auto",
   }}
 >
- 
-{/* 🧠 INVENTORY AI SUMMARY BAR */}
-{(() => {
-  const summaryTone = getInventorySummaryTone(
-    inventoryAISummary?.criticalCount || 0
-  );
+{inventoryView === "overview" && (
+  <>
+    {(() => {
+      const summaryTone = getInventorySummaryTone(
+        inventoryAISummary?.criticalCount || 0
+      );
 
-  const criticalInventoryAlerts = inventoryAlerts.filter(
-    (alert) => alert.type === "critical" && alert.suggestedQuantity > 0
-  );
+      const safeText = (value, fallback = "Monitoring inventory performance.") => {
+        if (typeof value === "string") return value;
+        if (value?.description) return value.description;
+        if (value?.title) return value.title;
+        if (value?.message) return value.message;
+        return fallback;
+      };
 
-  return (
-    <>
-      {/* SUMMARY BAR */}
-      <div
-        style={{
-          gridColumn: isMobile ? "span 1" : "span 12",
-          width: "100%",
-          minWidth: 0,
-          padding: isMobile ? "16px" : "18px 20px",
-          borderRadius: "20px",
-          background: summaryTone.bg,
-          border: summaryTone.border,
-          marginBottom: "20px",
-          overflow: "hidden",
-        }}
-      >
-        <div style={{ color: "#fbbf24", fontWeight: "900", fontSize: "12px" }}>
-          Inventory AI Summary
-        </div>
+      const criticalInventoryAlerts = (inventoryAlerts || []).filter(
+        (alert) => alert.type === "critical" && Number(alert.suggestedQuantity || 0) > 0
+      );
 
-        <div
-          style={{
-            color: summaryTone.labelColor,
-            fontWeight: "900",
-            fontSize: "11px",
-            marginTop: "4px",
-          }}
-        >
-          {summaryTone.tag}
-        </div>
+      const overviewCardStyle = {
+        gridColumn: isMobile ? "span 1" : "span 12",
+        width: "100%",
+        minWidth: 0,
+        borderRadius: "26px",
+        border: "1px solid rgba(74,222,128,0.18)",
+        background:
+          "linear-gradient(135deg, rgba(34,197,94,0.14), rgba(15,23,42,0.96))",
+        boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
+        overflow: "hidden",
+      };
 
-        <div
-          style={{
-            color: "white",
-            fontSize: isMobile ? "18px" : "20px",
-            fontWeight: "950",
-            marginTop: "6px",
-            lineHeight: 1.25,
-          }}
-        >
-          {typeof inventoryAISummary?.message === "object"
-  ? inventoryAISummary?.message?.title || "Inventory is being reviewed."
-  : inventoryAISummary?.message || "Inventory is being reviewed."}
-        </div>
+      const miniStatStyle = {
+        padding: "14px",
+        borderRadius: "18px",
+        background: "rgba(15,23,42,0.72)",
+        border: "1px solid rgba(148,163,184,0.14)",
+        minWidth: 0,
+      };
 
-        <div style={{ color: "#94a3b8", fontSize: "13px", marginTop: "6px" }}>
-          Estimated weekly risk: $
-          {Number(inventoryAISummary?.estimatedRisk || 0).toLocaleString()}
-        </div>
-
-        <div
-          style={{
-            color: "#fca5a5",
-            fontSize: "13px",
-            marginTop: "6px",
-            fontWeight: "900",
-          }}
-        >
-          Potential revenue impact: $
-          {Number(inventoryAISummary?.potentialRevenueLoss || 0).toLocaleString()}
-        </div>
-
-        <div
-          style={{
-            marginTop: "10px",
-            padding: "10px 12px",
-            borderRadius: "12px",
-            background: "rgba(34,197,94,0.08)",
-            border: "1px solid rgba(34,197,94,0.18)",
-            color: "#86efac",
-            fontSize: "13px",
-            fontWeight: "900",
-          }}
-        >
-          👉 {typeof inventoryAISummary?.recommendation === "object"
-  ? inventoryAISummary?.recommendation?.title || "Review inventory alerts."
-  : inventoryAISummary?.recommendation || "Review inventory alerts."}
-        </div>
-
-        <div
-          style={{
-            marginTop: "10px",
-            fontSize: "13px",
-            fontWeight: "900",
-            color: "#86efac",
-          }}
-        >
-          💰 Inventory profit recovered: $
-          {Number(inventoryProfitRecovered || 0).toLocaleString()}
-        </div>
-
-        {criticalInventoryAlerts.length > 0 && (
-          <button
-            type="button"
-            onClick={async () => {
-              if (!combinedInventoryAlerts.length) {
-                setMessage("No inventory or usage issues to fix");
-                return;
-              }
-
-              const topCriticalAlerts = combinedInventoryAlerts
-                .filter((alert) => alert.type === "critical")
-                .slice(0, 3);
-
-              if (!topCriticalAlerts.length) {
-                setMessage("No critical inventory or usage issues to fix");
-                return;
-              }
-
-              for (const alert of topCriticalAlerts) {
-                const isRestockAlert =
-                  alert.ingredientName &&
-                  Number(alert.suggestedQuantity || 0) > 0 &&
-                  !alert.shiftName &&
-                  !alert.title?.toLowerCase?.().includes("waste");
-
-                if (isRestockAlert) {
-                  await handleAutoRestockFromAlert(alert);
-                } else {
-                  console.log(
-                    alert.shiftName
-                      ? "Shift waste issue flagged:"
-                      : "Usage issue flagged:",
-                    alert.shiftName || alert.title
-                  );
-                }
-              }
-
-              setMessage(
-                `Auto checked ${topCriticalAlerts.length} critical inventory/usage issue${
-                  topCriticalAlerts.length === 1 ? "" : "s"
-                }`
-              );
-            }}
-            style={{
-              marginTop: "10px",
-              padding: "9px 12px",
-              borderRadius: "12px",
-              border: "none",
-              background: "linear-gradient(135deg, #22c55e, #16a34a)",
-              color: "white",
-              fontWeight: "900",
-              cursor: "pointer",
-              fontSize: "12px",
-            }}
-          >
-            Auto Fix Top Inventory / Usage Issue
-          </button>
-        )}
-
-        {/* ACTION BUTTONS */}
-        <div
-          style={{
-            display: "flex",
-            gap: "10px",
-            flexWrap: "wrap",
-            marginTop: "12px",
-          }}
-        >
-          <button
-            type="button"
-            onClick={() =>
-              quickRestockRef.current?.scrollIntoView({
-                behavior: "smooth",
-                block: "center",
-              })
-            }
-            style={{
-              padding: "9px 12px",
-              borderRadius: "12px",
-              border: "none",
-              background: "linear-gradient(135deg, #f59e0b, #d97706)",
-              color: "white",
-              fontWeight: "900",
-              cursor: "pointer",
-              fontSize: "12px",
-            }}
-          >
-            Go to Restock
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab("analytics")}
-            style={{
-              padding: "9px 12px",
-              borderRadius: "12px",
-              border: "1px solid rgba(148,163,184,0.2)",
-              background: "rgba(255,255,255,0.04)",
-              color: "#e2e8f0",
-              fontWeight: "900",
-              cursor: "pointer",
-              fontSize: "12px",
-            }}
-          >
-            Review Inventory
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setInventoryAutopilotEnabled((prev) => !prev)}
-            style={{
-              padding: "9px 12px",
-              borderRadius: "12px",
-              border: inventoryAutopilotEnabled
-                ? "1px solid rgba(34,197,94,0.35)"
-                : "1px solid rgba(148,163,184,0.2)",
-              background: inventoryAutopilotEnabled
-                ? "linear-gradient(135deg, #22c55e, #16a34a)"
-                : "rgba(255,255,255,0.04)",
-              color: "white",
-              fontWeight: "900",
-              cursor: "pointer",
-              fontSize: "12px",
-            }}
-          >
-            {inventoryAutopilotEnabled
-              ? "Inventory Autopilot On"
-              : "Turn On Inventory Autopilot"}
-          </button>
-        </div>
-
-        <div
-          style={{
-            marginTop: "12px",
-            color: inventoryAutopilotEnabled ? "#86efac" : "#94a3b8",
-            fontSize: "12px",
-            fontWeight: "800",
-          }}
-        >
-          {inventoryAutopilotEnabled ? "🟢 " : "⚪ "}
-          {inventoryAutopilotStatus}
-        </div>
-      </div>
-
-      {/* AUTOPILOT ACTIVITY */}
-      {inventoryAutopilotActivity.length > 0 && (
-        <div
-          style={{
-            gridColumn: isMobile ? "span 1" : "span 12",
-            width: "100%",
-            minWidth: 0,
-            padding: "16px",
-            borderRadius: "18px",
-            background: "rgba(34,197,94,0.08)",
-            border: "1px solid rgba(34,197,94,0.18)",
-            marginBottom: "20px",
-          }}
-        >
-          <div style={{ display: "grid", gap: "8px" }}>
-            {inventoryAutopilotActivity.map((activity) => (
+      return (
+        <>
+          {/* =========================
+             INVENTORY COMMAND CENTER
+          ========================= */}
+          {hasProAccess && (
+            <div
+              style={{
+                ...overviewCardStyle,
+                padding: isMobile ? "20px" : "26px",
+                marginBottom: "24px",
+              }}
+            >
               <div
-                key={activity.id}
                 style={{
-                  padding: "10px",
-                  borderRadius: "12px",
-                  background: "rgba(255,255,255,0.04)",
-                  border: "1px solid rgba(148,163,184,0.12)",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: "18px",
+                  flexWrap: "wrap",
+                  alignItems: "flex-start",
                 }}
               >
-                <div style={{ color: "white", fontWeight: "900", fontSize: "13px" }}>
-                  {activity.message}
+                <div style={{ minWidth: 0, flex: "1 1 520px" }}>
+                  <div
+                    style={{
+                      color: "#86efac",
+                      fontSize: "12px",
+                      fontWeight: "950",
+                      letterSpacing: "0.09em",
+                      textTransform: "uppercase",
+                      marginBottom: "10px",
+                    }}
+                  >
+                    Inventory Command Center
+                  </div>
+
+                  <h2
+                    style={{
+                      color: "white",
+                      fontSize: isMobile ? "26px" : "34px",
+                      fontWeight: "950",
+                      margin: 0,
+                      lineHeight: 1.05,
+                    }}
+                  >
+                    AI inventory operational overview
+                  </h2>
+
+                  <p
+                    style={{
+                      color: "#cbd5e1",
+                      fontSize: "14px",
+                      lineHeight: 1.75,
+                      marginTop: "14px",
+                      marginBottom: 0,
+                      whiteSpace: "pre-line",
+                      maxWidth: "900px",
+                    }}
+                  >
+                    {safeText(
+                      inventoryExecutiveSummary,
+                      "SerVen is reviewing inventory movement, depletion risk, stockout exposure, and restock opportunities."
+                    )}
+                  </p>
+
+                  <div
+                    style={{
+                      marginTop: "16px",
+                      padding: "12px 14px",
+                      borderRadius: "16px",
+                      background: "rgba(34,197,94,0.08)",
+                      border: "1px solid rgba(34,197,94,0.18)",
+                      color: "#86efac",
+                      fontSize: "13px",
+                      fontWeight: "900",
+                      lineHeight: 1.55,
+                    }}
+                  >
+                    👉{" "}
+                    {safeText(
+                      inventoryAISummary?.recommendation,
+                      "Review inventory alerts and restock the highest-risk items first."
+                    )}
+                  </div>
                 </div>
 
-                <div style={{ color: "#94a3b8", fontSize: "11px", marginTop: "4px" }}>
-                  {activity.impact} ·{" "}
-                  {activity.createdAt instanceof Date
-                    ? activity.createdAt.toLocaleTimeString()
-                    : new Date(activity.createdAt).toLocaleTimeString()}
+                <div
+                  style={{
+                    flex: "0 1 360px",
+                    width: isMobile ? "100%" : "360px",
+                    display: "grid",
+                    gap: "12px",
+                  }}
+                >
+                  <div style={miniStatStyle}>
+                    <div style={{ color: "#94a3b8", fontSize: "11px", fontWeight: "900" }}>
+                      Estimated Weekly Risk
+                    </div>
+                    <div style={{ color: "white", fontSize: "28px", fontWeight: "950" }}>
+                      ${Number(inventoryAISummary?.estimatedRisk || 0).toLocaleString()}
+                    </div>
+                  </div>
+
+                  <div style={miniStatStyle}>
+                    <div style={{ color: "#94a3b8", fontSize: "11px", fontWeight: "900" }}>
+                      Potential Revenue Impact
+                    </div>
+                    <div style={{ color: "#fca5a5", fontSize: "28px", fontWeight: "950" }}>
+                      $
+                      {Number(
+                        inventoryAISummary?.potentialRevenueLoss || 0
+                      ).toLocaleString()}
+                    </div>
+                  </div>
+
+                  <div style={miniStatStyle}>
+                    <div style={{ color: "#94a3b8", fontSize: "11px", fontWeight: "900" }}>
+                      Inventory Profit Recovered
+                    </div>
+                    <div style={{ color: "#86efac", fontSize: "28px", fontWeight: "950" }}>
+                      ${Number(inventoryProfitRecovered || 0).toLocaleString()}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                style={{
+                  marginTop: "20px",
+                  display: "flex",
+                  gap: "10px",
+                  flexWrap: "wrap",
+                  alignItems: "center",
+                }}
+              >
+                {criticalInventoryAlerts.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!combinedInventoryAlerts.length) {
+                        setMessage("No inventory or usage issues to fix");
+                        return;
+                      }
+
+                      const topCriticalAlerts = combinedInventoryAlerts
+                        .filter((alert) => alert.type === "critical")
+                        .slice(0, 3);
+
+                      if (!topCriticalAlerts.length) {
+                        setMessage("No critical inventory or usage issues to fix");
+                        return;
+                      }
+
+                      for (const alert of topCriticalAlerts) {
+                        const isRestockAlert =
+                          alert.ingredientName &&
+                          Number(alert.suggestedQuantity || 0) > 0 &&
+                          !alert.shiftName &&
+                          !alert.title?.toLowerCase?.().includes("waste");
+
+                        if (isRestockAlert) {
+                          await handleAutoRestockFromAlert(alert);
+                        } else {
+                          console.log(
+                            alert.shiftName
+                              ? "Shift waste issue flagged:"
+                              : "Usage issue flagged:",
+                            alert.shiftName || alert.title
+                          );
+                        }
+                      }
+
+                      setMessage(
+                        `Auto checked ${topCriticalAlerts.length} critical inventory/usage issue${
+                          topCriticalAlerts.length === 1 ? "" : "s"
+                        }`
+                      );
+                    }}
+                    style={{
+                      padding: "11px 14px",
+                      borderRadius: "14px",
+                      border: "none",
+                      background: "linear-gradient(135deg, #22c55e, #16a34a)",
+                      color: "white",
+                      fontWeight: "950",
+                      cursor: "pointer",
+                      fontSize: "12px",
+                    }}
+                  >
+                    Auto Fix Top Issue
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    quickRestockRef.current?.scrollIntoView({
+                      behavior: "smooth",
+                      block: "center",
+                    })
+                  }
+                  style={{
+                    padding: "11px 14px",
+                    borderRadius: "14px",
+                    border: "none",
+                    background: "linear-gradient(135deg, #f59e0b, #d97706)",
+                    color: "white",
+                    fontWeight: "950",
+                    cursor: "pointer",
+                    fontSize: "12px",
+                  }}
+                >
+                  Go to Restock
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("analytics")}
+                  style={{
+                    padding: "11px 14px",
+                    borderRadius: "14px",
+                    border: "1px solid rgba(148,163,184,0.2)",
+                    background: "rgba(255,255,255,0.04)",
+                    color: "#e2e8f0",
+                    fontWeight: "950",
+                    cursor: "pointer",
+                    fontSize: "12px",
+                  }}
+                >
+                  Review Analytics
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setInventoryAutopilotEnabled((prev) => !prev)}
+                  style={{
+                    padding: "11px 14px",
+                    borderRadius: "14px",
+                    border: inventoryAutopilotEnabled
+                      ? "1px solid rgba(34,197,94,0.35)"
+                      : "1px solid rgba(148,163,184,0.2)",
+                    background: inventoryAutopilotEnabled
+                      ? "linear-gradient(135deg, #22c55e, #16a34a)"
+                      : "rgba(255,255,255,0.04)",
+                    color: "white",
+                    fontWeight: "950",
+                    cursor: "pointer",
+                    fontSize: "12px",
+                  }}
+                >
+                  {inventoryAutopilotEnabled
+                    ? "Inventory Autopilot On"
+                    : "Turn On Inventory Autopilot"}
+                </button>
+
+                <div
+                  style={{
+                    color: inventoryAutopilotEnabled ? "#86efac" : "#94a3b8",
+                    fontSize: "12px",
+                    fontWeight: "900",
+                    marginLeft: isMobile ? 0 : "auto",
+                  }}
+                >
+                  {inventoryAutopilotEnabled ? "🟢 " : "⚪ "}
+                  {inventoryAutopilotStatus}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* =========================
+             HEALTH + WATCHLIST ROW
+          ========================= */}
+          <div
+            style={{
+              gridColumn: isMobile ? "span 1" : "span 12",
+              width: "100%",
+              display: "grid",
+              gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 5fr) minmax(0, 7fr)",
+              gap: "18px",
+              marginBottom: "22px",
+            }}
+          >
+            {hasProAccess && (
+              <div
+                style={{
+                  padding: "24px",
+                  borderRadius: "24px",
+                  background:
+                    "linear-gradient(135deg, rgba(34,197,94,0.12), rgba(15,23,42,0.96))",
+                  border: `1px solid ${inventoryHealthScoreData.color}55`,
+                  boxShadow: "0 22px 60px rgba(2,6,23,0.28)",
+                  minWidth: 0,
+                }}
+              >
+                <div
+                  style={{
+                    color: "#86efac",
+                    fontSize: "12px",
+                    fontWeight: "950",
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                    marginBottom: "14px",
+                  }}
+                >
+                  Inventory Health Score
+                </div>
+
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: isMobile ? "1fr" : "150px 1fr",
+                    gap: "18px",
+                    alignItems: "center",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: "138px",
+                      height: "138px",
+                      borderRadius: "999px",
+                      display: "grid",
+                      placeItems: "center",
+                      background: `conic-gradient(${inventoryHealthScoreData.color} ${inventoryHealthScoreData.score}%, rgba(148,163,184,0.18) 0)`,
+                      margin: isMobile ? "0 auto" : 0,
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: "108px",
+                        height: "108px",
+                        borderRadius: "999px",
+                        background: "rgba(15,23,42,0.96)",
+                        display: "grid",
+                        placeItems: "center",
+                        border: "1px solid rgba(148,163,184,0.16)",
+                      }}
+                    >
+                      <div style={{ textAlign: "center" }}>
+                        <div
+                          style={{
+                            color: "white",
+                            fontSize: "32px",
+                            fontWeight: "950",
+                          }}
+                        >
+                          {inventoryHealthScoreData.score}
+                        </div>
+                        <div
+                          style={{
+                            color: inventoryHealthScoreData.color,
+                            fontSize: "11px",
+                            fontWeight: "950",
+                          }}
+                        >
+                          {inventoryHealthScoreData.status}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3
+                      style={{
+                        color: "white",
+                        fontSize: "21px",
+                        fontWeight: "950",
+                        margin: 0,
+                      }}
+                    >
+                      Operational inventory health
+                    </h3>
+
+                    <p
+                      style={{
+                        color: "#cbd5e1",
+                        fontSize: "13px",
+                        lineHeight: 1.65,
+                        marginTop: "8px",
+                      }}
+                    >
+                      {inventoryHealthScoreData.insight}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div
+              style={{
+                padding: "22px",
+                borderRadius: "24px",
+                background:
+                  "linear-gradient(135deg, rgba(20,83,45,0.14), rgba(15,23,42,0.92))",
+                border: "1px solid rgba(74,222,128,0.14)",
+                boxShadow: "0 22px 60px rgba(2,6,23,0.24)",
+                minWidth: 0,
+              }}
+            >
+              <div
+                style={{
+                  color: "#86efac",
+                  fontSize: "12px",
+                  fontWeight: "950",
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  marginBottom: "12px",
+                }}
+              >
+                AI Restock Watchlist
+              </div>
+
+              <div style={{ display: "grid", gap: "12px" }}>
+                {inventoryDepletionData.length > 0 ? (
+                  inventoryDepletionData.slice(0, 5).map((item, index) => (
+                    <div
+                      key={`${item.name || item.ingredient || index}`}
+                      style={{
+                        padding: "14px 16px",
+                        borderRadius: "18px",
+                        background: "rgba(255,255,255,0.04)",
+                        border: "1px solid rgba(148,163,184,0.12)",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        gap: "14px",
+                        alignItems: "center",
+                        minWidth: 0,
+                      }}
+                    >
+                      <div style={{ minWidth: 0 }}>
+                        <div
+                          style={{
+                            color: "white",
+                            fontWeight: "950",
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                          }}
+                        >
+                          {item.name || item.ingredient || item.item_name || "Unknown Item"}
+                        </div>
+
+                        <div
+                          style={{
+                            color: "#94a3b8",
+                            fontSize: "12px",
+                            marginTop: "4px",
+                          }}
+                        >
+                          Qty: {Number(item.quantity || 0).toFixed(1)} · Daily usage:{" "}
+                          {Number(item.usageRate || 0).toFixed(1)}
+                        </div>
+                      </div>
+
+                      <div
+                        style={{
+                          color:
+                            item.depletionStatus === "Critical"
+                              ? "#f87171"
+                              : item.depletionStatus === "Low"
+                              ? "#fbbf24"
+                              : "#86efac",
+                          fontWeight: "950",
+                          fontSize: "13px",
+                          textAlign: "right",
+                          flexShrink: 0,
+                        }}
+                      >
+                        {item.daysRemaining > 0
+                          ? `${item.daysRemaining} days`
+                          : "Monitoring"}
+                        <div style={{ fontSize: "11px", marginTop: "4px" }}>
+                          {item.depletionStatus}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div
+                    style={{
+                      padding: "16px",
+                      borderRadius: "18px",
+                      background: "rgba(255,255,255,0.04)",
+                      border: "1px solid rgba(148,163,184,0.12)",
+                      color: "#cbd5e1",
+                      fontSize: "14px",
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    Upload ingredient inventory with quantity and daily usage to activate
+                    depletion forecasting.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* =========================
+             KPI STRIP
+          ========================= */}
+          <div
+            style={{
+              gridColumn: isMobile ? "span 1" : "span 12",
+              width: "100%",
+              display: "grid",
+              gridTemplateColumns: isMobile ? "1fr" : "repeat(4, minmax(0, 1fr))",
+              gap: "14px",
+              marginBottom: "22px",
+            }}
+          >
+            {[
+              ["Critical Items", criticalInventoryItems.length, "Projected to run out within 2 days", "#f87171"],
+              ["Low Stock", lowInventoryItems.length, "Projected to run low within 5 days", "#fbbf24"],
+              [
+                "Inventory Value",
+                `$${Math.round(totalInventoryValue || 0).toLocaleString()}`,
+                "Current inventory asset value",
+                "#86efac",
+              ],
+              [
+                "Tracked Healthy",
+                healthyInventoryItems.length,
+                "Items currently in healthy range",
+                "#38bdf8",
+              ],
+            ].map(([label, value, subtext, color]) => (
+              <div
+                key={label}
+                style={{
+                  padding: "18px",
+                  borderRadius: "22px",
+                  background: "rgba(15,23,42,0.86)",
+                  border: `1px solid ${color}33`,
+                  boxShadow: "0 16px 45px rgba(2,6,23,0.22)",
+                  minWidth: 0,
+                }}
+              >
+                <div
+                  style={{
+                    color: "#94a3b8",
+                    fontSize: "11px",
+                    fontWeight: "950",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.06em",
+                  }}
+                >
+                  {label}
+                </div>
+
+                <div
+                  style={{
+                    color,
+                    fontSize: "30px",
+                    fontWeight: "950",
+                    marginTop: "8px",
+                  }}
+                >
+                  {value}
+                </div>
+
+                <div
+                  style={{
+                    color: "#cbd5e1",
+                    fontSize: "12px",
+                    marginTop: "6px",
+                    lineHeight: 1.45,
+                  }}
+                >
+                  {subtext}
                 </div>
               </div>
             ))}
           </div>
-        </div>
-      )}
 
-      {/* INVENTORY DEPLETION + WATCHLIST */}
-      <div
-        style={{
-          gridColumn: isMobile ? "span 1" : "span 12",
-          width: "100%",
-          minWidth: 0,
-          display: "grid",
-          gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 5fr) minmax(0, 7fr)",
-          gap: "18px",
-          marginBottom: "26px",
-          alignItems: "stretch",
-        }}
-      >
-        {/* INVENTORY DEPLETION INTELLIGENCE */}
-        <div
-          style={{
-            minWidth: 0,
-            padding: "20px",
-            borderRadius: "20px",
-            background:
-              "linear-gradient(135deg, rgba(22,101,52,0.14), rgba(15,23,42,0.92))",
-            border: "1px solid rgba(74,222,128,0.16)",
-            overflow: "hidden",
-          }}
-        >
+          {/* =========================
+             DEPLETION INTELLIGENCE
+          ========================= */}
           <div
             style={{
-              fontSize: "12px",
-              fontWeight: "900",
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
-              color: "#86efac",
-              marginBottom: "14px",
-            }}
-          >
-            Inventory Depletion Intelligence
-          </div>
-
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: isMobile ? "1fr" : "repeat(2, minmax(0, 1fr))",
-              gap: "14px",
+              gridColumn: isMobile ? "span 1" : "span 12",
+              width: "100%",
+              padding: "22px",
+              borderRadius: "24px",
+              background:
+                "linear-gradient(135deg, rgba(22,101,52,0.12), rgba(15,23,42,0.94))",
+              border: "1px solid rgba(74,222,128,0.16)",
+              boxShadow: "0 22px 60px rgba(2,6,23,0.24)",
+              marginBottom: "22px",
               minWidth: 0,
             }}
           >
-            <GlassCard
-              title="Critical Items"
-              value={criticalInventoryItems.length}
-              subtext="Items projected to run out within 2 days"
-            />
-
-            <GlassCard
-              title="Low Stock Items"
-              value={lowInventoryItems.length}
-              subtext="Items projected to run low within 5 days"
-            />
-
-            <GlassCard
-  title="Inventory Value"
-  value={`$${Math.round(totalInventoryValue).toLocaleString()}`}
-  subtext="Current inventory asset value"
-/>
-
-<GlassCard
-  title="Inventory Health"
-  value={
-    criticalInventoryItems.length > 0
-      ? "Critical"
-      : lowInventoryItems.length > 0
-      ? "Watch"
-      : inventoryDepletionData.length > 0
-      ? "Healthy"
-      : "Needs Data"
-  }
-  subtext={`${healthyInventoryItems.length} healthy items tracked`}
-/>
-          </div>
-        </div>
-
-        {/* AI RESTOCK WATCHLIST */}
-        <div
-          style={{
-            minWidth: 0,
-            padding: "18px",
-            borderRadius: "18px",
-            background:
-              "linear-gradient(135deg, rgba(20,83,45,0.14), rgba(15,23,42,0.92))",
-            border: "1px solid rgba(74,222,128,0.14)",
-            overflow: "hidden",
-          }}
-        >
-          <div
-            style={{
-              fontSize: "12px",
-              fontWeight: "900",
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
-              color: "#86efac",
-              marginBottom: "12px",
-            }}
-          >
-            AI Restock Watchlist
-          </div>
-
-          <div style={{ display: "grid", gap: "12px", minWidth: 0 }}>
-            {inventoryDepletionData.length > 0 ? (
-              inventoryDepletionData.slice(0, 6).map((item, index) => (
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: "14px",
+                flexWrap: "wrap",
+                marginBottom: "16px",
+              }}
+            >
+              <div>
                 <div
-                  key={`${item.name || item.ingredient || index}`}
                   style={{
-                    padding: "14px 16px",
-                    borderRadius: "16px",
-                    background: "rgba(255,255,255,0.04)",
-                    border: "1px solid rgba(148,163,184,0.12)",
-                    display: "flex",
-                    justifyContent: "space-between",
-                    gap: "14px",
-                    alignItems: "center",
-                    minWidth: 0,
+                    color: "#86efac",
+                    fontSize: "12px",
+                    fontWeight: "950",
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
                   }}
                 >
-                  <div style={{ minWidth: 0 }}>
+                  Inventory Depletion Intelligence
+                </div>
+
+                <h3
+                  style={{
+                    color: "white",
+                    fontSize: "24px",
+                    fontWeight: "950",
+                    margin: "8px 0 0",
+                  }}
+                >
+                  Stock pressure and burn-rate visibility
+                </h3>
+              </div>
+
+              <div
+                style={{
+                  color: summaryTone.labelColor,
+                  fontSize: "12px",
+                  fontWeight: "950",
+                  padding: "8px 12px",
+                  borderRadius: "999px",
+                  background: summaryTone.bg,
+                  border: summaryTone.border,
+                  height: "fit-content",
+                }}
+              >
+                {summaryTone.tag}
+              </div>
+            </div>
+
+            <div style={{ display: "grid", gap: "12px" }}>
+              {inventoryDepletionData.length > 0 ? (
+                inventoryDepletionData.slice(0, 8).map((item, index) => {
+                  const statusColor =
+                    item.depletionStatus === "Critical"
+                      ? "#f87171"
+                      : item.depletionStatus === "Low"
+                      ? "#fbbf24"
+                      : "#86efac";
+
+                  return (
                     <div
+                      key={`${item.name || item.ingredient || index}-depletion`}
                       style={{
-                        color: "white",
-                        fontWeight: "900",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
+                        padding: "16px",
+                        borderRadius: "18px",
+                        background: "rgba(15,23,42,0.72)",
+                        border: `1px solid ${statusColor}33`,
+                        display: "grid",
+                        gridTemplateColumns: isMobile
+                          ? "1fr"
+                          : "minmax(0, 1.3fr) repeat(3, minmax(0, 0.7fr))",
+                        gap: "12px",
+                        alignItems: "center",
                       }}
                     >
-                      {item.name || item.ingredient || item.item_name || "Unknown Item"}
+                      <div style={{ minWidth: 0 }}>
+                        <div
+                          style={{
+                            color: "white",
+                            fontSize: "15px",
+                            fontWeight: "950",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {item.name || item.ingredient || item.item_name || "Unknown Item"}
+                        </div>
+                        <div style={{ color: "#94a3b8", fontSize: "12px", marginTop: "4px" }}>
+                          AI is monitoring current quantity against usage velocity.
+                        </div>
+                      </div>
+
+                      <div>
+                        <div style={{ color: "#94a3b8", fontSize: "11px", fontWeight: "900" }}>
+                          Quantity
+                        </div>
+                        <div style={{ color: "white", fontSize: "17px", fontWeight: "950" }}>
+                          {Number(item.quantity || 0).toFixed(1)}
+                        </div>
+                      </div>
+
+                      <div>
+                        <div style={{ color: "#94a3b8", fontSize: "11px", fontWeight: "900" }}>
+                          Daily Usage
+                        </div>
+                        <div style={{ color: "white", fontSize: "17px", fontWeight: "950" }}>
+                          {Number(item.usageRate || 0).toFixed(1)}
+                        </div>
+                      </div>
+
+                      <div>
+                        <div style={{ color: "#94a3b8", fontSize: "11px", fontWeight: "900" }}>
+                          Status
+                        </div>
+                        <div style={{ color: statusColor, fontSize: "17px", fontWeight: "950" }}>
+                          {item.depletionStatus || "Monitoring"}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div
+                  style={{
+                    padding: "16px",
+                    borderRadius: "18px",
+                    background: "rgba(15,23,42,0.72)",
+                    border: "1px solid rgba(148,163,184,0.14)",
+                    color: "#cbd5e1",
+                    fontSize: "14px",
+                    lineHeight: 1.6,
+                  }}
+                >
+                  No depletion intelligence yet. Upload inventory quantities and usage
+                  rates to activate stock pressure analysis.
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* =========================
+             AUTOPILOT ACTIVITY
+          ========================= */}
+          {inventoryAutopilotActivity.length > 0 && (
+            <div
+              style={{
+                gridColumn: isMobile ? "span 1" : "span 12",
+                width: "100%",
+                padding: "22px",
+                borderRadius: "24px",
+                background: "rgba(34,197,94,0.08)",
+                border: "1px solid rgba(34,197,94,0.18)",
+                marginBottom: "22px",
+              }}
+            >
+              <div
+                style={{
+                  color: "#86efac",
+                  fontSize: "12px",
+                  fontWeight: "950",
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  marginBottom: "14px",
+                }}
+              >
+                Autopilot Activity Timeline
+              </div>
+
+              <div style={{ display: "grid", gap: "10px" }}>
+                {inventoryAutopilotActivity.slice(0, 6).map((activity) => (
+                  <div
+                    key={activity.id}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: isMobile ? "1fr" : "110px 1fr",
+                      gap: "12px",
+                      padding: "13px",
+                      borderRadius: "16px",
+                      background: "rgba(15,23,42,0.72)",
+                      border: "1px solid rgba(148,163,184,0.12)",
+                    }}
+                  >
+                    <div
+                      style={{
+                        color: "#94a3b8",
+                        fontSize: "11px",
+                        fontWeight: "900",
+                      }}
+                    >
+                      {activity.createdAt instanceof Date
+                        ? activity.createdAt.toLocaleTimeString()
+                        : new Date(activity.createdAt).toLocaleTimeString()}
+                    </div>
+
+                    <div>
+                      <div style={{ color: "white", fontWeight: "950", fontSize: "13px" }}>
+                        {activity.message}
+                      </div>
+                      <div style={{ color: "#86efac", fontSize: "12px", marginTop: "4px" }}>
+                        {activity.impact}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      );
+    })()}
+  </>
+)}{inventoryView === "stock" && (
+  <>
+    {(() => {
+      const stockRows = inventoryDepletionData || [];
+
+      const criticalRows = stockRows.filter(
+        (item) => item.depletionStatus === "Critical"
+      );
+
+      const lowRows = stockRows.filter(
+        (item) => item.depletionStatus === "Low"
+      );
+
+      const healthyRows = stockRows.filter(
+        (item) =>
+          item.depletionStatus !== "Critical" &&
+          item.depletionStatus !== "Low"
+      );
+
+      const stockCardStyle = {
+        padding: "20px",
+        borderRadius: "24px",
+        background: "rgba(15,23,42,0.86)",
+        border: "1px solid rgba(148,163,184,0.14)",
+        boxShadow: "0 18px 50px rgba(2,6,23,0.24)",
+        minWidth: 0,
+      };
+
+      const getStockTone = (status) => {
+        if (status === "Critical") {
+          return {
+            color: "#f87171",
+            bg: "rgba(239,68,68,0.10)",
+            border: "1px solid rgba(248,113,113,0.26)",
+            label: "Critical",
+          };
+        }
+
+        if (status === "Low") {
+          return {
+            color: "#fbbf24",
+            bg: "rgba(245,158,11,0.10)",
+            border: "1px solid rgba(251,191,36,0.26)",
+            label: "Low",
+          };
+        }
+
+        return {
+          color: "#86efac",
+          bg: "rgba(34,197,94,0.08)",
+          border: "1px solid rgba(74,222,128,0.20)",
+          label: status || "Healthy",
+        };
+      };
+
+      const stockTableRows = stockRows.slice(0, 12);
+
+      return (
+        <>
+          {/* =========================
+             STOCK COMMAND STRIP
+          ========================= */}
+          <div
+            style={{
+              gridColumn: isMobile ? "span 1" : "span 12",
+              width: "100%",
+              padding: isMobile ? "20px" : "24px",
+              borderRadius: "26px",
+              background:
+                "linear-gradient(135deg, rgba(34,197,94,0.14), rgba(15,23,42,0.96))",
+              border: "1px solid rgba(74,222,128,0.18)",
+              boxShadow: "0 24px 70px rgba(2,6,23,0.32)",
+              marginBottom: "22px",
+              minWidth: 0,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: "18px",
+                flexWrap: "wrap",
+                alignItems: "flex-start",
+              }}
+            >
+              <div style={{ minWidth: 0, flex: "1 1 520px" }}>
+                <div
+                  style={{
+                    color: "#86efac",
+                    fontSize: "12px",
+                    fontWeight: "950",
+                    letterSpacing: "0.09em",
+                    textTransform: "uppercase",
+                    marginBottom: "10px",
+                  }}
+                >
+                  Stock Control Center
+                </div>
+
+                <h2
+                  style={{
+                    color: "white",
+                    fontSize: isMobile ? "25px" : "32px",
+                    fontWeight: "950",
+                    lineHeight: 1.08,
+                    margin: 0,
+                  }}
+                >
+                  Live stock levels, low inventory, and critical depletion
+                </h2>
+
+                <p
+                  style={{
+                    color: "#cbd5e1",
+                    fontSize: "14px",
+                    lineHeight: 1.7,
+                    marginTop: "12px",
+                    marginBottom: 0,
+                    maxWidth: "900px",
+                  }}
+                >
+                  SerVen is tracking stock pressure, usage velocity, and depletion
+                  status so operators can restock before shortages impact service.
+                </p>
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: isMobile ? "1fr" : "repeat(3, minmax(0, 1fr))",
+                  gap: "12px",
+                  flex: "1 1 520px",
+                }}
+              >
+                {[
+                  ["Critical", criticalRows.length, "Runout risk", "#f87171"],
+                  ["Low Stock", lowRows.length, "Reorder soon", "#fbbf24"],
+                  ["Healthy", healthyRows.length, "Stable items", "#86efac"],
+                ].map(([label, value, subtext, color]) => (
+                  <div
+                    key={label}
+                    style={{
+                      padding: "15px",
+                      borderRadius: "18px",
+                      background: "rgba(15,23,42,0.72)",
+                      border: `1px solid ${color}33`,
+                      minWidth: 0,
+                    }}
+                  >
+                    <div
+                      style={{
+                        color: "#94a3b8",
+                        fontSize: "11px",
+                        fontWeight: "900",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.06em",
+                      }}
+                    >
+                      {label}
                     </div>
 
                     <div
                       style={{
-                        color: "#94a3b8",
+                        color,
+                        fontSize: "30px",
+                        fontWeight: "950",
+                        marginTop: "7px",
+                      }}
+                    >
+                      {value}
+                    </div>
+
+                    <div
+                      style={{
+                        color: "#cbd5e1",
                         fontSize: "12px",
                         marginTop: "4px",
                       }}
                     >
-                      Qty: {Number(item.quantity || 0).toFixed(1)} • Daily usage:{" "}
-                      {Number(item.usageRate || 0).toFixed(1)}
+                      {subtext}
                     </div>
                   </div>
+                ))}
+              </div>
+            </div>
+          </div>
 
+          {/* =========================
+             CRITICAL + LOW STOCK ROW
+          ========================= */}
+          <div
+            style={{
+              gridColumn: isMobile ? "span 1" : "span 12",
+              width: "100%",
+              display: "grid",
+              gridTemplateColumns: isMobile ? "1fr" : "repeat(2, minmax(0, 1fr))",
+              gap: "18px",
+              marginBottom: "22px",
+            }}
+          >
+            <div style={stockCardStyle}>
+              <div
+                style={{
+                  color: "#fca5a5",
+                  fontSize: "12px",
+                  fontWeight: "950",
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  marginBottom: "10px",
+                }}
+              >
+                Critical Inventory
+              </div>
+
+              <h3
+                style={{
+                  color: "white",
+                  fontSize: "22px",
+                  fontWeight: "950",
+                  marginTop: 0,
+                  marginBottom: "14px",
+                }}
+              >
+                Items needing immediate attention
+              </h3>
+
+              <div style={{ display: "grid", gap: "12px" }}>
+                {criticalRows.length > 0 ? (
+                  criticalRows.slice(0, 6).map((item, index) => {
+                    const tone = getStockTone(item.depletionStatus);
+
+                    return (
+                      <div
+                        key={`${item.name || item.ingredient || index}-critical`}
+                        style={{
+                          padding: "14px",
+                          borderRadius: "16px",
+                          background: tone.bg,
+                          border: tone.border,
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            gap: "12px",
+                            alignItems: "flex-start",
+                          }}
+                        >
+                          <div style={{ minWidth: 0 }}>
+                            <div
+                              style={{
+                                color: "white",
+                                fontSize: "15px",
+                                fontWeight: "950",
+                                whiteSpace: "nowrap",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                              }}
+                            >
+                              {item.name ||
+                                item.ingredient ||
+                                item.item_name ||
+                                "Unknown Item"}
+                            </div>
+
+                            <div
+                              style={{
+                                color: "#cbd5e1",
+                                fontSize: "12px",
+                                marginTop: "5px",
+                              }}
+                            >
+                              Qty: {Number(item.quantity || 0).toFixed(1)} · Usage:{" "}
+                              {Number(item.usageRate || 0).toFixed(1)}/day
+                            </div>
+                          </div>
+
+                          <div
+                            style={{
+                              color: tone.color,
+                              fontSize: "12px",
+                              fontWeight: "950",
+                              whiteSpace: "nowrap",
+                              textAlign: "right",
+                            }}
+                          >
+                            {item.daysRemaining > 0
+                              ? `${item.daysRemaining} days`
+                              : "Now"}
+                          </div>
+                        </div>
+
+                        {Number(item.suggestedQuantity || 0) > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => handleAutoRestockFromAlert(item)}
+                            style={{
+                              marginTop: "10px",
+                              padding: "8px 10px",
+                              borderRadius: "11px",
+                              border: "none",
+                              background:
+                                "linear-gradient(135deg, #f59e0b, #d97706)",
+                              color: "white",
+                              fontWeight: "950",
+                              cursor: "pointer",
+                              fontSize: "12px",
+                            }}
+                          >
+                            Restock Now
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })
+                ) : (
                   <div
                     style={{
-                      color:
-                        item.depletionStatus === "Critical"
-                          ? "#f87171"
-                          : item.depletionStatus === "Low"
-                          ? "#fbbf24"
-                          : "#86efac",
-                      fontWeight: "900",
-                      fontSize: "13px",
-                      textAlign: "right",
-                      flexShrink: 0,
+                      padding: "15px",
+                      borderRadius: "16px",
+                      background: "rgba(255,255,255,0.04)",
+                      border: "1px solid rgba(148,163,184,0.12)",
+                      color: "#cbd5e1",
+                      fontSize: "14px",
+                      lineHeight: 1.6,
                     }}
                   >
-                    {item.daysRemaining > 0
-  ? `${item.daysRemaining} days`
-  : "Monitoring"}
-                    <div style={{ fontSize: "11px", marginTop: "4px" }}>
-                      {item.depletionStatus}
-                    </div>
+                    No critical inventory detected right now.
                   </div>
+                )}
+              </div>
+            </div>
+
+            <div style={stockCardStyle}>
+              <div
+                style={{
+                  color: "#fbbf24",
+                  fontSize: "12px",
+                  fontWeight: "950",
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  marginBottom: "10px",
+                }}
+              >
+                Low Stock Watch
+              </div>
+
+              <h3
+                style={{
+                  color: "white",
+                  fontSize: "22px",
+                  fontWeight: "950",
+                  marginTop: 0,
+                  marginBottom: "14px",
+                }}
+              >
+                Items approaching reorder pressure
+              </h3>
+
+              <div style={{ display: "grid", gap: "12px" }}>
+                {lowRows.length > 0 ? (
+                  lowRows.slice(0, 6).map((item, index) => {
+                    const tone = getStockTone(item.depletionStatus);
+
+                    return (
+                      <div
+                        key={`${item.name || item.ingredient || index}-low`}
+                        style={{
+                          padding: "14px",
+                          borderRadius: "16px",
+                          background: tone.bg,
+                          border: tone.border,
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            gap: "12px",
+                            alignItems: "flex-start",
+                          }}
+                        >
+                          <div style={{ minWidth: 0 }}>
+                            <div
+                              style={{
+                                color: "white",
+                                fontSize: "15px",
+                                fontWeight: "950",
+                                whiteSpace: "nowrap",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                              }}
+                            >
+                              {item.name ||
+                                item.ingredient ||
+                                item.item_name ||
+                                "Unknown Item"}
+                            </div>
+
+                            <div
+                              style={{
+                                color: "#cbd5e1",
+                                fontSize: "12px",
+                                marginTop: "5px",
+                              }}
+                            >
+                              Qty: {Number(item.quantity || 0).toFixed(1)} · Usage:{" "}
+                              {Number(item.usageRate || 0).toFixed(1)}/day
+                            </div>
+                          </div>
+
+                          <div
+                            style={{
+                              color: tone.color,
+                              fontSize: "12px",
+                              fontWeight: "950",
+                              whiteSpace: "nowrap",
+                              textAlign: "right",
+                            }}
+                          >
+                            {item.daysRemaining > 0
+                              ? `${item.daysRemaining} days`
+                              : "Monitor"}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div
+                    style={{
+                      padding: "15px",
+                      borderRadius: "16px",
+                      background: "rgba(255,255,255,0.04)",
+                      border: "1px solid rgba(148,163,184,0.12)",
+                      color: "#cbd5e1",
+                      fontSize: "14px",
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    No low-stock items detected right now.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* =========================
+             INVENTORY TABLE
+          ========================= */}
+          <div
+            style={{
+              gridColumn: isMobile ? "span 1" : "span 12",
+              width: "100%",
+              padding: "22px",
+              borderRadius: "24px",
+              background: "rgba(15,23,42,0.90)",
+              border: "1px solid rgba(148,163,184,0.14)",
+              boxShadow: "0 22px 60px rgba(2,6,23,0.24)",
+              minWidth: 0,
+              marginBottom: "24px",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: "14px",
+                flexWrap: "wrap",
+                alignItems: "flex-start",
+                marginBottom: "16px",
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    color: "#86efac",
+                    fontSize: "12px",
+                    fontWeight: "950",
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Stock Ledger
                 </div>
-              ))
+
+                <h3
+                  style={{
+                    color: "white",
+                    fontSize: "24px",
+                    fontWeight: "950",
+                    margin: "8px 0 0",
+                  }}
+                >
+                  Inventory table
+                </h3>
+              </div>
+
+              <div
+                style={{
+                  color: "#94a3b8",
+                  fontSize: "12px",
+                  fontWeight: "800",
+                }}
+              >
+                Showing {stockTableRows.length} of {stockRows.length} tracked items
+              </div>
+            </div>
+
+            {stockRows.length > 0 ? (
+              <div
+                style={{
+                  width: "100%",
+                  overflowX: "auto",
+                  borderRadius: "18px",
+                  border: "1px solid rgba(148,163,184,0.12)",
+                }}
+              >
+                <table
+                  style={{
+                    width: "100%",
+                    borderCollapse: "collapse",
+                    minWidth: "760px",
+                  }}
+                >
+                  <thead>
+                    <tr style={{ background: "rgba(255,255,255,0.04)" }}>
+                      {[
+                        "Item",
+                        "Quantity",
+                        "Daily Usage",
+                        "Days Left",
+                        "Status",
+                        "Action",
+                      ].map((header) => (
+                        <th
+                          key={header}
+                          style={{
+                            padding: "13px 14px",
+                            color: "#94a3b8",
+                            fontSize: "11px",
+                            fontWeight: "950",
+                            textAlign: "left",
+                            textTransform: "uppercase",
+                            letterSpacing: "0.06em",
+                            borderBottom: "1px solid rgba(148,163,184,0.12)",
+                          }}
+                        >
+                          {header}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {stockTableRows.map((item, index) => {
+                      const tone = getStockTone(item.depletionStatus);
+
+                      return (
+                        <tr key={`${item.name || item.ingredient || index}-table`}>
+                          <td
+                            style={{
+                              padding: "14px",
+                              color: "white",
+                              fontSize: "13px",
+                              fontWeight: "900",
+                              borderBottom: "1px solid rgba(148,163,184,0.08)",
+                            }}
+                          >
+                            {item.name ||
+                              item.ingredient ||
+                              item.item_name ||
+                              "Unknown Item"}
+                          </td>
+
+                          <td
+                            style={{
+                              padding: "14px",
+                              color: "#e2e8f0",
+                              fontSize: "13px",
+                              borderBottom: "1px solid rgba(148,163,184,0.08)",
+                            }}
+                          >
+                            {Number(item.quantity || 0).toFixed(1)}
+                          </td>
+
+                          <td
+                            style={{
+                              padding: "14px",
+                              color: "#e2e8f0",
+                              fontSize: "13px",
+                              borderBottom: "1px solid rgba(148,163,184,0.08)",
+                            }}
+                          >
+                            {Number(item.usageRate || 0).toFixed(1)}
+                          </td>
+
+                          <td
+                            style={{
+                              padding: "14px",
+                              color: "#e2e8f0",
+                              fontSize: "13px",
+                              borderBottom: "1px solid rgba(148,163,184,0.08)",
+                            }}
+                          >
+                            {item.daysRemaining > 0
+                              ? `${item.daysRemaining} days`
+                              : "Monitoring"}
+                          </td>
+
+                          <td
+                            style={{
+                              padding: "14px",
+                              borderBottom: "1px solid rgba(148,163,184,0.08)",
+                            }}
+                          >
+                            <span
+                              style={{
+                                color: tone.color,
+                                background: tone.bg,
+                                border: tone.border,
+                                padding: "6px 9px",
+                                borderRadius: "999px",
+                                fontSize: "11px",
+                                fontWeight: "950",
+                              }}
+                            >
+                              {tone.label}
+                            </span>
+                          </td>
+
+                          <td
+                            style={{
+                              padding: "14px",
+                              borderBottom: "1px solid rgba(148,163,184,0.08)",
+                            }}
+                          >
+                            {item.depletionStatus === "Critical" ||
+                            item.depletionStatus === "Low" ? (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  quickRestockRef.current?.scrollIntoView({
+                                    behavior: "smooth",
+                                    block: "center",
+                                  })
+                                }
+                                style={{
+                                  padding: "7px 10px",
+                                  borderRadius: "10px",
+                                  border: "1px solid rgba(251,191,36,0.24)",
+                                  background: "rgba(245,158,11,0.10)",
+                                  color: "#fbbf24",
+                                  fontSize: "11px",
+                                  fontWeight: "950",
+                                  cursor: "pointer",
+                                }}
+                              >
+                                Restock
+                              </button>
+                            ) : (
+                              <span
+                                style={{
+                                  color: "#64748b",
+                                  fontSize: "12px",
+                                  fontWeight: "800",
+                                }}
+                              >
+                                Monitor
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             ) : (
               <div
                 style={{
-                  padding: "14px 16px",
-                  borderRadius: "16px",
+                  padding: "18px",
+                  borderRadius: "18px",
                   background: "rgba(255,255,255,0.04)",
                   border: "1px solid rgba(148,163,184,0.12)",
                   color: "#cbd5e1",
@@ -65252,778 +66366,3599 @@ if (!res.ok) {
                   lineHeight: 1.6,
                 }}
               >
-                Upload ingredient inventory with quantity and daily usage to activate
-                depletion forecasting.
+                No stock data yet. Upload ingredient inventory with quantity and
+                usage rate to activate the stock ledger.
               </div>
             )}
           </div>
-        </div>
-      </div>
-    </>
-  );
-})()}
-{/* =========================
-   📦 INVENTORY HEALTH SCORE
-========================= */}
+        </>
+      );
+    })()}
+  </>
+)}{inventoryView === "purchasing" && (
+  <>
+    {(() => {
+      const purchaseRows =
+        inventoryPurchases ||
+        purchaseHistory ||
+        restockActivity ||
+        inventoryRestockLogs ||
+        [];
 
-{hasProAccess && (
-  <div
-    style={{
-      gridColumn: isMobile ? "span 1" : "span 12",
-      width: "100%",
-      minWidth: 0,
-      maxWidth: "100%",
+      const invoiceRows = invoiceUploads || invoice_uploads || invoiceImports || [];
 
-      marginTop: "18px",
-      marginBottom: "24px",
-      padding: "24px",
-      borderRadius: "24px",
-      background:
-        "linear-gradient(135deg, rgba(34,197,94,0.16), rgba(15,23,42,0.96))",
-      border: `1px solid ${inventoryHealthScoreData.color}55`,
-      boxShadow: "0 22px 60px rgba(2,6,23,0.32)",
-    }}
-  >
-    <div
-      style={{
-        color: "#86efac",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      Inventory Health Score
-    </div>
+      const activityRows = [
+        ...(inventoryRestockLogs || []),
+        ...(restockActivity || []),
+        ...(invoiceRows || []),
+      ].slice(0, 8);
 
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: isMobile ? "1fr" : "180px 1fr",
-        gap: "18px",
-        alignItems: "center",
-      }}
-    >
-      <div
-        style={{
-          width: "150px",
-          height: "150px",
-          borderRadius: "999px",
-          display: "grid",
-          placeItems: "center",
-          background: `conic-gradient(${inventoryHealthScoreData.color} ${inventoryHealthScoreData.score}%, rgba(148,163,184,0.18) 0)`,
-          margin: isMobile ? "0 auto" : 0,
-        }}
-      >
-        <div
-          style={{
-            width: "118px",
-            height: "118px",
-            borderRadius: "999px",
-            background: "rgba(15,23,42,0.96)",
-            display: "grid",
-            placeItems: "center",
-            border: "1px solid rgba(148,163,184,0.16)",
-          }}
-        >
-          <div style={{ textAlign: "center" }}>
-            <div style={{ color: "white", fontSize: "34px", fontWeight: "950" }}>
-              {inventoryHealthScoreData.score}
-            </div>
-            <div
-              style={{
-                color: inventoryHealthScoreData.color,
-                fontSize: "12px",
-                fontWeight: "900",
-                marginTop: "6px",
-              }}
-            >
-              {inventoryHealthScoreData.status}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div>
-        <h3 style={{ color: "white", fontSize: "24px", fontWeight: "900" }}>
-          AI inventory operational health
-        </h3>
-
-        <p style={{ color: "#cbd5e1", fontSize: "14px", lineHeight: 1.7 }}>
-          {inventoryHealthScoreData.insight}
-        </p>
-
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
-            gap: "12px",
-          }}
-        >
-          {[
-            ["Critical Items", inventoryHealthScoreData.criticalCount],
-            ["Low Stock", inventoryHealthScoreData.lowStockCount],
-            ["Revenue Risk", `$${Number(inventoryHealthScoreData.revenueLoss || 0).toLocaleString()}`],
-          ].map(([label, value]) => (
-            <div
-              key={label}
-              style={{
-                padding: "13px",
-                borderRadius: "16px",
-                background: "rgba(15,23,42,0.72)",
-                border: "1px solid rgba(148,163,184,0.14)",
-              }}
-            >
-              <div style={{ color: "#94a3b8", fontSize: "11px", fontWeight: "800" }}>
-                {label}
-              </div>
-              <div style={{ color: "white", fontSize: "22px", fontWeight: "900" }}>
-                {value}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  </div>
-)}
-
-{/* =========================
-   🚨 INVENTORY EXECUTIVE ALERTS FEED
-========================= */}
-
-{hasProAccess && (
-  <div
-  style={{
-    gridColumn: isMobile ? "span 1" : "span 6",
-    width: "100%",
-    minWidth: 0,
-    maxWidth: "100%",
-
-    marginTop: "18px",
-      marginBottom: "24px",
-      padding: "22px",
-      borderRadius: "24px",
-      background:
-        "linear-gradient(135deg, rgba(239,68,68,0.12), rgba(15,23,42,0.96))",
-      border: "1px solid rgba(248,113,113,0.22)",
-      boxShadow: "0 22px 60px rgba(2,6,23,0.30)",
-    }}
-  >
-    <div
-      style={{
-        color: "#fca5a5",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "8px",
-      }}
-    >
-      Inventory Executive Alerts
-    </div>
-
-    <h3 style={{ color: "white", fontSize: "24px", fontWeight: "900" }}>
-      AI inventory risk prioritization
-    </h3>
-
-    <p style={{ color: "#cbd5e1", fontSize: "14px", lineHeight: 1.6 }}>
-      SerVen is prioritizing stockout risk, revenue exposure, depletion pressure,
-      and inventory cost leakage.
-    </p>
-
-    <div style={{ display: "grid", gap: "12px", marginTop: "18px" }}>
-      {(inventoryExecutiveAlertsFeed || []).map((alert, index) => {
-        const alertColor =
-          alert.priority === "Critical"
-            ? "#f87171"
-            : alert.priority === "High"
-            ? "#fbbf24"
-            : "#38bdf8";
-
+      const totalPurchaseSpend = purchaseRows.reduce((sum, row) => {
         return (
-          <div
-            key={`${alert.title}-${index}`}
-            style={{
-              padding: "16px",
-              borderRadius: "18px",
-              background: "rgba(15,23,42,0.74)",
-              border: `1px solid ${alertColor}55`,
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                gap: "12px",
-                marginBottom: "8px",
-              }}
-            >
-              <div style={{ color: "white", fontSize: "15px", fontWeight: "900" }}>
-                {alert.title}
-              </div>
-
-              <div
-                style={{
-                  color: alertColor,
-                  fontSize: "11px",
-                  fontWeight: "900",
-                  textTransform: "uppercase",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {alert.priority}
-              </div>
-            </div>
-
-            <div style={{ color: "#cbd5e1", fontSize: "13px", lineHeight: 1.6 }}>
-              {alert.detail}
-            </div>
-          </div>
+          sum +
+          Number(
+            row.amount ||
+              row.total ||
+              row.total_cost ||
+              row.totalCost ||
+              row.invoice_total ||
+              row.invoiceTotal ||
+              row.purchase_amount ||
+              0
+          )
         );
-      })}
-    </div>
-  </div>
-)}
+      }, 0);
 
-{/* =========================
-   🥬 DEAD INVENTORY INTELLIGENCE
-========================= */}
+      const avgPurchaseCost =
+        purchaseRows.length > 0 ? totalPurchaseSpend / purchaseRows.length : 0;
 
-{hasProAccess && (
-  <div
-  style={{
-    gridColumn: isMobile ? "span 1" : "span 6",
-    width: "100%",
-    minWidth: 0,
-    maxWidth: "100%",
+      const pendingRestocks = (combinedInventoryAlerts || []).filter(
+        (alert) =>
+          (alert.type === "critical" || alert.type === "warning") &&
+          Number(alert.suggestedQuantity || 0) > 0
+      );
 
-    marginTop: "18px",
-      marginBottom: "24px",
-      padding: "22px",
-      borderRadius: "24px",
-      background:
-        "linear-gradient(135deg, rgba(132,204,22,0.14), rgba(15,23,42,0.96))",
-      border: "1px solid rgba(132,204,22,0.24)",
-      boxShadow: "0 22px 60px rgba(2,6,23,0.30)",
-    }}
-  >
-    <div
-      style={{
-        color: "#bef264",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "8px",
-      }}
-    >
-      Dead Inventory Intelligence
-    </div>
+      const vendorSpendMap = purchaseRows.reduce((acc, row) => {
+        const vendor =
+          row.vendor ||
+          row.vendor_name ||
+          row.supplier ||
+          row.supplier_name ||
+          row.Supplier ||
+          "Unknown Vendor";
 
-    <h3 style={{ color: "white", fontSize: "24px", fontWeight: "900" }}>
-      Slow-moving stock and tied-up cash detection
-    </h3>
-
-    <p style={{ color: "#cbd5e1", fontSize: "14px", lineHeight: 1.6 }}>
-      SerVen is identifying inventory that is moving too slowly, tying up cash,
-      or creating future spoilage and waste exposure.
-    </p>
-
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
-        gap: "14px",
-        marginTop: "18px",
-        marginBottom: "18px",
-      }}
-    >
-      <div style={deadInventoryMiniCardStyle}>
-        <div style={deadInventoryMiniLabelStyle}>Slow / Dead Items</div>
-        <div style={deadInventoryMiniValueStyle}>{deadInventoryData?.length || 0}</div>
-      </div>
-
-      <div style={deadInventoryMiniCardStyle}>
-        <div style={deadInventoryMiniLabelStyle}>Dead Stock</div>
-        <div style={{ ...deadInventoryMiniValueStyle, color: "#f87171" }}>
-          {(deadInventoryData || []).filter((item) => item.status === "Dead Stock").length}
-        </div>
-      </div>
-
-      <div style={deadInventoryMiniCardStyle}>
-        <div style={deadInventoryMiniLabelStyle}>Tied-Up Cash</div>
-        <div style={{ ...deadInventoryMiniValueStyle, color: "#fbbf24" }}>
-          $
-          {(deadInventoryData || [])
-            .reduce((sum, item) => sum + Number(item.tiedUpCash || 0), 0)
-            .toLocaleString()}
-        </div>
-      </div>
-    </div>
-
-    <div style={{ display: "grid", gap: "12px" }}>
-      {(deadInventoryData || []).slice(0, 6).map((item, index) => {
-        const statusColor =
-          item.status === "Dead Stock"
-            ? "#f87171"
-            : item.status === "Slow Moving"
-            ? "#fbbf24"
-            : "#38bdf8";
-
-        return (
-          <div
-            key={`${item.name}-${index}`}
-            style={{
-              padding: "16px",
-              borderRadius: "18px",
-              background: "rgba(15,23,42,0.74)",
-              border: `1px solid ${statusColor}55`,
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                gap: "12px",
-                marginBottom: "10px",
-              }}
-            >
-              <div>
-                <div style={{ color: "white", fontSize: "15px", fontWeight: "900" }}>
-                  {item.name}
-                </div>
-
-                <div style={{ color: "#94a3b8", fontSize: "12px", marginTop: "4px" }}>
-                  {Number(item.daysOnHand || 0).toFixed(0)} days on hand ·{" "}
-                  {Number(item.usageRate || 0).toFixed(1)} usage/day
-                </div>
-              </div>
-
-              <div
-                style={{
-                  color: statusColor,
-                  fontSize: "12px",
-                  fontWeight: "900",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {item.status}
-              </div>
-            </div>
-
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                color: "#cbd5e1",
-                fontSize: "12px",
-                fontWeight: "700",
-              }}
-            >
-              <span>Qty: {Number(item.quantity || 0).toFixed(1)}</span>
-              <span>Cash tied up: ${Number(item.tiedUpCash || 0).toLocaleString()}</span>
-            </div>
-          </div>
+        const amount = Number(
+          row.amount ||
+            row.total ||
+            row.total_cost ||
+            row.totalCost ||
+            row.invoice_total ||
+            row.invoiceTotal ||
+            row.purchase_amount ||
+            0
         );
-      })}
 
-      {(!deadInventoryData || deadInventoryData.length === 0) && (
-        <div
-          style={{
-            padding: "16px",
-            borderRadius: "18px",
-            background: "rgba(15,23,42,0.74)",
-            border: "1px solid rgba(132,204,22,0.18)",
-            color: "#cbd5e1",
-            fontSize: "14px",
-            lineHeight: 1.6,
-          }}
-        >
-          No dead inventory detected. SerVen is monitoring days-on-hand,
-          movement velocity, and tied-up inventory cash.
-        </div>
-      )}
-    </div>
-  </div>
-)}
-{/* =========================
-   📈 INVENTORY FORECASTING INTELLIGENCE
-========================= */}
+        acc[vendor] = (acc[vendor] || 0) + amount;
+        return acc;
+      }, {});
 
-{/* FORECASTING + EXECUTIVE SUMMARY ROW */}
-<div
-  style={{
-    gridColumn: isMobile ? "span 1" : "span 12",
-    width: "100%",
-    minWidth: 0,
-    display: "grid",
-    gridTemplateColumns: isMobile
-      ? "1fr"
-      : "repeat(2, minmax(0, 1fr))",
-    gap: "18px",
-    alignItems: "start",
-    marginBottom: "26px",
-  }}
->
-  {hasProAccess && (
-    <div
-      style={{
-        width: "100%",
+      const vendorSpendRows = Object.entries(vendorSpendMap)
+        .map(([vendor, amount]) => ({ vendor, amount }))
+        .sort((a, b) => b.amount - a.amount)
+        .slice(0, 6);
+
+      const purchasingCardStyle = {
+        padding: "22px",
+        borderRadius: "24px",
+        background: "rgba(15,23,42,0.90)",
+        border: "1px solid rgba(148,163,184,0.14)",
+        boxShadow: "0 22px 60px rgba(2,6,23,0.24)",
         minWidth: 0,
-      marginTop: "18px",
-      marginBottom: "24px",
-      padding: "22px",
-      borderRadius: "24px",
+      };
 
-      background:
-        "linear-gradient(135deg, rgba(20,184,166,0.14), rgba(15,23,42,0.96))",
+      const getMoney = (row) =>
+        Number(
+          row.amount ||
+            row.total ||
+            row.total_cost ||
+            row.totalCost ||
+            row.invoice_total ||
+            row.invoiceTotal ||
+            row.purchase_amount ||
+            0
+        );
 
-      border: "1px solid rgba(45,212,191,0.24)",
-      boxShadow: "0 22px 60px rgba(2,6,23,0.30)",
+      const getVendor = (row) =>
+        row.vendor ||
+        row.vendor_name ||
+        row.supplier ||
+        row.supplier_name ||
+        row.Supplier ||
+        "Unknown Vendor";
 
-      overflow: "hidden",
-    }}
-  >
-    <div
-      style={{
-        color: "#5eead4",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "8px",
-      }}
-    >
-      Inventory Forecasting Intelligence
-    </div>
+      const getPurchaseDate = (row) =>
+        row.purchase_date ||
+        row.invoice_date ||
+        row.created_at ||
+        row.date ||
+        row.Date ||
+        null;
 
-    <h3 style={{ color: "white", fontSize: "24px", fontWeight: "900" }}>
-      Projected depletion and 7-day inventory pressure
-    </h3>
-
-    <p style={{ color: "#cbd5e1", fontSize: "14px", lineHeight: 1.6 }}>
-      SerVen is forecasting which ingredients may fall below usable levels based
-      on current stock, usage velocity, and projected 7-day demand.
-    </p>
-
-    <div style={{ display: "grid", gap: "12px", marginTop: "18px" }}>
-      {(inventoryForecastingData || []).slice(0, 8).map((item, index) => {
-        const statusColor =
-          item.forecastStatus === "Critical" ||
-          item.forecastStatus === "Stockout Risk"
-            ? "#f87171"
-            : item.forecastStatus === "Reorder Soon"
-            ? "#fbbf24"
-            : item.forecastStatus === "Monitor"
-            ? "#38bdf8"
-            : "#22c55e";
-
-        return (
+      return (
+        <>
+          {/* =========================
+             PURCHASING COMMAND CENTER
+          ========================= */}
           <div
-            key={`${item.name}-${index}`}
             style={{
-              padding: "16px",
-              borderRadius: "18px",
-              background: "rgba(15,23,42,0.74)",
-              border: `1px solid ${statusColor}55`,
+              gridColumn: isMobile ? "span 1" : "span 12",
+              width: "100%",
+              padding: isMobile ? "20px" : "26px",
+              borderRadius: "26px",
+              background:
+                "linear-gradient(135deg, rgba(59,130,246,0.14), rgba(15,23,42,0.96))",
+              border: "1px solid rgba(96,165,250,0.20)",
+              boxShadow: "0 24px 70px rgba(2,6,23,0.32)",
+              marginBottom: "22px",
+              minWidth: 0,
             }}
           >
             <div
               style={{
                 display: "flex",
-justifyContent: "space-between",
-alignItems: "flex-start",
-flexWrap: "wrap",
-                gap: "12px",
-                marginBottom: "10px",
+                justifyContent: "space-between",
+                gap: "18px",
+                flexWrap: "wrap",
+                alignItems: "flex-start",
               }}
             >
-              <div>
-                <div style={{ color: "white", fontSize: "15px", fontWeight: "900" }}>
-                  {item.name}
+              <div style={{ minWidth: 0, flex: "1 1 560px" }}>
+                <div
+                  style={{
+                    color: "#93c5fd",
+                    fontSize: "12px",
+                    fontWeight: "950",
+                    letterSpacing: "0.09em",
+                    textTransform: "uppercase",
+                    marginBottom: "10px",
+                  }}
+                >
+                  Purchasing Command Center
                 </div>
 
-                <div style={{ color: "#94a3b8", fontSize: "12px", marginTop: "4px" }}>
-                  {Number(item.daysRemaining || 0).toFixed(1)} days remaining ·{" "}
-                  {Number(item.usageRate || 0).toFixed(1)} usage/day
-                </div>
+                <h2
+                  style={{
+                    color: "white",
+                    fontSize: isMobile ? "25px" : "32px",
+                    fontWeight: "950",
+                    lineHeight: 1.08,
+                    margin: 0,
+                  }}
+                >
+                  Procurement spend, invoice flow, and restock activity
+                </h2>
+
+                <p
+                  style={{
+                    color: "#cbd5e1",
+                    fontSize: "14px",
+                    lineHeight: 1.75,
+                    marginTop: "12px",
+                    marginBottom: 0,
+                    maxWidth: "900px",
+                  }}
+                >
+                  SerVen is tracking purchase history, invoice imports, restock
+                  activity, and vendor spend so operators can control purchasing
+                  before costs leak into margin.
+                </p>
               </div>
 
               <div
                 style={{
-                  color: statusColor,
-                  fontSize: "12px",
-                  fontWeight: "900",
-                  whiteSpace: "nowrap",
+                  flex: "1 1 520px",
+                  display: "grid",
+                  gridTemplateColumns: isMobile
+                    ? "1fr"
+                    : "repeat(2, minmax(0, 1fr))",
+                  gap: "12px",
                 }}
               >
-                {item.forecastStatus}
-              </div>
-            </div>
+                {[
+                  [
+                    "Total Purchase Spend",
+                    `$${Math.round(totalPurchaseSpend || 0).toLocaleString()}`,
+                    "Tracked purchasing value",
+                    "#93c5fd",
+                  ],
+                  [
+                    "Invoices Imported",
+                    invoiceRows.length,
+                    "Uploaded invoice records",
+                    "#86efac",
+                  ],
+                  [
+                    "Pending Restocks",
+                    pendingRestocks.length,
+                    "Items requesting action",
+                    "#fbbf24",
+                  ],
+                  [
+                    "Avg Purchase Cost",
+                    `$${Math.round(avgPurchaseCost || 0).toLocaleString()}`,
+                    "Average purchase value",
+                    "#c4b5fd",
+                  ],
+                ].map(([label, value, subtext, color]) => (
+                  <div
+                    key={label}
+                    style={{
+                      padding: "15px",
+                      borderRadius: "18px",
+                      background: "rgba(15,23,42,0.72)",
+                      border: `1px solid ${color}33`,
+                      minWidth: 0,
+                    }}
+                  >
+                    <div
+                      style={{
+                        color: "#94a3b8",
+                        fontSize: "11px",
+                        fontWeight: "900",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.06em",
+                      }}
+                    >
+                      {label}
+                    </div>
 
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
-                gap: "10px",
-              }}
-            >
-              <div style={inventoryForecastMiniCardStyle}>
-                <div style={inventoryForecastMiniLabelStyle}>Current Stock</div>
-                <div style={inventoryForecastMiniValueStyle}>
-                  {Number(item.quantity || 0).toFixed(1)}
-                </div>
-              </div>
+                    <div
+                      style={{
+                        color,
+                        fontSize: "28px",
+                        fontWeight: "950",
+                        marginTop: "7px",
+                      }}
+                    >
+                      {value}
+                    </div>
 
-              <div style={inventoryForecastMiniCardStyle}>
-                <div style={inventoryForecastMiniLabelStyle}>7-Day Usage</div>
-                <div style={inventoryForecastMiniValueStyle}>
-                  {Number(item.projectedUsage7Days || 0).toFixed(1)}
-                </div>
-              </div>
-
-              <div style={inventoryForecastMiniCardStyle}>
-                <div style={inventoryForecastMiniLabelStyle}>Projected Remaining</div>
-                <div style={{ ...inventoryForecastMiniValueStyle, color: statusColor }}>
-                  {Number(item.projectedRemaining || 0).toFixed(1)}
-                </div>
+                    <div
+                      style={{
+                        color: "#cbd5e1",
+                        fontSize: "12px",
+                        marginTop: "4px",
+                      }}
+                    >
+                      {subtext}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
-        );
-      })}
 
-      {(!inventoryForecastingData || inventoryForecastingData.length === 0) && (
-        <div
-          style={{
-            padding: "16px",
-            borderRadius: "18px",
-            background: "rgba(15,23,42,0.74)",
-            border: "1px solid rgba(45,212,191,0.18)",
-            color: "#cbd5e1",
-            fontSize: "14px",
-            lineHeight: 1.6,
-          }}
-        >
-          Upload inventory quantities and usage rates to activate inventory
-          forecasting.
-        </div>
-      )}
-    </div>
-  </div>
-)}
-{/* 🧠 SMART INVENTORY ALERTS */}
-{inventoryAlerts.length > 0 && (
-  <div
-    style={{
-      marginBottom: "20px",
-      padding: "16px",
-      borderRadius: "18px",
-      background:
-        "linear-gradient(135deg, rgba(239,68,68,0.12), rgba(15,23,42,0.92))",
-      border: "1px solid rgba(239,68,68,0.25)",
-    }}
-  >
-    <div style={{ color: "#fca5a5", fontWeight: "900", fontSize: "12px" }}>
-      Smart Inventory Alerts
-    </div>
-
-    <div
-      style={{
-        color: "white",
-        fontWeight: "900",
-        fontSize: "18px",
-        marginTop: "6px",
-      }}
-    >
-      Immediate attention needed
-    </div>
-
-    <div style={{ marginTop: "10px", display: "grid", gap: "8px" }}>
-     {combinedInventoryAlerts.map((alert, index) => {
-  const tone = getInventoryAlertTone(alert.type);
-
-  return (
-   <div
-  key={index}
-  style={{
-    padding: "10px",
-    borderRadius: "12px",
-    background: tone.bg,
-    border: tone.border,
-    color: tone.color,
-    fontSize: "13px",
-    fontWeight: "800",
-    boxShadow: tone.shadow, // 👈 THIS is the new part
-    animation: alert.type === "critical" ? "criticalPulse 1.8s ease-in-out infinite" : "none",
-  }}
->
-    
-     <div
-  style={{
-    fontSize: "10px",
-    fontWeight: "900",
-    textTransform: "uppercase",
-    marginBottom: "4px",
-    opacity: 0.85,
-  }}
->
-  {tone.icon} {tone.label}
-</div>
-
-      <div>{alert.message}</div>
-
-      {alert.suggestion && (
-        <div
-          style={{
-            color: "#fde68a",
-            fontSize: "12px",
-            marginTop: "4px",
-            fontWeight: "900",
-          }}
-        >
-          {alert.suggestion}
-        </div>
-      )}
-
-      {alert.suggestedQuantity > 0 && (
-        <button
-          type="button"
-          onClick={() => handleAutoRestockFromAlert(alert)}
-          style={{
-            marginTop: "8px",
-            padding: "8px 10px",
-            borderRadius: "10px",
-            border: "none",
-            background: "linear-gradient(135deg, #f59e0b, #d97706)",
-            color: "white",
-            fontWeight: "900",
-            cursor: "pointer",
-            fontSize: "12px",
-          }}
-        >
-          Restock Now
-        </button>
-      )}
-
-      {alert.ingredientName && (
-        <>
-          <button
-            type="button"
-            onClick={async () => {
-              await fetch("/api/inventory-alert-email", {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                  ownerEmail: "antoinemiller@servenai.com",
-                  restaurantName: selectedClient?.client_name || "Restaurant",
-                  ingredientName: alert.ingredientName,
-                  message: alert.message,
-                  suggestion: alert.suggestion,
-                }),
-              });
-
-              setMessage("Inventory alert email sent");
-            }}
-            style={{
-              marginTop: "8px",
-              marginLeft: "8px",
-              padding: "8px 10px",
-              borderRadius: "10px",
-              border: "1px solid rgba(239,68,68,0.25)",
-              background: "rgba(239,68,68,0.12)",
-              color: "#fca5a5",
-              fontWeight: "900",
-              cursor: "pointer",
-              fontSize: "12px",
-            }}
-          >
-            Send Alert Email
-          </button>
-
+          {/* =========================
+             ACTIVITY + AI RESTOCK ROW
+          ========================= */}
           <div
             style={{
-              marginTop: "6px",
-              color: "#94a3b8",
-              fontSize: "11px",
-              fontWeight: "700",
+              gridColumn: isMobile ? "span 1" : "span 12",
+              width: "100%",
+              display: "grid",
+              gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 7fr) minmax(0, 5fr)",
+              gap: "18px",
+              marginBottom: "22px",
             }}
           >
-            Auto-email sends once per ingredient per day.
+            <div style={purchasingCardStyle}>
+              <div
+                style={{
+                  color: "#93c5fd",
+                  fontSize: "12px",
+                  fontWeight: "950",
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  marginBottom: "12px",
+                }}
+              >
+                Purchase Activity Timeline
+              </div>
+
+              <div style={{ display: "grid", gap: "10px" }}>
+                {activityRows.length > 0 ? (
+                  activityRows.map((row, index) => {
+                    const dateValue = getPurchaseDate(row);
+                    const vendor = getVendor(row);
+                    const amount = getMoney(row);
+
+                    return (
+                      <div
+                        key={`${vendor}-${index}-activity`}
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: isMobile ? "1fr" : "120px 1fr auto",
+                          gap: "12px",
+                          alignItems: "center",
+                          padding: "14px",
+                          borderRadius: "16px",
+                          background: "rgba(255,255,255,0.04)",
+                          border: "1px solid rgba(148,163,184,0.12)",
+                        }}
+                      >
+                        <div
+                          style={{
+                            color: "#94a3b8",
+                            fontSize: "11px",
+                            fontWeight: "900",
+                          }}
+                        >
+                          {dateValue
+                            ? new Date(dateValue).toLocaleDateString()
+                            : "Recent"}
+                        </div>
+
+                        <div style={{ minWidth: 0 }}>
+                          <div
+                            style={{
+                              color: "white",
+                              fontSize: "14px",
+                              fontWeight: "950",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {row.file_name ||
+                              row.invoice_number ||
+                              row.title ||
+                              row.ingredient_name ||
+                              row.ingredientName ||
+                              vendor}
+                          </div>
+
+                          <div
+                            style={{
+                              color: "#cbd5e1",
+                              fontSize: "12px",
+                              marginTop: "4px",
+                            }}
+                          >
+                            {vendor}
+                          </div>
+                        </div>
+
+                        <div
+                          style={{
+                            color: amount > 0 ? "#86efac" : "#94a3b8",
+                            fontSize: "13px",
+                            fontWeight: "950",
+                            textAlign: isMobile ? "left" : "right",
+                          }}
+                        >
+                          {amount > 0 ? `$${Math.round(amount).toLocaleString()}` : "Logged"}
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div
+                    style={{
+                      padding: "16px",
+                      borderRadius: "18px",
+                      background: "rgba(255,255,255,0.04)",
+                      border: "1px solid rgba(148,163,184,0.12)",
+                      color: "#cbd5e1",
+                      fontSize: "14px",
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    No purchasing activity yet. Import invoices or create restock
+                    actions to activate the purchasing timeline.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div style={purchasingCardStyle}>
+              <div
+                style={{
+                  color: "#fbbf24",
+                  fontSize: "12px",
+                  fontWeight: "950",
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  marginBottom: "12px",
+                }}
+              >
+                AI Restock Recommendations
+              </div>
+
+              <h3
+                style={{
+                  color: "white",
+                  fontSize: "22px",
+                  fontWeight: "950",
+                  marginTop: 0,
+                  marginBottom: "14px",
+                }}
+              >
+                Items ready for purchasing action
+              </h3>
+
+              <div style={{ display: "grid", gap: "12px" }}>
+                {pendingRestocks.length > 0 ? (
+                  pendingRestocks.slice(0, 6).map((alert, index) => (
+                    <div
+                      key={`${alert.ingredientName || alert.title || index}-restock`}
+                      style={{
+                        padding: "14px",
+                        borderRadius: "16px",
+                        background: "rgba(245,158,11,0.10)",
+                        border: "1px solid rgba(251,191,36,0.24)",
+                      }}
+                    >
+                      <div
+                        style={{
+                          color: "white",
+                          fontSize: "14px",
+                          fontWeight: "950",
+                        }}
+                      >
+                        {alert.ingredientName ||
+                          alert.name ||
+                          alert.title ||
+                          "Inventory Item"}
+                      </div>
+
+                      <div
+                        style={{
+                          color: "#cbd5e1",
+                          fontSize: "12px",
+                          lineHeight: 1.5,
+                          marginTop: "5px",
+                        }}
+                      >
+                        {alert.suggestion ||
+                          alert.message ||
+                          "Recommended for restock based on current inventory pressure."}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleAutoRestockFromAlert(alert)}
+                        style={{
+                          marginTop: "10px",
+                          padding: "8px 10px",
+                          borderRadius: "11px",
+                          border: "none",
+                          background: "linear-gradient(135deg, #f59e0b, #d97706)",
+                          color: "white",
+                          fontWeight: "950",
+                          cursor: "pointer",
+                          fontSize: "12px",
+                        }}
+                      >
+                        Restock Now
+                      </button>
+                    </div>
+                  ))
+                ) : (
+                  <div
+                    style={{
+                      padding: "16px",
+                      borderRadius: "18px",
+                      background: "rgba(255,255,255,0.04)",
+                      border: "1px solid rgba(148,163,184,0.12)",
+                      color: "#cbd5e1",
+                      fontSize: "14px",
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    No pending restock actions right now.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* =========================
+             INVOICES + VENDOR SPEND
+          ========================= */}
+          <div
+            style={{
+              gridColumn: isMobile ? "span 1" : "span 12",
+              width: "100%",
+              display: "grid",
+              gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 6fr) minmax(0, 6fr)",
+              gap: "18px",
+              marginBottom: "22px",
+            }}
+          >
+            <div style={purchasingCardStyle}>
+              <div
+                style={{
+                  color: "#86efac",
+                  fontSize: "12px",
+                  fontWeight: "950",
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  marginBottom: "12px",
+                }}
+              >
+                Recent Invoice Imports
+              </div>
+
+              <div style={{ display: "grid", gap: "10px" }}>
+                {invoiceRows.length > 0 ? (
+                  invoiceRows.slice(0, 6).map((invoice, index) => (
+                    <div
+                      key={`${invoice.id || invoice.file_name || index}-invoice`}
+                      style={{
+                        padding: "14px",
+                        borderRadius: "16px",
+                        background: "rgba(255,255,255,0.04)",
+                        border: "1px solid rgba(148,163,184,0.12)",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        gap: "12px",
+                        alignItems: "center",
+                      }}
+                    >
+                      <div style={{ minWidth: 0 }}>
+                        <div
+                          style={{
+                            color: "white",
+                            fontSize: "14px",
+                            fontWeight: "950",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {invoice.file_name ||
+                            invoice.invoice_number ||
+                            "Imported Invoice"}
+                        </div>
+
+                        <div
+                          style={{
+                            color: "#94a3b8",
+                            fontSize: "12px",
+                            marginTop: "4px",
+                          }}
+                        >
+                          {invoice.supplier_name ||
+                            invoice.vendor ||
+                            invoice.supplier ||
+                            "Unknown Supplier"}{" "}
+                          ·{" "}
+                          {invoice.invoice_date
+                            ? new Date(invoice.invoice_date).toLocaleDateString()
+                            : invoice.created_at
+                            ? new Date(invoice.created_at).toLocaleDateString()
+                            : "Recent"}
+                        </div>
+                      </div>
+
+                      <div
+                        style={{
+                          color: "#86efac",
+                          fontSize: "12px",
+                          fontWeight: "950",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        Imported
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div
+                    style={{
+                      padding: "16px",
+                      borderRadius: "18px",
+                      background: "rgba(255,255,255,0.04)",
+                      border: "1px solid rgba(148,163,184,0.12)",
+                      color: "#cbd5e1",
+                      fontSize: "14px",
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    No invoice imports yet. Upload supplier invoices to start
+                    tracking purchasing history.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div style={purchasingCardStyle}>
+              <div
+                style={{
+                  color: "#c4b5fd",
+                  fontSize: "12px",
+                  fontWeight: "950",
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  marginBottom: "12px",
+                }}
+              >
+                Vendor Spend Breakdown
+              </div>
+
+              <div style={{ display: "grid", gap: "12px" }}>
+                {vendorSpendRows.length > 0 ? (
+                  vendorSpendRows.map((row) => {
+                    const pct =
+                      totalPurchaseSpend > 0
+                        ? Math.min(100, (row.amount / totalPurchaseSpend) * 100)
+                        : 0;
+
+                    return (
+                      <div key={row.vendor}>
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            gap: "12px",
+                            marginBottom: "7px",
+                          }}
+                        >
+                          <div
+                            style={{
+                              color: "white",
+                              fontSize: "13px",
+                              fontWeight: "950",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {row.vendor}
+                          </div>
+
+                          <div
+                            style={{
+                              color: "#c4b5fd",
+                              fontSize: "13px",
+                              fontWeight: "950",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            ${Math.round(row.amount).toLocaleString()}
+                          </div>
+                        </div>
+
+                        <div
+                          style={{
+                            height: "8px",
+                            borderRadius: "999px",
+                            background: "rgba(148,163,184,0.14)",
+                            overflow: "hidden",
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: `${pct}%`,
+                              height: "100%",
+                              borderRadius: "999px",
+                              background:
+                                "linear-gradient(135deg, #a78bfa, #60a5fa)",
+                            }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div
+                    style={{
+                      padding: "16px",
+                      borderRadius: "18px",
+                      background: "rgba(255,255,255,0.04)",
+                      border: "1px solid rgba(148,163,184,0.12)",
+                      color: "#cbd5e1",
+                      fontSize: "14px",
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    Vendor spend breakdown will appear after purchase or invoice
+                    data is imported.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* =========================
+             PURCHASE HISTORY TABLE
+          ========================= */}
+          <div
+            style={{
+              gridColumn: isMobile ? "span 1" : "span 12",
+              width: "100%",
+              ...purchasingCardStyle,
+              marginBottom: "24px",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: "14px",
+                flexWrap: "wrap",
+                alignItems: "flex-start",
+                marginBottom: "16px",
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    color: "#93c5fd",
+                    fontSize: "12px",
+                    fontWeight: "950",
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Purchase History
+                </div>
+
+                <h3
+                  style={{
+                    color: "white",
+                    fontSize: "24px",
+                    fontWeight: "950",
+                    margin: "8px 0 0",
+                  }}
+                >
+                  Procurement ledger
+                </h3>
+              </div>
+
+              <div
+                style={{
+                  color: "#94a3b8",
+                  fontSize: "12px",
+                  fontWeight: "800",
+                }}
+              >
+                Showing {purchaseRows.slice(0, 12).length} of {purchaseRows.length} purchases
+              </div>
+            </div>
+
+            {purchaseRows.length > 0 ? (
+              <div
+                style={{
+                  width: "100%",
+                  overflowX: "auto",
+                  borderRadius: "18px",
+                  border: "1px solid rgba(148,163,184,0.12)",
+                }}
+              >
+                <table
+                  style={{
+                    width: "100%",
+                    borderCollapse: "collapse",
+                    minWidth: "820px",
+                  }}
+                >
+                  <thead>
+                    <tr style={{ background: "rgba(255,255,255,0.04)" }}>
+                      {["Vendor", "Date", "Item / Invoice", "Amount", "Status"].map(
+                        (header) => (
+                          <th
+                            key={header}
+                            style={{
+                              padding: "13px 14px",
+                              color: "#94a3b8",
+                              fontSize: "11px",
+                              fontWeight: "950",
+                              textAlign: "left",
+                              textTransform: "uppercase",
+                              letterSpacing: "0.06em",
+                              borderBottom: "1px solid rgba(148,163,184,0.12)",
+                            }}
+                          >
+                            {header}
+                          </th>
+                        )
+                      )}
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {purchaseRows.slice(0, 12).map((row, index) => (
+                      <tr key={`${getVendor(row)}-${index}-purchase`}>
+                        <td
+                          style={{
+                            padding: "14px",
+                            color: "white",
+                            fontSize: "13px",
+                            fontWeight: "900",
+                            borderBottom: "1px solid rgba(148,163,184,0.08)",
+                          }}
+                        >
+                          {getVendor(row)}
+                        </td>
+
+                        <td
+                          style={{
+                            padding: "14px",
+                            color: "#e2e8f0",
+                            fontSize: "13px",
+                            borderBottom: "1px solid rgba(148,163,184,0.08)",
+                          }}
+                        >
+                          {getPurchaseDate(row)
+                            ? new Date(getPurchaseDate(row)).toLocaleDateString()
+                            : "Recent"}
+                        </td>
+
+                        <td
+                          style={{
+                            padding: "14px",
+                            color: "#e2e8f0",
+                            fontSize: "13px",
+                            borderBottom: "1px solid rgba(148,163,184,0.08)",
+                          }}
+                        >
+                          {row.item_name ||
+                            row.ingredient_name ||
+                            row.invoice_number ||
+                            row.file_name ||
+                            row.name ||
+                            "Purchase Record"}
+                        </td>
+
+                        <td
+                          style={{
+                            padding: "14px",
+                            color: "#86efac",
+                            fontSize: "13px",
+                            fontWeight: "950",
+                            borderBottom: "1px solid rgba(148,163,184,0.08)",
+                          }}
+                        >
+                          ${Math.round(getMoney(row)).toLocaleString()}
+                        </td>
+
+                        <td
+                          style={{
+                            padding: "14px",
+                            borderBottom: "1px solid rgba(148,163,184,0.08)",
+                          }}
+                        >
+                          <span
+                            style={{
+                              color: "#86efac",
+                              background: "rgba(34,197,94,0.08)",
+                              border: "1px solid rgba(74,222,128,0.20)",
+                              padding: "6px 9px",
+                              borderRadius: "999px",
+                              fontSize: "11px",
+                              fontWeight: "950",
+                            }}
+                          >
+                            Logged
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div
+                style={{
+                  padding: "18px",
+                  borderRadius: "18px",
+                  background: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(148,163,184,0.12)",
+                  color: "#cbd5e1",
+                  fontSize: "14px",
+                  lineHeight: 1.6,
+                }}
+              >
+                No purchase history yet. Restock actions and imported invoices will
+                appear here once purchasing data is available.
+              </div>
+            )}
           </div>
         </>
-      )}
-    </div>
-  );
-})}
-    </div>
-  </div>
+      );
+    })()}
+  </>
+)}{inventoryView === "vendors" && (
+  <>
+    {(() => {
+      const vendorRows =
+        vendorPricingData ||
+        supplierPricingData ||
+        inventoryVendorData ||
+        vendorsData ||
+        [];
+
+      const purchaseRows =
+        inventoryPurchases ||
+        purchaseHistory ||
+        restockActivity ||
+        inventoryRestockLogs ||
+        [];
+
+      const invoiceRows = invoiceUploads || invoice_uploads || invoiceImports || [];
+
+      const getVendor = (row) =>
+        row.vendor ||
+        row.vendor_name ||
+        row.supplier ||
+        row.supplier_name ||
+        row.Supplier ||
+        "Unknown Vendor";
+
+      const getAmount = (row) =>
+        Number(
+          row.amount ||
+            row.total ||
+            row.total_cost ||
+            row.totalCost ||
+            row.invoice_total ||
+            row.invoiceTotal ||
+            row.purchase_amount ||
+            row.cost ||
+            row.price ||
+            0
+        );
+
+      const vendorSpendMap = [...purchaseRows, ...invoiceRows].reduce((acc, row) => {
+        const vendor = getVendor(row);
+        const amount = getAmount(row);
+        acc[vendor] = (acc[vendor] || 0) + amount;
+        return acc;
+      }, {});
+
+      const vendorSpendRows = Object.entries(vendorSpendMap)
+        .map(([vendor, amount]) => ({ vendor, amount }))
+        .sort((a, b) => b.amount - a.amount);
+
+      const totalVendorSpend = vendorSpendRows.reduce(
+        (sum, row) => sum + Number(row.amount || 0),
+        0
+      );
+
+      const activeVendorCount = new Set([
+        ...vendorRows.map(getVendor),
+        ...vendorSpendRows.map((row) => row.vendor),
+      ]).size;
+
+      const vendorCardStyle = {
+        padding: "22px",
+        borderRadius: "24px",
+        background: "rgba(15,23,42,0.90)",
+        border: "1px solid rgba(148,163,184,0.14)",
+        boxShadow: "0 22px 60px rgba(2,6,23,0.24)",
+        minWidth: 0,
+      };
+
+      const pricedRows = vendorRows
+        .map((row) => {
+          const currentPrice = Number(
+            row.current_price ||
+              row.currentPrice ||
+              row.price ||
+              row.cost ||
+              row.unit_cost ||
+              row.unitCost ||
+              row.cost_per_unit ||
+              0
+          );
+
+          const previousPrice = Number(
+            row.previous_price ||
+              row.previousPrice ||
+              row.last_price ||
+              row.lastPrice ||
+              row.old_cost ||
+              row.oldCost ||
+              0
+          );
+
+          const change =
+            previousPrice > 0 ? ((currentPrice - previousPrice) / previousPrice) * 100 : 0;
+
+          return {
+            ...row,
+            vendor: getVendor(row),
+            currentPrice,
+            previousPrice,
+            change,
+          };
+        })
+        .filter((row) => row.currentPrice > 0);
+
+      const inflationRows = pricedRows
+        .filter((row) => row.change > 0)
+        .sort((a, b) => b.change - a.change)
+        .slice(0, 6);
+
+      const savingsRows = pricedRows
+        .filter((row) => row.previousPrice > 0 && row.currentPrice < row.previousPrice)
+        .sort((a, b) => a.change - b.change)
+        .slice(0, 5);
+
+      const highestVendor =
+        vendorSpendRows.length > 0 ? vendorSpendRows[0] : null;
+
+      const vendorRiskLevel =
+        inflationRows.length >= 4
+          ? "High"
+          : inflationRows.length >= 2
+          ? "Watch"
+          : pricedRows.length > 0
+          ? "Stable"
+          : "Needs Data";
+
+      const vendorRiskColor =
+        vendorRiskLevel === "High"
+          ? "#f87171"
+          : vendorRiskLevel === "Watch"
+          ? "#fbbf24"
+          : vendorRiskLevel === "Stable"
+          ? "#86efac"
+          : "#94a3b8";
+
+      return (
+        <>
+          {/* =========================
+             VENDOR COMMAND CENTER
+          ========================= */}
+          <div
+            style={{
+              gridColumn: isMobile ? "span 1" : "span 12",
+              width: "100%",
+              padding: isMobile ? "20px" : "26px",
+              borderRadius: "26px",
+              background:
+                "linear-gradient(135deg, rgba(168,85,247,0.15), rgba(15,23,42,0.96))",
+              border: "1px solid rgba(196,181,253,0.20)",
+              boxShadow: "0 24px 70px rgba(2,6,23,0.32)",
+              marginBottom: "22px",
+              minWidth: 0,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: "18px",
+                flexWrap: "wrap",
+                alignItems: "flex-start",
+              }}
+            >
+              <div style={{ minWidth: 0, flex: "1 1 560px" }}>
+                <div
+                  style={{
+                    color: "#c4b5fd",
+                    fontSize: "12px",
+                    fontWeight: "950",
+                    letterSpacing: "0.09em",
+                    textTransform: "uppercase",
+                    marginBottom: "10px",
+                  }}
+                >
+                  Vendor Command Center
+                </div>
+
+                <h2
+                  style={{
+                    color: "white",
+                    fontSize: isMobile ? "25px" : "32px",
+                    fontWeight: "950",
+                    lineHeight: 1.08,
+                    margin: 0,
+                  }}
+                >
+                  Supplier pricing, vendor risk, and cost inflation control
+                </h2>
+
+                <p
+                  style={{
+                    color: "#cbd5e1",
+                    fontSize: "14px",
+                    lineHeight: 1.75,
+                    marginTop: "12px",
+                    marginBottom: 0,
+                    maxWidth: "900px",
+                  }}
+                >
+                  SerVen is monitoring vendor pricing, spend concentration, supplier
+                  cost changes, and purchasing pressure so operators can negotiate
+                  earlier and protect margins.
+                </p>
+              </div>
+
+              <div
+                style={{
+                  flex: "1 1 520px",
+                  display: "grid",
+                  gridTemplateColumns: isMobile
+                    ? "1fr"
+                    : "repeat(2, minmax(0, 1fr))",
+                  gap: "12px",
+                }}
+              >
+                {[
+                  [
+                    "Active Vendors",
+                    activeVendorCount,
+                    "Suppliers detected",
+                    "#c4b5fd",
+                  ],
+                  [
+                    "Vendor Spend",
+                    `$${Math.round(totalVendorSpend || 0).toLocaleString()}`,
+                    "Tracked spend",
+                    "#93c5fd",
+                  ],
+                  [
+                    "Inflation Flags",
+                    inflationRows.length,
+                    "Price increases detected",
+                    "#fbbf24",
+                  ],
+                  [
+                    "Vendor Risk",
+                    vendorRiskLevel,
+                    "Current supplier pressure",
+                    vendorRiskColor,
+                  ],
+                ].map(([label, value, subtext, color]) => (
+                  <div
+                    key={label}
+                    style={{
+                      padding: "15px",
+                      borderRadius: "18px",
+                      background: "rgba(15,23,42,0.72)",
+                      border: `1px solid ${color}33`,
+                      minWidth: 0,
+                    }}
+                  >
+                    <div
+                      style={{
+                        color: "#94a3b8",
+                        fontSize: "11px",
+                        fontWeight: "900",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.06em",
+                      }}
+                    >
+                      {label}
+                    </div>
+
+                    <div
+                      style={{
+                        color,
+                        fontSize: typeof value === "string" && value.length > 8 ? "22px" : "28px",
+                        fontWeight: "950",
+                        marginTop: "7px",
+                      }}
+                    >
+                      {value}
+                    </div>
+
+                    <div
+                      style={{
+                        color: "#cbd5e1",
+                        fontSize: "12px",
+                        marginTop: "4px",
+                      }}
+                    >
+                      {subtext}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* =========================
+             AI VENDOR INTELLIGENCE + SPEND
+          ========================= */}
+          <div
+            style={{
+              gridColumn: isMobile ? "span 1" : "span 12",
+              width: "100%",
+              display: "grid",
+              gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 7fr) minmax(0, 5fr)",
+              gap: "18px",
+              marginBottom: "22px",
+            }}
+          >
+            <div style={vendorCardStyle}>
+              <div
+                style={{
+                  color: "#c4b5fd",
+                  fontSize: "12px",
+                  fontWeight: "950",
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  marginBottom: "12px",
+                }}
+              >
+                AI Vendor Intelligence
+              </div>
+
+              <h3
+                style={{
+                  color: "white",
+                  fontSize: "23px",
+                  fontWeight: "950",
+                  margin: "0 0 12px",
+                }}
+              >
+                Supplier cost pressure analysis
+              </h3>
+
+              <div style={{ display: "grid", gap: "12px" }}>
+                {inflationRows.length > 0 ? (
+                  inflationRows.slice(0, 4).map((row, index) => (
+                    <div
+                      key={`${row.vendor}-${row.name || row.item_name || index}-intel`}
+                      style={{
+                        padding: "15px",
+                        borderRadius: "18px",
+                        background: "rgba(245,158,11,0.10)",
+                        border: "1px solid rgba(251,191,36,0.24)",
+                      }}
+                    >
+                      <div
+                        style={{
+                          color: "white",
+                          fontSize: "15px",
+                          fontWeight: "950",
+                        }}
+                      >
+                        {row.name || row.item_name || row.ingredient || "Vendor item"}{" "}
+                        increased {row.change.toFixed(1)}%
+                      </div>
+
+                      <div
+                        style={{
+                          color: "#cbd5e1",
+                          fontSize: "13px",
+                          lineHeight: 1.55,
+                          marginTop: "6px",
+                        }}
+                      >
+                        {row.vendor} moved from $
+                        {Number(row.previousPrice || 0).toFixed(2)} to $
+                        {Number(row.currentPrice || 0).toFixed(2)}. Review alternate
+                        vendors or negotiate this item before it compounds into weekly
+                        food cost.
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div
+                    style={{
+                      padding: "16px",
+                      borderRadius: "18px",
+                      background: "rgba(255,255,255,0.04)",
+                      border: "1px solid rgba(148,163,184,0.12)",
+                      color: "#cbd5e1",
+                      fontSize: "14px",
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    No vendor inflation flags detected yet. Upload supplier pricing or
+                    invoices to activate vendor intelligence.
+                  </div>
+                )}
+
+                {highestVendor && (
+                  <div
+                    style={{
+                      padding: "15px",
+                      borderRadius: "18px",
+                      background: "rgba(96,165,250,0.10)",
+                      border: "1px solid rgba(96,165,250,0.22)",
+                    }}
+                  >
+                    <div style={{ color: "#93c5fd", fontSize: "12px", fontWeight: "950" }}>
+                      Spend Concentration
+                    </div>
+                    <div
+                      style={{
+                        color: "white",
+                        fontSize: "15px",
+                        fontWeight: "950",
+                        marginTop: "5px",
+                      }}
+                    >
+                      {highestVendor.vendor} is your largest tracked vendor at $
+                      {Math.round(highestVendor.amount).toLocaleString()}.
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div style={vendorCardStyle}>
+              <div
+                style={{
+                  color: "#93c5fd",
+                  fontSize: "12px",
+                  fontWeight: "950",
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  marginBottom: "12px",
+                }}
+              >
+                Vendor Spend Breakdown
+              </div>
+
+              <div style={{ display: "grid", gap: "13px" }}>
+                {vendorSpendRows.length > 0 ? (
+                  vendorSpendRows.slice(0, 7).map((row) => {
+                    const pct =
+                      totalVendorSpend > 0
+                        ? Math.min(100, (row.amount / totalVendorSpend) * 100)
+                        : 0;
+
+                    return (
+                      <div key={`${row.vendor}-spend`}>
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            gap: "12px",
+                            marginBottom: "7px",
+                          }}
+                        >
+                          <div
+                            style={{
+                              color: "white",
+                              fontSize: "13px",
+                              fontWeight: "950",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {row.vendor}
+                          </div>
+
+                          <div
+                            style={{
+                              color: "#93c5fd",
+                              fontSize: "13px",
+                              fontWeight: "950",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            ${Math.round(row.amount).toLocaleString()}
+                          </div>
+                        </div>
+
+                        <div
+                          style={{
+                            height: "8px",
+                            borderRadius: "999px",
+                            background: "rgba(148,163,184,0.14)",
+                            overflow: "hidden",
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: `${pct}%`,
+                              height: "100%",
+                              borderRadius: "999px",
+                              background:
+                                "linear-gradient(135deg, #a78bfa, #60a5fa)",
+                            }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div
+                    style={{
+                      padding: "16px",
+                      borderRadius: "18px",
+                      background: "rgba(255,255,255,0.04)",
+                      border: "1px solid rgba(148,163,184,0.12)",
+                      color: "#cbd5e1",
+                      fontSize: "14px",
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    Vendor spend will appear once invoices or purchase records are
+                    imported.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+                    {/* =========================
+             SUPPLIER PRICING + INFLATION
+          ========================= */}
+          <div
+            style={{
+              gridColumn: isMobile ? "span 1" : "span 12",
+              width: "100%",
+              display: "grid",
+              gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 6fr) minmax(0, 6fr)",
+              gap: "18px",
+              marginBottom: "22px",
+            }}
+          >
+            <div style={vendorCardStyle}>
+              <div
+                style={{
+                  color: "#86efac",
+                  fontSize: "12px",
+                  fontWeight: "950",
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  marginBottom: "12px",
+                }}
+              >
+                Supplier Pricing
+              </div>
+
+              <h3
+                style={{
+                  color: "white",
+                  fontSize: "22px",
+                  fontWeight: "950",
+                  marginTop: 0,
+                  marginBottom: "14px",
+                }}
+              >
+                Current vendor item pricing
+              </h3>
+
+              <div style={{ display: "grid", gap: "10px" }}>
+                {pricedRows.length > 0 ? (
+                  pricedRows.slice(0, 8).map((row, index) => {
+                    const itemName =
+                      row.name ||
+                      row.item_name ||
+                      row.ingredient ||
+                      row.ingredient_name ||
+                      "Vendor Item";
+
+                    return (
+                      <div
+                        key={`${row.vendor}-${itemName}-${index}-price`}
+                        style={{
+                          padding: "14px",
+                          borderRadius: "16px",
+                          background: "rgba(255,255,255,0.04)",
+                          border: "1px solid rgba(148,163,184,0.12)",
+                          display: "grid",
+                          gridTemplateColumns: isMobile
+                            ? "1fr"
+                            : "minmax(0, 1.5fr) minmax(0, 1fr) auto",
+                          gap: "12px",
+                          alignItems: "center",
+                        }}
+                      >
+                        <div style={{ minWidth: 0 }}>
+                          <div
+                            style={{
+                              color: "white",
+                              fontSize: "14px",
+                              fontWeight: "950",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {itemName}
+                          </div>
+
+                          <div
+                            style={{
+                              color: "#94a3b8",
+                              fontSize: "12px",
+                              marginTop: "4px",
+                            }}
+                          >
+                            {row.vendor}
+                          </div>
+                        </div>
+
+                        <div>
+                          <div
+                            style={{
+                              color: "#94a3b8",
+                              fontSize: "11px",
+                              fontWeight: "900",
+                            }}
+                          >
+                            Current Price
+                          </div>
+                          <div
+                            style={{
+                              color: "#86efac",
+                              fontSize: "16px",
+                              fontWeight: "950",
+                            }}
+                          >
+                            ${Number(row.currentPrice || 0).toFixed(2)}
+                          </div>
+                        </div>
+
+                        <div
+                          style={{
+                            color:
+                              row.change > 0
+                                ? "#fbbf24"
+                                : row.change < 0
+                                ? "#86efac"
+                                : "#94a3b8",
+                            fontSize: "12px",
+                            fontWeight: "950",
+                            textAlign: isMobile ? "left" : "right",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {row.previousPrice > 0
+                            ? `${row.change > 0 ? "+" : ""}${row.change.toFixed(1)}%`
+                            : "New"}
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div
+                    style={{
+                      padding: "16px",
+                      borderRadius: "18px",
+                      background: "rgba(255,255,255,0.04)",
+                      border: "1px solid rgba(148,163,184,0.12)",
+                      color: "#cbd5e1",
+                      fontSize: "14px",
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    No supplier pricing detected yet. Upload vendor pricing or invoices
+                    to activate item-level supplier pricing.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div style={vendorCardStyle}>
+              <div
+                style={{
+                  color: "#fbbf24",
+                  fontSize: "12px",
+                  fontWeight: "950",
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  marginBottom: "12px",
+                }}
+              >
+                Cost Inflation Tracker
+              </div>
+
+              <h3
+                style={{
+                  color: "white",
+                  fontSize: "22px",
+                  fontWeight: "950",
+                  marginTop: 0,
+                  marginBottom: "14px",
+                }}
+              >
+                Fastest rising vendor costs
+              </h3>
+
+              <div style={{ display: "grid", gap: "12px" }}>
+                {inflationRows.length > 0 ? (
+                  inflationRows.map((row, index) => {
+                    const itemName =
+                      row.name ||
+                      row.item_name ||
+                      row.ingredient ||
+                      row.ingredient_name ||
+                      "Vendor Item";
+
+                    return (
+                      <div
+                        key={`${row.vendor}-${itemName}-${index}-inflation`}
+                        style={{
+                          padding: "14px",
+                          borderRadius: "16px",
+                          background:
+                            row.change >= 10
+                              ? "rgba(239,68,68,0.10)"
+                              : "rgba(245,158,11,0.10)",
+                          border:
+                            row.change >= 10
+                              ? "1px solid rgba(248,113,113,0.24)"
+                              : "1px solid rgba(251,191,36,0.24)",
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            gap: "12px",
+                            alignItems: "flex-start",
+                          }}
+                        >
+                          <div style={{ minWidth: 0 }}>
+                            <div
+                              style={{
+                                color: "white",
+                                fontSize: "14px",
+                                fontWeight: "950",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              {itemName}
+                            </div>
+
+                            <div
+                              style={{
+                                color: "#cbd5e1",
+                                fontSize: "12px",
+                                marginTop: "5px",
+                              }}
+                            >
+                              {row.vendor} · ${Number(row.previousPrice || 0).toFixed(2)} → $
+                              {Number(row.currentPrice || 0).toFixed(2)}
+                            </div>
+                          </div>
+
+                          <div
+                            style={{
+                              color: row.change >= 10 ? "#f87171" : "#fbbf24",
+                              fontSize: "13px",
+                              fontWeight: "950",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            +{row.change.toFixed(1)}%
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div
+                    style={{
+                      padding: "16px",
+                      borderRadius: "18px",
+                      background: "rgba(255,255,255,0.04)",
+                      border: "1px solid rgba(148,163,184,0.12)",
+                      color: "#cbd5e1",
+                      fontSize: "14px",
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    No cost inflation detected. SerVen will flag supplier increases
+                    once previous and current prices are available.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* =========================
+             SAVINGS + VENDOR COMPARISON
+          ========================= */}
+          <div
+            style={{
+              gridColumn: isMobile ? "span 1" : "span 12",
+              width: "100%",
+              display: "grid",
+              gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 5fr) minmax(0, 7fr)",
+              gap: "18px",
+              marginBottom: "22px",
+            }}
+          >
+            <div style={vendorCardStyle}>
+              <div
+                style={{
+                  color: "#86efac",
+                  fontSize: "12px",
+                  fontWeight: "950",
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  marginBottom: "12px",
+                }}
+              >
+                Savings Opportunities
+              </div>
+
+              <h3
+                style={{
+                  color: "white",
+                  fontSize: "22px",
+                  fontWeight: "950",
+                  marginTop: 0,
+                  marginBottom: "14px",
+                }}
+              >
+                Items trending cheaper
+              </h3>
+
+              <div style={{ display: "grid", gap: "12px" }}>
+                {savingsRows.length > 0 ? (
+                  savingsRows.map((row, index) => {
+                    const itemName =
+                      row.name ||
+                      row.item_name ||
+                      row.ingredient ||
+                      row.ingredient_name ||
+                      "Vendor Item";
+
+                    return (
+                      <div
+                        key={`${row.vendor}-${itemName}-${index}-savings`}
+                        style={{
+                          padding: "14px",
+                          borderRadius: "16px",
+                          background: "rgba(34,197,94,0.08)",
+                          border: "1px solid rgba(74,222,128,0.18)",
+                        }}
+                      >
+                        <div
+                          style={{
+                            color: "white",
+                            fontSize: "14px",
+                            fontWeight: "950",
+                          }}
+                        >
+                          {itemName}
+                        </div>
+
+                        <div
+                          style={{
+                            color: "#cbd5e1",
+                            fontSize: "12px",
+                            lineHeight: 1.5,
+                            marginTop: "5px",
+                          }}
+                        >
+                          {row.vendor} dropped from $
+                          {Number(row.previousPrice || 0).toFixed(2)} to $
+                          {Number(row.currentPrice || 0).toFixed(2)}.
+                        </div>
+
+                        <div
+                          style={{
+                            color: "#86efac",
+                            fontSize: "13px",
+                            fontWeight: "950",
+                            marginTop: "6px",
+                          }}
+                        >
+                          {row.change.toFixed(1)}% lower
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div
+                    style={{
+                      padding: "16px",
+                      borderRadius: "18px",
+                      background: "rgba(255,255,255,0.04)",
+                      border: "1px solid rgba(148,163,184,0.12)",
+                      color: "#cbd5e1",
+                      fontSize: "14px",
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    No price savings opportunities detected yet.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div style={vendorCardStyle}>
+              <div
+                style={{
+                  color: "#93c5fd",
+                  fontSize: "12px",
+                  fontWeight: "950",
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  marginBottom: "12px",
+                }}
+              >
+                Vendor Comparison
+              </div>
+
+              <h3
+                style={{
+                  color: "white",
+                  fontSize: "22px",
+                  fontWeight: "950",
+                  marginTop: 0,
+                  marginBottom: "14px",
+                }}
+              >
+                Supplier performance snapshot
+              </h3>
+
+              {vendorSpendRows.length > 0 ? (
+                <div
+                  style={{
+                    width: "100%",
+                    overflowX: "auto",
+                    borderRadius: "18px",
+                    border: "1px solid rgba(148,163,184,0.12)",
+                  }}
+                >
+                  <table
+                    style={{
+                      width: "100%",
+                      borderCollapse: "collapse",
+                      minWidth: "620px",
+                    }}
+                  >
+                    <thead>
+                      <tr style={{ background: "rgba(255,255,255,0.04)" }}>
+                        {["Vendor", "Spend", "Share", "Status"].map((header) => (
+                          <th
+                            key={header}
+                            style={{
+                              padding: "13px 14px",
+                              color: "#94a3b8",
+                              fontSize: "11px",
+                              fontWeight: "950",
+                              textAlign: "left",
+                              textTransform: "uppercase",
+                              letterSpacing: "0.06em",
+                              borderBottom: "1px solid rgba(148,163,184,0.12)",
+                            }}
+                          >
+                            {header}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {vendorSpendRows.slice(0, 8).map((row, index) => {
+                        const share =
+                          totalVendorSpend > 0
+                            ? (Number(row.amount || 0) / totalVendorSpend) * 100
+                            : 0;
+
+                        const status =
+                          share >= 50 ? "Concentrated" : share >= 25 ? "Major" : "Normal";
+
+                        const statusColor =
+                          status === "Concentrated"
+                            ? "#f87171"
+                            : status === "Major"
+                            ? "#fbbf24"
+                            : "#86efac";
+
+                        return (
+                          <tr key={`${row.vendor}-${index}-comparison`}>
+                            <td
+                              style={{
+                                padding: "14px",
+                                color: "white",
+                                fontSize: "13px",
+                                fontWeight: "900",
+                                borderBottom: "1px solid rgba(148,163,184,0.08)",
+                              }}
+                            >
+                              {row.vendor}
+                            </td>
+
+                            <td
+                              style={{
+                                padding: "14px",
+                                color: "#e2e8f0",
+                                fontSize: "13px",
+                                borderBottom: "1px solid rgba(148,163,184,0.08)",
+                              }}
+                            >
+                              ${Math.round(row.amount).toLocaleString()}
+                            </td>
+
+                            <td
+                              style={{
+                                padding: "14px",
+                                color: "#e2e8f0",
+                                fontSize: "13px",
+                                borderBottom: "1px solid rgba(148,163,184,0.08)",
+                              }}
+                            >
+                              {share.toFixed(1)}%
+                            </td>
+
+                            <td
+                              style={{
+                                padding: "14px",
+                                borderBottom: "1px solid rgba(148,163,184,0.08)",
+                              }}
+                            >
+                              <span
+                                style={{
+                                  color: statusColor,
+                                  background: `${statusColor}14`,
+                                  border: `1px solid ${statusColor}33`,
+                                  padding: "6px 9px",
+                                  borderRadius: "999px",
+                                  fontSize: "11px",
+                                  fontWeight: "950",
+                                }}
+                              >
+                                {status}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div
+                  style={{
+                    padding: "16px",
+                    borderRadius: "18px",
+                    background: "rgba(255,255,255,0.04)",
+                    border: "1px solid rgba(148,163,184,0.12)",
+                    color: "#cbd5e1",
+                    fontSize: "14px",
+                    lineHeight: 1.6,
+                  }}
+                >
+                  Vendor comparison will appear after purchasing data is imported.
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* =========================
+             FULL VENDOR TABLE
+          ========================= */}
+          <div
+            style={{
+              gridColumn: isMobile ? "span 1" : "span 12",
+              width: "100%",
+              ...vendorCardStyle,
+              marginBottom: "24px",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: "14px",
+                flexWrap: "wrap",
+                alignItems: "flex-start",
+                marginBottom: "16px",
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    color: "#c4b5fd",
+                    fontSize: "12px",
+                    fontWeight: "950",
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Vendor Pricing Ledger
+                </div>
+
+                <h3
+                  style={{
+                    color: "white",
+                    fontSize: "24px",
+                    fontWeight: "950",
+                    margin: "8px 0 0",
+                  }}
+                >
+                  Supplier item table
+                </h3>
+              </div>
+
+              <div
+                style={{
+                  color: "#94a3b8",
+                  fontSize: "12px",
+                  fontWeight: "800",
+                }}
+              >
+                Showing {pricedRows.slice(0, 12).length} of {pricedRows.length} priced items
+              </div>
+            </div>
+
+            {pricedRows.length > 0 ? (
+              <div
+                style={{
+                  width: "100%",
+                  overflowX: "auto",
+                  borderRadius: "18px",
+                  border: "1px solid rgba(148,163,184,0.12)",
+                }}
+              >
+                <table
+                  style={{
+                    width: "100%",
+                    borderCollapse: "collapse",
+                    minWidth: "850px",
+                  }}
+                >
+                  <thead>
+                    <tr style={{ background: "rgba(255,255,255,0.04)" }}>
+                      {["Vendor", "Item", "Previous", "Current", "Change", "Status"].map(
+                        (header) => (
+                          <th
+                            key={header}
+                            style={{
+                              padding: "13px 14px",
+                              color: "#94a3b8",
+                              fontSize: "11px",
+                              fontWeight: "950",
+                              textAlign: "left",
+                              textTransform: "uppercase",
+                              letterSpacing: "0.06em",
+                              borderBottom: "1px solid rgba(148,163,184,0.12)",
+                            }}
+                          >
+                            {header}
+                          </th>
+                        )
+                      )}
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {pricedRows.slice(0, 12).map((row, index) => {
+                      const itemName =
+                        row.name ||
+                        row.item_name ||
+                        row.ingredient ||
+                        row.ingredient_name ||
+                        "Vendor Item";
+
+                      const changeColor =
+                        row.change > 0
+                          ? "#fbbf24"
+                          : row.change < 0
+                          ? "#86efac"
+                          : "#94a3b8";
+
+                      const status =
+                        row.change >= 10
+                          ? "Inflation"
+                          : row.change > 0
+                          ? "Rising"
+                          : row.change < 0
+                          ? "Improved"
+                          : "Stable";
+
+                      return (
+                        <tr key={`${row.vendor}-${itemName}-${index}-ledger`}>
+                          <td
+                            style={{
+                              padding: "14px",
+                              color: "white",
+                              fontSize: "13px",
+                              fontWeight: "900",
+                              borderBottom: "1px solid rgba(148,163,184,0.08)",
+                            }}
+                          >
+                            {row.vendor}
+                          </td>
+
+                          <td
+                            style={{
+                              padding: "14px",
+                              color: "#e2e8f0",
+                              fontSize: "13px",
+                              borderBottom: "1px solid rgba(148,163,184,0.08)",
+                            }}
+                          >
+                            {itemName}
+                          </td>
+
+                          <td
+                            style={{
+                              padding: "14px",
+                              color: "#94a3b8",
+                              fontSize: "13px",
+                              borderBottom: "1px solid rgba(148,163,184,0.08)",
+                            }}
+                          >
+                            {row.previousPrice > 0
+                              ? `$${Number(row.previousPrice).toFixed(2)}`
+                              : "—"}
+                          </td>
+
+                          <td
+                            style={{
+                              padding: "14px",
+                              color: "#86efac",
+                              fontSize: "13px",
+                              fontWeight: "950",
+                              borderBottom: "1px solid rgba(148,163,184,0.08)",
+                            }}
+                          >
+                            ${Number(row.currentPrice || 0).toFixed(2)}
+                          </td>
+
+                          <td
+                            style={{
+                              padding: "14px",
+                              color: changeColor,
+                              fontSize: "13px",
+                              fontWeight: "950",
+                              borderBottom: "1px solid rgba(148,163,184,0.08)",
+                            }}
+                          >
+                            {row.previousPrice > 0
+                              ? `${row.change > 0 ? "+" : ""}${row.change.toFixed(1)}%`
+                              : "New"}
+                          </td>
+
+                          <td
+                            style={{
+                              padding: "14px",
+                              borderBottom: "1px solid rgba(148,163,184,0.08)",
+                            }}
+                          >
+                            <span
+                              style={{
+                                color: changeColor,
+                                background: `${changeColor}14`,
+                                border: `1px solid ${changeColor}33`,
+                                padding: "6px 9px",
+                                borderRadius: "999px",
+                                fontSize: "11px",
+                                fontWeight: "950",
+                              }}
+                            >
+                              {status}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div
+                style={{
+                  padding: "18px",
+                  borderRadius: "18px",
+                  background: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(148,163,184,0.12)",
+                  color: "#cbd5e1",
+                  fontSize: "14px",
+                  lineHeight: 1.6,
+                }}
+              >
+                No vendor pricing ledger yet. Upload supplier pricing, invoices, or item
+                cost records to activate vendor comparison.
+              </div>
+            )}
+          </div>
+        </>
+      );
+    })()}
+  </>
+)}{inventoryView === "waste" && (
+  <>
+    {(() => {
+      const alerts = inventoryExecutiveAlertsFeed || [];
+      const deadRows = deadInventoryData || [];
+
+      const deadStockRows = deadRows.filter((item) => item.status === "Dead Stock");
+      const slowRows = deadRows.filter((item) => item.status === "Slow Moving");
+
+      const tiedUpCash = deadRows.reduce(
+        (sum, item) => sum + Number(item.tiedUpCash || 0),
+        0
+      );
+
+      const estimatedWasteExposure =
+        tiedUpCash +
+        alerts.reduce((sum, alert) => {
+          return (
+            sum +
+            Number(
+              alert.estimatedLoss ||
+                alert.revenueRisk ||
+                alert.impact ||
+                alert.amount ||
+                0
+            )
+          );
+        }, 0);
+
+      const wasteRiskLevel =
+        deadStockRows.length > 0 || alerts.some((a) => a.priority === "Critical")
+          ? "Critical"
+          : slowRows.length > 0 || alerts.some((a) => a.priority === "High")
+          ? "Watch"
+          : deadRows.length > 0 || alerts.length > 0
+          ? "Monitoring"
+          : "Stable";
+
+      const wasteRiskColor =
+        wasteRiskLevel === "Critical"
+          ? "#f87171"
+          : wasteRiskLevel === "Watch"
+          ? "#fbbf24"
+          : wasteRiskLevel === "Monitoring"
+          ? "#38bdf8"
+          : "#86efac";
+
+      const wasteCardStyle = {
+        padding: "22px",
+        borderRadius: "24px",
+        background: "rgba(15,23,42,0.90)",
+        border: "1px solid rgba(148,163,184,0.14)",
+        boxShadow: "0 22px 60px rgba(2,6,23,0.24)",
+        minWidth: 0,
+      };
+
+      const getAlertColor = (priority) =>
+        priority === "Critical"
+          ? "#f87171"
+          : priority === "High"
+          ? "#fbbf24"
+          : "#38bdf8";
+
+      const getDeadColor = (status) =>
+        status === "Dead Stock"
+          ? "#f87171"
+          : status === "Slow Moving"
+          ? "#fbbf24"
+          : "#38bdf8";
+
+      return (
+        <>
+          {/* =========================
+             WASTE COMMAND CENTER
+          ========================= */}
+          <div
+            style={{
+              gridColumn: isMobile ? "span 1" : "span 12",
+              width: "100%",
+              padding: isMobile ? "20px" : "26px",
+              borderRadius: "26px",
+              background:
+                "linear-gradient(135deg, rgba(239,68,68,0.14), rgba(15,23,42,0.96))",
+              border: "1px solid rgba(248,113,113,0.20)",
+              boxShadow: "0 24px 70px rgba(2,6,23,0.32)",
+              marginBottom: "22px",
+              minWidth: 0,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: "18px",
+                flexWrap: "wrap",
+                alignItems: "flex-start",
+              }}
+            >
+              <div style={{ minWidth: 0, flex: "1 1 560px" }}>
+                <div
+                  style={{
+                    color: "#fca5a5",
+                    fontSize: "12px",
+                    fontWeight: "950",
+                    letterSpacing: "0.09em",
+                    textTransform: "uppercase",
+                    marginBottom: "10px",
+                  }}
+                >
+                  Waste Command Center
+                </div>
+
+                <h2
+                  style={{
+                    color: "white",
+                    fontSize: isMobile ? "25px" : "32px",
+                    fontWeight: "950",
+                    lineHeight: 1.08,
+                    margin: 0,
+                  }}
+                >
+                  Dead inventory, spoilage exposure, and stock risk control
+                </h2>
+
+                <p
+                  style={{
+                    color: "#cbd5e1",
+                    fontSize: "14px",
+                    lineHeight: 1.75,
+                    marginTop: "12px",
+                    marginBottom: 0,
+                    maxWidth: "900px",
+                  }}
+                >
+                  SerVen is monitoring slow-moving stock, tied-up cash, inventory
+                  risk alerts, and potential waste exposure before it becomes margin
+                  loss.
+                </p>
+              </div>
+
+              <div
+                style={{
+                  flex: "1 1 520px",
+                  display: "grid",
+                  gridTemplateColumns: isMobile
+                    ? "1fr"
+                    : "repeat(2, minmax(0, 1fr))",
+                  gap: "12px",
+                }}
+              >
+                {[
+                  ["Waste Risk", wasteRiskLevel, "Current inventory exposure", wasteRiskColor],
+                  [
+                    "Estimated Exposure",
+                    `$${Math.round(estimatedWasteExposure || 0).toLocaleString()}`,
+                    "Potential cash / risk impact",
+                    "#f87171",
+                  ],
+                  ["Dead Stock", deadStockRows.length, "Items not moving", "#f87171"],
+                  [
+                    "Tied-Up Cash",
+                    `$${Math.round(tiedUpCash || 0).toLocaleString()}`,
+                    "Capital stuck in inventory",
+                    "#fbbf24",
+                  ],
+                ].map(([label, value, subtext, color]) => (
+                  <div
+                    key={label}
+                    style={{
+                      padding: "15px",
+                      borderRadius: "18px",
+                      background: "rgba(15,23,42,0.72)",
+                      border: `1px solid ${color}33`,
+                      minWidth: 0,
+                    }}
+                  >
+                    <div
+                      style={{
+                        color: "#94a3b8",
+                        fontSize: "11px",
+                        fontWeight: "900",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.06em",
+                      }}
+                    >
+                      {label}
+                    </div>
+
+                    <div
+                      style={{
+                        color,
+                        fontSize:
+                          typeof value === "string" && value.length > 10
+                            ? "21px"
+                            : "28px",
+                        fontWeight: "950",
+                        marginTop: "7px",
+                      }}
+                    >
+                      {value}
+                    </div>
+
+                    <div
+                      style={{
+                        color: "#cbd5e1",
+                        fontSize: "12px",
+                        marginTop: "4px",
+                      }}
+                    >
+                      {subtext}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* =========================
+             ALERTS + DEAD INVENTORY ROW
+          ========================= */}
+          <div
+            style={{
+              gridColumn: isMobile ? "span 1" : "span 12",
+              width: "100%",
+              display: "grid",
+              gridTemplateColumns: isMobile
+                ? "1fr"
+                : "minmax(0, 6fr) minmax(0, 6fr)",
+              gap: "18px",
+              marginBottom: "22px",
+            }}
+          >
+            {hasProAccess && (
+              <div style={wasteCardStyle}>
+                <div
+                  style={{
+                    color: "#fca5a5",
+                    fontSize: "12px",
+                    fontWeight: "950",
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                    marginBottom: "12px",
+                  }}
+                >
+                  Inventory Executive Alerts
+                </div>
+
+                <h3
+                  style={{
+                    color: "white",
+                    fontSize: "22px",
+                    fontWeight: "950",
+                    marginTop: 0,
+                    marginBottom: "14px",
+                  }}
+                >
+                  AI inventory risk prioritization
+                </h3>
+
+                <div style={{ display: "grid", gap: "12px" }}>
+                  {alerts.length > 0 ? (
+                    alerts.slice(0, 6).map((alert, index) => {
+                      const alertColor = getAlertColor(alert.priority);
+
+                      return (
+                        <div
+                          key={`${alert.title || "alert"}-${index}`}
+                          style={{
+                            padding: "15px",
+                            borderRadius: "18px",
+                            background: "rgba(15,23,42,0.74)",
+                            border: `1px solid ${alertColor}55`,
+                          }}
+                        >
+                          <div
+                            style={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              gap: "12px",
+                              marginBottom: "8px",
+                              alignItems: "flex-start",
+                            }}
+                          >
+                            <div
+                              style={{
+                                color: "white",
+                                fontSize: "15px",
+                                fontWeight: "950",
+                                minWidth: 0,
+                              }}
+                            >
+                              {alert.title || "Inventory Risk Alert"}
+                            </div>
+
+                            <div
+                              style={{
+                                color: alertColor,
+                                fontSize: "11px",
+                                fontWeight: "950",
+                                textTransform: "uppercase",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              {alert.priority || "Monitor"}
+                            </div>
+                          </div>
+
+                          <div
+                            style={{
+                              color: "#cbd5e1",
+                              fontSize: "13px",
+                              lineHeight: 1.6,
+                            }}
+                          >
+                            {alert.detail ||
+                              alert.message ||
+                              "SerVen detected inventory exposure that may require review."}
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div
+                      style={{
+                        padding: "16px",
+                        borderRadius: "18px",
+                        background: "rgba(255,255,255,0.04)",
+                        border: "1px solid rgba(148,163,184,0.12)",
+                        color: "#cbd5e1",
+                        fontSize: "14px",
+                        lineHeight: 1.6,
+                      }}
+                    >
+                      No executive inventory alerts right now.
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {hasProAccess && (
+              <div style={wasteCardStyle}>
+                <div
+                  style={{
+                    color: "#bef264",
+                    fontSize: "12px",
+                    fontWeight: "950",
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                    marginBottom: "12px",
+                  }}
+                >
+                  Dead Inventory Intelligence
+                </div>
+
+                <h3
+                  style={{
+                    color: "white",
+                    fontSize: "22px",
+                    fontWeight: "950",
+                    marginTop: 0,
+                    marginBottom: "14px",
+                  }}
+                >
+                  Slow-moving stock and tied-up cash
+                </h3>
+
+                <div style={{ display: "grid", gap: "12px" }}>
+                  {deadRows.length > 0 ? (
+                    deadRows.slice(0, 6).map((item, index) => {
+                      const statusColor = getDeadColor(item.status);
+
+                      return (
+                        <div
+                          key={`${item.name || "dead-item"}-${index}`}
+                          style={{
+                            padding: "15px",
+                            borderRadius: "18px",
+                            background: "rgba(15,23,42,0.74)",
+                            border: `1px solid ${statusColor}55`,
+                          }}
+                        >
+                          <div
+                            style={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              gap: "12px",
+                              marginBottom: "10px",
+                              alignItems: "flex-start",
+                            }}
+                          >
+                            <div style={{ minWidth: 0 }}>
+                              <div
+                                style={{
+                                  color: "white",
+                                  fontSize: "15px",
+                                  fontWeight: "950",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                {item.name || item.ingredient || "Inventory Item"}
+                              </div>
+
+                              <div
+                                style={{
+                                  color: "#94a3b8",
+                                  fontSize: "12px",
+                                  marginTop: "4px",
+                                }}
+                              >
+                                {Number(item.daysOnHand || 0).toFixed(0)} days on hand ·{" "}
+                                {Number(item.usageRate || 0).toFixed(1)} usage/day
+                              </div>
+                            </div>
+
+                            <div
+                              style={{
+                                color: statusColor,
+                                fontSize: "12px",
+                                fontWeight: "950",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              {item.status || "Monitor"}
+                            </div>
+                          </div>
+
+                          <div
+                            style={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              gap: "12px",
+                              color: "#cbd5e1",
+                              fontSize: "12px",
+                              fontWeight: "800",
+                              flexWrap: "wrap",
+                            }}
+                          >
+                            <span>Qty: {Number(item.quantity || 0).toFixed(1)}</span>
+                            <span>
+                              Cash tied up: $
+                              {Number(item.tiedUpCash || 0).toLocaleString()}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div
+                      style={{
+                        padding: "16px",
+                        borderRadius: "18px",
+                        background: "rgba(255,255,255,0.04)",
+                        border: "1px solid rgba(132,204,22,0.18)",
+                        color: "#cbd5e1",
+                        fontSize: "14px",
+                        lineHeight: 1.6,
+                      }}
+                    >
+                      No dead inventory detected. SerVen is monitoring days-on-hand,
+                      movement velocity, and tied-up cash.
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* =========================
+             WASTE BREAKDOWN TABLE
+          ========================= */}
+          <div
+            style={{
+              gridColumn: isMobile ? "span 1" : "span 12",
+              width: "100%",
+              ...wasteCardStyle,
+              marginBottom: "24px",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: "14px",
+                flexWrap: "wrap",
+                alignItems: "flex-start",
+                marginBottom: "16px",
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    color: "#fca5a5",
+                    fontSize: "12px",
+                    fontWeight: "950",
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Waste Exposure Ledger
+                </div>
+
+                <h3
+                  style={{
+                    color: "white",
+                    fontSize: "24px",
+                    fontWeight: "950",
+                    margin: "8px 0 0",
+                  }}
+                >
+                  Slow-moving inventory table
+                </h3>
+              </div>
+
+              <div
+                style={{
+                  color: "#94a3b8",
+                  fontSize: "12px",
+                  fontWeight: "800",
+                }}
+              >
+                Showing {deadRows.slice(0, 12).length} of {deadRows.length} items
+              </div>
+            </div>
+
+            {deadRows.length > 0 ? (
+              <div
+                style={{
+                  width: "100%",
+                  overflowX: "auto",
+                  borderRadius: "18px",
+                  border: "1px solid rgba(148,163,184,0.12)",
+                }}
+              >
+                <table
+                  style={{
+                    width: "100%",
+                    borderCollapse: "collapse",
+                    minWidth: "820px",
+                  }}
+                >
+                  <thead>
+                    <tr style={{ background: "rgba(255,255,255,0.04)" }}>
+                      {[
+                        "Item",
+                        "Qty",
+                        "Days On Hand",
+                        "Usage / Day",
+                        "Cash Tied Up",
+                        "Status",
+                      ].map((header) => (
+                        <th
+                          key={header}
+                          style={{
+                            padding: "13px 14px",
+                            color: "#94a3b8",
+                            fontSize: "11px",
+                            fontWeight: "950",
+                            textAlign: "left",
+                            textTransform: "uppercase",
+                            letterSpacing: "0.06em",
+                            borderBottom: "1px solid rgba(148,163,184,0.12)",
+                          }}
+                        >
+                          {header}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {deadRows.slice(0, 12).map((item, index) => {
+                      const statusColor = getDeadColor(item.status);
+
+                      return (
+                        <tr key={`${item.name || "waste-row"}-${index}`}>
+                          <td
+                            style={{
+                              padding: "14px",
+                              color: "white",
+                              fontSize: "13px",
+                              fontWeight: "900",
+                              borderBottom: "1px solid rgba(148,163,184,0.08)",
+                            }}
+                          >
+                            {item.name || item.ingredient || "Inventory Item"}
+                          </td>
+
+                          <td style={wasteTableCellStyle}>
+                            {Number(item.quantity || 0).toFixed(1)}
+                          </td>
+
+                          <td style={wasteTableCellStyle}>
+                            {Number(item.daysOnHand || 0).toFixed(0)}
+                          </td>
+
+                          <td style={wasteTableCellStyle}>
+                            {Number(item.usageRate || 0).toFixed(1)}
+                          </td>
+
+                          <td
+                            style={{
+                              ...wasteTableCellStyle,
+                              color: "#fbbf24",
+                              fontWeight: "950",
+                            }}
+                          >
+                            ${Number(item.tiedUpCash || 0).toLocaleString()}
+                          </td>
+
+                          <td
+                            style={{
+                              padding: "14px",
+                              borderBottom: "1px solid rgba(148,163,184,0.08)",
+                            }}
+                          >
+                            <span
+                              style={{
+                                color: statusColor,
+                                background: `${statusColor}14`,
+                                border: `1px solid ${statusColor}33`,
+                                padding: "6px 9px",
+                                borderRadius: "999px",
+                                fontSize: "11px",
+                                fontWeight: "950",
+                              }}
+                            >
+                              {item.status || "Monitor"}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div
+                style={{
+                  padding: "18px",
+                  borderRadius: "18px",
+                  background: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(148,163,184,0.12)",
+                  color: "#cbd5e1",
+                  fontSize: "14px",
+                  lineHeight: 1.6,
+                }}
+              >
+                No waste exposure rows yet. Upload inventory quantities, usage rates,
+                and cost data to activate waste tracking.
+              </div>
+            )}
+          </div>
+        </>
+      );
+    })()}
+  </>
+)}{inventoryView === "forecast" && (
+  <>
+    {(() => {
+      const forecastRows = inventoryForecastingData || [];
+      const smartAlerts = combinedInventoryAlerts || inventoryAlerts || [];
+
+      const stockoutRows = forecastRows.filter(
+        (item) =>
+          item.forecastStatus === "Critical" ||
+          item.forecastStatus === "Stockout Risk"
+      );
+
+      const reorderRows = forecastRows.filter(
+        (item) => item.forecastStatus === "Reorder Soon"
+      );
+
+      const monitorRows = forecastRows.filter(
+        (item) => item.forecastStatus === "Monitor"
+      );
+
+      const projectedUsageTotal = forecastRows.reduce(
+        (sum, item) => sum + Number(item.projectedUsage7Days || 0),
+        0
+      );
+
+      const projectedRemainingTotal = forecastRows.reduce(
+        (sum, item) => sum + Number(item.projectedRemaining || 0),
+        0
+      );
+
+      const forecastRiskLevel =
+        stockoutRows.length > 0
+          ? "Critical"
+          : reorderRows.length > 0
+          ? "Reorder Soon"
+          : monitorRows.length > 0
+          ? "Monitor"
+          : forecastRows.length > 0
+          ? "Stable"
+          : "Needs Data";
+
+      const forecastRiskColor =
+        forecastRiskLevel === "Critical"
+          ? "#f87171"
+          : forecastRiskLevel === "Reorder Soon"
+          ? "#fbbf24"
+          : forecastRiskLevel === "Monitor"
+          ? "#38bdf8"
+          : forecastRiskLevel === "Stable"
+          ? "#86efac"
+          : "#94a3b8";
+
+      const forecastCardStyle = {
+        padding: "22px",
+        borderRadius: "24px",
+        background: "rgba(15,23,42,0.90)",
+        border: "1px solid rgba(148,163,184,0.14)",
+        boxShadow: "0 22px 60px rgba(2,6,23,0.24)",
+        minWidth: 0,
+      };
+
+      const getForecastColor = (status) =>
+        status === "Critical" || status === "Stockout Risk"
+          ? "#f87171"
+          : status === "Reorder Soon"
+          ? "#fbbf24"
+          : status === "Monitor"
+          ? "#38bdf8"
+          : "#86efac";
+
+      return (
+        <>
+          {/* =========================
+             FORECAST COMMAND CENTER
+          ========================= */}
+          <div
+            style={{
+              gridColumn: isMobile ? "span 1" : "span 12",
+              width: "100%",
+              padding: isMobile ? "20px" : "26px",
+              borderRadius: "26px",
+              background:
+                "linear-gradient(135deg, rgba(20,184,166,0.15), rgba(15,23,42,0.96))",
+              border: "1px solid rgba(45,212,191,0.24)",
+              boxShadow: "0 24px 70px rgba(2,6,23,0.32)",
+              marginBottom: "22px",
+              minWidth: 0,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: "18px",
+                flexWrap: "wrap",
+                alignItems: "flex-start",
+              }}
+            >
+              <div style={{ minWidth: 0, flex: "1 1 560px" }}>
+                <div
+                  style={{
+                    color: "#5eead4",
+                    fontSize: "12px",
+                    fontWeight: "950",
+                    letterSpacing: "0.09em",
+                    textTransform: "uppercase",
+                    marginBottom: "10px",
+                  }}
+                >
+                  Inventory Forecast Command Center
+                </div>
+
+                <h2
+                  style={{
+                    color: "white",
+                    fontSize: isMobile ? "25px" : "32px",
+                    fontWeight: "950",
+                    lineHeight: 1.08,
+                    margin: 0,
+                  }}
+                >
+                  Projected depletion, reorder pressure, and 7-day inventory risk
+                </h2>
+
+                <p
+                  style={{
+                    color: "#cbd5e1",
+                    fontSize: "14px",
+                    lineHeight: 1.75,
+                    marginTop: "12px",
+                    marginBottom: 0,
+                    maxWidth: "900px",
+                  }}
+                >
+                  SerVen is forecasting which ingredients may fall below usable
+                  levels based on current stock, usage velocity, and projected
+                  7-day demand.
+                </p>
+              </div>
+
+              <div
+                style={{
+                  flex: "1 1 520px",
+                  display: "grid",
+                  gridTemplateColumns: isMobile ? "1fr" : "repeat(2, minmax(0, 1fr))",
+                  gap: "12px",
+                }}
+              >
+                {[
+                  ["Forecast Risk", forecastRiskLevel, "Current 7-day outlook", forecastRiskColor],
+                  ["Stockout Risk", stockoutRows.length, "Critical forecast items", "#f87171"],
+                  ["Reorder Soon", reorderRows.length, "Items needing purchase action", "#fbbf24"],
+                  [
+                    "Projected Usage",
+                    Number(projectedUsageTotal || 0).toFixed(1),
+                    "Total 7-day projected usage",
+                    "#5eead4",
+                  ],
+                ].map(([label, value, subtext, color]) => (
+                  <div
+                    key={label}
+                    style={{
+                      padding: "15px",
+                      borderRadius: "18px",
+                      background: "rgba(15,23,42,0.72)",
+                      border: `1px solid ${color}33`,
+                      minWidth: 0,
+                    }}
+                  >
+                    <div
+                      style={{
+                        color: "#94a3b8",
+                        fontSize: "11px",
+                        fontWeight: "900",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.06em",
+                      }}
+                    >
+                      {label}
+                    </div>
+
+                    <div
+                      style={{
+                        color,
+                        fontSize:
+                          typeof value === "string" && value.length > 10
+                            ? "21px"
+                            : "28px",
+                        fontWeight: "950",
+                        marginTop: "7px",
+                      }}
+                    >
+                      {value}
+                    </div>
+
+                    <div style={{ color: "#cbd5e1", fontSize: "12px", marginTop: "4px" }}>
+                      {subtext}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* =========================
+             FORECASTING + ALERTS ROW
+          ========================= */}
+          <div
+            style={{
+              gridColumn: isMobile ? "span 1" : "span 12",
+              width: "100%",
+              display: "grid",
+              gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 7fr) minmax(0, 5fr)",
+              gap: "18px",
+              marginBottom: "22px",
+            }}
+          >
+            {hasProAccess && (
+              <div style={forecastCardStyle}>
+                <div
+                  style={{
+                    color: "#5eead4",
+                    fontSize: "12px",
+                    fontWeight: "950",
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                    marginBottom: "12px",
+                  }}
+                >
+                  Inventory Forecasting Intelligence
+                </div>
+
+                <h3
+                  style={{
+                    color: "white",
+                    fontSize: "22px",
+                    fontWeight: "950",
+                    marginTop: 0,
+                    marginBottom: "14px",
+                  }}
+                >
+                  7-day projected inventory pressure
+                </h3>
+
+                <div style={{ display: "grid", gap: "12px" }}>
+                  {forecastRows.length > 0 ? (
+                    forecastRows.slice(0, 8).map((item, index) => {
+                      const statusColor = getForecastColor(item.forecastStatus);
+
+                      return (
+                        <div
+                          key={`${item.name || item.ingredient || index}-forecast`}
+                          style={{
+                            padding: "16px",
+                            borderRadius: "18px",
+                            background: "rgba(15,23,42,0.74)",
+                            border: `1px solid ${statusColor}55`,
+                          }}
+                        >
+                          <div
+                            style={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "flex-start",
+                              flexWrap: "wrap",
+                              gap: "12px",
+                              marginBottom: "10px",
+                            }}
+                          >
+                            <div style={{ minWidth: 0 }}>
+                              <div
+                                style={{
+                                  color: "white",
+                                  fontSize: "15px",
+                                  fontWeight: "950",
+                                }}
+                              >
+                                {item.name || item.ingredient || "Inventory Item"}
+                              </div>
+
+                              <div
+                                style={{
+                                  color: "#94a3b8",
+                                  fontSize: "12px",
+                                  marginTop: "4px",
+                                }}
+                              >
+                                {Number(item.daysRemaining || 0).toFixed(1)} days remaining ·{" "}
+                                {Number(item.usageRate || 0).toFixed(1)} usage/day
+                              </div>
+                            </div>
+
+                            <div
+                              style={{
+                                color: statusColor,
+                                fontSize: "12px",
+                                fontWeight: "950",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              {item.forecastStatus || "Monitoring"}
+                            </div>
+                          </div>
+
+                          <div
+                            style={{
+                              display: "grid",
+                              gridTemplateColumns: isMobile
+                                ? "1fr"
+                                : "repeat(3, minmax(0, 1fr))",
+                              gap: "10px",
+                            }}
+                          >
+                            {[
+                              ["Current Stock", Number(item.quantity || 0).toFixed(1), "#e2e8f0"],
+                              [
+                                "7-Day Usage",
+                                Number(item.projectedUsage7Days || 0).toFixed(1),
+                                "#5eead4",
+                              ],
+                              [
+                                "Projected Remaining",
+                                Number(item.projectedRemaining || 0).toFixed(1),
+                                statusColor,
+                              ],
+                            ].map(([label, value, color]) => (
+                              <div
+                                key={label}
+                                style={{
+                                  padding: "12px",
+                                  borderRadius: "14px",
+                                  background: "rgba(255,255,255,0.04)",
+                                  border: "1px solid rgba(148,163,184,0.12)",
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    color: "#94a3b8",
+                                    fontSize: "11px",
+                                    fontWeight: "900",
+                                  }}
+                                >
+                                  {label}
+                                </div>
+                                <div
+                                  style={{
+                                    color,
+                                    fontSize: "18px",
+                                    fontWeight: "950",
+                                    marginTop: "5px",
+                                  }}
+                                >
+                                  {value}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div
+                      style={{
+                        padding: "16px",
+                        borderRadius: "18px",
+                        background: "rgba(15,23,42,0.74)",
+                        border: "1px solid rgba(45,212,191,0.18)",
+                        color: "#cbd5e1",
+                        fontSize: "14px",
+                        lineHeight: 1.6,
+                      }}
+                    >
+                      Upload inventory quantities and usage rates to activate
+                      inventory forecasting.
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div style={forecastCardStyle}>
+              <div
+                style={{
+                  color: "#fca5a5",
+                  fontSize: "12px",
+                  fontWeight: "950",
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  marginBottom: "12px",
+                }}
+              >
+                Smart Inventory Alerts
+              </div>
+
+              <h3
+                style={{
+                  color: "white",
+                  fontSize: "22px",
+                  fontWeight: "950",
+                  marginTop: 0,
+                  marginBottom: "14px",
+                }}
+              >
+                Immediate attention needed
+              </h3>
+
+              <div style={{ display: "grid", gap: "10px" }}>
+                {smartAlerts.length > 0 ? (
+                  smartAlerts.slice(0, 7).map((alert, index) => {
+                    const tone = getInventoryAlertTone(alert.type);
+
+                    return (
+                      <div
+                        key={`${alert.ingredientName || alert.title || index}-alert`}
+                        style={{
+                          padding: "13px",
+                          borderRadius: "15px",
+                          background: tone.bg,
+                          border: tone.border,
+                          color: tone.color,
+                          fontSize: "13px",
+                          fontWeight: "850",
+                          boxShadow: tone.shadow,
+                          animation:
+                            alert.type === "critical"
+                              ? "criticalPulse 1.8s ease-in-out infinite"
+                              : "none",
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: "10px",
+                            fontWeight: "950",
+                            textTransform: "uppercase",
+                            marginBottom: "5px",
+                            opacity: 0.9,
+                          }}
+                        >
+                          {tone.icon} {tone.label}
+                        </div>
+
+                        <div>
+                          {alert.message ||
+                            alert.title ||
+                            "Inventory alert requires review."}
+                        </div>
+
+                        {alert.suggestion && (
+                          <div
+                            style={{
+                              color: "#fde68a",
+                              fontSize: "12px",
+                              marginTop: "5px",
+                              fontWeight: "950",
+                            }}
+                          >
+                            {alert.suggestion}
+                          </div>
+                        )}
+
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: "8px",
+                            flexWrap: "wrap",
+                            marginTop:
+                              alert.suggestedQuantity > 0 || alert.ingredientName
+                                ? "10px"
+                                : 0,
+                          }}
+                        >
+                          {Number(alert.suggestedQuantity || 0) > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => handleAutoRestockFromAlert(alert)}
+                              style={{
+                                padding: "8px 10px",
+                                borderRadius: "10px",
+                                border: "none",
+                                background:
+                                  "linear-gradient(135deg, #f59e0b, #d97706)",
+                                color: "white",
+                                fontWeight: "950",
+                                cursor: "pointer",
+                                fontSize: "12px",
+                              }}
+                            >
+                              Restock Now
+                            </button>
+                          )}
+
+                          {alert.ingredientName && (
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                await fetch("/api/inventory-alert-email", {
+                                  method: "POST",
+                                  headers: {
+                                    "Content-Type": "application/json",
+                                  },
+                                  body: JSON.stringify({
+                                    ownerEmail: "antoinemiller@servenai.com",
+                                    restaurantName:
+                                      selectedClient?.client_name || "Restaurant",
+                                    ingredientName: alert.ingredientName,
+                                    message: alert.message,
+                                    suggestion: alert.suggestion,
+                                  }),
+                                });
+
+                                setMessage("Inventory alert email sent");
+                              }}
+                              style={{
+                                padding: "8px 10px",
+                                borderRadius: "10px",
+                                border: "1px solid rgba(239,68,68,0.25)",
+                                background: "rgba(239,68,68,0.12)",
+                                color: "#fca5a5",
+                                fontWeight: "950",
+                                cursor: "pointer",
+                                fontSize: "12px",
+                              }}
+                            >
+                              Send Alert Email
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div
+                    style={{
+                      padding: "16px",
+                      borderRadius: "18px",
+                      background: "rgba(255,255,255,0.04)",
+                      border: "1px solid rgba(148,163,184,0.12)",
+                      color: "#cbd5e1",
+                      fontSize: "14px",
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    No forecast alerts right now.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* =========================
+             FORECAST LEDGER
+          ========================= */}
+          <div
+            style={{
+              gridColumn: isMobile ? "span 1" : "span 12",
+              width: "100%",
+              ...forecastCardStyle,
+              marginBottom: "24px",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: "14px",
+                flexWrap: "wrap",
+                alignItems: "flex-start",
+                marginBottom: "16px",
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    color: "#5eead4",
+                    fontSize: "12px",
+                    fontWeight: "950",
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Forecast Ledger
+                </div>
+
+                <h3
+                  style={{
+                    color: "white",
+                    fontSize: "24px",
+                    fontWeight: "950",
+                    margin: "8px 0 0",
+                  }}
+                >
+                  Projected inventory table
+                </h3>
+              </div>
+
+              <div
+                style={{
+                  color: "#94a3b8",
+                  fontSize: "12px",
+                  fontWeight: "800",
+                }}
+              >
+                Showing {forecastRows.slice(0, 12).length} of {forecastRows.length} items
+              </div>
+            </div>
+
+            {forecastRows.length > 0 ? (
+              <div
+                style={{
+                  width: "100%",
+                  overflowX: "auto",
+                  borderRadius: "18px",
+                  border: "1px solid rgba(148,163,184,0.12)",
+                }}
+              >
+                <table
+                  style={{
+                    width: "100%",
+                    borderCollapse: "collapse",
+                    minWidth: "900px",
+                  }}
+                >
+                  <thead>
+                    <tr style={{ background: "rgba(255,255,255,0.04)" }}>
+                      {[
+                        "Item",
+                        "Stock",
+                        "Usage / Day",
+                        "7-Day Usage",
+                        "Projected Remaining",
+                        "Days Left",
+                        "Status",
+                      ].map((header) => (
+                        <th
+                          key={header}
+                          style={{
+                            padding: "13px 14px",
+                            color: "#94a3b8",
+                            fontSize: "11px",
+                            fontWeight: "950",
+                            textAlign: "left",
+                            textTransform: "uppercase",
+                            letterSpacing: "0.06em",
+                            borderBottom: "1px solid rgba(148,163,184,0.12)",
+                          }}
+                        >
+                          {header}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {forecastRows.slice(0, 12).map((item, index) => {
+                      const statusColor = getForecastColor(item.forecastStatus);
+
+                      return (
+                        <tr key={`${item.name || item.ingredient || index}-ledger`}>
+                          <td
+                            style={{
+                              padding: "14px",
+                              color: "white",
+                              fontSize: "13px",
+                              fontWeight: "900",
+                              borderBottom: "1px solid rgba(148,163,184,0.08)",
+                            }}
+                          >
+                            {item.name || item.ingredient || "Inventory Item"}
+                          </td>
+
+                          {[
+                            Number(item.quantity || 0).toFixed(1),
+                            Number(item.usageRate || 0).toFixed(1),
+                            Number(item.projectedUsage7Days || 0).toFixed(1),
+                            Number(item.projectedRemaining || 0).toFixed(1),
+                            `${Number(item.daysRemaining || 0).toFixed(1)} days`,
+                          ].map((value, valueIndex) => (
+                            <td
+                              key={`${value}-${valueIndex}`}
+                              style={{
+                                padding: "14px",
+                                color: valueIndex === 3 ? statusColor : "#e2e8f0",
+                                fontSize: "13px",
+                                fontWeight: valueIndex === 3 ? "950" : "700",
+                                borderBottom: "1px solid rgba(148,163,184,0.08)",
+                              }}
+                            >
+                              {value}
+                            </td>
+                          ))}
+
+                          <td
+                            style={{
+                              padding: "14px",
+                              borderBottom: "1px solid rgba(148,163,184,0.08)",
+                            }}
+                          >
+                            <span
+                              style={{
+                                color: statusColor,
+                                background: `${statusColor}14`,
+                                border: `1px solid ${statusColor}33`,
+                                padding: "6px 9px",
+                                borderRadius: "999px",
+                                fontSize: "11px",
+                                fontWeight: "950",
+                              }}
+                            >
+                              {item.forecastStatus || "Monitoring"}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div
+                style={{
+                  padding: "18px",
+                  borderRadius: "18px",
+                  background: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(148,163,184,0.12)",
+                  color: "#cbd5e1",
+                  fontSize: "14px",
+                  lineHeight: 1.6,
+                }}
+              >
+                No forecast rows yet. Upload inventory quantities and usage rates to
+                activate projected inventory demand.
+              </div>
+            )}
+          </div>
+        </>
+      );
+    })()}
+  </>
 )}
-
-{/* =========================
-   📋 INVENTORY EXECUTIVE SUMMARY
-========================= */}
-
-{hasProAccess && (
-  <div
-    style={{
-      marginTop: "18px",
-      marginBottom: "26px",
-      padding: "22px",
-      borderRadius: "24px",
-      background:
-        "linear-gradient(135deg, rgba(34,197,94,0.16), rgba(15,23,42,0.94))",
-      border: "1px solid rgba(74,222,128,0.18)",
-      boxShadow: "0 22px 60px rgba(2,6,23,0.30)",
-    }}
-  >
-    <div
-      style={{
-        color: "#86efac",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      Inventory Executive Summary
-    </div>
-
-    <h3
-      style={{
-        color: "white",
-        fontSize: "24px",
-        fontWeight: "900",
-        marginBottom: "12px",
-      }}
-    >
-      AI inventory operational overview
-    </h3>
-
-    <div
-      style={{
-        color: "#e2e8f0",
-        fontSize: "14px",
-        lineHeight: 1.8,
-        whiteSpace: "pre-line",
-      }}
-    >
-      {typeof inventoryExecutiveSummary === "string"
-  ? inventoryExecutiveSummary
-  : inventoryExecutiveSummary?.description ||
-    inventoryExecutiveSummary?.title ||
-    "Inventory executive summary is being generated."}
-    </div>
-  </div>
-)}
 </div>
 </div>
-</div>
+
   </>
 )}
 {activeTab === "operations" && (
@@ -66220,231 +70155,6 @@ return (
   );
 })()}
 
-{/* =========================
-   AI AUTONOMOUS OPTIMIZATION ENGINE
-========================= */}
-
-
-{hasProAccess && (
-  <div
-    style={{
-      gridColumn: "auto",
-
-      width: "100%",
-      minWidth: 0,
-      boxSizing: "border-box",
-
-      marginTop: "22px",
-      padding: "28px",
-      borderRadius: "32px",
-
-      overflow: "visible",
-
-      background:
-        "linear-gradient(135deg, rgba(34,197,94,0.16), rgba(15,23,42,0.98))",
-
-      border: "1px solid rgba(74,222,128,0.24)",
-
-      boxShadow: "0 30px 90px rgba(2,6,23,0.42)",
-    }}
-  >
-    <div
-      style={{
-        color: "#86efac",
-        fontSize: "12px",
-        fontWeight: "950",
-        letterSpacing: "0.1em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      AI Autonomous Optimization Engine
-    </div>
-
-    <h3
-      style={{
-        color: "white",
-        fontSize: "28px",
-        fontWeight: "950",
-        marginBottom: "14px",
-      }}
-    >
-      Self-Improving Restaurant Performance System
-    </h3>
-
-    <p
-      style={{
-        color: "#cbd5e1",
-        fontSize: "14px",
-        lineHeight: 1.8,
-        marginBottom: "24px",
-        maxWidth: "920px",
-      }}
-    >
-      AI continuously recommends the best operational adjustments across guest
-      recovery, labor efficiency, inventory control, menu profitability, and
-      revenue growth.
-    </p>
-
-    <div style={{ display: "grid", gap: "16px" }}>
-      {[
-       {
-  system: "Guest Revenue Optimization",
-  action: hasOperationalData
-    ? "Launch win-back campaigns for high-risk guests."
-    : "Upload guest activity and customer data to activate retention intelligence.",
-
-  result: hasOperationalData
-    ? `+$${Math.round(Number(estimatedRecoverableProfit || 0)).toLocaleString()}/mo potential recovery`
-    : "Awaiting Data",
-
-  status: hasOperationalData
-    ? "Ready"
-    : "Awaiting Data",
-},
-
-{
-  system: "Labor Cost Optimization",
-  action: hasOperationalData
-    ? "Reduce staffing during predicted slow periods."
-    : "Upload labor and sales data to activate staffing optimization.",
-
-  result: hasOperationalData
-    ? `+$${Math.round(Number(estimatedLaborRecovery || 0)).toLocaleString()}/mo profit protection`
-    : "Awaiting Data",
-
-  status: hasOperationalData
-    ? "Recommended"
-    : "Awaiting Data",
-},
-
-{
-  system: "Menu Profit Optimization",
-  action: hasOperationalData
-    ? "Promote high-margin items and premium add-ons."
-    : "Upload menu and sales mix data to activate menu profitability AI.",
-
-  result: hasOperationalData
-  ? `+$${Math.round(
-  profitLeakageChartData.reduce(
-    (sum, item) => sum + Number(item.loss || 0),
-    0
-  )
-).toLocaleString()}/mo margin upside`
-  : "Awaiting Data",
-
-  status: hasOperationalData
-    ? "Active"
-    : "Awaiting Data",
-},
-
-{
-  system: "Inventory Waste Optimization",
-  action: hasOperationalData
-    ? "Adjust purchasing cadence based on usage variance."
-    : "Upload inventory and invoice data to activate waste optimization intelligence.",
-
-  result: hasOperationalData
-  ? `+$${Math.round(
-  Number(operationalEstimatedWasteRecovery || 0)
-).toLocaleString()}/mo waste reduction`
-  : "Awaiting Data",
-
-  status: hasOperationalData
-    ? "Monitoring"
-    : "Awaiting Data",
-},
-      ].map((item, index) => (
-        <div
-          key={index}
-          style={{
-            padding: "20px",
-            borderRadius: "24px",
-            background: "rgba(15,23,42,0.78)",
-            border: "1px solid rgba(74,222,128,0.14)",
-            display: "grid",
-            gridTemplateColumns: isMobile
-              ? "1fr"
-              : "1.2fr 1.4fr 1fr 120px",
-            gap: "16px",
-            alignItems: "center",
-          }}
-        >
-          <div>
-            <div
-              style={{
-                color: "white",
-                fontSize: "17px",
-                fontWeight: "900",
-                marginBottom: "6px",
-              }}
-            >
-              {item.system}
-            </div>
-
-            <div
-              style={{
-                color: "#94a3b8",
-                fontSize: "12px",
-                fontWeight: "700",
-              }}
-            >
-              AI optimization module
-            </div>
-          </div>
-
-          <div
-            style={{
-              color: "#cbd5e1",
-              fontSize: "13px",
-              lineHeight: 1.7,
-            }}
-          >
-            {item.action}
-          </div>
-
-          <div
-            style={{
-              color: "#86efac",
-              fontSize: "13px",
-              fontWeight: "900",
-            }}
-          >
-            {item.result}
-          </div>
-
-          <div
-            style={{
-              padding: "8px 12px",
-              borderRadius: "999px",
-              textAlign: "center",
-              background:
-                item.status === "Active"
-                  ? "rgba(34,197,94,0.15)"
-                  : item.status === "Ready"
-                  ? "rgba(59,130,246,0.15)"
-                  : item.status === "Recommended"
-                  ? "rgba(250,204,21,0.15)"
-                  : "rgba(148,163,184,0.15)",
-              color:
-                item.status === "Active"
-                  ? "#86efac"
-                  : item.status === "Ready"
-                  ? "#93c5fd"
-                  : item.status === "Recommended"
-                  ? "#fde68a"
-                  : "#cbd5e1",
-              fontSize: "12px",
-              fontWeight: "900",
-            }}
-          >
-            {item.status}
-          </div>
-        </div>
-      ))}
-    </div>
-  </div>
-)}
 
     {/* 📲 LIVE REAL-TIME POS KITCHEN TICKETS CONTAINER */}
 
@@ -77483,6 +81193,231 @@ subtext: "Profit recovered from applied AI actions",
   ))}
 </div>
 
+{/* =========================
+   AI AUTONOMOUS OPTIMIZATION ENGINE
+========================= */}
+
+
+{hasProAccess && (
+  <div
+    style={{
+      gridColumn: "auto",
+
+      width: "100%",
+      minWidth: 0,
+      boxSizing: "border-box",
+
+      marginTop: "22px",
+      padding: "28px",
+      borderRadius: "32px",
+
+      overflow: "visible",
+
+      background:
+        "linear-gradient(135deg, rgba(34,197,94,0.16), rgba(15,23,42,0.98))",
+
+      border: "1px solid rgba(74,222,128,0.24)",
+
+      boxShadow: "0 30px 90px rgba(2,6,23,0.42)",
+    }}
+  >
+    <div
+      style={{
+        color: "#86efac",
+        fontSize: "12px",
+        fontWeight: "950",
+        letterSpacing: "0.1em",
+        textTransform: "uppercase",
+        marginBottom: "10px",
+      }}
+    >
+      AI Autonomous Optimization Engine
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: "28px",
+        fontWeight: "950",
+        marginBottom: "14px",
+      }}
+    >
+      Self-Improving Restaurant Performance System
+    </h3>
+
+    <p
+      style={{
+        color: "#cbd5e1",
+        fontSize: "14px",
+        lineHeight: 1.8,
+        marginBottom: "24px",
+        maxWidth: "920px",
+      }}
+    >
+      AI continuously recommends the best operational adjustments across guest
+      recovery, labor efficiency, inventory control, menu profitability, and
+      revenue growth.
+    </p>
+
+    <div style={{ display: "grid", gap: "16px" }}>
+      {[
+       {
+  system: "Guest Revenue Optimization",
+  action: hasOperationalData
+    ? "Launch win-back campaigns for high-risk guests."
+    : "Upload guest activity and customer data to activate retention intelligence.",
+
+  result: hasOperationalData
+    ? `+$${Math.round(Number(estimatedRecoverableProfit || 0)).toLocaleString()}/mo potential recovery`
+    : "Awaiting Data",
+
+  status: hasOperationalData
+    ? "Ready"
+    : "Awaiting Data",
+},
+
+{
+  system: "Labor Cost Optimization",
+  action: hasOperationalData
+    ? "Reduce staffing during predicted slow periods."
+    : "Upload labor and sales data to activate staffing optimization.",
+
+  result: hasOperationalData
+    ? `+$${Math.round(Number(estimatedLaborRecovery || 0)).toLocaleString()}/mo profit protection`
+    : "Awaiting Data",
+
+  status: hasOperationalData
+    ? "Recommended"
+    : "Awaiting Data",
+},
+
+{
+  system: "Menu Profit Optimization",
+  action: hasOperationalData
+    ? "Promote high-margin items and premium add-ons."
+    : "Upload menu and sales mix data to activate menu profitability AI.",
+
+  result: hasOperationalData
+  ? `+$${Math.round(
+  profitLeakageChartData.reduce(
+    (sum, item) => sum + Number(item.loss || 0),
+    0
+  )
+).toLocaleString()}/mo margin upside`
+  : "Awaiting Data",
+
+  status: hasOperationalData
+    ? "Active"
+    : "Awaiting Data",
+},
+
+{
+  system: "Inventory Waste Optimization",
+  action: hasOperationalData
+    ? "Adjust purchasing cadence based on usage variance."
+    : "Upload inventory and invoice data to activate waste optimization intelligence.",
+
+  result: hasOperationalData
+  ? `+$${Math.round(
+  Number(operationalEstimatedWasteRecovery || 0)
+).toLocaleString()}/mo waste reduction`
+  : "Awaiting Data",
+
+  status: hasOperationalData
+    ? "Monitoring"
+    : "Awaiting Data",
+},
+      ].map((item, index) => (
+        <div
+          key={index}
+          style={{
+            padding: "20px",
+            borderRadius: "24px",
+            background: "rgba(15,23,42,0.78)",
+            border: "1px solid rgba(74,222,128,0.14)",
+            display: "grid",
+            gridTemplateColumns: isMobile
+              ? "1fr"
+              : "1.2fr 1.4fr 1fr 120px",
+            gap: "16px",
+            alignItems: "center",
+          }}
+        >
+          <div>
+            <div
+              style={{
+                color: "white",
+                fontSize: "17px",
+                fontWeight: "900",
+                marginBottom: "6px",
+              }}
+            >
+              {item.system}
+            </div>
+
+            <div
+              style={{
+                color: "#94a3b8",
+                fontSize: "12px",
+                fontWeight: "700",
+              }}
+            >
+              AI optimization module
+            </div>
+          </div>
+
+          <div
+            style={{
+              color: "#cbd5e1",
+              fontSize: "13px",
+              lineHeight: 1.7,
+            }}
+          >
+            {item.action}
+          </div>
+
+          <div
+            style={{
+              color: "#86efac",
+              fontSize: "13px",
+              fontWeight: "900",
+            }}
+          >
+            {item.result}
+          </div>
+
+          <div
+            style={{
+              padding: "8px 12px",
+              borderRadius: "999px",
+              textAlign: "center",
+              background:
+                item.status === "Active"
+                  ? "rgba(34,197,94,0.15)"
+                  : item.status === "Ready"
+                  ? "rgba(59,130,246,0.15)"
+                  : item.status === "Recommended"
+                  ? "rgba(250,204,21,0.15)"
+                  : "rgba(148,163,184,0.15)",
+              color:
+                item.status === "Active"
+                  ? "#86efac"
+                  : item.status === "Ready"
+                  ? "#93c5fd"
+                  : item.status === "Recommended"
+                  ? "#fde68a"
+                  : "#cbd5e1",
+              fontSize: "12px",
+              fontWeight: "900",
+            }}
+          >
+            {item.status}
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
 {/* ============================= */}
 {/* AI PROFIT ENGINE */}
 {/* ============================= */}
