@@ -67274,23 +67274,23 @@ const activityRows = [
   </>
 )}{inventoryView === "vendors" && (
   <>
-    {(() => {
-      const vendorRows =
-        vendorPricingData ||
-        supplierPricingData ||
-        inventoryVendorData ||
-        vendorsData ||
-        [];
+    {(() => {const vendorRows =
+  typeof vendorPricingData !== "undefined" &&
+  Array.isArray(vendorPricingData)
+    ? vendorPricingData
+    : [];
 
-      const purchaseRows =
-        inventoryPurchases ||
-        purchaseHistory ||
-        restockActivity ||
-        inventoryRestockLogs ||
-        [];
+const purchaseRows =
+  typeof inventoryRestockLogs !== "undefined" &&
+  Array.isArray(inventoryRestockLogs)
+    ? inventoryRestockLogs
+    : [];
 
-      const invoiceRows = invoiceUploads || invoice_uploads || invoiceImports || [];
-
+const invoiceRows =
+  typeof invoiceUploads !== "undefined" &&
+  Array.isArray(invoiceUploads)
+    ? invoiceUploads
+    : [];
       const getVendor = (row) =>
         row.vendor ||
         row.vendor_name ||
