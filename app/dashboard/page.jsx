@@ -41337,13 +41337,16 @@ Restaurant AI Health is currently rated{" "}
 {analyticsView === "revenue" && (
   <>
   <div
-  style={{
-    width: "100%",
-    display: "grid",
-    gridTemplateColumns: "1fr",
-    gap: "20px",
-  }}
->
+    style={{
+      width: "100%",
+      maxWidth: "100%",
+      minWidth: 0,
+      display: "flex",
+      flexDirection: "column",
+      gap: "24px",
+      overflow: "visible",
+    }}
+  >
   {/* 📊 REVENUE TREND */}
 {!executiveModeEnabled && (
   <div
@@ -41890,6 +41893,17 @@ gridColumn: "1 / -1",
   )}
 </div>
 {/* 🚀 REVENUE DRIVERS */}
+<div
+  style={{
+    width: "100%",
+    display: "grid",
+    gridTemplateColumns: isMobile
+      ? "1fr"
+      : "repeat(3, minmax(280px, 1fr))",
+    gap: "20px",
+    alignItems: "stretch",
+  }}
+>
 <div
   style={{
     marginTop: "20px",
@@ -42971,6 +42985,7 @@ gridColumn: "1 / -1",
     </div>
   );
 })()}
+</div>
 </div>
   </>
 )}
