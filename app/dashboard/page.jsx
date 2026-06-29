@@ -41271,8 +41271,7 @@ Restaurant AI Health is currently rated{" "}
 
   </div>
 )}
- {activeTab === "analytics" && (
-  
+{activeTab === "analytics" && (
   <div
     style={{
       width: "100%",
@@ -41280,23 +41279,23 @@ Restaurant AI Health is currently rated{" "}
       minWidth: 0,
       overflow: "visible",
       display: "grid",
-      gridTemplateColumns: isMobile
-        ? "1fr"
-        : "repeat(2, minmax(0, 1fr))",
+      gridTemplateColumns: "1fr",
       gap: "24px",
       boxSizing: "border-box",
       paddingBottom: "24px",
     }}
   >
-   {/* ANALYTICS SUB NAV */}
+ {/* ANALYTICS SUB NAV */}
 
 <div
   style={{
-    gridColumn: isMobile ? "span 1" : "span 2",
+    width: "100%",
     display: "flex",
     gap: "10px",
     flexWrap: "wrap",
-    marginBottom: "24px",
+    marginBottom: "4px",
+    position: "relative",
+    zIndex: 5,
   }}
 >
   {[
@@ -41337,10 +41336,20 @@ Restaurant AI Health is currently rated{" "}
 </div>
 {analyticsView === "revenue" && (
   <>
+  <div
+  style={{
+    width: "100%",
+    display: "grid",
+    gridTemplateColumns: "1fr",
+    gap: "20px",
+  }}
+>
   {/* 📊 REVENUE TREND */}
 {!executiveModeEnabled && (
   <div
    style={{
+    width: "100%",
+gridColumn: "1 / -1",
   marginTop: "20px",
   padding: "22px",
   borderRadius: "24px",
@@ -42962,6 +42971,7 @@ Restaurant AI Health is currently rated{" "}
     </div>
   );
 })()}
+</div>
   </>
 )}
   {analyticsView === "menu" && (
