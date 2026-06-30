@@ -70090,7 +70090,9 @@ const safeOpportunities =
       const snapshotCards = [
         [
           "Operations Health",
-          `${Math.round(overallRestaurantScore || 0)}/100`,
+          `${Math.round(
+  typeof overallRestaurantScore !== "undefined" ? overallRestaurantScore || 0 : 0
+)}/100`,
           "Overall restaurant operating score",
           "#22c55e",
         ],
