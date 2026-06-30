@@ -72197,6 +72197,48 @@ maxWidth: "100%",
   boxSizing: "border-box",
 }}
   >
+
+{/* LABOR SUB NAVIGATION */}
+
+<div
+  style={{
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "10px",
+    marginBottom: "24px",
+  }}
+>
+  {[
+    { id: "overview", label: "Overview" },
+    { id: "recovery", label: "Recovery" },
+    { id: "shifts", label: "Shifts" },
+    { id: "employees", label: "Employees" },
+    { id: "ai", label: "AI Workforce" },
+  ].map((tab) => (
+    <button
+      key={tab.id}
+      onClick={() => setLaborView(tab.id)}
+      style={{
+        padding: "10px 18px",
+        borderRadius: "999px",
+        border:
+          laborView === tab.id
+            ? "1px solid #60a5fa"
+            : "1px solid rgba(148,163,184,.15)",
+        background:
+          laborView === tab.id
+            ? "linear-gradient(135deg,#2563eb,#7c3aed)"
+            : "rgba(15,23,42,.72)",
+        color: "white",
+        fontWeight: "900",
+        cursor: "pointer",
+        transition: ".2s",
+      }}
+    >
+      {tab.label}
+    </button>
+  ))}
+</div>
 {laborView === "overview" && (
   <>
     {(() => {
