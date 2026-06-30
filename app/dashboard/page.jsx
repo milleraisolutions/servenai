@@ -83063,32 +83063,24 @@ subtext: "Profit recovered from applied AI actions",
     </div>
   ))}
 </div>
-
 {/* =========================
    AI AUTONOMOUS OPTIMIZATION ENGINE
 ========================= */}
 
-
 {hasProAccess && (
   <div
     style={{
-      gridColumn: "auto",
-
+      gridColumn: "span 12",
       width: "100%",
       minWidth: 0,
       boxSizing: "border-box",
-
       marginTop: "22px",
-      padding: "28px",
+      padding: isMobile ? "20px" : "28px",
       borderRadius: "32px",
-
-      overflow: "visible",
-
+      overflow: "hidden",
       background:
         "linear-gradient(135deg, rgba(34,197,94,0.16), rgba(15,23,42,0.98))",
-
       border: "1px solid rgba(74,222,128,0.24)",
-
       boxShadow: "0 30px 90px rgba(2,6,23,0.42)",
     }}
   >
@@ -83108,7 +83100,7 @@ subtext: "Profit recovered from applied AI actions",
     <h3
       style={{
         color: "white",
-        fontSize: "28px",
+        fontSize: isMobile ? "24px" : "28px",
         fontWeight: "950",
         marginBottom: "14px",
       }}
@@ -83130,162 +83122,214 @@ subtext: "Profit recovered from applied AI actions",
       revenue growth.
     </p>
 
-    <div style={{ display: "grid", gap: "16px" }}>
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: isMobile
+          ? "1fr"
+          : "repeat(2, minmax(0, 1fr))",
+        gap: "16px",
+      }}
+    >
       {[
-       {
-  system: "Guest Revenue Optimization",
-  action: hasOperationalData
-    ? "Launch win-back campaigns for high-risk guests."
-    : "Upload guest activity and customer data to activate retention intelligence.",
+        {
+          system: "Guest Revenue Optimization",
+          action: hasOperationalData
+            ? "Launch win-back campaigns for high-risk guests."
+            : "Upload guest activity and customer data to activate retention intelligence.",
+          result: hasOperationalData
+            ? `+$${Math.round(
+                Number(estimatedRecoverableProfit || 0)
+              ).toLocaleString()}/mo potential recovery`
+            : "Awaiting Data",
+          status: hasOperationalData ? "Ready" : "Awaiting Data",
+        },
+        {
+          system: "Labor Cost Optimization",
+          action: hasOperationalData
+            ? "Reduce staffing during predicted slow periods."
+            : "Upload labor and sales data to activate staffing optimization.",
+          result: hasOperationalData
+            ? `+$${Math.round(
+                Number(estimatedLaborRecovery || 0)
+              ).toLocaleString()}/mo profit protection`
+            : "Awaiting Data",
+          status: hasOperationalData ? "Recommended" : "Awaiting Data",
+        },
+        {
+          system: "Menu Profit Optimization",
+          action: hasOperationalData
+            ? "Promote high-margin items and premium add-ons."
+            : "Upload menu and sales mix data to activate menu profitability AI.",
+          result: hasOperationalData
+            ? `+$${Math.round(
+                (profitLeakageChartData || []).reduce(
+                  (sum, item) => sum + Number(item.loss || 0),
+                  0
+                )
+              ).toLocaleString()}/mo margin upside`
+            : "Awaiting Data",
+          status: hasOperationalData ? "Active" : "Awaiting Data",
+        },
+        {
+          system: "Inventory Waste Optimization",
+          action: hasOperationalData
+            ? "Adjust purchasing cadence based on usage variance."
+            : "Upload inventory and invoice data to activate waste optimization intelligence.",
+          result: hasOperationalData
+            ? `+$${Math.round(
+                Number(operationalEstimatedWasteRecovery || 0)
+              ).toLocaleString()}/mo waste reduction`
+            : "Awaiting Data",
+          status: hasOperationalData ? "Monitoring" : "Awaiting Data",
+        },
+      ].map((item, index) => {
+        const statusBg =
+          item.status === "Active"
+            ? "rgba(34,197,94,0.15)"
+            : item.status === "Ready"
+            ? "rgba(59,130,246,0.15)"
+            : item.status === "Recommended"
+            ? "rgba(250,204,21,0.15)"
+            : "rgba(148,163,184,0.15)";
 
-  result: hasOperationalData
-    ? `+$${Math.round(Number(estimatedRecoverableProfit || 0)).toLocaleString()}/mo potential recovery`
-    : "Awaiting Data",
+        const statusColor =
+          item.status === "Active"
+            ? "#86efac"
+            : item.status === "Ready"
+            ? "#93c5fd"
+            : item.status === "Recommended"
+            ? "#fde68a"
+            : "#cbd5e1";
 
-  status: hasOperationalData
-    ? "Ready"
-    : "Awaiting Data",
-},
-
-{
-  system: "Labor Cost Optimization",
-  action: hasOperationalData
-    ? "Reduce staffing during predicted slow periods."
-    : "Upload labor and sales data to activate staffing optimization.",
-
-  result: hasOperationalData
-    ? `+$${Math.round(Number(estimatedLaborRecovery || 0)).toLocaleString()}/mo profit protection`
-    : "Awaiting Data",
-
-  status: hasOperationalData
-    ? "Recommended"
-    : "Awaiting Data",
-},
-
-{
-  system: "Menu Profit Optimization",
-  action: hasOperationalData
-    ? "Promote high-margin items and premium add-ons."
-    : "Upload menu and sales mix data to activate menu profitability AI.",
-
-  result: hasOperationalData
-  ? `+$${Math.round(
-  profitLeakageChartData.reduce(
-    (sum, item) => sum + Number(item.loss || 0),
-    0
-  )
-).toLocaleString()}/mo margin upside`
-  : "Awaiting Data",
-
-  status: hasOperationalData
-    ? "Active"
-    : "Awaiting Data",
-},
-
-{
-  system: "Inventory Waste Optimization",
-  action: hasOperationalData
-    ? "Adjust purchasing cadence based on usage variance."
-    : "Upload inventory and invoice data to activate waste optimization intelligence.",
-
-  result: hasOperationalData
-  ? `+$${Math.round(
-  Number(operationalEstimatedWasteRecovery || 0)
-).toLocaleString()}/mo waste reduction`
-  : "Awaiting Data",
-
-  status: hasOperationalData
-    ? "Monitoring"
-    : "Awaiting Data",
-},
-      ].map((item, index) => (
-        <div
-          key={index}
-          style={{
-            padding: "20px",
-            borderRadius: "24px",
-            background: "rgba(15,23,42,0.78)",
-            border: "1px solid rgba(74,222,128,0.14)",
-            display: "grid",
-            gridTemplateColumns: isMobile
-              ? "1fr"
-              : "1.2fr 1.4fr 1fr 120px",
-            gap: "16px",
-            alignItems: "center",
-          }}
-        >
-          <div>
+        return (
+          <div
+            key={`${item.system}-${index}`}
+            style={{
+              padding: "20px",
+              borderRadius: "24px",
+              background: "rgba(15,23,42,0.78)",
+              border: "1px solid rgba(74,222,128,0.14)",
+              minWidth: 0,
+              boxSizing: "border-box",
+            }}
+          >
             <div
               style={{
-                color: "white",
-                fontSize: "17px",
-                fontWeight: "900",
-                marginBottom: "6px",
+                display: "flex",
+                justifyContent: "space-between",
+                gap: "12px",
+                alignItems: "flex-start",
+                flexWrap: "wrap",
+                marginBottom: "14px",
               }}
             >
-              {item.system}
+              <div>
+                <div
+                  style={{
+                    color: "white",
+                    fontSize: "17px",
+                    fontWeight: "900",
+                    marginBottom: "6px",
+                  }}
+                >
+                  {item.system}
+                </div>
+
+                <div
+                  style={{
+                    color: "#94a3b8",
+                    fontSize: "12px",
+                    fontWeight: "700",
+                  }}
+                >
+                  AI optimization module
+                </div>
+              </div>
+
+              <div
+                style={{
+                  padding: "8px 12px",
+                  borderRadius: "999px",
+                  textAlign: "center",
+                  background: statusBg,
+                  color: statusColor,
+                  fontSize: "12px",
+                  fontWeight: "900",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {item.status}
+              </div>
             </div>
 
             <div
               style={{
-                color: "#94a3b8",
-                fontSize: "12px",
-                fontWeight: "700",
+                padding: "14px",
+                borderRadius: "16px",
+                background: "rgba(255,255,255,0.04)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                marginBottom: "12px",
               }}
             >
-              AI optimization module
+              <div
+                style={{
+                  color: "#86efac",
+                  fontSize: "11px",
+                  fontWeight: "900",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.08em",
+                  marginBottom: "6px",
+                }}
+              >
+                Recommended Action
+              </div>
+
+              <div
+                style={{
+                  color: "#cbd5e1",
+                  fontSize: "13px",
+                  lineHeight: 1.7,
+                }}
+              >
+                {item.action}
+              </div>
+            </div>
+
+            <div
+              style={{
+                padding: "14px",
+                borderRadius: "16px",
+                background: "rgba(34,197,94,0.08)",
+                border: "1px solid rgba(74,222,128,0.14)",
+              }}
+            >
+              <div
+                style={{
+                  color: "#86efac",
+                  fontSize: "11px",
+                  fontWeight: "900",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.08em",
+                  marginBottom: "6px",
+                }}
+              >
+                Estimated Impact
+              </div>
+
+              <div
+                style={{
+                  color: "#86efac",
+                  fontSize: "16px",
+                  fontWeight: "950",
+                }}
+              >
+                {item.result}
+              </div>
             </div>
           </div>
-
-          <div
-            style={{
-              color: "#cbd5e1",
-              fontSize: "13px",
-              lineHeight: 1.7,
-            }}
-          >
-            {item.action}
-          </div>
-
-          <div
-            style={{
-              color: "#86efac",
-              fontSize: "13px",
-              fontWeight: "900",
-            }}
-          >
-            {item.result}
-          </div>
-
-          <div
-            style={{
-              padding: "8px 12px",
-              borderRadius: "999px",
-              textAlign: "center",
-              background:
-                item.status === "Active"
-                  ? "rgba(34,197,94,0.15)"
-                  : item.status === "Ready"
-                  ? "rgba(59,130,246,0.15)"
-                  : item.status === "Recommended"
-                  ? "rgba(250,204,21,0.15)"
-                  : "rgba(148,163,184,0.15)",
-              color:
-                item.status === "Active"
-                  ? "#86efac"
-                  : item.status === "Ready"
-                  ? "#93c5fd"
-                  : item.status === "Recommended"
-                  ? "#fde68a"
-                  : "#cbd5e1",
-              fontSize: "12px",
-              fontWeight: "900",
-            }}
-          >
-            {item.status}
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   </div>
 )}
