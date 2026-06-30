@@ -302,7 +302,7 @@ const [auditLogs, setAuditLogs] = useState([]);
 const [auditLogsLoading, setAuditLogsLoading] = useState(false);
 const [enterpriseView, setEnterpriseView] = useState("overview");
 const [analyticsView, setAnalyticsView] = useState("revenue");
-
+const [beverageView, setBeverageView] = useState("overview");
 
 
 
@@ -77546,6 +77546,7 @@ maxWidth: "calc(100% - 28px)",
 
 
   {activeTab === "beverage" && (
+    
   <div
     style={{
       width: "calc(100vw - 390px)",
@@ -77565,6 +77566,1180 @@ maxWidth: "calc(100% - 28px)",
       boxSizing: "border-box",
     }}
   >
+    <div
+  style={{
+    display: "flex",
+    gap: "10px",
+    flexWrap: "wrap",
+    marginBottom: "22px",
+  }}
+>
+  {[
+    { id: "overview", label: "🍸 Overview" },
+    { id: "profitability", label: "💰 Profitability" },
+    { id: "variance", label: "🥃 Variance" },
+    { id: "inventory", label: "🍺 Inventory" },
+  ].map((tab) => (
+    <button
+      key={tab.id}
+      onClick={() => setBeverageView(tab.id)}
+      style={{
+        padding: "10px 18px",
+        borderRadius: "999px",
+        border:
+          beverageView === tab.id
+            ? "1px solid #ec4899"
+            : "1px solid rgba(148,163,184,.15)",
+        background:
+          beverageView === tab.id
+            ? "linear-gradient(135deg,#ec4899,#7c3aed)"
+            : "rgba(15,23,42,.75)",
+        color: "white",
+        fontWeight: "800",
+        cursor: "pointer",
+      }}
+    >
+      {tab.label}
+    </button>
+  ))}
+</div>
+{beverageView === "overview" && (
+  <>
+    {/* BEVERAGE INTELLIGENCE HERO */}
+    <div
+      style={{
+        marginBottom: "24px",
+        padding: "24px",
+        borderRadius: "24px",
+        background:
+          "radial-gradient(circle at top right, rgba(236,72,153,0.18), transparent 30%), linear-gradient(135deg, #111827, #1e293b)",
+        border: "1px solid rgba(244,114,182,0.18)",
+        boxShadow: "0 20px 50px rgba(2,6,23,0.22)",
+      }}
+    >
+      <div
+        style={{
+          fontSize: "12px",
+          fontWeight: "900",
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          color: "#f9a8d4",
+          marginBottom: "8px",
+        }}
+      >
+        Beverage Intelligence
+      </div>
+
+      <h2
+        style={{
+          margin: 0,
+          color: "white",
+          fontSize: isMobile ? "26px" : "32px",
+          fontWeight: "950",
+        }}
+      >
+        Alcohol & Beverage Operations
+      </h2>
+
+      <p
+        style={{
+          marginTop: "10px",
+          color: "#94a3b8",
+          fontSize: "14px",
+          lineHeight: 1.7,
+          maxWidth: "760px",
+        }}
+      >
+        Monitor pour costs, bartender variance, theft risk, happy hour profitability,
+        recipe margins, and beverage performance using AI-powered operational intelligence.
+      </p>
+    </div>
+
+    {/* BEVERAGE HEALTH SCORE */}
+    {hasProAccess && (
+      <div
+        style={{
+          marginTop: "18px",
+          marginBottom: "24px",
+          padding: "24px",
+          borderRadius: "24px",
+          background:
+            "linear-gradient(135deg, rgba(236,72,153,0.16), rgba(15,23,42,0.96))",
+          border: `1px solid ${
+            typeof beverageHealthScoreData !== "undefined"
+              ? beverageHealthScoreData?.color || "#f9a8d4"
+              : "#f9a8d4"
+          }55`,
+          boxShadow: "0 22px 60px rgba(2,6,23,0.32)",
+        }}
+      >
+        <div
+          style={{
+            color: "#f9a8d4",
+            fontSize: "12px",
+            fontWeight: "900",
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            marginBottom: "10px",
+          }}
+        >
+          Beverage Health Score
+        </div>
+
+        {(() => {
+          const scoreData =
+            typeof beverageHealthScoreData !== "undefined"
+              ? beverageHealthScoreData || {}
+              : {};
+
+          const score = Number(scoreData.score || 0);
+          const color = scoreData.color || "#f9a8d4";
+
+          return (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: isMobile ? "1fr" : "180px 1fr",
+                gap: "18px",
+                alignItems: "center",
+              }}
+            >
+              <div
+                style={{
+                  width: "150px",
+                  height: "150px",
+                  borderRadius: "999px",
+                  display: "grid",
+                  placeItems: "center",
+                  background: `conic-gradient(${color} ${score}%, rgba(148,163,184,0.18) 0)`,
+                  margin: isMobile ? "0 auto" : 0,
+                }}
+              >
+                <div
+                  style={{
+                    width: "118px",
+                    height: "118px",
+                    borderRadius: "999px",
+                    background: "rgba(15,23,42,0.96)",
+                    display: "grid",
+                    placeItems: "center",
+                    border: "1px solid rgba(148,163,184,0.16)",
+                  }}
+                >
+                  <div style={{ textAlign: "center" }}>
+                    <div
+                      style={{
+                        color: "white",
+                        fontSize: "34px",
+                        fontWeight: "950",
+                        lineHeight: 1,
+                      }}
+                    >
+                      {score}
+                    </div>
+
+                    <div
+                      style={{
+                        color,
+                        fontSize: "12px",
+                        fontWeight: "900",
+                        marginTop: "6px",
+                      }}
+                    >
+                      {scoreData.status || "Waiting"}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h3
+                  style={{
+                    color: "white",
+                    fontSize: "24px",
+                    fontWeight: "900",
+                    marginBottom: "8px",
+                  }}
+                >
+                  AI beverage operational health
+                </h3>
+
+                <p
+                  style={{
+                    color: "#cbd5e1",
+                    fontSize: "14px",
+                    lineHeight: 1.7,
+                    marginBottom: "16px",
+                  }}
+                >
+                  {scoreData.insight ||
+                    "Upload beverage items, usage, and sales data to activate beverage health scoring."}
+                </p>
+
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
+                    gap: "12px",
+                  }}
+                >
+                  {[
+                    [
+                      "Restock Risks",
+                      Number(scoreData.criticalRestocks || 0) +
+                        Number(scoreData.reorderSoon || 0),
+                    ],
+                    [
+                      "Keg Risks",
+                      Number(scoreData.criticalKegs || 0) +
+                        Number(scoreData.lowKegs || 0),
+                    ],
+                    ["Staff Variance", Number(scoreData.bartenderIssues || 0)],
+                  ].map(([label, value]) => (
+                    <div
+                      key={label}
+                      style={{
+                        padding: "13px",
+                        borderRadius: "16px",
+                        background: "rgba(15,23,42,0.72)",
+                        border: "1px solid rgba(148,163,184,0.14)",
+                      }}
+                    >
+                      <div
+                        style={{
+                          color: "#94a3b8",
+                          fontSize: "11px",
+                          fontWeight: "800",
+                        }}
+                      >
+                        {label}
+                      </div>
+
+                      <div
+                        style={{
+                          color: "white",
+                          fontSize: "22px",
+                          fontWeight: "900",
+                          marginTop: "4px",
+                        }}
+                      >
+                        {value}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+      </div>
+    )}
+
+    {/* BEVERAGE ALERTS FEED */}
+    {hasProAccess && (
+      <div
+        style={{
+          marginTop: "18px",
+          marginBottom: "24px",
+          padding: "22px",
+          borderRadius: "24px",
+          background:
+            "linear-gradient(135deg, rgba(239,68,68,0.12), rgba(15,23,42,0.96))",
+          border: "1px solid rgba(248,113,113,0.22)",
+          boxShadow: "0 22px 60px rgba(2,6,23,0.30)",
+        }}
+      >
+        <div
+          style={{
+            color: "#fca5a5",
+            fontSize: "12px",
+            fontWeight: "900",
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            marginBottom: "8px",
+          }}
+        >
+          Beverage Alerts Feed
+        </div>
+
+        <h3 style={{ color: "white", fontSize: "24px", fontWeight: "900" }}>
+          Real-time beverage risk detection
+        </h3>
+
+        <p style={{ color: "#cbd5e1", fontSize: "14px", lineHeight: 1.6 }}>
+          SerVen is scanning alcohol variance, stockouts, keg depletion,
+          bartender leakage, and happy hour margin pressure.
+        </p>
+
+        <div style={{ display: "grid", gap: "12px", marginTop: "18px" }}>
+          {(typeof beverageAlertsFeed !== "undefined" ? beverageAlertsFeed || [] : []).length > 0 ? (
+            (beverageAlertsFeed || []).map((alert, index) => {
+              const alertColor =
+                alert.priority === "Critical"
+                  ? "#f87171"
+                  : alert.priority === "High"
+                  ? "#fbbf24"
+                  : "#38bdf8";
+
+              return (
+                <div
+                  key={`${alert.title}-${index}`}
+                  style={{
+                    padding: "16px",
+                    borderRadius: "18px",
+                    background: "rgba(15,23,42,0.74)",
+                    border: `1px solid ${alertColor}55`,
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: "12px",
+                      marginBottom: "8px",
+                    }}
+                  >
+                    <div
+                      style={{
+                        color: "white",
+                        fontSize: "15px",
+                        fontWeight: "900",
+                      }}
+                    >
+                      {alert.title}
+                    </div>
+
+                    <div
+                      style={{
+                        color: alertColor,
+                        fontSize: "11px",
+                        fontWeight: "900",
+                        textTransform: "uppercase",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {alert.priority}
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      color: "#cbd5e1",
+                      fontSize: "13px",
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    {alert.detail}
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <div
+              style={{
+                padding: "16px",
+                borderRadius: "18px",
+                background: "rgba(15,23,42,0.74)",
+                border: "1px solid rgba(148,163,184,0.14)",
+                color: "#cbd5e1",
+                fontSize: "14px",
+                lineHeight: 1.6,
+              }}
+            >
+              No beverage alerts surfaced right now.
+            </div>
+          )}
+        </div>
+      </div>
+    )}
+
+    {/* BEVERAGE EXECUTIVE SUMMARY */}
+    {hasProAccess && (
+      <div
+        style={{
+          marginTop: "20px",
+          marginBottom: "28px",
+          padding: "22px",
+          borderRadius: "24px",
+          background:
+            "linear-gradient(135deg, rgba(236,72,153,0.16), rgba(15,23,42,0.94))",
+          border: "1px solid rgba(244,114,182,0.18)",
+          boxShadow: "0 22px 60px rgba(2,6,23,0.30)",
+        }}
+      >
+        <div
+          style={{
+            color: "#f9a8d4",
+            fontSize: "12px",
+            fontWeight: "900",
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            marginBottom: "10px",
+          }}
+        >
+          Beverage Executive Summary
+        </div>
+
+        <h3
+          style={{
+            color: "white",
+            fontSize: "24px",
+            fontWeight: "900",
+            marginBottom: "12px",
+          }}
+        >
+          AI beverage operational overview
+        </h3>
+
+        <div
+          style={{
+            color: "#e2e8f0",
+            fontSize: "14px",
+            lineHeight: 1.8,
+            whiteSpace: "pre-line",
+          }}
+        >
+          {typeof upgradedBeverageExecutiveSummary !== "undefined"
+            ? upgradedBeverageExecutiveSummary
+            : "Upload beverage sales, inventory, usage, and recipe data to activate the executive beverage summary."}
+        </div>
+      </div>
+    )}
+  </>
+)}{beverageView === "profitability" && (
+  <>
+    {(() => {
+      const safeTopMarginCocktails =
+        typeof topMarginCocktails !== "undefined" ? topMarginCocktails || [] : [];
+
+      const safeBeverageLeaderboard =
+        typeof beverageLeaderboard !== "undefined" ? beverageLeaderboard || [] : [];
+
+      const safeCriticalOunceVariance =
+        typeof criticalOunceVariance !== "undefined"
+          ? criticalOunceVariance || []
+          : [];
+
+      const safeHappyHourProfitabilityData =
+        typeof happyHourProfitabilityData !== "undefined"
+          ? happyHourProfitabilityData || {}
+          : {};
+
+      const safeAdvancedBeverageInsight =
+        typeof advancedBeverageInsight !== "undefined"
+          ? advancedBeverageInsight
+          : "Upload beverage revenue, usage, pour, and bartender data to activate advanced beverage profitability intelligence.";
+
+      const safeAdvancedBeverageRevenue =
+        typeof advancedBeverageRevenue !== "undefined"
+          ? advancedBeverageRevenue
+          : 0;
+
+      const safeBeverageRevenuePercent =
+        typeof beverageRevenuePercent !== "undefined"
+          ? beverageRevenuePercent
+          : 0;
+
+      const safeHappyHourBeverageMargin =
+        typeof happyHourBeverageMargin !== "undefined"
+          ? happyHourBeverageMargin
+          : 0;
+
+      const safeHappyHourBeverageStatus =
+        typeof happyHourBeverageStatus !== "undefined"
+          ? happyHourBeverageStatus
+          : "Needs Data";
+
+      const safeBartenderVarianceLeaderboard =
+        typeof bartenderVarianceLeaderboard !== "undefined"
+          ? bartenderVarianceLeaderboard || []
+          : [];
+
+      return (
+        <>
+          {/* BEVERAGE PROFITABILITY KPI STRIP */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: isMobile
+                ? "1fr"
+                : "repeat(auto-fit, minmax(180px, 1fr))",
+              gap: "14px",
+              marginBottom: "26px",
+            }}
+          >
+            <GlassCard
+              title="Top Margin Drink"
+              value={safeTopMarginCocktails?.[0]?.name || "Needs recipe data"}
+              subtext={
+                safeTopMarginCocktails?.[0]?.cocktailMargin
+                  ? `${Number(
+                      safeTopMarginCocktails[0].cocktailMargin
+                    ).toFixed(1)}% cocktail margin`
+                  : "Upload drink price and cost data"
+              }
+            />
+
+            <GlassCard
+              title="Top Velocity Drink"
+              value={safeBeverageLeaderboard?.[0]?.name || "Needs beverage sales"}
+              subtext={
+                safeBeverageLeaderboard?.[0]?.revenue
+                  ? `$${Number(
+                      safeBeverageLeaderboard[0].revenue || 0
+                    ).toLocaleString()} beverage revenue`
+                  : "Upload alcohol sales data"
+              }
+            />
+
+            <GlassCard
+              title="Most Profitable Cocktail"
+              value={safeTopMarginCocktails?.[0]?.name || "Needs cocktail data"}
+              subtext={
+                safeTopMarginCocktails?.[0]?.price &&
+                safeTopMarginCocktails?.[0]?.estimatedCost
+                  ? `$${Number(
+                      Number(safeTopMarginCocktails[0].price || 0) -
+                        Number(safeTopMarginCocktails[0].estimatedCost || 0)
+                    ).toFixed(2)} profit per drink`
+                  : "Upload cocktail pricing and recipe cost"
+              }
+            />
+
+            <GlassCard
+              title="Most Wasted Beverage"
+              value={
+                safeCriticalOunceVariance.length > 0
+                  ? safeCriticalOunceVariance?.[0]?.name || "Variance detected"
+                  : "No waste detected"
+              }
+              subtext={
+                safeCriticalOunceVariance.length > 0
+                  ? "Pour variance risk detected"
+                  : "No beverage waste signal yet"
+              }
+            />
+          </div>
+
+          {/* ADVANCED BEVERAGE INTELLIGENCE */}
+          <div
+            style={{
+              marginBottom: "22px",
+              padding: "24px",
+              borderRadius: "24px",
+              background:
+                "linear-gradient(135deg, rgba(124,58,237,0.18), rgba(15,23,42,0.96))",
+              border: "1px solid rgba(167,139,250,0.24)",
+              boxShadow: "0 22px 70px rgba(2,6,23,0.34)",
+            }}
+          >
+            <div
+              style={{
+                color: "#c4b5fd",
+                fontSize: "12px",
+                fontWeight: "900",
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                marginBottom: "8px",
+              }}
+            >
+              Advanced Beverage Intelligence
+            </div>
+
+            <h3
+              style={{
+                color: "white",
+                fontSize: "24px",
+                fontWeight: "950",
+                marginTop: 0,
+              }}
+            >
+              Beverage profit, pour variance, and bartender risk
+            </h3>
+
+            <p style={{ color: "#cbd5e1", fontSize: "14px", lineHeight: 1.7 }}>
+              {safeAdvancedBeverageInsight}
+            </p>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: isMobile ? "1fr" : "repeat(4, 1fr)",
+                gap: "14px",
+                marginTop: "18px",
+              }}
+            >
+              {[
+                {
+                  label: "Beverage Revenue",
+                  value: `$${Number(
+                    safeAdvancedBeverageRevenue || 0
+                  ).toLocaleString()}`,
+                  sub: `${safeBeverageRevenuePercent}% of total revenue`,
+                },
+                {
+                  label: "Pour Variance Issues",
+                  value: safeCriticalOunceVariance.length,
+                  sub: "High-risk ounce variance items",
+                },
+                {
+                  label: "Happy Hour Margin",
+                  value: `${safeHappyHourBeverageMargin || 0}%`,
+                  sub: safeHappyHourBeverageStatus,
+                },
+                {
+                  label: "Bartender Risk",
+                  value:
+                    safeBartenderVarianceLeaderboard?.[0]?.status || "Controlled",
+                  sub:
+                    safeBartenderVarianceLeaderboard?.[0]?.name ||
+                    "No risk detected",
+                },
+              ].map((card) => (
+                <div
+                  key={card.label}
+                  style={{
+                    padding: "16px",
+                    borderRadius: "18px",
+                    background: "rgba(15,23,42,0.72)",
+                    border: "1px solid rgba(148,163,184,0.16)",
+                  }}
+                >
+                  <div
+                    style={{
+                      color: "#94a3b8",
+                      fontSize: "12px",
+                      fontWeight: "800",
+                    }}
+                  >
+                    {card.label}
+                  </div>
+
+                  <div
+                    style={{
+                      marginTop: "8px",
+                      color: "white",
+                      fontSize: "24px",
+                      fontWeight: "950",
+                    }}
+                  >
+                    {card.value}
+                  </div>
+
+                  <div
+                    style={{
+                      marginTop: "6px",
+                      color: "#cbd5e1",
+                      fontSize: "12px",
+                    }}
+                  >
+                    {card.sub}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* HAPPY HOUR PROFITABILITY */}
+          {hasProAccess && (
+            <div
+              style={{
+                marginTop: "18px",
+                padding: "22px",
+                borderRadius: "24px",
+                background:
+                  "linear-gradient(135deg, rgba(34,197,94,0.14), rgba(15,23,42,0.96))",
+                border: "1px solid rgba(34,197,94,0.24)",
+                boxShadow: "0 22px 60px rgba(2,6,23,0.30)",
+              }}
+            >
+              <div
+                style={{
+                  color: "#86efac",
+                  fontSize: "12px",
+                  fontWeight: "900",
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  marginBottom: "8px",
+                }}
+              >
+                Happy Hour Profitability
+              </div>
+
+              <h3
+                style={{
+                  color: "white",
+                  fontSize: "24px",
+                  fontWeight: "900",
+                  marginTop: 0,
+                }}
+              >
+                Discount performance and beverage margin protection
+              </h3>
+
+              <p style={{ color: "#cbd5e1", fontSize: "14px", lineHeight: 1.6 }}>
+                SerVen is measuring whether happy hour discounts are increasing
+                profit or creating beverage margin leakage.
+              </p>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: isMobile ? "1fr" : "repeat(4, 1fr)",
+                  gap: "14px",
+                  marginTop: "18px",
+                }}
+              >
+                {[
+                  ["Sales", safeHappyHourProfitabilityData.salesCount || 0],
+                  [
+                    "Revenue",
+                    `$${Number(
+                      safeHappyHourProfitabilityData.totalRevenue || 0
+                    ).toLocaleString()}`,
+                  ],
+                  [
+                    "Gross Profit",
+                    `$${Number(
+                      safeHappyHourProfitabilityData.grossProfit || 0
+                    ).toLocaleString()}`,
+                  ],
+                  [
+                    "Margin",
+                    `${Number(
+                      safeHappyHourProfitabilityData.marginPercent || 0
+                    ).toFixed(1)}%`,
+                  ],
+                ].map(([label, value]) => (
+                  <div
+                    key={label}
+                    style={{
+                      padding: "16px",
+                      borderRadius: "18px",
+                      background: "rgba(15,23,42,0.72)",
+                      border: "1px solid rgba(34,197,94,0.18)",
+                    }}
+                  >
+                    <div
+                      style={{
+                        color: "#bbf7d0",
+                        fontSize: "12px",
+                        fontWeight: "800",
+                      }}
+                    >
+                      {label}
+                    </div>
+
+                    <div
+                      style={{
+                        color: "white",
+                        fontSize: "24px",
+                        fontWeight: "900",
+                      }}
+                    >
+                      {value}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div
+                style={{
+                  marginTop: "18px",
+                  padding: "16px",
+                  borderRadius: "18px",
+                  background: "rgba(15,23,42,0.72)",
+                  border: "1px solid rgba(34,197,94,0.18)",
+                }}
+              >
+                <div
+                  style={{
+                    color: "#86efac",
+                    fontSize: "12px",
+                    fontWeight: "900",
+                    marginBottom: "8px",
+                  }}
+                >
+                  AI Profitability Status
+                </div>
+
+                <p
+                  style={{
+                    color: "#e5e7eb",
+                    fontSize: "14px",
+                    lineHeight: 1.6,
+                    marginBottom: 0,
+                  }}
+                >
+                  Happy hour status:{" "}
+                  <strong>
+                    {safeHappyHourProfitabilityData.status || "Needs Data"}
+                  </strong>
+                  . Discount impact is $
+                  {Number(
+                    safeHappyHourProfitabilityData.discountImpact || 0
+                  ).toLocaleString()}{" "}
+                  against $
+                  {Number(
+                    safeHappyHourProfitabilityData.totalRevenue || 0
+                  ).toLocaleString()}{" "}
+                  in tracked beverage revenue.
+                </p>
+              </div>
+            </div>
+          )}
+        </>
+      );
+    })()}
+    {/* ALCOHOL SALES INTELLIGENCE */}
+<div
+  style={{
+    marginTop: "20px",
+    padding: "22px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(124,58,237,0.16), rgba(15,23,42,0.92))",
+    border: "1px solid rgba(167,139,250,0.18)",
+  }}
+>
+  {(() => {
+    const safeAlcoholRevenue =
+      typeof alcoholRevenue !== "undefined" ? alcoholRevenue : 0;
+
+    const safeAlcoholRevenuePercent =
+      typeof alcoholRevenuePercent !== "undefined" ? alcoholRevenuePercent : 0;
+
+    const safeTopAlcoholItemName =
+      typeof topAlcoholItemName !== "undefined"
+        ? topAlcoholItemName
+        : "Needs alcohol sales";
+
+    const safeAlcoholSalesRows =
+      typeof alcoholSalesRows !== "undefined" ? alcoholSalesRows || [] : [];
+
+    return (
+      <>
+        <div
+          style={{
+            fontSize: "12px",
+            fontWeight: "900",
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            color: "#c4b5fd",
+            marginBottom: "16px",
+          }}
+        >
+          Alcohol Sales Intelligence
+        </div>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: isMobile
+              ? "1fr"
+              : "repeat(2, minmax(0, 1fr))",
+            gap: "14px",
+          }}
+        >
+          <GlassCard
+            title="Alcohol Revenue"
+            value={`$${Number(safeAlcoholRevenue || 0).toLocaleString()}`}
+            subtext="Revenue generated from detected alcohol sales"
+          />
+
+          <GlassCard
+            title="Alcohol % of Sales"
+            value={`${Number(safeAlcoholRevenuePercent || 0).toFixed(1)}%`}
+            subtext="Percentage of total revenue from alcohol"
+          />
+
+          <GlassCard
+            title="Top Alcohol Item"
+            value={safeTopAlcoholItemName}
+            subtext="Highest revenue beverage item"
+          />
+
+          <GlassCard
+            title="Alcohol Items Found"
+            value={safeAlcoholSalesRows.length}
+            subtext="Detected alcohol-related sales items"
+          />
+        </div>
+      </>
+    );
+  })()}
+</div>
+
+{/* ALCOHOL POUR COST INTELLIGENCE */}
+<div
+  style={{
+    marginTop: "18px",
+    padding: "20px",
+    borderRadius: "20px",
+    background:
+      "linear-gradient(135deg, rgba(22,101,52,0.16), rgba(15,23,42,0.92))",
+    border: "1px solid rgba(74,222,128,0.16)",
+  }}
+>
+  {(() => {
+    const safeEstimatedAlcoholCostPercent =
+      typeof estimatedAlcoholCostPercent !== "undefined"
+        ? estimatedAlcoholCostPercent
+        : 0;
+
+    const safeAlcoholMarginPercent =
+      typeof alcoholMarginPercent !== "undefined" ? alcoholMarginPercent : 0;
+
+    const safeAlcoholMarginStatus =
+      typeof alcoholMarginStatus !== "undefined"
+        ? alcoholMarginStatus
+        : "Needs Data";
+
+    return (
+      <>
+        <div
+          style={{
+            fontSize: "12px",
+            fontWeight: "900",
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            color: "#86efac",
+            marginBottom: "14px",
+          }}
+        >
+          Alcohol Pour Cost Intelligence
+        </div>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: isMobile
+              ? "1fr"
+              : "repeat(3, minmax(0, 1fr))",
+            gap: "14px",
+          }}
+        >
+          <GlassCard
+            title="Estimated Pour Cost"
+            value={
+              safeEstimatedAlcoholCostPercent > 0
+                ? `${safeEstimatedAlcoholCostPercent}%`
+                : "Needs alcohol data"
+            }
+            subtext="Estimated beverage cost percentage"
+          />
+
+          <GlassCard
+            title="Estimated Beverage Margin"
+            value={
+              safeAlcoholMarginPercent > 0
+                ? `${safeAlcoholMarginPercent}%`
+                : "Needs alcohol data"
+            }
+            subtext="Estimated margin after pour cost"
+          />
+
+          <GlassCard
+            title="Margin Status"
+            value={safeAlcoholMarginStatus}
+            subtext="AI beverage margin rating"
+          />
+        </div>
+      </>
+    );
+  })()}
+</div>
+
+{/* BEVERAGE CATEGORY BREAKDOWN */}
+<div
+  style={{
+    marginTop: "18px",
+    padding: "20px",
+    borderRadius: "20px",
+    background:
+      "linear-gradient(135deg, rgba(14,116,144,0.14), rgba(15,23,42,0.92))",
+    border: "1px solid rgba(56,189,248,0.16)",
+  }}
+>
+  {(() => {
+    const safeCategoryBreakdown =
+      typeof beverageCategoryBreakdown !== "undefined"
+        ? beverageCategoryBreakdown || {}
+        : {};
+
+    const safeTopBeverageCategory =
+      typeof topBeverageCategory !== "undefined"
+        ? topBeverageCategory
+        : "Needs beverage data";
+
+    return (
+      <>
+        <div
+          style={{
+            fontSize: "12px",
+            fontWeight: "900",
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            color: "#67e8f9",
+            marginBottom: "14px",
+          }}
+        >
+          Beverage Category Breakdown
+        </div>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: isMobile
+              ? "1fr"
+              : "repeat(2, minmax(0, 1fr))",
+            gap: "14px",
+          }}
+        >
+          {Object.entries(safeCategoryBreakdown).length > 0 ? (
+            Object.entries(safeCategoryBreakdown).map(([category, revenue]) => (
+              <GlassCard
+                key={category}
+                title={category}
+                value={`$${Number(revenue || 0).toLocaleString()}`}
+                subtext="Detected beverage revenue"
+              />
+            ))
+          ) : (
+            <GlassCard
+              title="Beverage Categories"
+              value="Needs data"
+              subtext="Upload beverage sales to activate category breakdown"
+            />
+          )}
+
+          <GlassCard
+            title="Top Beverage Category"
+            value={safeTopBeverageCategory}
+            subtext="Highest beverage revenue category"
+          />
+        </div>
+      </>
+    );
+  })()}
+</div>
+
+{/* TOP BEVERAGE PERFORMERS */}
+<div
+  style={{
+    marginTop: "18px",
+    padding: "20px",
+    borderRadius: "20px",
+    background:
+      "linear-gradient(135deg, rgba(30,64,175,0.14), rgba(15,23,42,0.92))",
+    border: "1px solid rgba(96,165,250,0.16)",
+  }}
+>
+  {(() => {
+    const safeBeverageLeaderboard =
+      typeof beverageLeaderboard !== "undefined" ? beverageLeaderboard || [] : [];
+
+    return (
+      <>
+        <div
+          style={{
+            fontSize: "12px",
+            fontWeight: "900",
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            color: "#93c5fd",
+            marginBottom: "14px",
+          }}
+        >
+          Top Beverage Performers
+        </div>
+
+        <div style={{ display: "grid", gap: "12px" }}>
+          {safeBeverageLeaderboard.length > 0 ? (
+            safeBeverageLeaderboard.map((item, index) => (
+              <div
+                key={`${item.name}-${index}`}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  padding: "14px 16px",
+                  borderRadius: "16px",
+                  background: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(148,163,184,0.12)",
+                }}
+              >
+                <div>
+                  <div
+                    style={{
+                      color: "white",
+                      fontWeight: "800",
+                      marginBottom: "4px",
+                    }}
+                  >
+                    {item.name}
+                  </div>
+
+                  <div
+                    style={{
+                      color: "#93c5fd",
+                      fontSize: "12px",
+                      fontWeight: "700",
+                    }}
+                  >
+                    {item.category}
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    color: "#86efac",
+                    fontWeight: "900",
+                    fontSize: "16px",
+                  }}
+                >
+                  ${Number(item.revenue || 0).toLocaleString()}
+                </div>
+              </div>
+            ))
+          ) : (
+            <div
+              style={{
+                padding: "16px",
+                borderRadius: "16px",
+                background: "rgba(255,255,255,0.04)",
+                border: "1px solid rgba(148,163,184,0.12)",
+                color: "#94a3b8",
+                fontSize: "14px",
+              }}
+            >
+              Upload beverage sales to activate top beverage performers.
+            </div>
+          )}
+        </div>
+      </>
+    );
+  })()}
+</div>
+  </>
+)}
+{beverageView === "variance" && (
+  <>
+    {/* POUR VARIANCE + BARTENDER RISK */}
+    {/* BEVERAGE THEFT RISK INTELLIGENCE */}
+    {/* BARTENDER VARIANCE INTELLIGENCE */}
+    {/* ALCOHOL-AWARE AI INSIGHTS */}
+  </>
+)}
+{beverageView === "inventory" && (
+  <>
+    {/* BEVERAGE UPLOAD DATA STATUS */}
+    {/* COCKTAIL DEPLETION + HAPPY HOUR PROFITABILITY */}
+    {/* SHIFT-LEVEL BEVERAGE ANALYTICS */}
+    {/* BEVERAGE RESTOCK INTELLIGENCE */}
+    {/* KEG INTELLIGENCE */}
+  </>
+)}
  {/* BEVERAGE INTELLIGENCE HERO */}
 <div
   style={{
