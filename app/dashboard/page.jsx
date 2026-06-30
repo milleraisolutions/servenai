@@ -303,7 +303,7 @@ const [auditLogsLoading, setAuditLogsLoading] = useState(false);
 const [enterpriseView, setEnterpriseView] = useState("overview");
 const [analyticsView, setAnalyticsView] = useState("revenue");
 const [beverageView, setBeverageView] = useState("overview");
-
+const [laborView, setLaborView] = useState("overview");
 
 
 
@@ -72197,1238 +72197,423 @@ maxWidth: "100%",
   boxSizing: "border-box",
 }}
   >
-   {/* LABOR INTELLIGENCE HERO INTRO BLOCK */}
-{(() => {
-  const mobileLayout =
-    typeof isMobile !== "undefined" ? isMobile : false;
+{laborView === "overview" && (
+  <>
+    {(() => {
+      const mobileLayout = typeof isMobile !== "undefined" ? isMobile : false;
 
-  return (
-    <div
-      style={{
-        marginBottom: "14px",
+      const safeExecutiveLaborScore =
+        typeof executiveLaborScore !== "undefined"
+          ? executiveLaborScore || {}
+          : {};
 
-        padding: mobileLayout ? "14px" : "16px",
+      const safeLaborHealthScoreData =
+        typeof laborHealthScoreData !== "undefined"
+          ? laborHealthScoreData || {}
+          : {};
 
-        borderRadius: "20px",
+      const safeEffectiveLaborCostPercent =
+        typeof effectiveLaborCostPercent !== "undefined"
+          ? effectiveLaborCostPercent
+          : 0;
 
-        background:
-          "radial-gradient(circle at top right, rgba(59,130,246,0.18), transparent 30%), linear-gradient(135deg, #111827, #1e293b)",
+      const safeEstimatedLaborRecovery =
+        typeof estimatedLaborRecovery !== "undefined"
+          ? estimatedLaborRecovery
+          : 0;
 
-        border: "1px solid rgba(96,165,250,0.18)",
-
-        boxShadow: "0 20px 50px rgba(2,6,23,0.22)",
-      }}
-    >
-      <div
-        style={{
-          fontSize: "12px",
-          fontWeight: "900",
-          letterSpacing: "0.08em",
-          textTransform: "uppercase",
-          color: "#93c5fd",
-          marginBottom: "8px",
-        }}
-      >
-        Labor Intelligence
-      </div>
-
-      <h1
-        style={{
-          margin: 0,
-          color: "white",
-
-          fontSize: mobileLayout ? "22px" : "26px",
-
-          fontWeight: "900",
-          lineHeight: "1.2",
-        }}
-      >
-        Workforce Performance & Labor Optimization
-      </h1>
-
-      <p
-        style={{
-          marginTop: "10px",
-          color: "#94a3b8",
-          fontSize: "13px",
-          lineHeight: 1.6,
-          maxWidth: "680px",
-          marginBottom: 0,
-        }}
-      >
-        Monitor labor efficiency, staffing performance,
-        shift profitability, overtime risk, and AI-driven
-        workforce optimization opportunities using
-        operational intelligence.
-      </p>
-    </div>
-  );
-})()}
-
-{/* EXECUTIVE LABOR SCORE */}
-<div
-  style={{
-    marginBottom: "18px",
-    padding: isMobile ? "16px" : "20px",
-    borderRadius: "22px",
-    background:
-      "radial-gradient(circle at top right, rgba(59,130,246,0.16), transparent 34%), linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.92))",
-    border: `1px solid ${executiveLaborScore.color}44`,
-    boxShadow: "0 18px 50px rgba(2,6,23,0.24)",
-  }}
->
-  <div
-    style={{
-      display: "grid",
-      gridTemplateColumns: isMobile ? "1fr" : "180px 1fr",
-      gap: "18px",
-      alignItems: "center",
-    }}
-  >
-    <div
-      style={{
-        width: "150px",
-        height: "150px",
-        borderRadius: "999px",
-        display: "grid",
-        placeItems: "center",
-        background: `conic-gradient(${executiveLaborScore.color} ${executiveLaborScore.score}%, rgba(148,163,184,0.18) 0)`,
-        margin: isMobile ? "0 auto" : 0,
-      }}
-    >
-      <div
-        style={{
-          width: "116px",
-          height: "116px",
-          borderRadius: "999px",
-          background: "rgba(15,23,42,0.96)",
-          display: "grid",
-          placeItems: "center",
-          border: "1px solid rgba(148,163,184,0.14)",
-        }}
-      >
-        <div style={{ textAlign: "center" }}>
+      return (
+        <>
+          {/* LABOR INTELLIGENCE HERO */}
           <div
             style={{
-              color: "white",
-              fontSize: "34px",
-              fontWeight: "950",
-              lineHeight: 1,
+              marginBottom: "14px",
+              padding: mobileLayout ? "14px" : "16px",
+              borderRadius: "20px",
+              background:
+                "radial-gradient(circle at top right, rgba(59,130,246,0.18), transparent 30%), linear-gradient(135deg, #111827, #1e293b)",
+              border: "1px solid rgba(96,165,250,0.18)",
+              boxShadow: "0 20px 50px rgba(2,6,23,0.22)",
             }}
           >
-            {executiveLaborScore.score}
-          </div>
-
-          <div
-            style={{
-              color: executiveLaborScore.color,
-              fontSize: "12px",
-              fontWeight: "900",
-              marginTop: "6px",
-            }}
-          >
-            /100
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div>
-      <div
-        style={{
-          color: executiveLaborScore.color,
-          fontSize: "12px",
-          fontWeight: "900",
-          letterSpacing: "0.1em",
-          textTransform: "uppercase",
-          marginBottom: "8px",
-        }}
-      >
-        Executive Labor Score
-      </div>
-
-      <h2
-        style={{
-          margin: 0,
-          color: "white",
-          fontSize: isMobile ? "24px" : "30px",
-          fontWeight: "950",
-          letterSpacing: "-0.03em",
-        }}
-      >
-        {executiveLaborScore.status}
-      </h2>
-
-      <p
-        style={{
-          color: "#94a3b8",
-          fontSize: "13px",
-          lineHeight: 1.7,
-          marginTop: "8px",
-          maxWidth: "760px",
-        }}
-      >
-        {executiveLaborScore.recommendation}
-      </p>
-
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: isMobile
-            ? "1fr"
-            : "repeat(3, minmax(0, 1fr))",
-          gap: "12px",
-          marginTop: "16px",
-        }}
-      >
-        <GlassCard
-          title="Labor Cost %"
-          value={
-            Number(effectiveLaborCostPercent || 0) > 0
-              ? `${Number(effectiveLaborCostPercent || 0).toFixed(1)}%`
-              : "Awaiting Data"
-          }
-          subtext="Labor cost versus revenue"
-        />
-
-        <GlassCard
-          title="Primary Risk"
-          value={executiveLaborScore.primaryRisk}
-          subtext="Highest labor pressure"
-        />
-
-        <GlassCard
-          title="Recovery Opportunity"
-          value={
-            estimatedLaborRecovery > 0
-              ? `$${Number(estimatedLaborRecovery || 0).toLocaleString()}`
-              : "Awaiting Data"
-          }
-          subtext="Recoverable labor profit"
-        />
-      </div>
-    </div>
-  </div>
-</div>
-{/* LABOR RECOVERY FOCUS */}
-<div
-  style={{
-    marginTop: "14px",
-    marginBottom: "18px",
-    padding: isMobile ? "16px" : "20px",
-    borderRadius: "22px",
-    background:
-      "radial-gradient(circle at top right, rgba(239,68,68,0.14), transparent 34%), linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.92))",
-    border: "1px solid rgba(239,68,68,0.18)",
-    boxShadow: "0 18px 50px rgba(2,6,23,0.24)",
-  }}
->
-  <div
-    style={{
-      color: "#fca5a5",
-      fontSize: "12px",
-      fontWeight: "900",
-      letterSpacing: "0.1em",
-      textTransform: "uppercase",
-      marginBottom: "8px",
-    }}
-  >
-    Labor Recovery Focus
-  </div>
-
-  <h2
-    style={{
-      margin: 0,
-      color: "white",
-      fontSize: isMobile ? "22px" : "28px",
-      fontWeight: "950",
-      letterSpacing: "-0.03em",
-    }}
-  >
-    {estimatedLaborRecovery > 0
-      ? `$${Number(estimatedLaborRecovery || 0).toLocaleString()} labor recovery opportunity`
-      : "Upload labor data to reveal recovery opportunity"}
-  </h2>
-
-  <p
-    style={{
-      marginTop: "8px",
-      color: "#94a3b8",
-      fontSize: "13px",
-      lineHeight: 1.7,
-      maxWidth: "760px",
-    }}
-  >
-    Serven highlights labor recovery first when staffing cost, overtime, or
-    low-revenue shifts are creating the largest profit opportunity.
-  </p>
-
-  <div
-    style={{
-      display: "grid",
-      gridTemplateColumns: isMobile ? "1fr" : "repeat(3, minmax(0, 1fr))",
-      gap: "12px",
-      marginTop: "16px",
-    }}
-  >
-    <GlassCard
-      title="Labor Opportunity"
-      value={
-        estimatedLaborRecovery > 0
-          ? `$${Number(estimatedLaborRecovery || 0).toLocaleString()}`
-          : "Awaiting Data"
-      }
-      subtext="Recoverable labor profit"
-    />
-
-    <GlassCard
-      title="Labor Cost %"
-      value={
-        Number(effectiveLaborCostPercent || 0) > 0
-          ? `${Number(effectiveLaborCostPercent || 0).toFixed(1)}%`
-          : "Awaiting Data"
-      }
-      subtext="Labor cost versus revenue"
-    />
-
-    <GlassCard
-      title="Recommended Focus"
-      value={
-        Number(effectiveLaborCostPercent || 0) > 35
-          ? "Overstaffing Risk"
-          : Number(effectiveLaborCostPercent || 0) > 28
-          ? "Watch Scheduling"
-          : estimatedLaborRecovery > 0
-          ? "Optimize Shifts"
-          : "Awaiting Data"
-      }
-      subtext="Primary labor recovery driver"
-    />
-  </div>
-</div>
-{/* LABOR RECOVERY ACTIONS */}
-{estimatedLaborRecovery > 0 && (
-  <div
-    style={{
-      marginBottom: "18px",
-      padding: isMobile ? "16px" : "20px",
-      borderRadius: "22px",
-      background:
-        "linear-gradient(135deg, rgba(59,130,246,0.12), rgba(15,23,42,0.94))",
-      border: "1px solid rgba(96,165,250,0.16)",
-    }}
-  >
-    <div
-      style={{
-        color: "#93c5fd",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.1em",
-        textTransform: "uppercase",
-        marginBottom: "8px",
-      }}
-    >
-      Labor Recovery Actions
-    </div>
-
-    <div style={{ display: "grid", gap: "12px" }}>
-     {[
-  Number(effectiveLaborCostPercent || 0) > 35 && {
-    title: "Reduce overstaffing risk",
-    detail: `Labor is running at ${Number(
-      effectiveLaborCostPercent || 0
-    ).toFixed(1)}% of revenue. Review schedules against actual sales volume.`,
-  },
-
-  Number(effectiveLaborCostPercent || 0) > 28 &&
-    Number(effectiveLaborCostPercent || 0) <= 35 && {
-      title: "Watch labor scheduling",
-      detail: `Labor is currently ${Number(
-        effectiveLaborCostPercent || 0
-      ).toFixed(1)}% of revenue. Tighten staffing around slower dayparts.`,
-    },
-
-  Number(totalLaborHours || 0) > 0 && {
-    title: "Review scheduled labor hours",
-    detail: `${Number(totalLaborHours || 0).toLocaleString()} labor hours are currently being analyzed for efficiency and recovery opportunities.`,
-  },
-
-  Number(salesPerLaborHour || 0) > 0 && {
-    title: "Improve sales per labor hour",
-    detail: `Current sales per labor hour is $${Number(
-      salesPerLaborHour || 0
-    ).toFixed(2)}. Prioritize shifts with weak revenue productivity.`,
-  },
-
-  estimatedLaborRecovery > 0 && {
-    title: "Prioritize labor recovery",
-    detail: `Serven identified $${Number(
-      estimatedLaborRecovery || 0
-    ).toLocaleString()} in labor recovery opportunity.`,
-  },
-]
-  .filter(Boolean)
-  .slice(0, 3)
-  .map((action, index) => (
-        <div
-          key={action.title}
-          style={{
-            padding: "14px",
-            borderRadius: "16px",
-            background: "rgba(255,255,255,0.045)",
-            border: "1px solid rgba(255,255,255,0.08)",
-          }}
-        >
-          <div
-            style={{
-              color: "white",
-              fontWeight: "900",
-              fontSize: "14px",
-            }}
-          >
-            {index + 1}. {action.title}
-          </div>
-
-          <div
-            style={{
-              color: "#94a3b8",
-              fontSize: "12px",
-              lineHeight: 1.6,
-              marginTop: "6px",
-            }}
-          >
-            {action.detail}
-          </div>
-        </div>
-      ))}
-    </div>
-  </div>
-)}
-{/* SHIFT RECOVERY INTELLIGENCE */}
-<div
-  style={{
-    marginBottom: "18px",
-    padding: isMobile ? "16px" : "20px",
-    borderRadius: "22px",
-    background:
-      "linear-gradient(135deg, rgba(14,165,233,0.12), rgba(15,23,42,0.94))",
-    border: "1px solid rgba(56,189,248,0.16)",
-  }}
->
-  <div
-    style={{
-      color: "#67e8f9",
-      fontSize: "12px",
-      fontWeight: "900",
-      letterSpacing: "0.1em",
-      textTransform: "uppercase",
-      marginBottom: "8px",
-    }}
-  >
-    Shift Recovery Intelligence
-  </div>
-
-  <h3 style={{ color: "white", margin: 0 }}>
-    Labor recovery by shift
-  </h3>
-
-  <div style={{ display: "grid", gap: "12px", marginTop: "16px" }}>
-    {shiftRecoveryIntelligence.length > 0 ? (
-      shiftRecoveryIntelligence.slice(0, 5).map((shift) => (
-        <div
-          key={shift.shift}
-          style={{
-            padding: "14px",
-            borderRadius: "16px",
-            background: "rgba(255,255,255,0.045)",
-            border:
-              shift.priority === "High"
-                ? "1px solid rgba(239,68,68,0.28)"
-                : shift.priority === "Medium"
-                ? "1px solid rgba(251,191,36,0.24)"
-                : "1px solid rgba(34,197,94,0.18)",
-            display: "grid",
-            gridTemplateColumns: isMobile ? "1fr" : "1fr 0.6fr 0.6fr 0.6fr",
-            gap: "12px",
-            alignItems: "center",
-          }}
-        >
-          <div>
-            <div style={{ color: "white", fontWeight: "900" }}>
-              {shift.shift}
-            </div>
-            <div style={{ color: "#94a3b8", fontSize: "12px", marginTop: "4px" }}>
-              {shift.status} • {shift.priority} priority
-            </div>
-          </div>
-
-          <GlassCard
-            title="Labor %"
-            value={`${Number(shift.laborPercent || 0).toFixed(1)}%`}
-            subtext="Shift labor load"
-          />
-
-          <GlassCard
-            title="Labor Cost"
-            value={`$${Number(shift.laborCost || 0).toLocaleString()}`}
-            subtext="Shift cost"
-          />
-
-          <GlassCard
-            title="Recoverable"
-            value={`$${Number(shift.recoverable || 0).toLocaleString()}`}
-            subtext="Above 28% target"
-          />
-        </div>
-      ))
-    ) : (
-      <div
-        style={{
-          padding: "16px",
-          borderRadius: "16px",
-          background: "rgba(255,255,255,0.04)",
-          border: "1px solid rgba(255,255,255,0.08)",
-          color: "#94a3b8",
-          fontSize: "13px",
-        }}
-      >
-        Upload labor and revenue data to generate shift recovery intelligence.
-      </div>
-    )}
-  </div>
-</div>
- {/* LABOR EFFICIENCY INTELLIGENCE SNAPSHOT ROW */}
-<div
-  style={{
-    marginTop: "14px",
-    marginBottom: "18px",
-
-    padding: "16px",
-
-    borderRadius: "18px",
-
-    background:
-      "linear-gradient(135deg, rgba(14,165,233,0.12), rgba(15,23,42,0.92))",
-
-    border: "1px solid rgba(56,189,248,0.16)",
-  }}
->
-  <div
-    style={{
-      fontSize: "11px",
-      fontWeight: "900",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      color: "#67e8f9",
-      marginBottom: "10px",
-    }}
-  >
-    Labor Efficiency Intelligence
-  </div>
-
-  {(() => {
-    const mobileLayout =
-      typeof isMobile !== "undefined"
-        ? isMobile
-        : false;
-
-    const hasSalesPerHour =
-      typeof salesPerLaborHour === "number";
-
-    const hasScore =
-      laborEfficiencyScore !== null &&
-      laborEfficiencyScore !== undefined;
-
-    const hasHours =
-      typeof totalLaborHours === "number";
-
-    return (
-      <div
-        style={{
-          display: "grid",
-
-          gridTemplateColumns: mobileLayout
-            ? "1fr"
-            : "repeat(2, minmax(0, 1fr))",
-
-          gap: "10px",
-        }}
-      >
-        <GlassCard
-          title="Sales Per Labor Hour"
-          value={
-            hasSalesPerHour
-              ? `$${Number(
-                  salesPerLaborHour
-                ).toFixed(2)}`
-              : "—"
-          }
-          subtext="Revenue per scheduled hour"
-        />
-
-        <GlassCard
-          title="Labor Efficiency Score"
-          value={
-  hasScore && ((laborData || []).length > 0 || (employeeShifts || []).length > 0)
-    ? `${laborEfficiencyScore}/100`
-    : "Needs labor data"
-}
-          subtext="Overall productivity index"
-        />
-
-        <GlassCard
-          title="Labor Status"
-          value={
-  ((laborData || []).length > 0 || (employeeShifts || []).length > 0)
-    ? laborEfficiencyStatus || "Analyzing..."
-    : "Needs labor data"
-}
-          subtext="Real-time performance rating"
-        />
-
-        <GlassCard
-          title="Labor Hours"
-          value={
-            hasHours
-              ? `${Number(
-                  totalLaborHours
-                ).toFixed(1)} hrs`
-              : "No hours loaded"
-          }
-          subtext="Total tracked time elapsed"
-        />
-      </div>
-    );
-  })()}
-</div>
-{/* LABOR KPI STRIP */}
-<div
-  style={{
-    display: "grid",
-    gridTemplateColumns: isMobile
-      ? "1fr"
-      : "repeat(3, minmax(0, 1fr))",
-    gap: "8px",
-    marginBottom: "14px",
-  }}
->
-
-  <GlassCard
-    title="Labor Cost %"
-    value={
-      effectiveLaborCostPercent > 0
-        ? `${Number(effectiveLaborCostPercent).toFixed(1)}%`
-        : "Needs labor data"
-    }
-    subtext="Labor as a percentage of revenue"
-  />
-
-  <GlassCard
-    title="Sales Per Labor Hour"
-    value={
-      salesPerLaborHour > 0
-        ? `$${Number(salesPerLaborHour).toFixed(2)}`
-        : "Needs labor data"
-    }
-    subtext="Revenue generated per labor hour"
-  />
-<GlassCard
-  title="Top Performing Shift"
-  value={topShift?.shift || "Needs shift data"}
-  subtext={
-    topShift?.revenue
-      ? `$${Number(topShift.revenue).toLocaleString()} shift revenue`
-      : "Upload shift-level sales"
-  }
-/>
-
- <GlassCard
-  title="Overstaffing Risk"
-  value={
-    (laborData || []).length > 0 || (employeeShifts || []).length > 0
-      ? laborRiskStatus || "Stable"
-      : "Needs labor data"
-  }
-  subtext={
-    (laborData || []).length > 0 || (employeeShifts || []).length > 0
-      ? laborEfficiencyInsight
-      : "Upload labor data to detect overstaffing risk"
-  }
-/>
-</div>
-{/* =========================
-   EMPLOYEE LABOR INTELLIGENCE
-========================= */}
-
-{hasProAccess && (
-  <div
-    style={{
-      marginTop: "22px",
-      padding: "24px",
-      borderRadius: "28px",
-      background:
-        "linear-gradient(135deg, rgba(14,165,233,0.14), rgba(15,23,42,0.96))",
-      border: "1px solid rgba(125,211,252,0.22)",
-      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
-    }}
-  >
-    <div style={{ color: "#7dd3fc", fontSize: "12px", fontWeight: "900" }}>
-      Employee Labor Intelligence
-    </div>
-
-    <h3 style={{ color: "white", fontSize: "24px", fontWeight: "950" }}>
-      Staff Efficiency & Shift Performance
-    </h3>
-
-    <div
-      style={{
-        marginTop: "18px",
-        display: "grid",
-        gridTemplateColumns: isMobile ? "1fr" : "repeat(4,minmax(0,1fr))",
-        gap: "14px",
-      }}
-    >
-      <GlassCard
-        title="Labor Rows"
-value={(laborData || []).length}
-subtitle="Labor records imported"
-      />
-
-      <GlassCard
-       title="Shifts Tracked"
-value={(laborData || []).length}
-subtitle="Labor shifts analyzed"
-      />
-
-      <GlassCard
-        title="Total Labor Cost"
-        value={`$${(laborData || [])
-  .reduce(
-    (sum, row) =>
-      sum +
-      Number(
-        row.labor_cost ||
-          row["labor cost"] ||
-          row.cost ||
-          0
-      ),
-    0
-  )
-  .toLocaleString()}`}
-        subtitle="Uploaded shift labor cost"
-      />
-
-     <GlassCard
-  title="Avg Labor / Shift"
-  value={`$${(
-    (laborData || []).reduce(
-      (sum, row) =>
-        sum +
-        Number(
-          row.labor_cost ||
-            row["labor cost"] ||
-            row.cost ||
-            0
-        ),
-      0
-    ) /
-    ((laborData || []).length || 1)
-  ).toFixed(0)}`}
-  subtitle="Average labor cost per shift"
-/>
-    </div>
-
-    <div style={{ marginTop: "18px", display: "grid", gap: "14px" }}>
-  {employeeShifts.length > 0 ? (
-    employeeShifts.slice(0, 8).map((shift) => {
-      const employee = employees.find(
-        (item) => item.id === shift.employee_id
-      );
-
-          const laborEfficiency =
-            Number(shift.revenue_during_shift || 0) > 0
-              ? (Number(shift.labor_cost || 0) /
-                  Number(shift.revenue_during_shift || 0)) *
-                100
-              : 0;
-
-          return (
             <div
-              key={shift.id}
               style={{
-  padding: "16px",
-  borderRadius: "20px",
-  background: "rgba(15,23,42,0.74)",
-  border: "1px solid rgba(125,211,252,0.14)",
-
-  display: "grid",
-  gridTemplateColumns: isMobile
-    ? "1fr"
-    : "repeat(4, minmax(0, 1fr))",
-
-  gap: "12px",
-  alignItems: "center",
-
-  minWidth: 0,
-  overflow: "hidden",
-  boxSizing: "border-box",
-}}
+                fontSize: "12px",
+                fontWeight: "900",
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                color: "#93c5fd",
+                marginBottom: "8px",
+              }}
             >
-              <div>
-                <div style={{ color: "white", fontWeight: "900" }}>
-                  {employee?.employee_name || "Unknown Employee"}
-                </div>
+              Labor Intelligence
+            </div>
 
-                <div style={{ color: "#94a3b8", fontSize: "12px" }}>
-                  {shift.shift_date || "No date"} • {employee?.role || "Staff"}
-                </div>
-              </div>
+            <h1
+              style={{
+                margin: 0,
+                color: "white",
+                fontSize: mobileLayout ? "22px" : "26px",
+                fontWeight: "900",
+                lineHeight: "1.2",
+              }}
+            >
+              Workforce Performance & Labor Optimization
+            </h1>
 
-              <div>
-                <div style={{ color: "#94a3b8", fontSize: "11px" }}>
-                  Hours
-                </div>
-                <div style={{ color: "white", fontWeight: "800" }}>
-                  {Number(shift.hours_worked || 0).toFixed(1)}
-                </div>
-              </div>
+            <p
+              style={{
+                marginTop: "10px",
+                color: "#94a3b8",
+                fontSize: "13px",
+                lineHeight: 1.6,
+                maxWidth: "680px",
+                marginBottom: 0,
+              }}
+            >
+              Monitor labor efficiency, staffing performance, shift profitability,
+              overtime risk, and AI-driven workforce optimization opportunities
+              using operational intelligence.
+            </p>
+          </div>
 
-              <div>
-                <div style={{ color: "#94a3b8", fontSize: "11px" }}>
-                  Labor Cost
-                </div>
-                <div style={{ color: "#fbbf24", fontWeight: "900" }}>
-                  ${Number(shift.labor_cost || 0).toFixed(0)}
-                </div>
-              </div>
-
-              <div>
-                <div style={{ color: "#94a3b8", fontSize: "11px" }}>
-                  Labor %
-                </div>
+          {/* EXECUTIVE LABOR SCORE */}
+          <div
+            style={{
+              marginBottom: "18px",
+              padding: mobileLayout ? "16px" : "20px",
+              borderRadius: "22px",
+              background:
+                "radial-gradient(circle at top right, rgba(59,130,246,0.16), transparent 34%), linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.92))",
+              border: `1px solid ${
+                safeExecutiveLaborScore.color || "#93c5fd"
+              }44`,
+              boxShadow: "0 18px 50px rgba(2,6,23,0.24)",
+            }}
+          >
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: mobileLayout ? "1fr" : "180px 1fr",
+                gap: "18px",
+                alignItems: "center",
+              }}
+            >
+              <div
+                style={{
+                  width: "150px",
+                  height: "150px",
+                  borderRadius: "999px",
+                  display: "grid",
+                  placeItems: "center",
+                  background: `conic-gradient(${
+                    safeExecutiveLaborScore.color || "#93c5fd"
+                  } ${Number(
+                    safeExecutiveLaborScore.score || 0
+                  )}%, rgba(148,163,184,0.18) 0)`,
+                  margin: mobileLayout ? "0 auto" : 0,
+                }}
+              >
                 <div
                   style={{
-                    color:
-                      laborEfficiency > 35
-                        ? "#f87171"
-                        : laborEfficiency > 28
-                        ? "#fbbf24"
-                        : "#86efac",
-                    fontWeight: "950",
+                    width: "116px",
+                    height: "116px",
+                    borderRadius: "999px",
+                    background: "rgba(15,23,42,0.96)",
+                    display: "grid",
+                    placeItems: "center",
+                    border: "1px solid rgba(148,163,184,0.14)",
                   }}
                 >
-                  {laborEfficiency > 0
-                    ? `${laborEfficiency.toFixed(1)}%`
-                    : "N/A"}
+                  <div style={{ textAlign: "center" }}>
+                    <div
+                      style={{
+                        color: "white",
+                        fontSize: "34px",
+                        fontWeight: "950",
+                        lineHeight: 1,
+                      }}
+                    >
+                      {Number(safeExecutiveLaborScore.score || 0)}
+                    </div>
+
+                    <div
+                      style={{
+                        color: safeExecutiveLaborScore.color || "#93c5fd",
+                        fontSize: "12px",
+                        fontWeight: "900",
+                        marginTop: "6px",
+                      }}
+                    >
+                      /100
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <div
+                  style={{
+                    color: safeExecutiveLaborScore.color || "#93c5fd",
+                    fontSize: "12px",
+                    fontWeight: "900",
+                    letterSpacing: "0.1em",
+                    textTransform: "uppercase",
+                    marginBottom: "8px",
+                  }}
+                >
+                  Executive Labor Score
+                </div>
+
+                <h2
+                  style={{
+                    margin: 0,
+                    color: "white",
+                    fontSize: mobileLayout ? "24px" : "30px",
+                    fontWeight: "950",
+                    letterSpacing: "-0.03em",
+                  }}
+                >
+                  {safeExecutiveLaborScore.status || "Waiting for Data"}
+                </h2>
+
+                <p
+                  style={{
+                    color: "#94a3b8",
+                    fontSize: "13px",
+                    lineHeight: 1.7,
+                    marginTop: "8px",
+                    maxWidth: "760px",
+                  }}
+                >
+                  {safeExecutiveLaborScore.recommendation ||
+                    "Upload labor and sales data to activate executive labor scoring."}
+                </p>
+
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: mobileLayout
+                      ? "1fr"
+                      : "repeat(3, minmax(0, 1fr))",
+                    gap: "12px",
+                    marginTop: "16px",
+                  }}
+                >
+                  <GlassCard
+                    title="Labor Cost %"
+                    value={
+                      Number(safeEffectiveLaborCostPercent || 0) > 0
+                        ? `${Number(safeEffectiveLaborCostPercent || 0).toFixed(
+                            1
+                          )}%`
+                        : "Awaiting Data"
+                    }
+                    subtext="Labor cost versus revenue"
+                  />
+
+                  <GlassCard
+                    title="Primary Risk"
+                    value={safeExecutiveLaborScore.primaryRisk || "Awaiting Data"}
+                    subtext="Highest labor pressure"
+                  />
+
+                  <GlassCard
+                    title="Recovery Opportunity"
+                    value={
+                      safeEstimatedLaborRecovery > 0
+                        ? `$${Number(
+                            safeEstimatedLaborRecovery || 0
+                          ).toLocaleString()}`
+                        : "Awaiting Data"
+                    }
+                    subtext="Recoverable labor profit"
+                  />
                 </div>
               </div>
             </div>
-          );
-        })
-      ) : (
-        <div style={{ color: "#94a3b8", fontSize: "14px" }}>
-          Upload employee shift data to activate staff efficiency intelligence.
-        </div>
-      )}
-    </div>
-  </div>
-)}
-{/* =========================
-   AI LABOR RISK ALERTS
-========================= */}
-
-<div
-  style={{
-    marginTop: "18px",
-    display: "grid",
-    gap: "12px",
-  }}
->
-  {employeeShifts
-    .filter((shift) => {
-      const laborEfficiency =
-        Number(shift.revenue_during_shift || 0) > 0
-          ? (Number(shift.labor_cost || 0) /
-              Number(shift.revenue_during_shift || 0)) *
-            100
-          : 0;
-
-      return laborEfficiency > 30;
-    })
-    .slice(0, 5)
-    .map((shift) => {
-      const employee = employees.find(
-        (item) => item.id === shift.employee_id
-      );
-
-      const laborEfficiency =
-        Number(shift.revenue_during_shift || 0) > 0
-          ? (Number(shift.labor_cost || 0) /
-              Number(shift.revenue_during_shift || 0)) *
-            100
-          : 0;
-
-      return (
-        <div
-          key={shift.id}
-          style={{
-            padding: "16px",
-            borderRadius: "18px",
-            background:
-              "linear-gradient(135deg, rgba(239,68,68,0.12), rgba(15,23,42,0.86))",
-            border: "1px solid rgba(248,113,113,0.18)",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: isMobile ? "flex-start" : "center",
-              flexDirection: isMobile ? "column" : "row",
-              gap: "12px",
-            }}
-          >
-            <div>
-              <div
-                style={{
-                  color: "white",
-                  fontSize: "16px",
-                  fontWeight: "900",
-                  marginBottom: "4px",
-                }}
-              >
-                {employee?.employee_name || "Unknown Employee"}
-              </div>
-
-              <div
-                style={{
-                  color: "#fca5a5",
-                  fontSize: "13px",
-                  lineHeight: 1.6,
-                }}
-              >
-                AI detected elevated labor cost exposure during this shift.
-              </div>
-            </div>
-
-            <div
-              style={{
-                padding: "8px 12px",
-                borderRadius: "14px",
-                background: "rgba(239,68,68,0.14)",
-                border: "1px solid rgba(248,113,113,0.22)",
-                color: "#fca5a5",
-                fontWeight: "900",
-                fontSize: "13px",
-              }}
-            >
-              {laborEfficiency.toFixed(1)}% Labor
-            </div>
           </div>
-        </div>
-      );
-    })}
-</div>
-{/* =========================
-   AI LABOR OPTIMIZATION RECOMMENDATIONS
-========================= */}
 
-<div
-  style={{
-    marginTop: "18px",
-    display: "grid",
-    gap: "14px",
-  }}
->
- {employeeShifts.length > 0 ? (
-  employeeShifts.slice(0, 6).map((shift) => {
-    const employee = employees.find(
-      (item) => item.id === shift.employee_id
-    );
-
-      const laborEfficiency =
-        Number(shift.revenue_during_shift || 0) > 0
-          ? (Number(shift.labor_cost || 0) /
-              Number(shift.revenue_during_shift || 0)) *
-            100
-          : 0;
-
-      let recommendation =
-        "Shift labor performance is operating within acceptable efficiency range.";
-
-      if (laborEfficiency > 35) {
-        recommendation =
-          "Critical labor inefficiency detected. AI recommends reducing overlap or reallocating staffing.";
-      } else if (laborEfficiency > 28) {
-        recommendation =
-          "Moderate labor inefficiency detected. Review scheduling efficiency and shift productivity.";
-      } else if (laborEfficiency > 0) {
-        recommendation =
-          "Labor efficiency is healthy. Continue monitoring staffing consistency.";
-      }
-
-      return (
-        <div
-          key={shift.id}
-          style={{
-            padding: "18px",
-            borderRadius: "20px",
-            background:
-              "linear-gradient(135deg, rgba(15,23,42,0.84), rgba(30,41,59,0.82))",
-            border: "1px solid rgba(148,163,184,0.12)",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: isMobile ? "flex-start" : "center",
-              flexDirection: isMobile ? "column" : "row",
-              gap: "12px",
-              marginBottom: "10px",
-            }}
-          >
-            <div>
-              <div
-                style={{
-                  color: "white",
-                  fontSize: "17px",
-                  fontWeight: "900",
-                }}
-              >
-                {employee?.employee_name || "Unknown Employee"}
-              </div>
-
-              <div
-                style={{
-                  color: "#94a3b8",
-                  fontSize: "12px",
-                  marginTop: "4px",
-                }}
-              >
-                ${Number(shift.labor_cost || 0).toFixed(0)} labor cost •{" "}
-                {laborEfficiency > 0
-                  ? `${laborEfficiency.toFixed(1)}% labor`
-                  : "No revenue linked"}
-              </div>
-            </div>
-
+          {/* LABOR HEALTH SCORE */}
+          {hasProAccess && (
             <div
               style={{
-                padding: "8px 12px",
-                borderRadius: "999px",
+                marginTop: "18px",
+                marginBottom: "24px",
+                padding: "24px",
+                borderRadius: "24px",
                 background:
-                  laborEfficiency <= 28
-                    ? "rgba(34,197,94,0.14)"
-                    : laborEfficiency <= 35
-                    ? "rgba(250,204,21,0.14)"
-                    : "rgba(239,68,68,0.14)",
-                color:
-                  laborEfficiency <= 28
-                    ? "#86efac"
-                    : laborEfficiency <= 35
-                    ? "#fde68a"
-                    : "#fca5a5",
-                fontWeight: "900",
-                fontSize: "12px",
-              }}
-            >
-              {laborEfficiency <= 28
-                ? "Efficient"
-                : laborEfficiency <= 35
-                ? "Watch"
-                : "Critical"}
-            </div>
-          </div>
-
-          <div
-            style={{
-              color: "#cbd5e1",
-              fontSize: "13px",
-              lineHeight: 1.7,
-            }}
-          >
-            {recommendation}
-          </div>
-        </div>
-      );
-    })
-  ) : (
-    <div
-      style={{
-        padding: "18px",
-        borderRadius: "18px",
-        background: "rgba(15,23,42,0.72)",
-        border: "1px solid rgba(148,163,184,0.14)",
-        color: "#94a3b8",
-        textAlign: "center",
-      }}
-    >
-      Upload employee shift data to activate AI labor optimization recommendations.
-    </div>
-  )}
-</div>
-{/* =========================
-   👥 LABOR HEALTH SCORE
-========================= */}
-
-{hasProAccess && (
-  <div
-    style={{
-      marginTop: "18px",
-      marginBottom: "24px",
-      padding: "24px",
-      borderRadius: "24px",
-      background:
-        "linear-gradient(135deg, rgba(59,130,246,0.16), rgba(15,23,42,0.96))",
-      border: `1px solid ${laborHealthScoreData.color}55`,
-      boxShadow: "0 22px 60px rgba(2,6,23,0.32)",
-    }}
-  >
-    <div
-      style={{
-        color: "#93c5fd",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      Labor Health Score
-    </div>
-
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: isMobile ? "1fr" : "180px 1fr",
-        gap: "18px",
-        alignItems: "center",
-      }}
-    >
-      <div
-        style={{
-          width: "150px",
-          height: "150px",
-          borderRadius: "999px",
-          display: "grid",
-          placeItems: "center",
-          background: `conic-gradient(${laborHealthScoreData.color} ${laborHealthScoreData.score}%, rgba(148,163,184,0.18) 0)`,
-          margin: isMobile ? "0 auto" : 0,
-        }}
-      >
-        <div
-          style={{
-            width: "118px",
-            height: "118px",
-            borderRadius: "999px",
-            background: "rgba(15,23,42,0.96)",
-            display: "grid",
-            placeItems: "center",
-            border: "1px solid rgba(148,163,184,0.16)",
-          }}
-        >
-          <div style={{ textAlign: "center" }}>
-            <div
-              style={{
-                color: "white",
-                fontSize: "34px",
-                fontWeight: "950",
-                lineHeight: 1,
-              }}
-            >
-              {laborHealthScoreData.score}
-            </div>
-            <div
-              style={{
-                color: laborHealthScoreData.color,
-                fontSize: "12px",
-                fontWeight: "900",
-                marginTop: "6px",
-              }}
-            >
-              {laborHealthScoreData.status}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div>
-        <h3
-          style={{
-            color: "white",
-            fontSize: "24px",
-            fontWeight: "900",
-            marginBottom: "8px",
-          }}
-        >
-          AI workforce operational health
-        </h3>
-
-        <p
-          style={{
-            color: "#cbd5e1",
-            fontSize: "14px",
-            lineHeight: 1.7,
-            marginBottom: "16px",
-          }}
-        >
-          {laborHealthScoreData.insight}
-        </p>
-
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: isMobile
-  ? "1fr"
-  : "repeat(3, minmax(0, 1fr))",
-            gap: "12px",
-          }}
-        >
-          {[
-            ["Labor %", `${Number(laborHealthScoreData.laborPercent || 0).toFixed(1)}%`],
-            ["Overstaffed Shifts", laborHealthScoreData.overstaffedShifts],
-            ["Sales/Labor Hr", `$${Number(laborHealthScoreData.salesPerHour || 0).toFixed(2)}`],
-          ].map(([label, value]) => (
-            <div
-              key={label}
-              style={{
-                padding: "13px",
-                borderRadius: "16px",
-                background: "rgba(15,23,42,0.72)",
-                border: "1px solid rgba(148,163,184,0.14)",
+                  "linear-gradient(135deg, rgba(59,130,246,0.16), rgba(15,23,42,0.96))",
+                border: `1px solid ${
+                  safeLaborHealthScoreData.color || "#93c5fd"
+                }55`,
+                boxShadow: "0 22px 60px rgba(2,6,23,0.32)",
               }}
             >
               <div
                 style={{
-                  color: "#94a3b8",
-                  fontSize: "11px",
-                  fontWeight: "800",
-                }}
-              >
-                {label}
-              </div>
-              <div
-                style={{
-                  color: "white",
-                  fontSize: "22px",
+                  color: "#93c5fd",
+                  fontSize: "12px",
                   fontWeight: "900",
-                  marginTop: "4px",
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  marginBottom: "10px",
                 }}
               >
-                {value}
+                Labor Health Score
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: mobileLayout ? "1fr" : "180px 1fr",
+                  gap: "18px",
+                  alignItems: "center",
+                }}
+              >
+                <div
+                  style={{
+                    width: "150px",
+                    height: "150px",
+                    borderRadius: "999px",
+                    display: "grid",
+                    placeItems: "center",
+                    background: `conic-gradient(${
+                      safeLaborHealthScoreData.color || "#93c5fd"
+                    } ${Number(
+                      safeLaborHealthScoreData.score || 0
+                    )}%, rgba(148,163,184,0.18) 0)`,
+                    margin: mobileLayout ? "0 auto" : 0,
+                  }}
+                >
+                  <div
+                    style={{
+                      width: "118px",
+                      height: "118px",
+                      borderRadius: "999px",
+                      background: "rgba(15,23,42,0.96)",
+                      display: "grid",
+                      placeItems: "center",
+                      border: "1px solid rgba(148,163,184,0.16)",
+                    }}
+                  >
+                    <div style={{ textAlign: "center" }}>
+                      <div
+                        style={{
+                          color: "white",
+                          fontSize: "34px",
+                          fontWeight: "950",
+                          lineHeight: 1,
+                        }}
+                      >
+                        {Number(safeLaborHealthScoreData.score || 0)}
+                      </div>
+
+                      <div
+                        style={{
+                          color: safeLaborHealthScoreData.color || "#93c5fd",
+                          fontSize: "12px",
+                          fontWeight: "900",
+                          marginTop: "6px",
+                        }}
+                      >
+                        {safeLaborHealthScoreData.status || "Waiting"}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h3
+                    style={{
+                      color: "white",
+                      fontSize: "24px",
+                      fontWeight: "900",
+                      marginBottom: "8px",
+                    }}
+                  >
+                    AI workforce operational health
+                  </h3>
+
+                  <p
+                    style={{
+                      color: "#cbd5e1",
+                      fontSize: "14px",
+                      lineHeight: 1.7,
+                      marginBottom: "16px",
+                    }}
+                  >
+                    {safeLaborHealthScoreData.insight ||
+                      "Upload labor rows, employee shifts, and sales data to activate workforce health scoring."}
+                  </p>
+
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: mobileLayout
+                        ? "1fr"
+                        : "repeat(3, minmax(0, 1fr))",
+                      gap: "12px",
+                    }}
+                  >
+                    {[
+                      [
+                        "Labor %",
+                        `${Number(
+                          safeLaborHealthScoreData.laborPercent || 0
+                        ).toFixed(1)}%`,
+                      ],
+                      [
+                        "Overstaffed Shifts",
+                        Number(safeLaborHealthScoreData.overstaffedShifts || 0),
+                      ],
+                      [
+                        "Sales/Labor Hr",
+                        `$${Number(
+                          safeLaborHealthScoreData.salesPerHour || 0
+                        ).toFixed(2)}`,
+                      ],
+                    ].map(([label, value]) => (
+                      <div
+                        key={label}
+                        style={{
+                          padding: "13px",
+                          borderRadius: "16px",
+                          background: "rgba(15,23,42,0.72)",
+                          border: "1px solid rgba(148,163,184,0.14)",
+                        }}
+                      >
+                        <div
+                          style={{
+                            color: "#94a3b8",
+                            fontSize: "11px",
+                            fontWeight: "800",
+                          }}
+                        >
+                          {label}
+                        </div>
+
+                        <div
+                          style={{
+                            color: "white",
+                            fontSize: "22px",
+                            fontWeight: "900",
+                            marginTop: "4px",
+                          }}
+                        >
+                          {value}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  </div>
-)}
-{/* =========================
-   🚨 LABOR ALERTS FEED
-========================= */}
-
+          )}
+        </>
+      );
+    })()}
+    {/* LABOR ALERTS FEED */}
 {hasProAccess && (
   <div
     style={{
@@ -73442,302 +72627,1250 @@ subtitle="Labor shifts analyzed"
       boxShadow: "0 22px 60px rgba(2,6,23,0.30)",
     }}
   >
-    <div
-      style={{
-        color: "#fca5a5",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "8px",
-      }}
-    >
-      Labor Alerts Feed
-    </div>
+    {(() => {
+      const safeLaborAlertsFeed =
+        typeof laborAlertsFeed !== "undefined" ? laborAlertsFeed || [] : [];
 
-    <h3 style={{ color: "white", fontSize: "24px", fontWeight: "900" }}>
-      Real-time labor risk detection
-    </h3>
-
-    <p style={{ color: "#cbd5e1", fontSize: "14px", lineHeight: 1.6 }}>
-      SerVen is scanning labor cost pressure, overstaffed shifts, low
-      productivity, and overtime exposure.
-    </p>
-
-    <div style={{ display: "grid", gap: "12px", marginTop: "18px" }}>
-      {(laborAlertsFeed || []).map((alert, index) => {
-        const alertColor =
-          alert.priority === "Critical"
-            ? "#f87171"
-            : alert.priority === "High"
-            ? "#fbbf24"
-            : "#38bdf8";
-
-        return (
+      return (
+        <>
           <div
-            key={`${alert.title}-${index}`}
             style={{
-              padding: "16px",
+              color: "#fca5a5",
+              fontSize: "12px",
+              fontWeight: "900",
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+              marginBottom: "8px",
+            }}
+          >
+            Labor Alerts Feed
+          </div>
+
+          <h3 style={{ color: "white", fontSize: "24px", fontWeight: "900" }}>
+            Real-time labor risk detection
+          </h3>
+
+          <p style={{ color: "#cbd5e1", fontSize: "14px", lineHeight: 1.6 }}>
+            SerVen is scanning labor cost pressure, overstaffed shifts, low
+            productivity, and overtime exposure.
+          </p>
+
+          <div style={{ display: "grid", gap: "12px", marginTop: "18px" }}>
+            {safeLaborAlertsFeed.length > 0 ? (
+              safeLaborAlertsFeed.map((alert, index) => {
+                const alertColor =
+                  alert.priority === "Critical"
+                    ? "#f87171"
+                    : alert.priority === "High"
+                    ? "#fbbf24"
+                    : "#38bdf8";
+
+                return (
+                  <div
+                    key={`${alert.title || "labor-alert"}-${index}`}
+                    style={{
+                      padding: "16px",
+                      borderRadius: "18px",
+                      background: "rgba(15,23,42,0.74)",
+                      border: `1px solid ${alertColor}55`,
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        gap: "12px",
+                        marginBottom: "8px",
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <div
+                        style={{
+                          color: "white",
+                          fontSize: "15px",
+                          fontWeight: "900",
+                        }}
+                      >
+                        {alert.title || "Labor risk detected"}
+                      </div>
+
+                      <div
+                        style={{
+                          color: alertColor,
+                          fontSize: "11px",
+                          fontWeight: "900",
+                          textTransform: "uppercase",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {alert.priority || "Monitor"}
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        color: "#cbd5e1",
+                        fontSize: "13px",
+                        lineHeight: 1.6,
+                      }}
+                    >
+                      {alert.detail ||
+                        "Review labor performance and staffing efficiency."}
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <div
+                style={{
+                  padding: "16px",
+                  borderRadius: "18px",
+                  background: "rgba(15,23,42,0.74)",
+                  border: "1px solid rgba(148,163,184,0.14)",
+                  color: "#94a3b8",
+                  fontSize: "14px",
+                  lineHeight: 1.6,
+                }}
+              >
+                No labor alerts surfaced right now. Upload labor and sales data
+                to activate real-time labor risk detection.
+              </div>
+            )}
+          </div>
+        </>
+      );
+    })()}
+  </div>
+)}
+{/* LABOR EXECUTIVE SUMMARY */}
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "20px",
+      marginBottom: "28px",
+      padding: "24px",
+      borderRadius: "24px",
+      background:
+        "linear-gradient(135deg, rgba(59,130,246,0.16), rgba(15,23,42,0.94))",
+      border: "1px solid rgba(96,165,250,0.18)",
+      boxShadow: "0 22px 60px rgba(2,6,23,0.30)",
+    }}
+  >
+    {(() => {
+      const safeExecutiveSummary =
+        typeof upgradedLaborExecutiveSummary !== "undefined"
+          ? upgradedLaborExecutiveSummary
+          : typeof laborExecutiveSummary !== "undefined"
+          ? laborExecutiveSummary
+          : null;
+
+      const safeLaborPercent =
+        typeof effectiveLaborCostPercent !== "undefined"
+          ? effectiveLaborCostPercent
+          : 0;
+
+      const safeRecovery =
+        typeof estimatedLaborRecovery !== "undefined"
+          ? estimatedLaborRecovery
+          : 0;
+
+      const safeScore =
+        typeof executiveLaborScore !== "undefined"
+          ? executiveLaborScore || {}
+          : {};
+
+      return (
+        <>
+          <div
+            style={{
+              color: "#93c5fd",
+              fontSize: "12px",
+              fontWeight: "900",
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+              marginBottom: "10px",
+            }}
+          >
+            Labor Executive Summary
+          </div>
+
+          <h3
+            style={{
+              color: "white",
+              fontSize: "26px",
+              fontWeight: "950",
+              marginBottom: "12px",
+            }}
+          >
+            Workforce performance overview
+          </h3>
+
+          <p
+            style={{
+              color: "#cbd5e1",
+              fontSize: "14px",
+              lineHeight: 1.75,
+              marginBottom: "22px",
+            }}
+          >
+            {safeExecutiveSummary ||
+              "SerVen analyzes labor efficiency, staffing levels, overtime exposure, shift performance, and labor recovery opportunities to continuously improve workforce profitability."}
+          </p>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: isMobile
+                ? "1fr"
+                : "repeat(4,minmax(0,1fr))",
+              gap: "14px",
+              marginBottom: "22px",
+            }}
+          >
+            {[
+              {
+                label: "Labor %",
+                value:
+                  safeLaborPercent > 0
+                    ? `${Number(safeLaborPercent).toFixed(1)}%`
+                    : "--",
+              },
+              {
+                label: "Recovery Opportunity",
+                value:
+                  safeRecovery > 0
+                    ? `$${Number(safeRecovery).toLocaleString()}`
+                    : "--",
+              },
+              {
+                label: "Operational Status",
+                value: safeScore.status || "Waiting",
+              },
+              {
+                label: "Executive Score",
+                value: `${Number(safeScore.score || 0)}/100`,
+              },
+            ].map((item) => (
+              <div
+                key={item.label}
+                style={{
+                  padding: "16px",
+                  borderRadius: "18px",
+                  background: "rgba(15,23,42,.72)",
+                  border: "1px solid rgba(148,163,184,.14)",
+                }}
+              >
+                <div
+                  style={{
+                    color: "#94a3b8",
+                    fontSize: "11px",
+                    fontWeight: "900",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  {item.label}
+                </div>
+
+                <div
+                  style={{
+                    color: "white",
+                    fontSize: "24px",
+                    fontWeight: "950",
+                    marginTop: "8px",
+                  }}
+                >
+                  {item.value}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div
+            style={{
+              padding: "18px",
               borderRadius: "18px",
-              background: "rgba(15,23,42,0.74)",
-              border: `1px solid ${alertColor}55`,
+              background: "rgba(15,23,42,.72)",
+              border: "1px solid rgba(96,165,250,.14)",
             }}
           >
             <div
               style={{
-                display: "flex",
-                justifyContent: "space-between",
-                gap: "12px",
+                color: "#93c5fd",
+                fontSize: "12px",
+                fontWeight: "900",
+                textTransform: "uppercase",
                 marginBottom: "8px",
+              }}
+            >
+              AI Executive Assessment
+            </div>
+
+            <div
+              style={{
+                color: "#e2e8f0",
+                fontSize: "14px",
+                lineHeight: 1.8,
+              }}
+            >
+              {safeLaborPercent >= 35
+                ? "Labor costs are elevated relative to revenue. SerVen recommends optimizing staffing levels, reducing overtime, and improving shift productivity."
+                : safeLaborPercent >= 28
+                ? "Labor performance is within an acceptable range but additional optimization opportunities remain."
+                : "Labor performance is operating efficiently based on current workforce utilization and revenue generation."}
+            </div>
+          </div>
+        </>
+      );
+    })()}
+  </div>
+)}
+  </>
+)}
+
+{laborView === "recovery" && (
+  <>
+   {/* LABOR RECOVERY FOCUS */}
+{(() => {
+  const safeEstimatedLaborRecovery =
+    typeof estimatedLaborRecovery !== "undefined" ? estimatedLaborRecovery : 0;
+
+  const safeEffectiveLaborCostPercent =
+    typeof effectiveLaborCostPercent !== "undefined"
+      ? effectiveLaborCostPercent
+      : 0;
+
+  const safeSalesPerLaborHour =
+    typeof salesPerLaborHour !== "undefined" ? salesPerLaborHour : 0;
+
+  const safeTopShift =
+    typeof topShift !== "undefined" ? topShift || null : null;
+
+  const safeLaborRiskStatus =
+    typeof laborRiskStatus !== "undefined" ? laborRiskStatus : "Stable";
+
+  const safeLaborEfficiencyInsight =
+    typeof laborEfficiencyInsight !== "undefined"
+      ? laborEfficiencyInsight
+      : "Upload labor data to detect overstaffing risk.";
+
+  const safeLaborData =
+    typeof laborData !== "undefined" ? laborData || [] : [];
+
+  const safeEmployeeShifts =
+    typeof employeeShifts !== "undefined" ? employeeShifts || [] : [];
+
+  const hasLaborData = safeLaborData.length > 0 || safeEmployeeShifts.length > 0;
+
+  return (
+    <>
+      <div
+        style={{
+          marginTop: "14px",
+          marginBottom: "18px",
+          padding: isMobile ? "16px" : "20px",
+          borderRadius: "22px",
+          background:
+            "radial-gradient(circle at top right, rgba(239,68,68,0.14), transparent 34%), linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.92))",
+          border: "1px solid rgba(239,68,68,0.18)",
+          boxShadow: "0 18px 50px rgba(2,6,23,0.24)",
+        }}
+      >
+        <div
+          style={{
+            color: "#fca5a5",
+            fontSize: "12px",
+            fontWeight: "900",
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            marginBottom: "8px",
+          }}
+        >
+          Labor Recovery Focus
+        </div>
+
+        <h2
+          style={{
+            margin: 0,
+            color: "white",
+            fontSize: isMobile ? "22px" : "28px",
+            fontWeight: "950",
+            letterSpacing: "-0.03em",
+          }}
+        >
+          {safeEstimatedLaborRecovery > 0
+            ? `$${Number(safeEstimatedLaborRecovery).toLocaleString()} labor recovery opportunity`
+            : "Upload labor data to reveal recovery opportunity"}
+        </h2>
+
+        <p
+          style={{
+            marginTop: "8px",
+            color: "#94a3b8",
+            fontSize: "13px",
+            lineHeight: 1.7,
+            maxWidth: "760px",
+          }}
+        >
+          SerVen highlights labor recovery first when staffing cost, overtime,
+          or low-revenue shifts are creating the largest profit opportunity.
+        </p>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: isMobile ? "1fr" : "repeat(3, minmax(0, 1fr))",
+            gap: "12px",
+            marginTop: "16px",
+          }}
+        >
+          <GlassCard
+            title="Labor Opportunity"
+            value={
+              safeEstimatedLaborRecovery > 0
+                ? `$${Number(safeEstimatedLaborRecovery).toLocaleString()}`
+                : "Awaiting Data"
+            }
+            subtext="Recoverable labor profit"
+          />
+
+          <GlassCard
+            title="Labor Cost %"
+            value={
+              Number(safeEffectiveLaborCostPercent || 0) > 0
+                ? `${Number(safeEffectiveLaborCostPercent).toFixed(1)}%`
+                : "Awaiting Data"
+            }
+            subtext="Labor cost versus revenue"
+          />
+
+          <GlassCard
+            title="Recommended Focus"
+            value={
+              Number(safeEffectiveLaborCostPercent || 0) > 35
+                ? "Overstaffing Risk"
+                : Number(safeEffectiveLaborCostPercent || 0) > 28
+                ? "Watch Scheduling"
+                : safeEstimatedLaborRecovery > 0
+                ? "Optimize Shifts"
+                : "Awaiting Data"
+            }
+            subtext="Primary labor recovery driver"
+          />
+        </div>
+      </div>
+
+      {/* LABOR KPI STRIP */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: isMobile ? "1fr" : "repeat(3, minmax(0, 1fr))",
+          gap: "8px",
+          marginBottom: "14px",
+        }}
+      >
+        <GlassCard
+          title="Labor Cost %"
+          value={
+            safeEffectiveLaborCostPercent > 0
+              ? `${Number(safeEffectiveLaborCostPercent).toFixed(1)}%`
+              : "Needs labor data"
+          }
+          subtext="Labor as a percentage of revenue"
+        />
+
+        <GlassCard
+          title="Sales Per Labor Hour"
+          value={
+            safeSalesPerLaborHour > 0
+              ? `$${Number(safeSalesPerLaborHour).toFixed(2)}`
+              : "Needs labor data"
+          }
+          subtext="Revenue generated per labor hour"
+        />
+
+        <GlassCard
+          title="Top Performing Shift"
+          value={safeTopShift?.shift || "Needs shift data"}
+          subtext={
+            safeTopShift?.revenue
+              ? `$${Number(safeTopShift.revenue).toLocaleString()} shift revenue`
+              : "Upload shift-level sales"
+          }
+        />
+
+        <GlassCard
+          title="Overstaffing Risk"
+          value={hasLaborData ? safeLaborRiskStatus || "Stable" : "Needs labor data"}
+          subtext={
+            hasLaborData
+              ? safeLaborEfficiencyInsight
+              : "Upload labor data to detect overstaffing risk"
+          }
+        />
+      </div>
+    </>
+  );
+})()}
+
+    {/* LABOR RECOVERY ACTIONS */}
+{(() => {
+  const safeEstimatedLaborRecovery =
+    typeof estimatedLaborRecovery !== "undefined" ? estimatedLaborRecovery : 0;
+
+  const safeEffectiveLaborCostPercent =
+    typeof effectiveLaborCostPercent !== "undefined"
+      ? effectiveLaborCostPercent
+      : 0;
+
+  const safeTotalLaborHours =
+    typeof totalLaborHours !== "undefined" ? totalLaborHours : 0;
+
+  const safeSalesPerLaborHour =
+    typeof salesPerLaborHour !== "undefined" ? salesPerLaborHour : 0;
+
+  const recoveryActions = [
+    Number(safeEffectiveLaborCostPercent || 0) > 35 && {
+      title: "Reduce overstaffing risk",
+      detail: `Labor is running at ${Number(
+        safeEffectiveLaborCostPercent || 0
+      ).toFixed(1)}% of revenue. Review schedules against actual sales volume.`,
+    },
+
+    Number(safeEffectiveLaborCostPercent || 0) > 28 &&
+      Number(safeEffectiveLaborCostPercent || 0) <= 35 && {
+        title: "Watch labor scheduling",
+        detail: `Labor is currently ${Number(
+          safeEffectiveLaborCostPercent || 0
+        ).toFixed(1)}% of revenue. Tighten staffing around slower dayparts.`,
+      },
+
+    Number(safeTotalLaborHours || 0) > 0 && {
+      title: "Review scheduled labor hours",
+      detail: `${Number(
+        safeTotalLaborHours || 0
+      ).toLocaleString()} labor hours are currently being analyzed for efficiency and recovery opportunities.`,
+    },
+
+    Number(safeSalesPerLaborHour || 0) > 0 && {
+      title: "Improve sales per labor hour",
+      detail: `Current sales per labor hour is $${Number(
+        safeSalesPerLaborHour || 0
+      ).toFixed(2)}. Prioritize shifts with weak revenue productivity.`,
+    },
+
+    safeEstimatedLaborRecovery > 0 && {
+      title: "Prioritize labor recovery",
+      detail: `SerVen identified $${Number(
+        safeEstimatedLaborRecovery || 0
+      ).toLocaleString()} in labor recovery opportunity.`,
+    },
+  ]
+    .filter(Boolean)
+    .slice(0, 3);
+
+  return (
+    <div
+      style={{
+        marginBottom: "18px",
+        padding: isMobile ? "16px" : "20px",
+        borderRadius: "22px",
+        background:
+          "linear-gradient(135deg, rgba(59,130,246,0.12), rgba(15,23,42,0.94))",
+        border: "1px solid rgba(96,165,250,0.16)",
+      }}
+    >
+      <div
+        style={{
+          color: "#93c5fd",
+          fontSize: "12px",
+          fontWeight: "900",
+          letterSpacing: "0.1em",
+          textTransform: "uppercase",
+          marginBottom: "8px",
+        }}
+      >
+        Labor Recovery Actions
+      </div>
+
+      <div style={{ display: "grid", gap: "12px" }}>
+        {recoveryActions.length > 0 ? (
+          recoveryActions.map((action, index) => (
+            <div
+              key={action.title}
+              style={{
+                padding: "14px",
+                borderRadius: "16px",
+                background: "rgba(255,255,255,0.045)",
+                border: "1px solid rgba(255,255,255,0.08)",
               }}
             >
               <div
                 style={{
                   color: "white",
-                  fontSize: "15px",
                   fontWeight: "900",
+                  fontSize: "14px",
                 }}
               >
-                {alert.title}
+                {index + 1}. {action.title}
               </div>
 
               <div
                 style={{
-                  color: alertColor,
-                  fontSize: "11px",
-                  fontWeight: "900",
-                  textTransform: "uppercase",
-                  whiteSpace: "nowrap",
+                  color: "#94a3b8",
+                  fontSize: "12px",
+                  lineHeight: 1.6,
+                  marginTop: "6px",
                 }}
               >
-                {alert.priority}
+                {action.detail}
               </div>
             </div>
-
-            <div
-              style={{
-                color: "#cbd5e1",
-                fontSize: "13px",
-                lineHeight: 1.6,
-              }}
-            >
-              {alert.detail}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  </div>
-)}
-
-{/* =========================
-   ⏰ OVERTIME RISK INTELLIGENCE
-========================= */}
-
-{hasProAccess && (
-  <div
-    style={{
-      marginTop: "18px",
-      marginBottom: "18px",
-      padding: "16px",
-      borderRadius: "18px",
-      background:
-        "linear-gradient(135deg, rgba(251,191,36,0.14), rgba(15,23,42,0.96))",
-      border: "1px solid rgba(251,191,36,0.24)",
-      boxShadow: "0 18px 45px rgba(2,6,23,0.26)",
-    }}
-  >
-    <div
-      style={{
-        color: "#fde68a",
-        fontSize: "11px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "6px",
-      }}
-    >
-      Overtime Risk Intelligence
-    </div>
-
-    <h3 style={{ color: "white", fontSize: "20px", fontWeight: "900" }}>
-      Employee overtime exposure and scheduling risk
-    </h3>
-
-    <p style={{ color: "#cbd5e1", fontSize: "12px", lineHeight: 1.5 }}>
-      SerVen is monitoring employee hours, overtime exposure, and projected
-      labor cost risk before payroll pressure increases.
-    </p>
-
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: isMobile
-          ? "1fr"
-          : "repeat(2, minmax(0, 1fr))",
-        gap: "10px",
-        marginTop: "14px",
-        marginBottom: "14px",
-      }}
-    >
-      <div style={overtimeMiniCardStyle}>
-        <div style={overtimeMiniLabelStyle}>Employees Tracked</div>
-        <div style={overtimeMiniValueStyle}>
-          {overtimeRiskData?.length || 0}
-        </div>
-      </div>
-
-      <div style={overtimeMiniCardStyle}>
-        <div style={overtimeMiniLabelStyle}>OT / At Risk</div>
-        <div style={{ ...overtimeMiniValueStyle, color: "#fbbf24" }}>
-          {(overtimeRiskData || []).filter(
-            (employee) =>
-              employee.status === "Overtime" ||
-              employee.status === "At Risk"
-          ).length}
-        </div>
-      </div>
-
-      <div style={overtimeMiniCardStyle}>
-        <div style={overtimeMiniLabelStyle}>Estimated OT Cost</div>
-        <div style={{ ...overtimeMiniValueStyle, color: "#f87171" }}>
-          $
-          {(overtimeRiskData || [])
-            .reduce(
-              (sum, employee) =>
-                sum + Number(employee.estimatedOvertimeCost || 0),
-              0
-            )
-            .toLocaleString()}
-        </div>
-      </div>
-    </div>
-
-    <div style={{ display: "grid", gap: "10px" }}>
-      {(overtimeRiskData || []).slice(0, 6).map((employee, index) => {
-        const statusColor =
-          employee.status === "Overtime"
-            ? "#f87171"
-            : employee.status === "At Risk"
-            ? "#fbbf24"
-            : employee.status === "Monitor"
-            ? "#38bdf8"
-            : "#22c55e";
-
-        const hourPercent = Math.min(
-          100,
-          Math.max(0, (Number(employee.hours || 0) / 40) * 100)
-        );
-
-        return (
+          ))
+        ) : (
           <div
-            key={`${employee.name}-${index}`}
             style={{
-              padding: "10px",
-              borderRadius: "14px",
-              background: "rgba(15,23,42,0.74)",
-              border: `1px solid ${statusColor}55`,
-              minWidth: 0,
-              overflow: "hidden",
-              boxSizing: "border-box",
+              padding: "16px",
+              borderRadius: "16px",
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              color: "#94a3b8",
+              fontSize: "13px",
+              lineHeight: 1.6,
             }}
           >
+            Upload labor and revenue data to generate labor recovery actions.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+})()}
+
+  {/* SHIFT RECOVERY INTELLIGENCE */}
+{(() => {
+  const safeShiftRecoveryIntelligence =
+    typeof shiftRecoveryIntelligence !== "undefined"
+      ? shiftRecoveryIntelligence || []
+      : [];
+
+  return (
+    <div
+      style={{
+        marginBottom: "18px",
+        padding: isMobile ? "16px" : "20px",
+        borderRadius: "22px",
+        background:
+          "linear-gradient(135deg, rgba(14,165,233,0.12), rgba(15,23,42,0.94))",
+        border: "1px solid rgba(56,189,248,0.16)",
+      }}
+    >
+      <div
+        style={{
+          color: "#67e8f9",
+          fontSize: "12px",
+          fontWeight: "900",
+          letterSpacing: "0.1em",
+          textTransform: "uppercase",
+          marginBottom: "8px",
+        }}
+      >
+        Shift Recovery Intelligence
+      </div>
+
+      <h3 style={{ color: "white", margin: 0 }}>
+        Labor recovery by shift
+      </h3>
+
+      <div style={{ display: "grid", gap: "12px", marginTop: "16px" }}>
+        {safeShiftRecoveryIntelligence.length > 0 ? (
+          safeShiftRecoveryIntelligence.slice(0, 5).map((shift) => (
             <div
+              key={shift.shift}
               style={{
-                display: "flex",
-                justifyContent: "space-between",
-                gap: "10px",
-                marginBottom: "8px",
-                minWidth: 0,
+                padding: "14px",
+                borderRadius: "16px",
+                background: "rgba(255,255,255,0.045)",
+                border:
+                  shift.priority === "High"
+                    ? "1px solid rgba(239,68,68,0.28)"
+                    : shift.priority === "Medium"
+                    ? "1px solid rgba(251,191,36,0.24)"
+                    : "1px solid rgba(34,197,94,0.18)",
+                display: "grid",
+                gridTemplateColumns: isMobile
+                  ? "1fr"
+                  : "1fr 0.6fr 0.6fr 0.6fr",
+                gap: "12px",
+                alignItems: "center",
               }}
             >
-              <div style={{ minWidth: 0 }}>
-                <div
-                  style={{
-                    color: "white",
-                    fontSize: "13px",
-                    fontWeight: "900",
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                  }}
-                >
-                  {employee.name}
+              <div>
+                <div style={{ color: "white", fontWeight: "900" }}>
+                  {shift.shift}
                 </div>
 
                 <div
                   style={{
                     color: "#94a3b8",
-                    fontSize: "11px",
-                    marginTop: "3px",
+                    fontSize: "12px",
+                    marginTop: "4px",
                   }}
                 >
-                  {Number(employee.hours || 0).toFixed(1)} hours tracked
+                  {shift.status} • {shift.priority} priority
                 </div>
               </div>
 
-              <div
-                style={{
-                  color: statusColor,
-                  fontSize: "11px",
-                  fontWeight: "900",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {employee.status}
-              </div>
-            </div>
+              <GlassCard
+                title="Labor %"
+                value={`${Number(shift.laborPercent || 0).toFixed(1)}%`}
+                subtext="Shift labor load"
+              />
 
-            <div
-              style={{
-                height: "7px",
-                borderRadius: "999px",
-                background: "rgba(148,163,184,0.18)",
-                overflow: "hidden",
-                marginBottom: "8px",
-              }}
-            >
-              <div
-                style={{
-                  width: `${hourPercent}%`,
-                  height: "100%",
-                  borderRadius: "999px",
-                  background: statusColor,
-                }}
+              <GlassCard
+                title="Labor Cost"
+                value={`$${Number(shift.laborCost || 0).toLocaleString()}`}
+                subtext="Shift cost"
+              />
+
+              <GlassCard
+                title="Recoverable"
+                value={`$${Number(shift.recoverable || 0).toLocaleString()}`}
+                subtext="Above 28% target"
               />
             </div>
-
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                gap: "8px",
-                color: "#cbd5e1",
-                fontSize: "11px",
-                fontWeight: "700",
-                flexWrap: "wrap",
-              }}
-            >
-              <span>
-                OT Hours:{" "}
-                {Number(employee.projectedOvertimeHours || 0).toFixed(1)}
-              </span>
-
-              <span>
-                OT Cost: $
-                {Number(employee.estimatedOvertimeCost || 0).toLocaleString()}
-              </span>
-            </div>
+          ))
+        ) : (
+          <div
+            style={{
+              padding: "16px",
+              borderRadius: "16px",
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              color: "#94a3b8",
+              fontSize: "13px",
+            }}
+          >
+            Upload labor and revenue data to generate shift recovery intelligence.
           </div>
-        );
-      })}
+        )}
+      </div>
     </div>
-  </div>
+  );
+})()}
+
+    {/* LABOR EFFICIENCY INTELLIGENCE SNAPSHOT */}
+<div
+  style={{
+    marginTop: "14px",
+    marginBottom: "18px",
+    padding: "16px",
+    borderRadius: "18px",
+    background:
+      "linear-gradient(135deg, rgba(14,165,233,0.12), rgba(15,23,42,0.92))",
+    border: "1px solid rgba(56,189,248,0.16)",
+  }}
+>
+  {(() => {
+    const mobileLayout = typeof isMobile !== "undefined" ? isMobile : false;
+
+    const safeSalesPerLaborHour =
+      typeof salesPerLaborHour !== "undefined" ? salesPerLaborHour : null;
+
+    const safeLaborEfficiencyScore =
+      typeof laborEfficiencyScore !== "undefined" ? laborEfficiencyScore : null;
+
+    const safeTotalLaborHours =
+      typeof totalLaborHours !== "undefined" ? totalLaborHours : null;
+
+    const safeLaborData =
+      typeof laborData !== "undefined" ? laborData || [] : [];
+
+    const safeEmployeeShifts =
+      typeof employeeShifts !== "undefined" ? employeeShifts || [] : [];
+
+    const safeLaborEfficiencyStatus =
+      typeof laborEfficiencyStatus !== "undefined"
+        ? laborEfficiencyStatus
+        : "Analyzing...";
+
+    const hasLaborData =
+      safeLaborData.length > 0 || safeEmployeeShifts.length > 0;
+
+    return (
+      <>
+        <div
+          style={{
+            fontSize: "11px",
+            fontWeight: "900",
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            color: "#67e8f9",
+            marginBottom: "10px",
+          }}
+        >
+          Labor Efficiency Intelligence
+        </div>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: mobileLayout
+              ? "1fr"
+              : "repeat(2, minmax(0, 1fr))",
+            gap: "10px",
+          }}
+        >
+          <GlassCard
+            title="Sales Per Labor Hour"
+            value={
+              typeof safeSalesPerLaborHour === "number"
+                ? `$${Number(safeSalesPerLaborHour).toFixed(2)}`
+                : "—"
+            }
+            subtext="Revenue per scheduled hour"
+          />
+
+          <GlassCard
+            title="Labor Efficiency Score"
+            value={
+              safeLaborEfficiencyScore !== null && hasLaborData
+                ? `${safeLaborEfficiencyScore}/100`
+                : "Needs labor data"
+            }
+            subtext="Overall productivity index"
+          />
+
+          <GlassCard
+            title="Labor Status"
+            value={
+              hasLaborData
+                ? safeLaborEfficiencyStatus || "Analyzing..."
+                : "Needs labor data"
+            }
+            subtext="Real-time performance rating"
+          />
+
+          <GlassCard
+            title="Labor Hours"
+            value={
+              typeof safeTotalLaborHours === "number"
+                ? `${Number(safeTotalLaborHours).toFixed(1)} hrs`
+                : "No hours loaded"
+            }
+            subtext="Total tracked time elapsed"
+          />
+        </div>
+      </>
+    );
+  })()}
+</div>
+
+   {/* AI LABOR RECOVERY SUMMARY */}
+<div
+  style={{
+    marginTop: "18px",
+    padding: "22px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(34,197,94,0.14), rgba(15,23,42,0.96))",
+    border: "1px solid rgba(74,222,128,0.18)",
+    boxShadow: "0 18px 50px rgba(2,6,23,0.24)",
+  }}
+>
+  {(() => {
+    const safeEstimatedLaborRecovery =
+      typeof estimatedLaborRecovery !== "undefined"
+        ? estimatedLaborRecovery
+        : 0;
+
+    const safeEffectiveLaborCostPercent =
+      typeof effectiveLaborCostPercent !== "undefined"
+        ? effectiveLaborCostPercent
+        : 0;
+
+    const safeSalesPerLaborHour =
+      typeof salesPerLaborHour !== "undefined"
+        ? salesPerLaborHour
+        : 0;
+
+    const safeLaborEfficiencyScore =
+      typeof laborEfficiencyScore !== "undefined"
+        ? laborEfficiencyScore
+        : 0;
+
+    const priority =
+      safeEffectiveLaborCostPercent > 35
+        ? "Critical"
+        : safeEffectiveLaborCostPercent > 30
+        ? "High"
+        : safeEffectiveLaborCostPercent > 28
+        ? "Medium"
+        : "Healthy";
+
+    return (
+      <>
+        <div
+          style={{
+            color: "#86efac",
+            fontSize: "12px",
+            fontWeight: "900",
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            marginBottom: "8px",
+          }}
+        >
+          AI Labor Recovery Summary
+        </div>
+
+        <h3
+          style={{
+            color: "white",
+            fontSize: "24px",
+            fontWeight: "900",
+            marginTop: 0,
+          }}
+        >
+          Workforce recovery assessment
+        </h3>
+
+        <p
+          style={{
+            color: "#cbd5e1",
+            fontSize: "14px",
+            lineHeight: 1.7,
+            marginBottom: "18px",
+          }}
+        >
+          SerVen continuously evaluates labor efficiency, staffing utilization,
+          shift productivity, and labor cost exposure to maximize restaurant
+          profitability.
+        </p>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: isMobile
+              ? "1fr"
+              : "repeat(4,minmax(0,1fr))",
+            gap: "12px",
+          }}
+        >
+          <GlassCard
+            title="Recovery Priority"
+            value={priority}
+            subtext="Current optimization priority"
+          />
+
+          <GlassCard
+            title="Recoverable Profit"
+            value={
+              safeEstimatedLaborRecovery > 0
+                ? `$${Number(safeEstimatedLaborRecovery).toLocaleString()}`
+                : "No recovery detected"
+            }
+            subtext="Estimated labor savings"
+          />
+
+          <GlassCard
+            title="Efficiency Score"
+            value={
+              safeLaborEfficiencyScore > 0
+                ? `${safeLaborEfficiencyScore}/100`
+                : "Needs labor data"
+            }
+            subtext="AI workforce rating"
+          />
+
+          <GlassCard
+            title="Sales / Labor Hour"
+            value={
+              safeSalesPerLaborHour > 0
+                ? `$${Number(safeSalesPerLaborHour).toFixed(2)}`
+                : "Needs labor data"
+            }
+            subtext="Revenue productivity"
+          />
+        </div>
+
+        <div
+          style={{
+            marginTop: "18px",
+            padding: "16px",
+            borderRadius: "16px",
+            background: "rgba(15,23,42,0.72)",
+            border: "1px solid rgba(74,222,128,0.16)",
+          }}
+        >
+          <div
+            style={{
+              color: "#86efac",
+              fontSize: "12px",
+              fontWeight: "900",
+              marginBottom: "8px",
+            }}
+          >
+            Executive Recommendation
+          </div>
+
+          <div
+            style={{
+              color: "#e2e8f0",
+              fontSize: "14px",
+              lineHeight: 1.8,
+            }}
+          >
+            {priority === "Critical"
+              ? "Immediate labor optimization is recommended. Focus on reducing overstaffed shifts, controlling overtime, and matching staffing levels to demand."
+              : priority === "High"
+              ? "Labor performance can be improved by optimizing schedules, balancing staffing across dayparts, and improving employee productivity."
+              : priority === "Medium"
+              ? "Operations are stable, but additional scheduling improvements could increase profitability."
+              : "Labor performance is healthy. Continue monitoring staffing patterns and productivity to maintain operational efficiency."}
+          </div>
+        </div>
+      </>
+    );
+  })()}
+</div>
+  </>
 )}
-{/* =========================
-   📈 LABOR FORECASTING INTELLIGENCE
+
+{laborView === "shifts" && (
+  <>
+   {/* =========================
+   OVERTIME RISK INTELLIGENCE
 ========================= */}
 
+{hasProAccess && (
+  <div
+    style={{
+      marginBottom: "22px",
+      padding: "22px",
+      borderRadius: "24px",
+      background:
+        "linear-gradient(135deg, rgba(239,68,68,0.14), rgba(15,23,42,0.95))",
+      border: "1px solid rgba(248,113,113,0.20)",
+      boxShadow: "0 22px 60px rgba(2,6,23,0.30)",
+    }}
+  >
+    {(() => {
+      const safeOvertimeRiskEmployees =
+        typeof overtimeRiskEmployees !== "undefined"
+          ? overtimeRiskEmployees || []
+          : [];
+
+      const totalRisk = safeOvertimeRiskEmployees.length;
+
+      const estimatedOvertimeHours = safeOvertimeRiskEmployees.reduce(
+        (sum, employee) => sum + Number(employee.overtimeHours || 0),
+        0
+      );
+
+      const estimatedOvertimeCost = safeOvertimeRiskEmployees.reduce(
+        (sum, employee) => sum + Number(employee.overtimeCost || 0),
+        0
+      );
+
+      return (
+        <>
+          <div
+            style={{
+              color: "#fca5a5",
+              fontSize: "12px",
+              fontWeight: "900",
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+              marginBottom: "8px",
+            }}
+          >
+            Overtime Risk Intelligence
+          </div>
+
+          <h3
+            style={{
+              color: "white",
+              fontSize: "24px",
+              fontWeight: "900",
+            }}
+          >
+            AI overtime monitoring
+          </h3>
+
+          <p
+            style={{
+              color: "#cbd5e1",
+              fontSize: "14px",
+              lineHeight: 1.7,
+            }}
+          >
+            SerVen identifies employees approaching overtime,
+            excessive labor accumulation, and scheduling risk before
+            payroll closes.
+          </p>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: isMobile
+                ? "1fr"
+                : "repeat(3,minmax(0,1fr))",
+              gap: "14px",
+              marginTop: "18px",
+            }}
+          >
+            <GlassCard
+              title="Employees At Risk"
+              value={totalRisk}
+              subtext="Approaching overtime"
+            />
+
+            <GlassCard
+              title="Potential OT Hours"
+              value={estimatedOvertimeHours.toFixed(1)}
+              subtext="Projected overtime"
+            />
+
+            <GlassCard
+              title="Payroll Exposure"
+              value={`$${estimatedOvertimeCost.toLocaleString()}`}
+              subtext="Estimated overtime cost"
+            />
+          </div>
+
+          <div
+            style={{
+              display: "grid",
+              gap: "12px",
+              marginTop: "22px",
+            }}
+          >
+            {safeOvertimeRiskEmployees.length > 0 ? (
+              safeOvertimeRiskEmployees.slice(0,5).map((employee,index)=>(
+                <div
+                  key={`${employee.name}-${index}`}
+                  style={{
+                    padding:"15px",
+                    borderRadius:"16px",
+                    background:"rgba(15,23,42,.72)",
+                    border:"1px solid rgba(239,68,68,.16)"
+                  }}
+                >
+                  <div
+                    style={{
+                      display:"flex",
+                      justifyContent:"space-between",
+                      flexWrap:"wrap",
+                      gap:"10px"
+                    }}
+                  >
+                    <div>
+                      <div
+                        style={{
+                          color:"white",
+                          fontWeight:"900"
+                        }}
+                      >
+                        {employee.name}
+                      </div>
+
+                      <div
+                        style={{
+                          color:"#94a3b8",
+                          fontSize:"12px",
+                          marginTop:"4px"
+                        }}
+                      >
+                        {employee.position}
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        color:"#f87171",
+                        fontWeight:"900"
+                      }}
+                    >
+                      {Number(employee.overtimeHours || 0).toFixed(1)} hrs
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div
+                style={{
+                  padding:"16px",
+                  borderRadius:"16px",
+                  background:"rgba(15,23,42,.72)",
+                  border:"1px solid rgba(148,163,184,.14)",
+                  color:"#94a3b8"
+                }}
+              >
+                No overtime risk detected.
+              </div>
+            )}
+          </div>
+        </>
+      );
+    })()}
+  </div>
+)}
+
+{/* =========================
+   SHIFT PERFORMANCE KPI STRIP
+========================= */}
+
+<div
+  style={{
+    display:"grid",
+    gridTemplateColumns:isMobile
+      ? "1fr"
+      : "repeat(auto-fit,minmax(190px,1fr))",
+    gap:"14px",
+    marginBottom:"24px"
+  }}
+>
+  <GlassCard
+    title="Top Shift"
+    value={
+      typeof topShift !== "undefined"
+        ? topShift?.shift || "No shift"
+        : "No shift"
+    }
+    subtext="Highest revenue shift"
+  />
+
+  <GlassCard
+    title="Sales / Labor Hr"
+    value={
+      typeof salesPerLaborHour !== "undefined"
+        ? `$${Number(salesPerLaborHour || 0).toFixed(2)}`
+        : "--"
+    }
+    subtext="Revenue productivity"
+  />
+
+  <GlassCard
+    title="Labor %"
+    value={
+      typeof effectiveLaborCostPercent !== "undefined"
+        ? `${Number(effectiveLaborCostPercent || 0).toFixed(1)}%`
+        : "--"
+    }
+    subtext="Current labor ratio"
+  />
+
+  <GlassCard
+    title="Shift Efficiency"
+    value={
+      typeof laborEfficiencyScore !== "undefined"
+        ? `${laborEfficiencyScore || 0}/100`
+        : "--"
+    }
+    subtext="Operational score"
+  />
+</div>
+
+    {/* LABOR FORECASTING INTELLIGENCE */}
 {hasProAccess && (
   <div
     style={{
@@ -73751,117 +73884,160 @@ subtitle="Labor shifts analyzed"
       boxShadow: "0 22px 60px rgba(2,6,23,0.30)",
     }}
   >
-    <div
-      style={{
-        color: "#7dd3fc",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "8px",
-      }}
-    >
-      Labor Forecasting Intelligence
-    </div>
+    {(() => {
+      const safeLaborForecastingData =
+        typeof laborForecastingData !== "undefined"
+          ? laborForecastingData || []
+          : [];
 
-    <h3 style={{ color: "white", fontSize: "24px", fontWeight: "900" }}>
-      Projected labor pressure by shift
-    </h3>
-
-    <p style={{ color: "#cbd5e1", fontSize: "14px", lineHeight: 1.6 }}>
-      SerVen is forecasting labor cost pressure, projected sales per shift, and
-      staffing efficiency risk before scheduling issues become expensive.
-    </p>
-
-    <div style={{ display: "grid", gap: "12px", marginTop: "18px" }}>
-      {(laborForecastingData || []).map((shift, index) => {
-        const statusColor =
-          shift.forecastStatus === "Critical"
-            ? "#f87171"
-            : shift.forecastStatus === "Watch"
-            ? "#fbbf24"
-            : shift.forecastStatus === "Efficient"
-            ? "#22c55e"
-            : "#38bdf8";
-
-        return (
+      return (
+        <>
           <div
-            key={`${shift.shift}-${index}`}
             style={{
-              padding: "16px",
-              borderRadius: "18px",
-              background: "rgba(15,23,42,0.74)",
-              border: `1px solid ${statusColor}55`,
+              color: "#7dd3fc",
+              fontSize: "12px",
+              fontWeight: "900",
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+              marginBottom: "8px",
             }}
           >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                gap: "12px",
-                marginBottom: "10px",
-              }}
-            >
-              <div>
-                <div style={{ color: "white", fontSize: "15px", fontWeight: "900" }}>
-                  {shift.shift}
-                </div>
+            Labor Forecasting Intelligence
+          </div>
 
-                <div style={{ color: "#94a3b8", fontSize: "12px", marginTop: "4px" }}>
-                  Current orders: {Number(shift.currentOrders || 0).toFixed(0)}
-                </div>
-              </div>
+          <h3 style={{ color: "white", fontSize: "24px", fontWeight: "900" }}>
+            Projected labor pressure by shift
+          </h3>
 
+          <p style={{ color: "#cbd5e1", fontSize: "14px", lineHeight: 1.6 }}>
+            SerVen forecasts labor cost pressure, projected sales per shift, and
+            staffing efficiency risk before scheduling issues become expensive.
+          </p>
+
+          <div style={{ display: "grid", gap: "12px", marginTop: "18px" }}>
+            {safeLaborForecastingData.length > 0 ? (
+              safeLaborForecastingData.map((shift, index) => {
+                const statusColor =
+                  shift.forecastStatus === "Critical"
+                    ? "#f87171"
+                    : shift.forecastStatus === "Watch"
+                    ? "#fbbf24"
+                    : shift.forecastStatus === "Efficient"
+                    ? "#22c55e"
+                    : "#38bdf8";
+
+                return (
+                  <div
+                    key={`${shift.shift || "shift"}-${index}`}
+                    style={{
+                      padding: "16px",
+                      borderRadius: "18px",
+                      background: "rgba(15,23,42,0.74)",
+                      border: `1px solid ${statusColor}55`,
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        gap: "12px",
+                        marginBottom: "10px",
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <div>
+                        <div
+                          style={{
+                            color: "white",
+                            fontSize: "15px",
+                            fontWeight: "900",
+                          }}
+                        >
+                          {shift.shift || "Unassigned Shift"}
+                        </div>
+
+                        <div
+                          style={{
+                            color: "#94a3b8",
+                            fontSize: "12px",
+                            marginTop: "4px",
+                          }}
+                        >
+                          Current orders:{" "}
+                          {Number(shift.currentOrders || 0).toFixed(0)}
+                        </div>
+                      </div>
+
+                      <div
+                        style={{
+                          color: statusColor,
+                          fontSize: "12px",
+                          fontWeight: "900",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {shift.forecastStatus || "Monitoring"}
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: isMobile
+                          ? "1fr"
+                          : "repeat(3, minmax(0, 1fr))",
+                        gap: "10px",
+                      }}
+                    >
+                      <GlassCard
+                        title="Current Revenue"
+                        value={`$${Number(
+                          shift.currentRevenue || 0
+                        ).toLocaleString()}`}
+                        subtext="Detected shift revenue"
+                      />
+
+                      <GlassCard
+                        title="Current Labor"
+                        value={`$${Number(
+                          shift.currentLaborCost || 0
+                        ).toLocaleString()}`}
+                        subtext="Detected labor cost"
+                      />
+
+                      <GlassCard
+                        title="Current Labor %"
+                        value={`${Number(
+                          shift.currentLaborPercent || 0
+                        ).toFixed(1)}%`}
+                        subtext="Labor pressure"
+                      />
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
               <div
                 style={{
-                  color: statusColor,
-                  fontSize: "12px",
-                  fontWeight: "900",
-                  whiteSpace: "nowrap",
+                  padding: "16px",
+                  borderRadius: "16px",
+                  background: "rgba(15,23,42,0.72)",
+                  border: "1px solid rgba(148,163,184,0.14)",
+                  color: "#94a3b8",
+                  fontSize: "14px",
                 }}
               >
-                {shift.forecastStatus}
+                Upload labor and sales data to activate labor forecasting.
               </div>
-            </div>
-
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: isMobile
-  ? "1fr"
-  : "repeat(3, minmax(0, 1fr))",
-                gap: "10px",
-              }}
-            >
-              <div style={laborForecastMiniCardStyle}>
-                <div style={laborForecastMiniLabelStyle}>Current Revenue</div>
-                <div style={laborForecastMiniValueStyle}>
-                  ${Number(shift.currentRevenue || 0).toLocaleString()}
-                </div>
-              </div>
-
-              <div style={laborForecastMiniCardStyle}>
-                <div style={laborForecastMiniLabelStyle}>Current Labor</div>
-                <div style={laborForecastMiniValueStyle}>
-                  ${Number(shift.currentLaborCost || 0).toLocaleString()}
-                </div>
-              </div>
-
-              <div style={laborForecastMiniCardStyle}>
-                <div style={laborForecastMiniLabelStyle}>Current Labor %</div>
-                <div style={{ ...laborForecastMiniValueStyle, color: statusColor }}>
-                  {Number(shift.currentLaborPercent || 0).toFixed(1)}%
-                </div>
-              </div>
-            </div>
+            )}
           </div>
-        );
-      })}
-    </div>
+        </>
+      );
+    })()}
   </div>
 )}
 
-{/* 👥 SHIFT-LEVEL OPERATIONAL INTELLIGENCE */}
+{/* SHIFT-LEVEL OPERATIONAL INTELLIGENCE */}
 {hasProAccess && (
   <div
     style={{
@@ -73873,200 +74049,238 @@ subtitle="Labor shifts analyzed"
       border: "1px solid rgba(59,130,246,0.18)",
     }}
   >
-    <div
-      style={{
-        color: "#93c5fd",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "8px",
-      }}
-    >
-      Shift-Level Operational Intelligence
-    </div>
+    {(() => {
+      const safeShiftOperationalData =
+        typeof shiftOperationalData !== "undefined"
+          ? shiftOperationalData || []
+          : [];
 
-    <h3 style={{ color: "white", margin: "0 0 10px", fontSize: "22px" }}>
-      Labor Efficiency by Shift
-    </h3>
-
-    <p style={{ color: "#94a3b8", fontSize: "13px", lineHeight: 1.6 }}>
-      Compares shift revenue against labor cost to identify overstaffed shifts,
-      inefficient labor periods, and high-performing service windows.
-    </p>
-    
-{/* 📊 SHIFT PERFORMANCE KPI STRIP */}
-
-<div
-  style={{
-    display: "grid",
-   gridTemplateColumns: isMobile
-  ? "1fr"
- : "repeat(2, minmax(0, 1fr))",
-    gap: "12px",
-    marginTop: "18px",
-    marginBottom: "18px",
-  }}
->
-  {[
-    {
-      label: "Top Shift",
-      value: topShift?.shift || "No Data",
-      sub: topShift
-        ? `$${Number(topShift.revenue || 0).toFixed(0)} revenue`
-        : "waiting for sales data",
-    },
-    {
-      label: "Avg Labor %",
-      value: `${
-        shiftOperationalData?.length
-          ? (
-              shiftOperationalData.reduce(
-                (sum, shift) => sum + Number(shift.laborPercent || 0),
-                0
-              ) / shiftOperationalData.length
-            ).toFixed(1)
-          : "0.0"
-      }%`,
-      sub: "across tracked shifts",
-    },
-    {
-      label: "Overstaffed Shifts",
-      value: shiftOperationalData.filter(
-        (shift) => shift.status === "Overstaffed"
-      ).length,
-      sub: "need scheduling review",
-    },
-  ].map((metric) => (
-    <div
-      key={metric.label}
-      style={{
-        padding: "14px",
-        borderRadius: "16px",
-        background: "rgba(255,255,255,0.04)",
-        border: "1px solid rgba(255,255,255,0.08)",
-      }}
-    >
-      <div
-        style={{
-          color: "#94a3b8",
-          fontSize: "11px",
-          fontWeight: "800",
-          textTransform: "uppercase",
-          letterSpacing: "0.06em",
-          marginBottom: "6px",
-        }}
-      >
-        {metric.label}
-      </div>
-
-      <div
-        style={{
-          color: "white",
-          fontSize: "24px",
-          fontWeight: "950",
-        }}
-      >
-        {metric.value}
-      </div>
-
-      <div
-        style={{
-          color: "#64748b",
-          fontSize: "12px",
-          marginTop: "4px",
-        }}
-      >
-        {metric.sub}
-      </div>
-    </div>
-  ))}
-</div>
-    <div style={{ display: "grid", gap: "12px", marginTop: "18px" }}>
-      {(shiftOperationalData || []).map((shift, index) => (
-        <div
-  key={`${shift.shift}-${index}`}
-  style={{
-    padding: "14px",
-    borderRadius: "16px",
-    background: "rgba(255,255,255,0.04)",
-    border: "1px solid rgba(255,255,255,0.08)",
-
-    display: "grid",
-    gridTemplateColumns: isMobile
-      ? "1fr"
-      : "repeat(5, minmax(0, 1fr))",
-
-    gap: "12px",
-    alignItems: "center",
-
-    minWidth: 0,
-    overflow: "hidden",
-    boxSizing: "border-box",
-  }}
-> 
-          <div>
-            <div style={{ color: "white", fontWeight: "900" }}>
-              {shift.shift}
-            </div>
-            <div style={{ color: "#94a3b8", fontSize: "12px" }}>
-              {shift.orders} orders
-            </div>
+      return (
+        <>
+          <div
+            style={{
+              color: "#93c5fd",
+              fontSize: "12px",
+              fontWeight: "900",
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+              marginBottom: "8px",
+            }}
+          >
+            Shift-Level Operational Intelligence
           </div>
 
-          <div>
-            <div style={{ color: "#94a3b8", fontSize: "11px" }}>Revenue</div>
-            <div style={{ color: "white", fontWeight: "800" }}>
-              ${Number(shift.revenue || 0).toFixed(0)}
-            </div>
+          <h3 style={{ color: "white", margin: "0 0 10px", fontSize: "22px" }}>
+            Labor efficiency by shift
+          </h3>
+
+          <p style={{ color: "#94a3b8", fontSize: "13px", lineHeight: 1.6 }}>
+            Compares shift revenue against labor cost to identify overstaffed
+            shifts, inefficient labor periods, and high-performing service windows.
+          </p>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: isMobile
+                ? "1fr"
+                : "repeat(3, minmax(0, 1fr))",
+              gap: "12px",
+              marginTop: "18px",
+              marginBottom: "18px",
+            }}
+          >
+            {[
+              {
+                label: "Top Shift",
+                value:
+                  typeof topShift !== "undefined"
+                    ? topShift?.shift || "No Data"
+                    : "No Data",
+                sub:
+                  typeof topShift !== "undefined" && topShift
+                    ? `$${Number(topShift.revenue || 0).toFixed(0)} revenue`
+                    : "waiting for sales data",
+              },
+              {
+                label: "Avg Labor %",
+                value: `${
+                  safeShiftOperationalData.length
+                    ? (
+                        safeShiftOperationalData.reduce(
+                          (sum, shift) =>
+                            sum + Number(shift.laborPercent || 0),
+                          0
+                        ) / safeShiftOperationalData.length
+                      ).toFixed(1)
+                    : "0.0"
+                }%`,
+                sub: "across tracked shifts",
+              },
+              {
+                label: "Overstaffed Shifts",
+                value: safeShiftOperationalData.filter(
+                  (shift) => shift.status === "Overstaffed"
+                ).length,
+                sub: "need scheduling review",
+              },
+            ].map((metric) => (
+              <div
+                key={metric.label}
+                style={{
+                  padding: "14px",
+                  borderRadius: "16px",
+                  background: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                }}
+              >
+                <div
+                  style={{
+                    color: "#94a3b8",
+                    fontSize: "11px",
+                    fontWeight: "800",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.06em",
+                    marginBottom: "6px",
+                  }}
+                >
+                  {metric.label}
+                </div>
+
+                <div
+                  style={{
+                    color: "white",
+                    fontSize: "24px",
+                    fontWeight: "950",
+                  }}
+                >
+                  {metric.value}
+                </div>
+
+                <div
+                  style={{
+                    color: "#64748b",
+                    fontSize: "12px",
+                    marginTop: "4px",
+                  }}
+                >
+                  {metric.sub}
+                </div>
+              </div>
+            ))}
           </div>
 
-          <div>
-            <div style={{ color: "#94a3b8", fontSize: "11px" }}>Labor</div>
-            <div style={{ color: "white", fontWeight: "800" }}>
-              ${Number(shift.laborCost || 0).toFixed(0)}
-            </div>
-          </div>
+          <div style={{ display: "grid", gap: "12px", marginTop: "18px" }}>
+            {safeShiftOperationalData.length > 0 ? (
+              safeShiftOperationalData.map((shift, index) => (
+                <div
+                  key={`${shift.shift || "shift"}-${index}`}
+                  style={{
+                    padding: "14px",
+                    borderRadius: "16px",
+                    background: "rgba(255,255,255,0.04)",
+                    border: "1px solid rgba(255,255,255,0.08)",
+                    display: "grid",
+                    gridTemplateColumns: isMobile
+                      ? "1fr"
+                      : "repeat(5, minmax(0, 1fr))",
+                    gap: "12px",
+                    alignItems: "center",
+                    minWidth: 0,
+                    overflow: "hidden",
+                    boxSizing: "border-box",
+                  }}
+                >
+                  <div>
+                    <div style={{ color: "white", fontWeight: "900" }}>
+                      {shift.shift}
+                    </div>
 
-          <div>
-            <div style={{ color: "#94a3b8", fontSize: "11px" }}>Labor %</div>
-            <div
-              style={{
-                color:
-                  Number(shift.laborPercent || 0) > 35
-                    ? "#f87171"
-                    : Number(shift.laborPercent || 0) > 28
-                    ? "#facc15"
-                    : "#22c55e",
-                fontWeight: "950",
-              }}
-            >
-              {Number(shift.laborPercent || 0).toFixed(1)}%
-            </div>
-          </div>
+                    <div style={{ color: "#94a3b8", fontSize: "12px" }}>
+                      {shift.orders} orders
+                    </div>
+                  </div>
 
-          <div>
-            <div style={{ color: "#94a3b8", fontSize: "11px" }}>Status</div>
-            <div
-              style={{
-                color:
-                  shift.status === "Overstaffed"
-                    ? "#f87171"
-                    : shift.status === "Watch Closely"
-                    ? "#facc15"
-                    : "#22c55e",
-                fontWeight: "900",
-              }}
-            >
-              {shift.status}
-            </div>
+                  <div>
+                    <div style={{ color: "#94a3b8", fontSize: "11px" }}>
+                      Revenue
+                    </div>
+                    <div style={{ color: "white", fontWeight: "800" }}>
+                      ${Number(shift.revenue || 0).toFixed(0)}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div style={{ color: "#94a3b8", fontSize: "11px" }}>
+                      Labor
+                    </div>
+                    <div style={{ color: "white", fontWeight: "800" }}>
+                      ${Number(shift.laborCost || 0).toFixed(0)}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div style={{ color: "#94a3b8", fontSize: "11px" }}>
+                      Labor %
+                    </div>
+                    <div
+                      style={{
+                        color:
+                          Number(shift.laborPercent || 0) > 35
+                            ? "#f87171"
+                            : Number(shift.laborPercent || 0) > 28
+                            ? "#facc15"
+                            : "#22c55e",
+                        fontWeight: "950",
+                      }}
+                    >
+                      {Number(shift.laborPercent || 0).toFixed(1)}%
+                    </div>
+                  </div>
+
+                  <div>
+                    <div style={{ color: "#94a3b8", fontSize: "11px" }}>
+                      Status
+                    </div>
+                    <div
+                      style={{
+                        color:
+                          shift.status === "Overstaffed"
+                            ? "#f87171"
+                            : shift.status === "Watch Closely"
+                            ? "#facc15"
+                            : "#22c55e",
+                        fontWeight: "900",
+                      }}
+                    >
+                      {shift.status || "Stable"}
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div
+                style={{
+                  padding: "16px",
+                  borderRadius: "16px",
+                  background: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  color: "#94a3b8",
+                  fontSize: "13px",
+                  lineHeight: 1.6,
+                }}
+              >
+                Upload sales and labor data to activate shift-level operational intelligence.
+              </div>
+            )}
           </div>
-        </div>
-      ))}
-    </div>
+        </>
+      );
+    })()}
   </div>
 )}
-{/* 🧠 AI STAFFING RECOMMENDATIONS */}
+
+   {/* AI STAFFING RECOMMENDATIONS */}
 {hasProAccess && (
   <div
     style={{
@@ -74078,172 +74292,970 @@ subtitle="Labor shifts analyzed"
       border: "1px solid rgba(168,85,247,0.22)",
     }}
   >
-    <div
-      style={{
-        color: "#c4b5fd",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "8px",
-      }}
-    >
-      AI Staffing Recommendations
-    </div>
+    {(() => {
+      const safeStaffingRecommendations =
+        typeof staffingRecommendations !== "undefined"
+          ? staffingRecommendations || []
+          : [];
 
-    <h3 style={{ color: "white", margin: "0 0 10px", fontSize: "22px" }}>
-      Workforce Optimization Actions
-    </h3>
-
-    <p style={{ color: "#94a3b8", fontSize: "13px", lineHeight: 1.6 }}>
-      Converts labor efficiency by shift into recommended staffing actions for
-      reducing labor waste and protecting service quality.
-    </p>
-{(!staffingRecommendations || staffingRecommendations.length === 0) && (
-  <div
-    style={{
-      padding: "14px",
-      borderRadius: "16px",
-      background: "rgba(255,255,255,0.04)",
-      border: "1px solid rgba(255,255,255,0.08)",
-      color: "#94a3b8",
-      fontSize: "13px",
-      lineHeight: 1.6,
-    }}
-  >
-    No staffing recommendations yet. Upload both sales and labor data to
-    activate shift-level workforce optimization.
-  </div>
-)}
-    <div style={{ display: "grid", gap: "12px", marginTop: "18px" }}>
-      {(staffingRecommendations || []).map((item, index) => (
-        <div
-          key={`${item.shift}-staffing-${index}`}
-          style={{
-            padding: "14px",
-            borderRadius: "16px",
-            background: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(255,255,255,0.08)",
-          }}
-        >
+      return (
+        <>
           <div
             style={{
-              display: "flex",
-              justifyContent: "space-between",
-              gap: "12px",
-              flexWrap: "wrap",
+              color: "#c4b5fd",
+              fontSize: "12px",
+              fontWeight: "900",
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
               marginBottom: "8px",
             }}
           >
-            <div style={{ color: "white", fontWeight: "900" }}>
-              {item.shift}
+            AI Staffing Recommendations
+          </div>
+
+          <h3 style={{ color: "white", margin: "0 0 10px", fontSize: "22px" }}>
+            Workforce optimization actions
+          </h3>
+
+          <p style={{ color: "#94a3b8", fontSize: "13px", lineHeight: 1.6 }}>
+            Converts labor efficiency by shift into recommended staffing actions
+            for reducing labor waste and protecting service quality.
+          </p>
+
+          <div style={{ display: "grid", gap: "12px", marginTop: "18px" }}>
+            {safeStaffingRecommendations.length > 0 ? (
+              safeStaffingRecommendations.map((item, index) => (
+                <div
+                  key={`${item.shift || "staffing"}-${index}`}
+                  style={{
+                    padding: "14px",
+                    borderRadius: "16px",
+                    background: "rgba(255,255,255,0.04)",
+                    border: "1px solid rgba(255,255,255,0.08)",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: "12px",
+                      flexWrap: "wrap",
+                      marginBottom: "8px",
+                    }}
+                  >
+                    <div style={{ color: "white", fontWeight: "900" }}>
+                      {item.shift || "Unassigned Shift"}
+                    </div>
+
+                    <div
+                      style={{
+                        color:
+                          item.priority === "Critical"
+                            ? "#f87171"
+                            : item.priority === "Watch"
+                            ? "#facc15"
+                            : item.priority === "Opportunity"
+                            ? "#22c55e"
+                            : "#94a3b8",
+                        fontWeight: "900",
+                        fontSize: "12px",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.06em",
+                      }}
+                    >
+                      {item.priority || "Monitor"}
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      color: "#cbd5e1",
+                      fontSize: "13px",
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    {item.recommendation ||
+                      "Review staffing efficiency and shift productivity."}
+                  </div>
+
+                  <div
+                    style={{
+                      marginTop: "10px",
+                      color: "#64748b",
+                      fontSize: "12px",
+                    }}
+                  >
+                    Labor: {Number(item.laborPercent || 0).toFixed(1)}% ·
+                    Revenue: ${Number(item.revenue || 0).toFixed(0)} · AOV: $
+                    {Number(item.avgOrderValue || 0).toFixed(2)}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div
+                style={{
+                  padding: "14px",
+                  borderRadius: "16px",
+                  background: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  color: "#94a3b8",
+                  fontSize: "13px",
+                  lineHeight: 1.6,
+                }}
+              >
+                No staffing recommendations yet. Upload both sales and labor data
+                to activate shift-level workforce optimization.
+              </div>
+            )}
+          </div>
+        </>
+      );
+    })()}
+  </div>
+)}
+
+  </>
+)}
+
+{laborView === "employees" && (
+  <>
+   {/* EMPLOYEE LABOR INTELLIGENCE */}
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "22px",
+      padding: "24px",
+      borderRadius: "28px",
+      background:
+        "linear-gradient(135deg, rgba(14,165,233,0.14), rgba(15,23,42,0.96))",
+      border: "1px solid rgba(125,211,252,0.22)",
+      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
+    }}
+  >
+    {(() => {
+      const safeLaborData =
+        typeof laborData !== "undefined" ? laborData || [] : [];
+
+      const safeEmployeeShifts =
+        typeof employeeShifts !== "undefined" ? employeeShifts || [] : [];
+
+      const safeEmployees =
+        typeof employees !== "undefined" ? employees || [] : [];
+
+      const totalLaborCost = safeLaborData.reduce(
+        (sum, row) =>
+          sum +
+          Number(
+            row.labor_cost ||
+              row["labor cost"] ||
+              row.cost ||
+              row.laborCost ||
+              0
+          ),
+        0
+      );
+
+      return (
+        <>
+          <div style={{ color: "#7dd3fc", fontSize: "12px", fontWeight: "900" }}>
+            Employee Labor Intelligence
+          </div>
+
+          <h3 style={{ color: "white", fontSize: "24px", fontWeight: "950" }}>
+            Staff efficiency & shift performance
+          </h3>
+
+          <div
+            style={{
+              marginTop: "18px",
+              display: "grid",
+              gridTemplateColumns: isMobile
+                ? "1fr"
+                : "repeat(4,minmax(0,1fr))",
+              gap: "14px",
+            }}
+          >
+            <GlassCard
+              title="Labor Rows"
+              value={safeLaborData.length}
+              subtitle="Labor records imported"
+            />
+
+            <GlassCard
+              title="Shifts Tracked"
+              value={safeEmployeeShifts.length}
+              subtitle="Employee shifts analyzed"
+            />
+
+            <GlassCard
+              title="Total Labor Cost"
+              value={`$${Number(totalLaborCost || 0).toLocaleString()}`}
+              subtitle="Uploaded shift labor cost"
+            />
+
+            <GlassCard
+              title="Avg Labor / Shift"
+              value={`$${(
+                Number(totalLaborCost || 0) / (safeLaborData.length || 1)
+              ).toFixed(0)}`}
+              subtitle="Average labor cost per shift"
+            />
+          </div>
+
+          {/* EMPLOYEE SHIFT PERFORMANCE */}
+          <div style={{ marginTop: "18px", display: "grid", gap: "14px" }}>
+            {safeEmployeeShifts.length > 0 ? (
+              safeEmployeeShifts.slice(0, 8).map((shift) => {
+                const employee = safeEmployees.find(
+                  (item) => item.id === shift.employee_id
+                );
+
+                const laborEfficiency =
+                  Number(shift.revenue_during_shift || 0) > 0
+                    ? (Number(shift.labor_cost || 0) /
+                        Number(shift.revenue_during_shift || 0)) *
+                      100
+                    : 0;
+
+                return (
+                  <div
+                    key={shift.id}
+                    style={{
+                      padding: "16px",
+                      borderRadius: "20px",
+                      background: "rgba(15,23,42,0.74)",
+                      border: "1px solid rgba(125,211,252,0.14)",
+                      display: "grid",
+                      gridTemplateColumns: isMobile
+                        ? "1fr"
+                        : "repeat(4, minmax(0, 1fr))",
+                      gap: "12px",
+                      alignItems: "center",
+                      minWidth: 0,
+                      overflow: "hidden",
+                      boxSizing: "border-box",
+                    }}
+                  >
+                    <div>
+                      <div style={{ color: "white", fontWeight: "900" }}>
+                        {employee?.employee_name || "Unknown Employee"}
+                      </div>
+
+                      <div style={{ color: "#94a3b8", fontSize: "12px" }}>
+                        {shift.shift_date || "No date"} •{" "}
+                        {employee?.role || "Staff"}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div style={{ color: "#94a3b8", fontSize: "11px" }}>
+                        Hours
+                      </div>
+                      <div style={{ color: "white", fontWeight: "800" }}>
+                        {Number(shift.hours_worked || 0).toFixed(1)}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div style={{ color: "#94a3b8", fontSize: "11px" }}>
+                        Labor Cost
+                      </div>
+                      <div style={{ color: "#fbbf24", fontWeight: "900" }}>
+                        ${Number(shift.labor_cost || 0).toFixed(0)}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div style={{ color: "#94a3b8", fontSize: "11px" }}>
+                        Labor %
+                      </div>
+                      <div
+                        style={{
+                          color:
+                            laborEfficiency > 35
+                              ? "#f87171"
+                              : laborEfficiency > 28
+                              ? "#fbbf24"
+                              : "#86efac",
+                          fontWeight: "950",
+                        }}
+                      >
+                        {laborEfficiency > 0
+                          ? `${laborEfficiency.toFixed(1)}%`
+                          : "N/A"}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <div style={{ color: "#94a3b8", fontSize: "14px" }}>
+                Upload employee shift data to activate staff efficiency
+                intelligence.
+              </div>
+            )}
+          </div>
+        </>
+      );
+    })()}
+  </div>
+)}
+{/* AI LABOR RISK ALERTS */}
+<div
+  style={{
+    marginTop: "18px",
+    display: "grid",
+    gap: "12px",
+  }}
+>
+  {(() => {
+    const safeEmployeeShifts =
+      typeof employeeShifts !== "undefined" ? employeeShifts || [] : [];
+
+    const safeEmployees =
+      typeof employees !== "undefined" ? employees || [] : [];
+
+    const riskyShifts = safeEmployeeShifts
+      .filter((shift) => {
+        const laborEfficiency =
+          Number(shift.revenue_during_shift || 0) > 0
+            ? (Number(shift.labor_cost || 0) /
+                Number(shift.revenue_during_shift || 0)) *
+              100
+            : 0;
+
+        return laborEfficiency > 30;
+      })
+      .slice(0, 5);
+
+    return riskyShifts.length > 0 ? (
+      riskyShifts.map((shift) => {
+        const employee = safeEmployees.find(
+          (item) => item.id === shift.employee_id
+        );
+
+        const laborEfficiency =
+          Number(shift.revenue_during_shift || 0) > 0
+            ? (Number(shift.labor_cost || 0) /
+                Number(shift.revenue_during_shift || 0)) *
+              100
+            : 0;
+
+        return (
+          <div
+            key={shift.id}
+            style={{
+              padding: "16px",
+              borderRadius: "18px",
+              background:
+                "linear-gradient(135deg, rgba(239,68,68,0.12), rgba(15,23,42,0.86))",
+              border: "1px solid rgba(248,113,113,0.18)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: isMobile ? "flex-start" : "center",
+                flexDirection: isMobile ? "column" : "row",
+                gap: "12px",
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    color: "white",
+                    fontSize: "16px",
+                    fontWeight: "900",
+                    marginBottom: "4px",
+                  }}
+                >
+                  {employee?.employee_name || "Unknown Employee"}
+                </div>
+
+                <div
+                  style={{
+                    color: "#fca5a5",
+                    fontSize: "13px",
+                    lineHeight: 1.6,
+                  }}
+                >
+                  AI detected elevated labor cost exposure during this shift.
+                </div>
+              </div>
+
+              <div
+                style={{
+                  padding: "8px 12px",
+                  borderRadius: "14px",
+                  background: "rgba(239,68,68,0.14)",
+                  border: "1px solid rgba(248,113,113,0.22)",
+                  color: "#fca5a5",
+                  fontWeight: "900",
+                  fontSize: "13px",
+                }}
+              >
+                {laborEfficiency.toFixed(1)}% Labor
+              </div>
+            </div>
+          </div>
+        );
+      })
+    ) : (
+      <div
+        style={{
+          padding: "16px",
+          borderRadius: "18px",
+          background: "rgba(15,23,42,0.72)",
+          border: "1px solid rgba(148,163,184,0.14)",
+          color: "#94a3b8",
+          fontSize: "14px",
+          lineHeight: 1.6,
+        }}
+      >
+        No employee labor risk alerts detected right now.
+      </div>
+    );
+  })()}
+</div>
+
+{/* AI LABOR OPTIMIZATION RECOMMENDATIONS */}
+<div
+  style={{
+    marginTop: "18px",
+    display: "grid",
+    gap: "14px",
+  }}
+>
+  {(() => {
+    const safeEmployeeShifts =
+      typeof employeeShifts !== "undefined" ? employeeShifts || [] : [];
+
+    const safeEmployees =
+      typeof employees !== "undefined" ? employees || [] : [];
+
+    return safeEmployeeShifts.length > 0 ? (
+      safeEmployeeShifts.slice(0, 6).map((shift) => {
+        const employee = safeEmployees.find(
+          (item) => item.id === shift.employee_id
+        );
+
+        const laborEfficiency =
+          Number(shift.revenue_during_shift || 0) > 0
+            ? (Number(shift.labor_cost || 0) /
+                Number(shift.revenue_during_shift || 0)) *
+              100
+            : 0;
+
+        let recommendation =
+          "Shift labor performance is operating within acceptable efficiency range.";
+
+        if (laborEfficiency > 35) {
+          recommendation =
+            "Critical labor inefficiency detected. AI recommends reducing overlap or reallocating staffing.";
+        } else if (laborEfficiency > 28) {
+          recommendation =
+            "Moderate labor inefficiency detected. Review scheduling efficiency and shift productivity.";
+        } else if (laborEfficiency > 0) {
+          recommendation =
+            "Labor efficiency is healthy. Continue monitoring staffing consistency.";
+        }
+
+        return (
+          <div
+            key={shift.id}
+            style={{
+              padding: "18px",
+              borderRadius: "20px",
+              background:
+                "linear-gradient(135deg, rgba(15,23,42,0.84), rgba(30,41,59,0.82))",
+              border: "1px solid rgba(148,163,184,0.12)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: isMobile ? "flex-start" : "center",
+                flexDirection: isMobile ? "column" : "row",
+                gap: "12px",
+                marginBottom: "10px",
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    color: "white",
+                    fontSize: "17px",
+                    fontWeight: "900",
+                  }}
+                >
+                  {employee?.employee_name || "Unknown Employee"}
+                </div>
+
+                <div
+                  style={{
+                    color: "#94a3b8",
+                    fontSize: "12px",
+                    marginTop: "4px",
+                  }}
+                >
+                  ${Number(shift.labor_cost || 0).toFixed(0)} labor cost •{" "}
+                  {laborEfficiency > 0
+                    ? `${laborEfficiency.toFixed(1)}% labor`
+                    : "No revenue linked"}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  padding: "8px 12px",
+                  borderRadius: "999px",
+                  background:
+                    laborEfficiency <= 28
+                      ? "rgba(34,197,94,0.14)"
+                      : laborEfficiency <= 35
+                      ? "rgba(250,204,21,0.14)"
+                      : "rgba(239,68,68,0.14)",
+                  color:
+                    laborEfficiency <= 28
+                      ? "#86efac"
+                      : laborEfficiency <= 35
+                      ? "#fde68a"
+                      : "#fca5a5",
+                  fontWeight: "900",
+                  fontSize: "12px",
+                }}
+              >
+                {laborEfficiency <= 28
+                  ? "Efficient"
+                  : laborEfficiency <= 35
+                  ? "Watch"
+                  : "Critical"}
+              </div>
             </div>
 
             <div
               style={{
-                color:
-                  item.priority === "Critical"
-                    ? "#f87171"
-                    : item.priority === "Watch"
-                    ? "#facc15"
-                    : item.priority === "Opportunity"
-                    ? "#22c55e"
-                    : "#94a3b8",
-                fontWeight: "900",
-                fontSize: "12px",
-                textTransform: "uppercase",
-                letterSpacing: "0.06em",
+                color: "#cbd5e1",
+                fontSize: "13px",
+                lineHeight: 1.7,
               }}
             >
-              {item.priority}
+              {recommendation}
             </div>
           </div>
+        );
+      })
+    ) : (
+      <div
+        style={{
+          padding: "18px",
+          borderRadius: "18px",
+          background: "rgba(15,23,42,0.72)",
+          border: "1px solid rgba(148,163,184,0.14)",
+          color: "#94a3b8",
+          textAlign: "center",
+        }}
+      >
+        Upload employee shift data to activate AI labor optimization
+        recommendations.
+      </div>
+    );
+  })()}
+</div>
 
-          <div
-            style={{
-              color: "#cbd5e1",
-              fontSize: "13px",
-              lineHeight: 1.6,
-            }}
-          >
-            {item.recommendation}
-          </div>
+    
+  </>
+)}
+{laborView === "ai" && (
+  <>
+    {/* AI WORKFORCE COMMAND CENTER */}
+<div
+  style={{
+    marginTop: "18px",
+    padding: "24px",
+    borderRadius: "26px",
+    background:
+      "linear-gradient(135deg, rgba(124,58,237,0.18), rgba(15,23,42,0.96))",
+    border: "1px solid rgba(168,85,247,0.22)",
+    boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
+  }}
+>
+  {(() => {
+    const safeLaborAlertsFeed =
+      typeof laborAlertsFeed !== "undefined" ? laborAlertsFeed || [] : [];
 
-          <div
-            style={{
-              marginTop: "10px",
-              color: "#64748b",
-              fontSize: "12px",
-            }}
-          >
-            Labor: {Number(item.laborPercent || 0).toFixed(1)}% · Revenue: $
-            {Number(item.revenue || 0).toFixed(0)} · AOV: $
-            {Number(item.avgOrderValue || 0).toFixed(2)}
-          </div>
+    const safeStaffingRecommendations =
+      typeof staffingRecommendations !== "undefined"
+        ? staffingRecommendations || []
+        : [];
+
+    const safeEmployeeShifts =
+      typeof employeeShifts !== "undefined" ? employeeShifts || [] : [];
+
+    const safeEmployees =
+      typeof employees !== "undefined" ? employees || [] : [];
+
+    const riskyShifts = safeEmployeeShifts.filter((shift) => {
+      const laborEfficiency =
+        Number(shift.revenue_during_shift || 0) > 0
+          ? (Number(shift.labor_cost || 0) /
+              Number(shift.revenue_during_shift || 0)) *
+            100
+          : 0;
+
+      return laborEfficiency > 30;
+    });
+
+    return (
+      <>
+        <div
+          style={{
+            color: "#c4b5fd",
+            fontSize: "12px",
+            fontWeight: "900",
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            marginBottom: "8px",
+          }}
+        >
+          AI Workforce Command Center
         </div>
-      ))}
-    </div>
-  </div>
-)}
-{/* =========================
-   📋 LABOR EXECUTIVE SUMMARY
-========================= */}
 
-{hasProAccess && (
-  <div
-    style={{
-      marginTop: "18px",
-      marginBottom: "26px",
-      padding: "22px",
-      borderRadius: "24px",
-      background:
-        "linear-gradient(135deg, rgba(59,130,246,0.16), rgba(15,23,42,0.94))",
-      border: "1px solid rgba(96,165,250,0.18)",
-      boxShadow: "0 22px 60px rgba(2,6,23,0.30)",
-    }}
-  >
-    <div
-      style={{
-        color: "#93c5fd",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "10px",
-      }}
-    >
-      Labor Executive Summary
-    </div>
+        <h2
+          style={{
+            color: "white",
+            fontSize: isMobile ? "26px" : "32px",
+            fontWeight: "950",
+            margin: 0,
+          }}
+        >
+          Labor alerts, staffing actions, and workforce optimization
+        </h2>
 
-    <h3
-      style={{
-        color: "white",
-        fontSize: "24px",
-        fontWeight: "900",
-        marginBottom: "12px",
-      }}
-    >
-      AI workforce operational overview
-    </h3>
+        <p
+          style={{
+            color: "#cbd5e1",
+            fontSize: "14px",
+            lineHeight: 1.7,
+            marginTop: "12px",
+            maxWidth: "850px",
+          }}
+        >
+          SerVen reviews labor risk, overstaffing signals, employee shift
+          efficiency, and staffing recommendations to surface the highest-value
+          workforce actions first.
+        </p>
 
-    <div
-      style={{
-        color: "#e2e8f0",
-        fontSize: "14px",
-        lineHeight: 1.8,
-        whiteSpace: "pre-line",
-      }}
-    >
-      {laborExecutiveSummary}
-    </div>
-  </div>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: isMobile
+              ? "1fr"
+              : "repeat(4,minmax(0,1fr))",
+            gap: "14px",
+            marginTop: "20px",
+          }}
+        >
+          <GlassCard
+            title="Labor Alerts"
+            value={safeLaborAlertsFeed.length}
+            subtext="Active labor risks"
+          />
+
+          <GlassCard
+            title="Staffing Actions"
+            value={safeStaffingRecommendations.length}
+            subtext="AI recommendations"
+          />
+
+          <GlassCard
+            title="Employee Risks"
+            value={riskyShifts.length}
+            subtext="High labor % shifts"
+          />
+
+          <GlassCard
+            title="Shifts Reviewed"
+            value={safeEmployeeShifts.length}
+            subtext="Employee shift rows"
+          />
+        </div>
+
+        {/* AI STAFFING RECOMMENDATIONS */}
+        <div style={{ marginTop: "24px", display: "grid", gap: "12px" }}>
+          <div
+            style={{
+              color: "#c4b5fd",
+              fontSize: "12px",
+              fontWeight: "900",
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+            }}
+          >
+            AI Staffing Recommendations
+          </div>
+
+          {safeStaffingRecommendations.length > 0 ? (
+            safeStaffingRecommendations.slice(0, 5).map((item, index) => (
+              <div
+                key={`${item.shift || "staffing"}-${index}`}
+                style={{
+                  padding: "16px",
+                  borderRadius: "18px",
+                  background: "rgba(15,23,42,0.74)",
+                  border: "1px solid rgba(168,85,247,0.18)",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: "12px",
+                    flexWrap: "wrap",
+                    marginBottom: "8px",
+                  }}
+                >
+                  <div style={{ color: "white", fontWeight: "900" }}>
+                    {item.shift || "Unassigned Shift"}
+                  </div>
+
+                  <div
+                    style={{
+                      color:
+                        item.priority === "Critical"
+                          ? "#f87171"
+                          : item.priority === "Watch"
+                          ? "#facc15"
+                          : item.priority === "Opportunity"
+                          ? "#22c55e"
+                          : "#94a3b8",
+                      fontWeight: "900",
+                      fontSize: "12px",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    {item.priority || "Monitor"}
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    color: "#cbd5e1",
+                    fontSize: "13px",
+                    lineHeight: 1.6,
+                  }}
+                >
+                  {item.recommendation ||
+                    "Review staffing efficiency and shift productivity."}
+                </div>
+              </div>
+            ))
+          ) : (
+            <div
+              style={{
+                padding: "16px",
+                borderRadius: "18px",
+                background: "rgba(15,23,42,0.74)",
+                border: "1px solid rgba(148,163,184,0.14)",
+                color: "#94a3b8",
+                fontSize: "14px",
+              }}
+            >
+              No staffing recommendations yet. Upload sales and labor data to
+              activate AI workforce recommendations.
+            </div>
+          )}
+        </div>
+
+        {/* AI LABOR RISK ALERTS */}
+        <div style={{ marginTop: "24px", display: "grid", gap: "12px" }}>
+          <div
+            style={{
+              color: "#fca5a5",
+              fontSize: "12px",
+              fontWeight: "900",
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+            }}
+          >
+            AI Labor Risk Alerts
+          </div>
+
+          {riskyShifts.length > 0 ? (
+            riskyShifts.slice(0, 5).map((shift) => {
+              const employee = safeEmployees.find(
+                (item) => item.id === shift.employee_id
+              );
+
+              const laborEfficiency =
+                Number(shift.revenue_during_shift || 0) > 0
+                  ? (Number(shift.labor_cost || 0) /
+                      Number(shift.revenue_during_shift || 0)) *
+                    100
+                  : 0;
+
+              return (
+                <div
+                  key={shift.id}
+                  style={{
+                    padding: "16px",
+                    borderRadius: "18px",
+                    background:
+                      "linear-gradient(135deg, rgba(239,68,68,0.12), rgba(15,23,42,0.86))",
+                    border: "1px solid rgba(248,113,113,0.18)",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: "12px",
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <div>
+                      <div style={{ color: "white", fontWeight: "900" }}>
+                        {employee?.employee_name || "Unknown Employee"}
+                      </div>
+
+                      <div
+                        style={{
+                          color: "#fca5a5",
+                          fontSize: "13px",
+                          marginTop: "4px",
+                        }}
+                      >
+                        Elevated labor cost exposure detected.
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        color: "#fca5a5",
+                        fontWeight: "900",
+                      }}
+                    >
+                      {laborEfficiency.toFixed(1)}% Labor
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <div
+              style={{
+                padding: "16px",
+                borderRadius: "18px",
+                background: "rgba(15,23,42,0.74)",
+                border: "1px solid rgba(148,163,184,0.14)",
+                color: "#94a3b8",
+                fontSize: "14px",
+              }}
+            >
+              No AI labor risk alerts detected right now.
+            </div>
+          )}
+        </div>
+
+        {/* LABOR ALERTS FEED */}
+        <div style={{ marginTop: "24px", display: "grid", gap: "12px" }}>
+          <div
+            style={{
+              color: "#93c5fd",
+              fontSize: "12px",
+              fontWeight: "900",
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+            }}
+          >
+            Labor Alerts Feed
+          </div>
+
+          {safeLaborAlertsFeed.length > 0 ? (
+            safeLaborAlertsFeed.slice(0, 5).map((alert, index) => {
+              const alertColor =
+                alert.priority === "Critical"
+                  ? "#f87171"
+                  : alert.priority === "High"
+                  ? "#fbbf24"
+                  : "#38bdf8";
+
+              return (
+                <div
+                  key={`${alert.title || "labor-alert"}-${index}`}
+                  style={{
+                    padding: "16px",
+                    borderRadius: "18px",
+                    background: "rgba(15,23,42,0.74)",
+                    border: `1px solid ${alertColor}55`,
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: "12px",
+                      flexWrap: "wrap",
+                      marginBottom: "8px",
+                    }}
+                  >
+                    <div style={{ color: "white", fontWeight: "900" }}>
+                      {alert.title || "Labor risk detected"}
+                    </div>
+
+                    <div
+                      style={{
+                        color: alertColor,
+                        fontSize: "11px",
+                        fontWeight: "900",
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      {alert.priority || "Monitor"}
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      color: "#cbd5e1",
+                      fontSize: "13px",
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    {alert.detail ||
+                      "Review labor performance and staffing efficiency."}
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <div
+              style={{
+                padding: "16px",
+                borderRadius: "18px",
+                background: "rgba(15,23,42,0.74)",
+                border: "1px solid rgba(148,163,184,0.14)",
+                color: "#94a3b8",
+                fontSize: "14px",
+              }}
+            >
+              No labor alerts surfaced right now.
+            </div>
+          )}
+        </div>
+      </>
+    );
+  })()}
+</div>
+
+    
+  </>
 )}
 </div>
 </div>
 )}
-
-  
-
 {activeTab === "recipes" && (
  <div
   style={{
