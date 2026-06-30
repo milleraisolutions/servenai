@@ -70045,10 +70045,17 @@ const invoiceRows =
 >{operationsView === "overview" && (
   <>
     {(() => {
-      const safeAdvancedAlerts = advancedAiAlerts || [];
-      const safePredictiveAlerts = predictiveAlerts || [];
-      const safeOperationalAlerts = operationalAlerts || [];
-      const safeOpportunities = generatedOpportunities || [];
+     const safeAdvancedAlerts =
+  typeof advancedAiAlerts !== "undefined" ? advancedAiAlerts || [] : [];
+
+const safePredictiveAlerts =
+  typeof predictiveAlerts !== "undefined" ? predictiveAlerts || [] : [];
+
+const safeOperationalAlerts =
+  typeof operationalAlerts !== "undefined" ? operationalAlerts || [] : [];
+
+const safeOpportunities =
+  typeof generatedOpportunities !== "undefined" ? generatedOpportunities || [] : [];
 
       const criticalOperationalAlerts = safeOperationalAlerts.filter(
         (alert) => alert.priority === "Critical"
@@ -71328,7 +71335,7 @@ const tiedWasteValue = Number(
                 }}
               >
                 <span style={{ color: "white", fontWeight: "950" }}>AI readout:</span>{" "}
-                {inventoryWasteIntelligence?.insight ||
+                {inventoryWasteIntelligence?.insight||
                   "SerVen is monitoring stock pressure, usage variance, and waste exposure."}
               </div>
             </div>
@@ -71449,11 +71456,35 @@ const tiedWasteValue = Number(
                 gap: "12px",
                 marginTop: "14px",
               }}
-            >
-              <input value={recipeMenuItem || ""} onChange={(e) => setRecipeMenuItem?.(e.target.value)} placeholder="Menu Item" style={inputStyle} />
-              <input value={recipeIngredient || ""} onChange={(e) => setRecipeIngredient?.(e.target.value)} placeholder="Ingredient" style={inputStyle} />
-              <input type="number" value={recipeQuantityUsed || ""} onChange={(e) => setRecipeQuantityUsed?.(e.target.value)} placeholder="Qty Used" style={inputStyle} />
-              <input type="number" value={recipeTolerance || ""} onChange={(e) => setRecipeTolerance?.(e.target.value)} placeholder="Tolerance %" style={inputStyle} />
+            ><input
+  value={recipeMenuItem || ""}
+  onChange={(e) => setRecipeMenuItem?.(e.target.value)}
+  placeholder="Menu Item"
+  style={safeInputStyle}
+/>
+
+<input
+  value={recipeIngredient || ""}
+  onChange={(e) => setRecipeIngredient?.(e.target.value)}
+  placeholder="Ingredient"
+  style={safeInputStyle}
+/>
+
+<input
+  type="number"
+  value={recipeQuantityUsed || ""}
+  onChange={(e) => setRecipeQuantityUsed?.(e.target.value)}
+  placeholder="Qty Used"
+  style={safeInputStyle}
+/>
+
+<input
+  type="number"
+  value={recipeTolerance || ""}
+  onChange={(e) => setRecipeTolerance?.(e.target.value)}
+  placeholder="Tolerance %"
+  style={safeInputStyle}
+/>
             </div>
 
             <button
@@ -71559,9 +71590,14 @@ const tiedWasteValue = Number(
 )}{operationsView === "performance" && (
   <>
     {(() => {
-      const dailyRows = dailyLaborEfficiency || [];
-      const shiftRows = shiftLaborIntelligence || [];
-      const shiftPerfRows = shiftPerformanceArray || [];
+     const dailyRows =
+  typeof dailyLaborEfficiency !== "undefined" ? dailyLaborEfficiency || [] : [];
+
+const shiftRows =
+  typeof shiftLaborIntelligence !== "undefined" ? shiftLaborIntelligence || [] : [];
+
+const shiftPerfRows =
+  typeof shiftPerformanceArray !== "undefined" ? shiftPerformanceArray || [] : [];
 const pctPrimeCost = Number(
   (typeof primeCostPercentage !== "undefined" && primeCostPercentage) ||
     (typeof livePrimeCost !== "undefined" && livePrimeCost) ||
