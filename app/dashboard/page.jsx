@@ -71123,13 +71123,13 @@ const invoiceRows =
         boxShadow: "0 22px 60px rgba(2,6,23,0.24)",
         minWidth: 0,
       };
-
-      const tiedWasteValue = Number(
-        inventoryWasteIntelligence?.estimatedWasteExposure ||
-          estimatedWasteRecovery ||
-          totalWasteLoss ||
-          0
-      );
+const tiedWasteValue = Number(
+  (typeof inventoryWasteIntelligence !== "undefined" &&
+    inventoryWasteIntelligence?.estimatedWasteExposure) ||
+    (typeof estimatedWasteRecovery !== "undefined" && estimatedWasteRecovery) ||
+    (typeof totalWasteLoss !== "undefined" && totalWasteLoss) ||
+    0
+);
 
       const highVarianceItems = usageData.filter(
         (item) =>
@@ -71541,10 +71541,21 @@ const invoiceRows =
       const dailyRows = dailyLaborEfficiency || [];
       const shiftRows = shiftLaborIntelligence || [];
       const shiftPerfRows = shiftPerformanceArray || [];
+const pctPrimeCost = Number(
+  (typeof primeCostPercentage !== "undefined" && primeCostPercentage) ||
+    (typeof livePrimeCost !== "undefined" && livePrimeCost) ||
+    0
+);
 
-      const pctPrimeCost = Number(primeCostPercentage || livePrimeCost || 0);
-      const pctFoodCost = Number(foodCostPercentage || 0);
-      const pctLaborCost = Number(liveLaborIntelligence?.laborPercent || 0);
+const pctFoodCost = Number(
+  typeof foodCostPercentage !== "undefined" ? foodCostPercentage : 0
+);
+
+const pctLaborCost = Number(
+  typeof liveLaborIntelligence !== "undefined"
+    ? liveLaborIntelligence?.laborPercent || 0
+    : 0
+);
 
       const avgDailyLaborPercent =
         dailyRows.length > 0
