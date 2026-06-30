@@ -82849,26 +82849,24 @@ minWidth: 0,
 {activeTab === "pro_ai" && (
   <>
     <div
-      style={{
-        gridColumn: "1 / -1",
+  style={{
+    gridColumn: "1 / -1",
+    width: "100%",
+    maxWidth: "100%",
+    minWidth: 0,
+    margin: 0,
 
-        width: "100%",
-        maxWidth: "calc(100vw - 260px)",
-        minWidth: 0,
+    overflowX: "hidden",
+    overflowY: "visible",
 
-        margin: 0,
+    display: "grid",
+    gridTemplateColumns: "1fr",
 
-        overflowX: "visible",
-        overflowY: "visible",
-
-        display: "grid",
-        gridTemplateColumns: "repeat(12, minmax(0, 1fr))",
-
-        gap: "22px",
-        alignItems: "start",
-        boxSizing: "border-box",
-      }}
-    >
+    gap: "22px",
+    alignItems: "start",
+    boxSizing: "border-box",
+  }}
+>
       {/* ================= ELITE HEADER ================= */}
 <div
   style={{
