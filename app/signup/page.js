@@ -199,12 +199,12 @@ router.push("/dashboard");
         </div>
 
         <h2 style={{ marginBottom: "6px", fontSize: "20px", textAlign: "center" }}>
-          {step === 1 ? "Tell us about your business" : "Create your credentials"}
+          {step === 1 ? "Tell us about your business" : "Create Your Serven Account"}
         </h2>
 
         <p style={{ ...subText, textAlign: "center" }}>
           {step === 1 
-            ? "We'll customize your dashboard experiences based on your setup." 
+            ? "Tell us about your restaurant so we can personalize your Profit Recovery Dashboard and benchmark your operation." 
             : "Almost there! Protect your account with a secure login."}
         </p>
 
@@ -213,7 +213,7 @@ router.push("/dashboard");
         {/* STEP 1: BUSINESS DETAILS */}
         {step === 1 && (
           <div>
-            <label style={labelStyle}>Business Name</label>
+            <label style={labelStyle}>Restaurant / Restaurant Group</label>
             <input
               type="text"
               placeholder="e.g. Mama's Pizzeria"
@@ -231,28 +231,67 @@ router.push("/dashboard");
               style={inputStyle}
             />
 
-            <label style={labelStyle}>Business Type</label>
-            <select
-              value={businessType}
-              onChange={(e) => setBusinessType(e.target.value)}
-              style={{ ...selectStyle, marginBottom: "14px" }}
-            >
-              <option value="restaurant">Full-Service Restaurant</option>
-              <option value="coffee">Coffee Shop</option>
-              <option value="smoothie">Smoothie / Juice Bar</option>
-            </select>
+            <label style={labelStyle}>Restaurant Type</label>
+           <select
+  value={businessType}
+  onChange={(e) => setBusinessType(e.target.value)}
+  style={{ ...selectStyle, marginBottom: "14px" }}
+>
+  <option value="">Select Restaurant Type</option>
+
+  <option value="fine_dining">Fine Dining</option>
+
+  <option value="steakhouse">Steakhouse</option>
+
+  <option value="seafood">Seafood Restaurant</option>
+
+  <option value="full_service">Full-Service Restaurant</option>
+
+  <option value="casual_dining">Casual Dining</option>
+
+  <option value="fast_casual">Fast Casual</option>
+
+  <option value="breakfast_brunch">Breakfast / Brunch</option>
+
+  <option value="sports_bar">Sports Bar</option>
+
+  <option value="bar_grill">Bar & Grill</option>
+
+  <option value="hotel_restaurant">Hotel Restaurant</option>
+
+  <option value="coffee">Coffee Shop / Café</option>
+
+  <option value="bakery">Bakery</option>
+
+  <option value="juice">Juice / Smoothie Bar</option>
+
+  <option value="food_hall">Food Hall Vendor</option>
+
+  <option value="multi_location">Multi-Location Restaurant Group</option>
+
+  <option value="franchise">Franchise Operator</option>
+
+  <option value="other">Other</option>
+</select>
 
             <label style={labelStyle}>Establishment Size</label>
             <select
-              value={size}
-              onChange={(e) => setSize(e.target.value)}
-              style={selectStyle}
-            >
-              <option value="">Select Capacity</option>
-              <option value="small">Small (0–50 seats)</option>
-              <option value="medium">Medium (50–150 seats)</option>
-              <option value="large">Large (150+ seats)</option>
-            </select>
+  value={size}
+  onChange={(e) => setSize(e.target.value)}
+  style={selectStyle}
+>
+  <option value="">Select Number of Locations</option>
+
+  <option value="single">Single Location</option>
+
+  <option value="small_group">2–5 Locations</option>
+
+  <option value="regional">6–15 Locations</option>
+
+  <option value="enterprise">16–50 Locations</option>
+
+  <option value="national">50+ Locations</option>
+</select>
 
             <button onClick={handleNextStep} style={{ ...buttonStyle, marginTop: "20px" }}>
               Continue
@@ -263,11 +302,55 @@ router.push("/dashboard");
         {/* STEP 2: CREDENTIALS & SUMMARY */}
         {step === 2 && (
           <div>
-            {size && (
-              <div style={summaryBox}>
-                ✨ <strong>Tailored Plan:</strong> {getRecommendedPlan(size).toUpperCase()} ({getEstimatedPriceRange(size)})
-              </div>
-            )}
+           {size && (
+  <div style={summaryBox}>
+    <div
+      style={{
+        fontSize: "12px",
+        color: "#6b21a8",
+        fontWeight: "800",
+        textTransform: "uppercase",
+        letterSpacing: "0.08em",
+        marginBottom: "8px",
+      }}
+    >
+      Recommended Plan
+    </div>
+
+    <div
+      style={{
+        fontSize: "24px",
+        fontWeight: "900",
+        color: "#4c1d95",
+        marginBottom: "8px",
+      }}
+    >
+      {getRecommendedPlan(size).toUpperCase()}
+    </div>
+
+    <div
+      style={{
+        fontSize: "13px",
+        color: "#6b7280",
+        lineHeight: 1.6,
+      }}
+    >
+      Designed for restaurants focused on recovering profit,
+      improving operations, and scaling with confidence.
+    </div>
+
+    <div
+      style={{
+        marginTop: "12px",
+        fontSize: "13px",
+        fontWeight: "700",
+        color: "#16a34a",
+      }}
+    >
+      Estimated Investment: {getEstimatedPriceRange(size)}
+    </div>
+  </div>
+)}
 
             <label style={labelStyle}>Email Address</label>
             <input
@@ -318,7 +401,7 @@ router.push("/dashboard");
                   cursor: loading ? "not-allowed" : "pointer",
                 }}
               >
-                {loading ? "Creating profile..." : "Create My Demo Profile"}
+                {loading ? "Creating profile..." : "Launch My Dashboard"}
               </button>
             </div>
           </div>
