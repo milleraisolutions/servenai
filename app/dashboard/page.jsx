@@ -391,12 +391,15 @@ const isManager =
   userRole === "store_manager" ||
   userRole === "general_manager" ||
   userRole === "kitchen_manager" ||
-  userRole === "gm" ||
-  userRole === "executive";
+  userRole === "gm";
+
 const canSeeOwnerDashboard =
   isOwnerRole ||
   isExecutiveRole ||
-  isCorporateAdminRole;
+  isCorporateAdminRole ||
+  isServenOwner ||
+  isOwner;
+
 const canSeeManagerDashboard =
   isManager && !canSeeOwnerDashboard;
 
