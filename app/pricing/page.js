@@ -11,7 +11,7 @@ export default function Pricing() {
   const [estimatedMonthlyPrice, setEstimatedMonthlyPrice] = useState(null);
   const router = useRouter();
 const calculateEstimate = async () => {
-  let basePrice = 149;
+ let basePrice = 349;
 
   if (monthlyRevenue > 40000) basePrice += 50;
   if (monthlyRevenue > 80000) basePrice += 100;
@@ -60,11 +60,10 @@ const [leadRestaurant, setLeadRestaurant] = useState("");
 
 // Pricing ranges
 const pricingBands = {
-  starter: { min: 149, max: 249 },
-  growth: { min: 299, max: 599 },
-  pro: { min: 499, max: 999 },
+  starter: { min: 349, max: 349 },
+  growth: { min: 699, max: 699 },
+  pro: { min: 1250, max: 1250 },
 };
-
 // Smart plan recommendation (single source of truth)
 const getRecommendedPlan = () => {
   if (monthlyRevenue >= 120000 || locations >= 2 || staffCount >= 25) {
@@ -754,16 +753,17 @@ onClick={async () => {
     </div>
 
     <p
-      style={{
-        color: "#cbd5e1",
-        fontSize: "14px",
-        lineHeight: 1.6,
-        margin: 0,
-      }}
-    >
-      Pricing starts at $149/month. Final pricing depends on your size,
-      complexity, and growth goals.
-    </p>
+  style={{
+    color: "#cbd5e1",
+    fontSize: "14px",
+    lineHeight: 1.6,
+    margin: 0,
+  }}
+>
+  Pricing starts at <strong>$349/month</strong>. Final pricing is tailored to
+  your restaurant's size, operational complexity, number of locations, and
+  implementation requirements.
+</p>
   </div>
 )}
           <div style={estimatorBottomText}>
@@ -806,7 +806,7 @@ onClick={async () => {
             </div>
 
             <div style={priceBlock}>
-              <div style={priceMain}>$149</div>
+              <div style={priceMain}>Starting at $349</div>
               <div style={priceSub}>/month</div>
             </div>
 
@@ -821,7 +821,7 @@ onClick={async () => {
             </div>
 
             <div style={impactText}>
-              Typical value: identify + recover $800–$2,000/mo
+              Typical value: uncover $2,000–$6,000+/month in recoverable profit
             </div>
 
             <ul style={featureList}>
@@ -867,22 +867,29 @@ onClick={async () => {
               </div>
             </div>
 
-            <div style={priceBlock}>
-              <div style={dualPriceWrap}>
-                <div style={termCard}>
-                  <div style={termLabel}>6 Months</div>
-                  <div style={termPrice}>$349</div>
-                  <div style={termSub}>/month</div>
-                </div>
+           <div style={priceBlock}>
+  <div style={priceMain}>Starting at $699</div>
 
-                <div style={{ ...termCard, ...termCardFeatured }}>
-                  <div style={termLabel}>12 Months</div>
-                  <div style={termPrice}>$299</div>
-                  <div style={termSub}>/month</div>
-                  <div style={bestValueText}>BEST VALUE</div>
-                </div>
-              </div>
-            </div>
+  <div style={priceSub}>/month</div>
+
+  <div
+    style={{
+      marginTop: "12px",
+      padding: "12px",
+      borderRadius: "14px",
+      background: "rgba(109,61,245,0.10)",
+      border: "1px solid rgba(109,61,245,0.22)",
+      color: "#6D3DF5",
+      fontSize: "13px",
+      fontWeight: "700",
+      lineHeight: 1.6,
+      textAlign: "center",
+    }}
+  >
+    Pricing is tailored based on your restaurant's operational complexity,
+    number of locations, and implementation requirements.
+  </div>
+</div>
 
             <p style={planDescription}>
               Built for operators who already know the basics and now want to
@@ -964,21 +971,45 @@ onClick={async () => {
             </div>
 
             <div style={priceBlock}>
-              <div style={dualPriceWrap}>
-                <div style={darkTermCard}>
-                  <div style={termLabelDark}>6 Months</div>
-                  <div style={termPriceDark}>$549</div>
-                  <div style={termSubDark}>/month</div>
-                </div>
+  <div
+    style={{
+      fontSize: "46px",
+      fontWeight: "900",
+      color: "white",
+      lineHeight: 1,
+    }}
+  >
+    Custom Pricing
+  </div>
 
-                <div style={{ ...darkTermCard, ...darkTermCardFeatured }}>
-                  <div style={termLabelDark}>12 Months</div>
-                  <div style={termPriceDark}>$499</div>
-                  <div style={termSubDark}>/month</div>
-                  <div style={bestValueTextDark}>BEST VALUE</div>
-                </div>
-              </div>
-            </div>
+  <div
+    style={{
+      marginTop: "10px",
+      fontSize: "14px",
+      color: "rgba(255,255,255,0.75)",
+      fontWeight: "700",
+    }}
+  >
+    Tailored for restaurant groups and enterprise operators
+  </div>
+
+  <div
+    style={{
+      marginTop: "16px",
+      padding: "14px",
+      borderRadius: "16px",
+      background: "rgba(255,255,255,0.08)",
+      border: "1px solid rgba(255,255,255,0.12)",
+      color: "rgba(255,255,255,0.88)",
+      fontSize: "13px",
+      lineHeight: 1.6,
+      textAlign: "center",
+    }}
+  >
+    Every Pro AI deployment is customized based on your number of locations,
+    operational complexity, implementation requirements, and support needs.
+  </div>
+</div>
 
             <p style={{ ...planDescription, color: "rgba(255,255,255,0.86)" }}>
               For serious operators who want more than insights. Pro AI adds
@@ -986,12 +1017,11 @@ onClick={async () => {
             </p>
 
             <div style={planUseCaseDark}>
-              Best for: multi-unit or growth-focused operators who want AI to
-              actively improve pricing, forecasting, and profit performance.
+             Best for: restaurant groups, multi-location operators, and executive teams seeking enterprise-level operational intelligence.
             </div>
 
             <div style={impactTextDark}>
-              Typical value: identify + recover $8,000+/mo
+              Typical value: uncover $15,000+/month in recoverable profit
             </div>
 
             <ul style={featureListDark}>

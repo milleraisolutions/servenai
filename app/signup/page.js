@@ -22,17 +22,41 @@ export default function Signup() {
   const [businessType, setBusinessType] = useState("restaurant");
   const [errorMessage, setErrorMessage] = useState("");
 
-  const getRecommendedPlan = (selectedSize) => {
-    if (selectedSize === "large") return "pro";
-    if (selectedSize === "medium") return "growth";
-    return "starter";
-  };
+ const getRecommendedPlan = (selectedSize) => {
+  if (
+    selectedSize === "enterprise" ||
+    selectedSize === "national"
+  ) {
+    return "Custom Enterprise";
+  }
 
-  const getEstimatedPriceRange = (selectedSize) => {
-    if (selectedSize === "large") return "$499-$999/mo";
-    if (selectedSize === "medium") return "$299-$599/mo";
-    return "$149-$249/mo";
-  };
+  if (
+    selectedSize === "regional" ||
+    selectedSize === "small_group"
+  ) {
+    return "Growth";
+  }
+
+  return "Starter";
+};
+
+ const getEstimatedPriceRange = (selectedSize) => {
+  if (
+    selectedSize === "enterprise" ||
+    selectedSize === "national"
+  ) {
+    return "Custom Pricing";
+  }
+
+  if (
+    selectedSize === "regional" ||
+    selectedSize === "small_group"
+  ) {
+    return "Starting at $699/mo";
+  }
+
+  return "Starting at $349/mo";
+};
 
   // Step 1 Validation
   const handleNextStep = () => {
@@ -347,7 +371,7 @@ router.push("/dashboard");
         color: "#16a34a",
       }}
     >
-      Estimated Investment: {getEstimatedPriceRange(size)}
+      Starting Price: {getEstimatedPriceRange(size)}
     </div>
   </div>
 )}
