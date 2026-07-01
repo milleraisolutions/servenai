@@ -386,6 +386,19 @@ const isGMRole = userRole === "gm";
 const isKitchenManagerRole = userRole === "kitchen_manager";
 const dataOwnerId = userProfile?.owner_user_id || user?.id || null;
 const assignedLocation = userProfile?.location_name || null;
+const isManager =
+  userRole === "manager" ||
+  userRole === "store_manager" ||
+  userRole === "general_manager" ||
+  userRole === "kitchen_manager" ||
+  userRole === "gm" ||
+  userRole === "executive";
+const canSeeOwnerDashboard =
+  isOwnerRole ||
+  isExecutiveRole ||
+  isCorporateAdminRole;
+const canSeeManagerDashboard =
+  isManager && !canSeeOwnerDashboard;
 
 const shouldFilterByLocation =
   ["gm", "kitchen_manager"].includes(userRole) && assignedLocation;
@@ -16002,13 +16015,7 @@ const isRegionalDirectorRole =
 const isFinanceRole =
   userRole === "finance";
 
-const isManager =
-  userRole === "manager" ||
-  userRole === "store_manager" ||
-  userRole === "general_manager" ||
-  userRole === "kitchen_manager" ||
-  userRole === "gm" ||
-  userRole === "executive";
+
 
 const isOwnerOrGM =
   isOwnerRole ||
@@ -16048,13 +16055,8 @@ const canDeleteImports =
   isCorporateAdminRole ||
   isGMRole;
 
-const canSeeOwnerDashboard =
-  isOwnerRole ||
-  isExecutiveRole ||
-  isCorporateAdminRole;
 
-const canSeeManagerDashboard =
-  isManager && !canSeeOwnerDashboard;
+
 
 const allowedTabsByRole = {
   owner: null,
