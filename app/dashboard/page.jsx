@@ -5434,7 +5434,9 @@ const detectColumn = (sample, keywords = []) => {
   );
 };
 const handleFileUpload = async (e) => {
-  
+  console.log("FILE UPLOAD FIRED");
+console.log("SELECTED UPLOAD TYPE:", selectedUploadTypeRef.current || uploadType);
+console.log("FILE SELECTED:", e.target.files?.[0]);
 
   const file = e.target.files?.[0];
   if (!file) return;
@@ -5525,6 +5527,9 @@ const handleFileUpload = async (e) => {
 });
 
  if (activeUploadType === "pos") {
+  console.log("POS BLOCK HIT");
+console.log("SAFE ROW COUNT:", safeRows.length);
+console.log("FIRST ROW:", safeRows[0]);
   setRows(safeRows);
 
   setPendingUploadSummary({
@@ -5924,6 +5929,7 @@ e.target.value = "";
   alert(error?.message || "There was an error reading that file.");
 }
 };
+
 console.log("TRACE AFTER HANDLE FILE UPLOAD");
 console.log("TRACE BEFORE IMPORT MAPPED SALES");
 const handleImportMappedSales = async () => {
