@@ -6097,7 +6097,8 @@ location_id: selectedUploadLocationId || null,
     }));
 
     console.log("POS SALES ROWS TO INSERT:", finalSalesRows);
-
+console.log("FINAL SALES ROWS:", finalSalesRows);
+console.log("FIRST SALES ROW:", finalSalesRows?.[0]);
     const { data: insertedSales, error: salesInsertError } = await supabase
       .from("sales")
       .insert(finalSalesRows)
