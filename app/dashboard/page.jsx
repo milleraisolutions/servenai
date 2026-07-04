@@ -4785,11 +4785,7 @@ useEffect(() => {
 
   loadClientAlerts();
 
-  const interval = setInterval(() => {
-    loadClientAlerts();
-  }, 30000);
 
-  return () => clearInterval(interval);
 }, [user?.id, isOwner]);
 const getRecommendedActionForAlert = (alert) => {
   const actionsSource =
@@ -8123,21 +8119,12 @@ const { data, error } = await salesQuery.order("sale_date", {
 useEffect(() => {
   if (!dataOwnerId) return;
 
-  const interval = setInterval(() => {
-    loadSalesFromDatabase();
-  }, 30000);
-
-  return () => clearInterval(interval);
+  loadSalesFromDatabase();
 }, [dataOwnerId, activeLocation]);
-
 useEffect(() => {
   if (!autopilotEnabled) return;
 
-  const interval = setInterval(() => {
-    runRealProfitEngine();
-  }, 15000); // every 15 seconds
-
-  return () => clearInterval(interval);
+  runRealProfitEngine();
 }, [autopilotEnabled]);
 useEffect(() => {
   let start = Number(displayProfit || 0);
@@ -10620,11 +10607,7 @@ const { data, error } = await menuItemsQuery;
 
   loadMenuItems();
 
-  const interval = setInterval(() => {
-    loadMenuItems();
-  }, 30000);
 
-  return () => clearInterval(interval);
 }, [dataOwnerId, activeLocation]);
 useEffect(() => {
   const loadSavedLaborData = async () => {
@@ -10677,11 +10660,6 @@ console.log("LOADED NORMALIZED LABOR COUNT:", normalizedLaborRows.length);
 
   loadSavedLaborData();
 
-  const interval = setInterval(() => {
-    loadSavedLaborData();
-  }, 30000);
-
-  return () => clearInterval(interval);
 }, [dataOwnerId, activeLocation]);
 useEffect(() => {
   const loadSavedInventoryData = async () => {
@@ -10751,11 +10729,7 @@ useEffect(() => {
 
   loadSavedInventoryData();
 
-  const interval = setInterval(() => {
-    loadSavedInventoryData();
-  }, 30000);
 
-  return () => clearInterval(interval);
 }, [dataOwnerId, activeLocation]);
 const BEVERAGE_CATEGORY_KEYWORDS = [
   "beer",
@@ -11185,11 +11159,7 @@ useEffect(() => {
 
   fetchClientImports();
 
-  const interval = setInterval(() => {
-    fetchClientImports();
-  }, 30000);
-
-  return () => clearInterval(interval);
+ 
 }, [dataOwnerId, activeLocation]);
 useEffect(() => {
   const loadInvoices = async () => {
@@ -11227,11 +11197,7 @@ useEffect(() => {
 
   loadInvoices();
 
-  const interval = setInterval(() => {
-    loadInvoices();
-  }, 30000);
-
-  return () => clearInterval(interval);
+ 
 }, [dataOwnerId, activeLocation]);
 useEffect(() => {
   const loadBatchPrepData = async () => {
@@ -11269,11 +11235,7 @@ useEffect(() => {
 
   loadBatchPrepData();
 
-  const interval = setInterval(() => {
-    loadBatchPrepData();
-  }, 30000);
 
-  return () => clearInterval(interval);
 }, [dataOwnerId, activeLocation]);
 const getCampaignROIStats = () => {
   const campaigns = savedCampaigns || [];
@@ -16679,11 +16641,7 @@ useEffect(() => {
 
   fetchRecipeUsageRules();
 
-  const interval = setInterval(() => {
-    fetchRecipeUsageRules();
-  }, 30000);
-
-  return () => clearInterval(interval);
+ 
 }, [dataOwnerId, activeLocation]);
 
 
@@ -24322,11 +24280,7 @@ const { data: ingredientData, error: ingredientError } =
 
   loadRecipes();
 
-  const interval = setInterval(() => {
-    loadRecipes();
-  }, 30000);
-
-  return () => clearInterval(interval);
+ 
 }, [dataOwnerId, activeLocation]);
 const handleRecipeUpload = async (event) => {
   try {
@@ -24679,11 +24633,7 @@ useEffect(() => {
 
   loadEmployees();
 
-  const interval = setInterval(() => {
-    loadEmployees();
-  }, 30000);
-
-  return () => clearInterval(interval);
+ 
 }, [dataOwnerId, activeLocation]);
 
 const handleEmployeeShiftUpload = async (event) => {
@@ -25113,11 +25063,7 @@ useEffect(() => {
 
   loadBeverageData();
 
-  const interval = setInterval(() => {
-    loadBeverageData();
-  }, 30000);
 
-  return () => clearInterval(interval);
 }, [dataOwnerId, activeLocation]);
 const handleBatchPrepUpload = async (event) => {
   selectedUploadTypeRef.current = "batch_prep";
@@ -25239,11 +25185,7 @@ useEffect(() => {
 
   loadAuditLogs();
 
-  const interval = setInterval(() => {
-    loadAuditLogs();
-  }, 30000);
-
-  return () => clearInterval(interval);
+  
 }, [dataOwnerId]);
 const handleBeverageUpload = async (event) => {
   console.log("BEVERAGE UPLOAD FIRED");
@@ -25672,11 +25614,7 @@ useEffect(() => {
 
   loadLocations();
 
-  const interval = setInterval(() => {
-    loadLocations();
-  }, 30000);
 
-  return () => clearInterval(interval);
 }, [dataOwnerId, activeLocation]);
 const handleLocationUpload = async (event) => {
   let uploadRow = null;
@@ -27077,11 +27015,7 @@ useEffect(() => {
 
   loadTeamInvites();
 
-  const interval = setInterval(() => {
-    loadTeamInvites();
-  }, 30000);
 
-  return () => clearInterval(interval);
 }, [dataOwnerId]);
 
 const loadTeamInvites = async () => {
