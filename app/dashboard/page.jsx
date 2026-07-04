@@ -29410,50 +29410,36 @@ handleImportInventory();
     Track connected data sources, unlocked intelligence, and the next upload
     needed to improve Serven accuracy.
   </div>
+<div style={{ marginTop: "14px", display: "grid", gap: "10px" }}>
+  {uploadChecklist.map((item) => (
+    <div
+      key={item.label}
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        padding: "12px",
+        borderRadius: "14px",
+        background: "rgba(255,255,255,0.04)",
+        border: "1px solid rgba(148,163,184,0.12)",
+      }}
+    >
+      <div style={{ color: "white", fontWeight: "900", fontSize: "13px" }}>
+        {item.label}
+      </div>
 
-  <div style={{ marginTop: "14px", display: "grid", gap: "10px" }}>
-    {[
-      {
-        label: "POS Sales",
-        complete:
-          (dbSalesRows || []).length > 0 ||
-          (salesData || []).length > 0 ||
-          Number(realSalesMetrics?.totalRevenueFromDb || 0) > 0 ||
-          Number(liveTotalRevenue || 0) > 0,
-      },
-      { label: "Labor Data", complete: (laborData || []).length > 0 },
-      { label: "Inventory Data", complete: (inventoryData || []).length > 0 },
-      { label: "Menu Items", complete: (menuItemsData || []).length > 0 },
-      { label: "Invoices", complete: (invoicesData || []).length > 0 },
-    ].map((item) => (
       <div
-        key={item.label}
         style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          padding: "12px",
-          borderRadius: "14px",
-          background: "rgba(255,255,255,0.04)",
-          border: "1px solid rgba(148,163,184,0.12)",
+          color: item.complete ? "#86efac" : "#fbbf24",
+          fontWeight: "900",
+          fontSize: "12px",
         }}
       >
-        <div style={{ color: "white", fontWeight: "900", fontSize: "13px" }}>
-          {item.label}
-        </div>
-
-        <div
-          style={{
-            color: item.complete ? "#86efac" : "#fbbf24",
-            fontWeight: "900",
-            fontSize: "12px",
-          }}
-        >
-          {item.complete ? "Connected" : "Needed"}
-        </div>
+        {item.complete ? "Connected" : "Needed"}
       </div>
-    ))}
-  </div>
+    </div>
+  ))}
+</div>
 
   <div
     style={{
