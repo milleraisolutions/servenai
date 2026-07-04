@@ -14052,6 +14052,8 @@ console.log("LABOR SAMPLE ROWS:", rowsToInsert?.slice(0, 5));
       .insert(rowsToInsert)
       .select();
 
+console.log("LABOR INSERT RESULT:", insertedLaborRows);
+console.log("LABOR INSERT ERROR:", error);
     if (error) {
       console.error("Labor import failed:", error);
       setMessage(`Labor import failed: ${error.message}`);
