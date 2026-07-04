@@ -13772,6 +13772,12 @@ const menuEngineeringInsight =
     : "Menu profitability looks healthy based on current menu engineering analysis.";
 
 const handleImportLabor = async () => {
+  alert("LABOR CONFIRM IMPORT CLICKED");
+console.log("LABOR CONFIRM IMPORT CLICKED");
+console.log("LABOR pendingUploadSummary:", pendingUploadSummary);
+console.log("LABOR pendingUploadRows:", pendingUploadRows);
+console.log("LABOR pendingUploadRowsRef:", pendingUploadRowsRef.current);
+console.log("LABOR laborData:", laborData);
    console.log("LABOR CONFIRM CLICKED");
   console.log("PENDING SUMMARY:", pendingUploadSummary);
   console.log("LABOR DATA STATE:", laborData);
@@ -14051,6 +14057,9 @@ source_name: "labor_upload",
     }
 console.log("LABOR FIRST ROW TO INSERT:", rowsToInsert?.[0]);
 console.log("LABOR SAMPLE ROWS:", rowsToInsert?.slice(0, 5));
+alert(`LABOR ROWS TO INSERT: ${rowsToInsert.length}`);
+console.log("LABOR ROWS TO INSERT:", rowsToInsert);
+console.log("LABOR FIRST ROW TO INSERT:", rowsToInsert?.[0]);
     const { data: insertedLaborRows, error } = await supabase
       .from("labor_uploads")
       .insert(rowsToInsert)
