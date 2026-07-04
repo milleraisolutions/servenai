@@ -415,9 +415,7 @@ const applyLocationFilter = (query) => {
   if (!shouldFilterByLocation) return query;
   if (!assignedLocation) return query;
 
-  return query.or(
-    `location_name.eq.${assignedLocation},location.eq.${assignedLocation},location_name.is.null,location.is.null`
-  );
+  return query.eq("location_name", assignedLocation);
 };
 
 const isStaffRole = userRole === "staff";
