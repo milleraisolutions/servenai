@@ -14462,7 +14462,8 @@ const { data: insertedInventoryRows, error } = await supabase
   .from("inventory_items")
   .insert(rowsWithUploadId)
   .select();
-
+console.log("INVENTORY INSERT RESULT:", insertedInventoryRows);
+console.log("INVENTORY INSERT ERROR:", error);
 if (error) {
   console.error("Inventory import failed:", error);
   setMessage(`Inventory import failed: ${error.message}`);
