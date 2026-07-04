@@ -14421,15 +14421,25 @@ const optimisticUpload = startOptimisticImport({
               0
           ),
 
-          location:
-            row.location ||
-            row.Location ||
-            row.store ||
-            row.Store ||
-            row.restaurant ||
-            row.Restaurant ||
-            activeLocation ||
-            null,
+         location:
+  row.location ||
+  row.Location ||
+  row.store ||
+  row.Store ||
+  row.restaurant ||
+  row.Restaurant ||
+  (activeLocation !== "all" ? activeLocation : assignedLocation || null),
+
+location_name:
+  row.location_name ||
+  row["Location Name"] ||
+  row.location ||
+  row.Location ||
+  row.store ||
+  row.Store ||
+  row.restaurant ||
+  row.Restaurant ||
+  (activeLocation !== "all" ? activeLocation : assignedLocation || null),
         };
       })
       .filter((row) => row.item_name);
@@ -14442,7 +14452,7 @@ const optimisticUpload = startOptimisticImport({
     console.log("INVENTORY FIRST ROW TO INSERT:", rowsToInsert?.[0]);
     console.log("INVENTORY SAMPLE ROWS:", rowsToInsert?.slice(0, 5));
 
-  const { data: uploadRow, error: uploadError } = await supabase
+ const { data: uploadRow, error: uploadError } = await supabase
   .from("uploads")
   .insert([
     {
@@ -14453,6 +14463,10 @@ const optimisticUpload = startOptimisticImport({
       upload_type: "inventory",
       status: "completed",
       location_id: selectedUploadLocationId || null,
+      location_name:
+        activeLocation !== "all"
+          ? activeLocation
+          : assignedLocation || null,
     },
   ])
   .select()
