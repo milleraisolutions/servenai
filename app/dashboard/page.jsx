@@ -360,8 +360,6 @@ useEffect(() => {
 
   loadAdminData();
 }, [user?.id]);
-
-
 /* ================= ACCESS / PLAN GATE ================= */
 
 const OWNER_EMAILS = [
@@ -370,22 +368,30 @@ const OWNER_EMAILS = [
   "millerantoine2137@gmail.com",
 ];
 
-const normalizedEmail = String(user?.email || "")
-  .trim()
-  .toLowerCase();
-  const isServenOwner = OWNER_EMAILS.includes(normalizedEmail);
+const normalizedEmail = String(user?.email || "").trim().toLowerCase();
+
+const isServenOwner = OWNER_EMAILS.includes(normalizedEmail);
+
 const userRole = String(
   userProfile?.role ||
     userProfile?.account_type ||
     userProfile?.business_role ||
     "executive"
 ).toLowerCase();
+
 const isOwnerRole = userRole === "owner";
 const isExecutiveRole = userRole === "executive";
 const isGMRole = userRole === "gm";
 const isKitchenManagerRole = userRole === "kitchen_manager";
+const isCorporateAdminRole = userRole === "corporate_admin";
+
+const isOwner =
+  userProfile?.role === "owner" ||
+  isServenOwner;
+
 const dataOwnerId = userProfile?.owner_user_id || user?.id || null;
 const assignedLocation = userProfile?.location_name || null;
+
 const isManager =
   userRole === "manager" ||
   userRole === "store_manager" ||
@@ -400,23 +406,17 @@ const canSeeOwnerDashboard =
   isServenOwner ||
   isOwner;
 
-const canSeeManagerDashboard =
-  isManager && !canSeeOwnerDashboard;
+const canSeeManagerDashboard = isManager && !canSeeOwnerDashboard;
 
 const shouldFilterByLocation =
   ["gm", "kitchen_manager"].includes(userRole) && assignedLocation;
-  const applyLocationFilter = (query) => {
-  if (!shouldFilterByLocation) return query;
 
+const applyLocationFilter = (query) => {
+  if (!shouldFilterByLocation) return query;
   return query.eq("location_name", assignedLocation);
 };
+
 const isStaffRole = userRole === "staff";
-const isOwner =
-  userProfile?.role === "owner" ||
-  [
-    "antoinemiller@servenai.com",
-    "milleraisolutions21@gmail.com",
-  ].includes(user?.email);
 
 
 
@@ -15978,8 +15978,6 @@ const isRestaurantOwner =
   userRole === "restaurant_owner" ||
   userRole === "executive";
 
-const isCorporateAdminRole =
-  userRole === "corporate_admin";
 
 const isRegionalDirectorRole =
   userRole === "regional_director";
@@ -28135,7 +28133,32 @@ const filteredRecentUploads = [
     String(upload.created_at || "").toLowerCase().includes(search)
   );
 });
-
+const uploadChecklist = [
+  {
+    label: "POS Sales",
+    complete:
+      (dbSalesRows || []).length > 0 ||
+      (salesData || []).length > 0 ||
+      Number(realSalesMetrics?.totalRevenueFromDb || 0) > 0 ||
+      Number(liveTotalRevenue || 0) > 0,
+  },
+  { label: "Labor Data", complete: (laborData || []).length > 0 },
+  {
+    label: "Inventory",
+    complete:
+      (inventoryData || []).length > 0 ||
+      (inventoryDepletionData || []).length > 0,
+  },
+  { label: "Ingredients", complete: (ingredientsData || []).length > 0 },
+  { label: "Menu Items", complete: (menuItemsData || []).length > 0 },
+ { label: "Recipes", complete: (recipes || []).length > 0 },
+  { label: "Recipe Usage Rules", complete: (recipeUsageRules || []).length > 0 },
+  { label: "Batch Prep", complete: (batchPrepData || []).length > 0 },
+  { label: "Invoices", complete: (invoicesData || []).length > 0 },
+  { label: "Beverage", complete: (beverageItems || []).length > 0 },
+  { label: "Employee Shifts", complete: (employeeShifts || []).length > 0 },
+  { label: "Locations", complete: (locations || []).length > 0 },
+];
 
 
 
@@ -29411,6 +29434,7 @@ handleImportInventory();
     needed to improve Serven accuracy.
   </div>
 <div style={{ marginTop: "14px", display: "grid", gap: "10px" }}>
+  
   {uploadChecklist.map((item) => (
     <div
       key={item.label}
