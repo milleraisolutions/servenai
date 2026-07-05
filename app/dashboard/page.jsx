@@ -14426,7 +14426,6 @@ const handleImportInventory = async () => {
         ),
         location: rowLocationName,
         location_name: rowLocationName,
-        file_name: fileName,
         created_at: new Date().toISOString(),
       };
     })
