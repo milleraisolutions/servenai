@@ -10630,6 +10630,9 @@ laborQuery = applyLocationFilter(laborQuery);
 const { data, error } = await laborQuery
   .order("created_at", { ascending: false })
   .limit(500);
+  console.log("LABOR LOAD USER:", dataOwnerId || user.id);
+console.log("LABOR LOAD ERROR:", error);
+console.log("LABOR LOAD DATA:", data);
       if (error) {
         console.error("Failed to load labor data:", error);
         return;
