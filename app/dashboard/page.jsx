@@ -14285,249 +14285,259 @@ if (insertResult.error) {
 };
 const handleImportInventory = async () => {
   console.log("INVENTORY CONFIRM CLICKED");
-  console.log("PENDING SUMMARY:", pendingUploadSummary);
-const optimisticUpload = startOptimisticImport({
-  fileName: pendingUploadSummary?.fileName,
-  sourceName: "inventory_upload",
-  rowCount: pendingUploadSummary?.rowCount || 0,
-});
-  try {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+  setMessage("Importing inventory data...");
 
-    if (!user?.id) {
-      setMessage("Please log in before importing inventory data.");
-      return;
+  const currentUser = user;
+
+  if (!currentUser?.id) {
+    setMessage("Please log in before importing inventory data.");
+    return;
+  }
+
+  const fileName = pendingUploadSummary?.fileName || "Inventory upload";
+
+  const inventoryRows =
+    pendingUploadSummary?.rows?.length
+      ? pendingUploadSummary.rows
+      : pendingUploadRows?.length
+      ? pendingUploadRows
+      : pendingUploadRowsRef.current?.length
+      ? pendingUploadRowsRef.current
+      : inventoryData || [];
+
+  console.log("INVENTORY ROWS FOUND:", inventoryRows);
+  console.log("INVENTORY FIRST ROW FOUND:", inventoryRows?.[0]);
+
+  const toNumber = (value) => {
+    const cleaned = String(value ?? "")
+      .replaceAll("$", "")
+      .replaceAll("%", "")
+      .replaceAll(",", "")
+      .trim();
+
+    const num = Number(cleaned);
+    return Number.isFinite(num) ? num : 0;
+  };
+
+  const uploadLocationName =
+    activeLocation !== "all" ? activeLocation : assignedLocation || null;
+
+  const rowsToInsert = inventoryRows
+    .map((row) => {
+      const itemName =
+        row.item_name ||
+        row["Item Name"] ||
+        row.inventory_item ||
+        row["Inventory Item"] ||
+        row.ingredient ||
+        row.Ingredient ||
+        row.product ||
+        row.Product ||
+        row.name ||
+        row.Name ||
+        row.item ||
+        row.Item ||
+        "";
+
+      const quantity = toNumber(
+        row.quantity ||
+          row.Quantity ||
+          row.qty ||
+          row.Qty ||
+          row.on_hand ||
+          row["On Hand"] ||
+          row.stock ||
+          row.Stock ||
+          row.count ||
+          row.Count ||
+          0
+      );
+
+      const unitCost = toNumber(
+        row.unit_cost ||
+          row["Unit Cost"] ||
+          row.cost ||
+          row.Cost ||
+          row.price ||
+          row.Price ||
+          row.invoice_price ||
+          row["Invoice Price"] ||
+          row.cost_per_unit ||
+          row["Cost Per Unit"] ||
+          0
+      );
+
+      const totalValue =
+        toNumber(row.total_value || row["Total Value"] || row.value || row.Value) ||
+        quantity * unitCost;
+
+      const rowLocationName =
+        row.location_name ||
+        row["Location Name"] ||
+        row.location ||
+        row.Location ||
+        row.store ||
+        row.Store ||
+        row.restaurant ||
+        row.Restaurant ||
+        uploadLocationName;
+
+      return {
+        user_id: currentUser.id,
+        item_name: String(itemName || "").trim(),
+        category:
+          row.category ||
+          row.Category ||
+          row.type ||
+          row.Type ||
+          row.department ||
+          row.Department ||
+          "Inventory",
+        quantity,
+        unit:
+          row.unit ||
+          row.Unit ||
+          row.uom ||
+          row.UOM ||
+          row.measure ||
+          row.Measure ||
+          "",
+        unit_cost: unitCost,
+        total_value: totalValue,
+        par_level: toNumber(
+          row.par_level ||
+            row["Par Level"] ||
+            row.par ||
+            row.Par ||
+            row.target_stock ||
+            row["Target Stock"] ||
+            0
+        ),
+        reorder_point: toNumber(
+          row.reorder_point ||
+            row["Reorder Point"] ||
+            row.reorder ||
+            row.Reorder ||
+            row.minimum ||
+            row.Minimum ||
+            row.min ||
+            row.Min ||
+            0
+        ),
+        location: rowLocationName,
+        location_name: rowLocationName,
+        file_name: fileName,
+        created_at: new Date().toISOString(),
+      };
+    })
+    .filter((row) => row.item_name);
+
+  if (!rowsToInsert.length) {
+    setMessage("No inventory rows found to import.");
+    return;
+  }
+
+  console.log("INVENTORY FIRST ROW TO INSERT:", rowsToInsert?.[0]);
+  console.log("INVENTORY SAMPLE ROWS:", rowsToInsert?.slice(0, 5));
+
+  const optimisticUpload = startOptimisticImport({
+    fileName,
+    sourceName: "inventory_upload",
+    rowCount: rowsToInsert.length,
+  });
+
+  let uploadRow = null;
+
+  try {
+    const { data: createdUploadRow, error: uploadError } = await supabase
+      .from("uploads")
+      .insert([
+        {
+          user_id: currentUser.id,
+          file_name: fileName,
+          source_name: "inventory_upload",
+          row_count: rowsToInsert.length,
+          upload_type: "inventory",
+          status: "completed",
+          archived: false,
+          location_id: selectedUploadLocationId || null,
+          location_name: uploadLocationName,
+        },
+      ])
+      .select()
+      .single();
+
+    if (uploadError) throw uploadError;
+
+    uploadRow = createdUploadRow;
+
+    const rowsWithUploadId = rowsToInsert.map((row) => ({
+      ...row,
+      upload_id: uploadRow?.id || null,
+    }));
+
+    const { data: insertedInventoryRows, error: insertError } = await supabase
+      .from("inventory_items")
+      .insert(rowsWithUploadId)
+      .select();
+
+    console.log("INVENTORY INSERT RESULT:", insertedInventoryRows);
+    console.log("INVENTORY INSERT ERROR:", insertError);
+
+    if (insertError) {
+      await supabase.from("uploads").delete().eq("id", uploadRow.id);
+      throw insertError;
     }
 
-   const inventoryRows =
-  pendingUploadSummary?.rows?.length
-    ? pendingUploadSummary.rows
-    : pendingUploadRows?.length
-    ? pendingUploadRows
-    : pendingUploadRowsRef.current?.length
-    ? pendingUploadRowsRef.current
-    : inventoryData || [];
-
-    console.log("INVENTORY ROWS FOUND:", inventoryRows);
-    console.log("INVENTORY FIRST ROW FOUND:", inventoryRows?.[0]);
-
-    const toNumber = (value) => {
-      const cleaned = String(value ?? "")
-        .replaceAll("$", "")
-        .replaceAll("%", "")
-        .replaceAll(",", "")
-        .trim();
-
-      const num = Number(cleaned);
-      return Number.isFinite(num) ? num : 0;
+    const cleanUploadRow = {
+      ...uploadRow,
+      upload_type: "inventory",
+      source_name: "inventory_upload",
+      row_count: insertedInventoryRows?.length || rowsWithUploadId.length,
+      status: "completed",
     };
 
-    const rowsToInsert = inventoryRows
-      .map((row) => {
-        const itemName =
-          row.item_name ||
-          row["Item Name"] ||
-          row.inventory_item ||
-          row["Inventory Item"] ||
-          row.ingredient ||
-          row.Ingredient ||
-          row.product ||
-          row.Product ||
-          row.name ||
-          row.Name ||
-          row.item ||
-          row.Item ||
-          "";
+    setClientImports((prev) => [
+      cleanUploadRow,
+      ...(prev || []).filter((item) => item.id !== optimisticUpload.id),
+    ]);
 
-        const quantity = toNumber(
-          row.quantity ||
-            row.Quantity ||
-            row.qty ||
-            row.Qty ||
-            row.on_hand ||
-            row["On Hand"] ||
-            row.stock ||
-            row.Stock ||
-            row.count ||
-            row.Count ||
-            0
-        );
+    setRecentUploads((prev) => [
+      cleanUploadRow,
+      ...(prev || []).filter((item) => item.id !== optimisticUpload.id),
+    ]);
 
-        const unitCost = toNumber(
-          row.unit_cost ||
-            row["Unit Cost"] ||
-            row.cost ||
-            row.Cost ||
-            row.price ||
-            row.Price ||
-            row.invoice_price ||
-            row["Invoice Price"] ||
-            0
-        );
+    setInventoryData(insertedInventoryRows || rowsWithUploadId);
 
-        const totalValue =
-          toNumber(row.total_value || row["Total Value"] || row.value || row.Value) ||
-          quantity * unitCost;
+    setPendingUploadSummary(null);
+    setPendingUploadRows([]);
+    pendingUploadRowsRef.current = [];
 
-        return {
-          user_id: user.id,
+    setMessage(`Imported ${rowsWithUploadId.length} inventory rows successfully.`);
 
-          item_name: String(itemName || "").trim(),
-
-          category:
-            row.category ||
-            row.Category ||
-            row.type ||
-            row.Type ||
-            row.department ||
-            row.Department ||
-            "Inventory",
-
-          quantity,
-
-          unit:
-            row.unit ||
-            row.Unit ||
-            row.uom ||
-            row.UOM ||
-            row.measure ||
-            row.Measure ||
-            "",
-
-          unit_cost: unitCost,
-          total_value: totalValue,
-
-          par_level: toNumber(
-            row.par_level ||
-              row["Par Level"] ||
-              row.par ||
-              row.Par ||
-              row.target_stock ||
-              row["Target Stock"] ||
-              0
-          ),
-
-          reorder_point: toNumber(
-            row.reorder_point ||
-              row["Reorder Point"] ||
-              row.reorder ||
-              row.Reorder ||
-              row.minimum ||
-              row.Minimum ||
-              row.min ||
-              row.Min ||
-              0
-          ),
-
-         location:
-  row.location ||
-  row.Location ||
-  row.store ||
-  row.Store ||
-  row.restaurant ||
-  row.Restaurant ||
-  (activeLocation !== "all" ? activeLocation : assignedLocation || null),
-
-location_name:
-  row.location_name ||
-  row["Location Name"] ||
-  row.location ||
-  row.Location ||
-  row.store ||
-  row.Store ||
-  row.restaurant ||
-  row.Restaurant ||
-  (activeLocation !== "all" ? activeLocation : assignedLocation || null),
-        };
-      })
-      .filter((row) => row.item_name);
-
-    if (!rowsToInsert.length) {
-      setMessage("No inventory rows found to import.");
-      return;
-    }
-
-    console.log("INVENTORY FIRST ROW TO INSERT:", rowsToInsert?.[0]);
-    console.log("INVENTORY SAMPLE ROWS:", rowsToInsert?.slice(0, 5));
-
- const { data: uploadRow, error: uploadError } = await supabase
-  .from("uploads")
-  .insert([
-    {
-      user_id: user.id,
-      file_name: pendingUploadSummary?.fileName || "Inventory upload",
-      source_name: "inventory_upload",
-      row_count: rowsToInsert.length,
-      upload_type: "inventory",
-      status: "completed",
-      location_id: selectedUploadLocationId || null,
-      location_name:
-        activeLocation !== "all"
-          ? activeLocation
-          : assignedLocation || null,
-    },
-  ])
-  .select()
-  .single();
-
-if (uploadError) {
-  console.error("Inventory upload row failed:", uploadError);
-  setMessage(`Inventory upload failed: ${uploadError.message}`);
-  return;
-}
-console.log("GUEST STEP 3: recent upload row created", uploadRow);
-const rowsWithUploadId = rowsToInsert.map((row) => ({
-  ...row,
-  upload_id: uploadRow?.id || null,
-}));
-
-const { data: insertedInventoryRows, error } = await supabase
-  .from("inventory_items")
-  .insert(rowsWithUploadId)
-  .select();
-console.log("INVENTORY INSERT RESULT:", insertedInventoryRows);
-console.log("INVENTORY INSERT ERROR:", error);
-if (error) {
-  console.error("Inventory import failed:", error);
-  setMessage(`Inventory import failed: ${error.message}`);
-  return;
-}
-
-if (uploadRow) {
-  setClientImports((prev) =>
-    (prev || []).map((item) =>
-      item.id === optimisticUpload.id ? uploadRow : item
-    )
-  );
-
-  setRecentUploads((prev) =>
-    (prev || []).map((item) =>
-      item.id === optimisticUpload.id ? uploadRow : item
-    )
-  );
-}
-await logAuditEvent({
-  action: "uploaded_inventory",
-  entityType: "upload",
-  entityId: uploadRow?.id || null,
-  details: `Uploaded inventory data with ${rowsWithUploadId.length} row(s).`,
-});
-setMessage(`Imported ${rowsWithUploadId.length} inventory rows successfully.`);
-
-setPendingUploadSummary(null);
-setPendingUploadRows([]);
-pendingUploadRowsRef.current = [];
-
-setInventoryData(insertedInventoryRows || rowsWithUploadId);
-setIngredientsData(insertedInventoryRows || rowsWithUploadId);
-setTimeout(() => {
-  setMessage("");
-}, 2500);
+    await logAuditEvent({
+      action: "uploaded_inventory",
+      entityType: "upload",
+      entityId: uploadRow?.id || null,
+      details: `Uploaded inventory data with ${rowsWithUploadId.length} row(s).`,
+    });
   } catch (error) {
     console.error("Inventory import error:", error);
-    setMessage("Inventory import failed. Check console for details.");
+
+    if (uploadRow?.id) {
+      await supabase.from("uploads").delete().eq("id", uploadRow.id);
+    }
+
+    setClientImports((prev) =>
+      (prev || []).filter((item) => item.id !== optimisticUpload.id)
+    );
+
+    setRecentUploads((prev) =>
+      (prev || []).filter((item) => item.id !== optimisticUpload.id)
+    );
+
+    setMessage(`Inventory import failed: ${error?.message || "Unknown error"}`);
+    alert(error?.message || "Inventory import failed.");
   }
 };
 const laborRiskStatus =
