@@ -29255,41 +29255,42 @@ return (
   pendingUploadSummary.uploadType !== "unknown"
     ? pendingUploadSummary.uploadType
     : null;
+const currentType = String(
+  pendingUploadSummary?.uploadType ||
+    selectedUploadTypeRef.current ||
+    uploadType ||
+    ""
+)
+  .trim()
+  .toLowerCase();
 
-const currentType =
-  pendingType ||
-  selectedUploadTypeRef.current ||
-  uploadType;
 console.log("CONFIRM IMPORT CURRENT TYPE:", {
   currentType,
   pendingUploadSummaryType: pendingUploadSummary?.uploadType,
   selectedUploadType: selectedUploadTypeRef.current,
   uploadType,
 });
-if (currentType === "menu_items") {
-  handleImportMenuItems();
 
-} else if (currentType === "ingredients") {
-  handleImportIngredients();
+const importHandlers = {
+  menu_items: handleImportMenuItems,
+  ingredients: handleImportIngredients,
+  labor: handleImportLabor,
+  inventory: handleImportInventory,
+  invoices: handleImportInvoices,
+  batch_prep: handleImportBatchPrep,
+  pos: handleImportMappedSales,
+};
 
-} else if (currentType === "labor") {
-  handleImportLabor();
+const selectedHandler = importHandlers[currentType];
 
-} else if (currentType === "inventory") {
- console.log("RUNNING INVENTORY IMPORT");
-handleImportInventory();
-
-} else if (currentType === "invoices") {
-  handleImportInvoices();
-} else if (currentType === "batch_prep") {
-  handleImportBatchPrep();
-
-} else if (currentType === "pos") {
-  handleImportMappedSales();
-
-} else {
-  setMessage("No matched upload type.");
+if (!selectedHandler) {
+  console.error("NO IMPORT HANDLER FOUND FOR:", currentType);
+  setMessage(`No matched upload type: ${currentType || "unknown"}`);
+  return;
 }
+
+console.log("RUNNING IMPORT HANDLER:", currentType);
+selectedHandler();
   }}
   style={{
     marginTop: "12px",
