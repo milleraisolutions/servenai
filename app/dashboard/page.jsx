@@ -13773,357 +13773,181 @@ const menuEngineeringInsight =
     : "Menu profitability looks healthy based on current menu engineering analysis.";
 
 const handleImportLabor = async () => {
-  alert("LABOR CONFIRM IMPORT CLICKED");
-console.log("LABOR CONFIRM IMPORT CLICKED");
-console.log("LABOR pendingUploadSummary:", pendingUploadSummary);
-console.log("LABOR pendingUploadRows:", pendingUploadRows);
-console.log("LABOR pendingUploadRowsRef:", pendingUploadRowsRef.current);
-console.log("LABOR laborData:", laborData);
-   console.log("LABOR CONFIRM CLICKED");
+  console.log("=== LABOR IMPORT STARTED ===");
   console.log("PENDING SUMMARY:", pendingUploadSummary);
   console.log("LABOR DATA STATE:", laborData);
-  const optimisticUpload = startOptimisticImport({
-  fileName: pendingUploadSummary?.fileName,
-  sourceName: "labor_upload",
-  rowCount: pendingUploadSummary?.rowCount || 0,
-});
-  try {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
 
-    if (!user?.id) {
-      setMessage("Please log in before importing labor data.");
+  // 1. Resolve rows with a defensive fallback mechanism
+  const isLaborType = pendingUploadSummary?.uploadType?.toLowerCase() === "labor";
+  const laborRows = isLaborType 
+    ? (pendingUploadSummary?.rows || []) 
+    : (laborData || pendingUploadSummary?.rows || []);
+
+  console.log("RESOLVED LABOR ROWS FOR PARSING:", laborRows);
+
+  if (!laborRows || laborRows.length === 0) {
+    setMessage("No labor rows found to import. Please select or upload a valid file.");
+    return;
+  }
+
+  // Start the optimistic UI update
+  const optimisticUpload = startOptimisticImport({
+    fileName: pendingUploadSummary?.fileName || "Labor Upload",
+    sourceName: "labor_upload",
+    rowCount: laborRows.length,
+  });
+
+  try {
+    // 2. Authenticate User
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user?.id) {
+      console.error("Auth verification failed:", authError);
+      setMessage("Authentication required. Please log in before importing data.");
       return;
     }
 
+    // --- Helper Sanitization Functions ---
     const cleanDate = (value) => {
       if (!value || String(value).trim() === "") {
         return new Date().toISOString().slice(0, 10);
       }
-
       const date = new Date(value);
-      if (Number.isNaN(date.getTime())) {
-        return new Date().toISOString().slice(0, 10);
-      }
-
-      return date.toISOString().slice(0, 10);
+      return Number.isNaN(date.getTime()) 
+        ? new Date().toISOString().slice(0, 10) 
+        : date.toISOString().slice(0, 10);
     };
 
-    const laborRows =
-  pendingUploadSummary?.uploadType === "labor"
-    ? pendingUploadSummary?.rows || []
-    : laborData || [];
+    const formatTimestamp = (dateStr, timeStr) => {
+      if (!timeStr) return null;
+      const cleanedTime = String(timeStr).trim();
 
-console.log("LABOR ROWS FOUND:", laborRows);
-console.log("LABOR FIRST ROW FOUND:", laborRows?.[0]);
+      // If it's already an ISO timestamp or date-formatted string, return it directly
+      if (cleanedTime.includes("T") || cleanedTime.includes("-")) {
+        return cleanedTime;
+      }
 
-const rowsToInsert = laborRows.map((row) => {
-      const rawShift =
-        row.shift ||
-        row.Shift ||
-        row.shift_name ||
-        row["Shift Name"] ||
-        row.daypart ||
-        row.Daypart ||
-        row.period ||
-        row.Period ||
-        row.service ||
-        row.Service ||
-        "";
+      // Check if time already includes seconds (HH:MM:SS) vs (HH:MM)
+      const hasSeconds = cleanedTime.split(":").length === 3;
+      return `${dateStr}T${cleanedTime}${hasSeconds ? "" : ":00"}`;
+    };
 
-      const rawTime =
-        row.time ||
-        row.Time ||
-        row.clock_in ||
-        row["Clock In"] ||
-        row.order_time ||
-        row["Order Time"] ||
-        row.start_time ||
-        row["Start Time"] ||
-        "";
+    // 3. Map Rows Safely
+    const rowsToInsert = laborRows.map((row, index) => {
+      // Extract shift markers
+      const rawShift = row.shift || row.Shift || row.shift_name || row["Shift Name"] || 
+                        row.daypart || row.Daypart || row.period || row.Period || 
+                        row.service || row.Service || "";
 
-      const hour = Number(String(rawTime).split(":")[0]);
+      // Extract time markers
+      const rawTime = row.time || row.Time || row.clock_in || row["Clock In"] || 
+                      row.order_time || row["Order Time"] || row.start_time || row["Start Time"] || "";
 
+      // Smart shift detection fallback
       let detectedShift = "Unknown";
-
       if (rawShift) {
         detectedShift = String(rawShift).trim();
-      } else if (!Number.isNaN(hour)) {
-        if (hour >= 5 && hour < 11) detectedShift = "Morning";
-        else if (hour >= 11 && hour < 15) detectedShift = "Lunch";
-        else if (hour >= 15 && hour < 22) detectedShift = "Dinner";
-        else detectedShift = "Late Night";
+      } else if (rawTime) {
+        const hour = Number(String(rawTime).split(":")[0]);
+        if (!Number.isNaN(hour)) {
+          if (hour >= 5 && hour < 11) detectedShift = "Morning";
+          else if (hour >= 11 && hour < 15) detectedShift = "Lunch";
+          else if (hour >= 15 && hour < 22) detectedShift = "Dinner";
+          else detectedShift = "Late Night";
+        }
       }
-return {
-  user_id: user.id,
 
-  employee_name:
-    row.employee_name ||
-    row.employee ||
-    row.Employee ||
-    row["Employee Name"] ||
-    row.name ||
-    row.Name ||
-    "Unknown Employee",
+      // Cleaned base date to bind times safely
+      const targetDate = cleanDate(
+        row.work_date || row.workDate || row.date || row.Date || row["Work Date"] || 
+        row.shift_date || row.shiftDate || row["Shift Date"] || null
+      );
 
-  role:
-    row.role ||
-    row.Role ||
-    row.position ||
-    row.Position ||
-    row.job ||
-    row.Job ||
-    "Staff",
+      // Numeric parsing macros
+      const hours = Number(row.hours_worked || row.hoursWorked || row.hours || row.Hours || row["Hours Worked"] || row.total_hours || row["Total Hours"] || 0);
+      const rate = Number(row.hourly_rate || row.hourlyRate || row.rate || row.Rate || row["Hourly Rate"] || row.pay_rate || row["Pay Rate"] || 0);
+      
+      const explicitCost = Number(row.labor_cost || row.laborCost || row.cost || row.Cost || row["Labor Cost"] || row.payroll || row["Payroll Cost"] || row.wages || row.Wages || 0);
+      const calculatedCost = explicitCost || (hours * rate);
 
-  work_date: cleanDate(
-    row.work_date ||
-      row.workDate ||
-      row.date ||
-      row.Date ||
-      row["Work Date"] ||
-      row.shift_date ||
-      row.shiftDate ||
-      row["Shift Date"] ||
-      null
-  ),
+      const rawClockIn = row.clock_in || row.clockIn || row["Clock In"] || row.start_time || row["Start Time"] || row.in_time || row["In Time"];
+      const rawClockOut = row.clock_out || row.clockOut || row["Clock Out"] || row.end_time || row["End Time"] || row.out_time || row["Out Time"];
 
-  hours_worked: Number(
-  row.hours_worked ||
-    row.hoursWorked ||
-    row.hours ||
-    row.Hours ||
-    row["Hours Worked"] ||
-    row.total_hours ||
-    row["Total Hours"] ||
-    0
-),
-
-hourly_rate: Number(
-  row.hourly_rate ||
-    row.hourlyRate ||
-    row.rate ||
-    row.Rate ||
-    row["Hourly Rate"] ||
-    row.pay_rate ||
-    row["Pay Rate"] ||
-    0
-),
-
-labor_cost:
-  Number(
-    row.labor_cost ||
-      row.laborCost ||
-      row.cost ||
-      row.Cost ||
-      row["Labor Cost"] ||
-      row.payroll ||
-      row["Payroll Cost"] ||
-      row.wages ||
-      row.Wages ||
-      0
-  ) ||
-  Number(
-    row.hours_worked ||
-      row.hoursWorked ||
-      row.hours ||
-      row.Hours ||
-      row["Hours Worked"] ||
-      row.total_hours ||
-      row["Total Hours"] ||
-      0
-  ) *
-    Number(
-      row.hourly_rate ||
-        row.hourlyRate ||
-        row.rate ||
-        row.Rate ||
-        row["Hourly Rate"] ||
-        row.pay_rate ||
-        row["Pay Rate"] ||
-        0
-    ),
-
-sales_generated: Number(
-  row.sales_generated ||
-    row.salesGenerated ||
-    row.revenue_during_shift ||
-    row.revenueDuringShift ||
-    row.shift_revenue ||
-    row["Shift Revenue"] ||
-    row.sales ||
-    row.Sales ||
-    row.revenue ||
-    row.Revenue ||
-    0
-),
-
-orders_handled: Number(
-  row.orders_handled ||
-    row.ordersHandled ||
-    row.order_count ||
-    row["Order Count"] ||
-    row.orders ||
-    row.Orders ||
-    row.transactions ||
-    row.Transactions ||
-    0
-),
-
-labor_percent: Number(
-  row.labor_percent ||
-    row.laborPercent ||
-    row["Labor Percent"] ||
-    row["Labor %"] ||
-    0
-),
-
-overtime_hours: Number(
-  row.overtime_hours ||
-    row.overtimeHours ||
-    row["Overtime Hours"] ||
-    row.ot_hours ||
-    row["OT Hours"] ||
-    0
-),
-
-overtime_cost: Number(
-  row.overtime_cost ||
-    row.overtimeCost ||
-    row["Overtime Cost"] ||
-    row.ot_cost ||
-    row["OT Cost"] ||
-    0
-),
-
-clock_in:
-  row.clock_in ||
-  row.clockIn ||
-  row["Clock In"] ||
-  row.start_time ||
-  row["Start Time"] ||
-  row.in_time ||
-  row["In Time"]
-    ? `${cleanDate(
-        row.work_date ||
-          row.workDate ||
-          row.date ||
-          row.Date ||
-          row["Work Date"] ||
-          row.shift_date ||
-          row.shiftDate ||
-          row["Shift Date"]
-      )}T${row.clock_in || row.clockIn || row["Clock In"] || row.start_time || row["Start Time"] || row.in_time || row["In Time"]}:00`
-    : null,
-
-clock_out:
-  row.clock_out ||
-  row.clockOut ||
-  row["Clock Out"] ||
-  row.end_time ||
-  row["End Time"] ||
-  row.out_time ||
-  row["Out Time"]
-    ? `${cleanDate(
-        row.work_date ||
-          row.workDate ||
-          row.date ||
-          row.Date ||
-          row["Work Date"] ||
-          row.shift_date ||
-          row.shiftDate ||
-          row["Shift Date"]
-      )}T${row.clock_out || row.clockOut || row["Clock Out"] || row.end_time || row["End Time"] || row.out_time || row["Out Time"]}:00`
-    : null,
-
-location:
-  row.location ||
-  row.Location ||
-  row.store ||
-  row.Store ||
-  row.restaurant ||
-  row.Restaurant ||
-  (activeLocation !== "all" ? activeLocation : assignedLocation || null),
-
-location_name:
-  row.location_name ||
-  row["Location Name"] ||
-  row.location ||
-  row.Location ||
-  row.store ||
-  row.Store ||
-  row.restaurant ||
-  row.Restaurant ||
-  (activeLocation !== "all" ? activeLocation : assignedLocation || null),
-
-shift: detectedShift,
-
-file_name: pendingUploadSummary?.fileName || null,
-source_name: "labor_upload",
-};
+      return {
+        user_id: user.id,
+        employee_name: row.employee_name || row.employee || row.Employee || row["Employee Name"] || row.name || row.Name || "Unknown Employee",
+        role: row.role || row.Role || row.position || row.Position || row.job || row.Job || "Staff",
+        work_date: targetDate,
+        hours_worked: hours,
+        hourly_rate: rate,
+        labor_cost: calculatedCost,
+        sales_generated: Number(row.sales_generated || row.salesGenerated || row.revenue_during_shift || row.revenueDuringShift || row.shift_revenue || row["Shift Revenue"] || row.sales || row.Sales || row.revenue || row.Revenue || 0),
+        orders_handled: Number(row.orders_handled || row.ordersHandled || row.order_count || row["Order Count"] || row.orders || row.Orders || row.transactions || row["Transactions"] || 0),
+        labor_percent: Number(row.labor_percent || row.laborPercent || row["Labor Percent"] || row["Labor %"] || 0),
+        overtime_hours: Number(row.overtime_hours || row.overtimeHours || row["Overtime Hours"] || row.ot_hours || row["OT Hours"] || 0),
+        overtime_cost: Number(row.overtime_cost || row.overtimeCost || row["Overtime Cost"] || row.ot_cost || row["OT Cost"] || 0),
+        clock_in: formatTimestamp(targetDate, rawClockIn),
+        clock_out: formatTimestamp(targetDate, rawClockOut),
+        location: row.location || row.Location || row.store || row.Store || row.restaurant || row.Restaurant || (activeLocation !== "all" ? activeLocation : assignedLocation || null),
+        location_name: row.location_name || row["Location Name"] || row.location || row.Location || row.store || row.Store || row.restaurant || row.Restaurant || (activeLocation !== "all" ? activeLocation : assignedLocation || null),
+        shift: detectedShift,
+        file_name: pendingUploadSummary?.fileName || null,
+        source_name: "labor_upload",
+      };
     });
 
-    if (!rowsToInsert.length) {
-      setMessage("No labor rows found to import.");
-      return;
-    }
-console.log("LABOR FIRST ROW TO INSERT:", rowsToInsert?.[0]);
-console.log("LABOR SAMPLE ROWS:", rowsToInsert?.slice(0, 5));
-alert(`LABOR ROWS TO INSERT: ${rowsToInsert.length}`);
-console.log("LABOR ROWS TO INSERT:", rowsToInsert);
-console.log("LABOR FIRST ROW TO INSERT:", rowsToInsert?.[0]);
-    const { data: insertedLaborRows, error } = await supabase
+    console.log(`PREPPED ${rowsToInsert.length} ROWS FOR DATABASE. SAMPLE:`, rowsToInsert[0]);
+
+    // 4. Supabase DB Payload dispatch
+    const { data: insertedLaborRows, error: dbError } = await supabase
       .from("labor_uploads")
       .insert(rowsToInsert)
       .select();
 
-console.log("LABOR INSERT RESULT:", insertedLaborRows);
-console.log("LABOR INSERT ERROR:", error);
-    if (error) {
-      console.error("Labor import failed:", error);
-      setMessage(`Labor import failed: ${error.message}`);
+    if (dbError) {
+      console.error("Supabase Database Insertion Error:", dbError);
+      setMessage(`Import failed: ${dbError.message || "Check Row Level Security (RLS) policies."}`);
       return;
     }
 
+    console.log("DATABASE INSERTION SUCCESS:", insertedLaborRows);
+
+    // 5. Structure State Manifest Update
     const newLaborUpload = {
-  id: `labor-${Date.now()}`,
-  file_name: pendingUploadSummary?.fileName || "Labor upload",
-  source_name: "labor_upload",
-  row_count: rowsToInsert.length,
-  created_at: new Date().toISOString(),
-  rows: insertedLaborRows || rowsToInsert,
-};
-setClientImports((prev) =>
-  (prev || []).map((item) =>
-    item.id === optimisticUpload.id ? newLaborUpload : item
-  )
-);
+      id: `labor-${Date.now()}`,
+      file_name: pendingUploadSummary?.fileName || "Labor upload",
+      source_name: "labor_upload",
+      row_count: rowsToInsert.length,
+      created_at: new Date().toISOString(),
+      rows: insertedLaborRows || rowsToInsert,
+    };
 
-setRecentUploads((prev) =>
-  (prev || []).map((item) =>
-    item.id === optimisticUpload.id ? newLaborUpload : item
-  )
-);
+    setClientImports((prev) =>
+      (prev || []).map((item) => (item.id === optimisticUpload.id ? newLaborUpload : item))
+    );
 
-console.log("LABOR IMPORT SUCCESS BLOCK HIT");
+    setRecentUploads((prev) =>
+      (prev || []).map((item) => (item.id === optimisticUpload.id ? newLaborUpload : item))
+    );
 
-setLaborData(insertedLaborRows || rowsToInsert);
+    setLaborData(insertedLaborRows || rowsToInsert);
 
-setPendingUploadSummary(null);
-setPendingUploadRows([]);
-pendingUploadRowsRef.current = [];
+    // Clear caching structures
+    setPendingUploadSummary(null);
+    setPendingUploadRows([]);
+    if (pendingUploadRowsRef?.current) {
+      pendingUploadRowsRef.current = [];
+    }
 
-const csvInput = document.getElementById("csvUpload");
-if (csvInput) csvInput.value = "";
+    const csvInput = document.getElementById("csvUpload");
+    if (csvInput) csvInput.value = "";
 
-setMessage(`Imported ${rowsToInsert.length} labor rows successfully.`);
+    setMessage(`Successfully imported ${rowsToInsert.length} labor rows.`);
+    setTimeout(() => setMessage(""), 3000);
 
-setTimeout(() => {
-  setMessage("");
-}, 2500);
-  } catch (error) {
-    console.error("Labor import error:", error);
-    setMessage("Labor import failed. Check console for details.");
+  } catch (catchError) {
+    console.error("Critical fatal error runtime catch during execution:", catchError);
+    setMessage("An unexpected processing error occurred. Check browser console logs.");
   }
 };
 const handleImportBatchPrep = async () => {
