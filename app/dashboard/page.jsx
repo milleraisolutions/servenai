@@ -304,7 +304,7 @@ const [enterpriseView, setEnterpriseView] = useState("overview");
 const [analyticsView, setAnalyticsView] = useState("revenue");
 const [beverageView, setBeverageView] = useState("overview");
 const [laborView, setLaborView] = useState("overview");
-
+const [laborLoading, setLaborLoading] = useState(true);
 
 
 
@@ -14043,7 +14043,18 @@ location:
   row.Store ||
   row.restaurant ||
   row.Restaurant ||
-  null,
+  (activeLocation !== "all" ? activeLocation : assignedLocation || null),
+
+location_name:
+  row.location_name ||
+  row["Location Name"] ||
+  row.location ||
+  row.Location ||
+  row.store ||
+  row.Store ||
+  row.restaurant ||
+  row.Restaurant ||
+  (activeLocation !== "all" ? activeLocation : assignedLocation || null),
 
 shift: detectedShift,
 
