@@ -27767,63 +27767,88 @@ const handleDeleteUpload = async (uploadId) => {
       setMessage("Batch prep import deleted.");
       return;
     }
+// ✅ LABOR SINGLE DELETE
+if (
+  uploadIdString.startsWith("labor-") &&
+  !uploadIdString.startsWith("labor-file-")
+) {
+  const laborId = uploadIdString.replace("labor-", "");
 
-    // ✅ LABOR SINGLE DELETE
-    if (
-      uploadIdString.startsWith("labor-") &&
-      !uploadIdString.startsWith("labor-file-")
-    ) {
-      const laborId = uploadIdString.replace("labor-", "");
+  console.log("LABOR DELETE BRANCH HIT");
+  console.log("LABOR DELETE ID:", laborId);
 
-      const { error } = await supabase
-        .from("labor_uploads")
-        .delete()
-        .eq("id", laborId);
+  const { error } = await supabase
+    .from("labor_uploads")
+    .delete()
+    .eq("id", laborId);
 
-      if (error) throw error;
+  if (error) throw error;
 
-      setLaborData((prev) => (prev || []).filter((row) => row.id !== laborId));
-      setMessage("Labor import deleted.");
-      return;
-    }
+  setLaborData((prev) => (prev || []).filter((row) => row.id !== laborId));
 
-    // ✅ LABOR FILE DELETE
-    if (uploadIdString.startsWith("labor-file-")) {
-      const laborFileKey = uploadIdString.replace("labor-file-", "");
+  setClientImports((prev) =>
+    (prev || []).filter((item) => item.id !== uploadId)
+  );
 
-      const allImports = [...(clientImports || []), ...(recentUploads || [])];
-      const laborMatch = allImports.find((item) => item.id === uploadId);
+  setRecentUploads((prev) =>
+    (prev || []).filter((item) => item.id !== uploadId)
+  );
 
-      const fileName =
-        laborMatch?.file_name ||
-        laborMatch?.name ||
-        laborFileKey.split("-2026-")[0] ||
-        null;
+  setMessage("Labor import deleted.");
+  return;
+}
 
-      if (!fileName) {
-        alert("Could not identify labor file name to delete.");
-        return;
-      }
+// ✅ LABOR FILE DELETE
+if (uploadIdString.startsWith("labor-file-")) {
+  console.log("LABOR FILE DELETE BRANCH HIT");
 
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+  const laborFileKey = uploadIdString.replace("labor-file-", "");
 
-      const { error } = await supabase
-        .from("labor_uploads")
-        .delete()
-        .eq("user_id", dataOwnerId || user?.id)
-        .ilike("file_name", fileName);
+  const allImports = [...(clientImports || []), ...(recentUploads || [])];
+  const laborMatch = allImports.find((item) => item.id === uploadId);
 
-      if (error) throw error;
+  const fileName =
+    laborMatch?.file_name ||
+    laborMatch?.name ||
+    laborFileKey.split("-2026-")[0] ||
+    null;
 
-      setLaborData((prev) =>
-        (prev || []).filter((row) => row.file_name !== fileName)
-      );
+  console.log("LABOR FILE NAME:", fileName);
 
-      setMessage("Labor import deleted.");
-      return;
-    }
+  if (!fileName) {
+    alert("Could not identify labor file name to delete.");
+    return;
+  }
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const ownerId = dataOwnerId || user?.id;
+
+  const { error } = await supabase
+    .from("labor_uploads")
+    .delete()
+    .eq("user_id", ownerId)
+    .eq("file_name", fileName);
+
+  if (error) throw error;
+
+  setLaborData((prev) =>
+    (prev || []).filter((row) => row.file_name !== fileName)
+  );
+
+  setClientImports((prev) =>
+    (prev || []).filter((item) => item.id !== uploadId)
+  );
+
+  setRecentUploads((prev) =>
+    (prev || []).filter((item) => item.id !== uploadId)
+  );
+
+  setMessage("Labor import deleted.");
+  return;
+}
 
     // ✅ NORMAL UPLOAD LOOKUP
     const { data: uploadRow, error: uploadLookupError } = await supabase
