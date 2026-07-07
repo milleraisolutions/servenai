@@ -5541,9 +5541,11 @@ console.log("FIRST ROW:", safeRows[0]);
   setPendingUploadRows(safeRows);
   setShowSourcePicker(false);
 
-  setMessage(
-    `POS data loaded: ${safeRows.length} rows ready to import.`
-  );
+ setMessage(`Importing ${safeRows.length} POS sales rows...`);
+
+setTimeout(() => {
+  handleImportMappedSales();
+}, 0);
 
 } else if (activeUploadType === "menu_items") {
   const {
@@ -5667,15 +5669,17 @@ console.log("FIRST ROW:", safeRows[0]);
     rows: menuRows,
   });
 setShowSourcePicker(false);
-alert(`Menu items file loaded: ${menuRows.length} rows ready. Click Confirm Import.`);
+setMessage(`Importing ${menuRows.length} menu items...`);
   if (!menuRows.length) {
     setMessage("Menu file loaded, but no valid menu item names were found.");
     return;
   }
 
-  setMessage(
-    `Menu items file loaded: ${menuRows.length} rows ready to import.`
-  );
+  setMessage(`Importing ${menuRows.length} menu items...`);
+
+setTimeout(() => {
+  handleImportMenuItems();
+}, 0);
 } else if (activeUploadType === "ingredients") {
   const cleanedIngredientRows = safeRows.map((row) => ({
     ...row,
@@ -5706,9 +5710,11 @@ alert(`Menu items file loaded: ${menuRows.length} rows ready. Click Confirm Impo
     rows: cleanedIngredientRows,
   });
 
-  setMessage(
-    `Ingredients file loaded: ${cleanedIngredientRows.length} rows ready to import.`
-  );
+ setMessage(`Importing ${cleanedIngredientRows.length} ingredients...`);
+
+setTimeout(() => {
+  handleImportIngredients();
+}, 0);
 } else if (activeUploadType === "labor") {
   const cleanedLaborRows = safeRows.map((row) => {
   const hours =
@@ -5876,9 +5882,11 @@ alert(`Menu items file loaded: ${menuRows.length} rows ready. Click Confirm Impo
     rows: cleanedLaborRows,
   });
 
-  setMessage(
-    `Labor file loaded: ${cleanedLaborRows.length} rows ready to import.`
-  );
+setMessage(`Importing ${cleanedLaborRows.length} labor rows...`);
+
+setTimeout(() => {
+  handleImportLabor();
+}, 0);
 
 } else if (activeUploadType === "invoices") {
   setPendingUploadSummary({
@@ -5889,7 +5897,11 @@ alert(`Menu items file loaded: ${menuRows.length} rows ready. Click Confirm Impo
     rows: safeRows,
   });
 
-  setMessage(`Invoice file loaded: ${safeRows.length} rows ready to import.`);
+  setMessage(`Importing ${safeRows.length} invoices...`);
+
+setTimeout(() => {
+  handleImportInvoices();
+}, 0);
 } else if (activeUploadType === "batch_prep") {
   setPendingUploadSummary({
     fileName: file.name,
@@ -5899,7 +5911,11 @@ alert(`Menu items file loaded: ${menuRows.length} rows ready. Click Confirm Impo
     rows: safeRows,
   });
 
-  setMessage(`Batch prep file loaded: ${safeRows.length} rows ready to import.`);
+ setMessage(`Importing ${safeRows.length} batch prep rows...`);
+
+setTimeout(() => {
+  handleImportBatchPrep();
+}, 0);
 } else {
   setPendingUploadSummary({
     fileName: file.name,
@@ -24943,7 +24959,7 @@ const handleBatchPrepUpload = async (event) => {
   setUploadType("batch_prep");
 
   await handleFileUpload(event);
-  setMessage("Batch prep file loaded. Click Confirm Import.");
+  setMessage("Batch prep imported successfully.");
 };
 const validateUploadFile = (file, maxSizeMB = 25) => {
   if (!file) {
