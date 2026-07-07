@@ -8104,22 +8104,18 @@ const laborIntelligence = useMemo(() => {
 
 const loadSalesFromDatabase = async () => {
   try {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user?.id) return;
+    if (!dataOwnerId) return;
 
     let salesQuery = supabase
-  .from("sales")
-  .select("*")
-  .eq("user_id", dataOwnerId);
+      .from("sales")
+      .select("*")
+      .eq("user_id", dataOwnerId);
 
-salesQuery = applyLocationFilter(salesQuery);
+    salesQuery = applyLocationFilter(salesQuery);
 
-const { data, error } = await salesQuery.order("sale_date", {
-  ascending: true,
-});
+    const { data, error } = await salesQuery.order("sale_date", {
+      ascending: true,
+    });
 
     if (error) {
       console.error("Sales error:", error);
