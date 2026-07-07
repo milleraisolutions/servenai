@@ -5883,10 +5883,7 @@ setTimeout(() => {
   });
 
 setMessage(`Importing ${cleanedLaborRows.length} labor rows...`);
-
-setTimeout(() => {
-  handleImportLabor();
-}, 0);
+handleImportLabor(cleanedLaborRows);
 
 } else if (activeUploadType === "invoices") {
   setPendingUploadSummary({
@@ -13788,16 +13785,19 @@ const menuEngineeringInsight =
     ? `${lowMarginMenuItems.length} menu items are operating below target profitability. AI recommends adjusting pricing, reducing ingredient cost, or repositioning low-performing items to improve contribution margins.`
     : "Menu profitability looks healthy based on current menu engineering analysis.";
 
-const handleImportLabor = async () => {
+const handleImportLabor = async (rowsOverride = null) => {
   console.log("=== LABOR IMPORT STARTED ===");
   console.log("PENDING SUMMARY:", pendingUploadSummary);
   console.log("LABOR DATA STATE:", laborData);
 
   // 1. Resolve rows with a defensive fallback mechanism
   const isLaborType = pendingUploadSummary?.uploadType?.toLowerCase() === "labor";
-  const laborRows = isLaborType 
-    ? (pendingUploadSummary?.rows || []) 
-    : (laborData || pendingUploadSummary?.rows || []);
+const laborRows =
+  rowsOverride?.length
+    ? rowsOverride
+    : isLaborType
+    ? pendingUploadSummary?.rows || []
+    : laborData || pendingUploadSummary?.rows || [];
 
   console.log("RESOLVED LABOR ROWS FOR PARSING:", laborRows);
 
