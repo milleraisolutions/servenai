@@ -13818,7 +13818,10 @@ const laborRows =
       setMessage("Authentication required. Please log in before importing data.");
       return;
     }
+const ownerId = dataOwnerId || user.id;
 
+const uploadLocationName =
+  activeLocation !== "all" ? activeLocation : assignedLocation || null;
     // --- Helper Sanitization Functions ---
     const cleanDate = (value) => {
       if (!value || String(value).trim() === "") {
@@ -13886,7 +13889,7 @@ const laborRows =
       const rawClockOut = row.clock_out || row.clockOut || row["Clock Out"] || row.end_time || row["End Time"] || row.out_time || row["Out Time"];
 
       return {
-        user_id: user.id,
+       user_id: ownerId,
         employee_name: row.employee_name || row.employee || row.Employee || row["Employee Name"] || row.name || row.Name || "Unknown Employee",
         role: row.role || row.Role || row.position || row.Position || row.job || row.Job || "Staff",
         work_date: targetDate,
@@ -13899,9 +13902,25 @@ const laborRows =
         overtime_hours: Number(row.overtime_hours || row.overtimeHours || row["Overtime Hours"] || row.ot_hours || row["OT Hours"] || 0),
         overtime_cost: Number(row.overtime_cost || row.overtimeCost || row["Overtime Cost"] || row.ot_cost || row["OT Cost"] || 0),
         clock_in: formatTimestamp(targetDate, rawClockIn),
-        clock_out: formatTimestamp(targetDate, rawClockOut),
-        location: row.location || row.Location || row.store || row.Store || row.restaurant || row.Restaurant || (activeLocation !== "all" ? activeLocation : assignedLocation || null),
-        location_name: row.location_name || row["Location Name"] || row.location || row.Location || row.store || row.Store || row.restaurant || row.Restaurant || (activeLocation !== "all" ? activeLocation : assignedLocation || null),
+       location:
+  row.location ||
+  row.Location ||
+  row.store ||
+  row.Store ||
+  row.restaurant ||
+  row.Restaurant ||
+  uploadLocationName,
+
+location_name:
+  row.location_name ||
+  row["Location Name"] ||
+  row.location ||
+  row.Location ||
+  row.store ||
+  row.Store ||
+  row.restaurant ||
+  row.Restaurant ||
+  uploadLocationName,
         shift: detectedShift,
         file_name: pendingUploadSummary?.fileName || null,
         source_name: "labor_upload",
