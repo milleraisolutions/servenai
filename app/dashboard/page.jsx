@@ -305,7 +305,7 @@ const [analyticsView, setAnalyticsView] = useState("revenue");
 const [beverageView, setBeverageView] = useState("overview");
 const [laborView, setLaborView] = useState("overview");
 const [laborLoading, setLaborLoading] = useState(true);
-
+const loadingLaborRef = useRef(false);
 
 
 
@@ -10621,54 +10621,60 @@ const { data, error } = await menuItemsQuery;
 
 }, [dataOwnerId, activeLocation]);
 useEffect(() => {
-  const loadSavedLaborData = async () => {
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+const loadSavedLaborData = async () => {
+  if (loadingLaborRef.current) return;
+  loadingLaborRef.current = true;
 
-      if (!user?.id) return;
+  try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-      let laborQuery = supabase
-  .from("labor_uploads")
-  .select("*")
-  .eq("user_id", dataOwnerId || user.id);
+    if (!user?.id) return;
 
-laborQuery = applyLocationFilter(laborQuery);
+    let laborQuery = supabase
+      .from("labor_uploads")
+      .select("*")
+      .eq("user_id", dataOwnerId || user.id);
 
-const { data, error } = await laborQuery
-  .order("created_at", { ascending: false })
-  .limit(500);
-  console.log("LABOR LOAD USER:", dataOwnerId || user.id);
-console.log("LABOR LOAD ERROR:", error);
-console.log("LABOR LOAD DATA:", data);
-      if (error) {
-        console.error("Failed to load labor data:", error);
-        return;
-      }
+    laborQuery = applyLocationFilter(laborQuery);
 
-     const normalizedLaborRows = (data || []).map((row) => ({
-  ...row,
+    const { data, error } = await laborQuery
+      .order("created_at", { ascending: false })
+      .limit(500);
 
-  hours: Number(row.hours_worked || row.hours || 0),
-  rate: Number(row.hourly_rate || row.rate || 0),
-  labor_cost: Number(row.labor_cost || row.cost || 0),
+    console.log("LABOR LOAD USER:", dataOwnerId || user.id);
+    console.log("LABOR LOAD ERROR:", error);
+    console.log("LABOR LOAD DATA:", data);
 
-  work_date: row.work_date || row.shift_date || row.date || null,
-  role: row.role || row.position || "Staff",
-  location: row.location || null,
-  shift: row.shift || null,
-}));
-
-setLaborData(normalizedLaborRows);
-
-console.log("LOADED NORMALIZED LABOR:", normalizedLaborRows);
-console.log("LOADED NORMALIZED LABOR FIRST ROW:", normalizedLaborRows?.[0]);
-console.log("LOADED NORMALIZED LABOR COUNT:", normalizedLaborRows.length);
-    } catch (err) {
-      console.error("Labor load error:", err);
+    if (error) {
+      console.error("Failed to load labor data:", error);
+      return;
     }
-  };
+
+    const normalizedLaborRows = (data || []).map((row) => ({
+      ...row,
+      hours: Number(row.hours_worked || row.hours || 0),
+      rate: Number(row.hourly_rate || row.rate || 0),
+      labor_cost: Number(row.labor_cost || row.cost || 0),
+      work_date: row.work_date || row.shift_date || row.date || null,
+      role: row.role || row.position || "Staff",
+      location: row.location || null,
+      shift: row.shift || null,
+    }));
+
+    setLaborData(normalizedLaborRows);
+
+    console.log("LOADED NORMALIZED LABOR:", normalizedLaborRows);
+    console.log("LOADED NORMALIZED LABOR FIRST ROW:", normalizedLaborRows?.[0]);
+    console.log("LOADED NORMALIZED LABOR COUNT:", normalizedLaborRows.length);
+  } catch (err) {
+    console.error("Labor load error:", err);
+  } finally {
+    loadingLaborRef.current = false;
+    setLaborLoading(false);
+  }
+};
 
   if (!dataOwnerId) return;
 
