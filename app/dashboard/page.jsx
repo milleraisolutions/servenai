@@ -307,7 +307,7 @@ const [laborView, setLaborView] = useState("overview");
 const [laborLoading, setLaborLoading] = useState(true);
 const loadingLaborRef = useRef(false);
 const loadingKitchenPrepRef = useRef(false);
-
+const invoiceUploadInputRef = useRef(null);
 
 const loadAdminData = async () => {
   const { data: usersData, error: usersError } = await supabase
@@ -28587,9 +28587,10 @@ return (
 />
 
 <input
+  ref={invoiceUploadInputRef}
   id="invoiceUpload"
   type="file"
-  accept=".pdf,.csv,.xlsx,.xls"
+  accept="application/pdf,.pdf"
   multiple
   onChange={handleInvoiceUpload}
   style={{ display: "none" }}
@@ -28784,14 +28785,15 @@ return (
 </button>
 
 <button
-  onClick={() => {
-    selectedUploadTypeRef.current = "invoices";
-    setUploadType("invoices");
+ onClick={() => {
+  selectedUploadTypeRef.current = "invoices";
+  setUploadType("invoices");
 
-    const input = document.getElementById("invoiceUpload");
-    if (input) input.value = "";
-    input?.click();
-  }}
+  if (invoiceUploadInputRef.current) {
+    invoiceUploadInputRef.current.value = "";
+    invoiceUploadInputRef.current.click();
+  }
+}}
   style={setupSecondaryButton}
 >
   Upload Invoices
