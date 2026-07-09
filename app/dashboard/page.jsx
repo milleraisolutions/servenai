@@ -5669,7 +5669,7 @@ setMessage(`Importing ${menuRows.length} menu items...`);
   setMessage(`Importing ${menuRows.length} menu items...`);
 
 setTimeout(() => {
-  handleImportMenuItems();
+  handleImportMenuItems(menuRows);
 }, 0);
 } else if (activeUploadType === "ingredients") {
   const cleanedIngredientRows = safeRows.map((row) => ({
@@ -6154,7 +6154,7 @@ setPendingUploadRows([]);
 };
 console.log("TRACE AFTER IMPORT MAPPED SALES");
 console.log("TRACE BEFORE IMPORT MENU ITEMS");
-const handleImportMenuItems = async () => {
+const handleImportMenuItems = async (rowsOverride = null) => {
   try {
     console.log("MENU IMPORT START");
     setMessage("Importing menu items...");
@@ -6172,15 +6172,17 @@ const handleImportMenuItems = async () => {
     }
 
     const rawRowsToImport =
-      pendingUploadSummary?.rows?.length
-        ? pendingUploadSummary.rows
-        : pendingUploadRows?.length
-        ? pendingUploadRows
-        : pendingUploadRowsRef?.current?.length
-        ? pendingUploadRowsRef.current
-        : menuItemsData?.length
-        ? menuItemsData
-        : [];
+  rowsOverride?.length
+    ? rowsOverride
+    : pendingUploadSummary?.rows?.length
+    ? pendingUploadSummary.rows
+    : pendingUploadRows?.length
+    ? pendingUploadRows
+    : pendingUploadRowsRef?.current?.length
+    ? pendingUploadRowsRef.current
+    : menuItemsData?.length
+    ? menuItemsData
+    : [];
 
     console.log("MENU RAW ROWS:", rawRowsToImport);
 
