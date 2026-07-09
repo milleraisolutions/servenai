@@ -23839,14 +23839,24 @@ const handleGuestUpload = async (event) => {
               row.guest ||
               row.Guest;
 
-            const email = row.email || row.Email;
-            const phone = row.phone || row.Phone;
+           const email = row.email || row.Email;
+const phone = row.phone || row.Phone;
 
-            return (
-              String(name || "").trim() ||
-              String(email || "").trim() ||
-              String(phone || "").trim()
-            );
+const guestId =
+  row.guest_id ||
+  row.Guest_ID ||
+  row["Guest ID"] ||
+  row.guestId ||
+  row.GuestId ||
+  row.id ||
+  row.ID;
+
+return (
+  String(name || "").trim() ||
+  String(email || "").trim() ||
+  String(phone || "").trim() ||
+  String(guestId || "").trim()
+);
           });
 
           console.log("GUEST CLEAN ROWS:", rows);
@@ -23919,25 +23929,32 @@ const handleGuestUpload = async (event) => {
               upload_id: uploadRow.id,
               file_name: fileName,
 
-              customer_name:
-                row.customer_name ||
-                row.CustomerName ||
-                row.name ||
-                row.Name ||
-                row["Customer Name"] ||
-                row["Guest Name"] ||
-                row.guest_name ||
-                row.GuestName ||
-                row.guest ||
-                row.Guest ||
-                "Guest",
+             customer_name:
+  row.customer_name ||
+  row.CustomerName ||
+  row.name ||
+  row.Name ||
+  row["Customer Name"] ||
+  row["Guest Name"] ||
+  row.guest_name ||
+  row.GuestName ||
+  row.guest ||
+  row.Guest ||
+  row.guest_id ||
+  row.Guest_ID ||
+  row["Guest ID"] ||
+  row.guestId ||
+  row.GuestId ||
+  row.id ||
+  row.ID ||
+  "Guest",
 
               email: row.email || row.Email || null,
               phone: row.phone || row.Phone || null,
 
               visits,
               total_spend: totalSpend,
-              avg_spend: visits > 0 ? totalSpend / visits : 0,
+              avg_spend: Number(row.avg_spend || row["Avg Spend"] || row.average_spend || row["Average Spend"] || 0) || (visits > 0 ? totalSpend / visits : 0),
 
               last_visit:
                 row.last_visit ||
