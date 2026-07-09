@@ -2539,16 +2539,7 @@ const laborRecoveryOpportunity =
   rows: laborData || [],
 };
 }, [locationLaborData, laborData, liveTotalRevenue]);
-console.log("LABOR DATA CHECK:", laborData);
-console.log("LABOR FIRST ROW:", laborData?.[0]);
-console.log("LABOR TOTAL COST:", liveLaborIntelligence?.totalLaborCost);
-console.log("LIVE TOTAL REVENUE:", liveTotalRevenue);
-console.log("SALES DATA CHECK:", locationSalesData);
-console.log("FIRST SALES ROW:", locationSalesData?.[0]);
-console.log("DB SALES ROWS CHECK:", dbSalesRows);
-console.log("DB FIRST SALES ROW:", dbSalesRows?.[0]);
-console.log("REVENUE TRACKER:", revenueTracker);
-console.log("REVENUE TREND:", revenueTrend);
+
 const revenueInsight = useMemo(() => {
   const growth = Number(revenueTrend?.growthPercent || 0);
   const bestDay = revenueTracker?.bestDay?.day || "N/A";
