@@ -306,7 +306,7 @@ const [beverageView, setBeverageView] = useState("overview");
 const [laborView, setLaborView] = useState("overview");
 const [laborLoading, setLaborLoading] = useState(true);
 const loadingLaborRef = useRef(false);
-
+const loadingKitchenPrepRef = useRef(false);
 
 
 const loadAdminData = async () => {
@@ -25753,43 +25753,51 @@ const handleLocationUpload = async (event) => {
 };
 useEffect(() => {
   const loadKitchenManagerData = async () => {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    if (loadingKitchenPrepRef.current) return;
+    loadingKitchenPrepRef.current = true;
 
-    if (!user?.id) return;
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-    const { data: prepData, error: prepError } = await supabase
-      .from("kitchen_prep_tasks")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("prep_date", { ascending: false });
+      if (!user?.id) return;
 
-    if (prepError) {
-      console.error("Kitchen prep load error:", prepError);
-      return;
+      const { data: prepData, error: prepError } = await supabase
+        .from("kitchen_prep_tasks")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("prep_date", { ascending: false });
+
+      if (prepError) {
+        console.error("Kitchen prep load error:", prepError);
+        return;
+      }
+
+      const { data: stationData, error: stationError } = await supabase
+        .from("kitchen_station_performance")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("shift_date", { ascending: false });
+
+      if (stationError) {
+        console.error("Kitchen station load error full:", {
+          message: stationError?.message,
+          details: stationError?.details,
+          hint: stationError?.hint,
+          code: stationError?.code,
+          raw: stationError,
+        });
+        return;
+      }
+
+      setKitchenPrepTasks(prepData || []);
+      setKitchenStationPerformance(stationData || []);
+    } catch (err) {
+      console.error("Kitchen manager data load crashed:", err);
+    } finally {
+      loadingKitchenPrepRef.current = false;
     }
-
-  const { data: stationData, error: stationError } = await supabase
-  .from("kitchen_station_performance")
-  .select("*")
-  .eq("user_id", user.id)
-  .order("shift_date", { ascending: false });
-
-if (stationError) {
-  console.error("Kitchen station load error full:", {
-    message: stationError?.message,
-    details: stationError?.details,
-    hint: stationError?.hint,
-    code: stationError?.code,
-    raw: stationError,
-  });
-
-  return;
-}
-
-    setKitchenPrepTasks(prepData || []);
-    setKitchenStationPerformance(stationData || []);
   };
 
   loadKitchenManagerData();
