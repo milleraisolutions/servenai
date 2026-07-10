@@ -10649,7 +10649,7 @@ useEffect(() => {
         if (isLockError && attempt < 4 && !cancelled) {
           retryTimer = setTimeout(() => {
             loadSavedLaborData(attempt + 1);
-          }, attempt * 500);
+          }, 150);
 
           return;
         }
@@ -10696,7 +10696,7 @@ useEffect(() => {
       if (isLockError && attempt < 4 && !cancelled) {
         retryTimer = setTimeout(() => {
           loadSavedLaborData(attempt + 1);
-        }, attempt * 500);
+       }, 150);
 
         return;
       }
