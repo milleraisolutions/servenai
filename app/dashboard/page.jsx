@@ -10615,65 +10615,111 @@ const { data, error } = await menuItemsQuery;
 
 }, [dataOwnerId, activeLocation]);
 useEffect(() => {
-const loadSavedLaborData = async () => {
-  if (loadingLaborRef.current) return;
-  loadingLaborRef.current = true;
+  let cancelled = false;
+  let retryTimer = null;
 
-  try {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+  const loadSavedLaborData = async (attempt = 1) => {
+    if (!dataOwnerId || cancelled) return;
+    if (loadingLaborRef.current) return;
 
-    if (!user?.id) return;
+    loadingLaborRef.current = true;
+    setLaborLoading(true);
 
-    let laborQuery = supabase
-      .from("labor_uploads")
-      .select("*")
-      .eq("user_id", dataOwnerId || user.id);
+    try {
+      let laborQuery = supabase
+        .from("labor_uploads")
+        .select("*")
+        .eq("user_id", dataOwnerId);
 
-    laborQuery = applyLocationFilter(laborQuery);
+      laborQuery = applyLocationFilter(laborQuery);
 
-    const { data, error } = await laborQuery
-      .order("created_at", { ascending: false })
-      .limit(500);
+      const { data, error } = await laborQuery
+        .order("created_at", { ascending: false })
+        .limit(500);
 
-    console.log("LABOR LOAD USER:", dataOwnerId || user.id);
-    console.log("LABOR LOAD ERROR:", error);
-    console.log("LABOR LOAD DATA:", data);
+      if (error) {
+        const errorText = String(
+          error?.message || error?.details || error || ""
+        );
 
-    if (error) {
-      console.error("Failed to load labor data:", error);
-      return;
+        const isLockError =
+          errorText.includes("Lock broken by another request") ||
+          errorText.includes("AbortError");
+
+        if (isLockError && attempt < 4 && !cancelled) {
+          retryTimer = setTimeout(() => {
+            loadSavedLaborData(attempt + 1);
+          }, attempt * 500);
+
+          return;
+        }
+
+        console.error("Failed to load labor data:", error);
+        return;
+      }
+
+      if (cancelled) return;
+
+      const normalizedLaborRows = (data || []).map((row) => ({
+        ...row,
+
+        hours: Number(row.hours_worked || row.hours || 0),
+        rate: Number(row.hourly_rate || row.rate || 0),
+        labor_cost: Number(row.labor_cost || row.cost || 0),
+
+        work_date:
+          row.work_date || row.shift_date || row.date || null,
+
+        role: row.role || row.position || "Staff",
+
+        location:
+          row.location ||
+          row.location_name ||
+          null,
+
+        shift: row.shift || null,
+      }));
+
+      setLaborData(normalizedLaborRows);
+
+      console.log(
+        "LABOR LOADED SUCCESSFULLY:",
+        normalizedLaborRows.length
+      );
+    } catch (error) {
+      const errorText = String(error?.message || error || "");
+
+      const isLockError =
+        errorText.includes("Lock broken by another request") ||
+        errorText.includes("AbortError");
+
+      if (isLockError && attempt < 4 && !cancelled) {
+        retryTimer = setTimeout(() => {
+          loadSavedLaborData(attempt + 1);
+        }, attempt * 500);
+
+        return;
+      }
+
+      console.error("Labor load crashed:", error);
+    } finally {
+      loadingLaborRef.current = false;
+
+      if (!cancelled) {
+        setLaborLoading(false);
+      }
     }
-
-    const normalizedLaborRows = (data || []).map((row) => ({
-      ...row,
-      hours: Number(row.hours_worked || row.hours || 0),
-      rate: Number(row.hourly_rate || row.rate || 0),
-      labor_cost: Number(row.labor_cost || row.cost || 0),
-      work_date: row.work_date || row.shift_date || row.date || null,
-      role: row.role || row.position || "Staff",
-      location: row.location || null,
-      shift: row.shift || null,
-    }));
-
-    setLaborData(normalizedLaborRows);
-
-    console.log("LOADED NORMALIZED LABOR:", normalizedLaborRows);
-    console.log("LOADED NORMALIZED LABOR FIRST ROW:", normalizedLaborRows?.[0]);
-    console.log("LOADED NORMALIZED LABOR COUNT:", normalizedLaborRows.length);
-  } catch (err) {
-    console.error("Labor load error:", err);
-  } finally {
-    loadingLaborRef.current = false;
-    setLaborLoading(false);
-  }
-};
-
-  if (!dataOwnerId) return;
+  };
 
   loadSavedLaborData();
 
+  return () => {
+    cancelled = true;
+
+    if (retryTimer) {
+      clearTimeout(retryTimer);
+    }
+  };
 }, [dataOwnerId, activeLocation]);
 useEffect(() => {
   const loadSavedInventoryData = async () => {
