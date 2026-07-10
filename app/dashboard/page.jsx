@@ -308,6 +308,7 @@ const [laborLoading, setLaborLoading] = useState(true);
 const loadingLaborRef = useRef(false);
 const loadingKitchenPrepRef = useRef(false);
 const invoiceUploadInputRef = useRef(null);
+const loadingCustomersRef = useRef(false);
 
 const loadAdminData = async () => {
   const { data: usersData, error: usersError } = await supabase
@@ -23759,28 +23760,39 @@ const avgGuestSpend =
 
 useEffect(() => {
   const loadCustomers = async () => {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    if (!dataOwnerId) return;
+    if (loadingCustomersRef.current) return;
 
-    if (!user?.id) return;
+    loadingCustomersRef.current = true;
 
-    const { data, error } = await supabase
-      .from("customers")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false });
+    try {
+      let customerQuery = supabase
+        .from("customers")
+        .select("*")
+        .eq("user_id", dataOwnerId);
 
-    if (error) {
-      console.error("Customers load error:", error);
-      return;
+      customerQuery = applyLocationFilter(customerQuery);
+
+      const { data, error } = await customerQuery.order("created_at", {
+        ascending: false,
+      });
+
+      if (error) {
+        console.error("Customers load error:", error);
+        return;
+      }
+
+      console.log("LOADED CUSTOMERS:", data);
+      setCustomerData(data || []);
+    } catch (error) {
+      console.error("Customers load crashed:", error);
+    } finally {
+      loadingCustomersRef.current = false;
     }
-
-    setCustomerData(data || []);
   };
 
   loadCustomers();
-}, []);
+}, [dataOwnerId, activeLocation]);
 
 const handleGuestUpload = async (event) => {
   console.log("GUEST UPLOAD FIRED");
