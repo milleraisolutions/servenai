@@ -10681,7 +10681,10 @@ useEffect(() => {
       }));
 
       setLaborData(normalizedLaborRows);
-
+localStorage.setItem(
+  `serven_labor_rows_${dataOwnerId}`,
+  JSON.stringify(normalizedLaborRows)
+);
       console.log(
         "LABOR LOADED SUCCESSFULLY:",
         normalizedLaborRows.length
@@ -10721,6 +10724,27 @@ useEffect(() => {
     }
   };
 }, [dataOwnerId, activeLocation]);
+useEffect(() => {
+  if (!dataOwnerId) return;
+
+  try {
+    const cachedLabor = localStorage.getItem(
+      `serven_labor_rows_${dataOwnerId}`
+    );
+
+    if (!cachedLabor) return;
+
+    const parsedLabor = JSON.parse(cachedLabor);
+
+    if (Array.isArray(parsedLabor) && parsedLabor.length > 0) {
+      setLaborData((current) =>
+        current?.length ? current : parsedLabor
+      );
+    }
+  } catch (error) {
+    console.warn("Labor cache restore failed:", error);
+  }
+}, [dataOwnerId]);
 useEffect(() => {
   const loadSavedInventoryData = async () => {
     try {
