@@ -14145,12 +14145,17 @@ const handleImportBatchPrep = async (
   user_id: currentUser.id,
   upload_id: uploadRow?.id || null,
 
-      batch_name:
-        row.batch_name ||
-        row["Batch Name"] ||
-        row.name ||
-        row.item ||
-        "Unnamed Batch",
+  location_name:
+    activeLocation !== "all"
+      ? activeLocation
+      : assignedLocation || null,
+
+  batch_name:
+    row.batch_name ||
+    row["Batch Name"] ||
+    row.name ||
+    row.item ||
+    "Unnamed Batch",
 
       prep_date: row.prep_date || row["Prep Date"] || row.date || null,
 
