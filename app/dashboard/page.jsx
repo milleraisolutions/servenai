@@ -11321,7 +11321,12 @@ useEffect(() => {
       const { data, error } = await batchPrepQuery
         .order("prep_date", { ascending: false })
         .limit(1000);
-
+console.log("BATCH PREP QUERY RESULT:", {
+  user: dataOwnerId || user.id,
+  rows: data,
+  count: data?.length,
+  error,
+});
       if (error) {
         console.error("Batch prep load error:", error);
         return;
