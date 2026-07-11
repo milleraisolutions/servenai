@@ -1267,24 +1267,43 @@ const handleIngredientsUpload = async (event) => {
 
           if (uploadError) throw uploadError;
 
-          const rowsWithUploadId = cleanedRows.map((row) => ({
-            ...row,
-            upload_id: uploadRow?.id || null,
-            file_name: fileName,
-            location_name:
-              activeLocation !== "all" ? activeLocation : assignedLocation || null,
-          }));
+        const rowsWithUploadId = cleanedRows.map((row) => ({
+  user_id: currentUser.id,
+  upload_id: uploadRow?.id || null,
 
+  name: row.name,
+  supplier: row.supplier || null,
+  category: row.category || "Uncategorized",
+  unit: row.unit || null,
+
+  quantity: Number(row.quantity || 0),
+  cost_per_unit: Number(row.cost_per_unit || 0),
+  total_cost: Number(row.total_cost || 0),
+
+  ingredient_type: row.ingredient_type || "core",
+  variance_tolerance: Number(row.variance_tolerance || 5),
+}));
+console.log("INGREDIENT ROWS BEING INSERTED:", rowsWithUploadId);
           const { data: insertedRows, error: insertError } = await supabase
             .from("ingredients")
             .insert(rowsWithUploadId)
             .select();
 
-          if (insertError) {
-            await supabase.from("uploads").delete().eq("id", uploadRow?.id);
-            throw insertError;
-          }
+         if (insertError) {
+  console.error("INGREDIENT SUPABASE INSERT ERROR:", {
+    message: insertError.message,
+    details: insertError.details,
+    hint: insertError.hint,
+    code: insertError.code,
+  });
 
+  await supabase
+    .from("uploads")
+    .delete()
+    .eq("id", uploadRow?.id);
+
+  throw insertError;
+}
           const cleanUploadRow = {
             ...uploadRow,
             status: "completed",
