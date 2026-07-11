@@ -5921,9 +5921,7 @@ setTimeout(() => {
 
  setMessage(`Importing ${safeRows.length} batch prep rows...`);
 
-setTimeout(() => {
-  handleImportBatchPrep();
-}, 0);
+handleImportBatchPrep(safeRows, file.name);
 } else {
   setPendingUploadSummary({
     fileName: file.name,
@@ -14075,7 +14073,10 @@ location_name:
     setMessage("An unexpected processing error occurred. Check browser console logs.");
   }
 };
-const handleImportBatchPrep = async () => {
+const handleImportBatchPrep = async (
+  rowsOverride = null,
+  fileNameOverride = null
+) => {
   console.log("BATCH PREP CONFIRM CLICKED", pendingUploadSummary);
   setMessage("Importing batch prep data...");
 
@@ -14086,14 +14087,22 @@ const handleImportBatchPrep = async () => {
     return;
   }
 
-  const rows = pendingUploadSummary?.rows || parsedRows || [];
+ const rows =
+  rowsOverride?.length
+    ? rowsOverride
+    : pendingUploadSummary?.rows?.length
+    ? pendingUploadSummary.rows
+    : parsedRows || [];
 
   if (!rows.length) {
     setMessage("No batch prep rows found.");
     return;
   }
 
-  const fileName = pendingUploadSummary?.fileName || "Batch Prep Upload";
+ const fileName =
+  fileNameOverride ||
+  pendingUploadSummary?.fileName ||
+  "Batch Prep Upload";
 
   const optimisticUpload = startOptimisticImport({
     fileName,
@@ -25094,9 +25103,9 @@ useEffect(() => {
 const handleBatchPrepUpload = async (event) => {
   selectedUploadTypeRef.current = "batch_prep";
   setUploadType("batch_prep");
+  setMessage("Reading batch prep file...");
 
   await handleFileUpload(event);
-  setMessage("Batch prep imported successfully.");
 };
 const validateUploadFile = (file, maxSizeMB = 25) => {
   if (!file) {
