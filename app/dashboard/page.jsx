@@ -5919,10 +5919,11 @@ setTimeout(() => {
     rows: safeRows,
   });
 
- setMessage(`Importing ${safeRows.length} batch prep rows...`);
+  setMessage(`Importing ${safeRows.length} batch prep rows.`);
 
-handleImportBatchPrep(safeRows, file.name);
-} else {
+  await handleImportBatchPrep(safeRows, file.name);
+}
+ else {
   setPendingUploadSummary({
     fileName: file.name,
     rowCount: safeRows.length,
