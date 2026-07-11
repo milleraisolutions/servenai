@@ -24491,10 +24491,18 @@ const handleRecipeUpload = async (event) => {
           console.log("RECIPE insertedRecipes:", insertedRecipes);
           console.log("RECIPE recipeError:", recipeError);
 
-          if (recipeError) {
-            await supabase.from("uploads").delete().eq("id", uploadRow.id);
-            throw recipeError;
-          }
+         if (recipeError) {
+  console.error("RECIPE INSERT ERROR:", {
+    message: recipeError.message,
+    details: recipeError.details,
+    hint: recipeError.hint,
+    code: recipeError.code,
+  });
+
+  await supabase.from("uploads").delete().eq("id", uploadRow.id);
+
+  throw recipeError;
+}
 
           const insertedRecipeByName = new Map(
             (insertedRecipes || []).map((recipe) => [
@@ -24565,16 +24573,30 @@ const handleRecipeUpload = async (event) => {
             console.log("RECIPE ingredientError:", ingredientError);
 
             if (ingredientError) {
-              await supabase
-                .from("recipe_ingredients")
-                .delete()
-                .eq("upload_id", uploadRow.id);
+  console.error("RECIPE INGREDIENT ERROR:", {
+    message: ingredientError.message,
+    details: ingredientError.details,
+    hint: ingredientError.hint,
+    code: ingredientError.code,
+  });
 
-              await supabase.from("recipes").delete().eq("upload_id", uploadRow.id);
-              await supabase.from("uploads").delete().eq("id", uploadRow.id);
+  await supabase
+    .from("recipe_ingredients")
+    .delete()
+    .eq("upload_id", uploadRow.id);
 
-              throw ingredientError;
-            }
+  await supabase
+    .from("recipes")
+    .delete()
+    .eq("upload_id", uploadRow.id);
+
+  await supabase
+    .from("uploads")
+    .delete()
+    .eq("id", uploadRow.id);
+
+  throw ingredientError;
+}
 
             insertedIngredients = ingredientInsert || [];
           }
