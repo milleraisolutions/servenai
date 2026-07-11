@@ -28971,29 +28971,27 @@ return (
   Upload Inventory
 </button>
 
-<button
+<label
+  htmlFor="invoiceUpload"
   onClick={() => {
-    console.log("UPLOAD INVOICES BUTTON CLICKED");
-
     selectedUploadTypeRef.current = "invoices";
     setUploadType("invoices");
 
-    console.log(
-      "invoiceUploadInputRef.current:",
-      invoiceUploadInputRef.current
-    );
-
     if (invoiceUploadInputRef.current) {
       invoiceUploadInputRef.current.value = "";
-      invoiceUploadInputRef.current.click();
-    } else {
-      console.error("invoiceUploadInputRef.current is NULL");
     }
   }}
-  style={setupSecondaryButton}
+  style={{
+    ...setupSecondaryButton,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+    boxSizing: "border-box",
+  }}
 >
   Upload Invoices
-</button>
+</label>
 
 <button
   onClick={() => {
