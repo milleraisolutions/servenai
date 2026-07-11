@@ -11265,41 +11265,57 @@ useEffect(() => {
 }, [dataOwnerId, activeLocation]);
 useEffect(() => {
   const loadInvoices = async () => {
+    if (!dataOwnerId) return;
+
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user?.id) return;
-
-      let invoiceQuery = supabase
-        .from("invoice_line_items")
+      let invoiceUploadQuery = supabase
+        .from("invoice_uploads")
         .select("*")
-        .eq("user_id", dataOwnerId || user.id);
+        .eq("user_id", dataOwnerId);
 
-      invoiceQuery = applyLocationFilter(invoiceQuery);
+      invoiceUploadQuery = applyLocationFilter(invoiceUploadQuery);
 
-      const { data, error } = await invoiceQuery
-        .order("created_at", { ascending: false });
+      const {
+        data: savedInvoiceUploads,
+        error: invoiceUploadError,
+      } = await invoiceUploadQuery.order("created_at", {
+        ascending: false,
+      });
 
-      if (error) {
-        console.error("Invoice load error:", error);
-        return;
+      if (invoiceUploadError) {
+        console.error("Invoice uploads load error:", invoiceUploadError);
+      } else {
+        setInvoiceUploads(savedInvoiceUploads || []);
       }
 
-      setInvoicesData(data || []);
+      let invoiceItemsQuery = supabase
+        .from("invoice_line_items")
+        .select("*")
+        .eq("user_id", dataOwnerId);
 
-      console.log("LOADED INVOICES:", data?.length || 0);
-    } catch (err) {
-      console.error("Invoice load crash:", err);
+      invoiceItemsQuery = applyLocationFilter(invoiceItemsQuery);
+
+      const {
+        data: savedInvoiceItems,
+        error: invoiceItemsError,
+      } = await invoiceItemsQuery.order("created_at", {
+        ascending: false,
+      });
+
+      if (invoiceItemsError) {
+        console.error("Invoice line items load error:", invoiceItemsError);
+      } else {
+        setInvoicesData(savedInvoiceItems || []);
+      }
+
+      console.log("LOADED INVOICE UPLOADS:", savedInvoiceUploads?.length || 0);
+      console.log("LOADED INVOICE ITEMS:", savedInvoiceItems?.length || 0);
+    } catch (error) {
+      console.error("Invoice load crash:", error);
     }
   };
 
-  if (!dataOwnerId) return;
-
   loadInvoices();
-
- 
 }, [dataOwnerId, activeLocation]);
 useEffect(() => {
   const loadBatchPrepData = async () => {
@@ -28956,15 +28972,24 @@ return (
 </button>
 
 <button
- onClick={() => {
-  selectedUploadTypeRef.current = "invoices";
-  setUploadType("invoices");
+  onClick={() => {
+    console.log("UPLOAD INVOICES BUTTON CLICKED");
 
-  if (invoiceUploadInputRef.current) {
-    invoiceUploadInputRef.current.value = "";
-    invoiceUploadInputRef.current.click();
-  }
-}}
+    selectedUploadTypeRef.current = "invoices";
+    setUploadType("invoices");
+
+    console.log(
+      "invoiceUploadInputRef.current:",
+      invoiceUploadInputRef.current
+    );
+
+    if (invoiceUploadInputRef.current) {
+      invoiceUploadInputRef.current.value = "";
+      invoiceUploadInputRef.current.click();
+    } else {
+      console.error("invoiceUploadInputRef.current is NULL");
+    }
+  }}
   style={setupSecondaryButton}
 >
   Upload Invoices
