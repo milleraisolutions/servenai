@@ -14142,9 +14142,8 @@ const handleImportBatchPrep = async (
     if (uploadResult.error) throw uploadResult.error;
 
     const rowsToInsert = rows.map((row) => ({
-      user_id: currentUser.id,
-      upload_id: uploadRow?.id || null,
-      file_name: fileName,
+  user_id: currentUser.id,
+  upload_id: uploadRow?.id || null,
 
       batch_name:
         row.batch_name ||
@@ -14198,8 +14197,20 @@ const handleImportBatchPrep = async (
 console.log("BATCH PREP insertError:", insertResult.error);
 
 if (insertResult.error) {
+  console.error("BATCH PREP SUPABASE INSERT ERROR:", {
+    message: insertResult.error.message,
+    details: insertResult.error.details,
+    hint: insertResult.error.hint,
+    code: insertResult.error.code,
+  });
+
   alert(`Batch prep insert failed: ${insertResult.error.message}`);
-  await supabase.from("uploads").delete().eq("id", uploadRow?.id);
+
+  await supabase
+    .from("uploads")
+    .delete()
+    .eq("id", uploadRow?.id);
+
   throw insertResult.error;
 }
 
