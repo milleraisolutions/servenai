@@ -338,11 +338,12 @@ async function extractPdfText(buffer, fileName) {
 
     return text;
   } catch (error) {
-    console.error("UNPDF EXTRACTION FAILED:", {
-      fileName,
-      message: error?.message,
-      stack: error?.stack,
-    });
+    console.error("UNPDF EXTRACTION FAILED");
+console.error(error);
+console.error("MESSAGE:", error?.message);
+console.error("STACK:", error?.stack);
+console.error("NAME:", error?.name);
+console.error("FULL ERROR:", JSON.stringify(error, null, 2));
 
     throw new Error(
       `Could not extract PDF text from ${fileName}: ${
