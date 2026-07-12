@@ -815,218 +815,142 @@ const locationMenuItemsData = filterByActiveLocation(menuItemsData);
 const locationIngredientsData = filterByActiveLocation(ingredientsData);
 
 const locationInvoicesData = filterByActiveLocation(invoicesData);
-const handleInvoiceUpload = async (e) => {
-  const input = e.target;
-  const files = Array.from(input.files || []);
-
+const handleInvoiceUpload = async (event) => {
   console.log("INVOICE UPLOAD FIRED");
-  console.log("INVOICE FILES:", files);
-
-  if (!files.length) {
-    setInvoiceUploadMessage("No invoice files selected.");
-    setMessage("No invoice files selected.");
-    return;
-  }
-
-  const invalidFile = files.find(
-    (file) =>
-      file.type !== "application/pdf" &&
-      !String(file.name || "").toLowerCase().endsWith(".pdf")
-  );
-
-  if (invalidFile) {
-    setInvoiceUploadMessage("Only PDF invoice files are allowed.");
-    setMessage("Only PDF invoice files are allowed.");
-    alert("Only PDF invoice files are allowed.");
-    input.value = "";
-    return;
-  }
 
   try {
-    setInvoiceUploadLoading(true);
-    setInvoiceUploadMessage("Importing invoice data...");
-    setMessage("Importing invoice data...");
+    const files = Array.from(event.target.files || []);
+
+    console.log("INVOICE FILES:", files);
+
+    if (!files.length) {
+      setMessage("No invoice files selected.");
+      return;
+    }
+
+    const invalidFile = files.find(
+      (file) =>
+        file.type !== "application/pdf" &&
+        !String(file.name || "")
+          .toLowerCase()
+          .endsWith(".pdf")
+    );
+
+    if (invalidFile) {
+      setMessage(`${invalidFile.name} must be a PDF.`);
+      return;
+    }
+
+    setMessage("Uploading invoices...");
 
     const {
       data: { session },
       error: sessionError,
     } = await supabase.auth.getSession();
 
+    console.log("INVOICE SESSION:", session);
     console.log("INVOICE SESSION ERROR:", sessionError);
-    console.log("INVOICE SESSION USER:", session?.user);
 
-    if (sessionError) throw sessionError;
-
-    if (!session?.access_token) {
-      throw new Error("You must be logged in to upload invoices.");
+    if (sessionError) {
+      throw new Error(sessionError.message);
     }
 
-    setInvoiceUploadMessage("Reading invoice PDF...");
-    setMessage("Reading invoice PDF...");
+    if (!session?.access_token) {
+      throw new Error(
+        "No active login session. Please log out and log back in."
+      );
+    }
 
     const formData = new FormData();
 
     files.forEach((file) => {
-      formData.append("files", file);
+      formData.append("files", file, file.name);
     });
 
-    console.log("INVOICE before API upload");
+    console.log("SENDING REQUEST TO /api/upload-invoices");
 
-    setInvoiceUploadMessage("Importing invoice data...");
-    setMessage("Importing invoice data...");
-
-    const controller = new AbortController();
-
-    const timeoutId = setTimeout(() => {
-      controller.abort();
-    }, 60000);
-
-    const res = await fetch("/api/upload-invoices", {
+    const response = await fetch("/api/upload-invoices", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${session.access_token}`,
       },
       body: formData,
-      signal: controller.signal,
+      cache: "no-store",
     });
 
-    clearTimeout(timeoutId);
+    const responseText = await response.text();
 
-    console.log("INVOICE API STATUS:", res.status);
+    console.log("INVOICE API STATUS:", response.status);
+    console.log("INVOICE API RESPONSE TEXT:", responseText);
 
-    let data = null;
+    let result = {};
 
     try {
-      data = await res.json();
-    } catch {
-      data = {};
+      result = responseText
+        ? JSON.parse(responseText)
+        : {};
+    } catch (jsonError) {
+      console.error(
+        "INVOICE RESPONSE JSON ERROR:",
+        jsonError
+      );
+
+      throw new Error(
+        `Invoice API returned invalid JSON: ${responseText.slice(
+          0,
+          300
+        )}`
+      );
     }
 
-    console.log("INVOICE API RESPONSE:", data);
+    console.log("INVOICE API RESULT:", result);
 
-    if (!res.ok) {
-      throw new Error(data?.error || "Invoice upload failed.");
+    if (!response.ok || !result.success) {
+      const failureMessage =
+        result?.failures?.[0]?.error ||
+        result?.error ||
+        result?.message ||
+        `Invoice upload failed with status ${response.status}`;
+
+      throw new Error(failureMessage);
     }
 
-    const uploadedCount = Number(
-      data?.uploadedCount || data?.count || files.length || 0
+    if (!Number(result.uploadedCount || 0)) {
+      throw new Error(
+        result?.failures?.[0]?.error ||
+          "The invoice API returned zero saved invoices."
+      );
+    }
+
+    console.log(
+      "INVOICE SAVED ROWS:",
+      result.invoiceUploads
     );
 
-    const successMessage = `Uploaded ${uploadedCount} invoice(s) successfully.`;
-
-    setInvoiceUploadMessage(successMessage);
-    setMessage(successMessage);
-
-    setSupplierAlerts(data?.alerts || []);
-
-    const uploadedRows = Array.isArray(data?.uploads)
-      ? data.uploads
-      : data?.uploadRow
-      ? [data.uploadRow]
-      : [];
-
-    if (uploadedRows.length > 0) {
-      setClientImports((prev) => [
-        ...uploadedRows,
-        ...(prev || []).filter(
-          (upload) =>
-            !uploadedRows.some((newUpload) => newUpload.id === upload.id)
-        ),
-      ]);
-
-      setRecentUploads((prev) => [
-        ...uploadedRows,
-        ...(prev || []).filter(
-          (upload) =>
-            !uploadedRows.some((newUpload) => newUpload.id === upload.id)
-        ),
-      ]);
-    } else {
-      console.warn("Invoice API did not return upload rows.");
-      await loadClientUploads?.();
-    }
-
-    if (Array.isArray(data?.invoiceItems) && data.invoiceItems.length > 0) {
-      setInvoicesData((prev) => [
-        ...data.invoiceItems,
-        ...(prev || []).filter(
-          (row) =>
-            !data.invoiceItems.some(
-              (newRow) =>
-                newRow.id === row.id ||
-                (newRow.upload_id && newRow.upload_id === row.upload_id)
-            )
-        ),
-      ]);
-    } else {
-      await loadUploadComparison?.();
-    }
-
-    setAiLog((prev) =>
-      [
-        {
-          id: Date.now(),
-          text: successMessage,
-        },
-        ...(prev || []),
-      ].slice(0, 6)
+    setMessage(
+      `${result.uploadedCount} invoice${
+        result.uploadedCount === 1 ? "" : "s"
+      } uploaded successfully.`
     );
 
-    if (Array.isArray(data?.alerts) && data.alerts.length > 0) {
-      const recommendations = data.alerts.map((alert) => {
-        let suggestion = "Consider promoting alternative items this week.";
-
-        const itemName = String(alert.item || "").toLowerCase();
-
-        if (itemName.includes("steak")) {
-          suggestion = "Promote chicken and pasta this week to protect margins.";
-        } else if (itemName.includes("chicken")) {
-          suggestion = "Bundle chicken meals or adjust pricing to protect margin.";
-        } else if (itemName.includes("cheese")) {
-          suggestion = "Push high-margin favorites and reduce discounting.";
-        }
-
-        return {
-          item: alert.item,
-          supplier: alert.supplier,
-          percentChange: alert.percentChange,
-          suggestion,
-        };
-      });
-
-      setAiPriceRecommendations(recommendations);
-
-      if (
-        false &&
-        hasProAccess &&
-        autoCampaignsEnabled &&
-        recommendations.length > 0
-      ) {
-        handleAutoLaunchCampaignFromRecommendation(recommendations[0]);
-      }
+    if (result.uploads?.length) {
+      setRecentUploads((previous) => [
+        ...result.uploads,
+        ...(previous || []),
+      ]);
     }
 
-    if (autopilotEnabled) {
-      runAutopilotAI("Invoice upload scan");
-    }
+    event.target.value = "";
+  } catch (error) {
+    console.error("INVOICE FRONTEND ERROR:", error);
 
-    await loadClientUploads?.();
-    await loadUploadComparison?.();
+    setMessage(
+      error?.message || "Invoice upload failed."
+    );
 
-    input.value = "";
-  } catch (err) {
-    console.error("Invoice upload failed:", err);
-
-    const message =
-      err?.name === "AbortError"
-        ? "Invoice upload timed out after 60 seconds."
-        : err?.message || "Invoice upload failed.";
-
-    setInvoiceUploadMessage(message);
-    setMessage(message);
-    alert(message);
-  } finally {
-    setInvoiceUploadLoading(false);
+    alert(
+      error?.message || "Invoice upload failed."
+    );
   }
 };
 const handleIngredientsUpload = async (event) => {
@@ -28971,27 +28895,20 @@ return (
   Upload Inventory
 </button>
 
-<label
-  htmlFor="invoiceUpload"
+<button
   onClick={() => {
     selectedUploadTypeRef.current = "invoices";
     setUploadType("invoices");
 
     if (invoiceUploadInputRef.current) {
       invoiceUploadInputRef.current.value = "";
+      invoiceUploadInputRef.current.click();
     }
   }}
-  style={{
-    ...setupSecondaryButton,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    cursor: "pointer",
-    boxSizing: "border-box",
-  }}
+  style={setupSecondaryButton}
 >
   Upload Invoices
-</label>
+</button>
 
 <button
   onClick={() => {
