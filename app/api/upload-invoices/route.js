@@ -4,6 +4,10 @@ import { createClient } from "@supabase/supabase-js";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+/* ======================================================
+   HELPERS
+====================================================== */
+
 function normalizeDate(dateStr) {
   if (!dateStr) return null;
 
@@ -24,7 +28,9 @@ function normalizeDate(dateStr) {
   const normalized = `${year}-${month}-${day}`;
   const parsedDate = new Date(`${normalized}T00:00:00Z`);
 
-  if (Number.isNaN(parsedDate.getTime())) return null;
+  if (Number.isNaN(parsedDate.getTime())) {
+    return null;
+  }
 
   return normalized;
 }
@@ -32,15 +38,43 @@ function normalizeDate(dateStr) {
 function safeNumber(value) {
   if (value == null) return 0;
 
-  const cleaned = String(value)
+  const rawValue = String(value).trim();
+
+  const isNegative =
+    rawValue.startsWith("(") &&
+    rawValue.endsWith(")");
+
+  const cleaned = rawValue
     .replace(/[$,\s]/g, "")
     .replace(/[()]/g, "")
     .trim();
 
   const number = Number(cleaned);
 
-  return Number.isFinite(number) ? number : 0;
+  if (!Number.isFinite(number)) {
+    return 0;
+  }
+
+  return isNegative ? number * -1 : number;
 }
+
+function withTimeout(promise, milliseconds, message) {
+  let timeoutId;
+
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error(message));
+    }, milliseconds);
+  });
+
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    clearTimeout(timeoutId);
+  });
+}
+
+/* ======================================================
+   INVOICE TEXT PARSER
+====================================================== */
 
 function parseInvoiceText(text) {
   const rawText = String(text || "");
@@ -55,19 +89,31 @@ function parseInvoiceText(text) {
     )
     .filter(Boolean);
 
-  console.log("INVOICE PARSER LINES:", lines);
+  console.log(
+    "INVOICE PARSER LINE COUNT:",
+    lines.length
+  );
 
   const supplierName =
-    lines.find(
-      (line) =>
+    lines.find((line) => {
+      const lowerLine = line.toLowerCase();
+
+      return (
         line.length > 2 &&
-        !/\$/.test(line) &&
-        !/\b\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\b/.test(line) &&
-        !/invoice date|invoice number|customer|description|subtotal|tax|total/i.test(
+        line.length < 150 &&
+        !line.includes("$") &&
+        !/\b\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\b/.test(
           line
-        )
-    ) ||
-    "Unknown Supplier";
+        ) &&
+        !lowerLine.includes("invoice date") &&
+        !lowerLine.includes("invoice number") &&
+        !lowerLine.includes("customer") &&
+        !lowerLine.includes("description") &&
+        !lowerLine.includes("subtotal") &&
+        !lowerLine.includes("tax") &&
+        !lowerLine.includes("total")
+      );
+    }) || "Unknown Supplier";
 
   const dateMatch = rawText.match(
     /\b(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})\b/
@@ -80,39 +126,60 @@ function parseInvoiceText(text) {
   const items = [];
 
   for (const line of lines) {
-    console.log("TESTING INVOICE LINE:", line);
+    const tokens = line
+      .split(" ")
+      .map((token) => token.trim())
+      .filter(Boolean);
 
-    const match = line.match(
-      /^(.+?)\s+(\d+(?:\.\d+)?)\s+([a-zA-Z]+)\s+\$?\s*([\d,]+(?:\.\d{1,2})?)\s+\$?\s*([\d,]+(?:\.\d{1,2})?)$/
-    );
+    /*
+      Expected ending:
 
-    if (!match) {
+      Item Name | Quantity | Unit | Unit Price | Total
+
+      Example:
+      Ribeye Steak 10 lb $12.50 $125.00
+    */
+    if (tokens.length < 5) {
       continue;
     }
 
-    const itemName = String(match[1] || "").trim();
+    const totalString = tokens.pop();
+    const unitPriceString = tokens.pop();
+    const unit = tokens.pop();
+    const quantityString = tokens.pop();
+
+    const quantity = safeNumber(quantityString);
+    const unitPrice = safeNumber(unitPriceString);
+    const totalPrice = safeNumber(totalString);
+
+    const validUnit =
+      typeof unit === "string" &&
+      /^[a-zA-Z][a-zA-Z0-9._/-]{0,14}$/.test(unit);
 
     if (
-      !itemName ||
-      /description|subtotal|grand total|total|tax|balance|amount due|invoice/i.test(
-        itemName
-      )
+      quantity <= 0 ||
+      unitPrice < 0 ||
+      totalPrice < 0 ||
+      !validUnit
     ) {
       continue;
     }
 
-    const quantity = safeNumber(match[2]);
-    const unit = match[3] || null;
-    const unitPrice = safeNumber(match[4]);
-    const totalPrice = safeNumber(match[5]);
+    const itemName = tokens.join(" ").trim();
+    const lowerItemName = itemName.toLowerCase();
 
-    console.log("MATCHED INVOICE ITEM:", {
-      itemName,
-      quantity,
-      unit,
-      unitPrice,
-      totalPrice,
-    });
+    if (
+      !itemName ||
+      lowerItemName.includes("description") ||
+      lowerItemName.includes("subtotal") ||
+      lowerItemName.includes("grand total") ||
+      lowerItemName === "total" ||
+      lowerItemName.includes("amount due") ||
+      lowerItemName.includes("balance") ||
+      lowerItemName.includes("invoice")
+    ) {
+      continue;
+    }
 
     items.push({
       item_name: itemName,
@@ -123,42 +190,70 @@ function parseInvoiceText(text) {
     });
   }
 
-  console.log("FINAL PARSED INVOICE ITEMS:", items);
+  console.log(
+    "FINAL PARSED INVOICE ITEMS:",
+    items
+  );
 
   return {
-    supplierName,
+    supplierName:
+      String(supplierName || "Unknown Supplier").slice(
+        0,
+        255
+      ),
     invoiceDate,
     items,
   };
 }
 
+/* ======================================================
+   SUPABASE
+====================================================== */
+
 function createSupabaseAdmin() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const supabaseUrl =
+    process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+  const serviceRoleKey =
+    process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!supabaseUrl || !serviceRoleKey) {
-    throw new Error("Missing Supabase server configuration.");
+    throw new Error(
+      "Missing Supabase server configuration."
+    );
   }
 
-  return createClient(supabaseUrl, serviceRoleKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  });
+  return createClient(
+    supabaseUrl,
+    serviceRoleKey,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    }
+  );
 }
 
 function getBearerToken(req) {
-  const authHeader = req.headers.get("authorization") || "";
+  const authHeader =
+    req.headers.get("authorization") || "";
 
-  if (!authHeader.toLowerCase().startsWith("bearer ")) {
+  if (
+    !authHeader
+      .toLowerCase()
+      .startsWith("bearer ")
+  ) {
     return null;
   }
 
   return authHeader.slice(7).trim() || null;
 }
 
-async function safelyRemoveStorageFile(supabase, filePath) {
+async function safelyRemoveStorageFile(
+  supabase,
+  filePath
+) {
   if (!filePath) return;
 
   const { error } = await supabase.storage
@@ -166,11 +261,17 @@ async function safelyRemoveStorageFile(supabase, filePath) {
     .remove([filePath]);
 
   if (error) {
-    console.error("Failed to remove invoice storage file:", error);
+    console.error(
+      "Failed to remove invoice storage file:",
+      error
+    );
   }
 }
 
-async function safelyDeleteUploadRow(supabase, uploadId) {
+async function safelyDeleteUploadRow(
+  supabase,
+  uploadId
+) {
   if (!uploadId) return;
 
   const { error } = await supabase
@@ -179,9 +280,126 @@ async function safelyDeleteUploadRow(supabase, uploadId) {
     .eq("id", uploadId);
 
   if (error) {
-    console.error("Failed to remove uploads row:", error);
+    console.error(
+      "Failed to remove uploads row:",
+      error
+    );
   }
 }
+
+/* ======================================================
+   PDF-PARSE COMPATIBILITY
+====================================================== */
+
+async function loadPdfParser() {
+  try {
+    const pdfParseModule = await import("pdf-parse");
+
+    const PDFParseClass =
+      pdfParseModule?.PDFParse ||
+      pdfParseModule?.default?.PDFParse ||
+      null;
+
+    const legacyPdfParse =
+      typeof pdfParseModule?.default === "function"
+        ? pdfParseModule.default
+        : null;
+
+    console.log("PDF PARSER MODE:", {
+      classApi: Boolean(PDFParseClass),
+      legacyApi: Boolean(legacyPdfParse),
+      exports: Object.keys(pdfParseModule || {}),
+    });
+
+    return {
+      PDFParseClass,
+      legacyPdfParse,
+    };
+  } catch (error) {
+    console.error(
+      "PDF PARSE IMPORT FAILED:",
+      error
+    );
+
+    return {
+      PDFParseClass: null,
+      legacyPdfParse: null,
+    };
+  }
+}
+
+async function extractPdfText({
+  buffer,
+  fileName,
+  PDFParseClass,
+  legacyPdfParse,
+}) {
+  let parser = null;
+
+  try {
+    if (PDFParseClass) {
+      console.log(
+        "USING PDF-PARSE CLASS API:",
+        fileName
+      );
+
+      parser = new PDFParseClass({
+        data: new Uint8Array(buffer),
+      });
+
+      const parsedPdf = await withTimeout(
+        parser.getText(),
+        20000,
+        `PDF parsing timed out for ${fileName}.`
+      );
+
+      return (
+        parsedPdf?.text ||
+        parsedPdf?.pages
+          ?.map((page) => page?.text || "")
+          .join("\n") ||
+        ""
+      );
+    }
+
+    if (legacyPdfParse) {
+      console.log(
+        "USING PDF-PARSE LEGACY API:",
+        fileName
+      );
+
+      const parsedPdf = await withTimeout(
+        legacyPdfParse(buffer),
+        20000,
+        `PDF parsing timed out for ${fileName}.`
+      );
+
+      return parsedPdf?.text || "";
+    }
+
+    throw new Error(
+      "No compatible pdf-parse API was found."
+    );
+  } finally {
+    if (
+      parser &&
+      typeof parser.destroy === "function"
+    ) {
+      try {
+        await parser.destroy();
+      } catch (destroyError) {
+        console.warn(
+          "PDF parser cleanup failed:",
+          destroyError
+        );
+      }
+    }
+  }
+}
+
+/* ======================================================
+   LINE ITEM INSERT
+====================================================== */
 
 async function insertInvoiceLineItems({
   supabase,
@@ -200,88 +418,162 @@ async function insertInvoiceLineItems({
   }
 
   try {
-    const rows = [];
+    const itemNames = parsedInvoice.items
+      .map((item) =>
+        String(item.item_name || "").trim()
+      )
+      .filter(Boolean);
+
+    let historicalItems = [];
+
+    if (itemNames.length) {
+      const {
+        data: historyData,
+        error: historyError,
+      } = await supabase
+        .from("invoice_line_items")
+        .select(
+          "item_name, unit_price, created_at"
+        )
+        .eq("user_id", user.id)
+        .in("item_name", itemNames)
+        .order("created_at", {
+          ascending: false,
+        });
+
+      if (historyError) {
+        console.warn(
+          "Invoice price history lookup failed:",
+          historyError
+        );
+      } else {
+        historicalItems = historyData || [];
+      }
+    }
+
+    /*
+      Because history is ordered newest first,
+      keep only the first row for each item.
+    */
+    const latestPriceByItem = new Map();
+
+    for (const historicalItem of historicalItems) {
+      const key = String(
+        historicalItem.item_name || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      if (
+        key &&
+        !latestPriceByItem.has(key)
+      ) {
+        latestPriceByItem.set(
+          key,
+          historicalItem
+        );
+      }
+    }
+
+    const rowsToInsert = [];
     const alerts = [];
 
     for (const item of parsedInvoice.items) {
-      let previousPrice = null;
+      const normalizedItemName = String(
+        item.item_name || ""
+      )
+        .trim()
+        .toLowerCase();
 
-      const { data: previousItem, error: previousError } = await supabase
-        .from("invoice_line_items")
-        .select("unit_price, created_at")
-        .eq("user_id", user.id)
-        .ilike("item_name", item.item_name)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      const previousItem =
+        latestPriceByItem.get(
+          normalizedItemName
+        ) || null;
 
-      if (previousError) {
-        console.error(
-          `Previous-price lookup failed for ${item.item_name}:`,
-          previousError
-        );
-      } else {
-        previousPrice = previousItem?.unit_price ?? null;
-      }
+      const previousPrice =
+        previousItem?.unit_price != null
+          ? Number(previousItem.unit_price)
+          : null;
+
+      const currentPrice = Number(
+        item.unit_price || 0
+      );
 
       const priceChange =
         previousPrice != null
-          ? Number(item.unit_price || 0) - Number(previousPrice || 0)
+          ? currentPrice - previousPrice
           : null;
 
       const priceChangePercent =
-        previousPrice != null && Number(previousPrice) > 0
-          ? (priceChange / Number(previousPrice)) * 100
+        previousPrice != null &&
+        previousPrice > 0
+          ? (priceChange / previousPrice) * 100
           : null;
 
       const flaggedIncrease =
-        priceChangePercent != null && priceChangePercent >= 5;
+        priceChangePercent != null &&
+        priceChangePercent >= 5;
 
-      rows.push({
+      rowsToInsert.push({
         invoice_id: invoiceRow.id,
-        upload_id: uploadRow?.id || null,
+        upload_id: uploadRow.id,
         user_id: user.id,
-        file_name: file.name || "Invoice Upload",
+        file_name:
+          file.name || "Invoice Upload",
         supplier_name:
-          parsedInvoice.supplierName || "Unknown Supplier",
+          parsedInvoice.supplierName ||
+          "Unknown Supplier",
         item_name: item.item_name,
-        unit: item.unit,
-        quantity: item.quantity,
-        unit_price: item.unit_price,
-        total_price: item.total_price,
-        previous_unit_price: previousPrice,
+        unit: item.unit || null,
+        quantity: Number(
+          item.quantity || 0
+        ),
+        unit_price: currentPrice,
+        total_price: Number(
+          item.total_price || 0
+        ),
+        previous_unit_price:
+          previousPrice,
         price_change: priceChange,
-        price_change_percent: priceChangePercent,
-        flagged_increase: flaggedIncrease,
+        price_change_percent:
+          priceChangePercent,
+        flagged_increase:
+          flaggedIncrease,
       });
 
       if (flaggedIncrease) {
         alerts.push({
           item: item.item_name,
-          supplier: parsedInvoice.supplierName,
+          supplier:
+            parsedInvoice.supplierName,
           oldPrice: previousPrice,
-          newPrice: item.unit_price,
-          percentChange: priceChangePercent,
+          newPrice: currentPrice,
+          percentChange:
+            priceChangePercent,
         });
       }
     }
 
-    const { data: insertedItems, error: lineItemError } =
-      await supabase
-        .from("invoice_line_items")
-        .insert(rows)
-        .select();
+    const {
+      data: insertedItems,
+      error: lineItemError,
+    } = await supabase
+      .from("invoice_line_items")
+      .insert(rowsToInsert)
+      .select();
 
     if (lineItemError) {
       console.error(
-        "Invoice parent saved, but invoice line items failed:",
+        "Invoice parent saved, but line items failed:",
         lineItemError
       );
 
       return {
         insertedItems: [],
         alerts,
-        warning: `Invoice saved, but line items failed: ${lineItemError.message}`,
+        warning:
+          `Invoice saved, but line items failed: ` +
+          lineItemError.message,
       };
     }
 
@@ -292,30 +584,34 @@ async function insertInvoiceLineItems({
     };
   } catch (error) {
     console.error(
-      "Invoice parent saved, but line-item processing crashed:",
+      "Invoice line-item processing crashed:",
       error
     );
 
     return {
       insertedItems: [],
       alerts: [],
-      warning: `Invoice saved, but line-item processing failed: ${
-        error?.message || "Unknown line-item error"
-      }`,
+      warning:
+        `Invoice saved, but line-item processing failed: ` +
+        `${error?.message || "Unknown error"}`,
     };
   }
 }
 
+/* ======================================================
+   API ROUTE
+====================================================== */
+
 export async function POST(req) {
-  console.log("INVOICE ROUTE VERSION: JULY-11-FULL-FIX");
+  console.log(
+    "INVOICE ROUTE VERSION: FINAL-PARSER-FIX"
+  );
 
   let supabase;
 
   try {
     supabase = createSupabaseAdmin();
   } catch (configError) {
-    console.error("Invoice route configuration error:", configError);
-
     return NextResponse.json(
       {
         success: false,
@@ -344,13 +640,17 @@ export async function POST(req) {
     } = await supabase.auth.getUser(token);
 
     if (userError || !user?.id) {
-      console.error("Invoice auth failed:", userError);
+      console.error(
+        "Invoice authentication failed:",
+        userError
+      );
 
       return NextResponse.json(
         {
           success: false,
           error: "Unauthorized.",
-          details: userError?.message || null,
+          details:
+            userError?.message || null,
         },
         { status: 401 }
       );
@@ -362,41 +662,26 @@ export async function POST(req) {
       .getAll("files")
       .filter(
         (file) =>
-          file && typeof file.arrayBuffer === "function"
+          file &&
+          typeof file.arrayBuffer ===
+            "function"
       );
 
     if (!files.length) {
       return NextResponse.json(
         {
           success: false,
-          error: "No invoice files were received.",
+          error:
+            "No invoice files were received.",
         },
         { status: 400 }
       );
     }
 
-    let pdfParse = null;
-
-   let PDFParseClass = null;
-
-try {
-  const pdfParseModule = await import("pdf-parse");
-
-  PDFParseClass =
-    pdfParseModule.PDFParse ||
-    pdfParseModule.default?.PDFParse ||
-    null;
-
-  console.log(
-    "PDF PARSE CLASS FOUND:",
-    Boolean(PDFParseClass)
-  );
-} catch (pdfImportError) {
-  console.error(
-    "PDF PARSE IMPORT FAILED:",
-    pdfImportError
-  );
-}
+    const {
+      PDFParseClass,
+      legacyPdfParse,
+    } = await loadPdfParser();
 
     const createdUploadRows = [];
     const createdInvoiceRows = [];
@@ -411,99 +696,112 @@ try {
       let invoiceWasSaved = false;
 
       try {
+        const fileName =
+          file.name || "invoice.pdf";
+
         const isPdf =
           file.type === "application/pdf" ||
-          String(file.name || "")
+          fileName
             .toLowerCase()
             .endsWith(".pdf");
 
         if (!isPdf) {
           throw new Error(
-            `${file.name || "Uploaded file"} must be a PDF.`
+            `${fileName} must be a PDF.`
           );
         }
 
-        const bytes = await file.arrayBuffer();
-        const buffer = Buffer.from(bytes);
+        const bytes =
+          await file.arrayBuffer();
+
+        const buffer =
+          Buffer.from(bytes);
 
         if (!buffer.length) {
           throw new Error(
-            `${file.name || "Uploaded file"} is empty.`
+            `${fileName} is empty.`
           );
         }
 
         let text = "";
-if (PDFParseClass) {
-  let parser = null;
 
-  try {
-    parser = new PDFParseClass({
-      data: new Uint8Array(buffer),
-    });
+        try {
+          text = await extractPdfText({
+            buffer,
+            fileName,
+            PDFParseClass,
+            legacyPdfParse,
+          });
+        } catch (pdfError) {
+          console.error(
+            `PDF parsing failed for ${fileName}:`,
+            {
+              message:
+                pdfError?.message,
+              stack:
+                pdfError?.stack,
+            }
+          );
 
-    const parsedPdf = await parser.getText();
+          warnings.push({
+            fileName,
+            message:
+              pdfError?.message ||
+              "The invoice saved, but PDF text extraction failed.",
+          });
 
-    text =
-      parsedPdf?.text ||
-      parsedPdf?.pages
-        ?.map((page) => page?.text || "")
-        .join("\n") ||
-      "";
+          text = "";
+        }
 
-    console.log("PDF EXTRACTED TEXT:", text);
-    console.log(
-      "PDF EXTRACTED TEXT LENGTH:",
-      text.length
-    );
-  } catch (pdfError) {
-    console.error(
-      `PDF parsing failed for ${file.name}:`,
-      {
-        message: pdfError?.message,
-        stack: pdfError?.stack,
-      }
-    );
-
-    warnings.push({
-      fileName: file.name,
-      message:
-        "The invoice saved, but PDF text extraction failed.",
-    });
-  } finally {
-    if (parser) {
-      try {
-        await parser.destroy();
-      } catch (destroyError) {
-        console.warn(
-          "PDF parser cleanup failed:",
-          destroyError
+        console.log(
+          "PDF FILE:",
+          fileName
         );
-      }
-    }
-  }
-}
 
-        console.log("PDF FILE:", file.name);
-        console.log("PDF TEXT LENGTH:", text.length);
-        console.log("PDF TEXT SAMPLE:", text.slice(0, 500));
+        console.log(
+          "PDF TEXT LENGTH:",
+          text.length
+        );
 
-        const parsedInvoice = parseInvoiceText(text);
-console.log("PARSED INVOICE:", parsedInvoice);
-console.log("PARSED ITEM COUNT:", parsedInvoice.items.length);
-        const { data: newUploadRow, error: uploadError } =
-          await supabase
-            .from("uploads")
-            .insert({
-              user_id: user.id,
-              file_name: file.name || "Invoice Upload",
-              source_name: "invoice_upload",
-              row_count: parsedInvoice.items.length,
-              upload_type: "invoices",
-              status: "completed",
-              archived: false,
-            })
-            .select()
-            .single();
+        console.log(
+          "PDF TEXT SAMPLE:",
+          text.slice(0, 1500)
+        );
+
+        const parsedInvoice =
+          parseInvoiceText(text);
+
+        console.log(
+          "PARSED INVOICE:",
+          parsedInvoice
+        );
+
+        console.log(
+          "PARSED ITEM COUNT:",
+          parsedInvoice.items.length
+        );
+
+        /*
+          Create the Recent Imports row.
+        */
+        const {
+          data: newUploadRow,
+          error: uploadError,
+        } = await supabase
+          .from("uploads")
+          .insert({
+            user_id: user.id,
+            file_name: fileName,
+            source_name:
+              "invoice_upload",
+            row_count:
+              parsedInvoice.items.length,
+            upload_type: "invoices",
+            status: "completed",
+            archived: false,
+          })
+          .select()
+          .single();
 
         if (uploadError) {
           throw new Error(
@@ -512,23 +810,34 @@ console.log("PARSED ITEM COUNT:", parsedInvoice.items.length);
         }
 
         uploadRow = newUploadRow;
-        createdUploadRows.push(uploadRow);
+        createdUploadRows.push(
+          uploadRow
+        );
 
-        const safeFileName = String(
-          file.name || "invoice.pdf"
-        ).replace(/[^a-zA-Z0-9._-]/g, "_");
+        /*
+          Save the original PDF.
+        */
+        const safeFileName =
+          fileName.replace(
+            /[^a-zA-Z0-9._-]/g,
+            "_"
+          );
 
-        filePath = `${
-          user.id
-        }/invoices/${Date.now()}-${crypto.randomUUID()}-${safeFileName}`;
+        filePath =
+          `${user.id}/invoices/` +
+          `${Date.now()}-` +
+          `${crypto.randomUUID()}-` +
+          `${safeFileName}`;
 
-        const { error: storageError } =
-          await supabase.storage
-            .from("invoice-pdfs")
-            .upload(filePath, buffer, {
-              contentType: "application/pdf",
-              upsert: false,
-            });
+        const {
+          error: storageError,
+        } = await supabase.storage
+          .from("invoice-pdfs")
+          .upload(filePath, buffer, {
+            contentType:
+              "application/pdf",
+            upsert: false,
+          });
 
         if (storageError) {
           throw new Error(
@@ -547,27 +856,33 @@ console.log("PARSED ITEM COUNT:", parsedInvoice.items.length);
           );
 
         if (signedUrlError) {
-          console.error(
-            "Signed URL creation failed:",
+          console.warn(
+            "Signed invoice URL creation failed:",
             signedUrlError
           );
         }
 
-       const invoicePayload = {
-  user_id: user.id,
-  upload_id: uploadRow.id,
-  supplier_name:
-    parsedInvoice.supplierName || "Unknown Supplier",
-  invoice_date:
-    parsedInvoice.invoiceDate || null,
-  file_name:
-    file.name || "Invoice Upload",
-  file_url:
-    signedUrlData?.signedUrl || filePath,
-};
+        /*
+          The upload_id relationship is required
+          for reliable deletion and data cleanup.
+        */
+        const invoicePayload = {
+          user_id: user.id,
+          upload_id: uploadRow.id,
+          supplier_name:
+            parsedInvoice.supplierName ||
+            "Unknown Supplier",
+          invoice_date:
+            parsedInvoice.invoiceDate ||
+            null,
+          file_name: fileName,
+          file_url:
+            signedUrlData?.signedUrl ||
+            filePath,
+        };
 
         console.log(
-          "INSERTING INVOICE_UPLOADS ROW:",
+          "INSERTING INVOICE_UPLOADS:",
           invoicePayload
         );
 
@@ -580,16 +895,6 @@ console.log("PARSED ITEM COUNT:", parsedInvoice.items.length);
           .select()
           .single();
 
-        console.log(
-          "INVOICE_UPLOADS INSERT DATA:",
-          invoiceRow
-        );
-
-        console.log(
-          "INVOICE_UPLOADS INSERT ERROR:",
-          invoiceError
-        );
-
         if (invoiceError) {
           throw new Error(
             `invoice_uploads insert failed: ${invoiceError.message}`
@@ -597,8 +902,14 @@ console.log("PARSED ITEM COUNT:", parsedInvoice.items.length);
         }
 
         invoiceWasSaved = true;
-        createdInvoiceRows.push(invoiceRow);
 
+        createdInvoiceRows.push(
+          invoiceRow
+        );
+
+        /*
+          Save the individual invoice rows.
+        */
         const lineItemResult =
           await insertInvoiceLineItems({
             supabase,
@@ -608,58 +919,99 @@ console.log("PARSED ITEM COUNT:", parsedInvoice.items.length);
             invoiceRow,
             uploadRow,
           });
-const finalRowCount =
-  lineItemResult.insertedItems.length ||
-  parsedInvoice.items.length ||
-  0;
 
-const { error: rowCountUpdateError } =
-  await supabase
-    .from("uploads")
-    .update({
-      row_count: finalRowCount,
-    })
-    .eq("id", uploadRow.id);
+        const finalRowCount =
+          lineItemResult.insertedItems
+            .length ||
+          parsedInvoice.items.length ||
+          0;
 
-if (rowCountUpdateError) {
-  console.error(
-    "FAILED TO UPDATE INVOICE ROW COUNT:",
-    rowCountUpdateError
-  );
-} else {
-  uploadRow.row_count = finalRowCount;
-}
+        /*
+          Confirm the actual row count was saved
+          to the uploads table.
+        */
+        const {
+          data: updatedUploadRows,
+          error: rowCountUpdateError,
+        } = await supabase
+          .from("uploads")
+          .update({
+            row_count: finalRowCount,
+          })
+          .eq("id", uploadRow.id)
+          .select("id, row_count");
+
+        if (rowCountUpdateError) {
+          console.error(
+            "Invoice row-count update failed:",
+            rowCountUpdateError
+          );
+
+          warnings.push({
+            fileName,
+            message:
+              `Invoice saved, but the Recent Imports row count failed: ` +
+              rowCountUpdateError.message,
+          });
+        } else {
+          uploadRow.row_count =
+            updatedUploadRows?.[0]
+              ?.row_count ??
+            finalRowCount;
+        }
+
+        console.log(
+          "FINAL SAVED INVOICE ROW COUNT:",
+          uploadRow.row_count
+        );
+
         createdLineItems.push(
           ...lineItemResult.insertedItems
         );
 
-        alerts.push(...lineItemResult.alerts);
+        alerts.push(
+          ...lineItemResult.alerts
+        );
 
-        if (lineItemResult.warning) {
+        if (
+          lineItemResult.warning
+        ) {
           warnings.push({
-            fileName: file.name,
-            message: lineItemResult.warning,
+            fileName,
+            message:
+              lineItemResult.warning,
           });
         }
       } catch (fileError) {
         console.error(
           `Invoice processing failed for ${file?.name}:`,
           {
-            message: fileError?.message,
-            details: fileError?.details,
-            hint: fileError?.hint,
-            code: fileError?.code,
-            stack: fileError?.stack,
+            message:
+              fileError?.message,
+            details:
+              fileError?.details,
+            hint:
+              fileError?.hint,
+            code:
+              fileError?.code,
+            stack:
+              fileError?.stack,
           }
         );
 
         failures.push({
-          fileName: file?.name || "Unknown file",
+          fileName:
+            file?.name ||
+            "Unknown file",
           error:
             fileError?.message ||
             "Invoice processing failed.",
         });
 
+        /*
+          If the invoice parent was never saved,
+          clean up the orphan upload and PDF.
+        */
         if (!invoiceWasSaved) {
           await safelyRemoveStorageFile(
             supabase,
@@ -677,16 +1029,20 @@ if (rowCountUpdateError) {
     const uploadedCount =
       createdInvoiceRows.length;
 
-    const success = uploadedCount > 0;
+    const success =
+      uploadedCount > 0;
 
     return NextResponse.json(
       {
         success,
         uploadedCount,
-        failedCount: failures.length,
-        uploads: createdUploadRows,
+        failedCount:
+          failures.length,
+        uploads:
+          createdUploadRows,
         uploadRow:
-          createdUploadRows[0] || null,
+          createdUploadRows[0] ||
+          null,
         invoiceUploads:
           createdInvoiceRows,
         invoiceItems:
@@ -696,7 +1052,9 @@ if (rowCountUpdateError) {
         failures,
         message: success
           ? `${uploadedCount} invoice${
-              uploadedCount === 1 ? "" : "s"
+              uploadedCount === 1
+                ? ""
+                : "s"
             } saved successfully.`
           : "No invoices were saved.",
       },
