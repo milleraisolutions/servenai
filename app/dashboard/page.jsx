@@ -16451,7 +16451,7 @@ const deleteImport = async (uploadId) => {
   if (!confirmed) return;
 
   /*
-    Keep your existing labor delete behavior.
+    1. Keep your existing labor delete behavior.
   */
   if (String(uploadId).startsWith("labor-")) {
     const laborId = String(uploadId).replace("labor-", "");
@@ -16474,22 +16474,23 @@ const deleteImport = async (uploadId) => {
       return;
     }
 
-    setClientImports((prev) =>
-      (prev || []).filter((item) => item.id !== uploadId)
-    );
+    setClientImports((prev) => (prev || []).filter((item) => item.id !== uploadId));
+    setRecentUploads((prev) => (prev || []).filter((item) => item.id !== uploadId));
+    setLaborData((prev) => (prev || []).filter((row) => row.id !== laborId));
 
-    setRecentUploads((prev) =>
-      (prev || []).filter((item) => item.id !== uploadId)
-    );
-
-    setLaborData((prev) =>
-      (prev || []).filter((row) => row.id !== laborId)
-    );
+    // Clear operational overview preview rows if this was the current open dataset
+    if (typeof setRows === "function") setRows([]);
+    if (typeof setPendingUploadRows === "function") {
+      setPendingUploadRows([]);
+      if (pendingUploadRowsRef) pendingUploadRowsRef.current = [];
+    }
+    if (typeof setPendingUploadSummary === "function") setPendingUploadSummary(null);
 
     setMessage("Labor import permanently deleted.");
     return;
   }
 
+  // Locate the target item metadata inside active component tracking sheets
   const upload =
     (clientImports || []).find((item) => item.id === uploadId) ||
     (recentUploads || []).find((item) => item.id === uploadId) ||
@@ -16503,10 +16504,7 @@ const deleteImport = async (uploadId) => {
     .trim()
     .toLowerCase();
 
-  const fileName =
-    upload?.file_name ||
-    upload?.name ||
-    null;
+  const fileName = upload?.file_name || upload?.name || null;
 
   console.log("DELETE IMPORT TARGET:", {
     uploadId,
@@ -16518,7 +16516,7 @@ const deleteImport = async (uploadId) => {
     setMessage("Deleting import...");
 
     /*
-      Invoice uploads are removed through the server route
+      2. Invoice uploads are removed through the server route
       because the invoice records were created server-side.
     */
     const isInvoiceUpload = [
@@ -16533,102 +16531,60 @@ const deleteImport = async (uploadId) => {
         error: sessionError,
       } = await supabase.auth.getSession();
 
-      if (sessionError) {
-        throw sessionError;
-      }
+      if (sessionError) throw sessionError;
 
       if (!session?.access_token) {
-        throw new Error(
-          "Your login session was not found."
-        );
+        throw new Error("Your login session was not found. Please log in again.");
       }
 
-      const response = await fetch(
-        "/api/delete-invoice-upload",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({
-            uploadId,
-            fileName,
-          }),
-        }
-      );
+      const response = await fetch("/api/delete-invoice-upload", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          uploadId,
+          fileName,
+        }),
+      });
 
       const responseText = await response.text();
-
-      console.log(
-        "DELETE INVOICE API STATUS:",
-        response.status
-      );
-
-      console.log(
-        "DELETE INVOICE API RESPONSE:",
-        responseText
-      );
+      console.log("DELETE INVOICE API STATUS:", response.status);
 
       let result = {};
-
       try {
-        result = responseText
-          ? JSON.parse(responseText)
-          : {};
+        result = responseText ? JSON.parse(responseText) : {};
       } catch {
         result = {};
       }
 
       if (!response.ok || !result.success) {
-        throw new Error(
-          result?.error ||
-            "Invoice delete failed."
-        );
+        throw new Error(result?.error || "Invoice removal endpoint failed.");
       }
     } else {
-      const {
-        data: deletedUploadRows,
-        error: uploadDeleteError,
-      } = await supabase
+      // Standard upload direct table deletion path
+      const { data: deletedUploadRows, error: uploadDeleteError } = await supabase
         .from("uploads")
         .delete()
         .eq("id", uploadId)
         .select("id");
 
-      console.log(
-        "DELETED UPLOAD ROWS:",
-        deletedUploadRows
-      );
-
-      console.log(
-        "DELETE UPLOAD ERROR:",
-        uploadDeleteError
-      );
-
-      if (uploadDeleteError) {
-        throw uploadDeleteError;
-      }
+      if (uploadDeleteError) throw uploadDeleteError;
 
       if (!deletedUploadRows?.length) {
-        throw new Error(
-          "No matching upload was deleted from Supabase."
-        );
+        throw new Error("No matching upload row found to delete from database.");
       }
     }
 
     /*
-      Only remove the card after the database confirms deletion.
+      3. Global state sync - only runs once database deletion is completely verified.
     */
-    setClientImports((prev) =>
-      (prev || []).filter((item) => item.id !== uploadId)
-    );
-
-    setRecentUploads((prev) =>
-      (prev || []).filter((item) => item.id !== uploadId)
-    );
+    setClientImports((prev) => (prev || []).filter((item) => item.id !== uploadId));
+    setRecentUploads((prev) => (prev || []).filter((item) => item.id !== uploadId));
 
     if (isInvoiceUpload) {
+      // Deep-clean invoice uploads lists
       setInvoiceUploads((prev) =>
         (prev || []).filter(
           (invoice) =>
@@ -16638,6 +16594,7 @@ const deleteImport = async (uploadId) => {
         )
       );
 
+      // Deep-clean single invoice parsed line items out of your system metrics
       setInvoicesData((prev) =>
         (prev || []).filter(
           (row) =>
@@ -16646,15 +16603,20 @@ const deleteImport = async (uploadId) => {
             row.file_name !== fileName
         )
       );
+
+      // Wipe out table data preview views if this deleted document was open on the screen
+      if (typeof setRows === "function") setRows([]);
+      if (typeof setPendingUploadRows === "function") {
+        setPendingUploadRows([]);
+        if (pendingUploadRowsRef) pendingUploadRowsRef.current = [];
+      }
+      if (typeof setPendingUploadSummary === "function") setPendingUploadSummary(null);
     }
 
     setMessage("Import permanently deleted.");
   } catch (error) {
     console.error("DELETE IMPORT FAILED:", error);
-
-    const errorMessage =
-      error?.message || "Import delete failed.";
-
+    const errorMessage = error?.message || "Import delete failed.";
     setMessage(errorMessage);
     alert(errorMessage);
   }

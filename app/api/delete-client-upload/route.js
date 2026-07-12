@@ -245,12 +245,29 @@ export async function POST(req) {
 
       await safeDeleteByUploadId(uploadRow.id);
 
-      const { error: uploadDeleteError } = await supabase
-        .from("uploads")
-        .delete()
-        .eq("id", uploadRow.id);
+    const {
+  data: deletedUploadRows,
+  error: uploadDeleteError,
+} = await supabase
+  .from("uploads")
+  .delete()
+  .eq("id", uploadRow.id)
+  .select("id");
 
-      if (uploadDeleteError) throw uploadDeleteError;
+if (uploadDeleteError) {
+  throw uploadDeleteError;
+}
+
+if (!deletedUploadRows?.length) {
+  throw new Error(
+    "The upload row was not permanently deleted."
+  );
+}
+
+console.log(
+  "PERMANENTLY DELETED UPLOAD ROW:",
+  deletedUploadRows
+);
 
       return NextResponse.json({
         success: true,
