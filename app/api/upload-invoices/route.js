@@ -173,8 +173,17 @@ export async function POST(req) {
 try {
   const parsedPdf = await pdfParse(buffer);
   text = parsedPdf?.text || "";
+
+  console.log("================================");
+  console.log("PDF RAW TEXT");
+  console.log(text);
+  console.log("================================");
 } catch (pdfError) {
-  console.error("PDF parse failed, saving invoice without line items:", pdfError);
+  console.error(
+    "PDF parse failed, saving invoice without line items:",
+    pdfError
+  );
+
   text = "";
 }
 
