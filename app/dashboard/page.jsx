@@ -907,78 +907,80 @@ const handleInvoiceUpload = async (event) => {
       );
     }
 
+    console.log(
+      "SUCCESSFULLY SAVED INVOICES:",
+      result.invoiceUploads
+    );
+
+    const newUploadRows = Array.isArray(result.uploads)
+      ? result.uploads
+      : result.uploadRow
+        ? [result.uploadRow]
+        : [];
+
+    console.log(
+      "NEW INVOICE UPLOAD ROWS FOR UI:",
+      newUploadRows
+    );
+
+    if (newUploadRows.length > 0) {
+      setRecentUploads((previous) => {
+        const existingRows = Array.isArray(previous)
+          ? previous
+          : [];
+
+        const mergedRows = [
+          ...newUploadRows,
+          ...existingRows,
+        ];
+
+        const uniqueRows = mergedRows.filter(
+          (row, index, array) =>
+            index ===
+            array.findIndex(
+              (candidate) => candidate.id === row.id
+            )
+        );
+
+        console.log(
+          "UPDATED RECENT UPLOADS AFTER INVOICE:",
+          uniqueRows
+        );
+
+        return uniqueRows;
+      });
+
+      if (typeof setClientImports === "function") {
+        setClientImports((previous) => {
+          const existingRows = Array.isArray(previous)
+            ? previous
+            : [];
+
+          const mergedRows = [
+            ...newUploadRows,
+            ...existingRows,
+          ];
+
+          return mergedRows.filter(
+            (row, index, array) =>
+              index ===
+              array.findIndex(
+                (candidate) => candidate.id === row.id
+              )
+          );
+        });
+      }
+    }
+
+    setUploadType("invoices");
+    selectedUploadTypeRef.current = "invoices";
+
     setMessage(
       `${result.uploadedCount} invoice${
         result.uploadedCount === 1 ? "" : "s"
       } uploaded successfully.`
     );
 
-    console.log(
-      "SUCCESSFULLY SAVED INVOICES:",
-      result.invoiceUploads
-    );
-const newUploadRows = Array.isArray(result.uploads)
-  ? result.uploads
-  : result.uploadRow
-    ? [result.uploadRow]
-    : [];
-
-console.log("NEW INVOICE UPLOAD ROWS FOR UI:", newUploadRows);
-
-if (newUploadRows.length > 0) {
-  setRecentUploads((previous) => {
-    const existingRows = Array.isArray(previous) ? previous : [];
-
-    const mergedRows = [
-      ...newUploadRows,
-      ...existingRows,
-    ];
-
-    const uniqueRows = mergedRows.filter(
-      (row, index, array) =>
-        index ===
-        array.findIndex(
-          (candidate) => candidate.id === row.id
-        )
-    );
-
-    console.log(
-      "UPDATED RECENT UPLOADS AFTER INVOICE:",
-      uniqueRows
-    );
-
-    return uniqueRows;
-  });
-
-  if (typeof setClientImports === "function") {
-    setClientImports((previous) => {
-      const existingRows = Array.isArray(previous)
-        ? previous
-        : [];
-
-      const mergedRows = [
-        ...newUploadRows,
-        ...existingRows,
-      ];
-
-      return mergedRows.filter(
-        (row, index, array) =>
-          index ===
-          array.findIndex(
-            (candidate) => candidate.id === row.id
-          )
-      );
-    });
-  }
-}
-setUploadType("invoices");
-selectedUploadTypeRef.current = "invoices";
-
-setMessage(
-  `${result.uploadedCount} invoice${
-    result.uploadedCount === 1 ? "" : "s"
-  } uploaded successfully.`
-);
     input.value = "";
   } catch (error) {
     console.error("INVOICE FRONTEND ERROR:", error);
