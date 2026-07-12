@@ -824,12 +824,13 @@ const handleInvoiceUpload = async (event) => {
   console.log("INVOICE FILES:", files);
 
   if (!files.length) {
-    console.error("NO INVOICE FILES RECEIVED");
     setMessage("No invoice file was selected.");
     return;
   }
 
   try {
+    setInvoiceUploadLoading(true);
+    setInvoiceUploadMessage("Uploading invoice...");
     setMessage("Uploading invoice...");
 
     const {
@@ -837,17 +838,11 @@ const handleInvoiceUpload = async (event) => {
       error: sessionError,
     } = await supabase.auth.getSession();
 
-    console.log("INVOICE SESSION ERROR:", sessionError);
-    console.log(
-      "INVOICE ACCESS TOKEN FOUND:",
-      Boolean(session?.access_token)
-    );
-
     if (sessionError) {
-      throw new Error(sessionError.message);
+      throw sessionError;
     }
 
-    if (!session?.access_token) {
+    if (!session?.access_token || !session?.user?.id) {
       throw new Error(
         "Your login session was not found. Log out and log back in."
       );
@@ -856,11 +851,8 @@ const handleInvoiceUpload = async (event) => {
     const formData = new FormData();
 
     files.forEach((file) => {
-      console.log("ADDING INVOICE TO FORM DATA:", file.name);
       formData.append("files", file, file.name);
     });
-
-    console.log("SENDING INVOICE API REQUEST");
 
     const response = await fetch("/api/upload-invoices", {
       method: "POST",
@@ -900,97 +892,157 @@ const handleInvoiceUpload = async (event) => {
       );
     }
 
-    if (!Number(result.uploadedCount || 0)) {
-      throw new Error(
-        result?.failures?.[0]?.error ||
-          "The invoice route saved zero invoices."
-      );
-    }
-console.log(
-  "SUCCESSFULLY SAVED INVOICES:",
-  result.invoiceUploads
-);
-
-const {
-  data: refreshedUploads,
-  error: refreshedUploadsError,
-} = await supabase
-  .from("uploads")
-  .select("*")
-  .eq("user_id", session.user.id)
-  .or("archived.eq.false,archived.is.null")
-  .order("created_at", { ascending: false })
-  .limit(20);
-
-console.log(
-  "REFRESHED UPLOADS AFTER INVOICE:",
-  refreshedUploads
-);
-
-console.log(
-  "REFRESHED UPLOADS ERROR:",
-  refreshedUploadsError
-);
-
-if (refreshedUploadsError) {
-  throw new Error(
-    `Invoice saved, but recent imports could not refresh: ${refreshedUploadsError.message}`
-  );
-}
-
-setRecentUploads(refreshedUploads || []);
-
-if (typeof setClientImports === "function") {
-  setClientImports(refreshedUploads || []);
-}
-
-const savedInvoiceRows = Array.isArray(
-  result.invoiceUploads
-)
-  ? result.invoiceUploads
-  : [];
-
-if (
-  typeof setInvoiceUploads === "function"
-) {
-  setInvoiceUploads((previous) => {
-    const current = Array.isArray(previous)
-      ? previous
+    const savedInvoiceRows = Array.isArray(result.invoiceUploads)
+      ? result.invoiceUploads
       : [];
 
-    return [
-      ...savedInvoiceRows,
-      ...current.filter(
-        (oldInvoice) =>
-          !savedInvoiceRows.some(
-            (newInvoice) =>
-              newInvoice.id === oldInvoice.id
-          )
-      ),
-    ];
-  });
-}
+    const parsedInvoiceItems = Array.isArray(result.invoiceItems)
+      ? result.invoiceItems
+      : [];
 
-setUploadType("invoices");
-selectedUploadTypeRef.current = "invoices";
+    const uploadRows = Array.isArray(result.uploads)
+      ? result.uploads
+      : result.uploadRow
+        ? [result.uploadRow]
+        : [];
 
-setMessage(
-  `${result.uploadedCount} invoice${
-    result.uploadedCount === 1 ? "" : "s"
-  } uploaded successfully. Check Recent Imports.`
-);
+    console.log("SAVED INVOICE ROWS:", savedInvoiceRows);
+    console.log("INVOICE ITEMS FOR WEBSITE:", parsedInvoiceItems);
+    console.log("UPLOAD ROWS FOR WEBSITE:", uploadRows);
 
-input.value = "";
+    const primaryInvoice = savedInvoiceRows[0] || null;
+    const primaryFile = files[0] || null;
+
+    /*
+      These are the actual invoice states declared in your file.
+    */
+    setInvoicesData(parsedInvoiceItems);
+
+    setInvoiceUploads((previous) => {
+      const current = Array.isArray(previous) ? previous : [];
+
+      return [
+        ...savedInvoiceRows,
+        ...current.filter(
+          (existingInvoice) =>
+            !savedInvoiceRows.some(
+              (newInvoice) =>
+                newInvoice.id === existingInvoice.id
+            )
+        ),
+      ];
+    });
+
+    /*
+      These states feed your generic website upload preview.
+    */
+    setPendingUploadRows(parsedInvoiceItems);
+    pendingUploadRowsRef.current = parsedInvoiceItems;
+
+    setRows(parsedInvoiceItems);
+
+    setHeaders(
+      parsedInvoiceItems.length
+        ? Object.keys(parsedInvoiceItems[0])
+        : []
+    );
+
+    setPendingUploadSummary({
+      uploadType: "invoices",
+      fileName:
+        primaryInvoice?.file_name ||
+        primaryFile?.name ||
+        "Invoice Upload",
+      rowCount: parsedInvoiceItems.length,
+      rows: parsedInvoiceItems,
+      uploadedAt: Date.now(),
+      supplierName:
+        primaryInvoice?.supplier_name ||
+        "Unknown Supplier",
+      invoiceDate:
+        primaryInvoice?.invoice_date ||
+        null,
+      invoiceUploadId:
+        primaryInvoice?.id ||
+        null,
+      uploadId:
+        result.uploadRow?.id ||
+        uploadRows[0]?.id ||
+        null,
+    });
+
+    setUploadType("invoices");
+    selectedUploadTypeRef.current = "invoices";
+
+    /*
+      Add the upload to Recent Imports immediately.
+    */
+    if (uploadRows.length) {
+      setRecentUploads((previous) => {
+        const current = Array.isArray(previous)
+          ? previous
+          : [];
+
+        return [
+          ...uploadRows,
+          ...current.filter(
+            (existingUpload) =>
+              !uploadRows.some(
+                (newUpload) =>
+                  newUpload.id === existingUpload.id
+              )
+          ),
+        ];
+      });
+
+      setClientImports((previous) => {
+        const current = Array.isArray(previous)
+          ? previous
+          : [];
+
+        return [
+          ...uploadRows,
+          ...current.filter(
+            (existingUpload) =>
+              !uploadRows.some(
+                (newUpload) =>
+                  newUpload.id === existingUpload.id
+              )
+          ),
+        ];
+      });
+    }
+
+    setSupplierAlerts(
+      Array.isArray(result.alerts)
+        ? result.alerts
+        : []
+    );
+
+    const rowCount = parsedInvoiceItems.length;
+
+    const successMessage =
+      rowCount > 0
+        ? `${result.uploadedCount} invoice uploaded with ${rowCount} rows.`
+        : `${result.uploadedCount} invoice uploaded, but no line-item rows were extracted.`;
+
+    setInvoiceUploadMessage(successMessage);
+    setMessage(successMessage);
+
+    input.value = "";
   } catch (error) {
     console.error("INVOICE FRONTEND ERROR:", error);
 
     const errorMessage =
       error?.message || "Invoice upload failed.";
 
+    setInvoiceUploadMessage(errorMessage);
     setMessage(errorMessage);
     alert(errorMessage);
 
     input.value = "";
+  } finally {
+    setInvoiceUploadLoading(false);
   }
 };
 const handleIngredientsUpload = async (event) => {
