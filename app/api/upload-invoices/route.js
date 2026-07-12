@@ -488,7 +488,8 @@ if (PDFParseClass) {
         console.log("PDF TEXT SAMPLE:", text.slice(0, 500));
 
         const parsedInvoice = parseInvoiceText(text);
-
+console.log("PARSED INVOICE:", parsedInvoice);
+console.log("PARSED ITEM COUNT:", parsedInvoice.items.length);
         const { data: newUploadRow, error: uploadError } =
           await supabase
             .from("uploads")
