@@ -377,15 +377,26 @@ export async function POST(req) {
 
     let pdfParse = null;
 
-    try {
-      const pdfParseModule = await import("pdf-parse");
-      pdfParse = pdfParseModule.default || pdfParseModule;
-    } catch (pdfImportError) {
-      console.error(
-        "pdf-parse could not be loaded. Parent invoices will still save:",
-        pdfImportError
-      );
-    }
+   let PDFParseClass = null;
+
+try {
+  const pdfParseModule = await import("pdf-parse");
+
+  PDFParseClass =
+    pdfParseModule.PDFParse ||
+    pdfParseModule.default?.PDFParse ||
+    null;
+
+  console.log(
+    "PDF PARSE CLASS FOUND:",
+    Boolean(PDFParseClass)
+  );
+} catch (pdfImportError) {
+  console.error(
+    "PDF PARSE IMPORT FAILED:",
+    pdfImportError
+  );
+}
 
     const createdUploadRows = [];
     const createdInvoiceRows = [];
@@ -422,24 +433,55 @@ export async function POST(req) {
         }
 
         let text = "";
+if (PDFParseClass) {
+  let parser = null;
 
-        if (pdfParse) {
-          try {
-            const parsedPdf = await pdfParse(buffer);
-            text = parsedPdf?.text || "";
-          } catch (pdfError) {
-            console.error(
-              `PDF parsing failed for ${file.name}; saving parent invoice anyway:`,
-              pdfError
-            );
+  try {
+    parser = new PDFParseClass({
+      data: new Uint8Array(buffer),
+    });
 
-            warnings.push({
-              fileName: file.name,
-              message:
-                "The invoice was saved, but PDF text could not be extracted.",
-            });
-          }
-        }
+    const parsedPdf = await parser.getText();
+
+    text =
+      parsedPdf?.text ||
+      parsedPdf?.pages
+        ?.map((page) => page?.text || "")
+        .join("\n") ||
+      "";
+
+    console.log("PDF EXTRACTED TEXT:", text);
+    console.log(
+      "PDF EXTRACTED TEXT LENGTH:",
+      text.length
+    );
+  } catch (pdfError) {
+    console.error(
+      `PDF parsing failed for ${file.name}:`,
+      {
+        message: pdfError?.message,
+        stack: pdfError?.stack,
+      }
+    );
+
+    warnings.push({
+      fileName: file.name,
+      message:
+        "The invoice saved, but PDF text extraction failed.",
+    });
+  } finally {
+    if (parser) {
+      try {
+        await parser.destroy();
+      } catch (destroyError) {
+        console.warn(
+          "PDF parser cleanup failed:",
+          destroyError
+        );
+      }
+    }
+  }
+}
 
         console.log("PDF FILE:", file.name);
         console.log("PDF TEXT LENGTH:", text.length);
@@ -565,7 +607,27 @@ export async function POST(req) {
             invoiceRow,
             uploadRow,
           });
+const finalRowCount =
+  lineItemResult.insertedItems.length ||
+  parsedInvoice.items.length ||
+  0;
 
+const { error: rowCountUpdateError } =
+  await supabase
+    .from("uploads")
+    .update({
+      row_count: finalRowCount,
+    })
+    .eq("id", uploadRow.id);
+
+if (rowCountUpdateError) {
+  console.error(
+    "FAILED TO UPDATE INVOICE ROW COUNT:",
+    rowCountUpdateError
+  );
+} else {
+  uploadRow.row_count = finalRowCount;
+}
         createdLineItems.push(
           ...lineItemResult.insertedItems
         );
