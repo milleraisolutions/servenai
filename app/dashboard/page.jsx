@@ -11280,8 +11280,11 @@ useEffect(() => {
  
 }, [dataOwnerId, activeLocation]);
 useEffect(() => {
-  const loadInvoices = async () => {
-    if (!dataOwnerId) return;
+  let cancelled = false;
+  let retryTimer = null;
+
+  const loadInvoices = async (attempt = 1) => {
+    if (!dataOwnerId || cancelled) return;
 
     try {
       let invoiceUploadQuery = supabase
@@ -11299,9 +11302,31 @@ useEffect(() => {
       });
 
       if (invoiceUploadError) {
-        console.error("Invoice uploads load error:", invoiceUploadError);
-      } else {
-        setInvoiceUploads(savedInvoiceUploads || []);
+        const errorText = String(
+          invoiceUploadError?.message ||
+            invoiceUploadError?.details ||
+            invoiceUploadError ||
+            ""
+        );
+
+        const isLockError =
+          errorText.includes("Lock broken by another request") ||
+          errorText.includes("AbortError");
+
+        if (isLockError && attempt < 5 && !cancelled) {
+          retryTimer = setTimeout(() => {
+            loadInvoices(attempt + 1);
+          }, 300 * attempt);
+
+          return;
+        }
+
+        console.error(
+          "Invoice uploads load error:",
+          invoiceUploadError
+        );
+
+        return;
       }
 
       let invoiceItemsQuery = supabase
@@ -11319,19 +11344,80 @@ useEffect(() => {
       });
 
       if (invoiceItemsError) {
-        console.error("Invoice line items load error:", invoiceItemsError);
-      } else {
-        setInvoicesData(savedInvoiceItems || []);
+        const errorText = String(
+          invoiceItemsError?.message ||
+            invoiceItemsError?.details ||
+            invoiceItemsError ||
+            ""
+        );
+
+        const isLockError =
+          errorText.includes("Lock broken by another request") ||
+          errorText.includes("AbortError");
+
+        if (isLockError && attempt < 5 && !cancelled) {
+          retryTimer = setTimeout(() => {
+            loadInvoices(attempt + 1);
+          }, 300 * attempt);
+
+          return;
+        }
+
+        console.error(
+          "Invoice line items load error:",
+          invoiceItemsError
+        );
+
+        return;
       }
 
-      console.log("LOADED INVOICE UPLOADS:", savedInvoiceUploads?.length || 0);
-      console.log("LOADED INVOICE ITEMS:", savedInvoiceItems?.length || 0);
+      if (cancelled) return;
+
+      setInvoiceUploads(savedInvoiceUploads || []);
+      setInvoicesData(savedInvoiceItems || []);
+
+      console.log(
+        "LOADED INVOICE UPLOADS:",
+        savedInvoiceUploads?.length || 0
+      );
+
+      console.log(
+        "LOADED INVOICE ITEMS:",
+        savedInvoiceItems?.length || 0
+      );
     } catch (error) {
+      const errorText = String(
+        error?.message || error || ""
+      );
+
+      const isLockError =
+        errorText.includes("Lock broken by another request") ||
+        errorText.includes("AbortError");
+
+      if (isLockError && attempt < 5 && !cancelled) {
+        retryTimer = setTimeout(() => {
+          loadInvoices(attempt + 1);
+        }, 300 * attempt);
+
+        return;
+      }
+
       console.error("Invoice load crash:", error);
     }
   };
 
-  loadInvoices();
+  const startTimer = setTimeout(() => {
+    loadInvoices();
+  }, 500);
+
+  return () => {
+    cancelled = true;
+    clearTimeout(startTimer);
+
+    if (retryTimer) {
+      clearTimeout(retryTimer);
+    }
+  };
 }, [dataOwnerId, activeLocation]);
 useEffect(() => {
   const loadBatchPrepData = async () => {
