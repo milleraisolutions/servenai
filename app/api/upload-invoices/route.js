@@ -77,46 +77,45 @@ function withTimeout(promise, milliseconds, message) {
 ====================================================== */
 
 function parseInvoiceText(text) {
-  const rawText = String(text || "");
-
-  const lines = rawText
-    .split(/\r?\n/)
-    .map((line) =>
-      line
-        .replace(/\u00a0/g, " ")
-        .replace(/\s+/g, " ")
-        .trim()
-    )
-    .filter(Boolean);
+  const rawText = String(text || "")
+    .replace(/\u00a0/g, " ")
+    .replace(/\r/g, "\n")
+    .replace(/[ \t]+/g, " ")
+    .trim();
 
   console.log(
-    "INVOICE PARSER LINE COUNT:",
-    lines.length
+    "RAW INVOICE TEXT FOR PARSER:",
+    rawText.slice(0, 3000)
   );
+
+  const lines = rawText
+    .split(/\n+/)
+    .map((line) => line.replace(/\s+/g, " ").trim())
+    .filter(Boolean);
 
   const supplierName =
     lines.find((line) => {
-      const lowerLine = line.toLowerCase();
+      const lower = line.toLowerCase();
 
       return (
         line.length > 2 &&
         line.length < 150 &&
         !line.includes("$") &&
-        !/\b\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\b/.test(
-          line
-        ) &&
-        !lowerLine.includes("invoice date") &&
-        !lowerLine.includes("invoice number") &&
-        !lowerLine.includes("customer") &&
-        !lowerLine.includes("description") &&
-        !lowerLine.includes("subtotal") &&
-        !lowerLine.includes("tax") &&
-        !lowerLine.includes("total")
+        !/\b\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}\b/.test(line) &&
+        !lower.includes("invoice date") &&
+        !lower.includes("invoice number") &&
+        !lower.includes("customer") &&
+        !lower.includes("description") &&
+        !lower.includes("subtotal") &&
+        !lower.includes("tax") &&
+        !lower.includes("total")
       );
-    }) || "Unknown Supplier";
+    }) ||
+    rawText.match(/^(.+?)(?=\s+Invoice Date[:\s])/i)?.[1]?.trim() ||
+    "Unknown Supplier";
 
   const dateMatch = rawText.match(
-    /\b(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})\b/
+    /\b(\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4})\b/
   );
 
   const invoiceDate = dateMatch
@@ -125,59 +124,74 @@ function parseInvoiceText(text) {
 
   const items = [];
 
-  for (const line of lines) {
-    const tokens = line
-      .split(" ")
-      .map((token) => token.trim())
-      .filter(Boolean);
+  /*
+    Matches rows such as:
+
+    Ribeye Steak 10 lb $12.50 $125.00
+
+    This works whether rows are separated by line breaks
+    or flattened into one long PDF text string.
+  */
+  const itemPattern =
+    /([A-Za-z][A-Za-z0-9 &'().,\/-]*?)\s+(\d+(?:\.\d+)?)\s+([A-Za-z][A-Za-z0-9._\/-]{0,14})\s+\$?\s*([\d,]+(?:\.\d{1,4})?)\s+\$?\s*([\d,]+(?:\.\d{1,4})?)(?=\s+[A-Za-z]|\s+Subtotal\b|\s+Tax\b|\s+Total\b|$)/gi;
+
+  let match;
+
+  while ((match = itemPattern.exec(rawText)) !== null) {
+    let itemName = String(match[1] || "")
+      .replace(
+        /^(?:description\s+qty\s+unit\s+unit price\s+total\s*)/i,
+        ""
+      )
+      .trim();
 
     /*
-      Expected ending:
-
-      Item Name | Quantity | Unit | Unit Price | Total
-
-      Example:
-      Ribeye Steak 10 lb $12.50 $125.00
+      Remove invoice metadata that may appear before the first
+      item when PDF text is flattened.
     */
-    if (tokens.length < 5) {
+    itemName = itemName
+      .replace(/^.*?customer:\s*[^$]+?(?=[A-Z][a-z])/i, "")
+      .replace(/^.*?invoice number:\s*\S+\s*/i, "")
+      .replace(/^.*?invoice date:\s*\S+\s*/i, "")
+      .trim();
+
+    const lowerName = itemName.toLowerCase();
+
+    if (
+      !itemName ||
+      lowerName.includes("description") ||
+      lowerName.includes("subtotal") ||
+      lowerName === "total" ||
+      lowerName === "tax" ||
+      lowerName.includes("amount due") ||
+      lowerName.includes("balance")
+    ) {
       continue;
     }
 
-    const totalString = tokens.pop();
-    const unitPriceString = tokens.pop();
-    const unit = tokens.pop();
-    const quantityString = tokens.pop();
-
-    const quantity = safeNumber(quantityString);
-    const unitPrice = safeNumber(unitPriceString);
-    const totalPrice = safeNumber(totalString);
-
-    const validUnit =
-      typeof unit === "string" &&
-      /^[a-zA-Z][a-zA-Z0-9._/-]{0,14}$/.test(unit);
+    const quantity = safeNumber(match[2]);
+    const unit = String(match[3] || "").trim();
+    const unitPrice = safeNumber(match[4]);
+    const totalPrice = safeNumber(match[5]);
 
     if (
       quantity <= 0 ||
       unitPrice < 0 ||
-      totalPrice < 0 ||
-      !validUnit
+      totalPrice < 0
     ) {
       continue;
     }
 
-    const itemName = tokens.join(" ").trim();
-    const lowerItemName = itemName.toLowerCase();
+    const duplicate = items.some(
+      (existingItem) =>
+        existingItem.item_name.toLowerCase() ===
+          itemName.toLowerCase() &&
+        existingItem.quantity === quantity &&
+        existingItem.unit_price === unitPrice &&
+        existingItem.total_price === totalPrice
+    );
 
-    if (
-      !itemName ||
-      lowerItemName.includes("description") ||
-      lowerItemName.includes("subtotal") ||
-      lowerItemName.includes("grand total") ||
-      lowerItemName === "total" ||
-      lowerItemName.includes("amount due") ||
-      lowerItemName.includes("balance") ||
-      lowerItemName.includes("invoice")
-    ) {
+    if (duplicate) {
       continue;
     }
 
@@ -190,17 +204,15 @@ function parseInvoiceText(text) {
     });
   }
 
-  console.log(
-    "FINAL PARSED INVOICE ITEMS:",
-    items
-  );
+  console.log("PARSED SUPPLIER:", supplierName);
+  console.log("PARSED INVOICE DATE:", invoiceDate);
+  console.log("FINAL PARSED INVOICE ITEMS:", items);
+  console.log("FINAL PARSED ITEM COUNT:", items.length);
 
   return {
-    supplierName:
-      String(supplierName || "Unknown Supplier").slice(
-        0,
-        255
-      ),
+    supplierName: String(
+      supplierName || "Unknown Supplier"
+    ).slice(0, 255),
     invoiceDate,
     items,
   };
