@@ -29601,10 +29601,11 @@ return (
     </button>
 
     <button
-     onClick={() => {
-  console.log("RECENT IMPORT DELETE ITEM:", item);
-  deleteClientUpload(item.id);
-}}
+  type="button"
+  onClick={() => {
+    console.log("RECENT IMPORT DELETE ITEM:", item);
+    deleteImport(item.id);
+  }}
       style={{
         padding: "8px 12px",
         borderRadius: "10px",
