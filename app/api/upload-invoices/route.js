@@ -770,7 +770,17 @@ export async function POST(req) {
 
         const parsedInvoice =
           parseInvoiceText(text);
+if (!text.trim()) {
+  throw new Error(
+    `No PDF text was extracted from ${fileName}. The invoice was not saved.`
+  );
+}
 
+if (!parsedInvoice.items.length) {
+  throw new Error(
+    `PDF text was extracted from ${fileName}, but no invoice line items were recognized.`
+  );
+}
         console.log(
           "PARSED INVOICE:",
           parsedInvoice
