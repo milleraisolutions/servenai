@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-
+import { extractText, getDocumentProxy } from "unpdf";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -291,109 +291,64 @@ async function safelyDeleteUploadRow(
    PDF-PARSE COMPATIBILITY
 ====================================================== */
 
-async function loadPdfParser() {
+
+
+async function extractPdfText(buffer, fileName) {
   try {
-    const pdfParseModule = await import("pdf-parse");
+    console.log("UNPDF EXTRACTION START:", fileName);
 
-    const PDFParseClass =
-      pdfParseModule?.PDFParse ||
-      pdfParseModule?.default?.PDFParse ||
-      null;
+    const pdf = await Promise.race([
+      getDocumentProxy(new Uint8Array(buffer)),
+      new Promise((_, reject) =>
+        setTimeout(
+          () =>
+            reject(
+              new Error(
+                `PDF loading timed out for ${fileName}.`
+              )
+            ),
+          20000
+        )
+      ),
+    ]);
 
-    const legacyPdfParse =
-      typeof pdfParseModule?.default === "function"
-        ? pdfParseModule.default
-        : null;
+    const result = await Promise.race([
+      extractText(pdf, {
+        mergePages: true,
+      }),
+      new Promise((_, reject) =>
+        setTimeout(
+          () =>
+            reject(
+              new Error(
+                `PDF text extraction timed out for ${fileName}.`
+              )
+            ),
+          20000
+        )
+      ),
+    ]);
 
-    console.log("PDF PARSER MODE:", {
-      classApi: Boolean(PDFParseClass),
-      legacyApi: Boolean(legacyPdfParse),
-      exports: Object.keys(pdfParseModule || {}),
+    const text = Array.isArray(result?.text)
+      ? result.text.join("\n")
+      : String(result?.text || "");
+
+    console.log("UNPDF TEXT LENGTH:", text.length);
+    console.log("UNPDF TEXT SAMPLE:", text.slice(0, 1500));
+
+    return text;
+  } catch (error) {
+    console.error("UNPDF EXTRACTION FAILED:", {
+      fileName,
+      message: error?.message,
+      stack: error?.stack,
     });
 
-    return {
-      PDFParseClass,
-      legacyPdfParse,
-    };
-  } catch (error) {
-    console.error(
-      "PDF PARSE IMPORT FAILED:",
-      error
-    );
-
-    return {
-      PDFParseClass: null,
-      legacyPdfParse: null,
-    };
-  }
-}
-
-async function extractPdfText({
-  buffer,
-  fileName,
-  PDFParseClass,
-  legacyPdfParse,
-}) {
-  let parser = null;
-
-  try {
-    if (PDFParseClass) {
-      console.log(
-        "USING PDF-PARSE CLASS API:",
-        fileName
-      );
-
-      parser = new PDFParseClass({
-        data: new Uint8Array(buffer),
-      });
-
-      const parsedPdf = await withTimeout(
-        parser.getText(),
-        20000,
-        `PDF parsing timed out for ${fileName}.`
-      );
-
-      return (
-        parsedPdf?.text ||
-        parsedPdf?.pages
-          ?.map((page) => page?.text || "")
-          .join("\n") ||
-        ""
-      );
-    }
-
-    if (legacyPdfParse) {
-      console.log(
-        "USING PDF-PARSE LEGACY API:",
-        fileName
-      );
-
-      const parsedPdf = await withTimeout(
-        legacyPdfParse(buffer),
-        20000,
-        `PDF parsing timed out for ${fileName}.`
-      );
-
-      return parsedPdf?.text || "";
-    }
-
     throw new Error(
-      "No compatible pdf-parse API was found."
+      `Could not extract PDF text from ${fileName}: ${
+        error?.message || "Unknown PDF extraction error"
+      }`
     );
-  } finally {
-    if (
-      parser &&
-      typeof parser.destroy === "function"
-    ) {
-      try {
-        await parser.destroy();
-      } catch (destroyError) {
-        console.warn(
-          "PDF parser cleanup failed:",
-          destroyError
-        );
-      }
-    }
   }
 }
 
@@ -678,10 +633,7 @@ export async function POST(req) {
       );
     }
 
-    const {
-      PDFParseClass,
-      legacyPdfParse,
-    } = await loadPdfParser();
+    
 
     const createdUploadRows = [];
     const createdInvoiceRows = [];
@@ -726,12 +678,10 @@ export async function POST(req) {
         let text = "";
 
         try {
-          text = await extractPdfText({
-            buffer,
-            fileName,
-            PDFParseClass,
-            legacyPdfParse,
-          });
+          text = await extractPdfText(
+  buffer,
+  fileName
+);
         } catch (pdfError) {
           console.error(
             `PDF parsing failed for ${fileName}:`,
