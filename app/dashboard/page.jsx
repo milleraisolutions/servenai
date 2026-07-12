@@ -309,7 +309,8 @@ const loadingLaborRef = useRef(false);
 const loadingKitchenPrepRef = useRef(false);
 const invoiceUploadInputRef = useRef(null);
 const loadingCustomersRef = useRef(false);
-
+// Add this next to your other useState hooks at the top of your file
+const [selectedInvoiceFile, setSelectedInvoiceFile] = useState(null);
 const loadAdminData = async () => {
   const { data: usersData, error: usersError } = await supabase
     .from("users")
@@ -815,16 +816,28 @@ const locationMenuItemsData = filterByActiveLocation(menuItemsData);
 const locationIngredientsData = filterByActiveLocation(ingredientsData);
 
 const locationInvoicesData = filterByActiveLocation(invoicesData);
-const handleInvoiceUpload = async (event) => {
-  console.log("INVOICE UPLOAD FIRED");
 
+const handleInvoiceFileChange = (event) => {
+  console.log("INVOICE FILE SELECTED");
   const input = event.currentTarget;
   const files = Array.from(input.files || []);
 
-  console.log("INVOICE FILES:", files);
-
   if (!files.length) {
-    setMessage("No invoice file was selected.");
+    setSelectedInvoiceFile(null);
+    return;
+  }
+
+  const file = files[0];
+  console.log("Selected Invoice Metadata:", { name: file.name, size: file.size, type: file.type });
+  
+  setSelectedInvoiceFile(file);
+  setMessage(`File loaded: "${file.name}". Ready to import.`);
+};
+const handleInvoiceUpload = async () => {
+  console.log("INVOICE UPLOAD INITIALIZED");
+
+  if (!selectedInvoiceFile) {
+    setMessage("Please select an invoice file first.");
     return;
   }
 
@@ -833,27 +846,23 @@ const handleInvoiceUpload = async (event) => {
     setInvoiceUploadMessage("Uploading invoice...");
     setMessage("Uploading invoice...");
 
+    // Fetch the active user session token
     const {
       data: { session },
       error: sessionError,
     } = await supabase.auth.getSession();
 
-    if (sessionError) {
-      throw sessionError;
-    }
+    if (sessionError) throw sessionError;
 
     if (!session?.access_token || !session?.user?.id) {
-      throw new Error(
-        "Your login session was not found. Log out and log back in."
-      );
+      throw new Error("Your login session was not found. Please log out and log back in.");
     }
 
+    // Pack the selected file into the form payload
     const formData = new FormData();
+    formData.append("files", selectedInvoiceFile, selectedInvoiceFile.name);
 
-    files.forEach((file) => {
-      formData.append("files", file, file.name);
-    });
-
+    console.log("Sending payload to /api/upload-invoices...");
     const response = await fetch("/api/upload-invoices", {
       method: "POST",
       headers: {
@@ -864,183 +873,104 @@ const handleInvoiceUpload = async (event) => {
     });
 
     const responseText = await response.text();
-
-    console.log("INVOICE API STATUS:", response.status);
-    console.log("INVOICE API RAW RESPONSE:", responseText);
+    console.log("INVOICE API STATUS CODE:", response.status);
 
     let result = {};
-
     try {
       result = responseText ? JSON.parse(responseText) : {};
     } catch {
-      throw new Error(
-        `Invoice route returned invalid data: ${responseText.slice(
-          0,
-          300
-        )}`
-      );
+      throw new Error(`Invoice server returned an invalid format: ${responseText.slice(0, 300)}`);
     }
 
-    console.log("INVOICE API RESULT:", result);
+    console.log("INVOICE API PARSED RESULT:", result);
 
     if (!response.ok || !result.success) {
       throw new Error(
         result?.failures?.[0]?.error ||
           result?.error ||
           result?.message ||
-          "Invoice upload failed."
+          "Invoice processing failed."
       );
     }
 
-    const savedInvoiceRows = Array.isArray(result.invoiceUploads)
-      ? result.invoiceUploads
-      : [];
+    // Safely extract database manifests from response
+    const savedInvoiceRows = Array.isArray(result.invoiceUploads) ? result.invoiceUploads : [];
+    const parsedInvoiceItems = Array.isArray(result.invoiceItems) ? result.invoiceItems : [];
+    const uploadRows = Array.isArray(result.uploads) 
+      ? result.uploads 
+      : result.uploadRow ? [result.uploadRow] : [];
 
-    const parsedInvoiceItems = Array.isArray(result.invoiceItems)
-      ? result.invoiceItems
-      : [];
-
-    const uploadRows = Array.isArray(result.uploads)
-      ? result.uploads
-      : result.uploadRow
-        ? [result.uploadRow]
-        : [];
-
-    console.log("SAVED INVOICE ROWS:", savedInvoiceRows);
-    console.log("INVOICE ITEMS FOR WEBSITE:", parsedInvoiceItems);
-    console.log("UPLOAD ROWS FOR WEBSITE:", uploadRows);
-
-    const primaryInvoice = savedInvoiceRows[0] || null;
-    const primaryFile = files[0] || null;
-
-    /*
-      These are the actual invoice states declared in your file.
-    */
+    // Sync live metrics into your active analytical component views
     setInvoicesData(parsedInvoiceItems);
 
     setInvoiceUploads((previous) => {
       const current = Array.isArray(previous) ? previous : [];
-
       return [
         ...savedInvoiceRows,
-        ...current.filter(
-          (existingInvoice) =>
-            !savedInvoiceRows.some(
-              (newInvoice) =>
-                newInvoice.id === existingInvoice.id
-            )
-        ),
+        ...current.filter((existing) => !savedInvoiceRows.some((newInv) => newInv.id === existing.id)),
       ];
     });
 
-    /*
-      These states feed your generic website upload preview.
-    */
+    // Populate data visualization preview caches
     setPendingUploadRows(parsedInvoiceItems);
-    pendingUploadRowsRef.current = parsedInvoiceItems;
+    if (pendingUploadRowsRef) {
+      pendingUploadRowsRef.current = parsedInvoiceItems;
+    }
 
     setRows(parsedInvoiceItems);
-
-    setHeaders(
-      parsedInvoiceItems.length
-        ? Object.keys(parsedInvoiceItems[0])
-        : []
-    );
+    setHeaders(parsedInvoiceItems.length ? Object.keys(parsedInvoiceItems[0]) : []);
 
     setPendingUploadSummary({
       uploadType: "invoices",
-      fileName:
-        primaryInvoice?.file_name ||
-        primaryFile?.name ||
-        "Invoice Upload",
+      fileName: savedInvoiceRows[0]?.file_name || selectedInvoiceFile.name,
       rowCount: parsedInvoiceItems.length,
       rows: parsedInvoiceItems,
       uploadedAt: Date.now(),
-      supplierName:
-        primaryInvoice?.supplier_name ||
-        "Unknown Supplier",
-      invoiceDate:
-        primaryInvoice?.invoice_date ||
-        null,
-      invoiceUploadId:
-        primaryInvoice?.id ||
-        null,
-      uploadId:
-        result.uploadRow?.id ||
-        uploadRows[0]?.id ||
-        null,
+      supplierName: savedInvoiceRows[0]?.supplier_name || "Unknown Supplier",
+      invoiceDate: savedInvoiceRows[0]?.invoice_date || null,
+      invoiceUploadId: savedInvoiceRows[0]?.id || null,
+      uploadId: result.uploadRow?.id || uploadRows[0]?.id || null,
     });
 
     setUploadType("invoices");
-    selectedUploadTypeRef.current = "invoices";
+    if (selectedUploadTypeRef) {
+      selectedUploadTypeRef.current = "invoices";
+    }
 
-    /*
-      Add the upload to Recent Imports immediately.
-    */
+    // Append history to recent operations tabs immediately
     if (uploadRows.length) {
-      setRecentUploads((previous) => {
-        const current = Array.isArray(previous)
-          ? previous
-          : [];
-
-        return [
-          ...uploadRows,
-          ...current.filter(
-            (existingUpload) =>
-              !uploadRows.some(
-                (newUpload) =>
-                  newUpload.id === existingUpload.id
-              )
-          ),
-        ];
+      setRecentUploads((prev) => {
+        const current = Array.isArray(prev) ? prev : [];
+        return [...uploadRows, ...current.filter((e) => !uploadRows.some((n) => n.id === e.id))];
       });
 
-      setClientImports((previous) => {
-        const current = Array.isArray(previous)
-          ? previous
-          : [];
-
-        return [
-          ...uploadRows,
-          ...current.filter(
-            (existingUpload) =>
-              !uploadRows.some(
-                (newUpload) =>
-                  newUpload.id === existingUpload.id
-              )
-          ),
-        ];
+      setClientImports((prev) => {
+        const current = Array.isArray(prev) ? prev : [];
+        return [...uploadRows, ...current.filter((e) => !uploadRows.some((n) => n.id === e.id))];
       });
     }
 
-    setSupplierAlerts(
-      Array.isArray(result.alerts)
-        ? result.alerts
-        : []
-    );
+    setSupplierAlerts(Array.isArray(result.alerts) ? result.alerts : []);
 
     const rowCount = parsedInvoiceItems.length;
-
-    const successMessage =
-      rowCount > 0
-        ? `${result.uploadedCount} invoice uploaded with ${rowCount} rows.`
-        : `${result.uploadedCount} invoice uploaded, but no line-item rows were extracted.`;
+    const successMessage = rowCount > 0
+      ? `Successfully parsed ${result.uploadedCount} invoice containing ${rowCount} items.`
+      : `Invoice saved, but no distinct line items could be extracted from the file structure.`;
 
     setInvoiceUploadMessage(successMessage);
     setMessage(successMessage);
 
-    input.value = "";
+    // Clear staging inputs upon successful processing completion
+    setSelectedInvoiceFile(null);
+    const nativeInput = document.getElementById("invoiceFileField");
+    if (nativeInput) nativeInput.value = "";
+
   } catch (error) {
-    console.error("INVOICE FRONTEND ERROR:", error);
-
-    const errorMessage =
-      error?.message || "Invoice upload failed.";
-
+    console.error("CRITICAL INVOICE FRONTEND ACTION FAILURE:", error);
+    const errorMessage = error?.message || "Invoice processing fell into an unexpected exception error.";
     setInvoiceUploadMessage(errorMessage);
     setMessage(errorMessage);
     alert(errorMessage);
-
-    input.value = "";
   } finally {
     setInvoiceUploadLoading(false);
   }
@@ -29254,19 +29184,14 @@ return (
   Upload Invoices
 </label>
 
+{/* 1. The Hidden Input Element (Stays hidden, handles the click) */}
 <input
   id="invoiceUpload"
   name="invoiceUpload"
   ref={invoiceUploadInputRef}
   type="file"
   accept="application/pdf,.pdf"
-  multiple
-  onChange={(event) => {
-    console.log("INVOICE INPUT CHANGED");
-    console.log("SELECTED INVOICE FILES:", event.target.files);
-
-    handleInvoiceUpload(event);
-  }}
+  onChange={handleInvoiceFileChange} // Updated to catch the file details first!
   style={{
     position: "absolute",
     width: "1px",
@@ -29275,6 +29200,52 @@ return (
     pointerEvents: "none",
   }}
 />
+
+{/* 2. New File Preview Box (Displays the filename on your website the second you choose it!) */}
+{selectedInvoiceFile && (
+  <div 
+    className="animate-fadeIn"
+    style={{ 
+      marginTop: "12px", 
+      padding: "12px", 
+      background: "#f8fafc", 
+      border: "1px solid #e2e8f0", 
+      borderRadius: "8px", 
+      fontSize: "14px",
+      display: "flex",
+      flexDirection: "column",
+      gap: "8px"
+    }}
+  >
+    <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "#334155" }}>
+      <span>📄</span>
+      <strong>{selectedInvoiceFile.name}</strong>
+      <span style={{ color: "#64748b" }}>
+        ({(selectedInvoiceFile.size / 1024).toFixed(1)} KB)
+      </span>
+    </div>
+    
+    {/* 3. The New Action Button to start processing */}
+    <button
+      type="button"
+      onClick={handleInvoiceUpload}
+      disabled={invoiceUploadLoading}
+      style={{
+        width: "100%",
+        padding: "8px 12px",
+        borderRadius: "6px",
+        background: invoiceUploadLoading ? "#cbd5e1" : "#2563eb",
+        color: "#fff",
+        border: "none",
+        fontWeight: "500",
+        cursor: invoiceUploadLoading ? "not-allowed" : "pointer",
+        transition: "background 0.2s"
+      }}
+    >
+      {invoiceUploadLoading ? "Extracting Line Items..." : "Confirm & Process Invoice"}
+    </button>
+  </div>
+)}
 
 <button
   onClick={() => {
