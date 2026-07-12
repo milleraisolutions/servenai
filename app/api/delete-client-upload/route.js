@@ -40,37 +40,53 @@ async function safeDeleteByUploadId(uploadId) {
 }
 
 async function deleteInvoiceData(uploadId) {
-  const { data: invoiceUploads, error: invoiceLookupError } = await supabase
+  const {
+    data: invoiceRows,
+    error: invoiceLookupError,
+  } = await supabase
     .from("invoice_uploads")
-    .select("id, upload_id, file_name, user_id")
+    .select("id")
     .eq("upload_id", uploadId);
 
-  if (invoiceLookupError) throw invoiceLookupError;
-
-  const invoiceIds = (invoiceUploads || []).map((row) => row.id);
-
-  const { error: lineByUploadError } = await supabase
-    .from("invoice_line_items")
-    .delete()
-    .eq("upload_id", uploadId);
-
-  if (lineByUploadError) throw lineByUploadError;
-
-  if (invoiceIds.length > 0) {
-    const { error: lineByInvoiceError } = await supabase
-      .from("invoice_line_items")
-      .delete()
-      .in("invoice_id", invoiceIds);
-
-    if (lineByInvoiceError) throw lineByInvoiceError;
+  if (invoiceLookupError) {
+    throw invoiceLookupError;
   }
 
-  const { error: invoiceUploadsDeleteError } = await supabase
-    .from("invoice_uploads")
-    .delete()
-    .eq("upload_id", uploadId);
+  const invoiceIds = (invoiceRows || [])
+    .map((row) => row.id)
+    .filter(Boolean);
 
-  if (invoiceUploadsDeleteError) throw invoiceUploadsDeleteError;
+  const { error: lineByUploadError } =
+    await supabase
+      .from("invoice_line_items")
+      .delete()
+      .eq("upload_id", uploadId);
+
+  if (lineByUploadError) {
+    throw lineByUploadError;
+  }
+
+  if (invoiceIds.length > 0) {
+    const { error: lineByInvoiceError } =
+      await supabase
+        .from("invoice_line_items")
+        .delete()
+        .in("invoice_id", invoiceIds);
+
+    if (lineByInvoiceError) {
+      throw lineByInvoiceError;
+    }
+  }
+
+  const { error: invoiceDeleteError } =
+    await supabase
+      .from("invoice_uploads")
+      .delete()
+      .eq("upload_id", uploadId);
+
+  if (invoiceDeleteError) {
+    throw invoiceDeleteError;
+  }
 }
 
 async function deleteLaborByFileName(fileName) {

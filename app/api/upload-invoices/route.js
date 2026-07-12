@@ -552,18 +552,18 @@ if (PDFParseClass) {
           );
         }
 
-        const invoicePayload = {
-          user_id: user.id,
-          supplier_name:
-            parsedInvoice.supplierName ||
-            "Unknown Supplier",
-          invoice_date:
-            parsedInvoice.invoiceDate || null,
-          file_name:
-            file.name || "Invoice Upload",
-          file_url:
-            signedUrlData?.signedUrl || filePath,
-        };
+       const invoicePayload = {
+  user_id: user.id,
+  upload_id: uploadRow.id,
+  supplier_name:
+    parsedInvoice.supplierName || "Unknown Supplier",
+  invoice_date:
+    parsedInvoice.invoiceDate || null,
+  file_name:
+    file.name || "Invoice Upload",
+  file_url:
+    signedUrlData?.signedUrl || filePath,
+};
 
         console.log(
           "INSERTING INVOICE_UPLOADS ROW:",

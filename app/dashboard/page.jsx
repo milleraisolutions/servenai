@@ -16433,58 +16433,215 @@ const deleteImport = async (uploadId) => {
   );
 
   if (!confirmed) return;
-if (String(uploadId).startsWith("labor-")) {
-  const laborId = String(uploadId).replace("labor-", "");
 
-  const { error } = await supabase
-    .from("labor_uploads")
-    .delete()
-    .eq("id", laborId);
+  /*
+    Keep your existing labor delete behavior.
+  */
+  if (String(uploadId).startsWith("labor-")) {
+    const laborId = String(uploadId).replace("labor-", "");
 
-  if (error) {
-    console.error("Labor delete failed:", error);
-    alert(`Labor delete failed: ${error.message}`);
+    const { data: deletedLaborRows, error: laborError } =
+      await supabase
+        .from("labor_uploads")
+        .delete()
+        .eq("id", laborId)
+        .select("id");
+
+    if (laborError) {
+      console.error("Labor delete failed:", laborError);
+      alert(`Labor delete failed: ${laborError.message}`);
+      return;
+    }
+
+    if (!deletedLaborRows?.length) {
+      alert("No matching labor upload was deleted.");
+      return;
+    }
+
+    setClientImports((prev) =>
+      (prev || []).filter((item) => item.id !== uploadId)
+    );
+
+    setRecentUploads((prev) =>
+      (prev || []).filter((item) => item.id !== uploadId)
+    );
+
+    setLaborData((prev) =>
+      (prev || []).filter((row) => row.id !== laborId)
+    );
+
+    setMessage("Labor import permanently deleted.");
     return;
   }
 
-  setClientImports((prev) =>
-    (prev || []).filter((item) => item.id !== uploadId)
-  );
+  const upload =
+    (clientImports || []).find((item) => item.id === uploadId) ||
+    (recentUploads || []).find((item) => item.id === uploadId) ||
+    null;
 
-  setRecentUploads((prev) =>
-    (prev || []).filter((item) => item.id !== uploadId)
-  );
+  const uploadType = String(
+    upload?.upload_type ||
+      upload?.source_name ||
+      ""
+  )
+    .trim()
+    .toLowerCase();
 
-  setLaborData((prev) =>
-    (prev || []).filter((row) => row.id !== laborId)
-  );
+  const fileName =
+    upload?.file_name ||
+    upload?.name ||
+    null;
 
-  setMessage("Labor import deleted.");
-  return;
-}
-  const { error } = await supabase
-    .from("uploads")
-    .delete()
-    .eq("id", uploadId);
+  console.log("DELETE IMPORT TARGET:", {
+    uploadId,
+    uploadType,
+    fileName,
+  });
 
- if (error) {
-  setClientImports(previousClientImports);
-  setRecentUploads(previousRecentUploads);
+  try {
+    setMessage("Deleting import...");
 
-  console.error("Some delete failed:", error);
-  alert(`Delete failed: ${error.message}`);
-  return;
-}
+    /*
+      Invoice uploads are removed through the server route
+      because the invoice records were created server-side.
+    */
+    const isInvoiceUpload = [
+      "invoice",
+      "invoices",
+      "invoice_upload",
+    ].includes(uploadType);
 
-  setClientImports((prev) =>
-    (prev || []).filter((item) => item.id !== uploadId)
-  );
+    if (isInvoiceUpload) {
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
 
-  setRecentUploads((prev) =>
-    (prev || []).filter((item) => item.id !== uploadId)
-  );
+      if (sessionError) {
+        throw sessionError;
+      }
 
-  setMessage("Import deleted.");
+      if (!session?.access_token) {
+        throw new Error(
+          "Your login session was not found."
+        );
+      }
+
+      const response = await fetch(
+        "/api/delete-invoice-upload",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            uploadId,
+            fileName,
+          }),
+        }
+      );
+
+      const responseText = await response.text();
+
+      console.log(
+        "DELETE INVOICE API STATUS:",
+        response.status
+      );
+
+      console.log(
+        "DELETE INVOICE API RESPONSE:",
+        responseText
+      );
+
+      let result = {};
+
+      try {
+        result = responseText
+          ? JSON.parse(responseText)
+          : {};
+      } catch {
+        result = {};
+      }
+
+      if (!response.ok || !result.success) {
+        throw new Error(
+          result?.error ||
+            "Invoice delete failed."
+        );
+      }
+    } else {
+      const {
+        data: deletedUploadRows,
+        error: uploadDeleteError,
+      } = await supabase
+        .from("uploads")
+        .delete()
+        .eq("id", uploadId)
+        .select("id");
+
+      console.log(
+        "DELETED UPLOAD ROWS:",
+        deletedUploadRows
+      );
+
+      console.log(
+        "DELETE UPLOAD ERROR:",
+        uploadDeleteError
+      );
+
+      if (uploadDeleteError) {
+        throw uploadDeleteError;
+      }
+
+      if (!deletedUploadRows?.length) {
+        throw new Error(
+          "No matching upload was deleted from Supabase."
+        );
+      }
+    }
+
+    /*
+      Only remove the card after the database confirms deletion.
+    */
+    setClientImports((prev) =>
+      (prev || []).filter((item) => item.id !== uploadId)
+    );
+
+    setRecentUploads((prev) =>
+      (prev || []).filter((item) => item.id !== uploadId)
+    );
+
+    if (isInvoiceUpload) {
+      setInvoiceUploads((prev) =>
+        (prev || []).filter(
+          (invoice) =>
+            invoice.id !== uploadId &&
+            invoice.upload_id !== uploadId &&
+            invoice.file_name !== fileName
+        )
+      );
+
+      setInvoicesData((prev) =>
+        (prev || []).filter(
+          (row) =>
+            row.upload_id !== uploadId &&
+            row.invoice_id !== uploadId &&
+            row.file_name !== fileName
+        )
+      );
+    }
+
+    setMessage("Import permanently deleted.");
+  } catch (error) {
+    console.error("DELETE IMPORT FAILED:", error);
+
+    const errorMessage =
+      error?.message || "Import delete failed.";
+
+    setMessage(errorMessage);
+    alert(errorMessage);
+  }
 };
 const restoreImport = async (uploadId) => {
   if (!uploadId) {
