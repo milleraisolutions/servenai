@@ -47,58 +47,86 @@ function parseInvoiceText(text) {
 
   const lines = rawText
     .split(/\r?\n/)
-    .map((line) => line.replace(/\s+/g, " ").trim())
+    .map((line) =>
+      line
+        .replace(/\u00a0/g, " ")
+        .replace(/\s+/g, " ")
+        .trim()
+    )
     .filter(Boolean);
+
+  console.log("INVOICE PARSER LINES:", lines);
 
   const supplierName =
     lines.find(
       (line) =>
         line.length > 2 &&
-        line.length < 120 &&
         !/\$/.test(line) &&
         !/\b\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\b/.test(line) &&
-        !/invoice|subtotal|total|tax|balance|amount due/i.test(line)
+        !/invoice date|invoice number|customer|description|subtotal|tax|total/i.test(
+          line
+        )
     ) ||
-    lines[0] ||
     "Unknown Supplier";
 
   const dateMatch = rawText.match(
     /\b(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})\b/
   );
 
-  const invoiceDate = dateMatch ? normalizeDate(dateMatch[1]) : null;
+  const invoiceDate = dateMatch
+    ? normalizeDate(dateMatch[1])
+    : null;
 
   const items = [];
 
   for (const line of lines) {
+    console.log("TESTING INVOICE LINE:", line);
+
     const match = line.match(
-      /^(.+?)\s+(\d+(?:\.\d+)?)\s*([a-zA-Z]+)?\s+\$?([\d,]+(?:\.\d{1,2})?)\s+\$?([\d,]+(?:\.\d{1,2})?)$/
+      /^(.+?)\s+(\d+(?:\.\d+)?)\s+([a-zA-Z]+)\s+\$?\s*([\d,]+(?:\.\d{1,2})?)\s+\$?\s*([\d,]+(?:\.\d{1,2})?)$/
     );
 
-    if (!match) continue;
+    if (!match) {
+      continue;
+    }
 
     const itemName = String(match[1] || "").trim();
 
     if (
-      itemName.length < 2 ||
-      /subtotal|grand total|total|tax|balance|amount due|invoice/i.test(
+      !itemName ||
+      /description|subtotal|grand total|total|tax|balance|amount due|invoice/i.test(
         itemName
       )
     ) {
       continue;
     }
 
+    const quantity = safeNumber(match[2]);
+    const unit = match[3] || null;
+    const unitPrice = safeNumber(match[4]);
+    const totalPrice = safeNumber(match[5]);
+
+    console.log("MATCHED INVOICE ITEM:", {
+      itemName,
+      quantity,
+      unit,
+      unitPrice,
+      totalPrice,
+    });
+
     items.push({
       item_name: itemName,
-      quantity: safeNumber(match[2]),
-      unit: match[3] || null,
-      unit_price: safeNumber(match[4]),
-      total_price: safeNumber(match[5]),
+      quantity,
+      unit,
+      unit_price: unitPrice,
+      total_price: totalPrice,
     });
   }
 
+  console.log("FINAL PARSED INVOICE ITEMS:", items);
+
   return {
-    supplierName: String(supplierName).slice(0, 255),
+    supplierName,
     invoiceDate,
     items,
   };
