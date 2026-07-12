@@ -818,38 +818,30 @@ const locationInvoicesData = filterByActiveLocation(invoicesData);
 const handleInvoiceUpload = async (event) => {
   console.log("INVOICE UPLOAD FIRED");
 
+  const input = event.currentTarget;
+  const files = Array.from(input.files || []);
+
+  console.log("INVOICE FILES:", files);
+
+  if (!files.length) {
+    console.error("NO INVOICE FILES RECEIVED");
+    setMessage("No invoice file was selected.");
+    return;
+  }
+
   try {
-    const files = Array.from(event.target.files || []);
-
-    console.log("INVOICE FILES:", files);
-
-    if (!files.length) {
-      setMessage("No invoice files selected.");
-      return;
-    }
-
-    const invalidFile = files.find(
-      (file) =>
-        file.type !== "application/pdf" &&
-        !String(file.name || "")
-          .toLowerCase()
-          .endsWith(".pdf")
-    );
-
-    if (invalidFile) {
-      setMessage(`${invalidFile.name} must be a PDF.`);
-      return;
-    }
-
-    setMessage("Uploading invoices...");
+    setMessage("Uploading invoice...");
 
     const {
       data: { session },
       error: sessionError,
     } = await supabase.auth.getSession();
 
-    console.log("INVOICE SESSION:", session);
     console.log("INVOICE SESSION ERROR:", sessionError);
+    console.log(
+      "INVOICE ACCESS TOKEN FOUND:",
+      Boolean(session?.access_token)
+    );
 
     if (sessionError) {
       throw new Error(sessionError.message);
@@ -857,17 +849,18 @@ const handleInvoiceUpload = async (event) => {
 
     if (!session?.access_token) {
       throw new Error(
-        "No active login session. Please log out and log back in."
+        "Your login session was not found. Log out and log back in."
       );
     }
 
     const formData = new FormData();
 
     files.forEach((file) => {
+      console.log("ADDING INVOICE TO FORM DATA:", file.name);
       formData.append("files", file, file.name);
     });
 
-    console.log("SENDING REQUEST TO /api/upload-invoices");
+    console.log("SENDING INVOICE API REQUEST");
 
     const response = await fetch("/api/upload-invoices", {
       method: "POST",
@@ -881,22 +874,15 @@ const handleInvoiceUpload = async (event) => {
     const responseText = await response.text();
 
     console.log("INVOICE API STATUS:", response.status);
-    console.log("INVOICE API RESPONSE TEXT:", responseText);
+    console.log("INVOICE API RAW RESPONSE:", responseText);
 
     let result = {};
 
     try {
-      result = responseText
-        ? JSON.parse(responseText)
-        : {};
-    } catch (jsonError) {
-      console.error(
-        "INVOICE RESPONSE JSON ERROR:",
-        jsonError
-      );
-
+      result = responseText ? JSON.parse(responseText) : {};
+    } catch {
       throw new Error(
-        `Invoice API returned invalid JSON: ${responseText.slice(
+        `Invoice route returned invalid data: ${responseText.slice(
           0,
           300
         )}`
@@ -906,31 +892,30 @@ const handleInvoiceUpload = async (event) => {
     console.log("INVOICE API RESULT:", result);
 
     if (!response.ok || !result.success) {
-      const failureMessage =
+      throw new Error(
         result?.failures?.[0]?.error ||
-        result?.error ||
-        result?.message ||
-        `Invoice upload failed with status ${response.status}`;
-
-      throw new Error(failureMessage);
+          result?.error ||
+          result?.message ||
+          "Invoice upload failed."
+      );
     }
 
     if (!Number(result.uploadedCount || 0)) {
       throw new Error(
         result?.failures?.[0]?.error ||
-          "The invoice API returned zero saved invoices."
+          "The invoice route saved zero invoices."
       );
     }
-
-    console.log(
-      "INVOICE SAVED ROWS:",
-      result.invoiceUploads
-    );
 
     setMessage(
       `${result.uploadedCount} invoice${
         result.uploadedCount === 1 ? "" : "s"
       } uploaded successfully.`
+    );
+
+    console.log(
+      "SUCCESSFULLY SAVED INVOICES:",
+      result.invoiceUploads
     );
 
     if (result.uploads?.length) {
@@ -940,17 +925,17 @@ const handleInvoiceUpload = async (event) => {
       ]);
     }
 
-    event.target.value = "";
+    input.value = "";
   } catch (error) {
     console.error("INVOICE FRONTEND ERROR:", error);
 
-    setMessage(
-      error?.message || "Invoice upload failed."
-    );
+    const errorMessage =
+      error?.message || "Invoice upload failed.";
 
-    alert(
-      error?.message || "Invoice upload failed."
-    );
+    setMessage(errorMessage);
+    alert(errorMessage);
+
+    input.value = "";
   }
 };
 const handleIngredientsUpload = async (event) => {
@@ -28895,20 +28880,51 @@ return (
   Upload Inventory
 </button>
 
-<button
+<label
+  htmlFor="invoiceUpload"
   onClick={() => {
+    console.log("UPLOAD INVOICES LABEL CLICKED");
+
     selectedUploadTypeRef.current = "invoices";
     setUploadType("invoices");
 
     if (invoiceUploadInputRef.current) {
       invoiceUploadInputRef.current.value = "";
-      invoiceUploadInputRef.current.click();
     }
   }}
-  style={setupSecondaryButton}
+  style={{
+    ...setupSecondaryButton,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+    boxSizing: "border-box",
+  }}
 >
   Upload Invoices
-</button>
+</label>
+
+<input
+  id="invoiceUpload"
+  name="invoiceUpload"
+  ref={invoiceUploadInputRef}
+  type="file"
+  accept="application/pdf,.pdf"
+  multiple
+  onChange={(event) => {
+    console.log("INVOICE INPUT CHANGED");
+    console.log("SELECTED INVOICE FILES:", event.target.files);
+
+    handleInvoiceUpload(event);
+  }}
+  style={{
+    position: "absolute",
+    width: "1px",
+    height: "1px",
+    opacity: 0,
+    pointerEvents: "none",
+  }}
+/>
 
 <button
   onClick={() => {
