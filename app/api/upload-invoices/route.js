@@ -234,20 +234,36 @@ try {
   .from("invoice-pdfs")
   .createSignedUrl(filePath, 60 * 60 * 24 * 7);
 
-      const { data: invoiceRow, error: invoiceError } = await supabase
-        .from("invoice_uploads")
-        .insert({
-          user_id: user.id,
-          upload_id: uploadRow.id,
-          supplier_name: parsedInvoice.supplierName,
-          invoice_date: parsedInvoice.invoiceDate,
-          file_name: file.name,
-         file_url: signedUrlData?.signedUrl || null,
-        })
-        .select()
-        .single();
+     console.log("INSERTING INVOICE_UPLOADS ROW:", {
+  user_id: user.id,
+  upload_id: uploadRow.id,
+  supplier_name: parsedInvoice.supplierName || "Unknown Supplier",
+  invoice_date: parsedInvoice.invoiceDate || null,
+  file_name: file.name,
+  file_url: signedUrlData?.signedUrl || null,
+});
 
-      if (invoiceError) throw invoiceError;
+const { data: invoiceRow, error: invoiceError } = await supabase
+  .from("invoice_uploads")
+  .insert({
+    user_id: user.id,
+    upload_id: uploadRow.id,
+    supplier_name: parsedInvoice.supplierName || "Unknown Supplier",
+    invoice_date: parsedInvoice.invoiceDate || null,
+    file_name: file.name,
+    file_url: signedUrlData?.signedUrl || null,
+  })
+  .select()
+  .single();
+
+console.log("INVOICE_UPLOADS INSERT DATA:", invoiceRow);
+console.log("INVOICE_UPLOADS INSERT ERROR:", invoiceError);
+
+if (invoiceError) {
+  throw new Error(
+    `invoice_uploads insert failed: ${invoiceError.message}`
+  );
+}
 
       created.invoiceIds.push(invoiceRow.id);
       createdInvoiceRows.push(invoiceRow);
@@ -307,17 +323,36 @@ try {
         }
       }
 
-      if (lineItemsToInsert.length > 0) {
-        const { data: insertedLineItems, error: lineError } = await supabase
-          .from("invoice_line_items")
-          .insert(lineItemsToInsert)
-          .select();
+    if (lineItemsToInsert.length > 0) {
+  console.log("LINE ITEMS TO INSERT:", lineItemsToInsert);
 
-        if (lineError) throw lineError;
+  const { data: insertedLineItems, error: lineError } = await supabase
+    .from("invoice_line_items")
+    .insert(lineItemsToInsert)
+    .select();
 
-        created.lineItemIds.push(...insertedLineItems.map((item) => item.id));
-        createdLineItems.push(...insertedLineItems);
-      }
+  console.log("LINE ITEM INSERT DATA:", insertedLineItems);
+  console.log("LINE ITEM INSERT ERROR:", lineError);
+
+  if (lineError) {
+    console.error(
+      "Invoice saved, but invoice line items failed:",
+      lineError
+    );
+
+    alerts.push({
+      type: "line_item_import_error",
+      fileName: file.name,
+      message: lineError.message,
+    });
+  } else {
+    created.lineItemIds.push(
+      ...(insertedLineItems || []).map((item) => item.id)
+    );
+
+    createdLineItems.push(...(insertedLineItems || []));
+  }
+}
     }
 
     return NextResponse.json({
@@ -330,7 +365,13 @@ try {
       alerts,
     });
   } catch (error) {
-    console.error("Invoice upload error:", error);
+   console.error("INVOICE UPLOAD ROUTE FAILED:", {
+  message: error?.message,
+  details: error?.details,
+  hint: error?.hint,
+  code: error?.code,
+  stack: error?.stack,
+});
 
     await rollbackCreatedData(
       createClient(
