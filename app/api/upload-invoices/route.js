@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 function normalizeDate(dateStr) {
   if (!dateStr) return null;
@@ -13,34 +14,58 @@ function normalizeDate(dateStr) {
 
   let [month, day, year] = parts;
 
-  if (year.length === 2) year = `20${year}`;
+  month = String(month || "").padStart(2, "0");
+  day = String(day || "").padStart(2, "0");
 
-  return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+  if (String(year || "").length === 2) {
+    year = `20${year}`;
+  }
+
+  const normalized = `${year}-${month}-${day}`;
+  const parsedDate = new Date(`${normalized}T00:00:00Z`);
+
+  if (Number.isNaN(parsedDate.getTime())) return null;
+
+  return normalized;
 }
 
 function safeNumber(value) {
   if (value == null) return 0;
 
-  const cleaned = String(value).replace(/[$,]/g, "").trim();
-  const num = Number(cleaned);
+  const cleaned = String(value)
+    .replace(/[$,\s]/g, "")
+    .replace(/[()]/g, "")
+    .trim();
 
-  return Number.isFinite(num) ? num : 0;
+  const number = Number(cleaned);
+
+  return Number.isFinite(number) ? number : 0;
 }
 
 function parseInvoiceText(text) {
-  const lines = String(text || "")
-    .split("\n")
+  const rawText = String(text || "");
+
+  const lines = rawText
+    .split(/\r?\n/)
     .map((line) => line.replace(/\s+/g, " ").trim())
     .filter(Boolean);
 
   const supplierName =
     lines.find(
       (line) =>
-        !line.match(/\$|\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}/) &&
-        line.length > 2
-    ) || "Unknown Supplier";
+        line.length > 2 &&
+        line.length < 120 &&
+        !/\$/.test(line) &&
+        !/\b\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\b/.test(line) &&
+        !/invoice|subtotal|total|tax|balance|amount due/i.test(line)
+    ) ||
+    lines[0] ||
+    "Unknown Supplier";
 
-  const dateMatch = text.match(/\b(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})\b/);
+  const dateMatch = rawText.match(
+    /\b(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})\b/
+  );
+
   const invoiceDate = dateMatch ? normalizeDate(dateMatch[1]) : null;
 
   const items = [];
@@ -52,11 +77,13 @@ function parseInvoiceText(text) {
 
     if (!match) continue;
 
-    const itemName = match[1].trim();
+    const itemName = String(match[1] || "").trim();
 
     if (
       itemName.length < 2 ||
-      /subtotal|total|tax|balance|amount due|invoice/i.test(itemName)
+      /subtotal|grand total|total|tax|balance|amount due|invoice/i.test(
+        itemName
+      )
     ) {
       continue;
     }
@@ -71,65 +98,216 @@ function parseInvoiceText(text) {
   }
 
   return {
-    supplierName,
+    supplierName: String(supplierName).slice(0, 255),
     invoiceDate,
     items,
   };
 }
 
-async function rollbackCreatedData(supabase, created) {
+function createSupabaseAdmin() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error("Missing Supabase server configuration.");
+  }
+
+  return createClient(supabaseUrl, serviceRoleKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  });
+}
+
+function getBearerToken(req) {
+  const authHeader = req.headers.get("authorization") || "";
+
+  if (!authHeader.toLowerCase().startsWith("bearer ")) {
+    return null;
+  }
+
+  return authHeader.slice(7).trim() || null;
+}
+
+async function safelyRemoveStorageFile(supabase, filePath) {
+  if (!filePath) return;
+
+  const { error } = await supabase.storage
+    .from("invoice-pdfs")
+    .remove([filePath]);
+
+  if (error) {
+    console.error("Failed to remove invoice storage file:", error);
+  }
+}
+
+async function safelyDeleteUploadRow(supabase, uploadId) {
+  if (!uploadId) return;
+
+  const { error } = await supabase
+    .from("uploads")
+    .delete()
+    .eq("id", uploadId);
+
+  if (error) {
+    console.error("Failed to remove uploads row:", error);
+  }
+}
+
+async function insertInvoiceLineItems({
+  supabase,
+  user,
+  file,
+  parsedInvoice,
+  invoiceRow,
+  uploadRow,
+}) {
+  if (!parsedInvoice.items.length) {
+    return {
+      insertedItems: [],
+      alerts: [],
+      warning: null,
+    };
+  }
+
   try {
-    if (created.lineItemIds.length) {
+    const rows = [];
+    const alerts = [];
+
+    for (const item of parsedInvoice.items) {
+      let previousPrice = null;
+
+      const { data: previousItem, error: previousError } = await supabase
+        .from("invoice_line_items")
+        .select("unit_price, created_at")
+        .eq("user_id", user.id)
+        .ilike("item_name", item.item_name)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (previousError) {
+        console.error(
+          `Previous-price lookup failed for ${item.item_name}:`,
+          previousError
+        );
+      } else {
+        previousPrice = previousItem?.unit_price ?? null;
+      }
+
+      const priceChange =
+        previousPrice != null
+          ? Number(item.unit_price || 0) - Number(previousPrice || 0)
+          : null;
+
+      const priceChangePercent =
+        previousPrice != null && Number(previousPrice) > 0
+          ? (priceChange / Number(previousPrice)) * 100
+          : null;
+
+      const flaggedIncrease =
+        priceChangePercent != null && priceChangePercent >= 5;
+
+      rows.push({
+        invoice_id: invoiceRow.id,
+        upload_id: uploadRow?.id || null,
+        user_id: user.id,
+        file_name: file.name || "Invoice Upload",
+        supplier_name:
+          parsedInvoice.supplierName || "Unknown Supplier",
+        item_name: item.item_name,
+        unit: item.unit,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        total_price: item.total_price,
+        previous_unit_price: previousPrice,
+        price_change: priceChange,
+        price_change_percent: priceChangePercent,
+        flagged_increase: flaggedIncrease,
+      });
+
+      if (flaggedIncrease) {
+        alerts.push({
+          item: item.item_name,
+          supplier: parsedInvoice.supplierName,
+          oldPrice: previousPrice,
+          newPrice: item.unit_price,
+          percentChange: priceChangePercent,
+        });
+      }
+    }
+
+    const { data: insertedItems, error: lineItemError } =
       await supabase
         .from("invoice_line_items")
-        .delete()
-        .in("id", created.lineItemIds);
+        .insert(rows)
+        .select();
+
+    if (lineItemError) {
+      console.error(
+        "Invoice parent saved, but invoice line items failed:",
+        lineItemError
+      );
+
+      return {
+        insertedItems: [],
+        alerts,
+        warning: `Invoice saved, but line items failed: ${lineItemError.message}`,
+      };
     }
 
-    if (created.invoiceIds.length) {
-      await supabase
-        .from("invoice_uploads")
-        .delete()
-        .in("id", created.invoiceIds);
-    }
+    return {
+      insertedItems: insertedItems || [],
+      alerts,
+      warning: null,
+    };
+  } catch (error) {
+    console.error(
+      "Invoice parent saved, but line-item processing crashed:",
+      error
+    );
 
-    if (created.uploadIds.length) {
-      await supabase.from("uploads").delete().in("id", created.uploadIds);
-    }
-
-    for (const path of created.storagePaths) {
-      await supabase.storage.from("invoice-pdfs").remove([path]);
-    }
-  } catch (rollbackError) {
-    console.error("Invoice rollback failed:", rollbackError);
+    return {
+      insertedItems: [],
+      alerts: [],
+      warning: `Invoice saved, but line-item processing failed: ${
+        error?.message || "Unknown line-item error"
+      }`,
+    };
   }
 }
 
 export async function POST(req) {
-  const created = {
-    uploadIds: [],
-    invoiceIds: [],
-    lineItemIds: [],
-    storagePaths: [],
-  };
+  console.log("INVOICE ROUTE VERSION: JULY-11-FULL-FIX");
+
+  let supabase;
 
   try {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    supabase = createSupabaseAdmin();
+  } catch (configError) {
+    console.error("Invoice route configuration error:", configError);
 
-    if (!supabaseUrl || !supabaseKey) {
-      return NextResponse.json(
-        { error: "Missing Supabase config" },
-        { status: 500 }
-      );
-    }
+    return NextResponse.json(
+      {
+        success: false,
+        error: configError.message,
+      },
+      { status: 500 }
+    );
+  }
 
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    const token = req.headers.get("authorization")?.replace("Bearer ", "");
+  try {
+    const token = getBearerToken(req);
 
     if (!token) {
-      return NextResponse.json({ error: "Missing auth token" }, { status: 401 });
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Missing auth token.",
+        },
+        { status: 401 }
+      );
     }
 
     const {
@@ -138,252 +316,322 @@ export async function POST(req) {
     } = await supabase.auth.getUser(token);
 
     if (userError || !user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      console.error("Invoice auth failed:", userError);
+
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Unauthorized.",
+          details: userError?.message || null,
+        },
+        { status: 401 }
+      );
     }
 
     const formData = await req.formData();
-    const files = formData.getAll("files");
 
-    if (!files?.length) {
-      return NextResponse.json({ error: "No files uploaded" }, { status: 400 });
+    const files = formData
+      .getAll("files")
+      .filter(
+        (file) =>
+          file && typeof file.arrayBuffer === "function"
+      );
+
+    if (!files.length) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "No invoice files were received.",
+        },
+        { status: 400 }
+      );
     }
 
-    const pdfParseModule = await import("pdf-parse");
-    const pdfParse = pdfParseModule.default || pdfParseModule;
+    let pdfParse = null;
+
+    try {
+      const pdfParseModule = await import("pdf-parse");
+      pdfParse = pdfParseModule.default || pdfParseModule;
+    } catch (pdfImportError) {
+      console.error(
+        "pdf-parse could not be loaded. Parent invoices will still save:",
+        pdfImportError
+      );
+    }
 
     const createdUploadRows = [];
     const createdInvoiceRows = [];
     const createdLineItems = [];
     const alerts = [];
+    const warnings = [];
+    const failures = [];
 
     for (const file of files) {
-      if (!file || file.type !== "application/pdf") {
-        throw new Error(`${file?.name || "Uploaded file"} must be a PDF`);
-      }
+      let uploadRow = null;
+      let filePath = null;
+      let invoiceWasSaved = false;
 
-      const bytes = await file.arrayBuffer();
-      const buffer = Buffer.from(bytes);
+      try {
+        const isPdf =
+          file.type === "application/pdf" ||
+          String(file.name || "")
+            .toLowerCase()
+            .endsWith(".pdf");
 
-      if (!buffer.length) {
-        throw new Error(`${file.name} is empty`);
-      }
+        if (!isPdf) {
+          throw new Error(
+            `${file.name || "Uploaded file"} must be a PDF.`
+          );
+        }
 
-      let text = "";
+        const bytes = await file.arrayBuffer();
+        const buffer = Buffer.from(bytes);
 
-try {
-  const parsedPdf = await pdfParse(buffer);
-  text = parsedPdf?.text || "";
+        if (!buffer.length) {
+          throw new Error(
+            `${file.name || "Uploaded file"} is empty.`
+          );
+        }
 
-  console.log("================================");
-  console.log("PDF RAW TEXT");
-  console.log(text);
-  console.log("================================");
-} catch (pdfError) {
-  console.error(
-    "PDF parse failed, saving invoice without line items:",
-    pdfError
-  );
+        let text = "";
 
-  text = "";
-}
+        if (pdfParse) {
+          try {
+            const parsedPdf = await pdfParse(buffer);
+            text = parsedPdf?.text || "";
+          } catch (pdfError) {
+            console.error(
+              `PDF parsing failed for ${file.name}; saving parent invoice anyway:`,
+              pdfError
+            );
 
-      console.log("PDF FILE:", file.name);
-      console.log("PDF TEXT LENGTH:", text.length);
-      console.log("PDF TEXT SAMPLE:", text.slice(0, 500));
+            warnings.push({
+              fileName: file.name,
+              message:
+                "The invoice was saved, but PDF text could not be extracted.",
+            });
+          }
+        }
 
-      const parsedInvoice = parseInvoiceText(text);
+        console.log("PDF FILE:", file.name);
+        console.log("PDF TEXT LENGTH:", text.length);
+        console.log("PDF TEXT SAMPLE:", text.slice(0, 500));
 
-      const { data: uploadRow, error: uploadError } = await supabase
-        .from("uploads")
-        .insert({
+        const parsedInvoice = parseInvoiceText(text);
+
+        const { data: newUploadRow, error: uploadError } =
+          await supabase
+            .from("uploads")
+            .insert({
+              user_id: user.id,
+              file_name: file.name || "Invoice Upload",
+              source_name: "invoice_upload",
+              row_count: parsedInvoice.items.length,
+              upload_type: "invoices",
+              status: "completed",
+              archived: false,
+            })
+            .select()
+            .single();
+
+        if (uploadError) {
+          throw new Error(
+            `uploads insert failed: ${uploadError.message}`
+          );
+        }
+
+        uploadRow = newUploadRow;
+        createdUploadRows.push(uploadRow);
+
+        const safeFileName = String(
+          file.name || "invoice.pdf"
+        ).replace(/[^a-zA-Z0-9._-]/g, "_");
+
+        filePath = `${
+          user.id
+        }/invoices/${Date.now()}-${crypto.randomUUID()}-${safeFileName}`;
+
+        const { error: storageError } =
+          await supabase.storage
+            .from("invoice-pdfs")
+            .upload(filePath, buffer, {
+              contentType: "application/pdf",
+              upsert: false,
+            });
+
+        if (storageError) {
+          throw new Error(
+            `Invoice storage upload failed: ${storageError.message}`
+          );
+        }
+
+        const {
+          data: signedUrlData,
+          error: signedUrlError,
+        } = await supabase.storage
+          .from("invoice-pdfs")
+          .createSignedUrl(
+            filePath,
+            60 * 60 * 24 * 7
+          );
+
+        if (signedUrlError) {
+          console.error(
+            "Signed URL creation failed:",
+            signedUrlError
+          );
+        }
+
+        const invoicePayload = {
           user_id: user.id,
-          file_name: file.name || "Invoice Upload",
-          source_name: "invoice_upload",
-          row_count: parsedInvoice.items.length,
-          upload_type: "invoices",
-          status: "completed",
-          archived: false,
-        })
-        .select()
-        .single();
+          supplier_name:
+            parsedInvoice.supplierName ||
+            "Unknown Supplier",
+          invoice_date:
+            parsedInvoice.invoiceDate || null,
+          file_name:
+            file.name || "Invoice Upload",
+          file_url:
+            signedUrlData?.signedUrl || filePath,
+        };
 
-      if (uploadError) throw uploadError;
+        console.log(
+          "INSERTING INVOICE_UPLOADS ROW:",
+          invoicePayload
+        );
 
-      created.uploadIds.push(uploadRow.id);
-      createdUploadRows.push(uploadRow);
+        const {
+          data: invoiceRow,
+          error: invoiceError,
+        } = await supabase
+          .from("invoice_uploads")
+          .insert(invoicePayload)
+          .select()
+          .single();
 
-      const safeFileName = String(file.name || "invoice.pdf").replace(
-        /[^a-zA-Z0-9._-]/g,
-        "_"
-      );
+        console.log(
+          "INVOICE_UPLOADS INSERT DATA:",
+          invoiceRow
+        );
 
-      const filePath = `${user.id}/invoices/${Date.now()}-${safeFileName}`;
+        console.log(
+          "INVOICE_UPLOADS INSERT ERROR:",
+          invoiceError
+        );
 
-      const { error: storageError } = await supabase.storage
-        .from("invoice-pdfs")
-        .upload(filePath, buffer, {
-          contentType: "application/pdf",
-          upsert: false,
-        });
+        if (invoiceError) {
+          throw new Error(
+            `invoice_uploads insert failed: ${invoiceError.message}`
+          );
+        }
 
-      if (storageError) throw storageError;
+        invoiceWasSaved = true;
+        createdInvoiceRows.push(invoiceRow);
 
-      created.storagePaths.push(filePath);
+        const lineItemResult =
+          await insertInvoiceLineItems({
+            supabase,
+            user,
+            file,
+            parsedInvoice,
+            invoiceRow,
+            uploadRow,
+          });
 
-    const { data: signedUrlData } = await supabase.storage
-  .from("invoice-pdfs")
-  .createSignedUrl(filePath, 60 * 60 * 24 * 7);
+        createdLineItems.push(
+          ...lineItemResult.insertedItems
+        );
 
-     console.log("INSERTING INVOICE_UPLOADS ROW:", {
-  user_id: user.id,
-  upload_id: uploadRow.id,
-  supplier_name: parsedInvoice.supplierName || "Unknown Supplier",
-  invoice_date: parsedInvoice.invoiceDate || null,
-  file_name: file.name,
-  file_url: signedUrlData?.signedUrl || null,
-});
+        alerts.push(...lineItemResult.alerts);
 
-const { data: invoiceRow, error: invoiceError } = await supabase
-  .from("invoice_uploads")
-  .insert({
-    user_id: user.id,
-    upload_id: uploadRow.id,
-    supplier_name: parsedInvoice.supplierName || "Unknown Supplier",
-    invoice_date: parsedInvoice.invoiceDate || null,
-    file_name: file.name,
-    file_url: signedUrlData?.signedUrl || null,
-  })
-  .select()
-  .single();
-
-console.log("INVOICE_UPLOADS INSERT DATA:", invoiceRow);
-console.log("INVOICE_UPLOADS INSERT ERROR:", invoiceError);
-
-if (invoiceError) {
-  throw new Error(
-    `invoice_uploads insert failed: ${invoiceError.message}`
-  );
-}
-
-      created.invoiceIds.push(invoiceRow.id);
-      createdInvoiceRows.push(invoiceRow);
-
-      const lineItemsToInsert = [];
-
-      for (const item of parsedInvoice.items) {
-        const { data: previousItem, error: previousError } = await supabase
-          .from("invoice_line_items")
-          .select("unit_price, created_at")
-          .eq("user_id", user.id)
-          .ilike("item_name", item.item_name)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (previousError) throw previousError;
-
-        const previousPrice = previousItem?.unit_price ?? null;
-
-        const priceChange =
-          previousPrice != null ? item.unit_price - previousPrice : null;
-
-        const priceChangePercent =
-          previousPrice && previousPrice > 0
-            ? ((item.unit_price - previousPrice) / previousPrice) * 100
-            : null;
-
-        const flaggedIncrease =
-          priceChangePercent != null && priceChangePercent >= 5;
-
- lineItemsToInsert.push({
-  invoice_id: invoiceRow.id,
-  upload_id: uploadRow.id,
-  user_id: user.id,
-  file_name: file.name,
-  supplier_name: parsedInvoice.supplierName || "Unknown Supplier",
-  item_name: item.item_name,
-  unit: item.unit,
-  quantity: item.quantity,
-  unit_price: item.unit_price,
-  total_price: item.total_price,
-  previous_unit_price: previousPrice,
-  price_change: priceChange,
-  price_change_percent: priceChangePercent,
-  flagged_increase: flaggedIncrease,
-});
-
-        if (flaggedIncrease) {
-          alerts.push({
-            item: item.item_name,
-            supplier: parsedInvoice.supplierName,
-            oldPrice: previousPrice,
-            newPrice: item.unit_price,
-            percentChange: priceChangePercent,
+        if (lineItemResult.warning) {
+          warnings.push({
+            fileName: file.name,
+            message: lineItemResult.warning,
           });
         }
+      } catch (fileError) {
+        console.error(
+          `Invoice processing failed for ${file?.name}:`,
+          {
+            message: fileError?.message,
+            details: fileError?.details,
+            hint: fileError?.hint,
+            code: fileError?.code,
+            stack: fileError?.stack,
+          }
+        );
+
+        failures.push({
+          fileName: file?.name || "Unknown file",
+          error:
+            fileError?.message ||
+            "Invoice processing failed.",
+        });
+
+        if (!invoiceWasSaved) {
+          await safelyRemoveStorageFile(
+            supabase,
+            filePath
+          );
+
+          await safelyDeleteUploadRow(
+            supabase,
+            uploadRow?.id
+          );
+        }
       }
-
-    if (lineItemsToInsert.length > 0) {
-  console.log("LINE ITEMS TO INSERT:", lineItemsToInsert);
-
-  const { data: insertedLineItems, error: lineError } = await supabase
-    .from("invoice_line_items")
-    .insert(lineItemsToInsert)
-    .select();
-
-  console.log("LINE ITEM INSERT DATA:", insertedLineItems);
-  console.log("LINE ITEM INSERT ERROR:", lineError);
-
-  if (lineError) {
-    console.error(
-      "Invoice saved, but invoice line items failed:",
-      lineError
-    );
-
-    alerts.push({
-      type: "line_item_import_error",
-      fileName: file.name,
-      message: lineError.message,
-    });
-  } else {
-    created.lineItemIds.push(
-      ...(insertedLineItems || []).map((item) => item.id)
-    );
-
-    createdLineItems.push(...(insertedLineItems || []));
-  }
-}
     }
 
-    return NextResponse.json({
-      success: true,
-      uploadedCount: createdInvoiceRows.length,
-      uploads: createdUploadRows,
-      uploadRow: createdUploadRows[0] || null,
-      invoiceUploads: createdInvoiceRows,
-      invoiceItems: createdLineItems,
-      alerts,
-    });
-  } catch (error) {
-   console.error("INVOICE UPLOAD ROUTE FAILED:", {
-  message: error?.message,
-  details: error?.details,
-  hint: error?.hint,
-  code: error?.code,
-  stack: error?.stack,
-});
+    const uploadedCount =
+      createdInvoiceRows.length;
 
-    await rollbackCreatedData(
-      createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL,
-        process.env.SUPABASE_SERVICE_ROLE_KEY
-      ),
-      created
+    const success = uploadedCount > 0;
+
+    return NextResponse.json(
+      {
+        success,
+        uploadedCount,
+        failedCount: failures.length,
+        uploads: createdUploadRows,
+        uploadRow:
+          createdUploadRows[0] || null,
+        invoiceUploads:
+          createdInvoiceRows,
+        invoiceItems:
+          createdLineItems,
+        alerts,
+        warnings,
+        failures,
+        message: success
+          ? `${uploadedCount} invoice${
+              uploadedCount === 1 ? "" : "s"
+            } saved successfully.`
+          : "No invoices were saved.",
+      },
+      {
+        status: success ? 200 : 500,
+      }
+    );
+  } catch (error) {
+    console.error(
+      "INVOICE UPLOAD ROUTE FAILED:",
+      {
+        message: error?.message,
+        details: error?.details,
+        hint: error?.hint,
+        code: error?.code,
+        stack: error?.stack,
+      }
     );
 
     return NextResponse.json(
       {
-        error: error.message || "Failed to process invoices",
+        success: false,
+        uploadedCount: 0,
+        error:
+          error?.message ||
+          "Failed to process invoices.",
       },
       { status: 500 }
     );
