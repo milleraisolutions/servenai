@@ -28956,15 +28956,7 @@ return (
   style={{ display: "none" }}
 />
 
-<input
-  ref={invoiceUploadInputRef}
-  id="invoiceUpload"
-  type="file"
-  accept="application/pdf,.pdf"
-  multiple
-  onChange={handleInvoiceUpload}
-  style={{ display: "none" }}
-/>
+
 
 <input
   id="menuItemsUpload"
