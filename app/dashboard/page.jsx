@@ -871,18 +871,47 @@ const handleInvoiceUpload = async () => {
       body: formData,
       cache: "no-store",
     });
+const responseText = await response.text();
 
-    const responseText = await response.text();
-    console.log("INVOICE API STATUS CODE:", response.status);
+console.log(
+  "INVOICE API STATUS CODE:",
+  response.status
+);
 
-    let result = {};
-    try {
-      result = responseText ? JSON.parse(responseText) : {};
-    } catch {
-      throw new Error(`Invoice server returned an invalid format: ${responseText.slice(0, 300)}`);
-    }
+let result = {};
 
-    console.log("INVOICE API PARSED RESULT:", result);
+try {
+  result = responseText
+    ? JSON.parse(responseText)
+    : {};
+} catch {
+  throw new Error(
+    `Invoice server returned an invalid format: ${responseText.slice(
+      0,
+      300
+    )}`
+  );
+}
+
+console.log(
+  "INVOICE API PARSED RESULT:",
+  result
+);
+
+console.log(
+  "INVOICE UPLOADS RETURNED:",
+  result.invoiceUploads
+);
+
+console.log(
+  "INVOICE ITEMS RETURNED:",
+  result.invoiceItems
+);
+
+console.log(
+  "RECENT UPLOAD ROWS RETURNED:",
+  result.uploads
+);
 
     if (!response.ok || !result.success) {
       throw new Error(
@@ -960,10 +989,13 @@ const handleInvoiceUpload = async () => {
     setInvoiceUploadMessage(successMessage);
     setMessage(successMessage);
 
-    // Clear staging inputs upon successful processing completion
-    setSelectedInvoiceFile(null);
-    const nativeInput = document.getElementById("invoiceFileField");
-    if (nativeInput) nativeInput.value = "";
+   // Clear staging inputs upon successful processing completion
+setSelectedInvoiceFile(null);
+
+if (invoiceUploadInputRef.current) {
+  invoiceUploadInputRef.current.value = "";
+}
+
 
   } catch (error) {
     console.error("CRITICAL INVOICE FRONTEND ACTION FAILURE:", error);
