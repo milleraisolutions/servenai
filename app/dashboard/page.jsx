@@ -16537,7 +16537,7 @@ const deleteImport = async (uploadId) => {
         throw new Error("Your login session was not found. Please log in again.");
       }
 
-      const response = await fetch("/api/delete-invoice-upload", {
+      const response = await fetch("/api/delete-client-upload", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
