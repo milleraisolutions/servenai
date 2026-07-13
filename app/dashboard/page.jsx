@@ -28955,7 +28955,15 @@ return (
   onChange={handleFileUpload}
   style={{ display: "none" }}
 />
-
+<input
+  id="invoiceUpload"
+  name="invoiceUpload"
+  ref={invoiceUploadInputRef}
+  type="file"
+  accept="application/pdf,.pdf"
+  onChange={handleInvoiceFileChange}
+  style={{ display: "none" }}
+/>
 
 
 <input
@@ -29146,93 +29154,112 @@ return (
   Upload Inventory
 </button>
 
-<label
-  htmlFor="invoiceUpload"
-  onClick={() => {
-    console.log("UPLOAD INVOICES LABEL CLICKED");
-
-    selectedUploadTypeRef.current = "invoices";
-    setUploadType("invoices");
-
-    if (invoiceUploadInputRef.current) {
-      invoiceUploadInputRef.current.value = "";
-    }
-  }}
+<div
   style={{
-    ...setupSecondaryButton,
     display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    cursor: "pointer",
-    boxSizing: "border-box",
+    flexDirection: "column",
+    gap: "10px",
+    minWidth: 0,
   }}
 >
-  Upload Invoices
-</label>
+  <label
+    htmlFor="invoiceUpload"
+    onClick={() => {
+      console.log("UPLOAD INVOICES LABEL CLICKED");
 
-{/* 1. The Hidden Input Element (Stays hidden, handles the click) */}
-<input
-  id="invoiceUpload"
-  name="invoiceUpload"
-  ref={invoiceUploadInputRef}
-  type="file"
-  accept="application/pdf,.pdf"
-  onChange={handleInvoiceFileChange} // Updated to catch the file details first!
-  style={{
-    position: "absolute",
-    width: "1px",
-    height: "1px",
-    opacity: 0,
-    pointerEvents: "none",
-  }}
-/>
+      selectedUploadTypeRef.current = "invoices";
+      setUploadType("invoices");
 
-{/* 2. New File Preview Box (Displays the filename on your website the second you choose it!) */}
-{selectedInvoiceFile && (
-  <div 
-    className="animate-fadeIn"
-    style={{ 
-      marginTop: "12px", 
-      padding: "12px", 
-      background: "#f8fafc", 
-      border: "1px solid #e2e8f0", 
-      borderRadius: "8px", 
-      fontSize: "14px",
+      if (invoiceUploadInputRef.current) {
+        invoiceUploadInputRef.current.value = "";
+      }
+    }}
+    style={{
+      ...setupSecondaryButton,
       display: "flex",
-      flexDirection: "column",
-      gap: "8px"
+      alignItems: "center",
+      justifyContent: "center",
+      cursor: "pointer",
+      boxSizing: "border-box",
+      width: "100%",
     }}
   >
-    <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "#334155" }}>
-      <span>📄</span>
-      <strong>{selectedInvoiceFile.name}</strong>
-      <span style={{ color: "#64748b" }}>
-        ({(selectedInvoiceFile.size / 1024).toFixed(1)} KB)
-      </span>
-    </div>
-    
-    {/* 3. The New Action Button to start processing */}
-    <button
-      type="button"
-      onClick={handleInvoiceUpload}
-      disabled={invoiceUploadLoading}
+    Upload Invoices
+  </label>
+
+  {selectedInvoiceFile && (
+    <div
       style={{
-        width: "100%",
-        padding: "8px 12px",
-        borderRadius: "6px",
-        background: invoiceUploadLoading ? "#cbd5e1" : "#2563eb",
-        color: "#fff",
-        border: "none",
-        fontWeight: "500",
-        cursor: invoiceUploadLoading ? "not-allowed" : "pointer",
-        transition: "background 0.2s"
+        padding: "12px",
+        background: "rgba(15,23,42,0.96)",
+        border: "1px solid rgba(148,163,184,0.22)",
+        borderRadius: "12px",
+        fontSize: "13px",
+        display: "flex",
+        flexDirection: "column",
+        gap: "10px",
+        minWidth: 0,
       }}
     >
-      {invoiceUploadLoading ? "Extracting Line Items..." : "Confirm & Process Invoice"}
-    </button>
-  </div>
-)}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+          minWidth: 0,
+          color: "#e2e8f0",
+        }}
+      >
+        <span>📄</span>
 
+        <strong
+          style={{
+            flex: 1,
+            minWidth: 0,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {selectedInvoiceFile.name}
+        </strong>
+
+        <span
+          style={{
+            color: "#94a3b8",
+            flexShrink: 0,
+          }}
+        >
+          ({(selectedInvoiceFile.size / 1024).toFixed(1)} KB)
+        </span>
+      </div>
+
+      <button
+        type="button"
+        onClick={handleInvoiceUpload}
+        disabled={invoiceUploadLoading}
+        style={{
+          width: "100%",
+          padding: "10px 12px",
+          borderRadius: "10px",
+          background: invoiceUploadLoading
+            ? "#475569"
+            : "linear-gradient(135deg, #4f46e5, #7c3aed)",
+          color: "#fff",
+          border: "none",
+          fontWeight: "700",
+          cursor: invoiceUploadLoading
+            ? "not-allowed"
+            : "pointer",
+        }}
+      >
+        {invoiceUploadLoading
+          ? "Extracting Line Items..."
+          : "Confirm & Process Invoice"}
+      </button>
+    </div>
+  )}
+</div>
 <button
   onClick={() => {
     selectedUploadTypeRef.current = "menu_items";
