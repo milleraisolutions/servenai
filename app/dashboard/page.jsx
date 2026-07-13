@@ -16581,8 +16581,17 @@ const deleteImport = async (uploadId) => {
         }),
       });
 
-      const responseText = await response.text();
-      console.log("DELETE INVOICE API STATUS:", response.status);
+    const responseText = await response.text();
+
+console.log(
+  "DELETE INVOICE API STATUS:",
+  response.status
+);
+
+console.log(
+  "DELETE INVOICE API RAW RESPONSE:",
+  responseText
+);
 
       let result = {};
       try {
