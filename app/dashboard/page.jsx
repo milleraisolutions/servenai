@@ -863,14 +863,35 @@ const handleInvoiceUpload = async () => {
     formData.append("files", selectedInvoiceFile, selectedInvoiceFile.name);
 
     console.log("Sending payload to /api/upload-invoices...");
-    const response = await fetch("/api/upload-invoices", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${session.access_token}`,
-      },
-      body: formData,
-      cache: "no-store",
-    });
+    const controller = new AbortController();
+
+const uploadTimeout = setTimeout(() => {
+  controller.abort();
+}, 45000);
+
+let response;
+
+try {
+  response = await fetch("/api/upload-invoices", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
+    },
+    body: formData,
+    cache: "no-store",
+    signal: controller.signal,
+  });
+} catch (fetchError) {
+  if (fetchError?.name === "AbortError") {
+    throw new Error(
+      "Invoice processing timed out after 45 seconds. Check the Vercel upload-invoices logs."
+    );
+  }
+
+  throw fetchError;
+} finally {
+  clearTimeout(uploadTimeout);
+}
 const responseText = await response.text();
 
 console.log(
