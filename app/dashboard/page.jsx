@@ -10756,32 +10756,19 @@ useEffect(() => {
   let cancelled = false;
 
   const loadSavedLaborData = async () => {
-    const resolvedUserId = dataOwnerId || user?.id;
+    const resolvedUserId = dataOwnerId;
 
-    if (!resolvedUserId || cancelled) {
-      console.log(
-        "LABOR LOAD SKIPPED: user ID not ready"
-      );
+    if (!resolvedUserId) {
+      console.log("LABOR LOAD WAITING FOR DATA OWNER ID");
       return;
     }
 
-    if (loadingLaborRef.current) {
-      console.log(
-        "LABOR LOAD SKIPPED: request already running"
-      );
-      return;
-    }
-
-    loadingLaborRef.current = true;
     setLaborLoading(true);
 
     try {
-      console.log(
-        "LABOR LOAD USER ID:",
-        resolvedUserId
-      );
+      console.log("LABOR LOAD USER ID:", resolvedUserId);
 
-      const { data, error } = await supabase
+      let laborQuery = supabase
         .from("labor_uploads")
         .select("*")
         .eq("user_id", resolvedUserId)
@@ -10790,121 +10777,122 @@ useEffect(() => {
         })
         .limit(1000);
 
+      if (shouldFilterByLocation && assignedLocation) {
+        laborQuery = laborQuery.eq(
+          "location_name",
+          assignedLocation
+        );
+      }
+
+      const { data, error } = await laborQuery;
+
       console.log("LABOR LOAD RAW DATA:", data);
       console.log("LABOR LOAD ERROR:", error);
-      console.log(
-        "LABOR LOAD RAW COUNT:",
-        data?.length || 0
-      );
+      console.log("LABOR LOAD RAW COUNT:", data?.length || 0);
 
       if (error) {
         throw error;
       }
 
       if (cancelled) {
+        console.log("LABOR LOAD CANCELLED BEFORE STATE UPDATE");
         return;
       }
 
-      const normalizedLaborRows = (data || []).map(
-        (row) => {
-          const hours = Number(
-            row.hours_worked ||
-              row.hours ||
-              row["Hours Worked"] ||
-              row.Hours ||
-              row.total_hours ||
-              row["Total Hours"] ||
-              0
-          );
+      const normalizedLaborRows = (data || []).map((row) => {
+        const hours = Number(
+          row.hours_worked ??
+            row.hours ??
+            row["Hours Worked"] ??
+            row.Hours ??
+            row.total_hours ??
+            row["Total Hours"] ??
+            0
+        );
 
-          const rate = Number(
-            row.hourly_rate ||
-              row.rate ||
-              row["Hourly Rate"] ||
-              row.Rate ||
-              row.pay_rate ||
-              row["Pay Rate"] ||
-              0
-          );
+        const rate = Number(
+          row.hourly_rate ??
+            row.rate ??
+            row["Hourly Rate"] ??
+            row.Rate ??
+            row.pay_rate ??
+            row["Pay Rate"] ??
+            0
+        );
 
-          const uploadedLaborCost = Number(
-            row.labor_cost ||
-              row.cost ||
-              row["Labor Cost"] ||
-              row.Cost ||
-              0
-          );
+        const uploadedLaborCost = Number(
+          row.labor_cost ??
+            row.cost ??
+            row["Labor Cost"] ??
+            row.Cost ??
+            0
+        );
 
-          return {
-            ...row,
+        const workDate =
+          row.work_date ||
+          row.shift_date ||
+          row.date ||
+          row["Work Date"] ||
+          row["Shift Date"] ||
+          row.Date ||
+          null;
 
-            hours,
-            hours_worked: hours,
+        return {
+          ...row,
 
-            rate,
-            hourly_rate: rate,
+          hours,
+          hours_worked: hours,
 
-            labor_cost:
-              uploadedLaborCost > 0
-                ? uploadedLaborCost
-                : hours * rate,
+          rate,
+          hourly_rate: rate,
 
-            work_date:
-              row.work_date ||
-              row.shift_date ||
-              row.date ||
-              row["Work Date"] ||
-              row["Shift Date"] ||
-              row.Date ||
-              null,
+          labor_cost:
+            uploadedLaborCost > 0
+              ? uploadedLaborCost
+              : hours * rate,
 
-            shift_date:
-              row.shift_date ||
-              row.work_date ||
-              row.date ||
-              row["Shift Date"] ||
-              row["Work Date"] ||
-              row.Date ||
-              null,
+          work_date: workDate,
+          shift_date: workDate,
 
-            role:
-              row.role ||
-              row.position ||
-              row.Role ||
-              row.Position ||
-              "Staff",
+          employee_name:
+            row.employee_name ||
+            row.employee ||
+            row["Employee Name"] ||
+            row.name ||
+            "Unknown Employee",
 
-            position:
-              row.position ||
-              row.role ||
-              row.Position ||
-              row.Role ||
-              "Staff",
+          role:
+            row.role ||
+            row.position ||
+            row.Role ||
+            row.Position ||
+            "Staff",
 
-            location:
-              row.location ||
-              row.location_name ||
-              null,
+          position:
+            row.position ||
+            row.role ||
+            row.Position ||
+            row.Role ||
+            "Staff",
 
-            location_name:
-              row.location_name ||
-              row.location ||
-              null,
+          location:
+            row.location ||
+            row.location_name ||
+            null,
 
-            shift:
-              row.shift ||
-              row.Shift ||
-              row.daypart ||
-              row.Daypart ||
-              null,
-          };
-        }
-      );
+          location_name:
+            row.location_name ||
+            row.location ||
+            null,
 
-      console.log(
-        "LABOR NORMALIZED DATA:",
-        normalizedLaborRows
-      );
+          shift:
+            row.shift ||
+            row.Shift ||
+            row.daypart ||
+            row.Daypart ||
+            "Unknown",
+        };
+      });
 
       console.log(
         "LABOR NORMALIZED COUNT:",
@@ -10923,43 +10911,44 @@ useEffect(() => {
           `serven_labor_rows_${resolvedUserId}`,
           JSON.stringify(normalizedLaborRows)
         );
+      } else {
+        console.warn(
+          "LABOR DATABASE QUERY RETURNED ZERO ROWS FOR:",
+          resolvedUserId
+        );
       }
     } catch (error) {
-      console.error(
-        "LABOR LOAD FAILED:",
-        error
-      );
+      console.error("LABOR LOAD FAILED:", error);
 
-      const cachedLabor = localStorage.getItem(
-        `serven_labor_rows_${resolvedUserId}`
-      );
+      if (cancelled) return;
 
-      if (cachedLabor && !cancelled) {
-        try {
-          const parsedCachedLabor =
-            JSON.parse(cachedLabor);
+      try {
+        const cachedLabor = localStorage.getItem(
+          `serven_labor_rows_${resolvedUserId}`
+        );
 
-          if (
-            Array.isArray(parsedCachedLabor) &&
-            parsedCachedLabor.length > 0
-          ) {
-            setLaborData(parsedCachedLabor);
+        const parsedCachedLabor = cachedLabor
+          ? JSON.parse(cachedLabor)
+          : [];
 
-            console.log(
-              "LABOR RESTORED FROM CACHE:",
-              parsedCachedLabor.length
-            );
-          }
-        } catch (cacheError) {
-          console.error(
-            "LABOR CACHE RESTORE FAILED:",
-            cacheError
+        if (
+          Array.isArray(parsedCachedLabor) &&
+          parsedCachedLabor.length > 0
+        ) {
+          setLaborData(parsedCachedLabor);
+
+          console.log(
+            "LABOR RESTORED FROM CACHE:",
+            parsedCachedLabor.length
           );
         }
+      } catch (cacheError) {
+        console.error(
+          "LABOR CACHE RESTORE FAILED:",
+          cacheError
+        );
       }
     } finally {
-      loadingLaborRef.current = false;
-
       if (!cancelled) {
         setLaborLoading(false);
       }
@@ -10971,7 +10960,11 @@ useEffect(() => {
   return () => {
     cancelled = true;
   };
-}, [dataOwnerId, user?.id]);
+}, [
+  dataOwnerId,
+  shouldFilterByLocation,
+  assignedLocation,
+]);
 useEffect(() => {
   if (!dataOwnerId) return;
 
