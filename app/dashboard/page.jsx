@@ -25771,45 +25771,86 @@ useEffect(() => {
   };
 }, [user?.id, dataOwnerId]);
 useEffect(() => {
+  let cancelled = false;
+
   const loadBeverageData = async () => {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const resolvedUserId = dataOwnerId || user?.id;
 
-    if (!user?.id) return;
-
-    const { data: itemsData, error: itemsError } = await supabase
-      .from("beverage_items")
-      .select("*")
-      .eq("user_id", dataOwnerId || user.id)
-      .order("created_at", { ascending: false });
-
-    if (itemsError) {
-      console.error("Beverage items load error:", itemsError);
+    if (!resolvedUserId) {
+      console.log(
+        "BEVERAGE LOAD SKIPPED: user ID not ready"
+      );
       return;
     }
 
-    const { data: usageData, error: usageError } = await supabase
-      .from("beverage_usage")
-      .select("*")
-      .eq("user_id", dataOwnerId || user.id)
-      .order("usage_date", { ascending: false });
+    try {
+      console.log(
+        "BEVERAGE LOAD USER ID:",
+        resolvedUserId
+      );
 
-    if (usageError) {
-      console.error("Beverage usage load error:", usageError);
-      return;
+      const [itemsResult, usageResult] =
+        await Promise.all([
+          supabase
+            .from("beverage_items")
+            .select("*")
+            .eq("user_id", resolvedUserId)
+            .order("created_at", {
+              ascending: false,
+            }),
+
+          supabase
+            .from("beverage_usage")
+            .select("*")
+            .eq("user_id", resolvedUserId)
+            .order("usage_date", {
+              ascending: false,
+            }),
+        ]);
+
+      if (cancelled) return;
+
+      if (itemsResult.error) {
+        console.error(
+          "BEVERAGE ITEMS LOAD ERROR:",
+          itemsResult.error
+        );
+      } else {
+        console.log(
+          "BEVERAGE ITEMS LOAD COUNT:",
+          itemsResult.data?.length || 0
+        );
+
+        setBeverageItems(itemsResult.data || []);
+      }
+
+      if (usageResult.error) {
+        console.error(
+          "BEVERAGE USAGE LOAD ERROR:",
+          usageResult.error
+        );
+      } else {
+        console.log(
+          "BEVERAGE USAGE LOAD COUNT:",
+          usageResult.data?.length || 0
+        );
+
+        setBeverageUsage(usageResult.data || []);
+      }
+    } catch (loadError) {
+      console.error(
+        "BEVERAGE LOAD CRASHED:",
+        loadError
+      );
     }
-
-    setBeverageItems(itemsData || []);
-    setBeverageUsage(usageData || []);
   };
-
-   if (!dataOwnerId) return;
 
   loadBeverageData();
 
-
-}, [dataOwnerId, activeLocation]);
+  return () => {
+    cancelled = true;
+  };
+}, [user?.id, dataOwnerId]);
 const handleBatchPrepUpload = async (event) => {
   selectedUploadTypeRef.current = "batch_prep";
   setUploadType("batch_prep");
