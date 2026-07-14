@@ -314,6 +314,9 @@ const [selectedInvoiceFile, setSelectedInvoiceFile] = useState(null);
 const [selectedLaborFile, setSelectedLaborFile] = useState(null);
 const [laborUploadLoading, setLaborUploadLoading] = useState(false);
 const laborUploadInputRef = useRef(null);
+const [selectedEmployeeShiftFile, setSelectedEmployeeShiftFile] = useState(null);
+const [employeeShiftUploadLoading, setEmployeeShiftUploadLoading] = useState(false);
+const employeeShiftUploadInputRef = useRef(null);
 const loadAdminData = async () => {
   const { data: usersData, error: usersError } = await supabase
     .from("users")
@@ -25224,10 +25227,33 @@ useEffect(() => {
 
  
 }, [dataOwnerId, activeLocation]);
+const handleEmployeeShiftFileChange = async (event) => {
+  const file = event.target.files?.[0];
+
+  if (!file) {
+    setSelectedEmployeeShiftFile(null);
+    return;
+  }
+
+  const fileError = validateUploadFile(file, 25);
+
+  if (fileError) {
+    alert(fileError);
+    setMessage(fileError);
+    event.target.value = "";
+    return;
+  }
+
+  setSelectedEmployeeShiftFile(file);
+
+  setMessage(
+    `${file.name} selected. Click Confirm & Process Employee Shifts.`
+  );
+};
 
 const handleEmployeeShiftUpload = async (event) => {
   console.log("EMPLOYEE SHIFT UPLOAD FIRED");
-
+ setEmployeeShiftUploadLoading(true);
   let uploadRow = null;
 
   try {
@@ -25607,11 +25633,24 @@ const handleEmployeeShiftUpload = async (event) => {
         alert(`Employee shift CSV parse failed: ${parseError.message}`);
       },
     });
-  } catch (error) {
-    console.error("Employee shift upload crashed:", error);
-    setMessage("Employee shift upload failed. Check console.");
-    alert(error?.message || "Employee shift upload failed.");
+ } catch (error) {
+  console.error("Employee shift upload crashed:", error);
+
+  setMessage(
+    error?.message || "Employee shift upload failed."
+  );
+
+  alert(
+    error?.message || "Employee shift upload failed."
+  );
+} finally {
+  setEmployeeShiftUploadLoading(false);
+  setSelectedEmployeeShiftFile(null);
+
+  if (employeeShiftUploadInputRef.current) {
+    employeeShiftUploadInputRef.current.value = "";
   }
+}
 };
 
 useEffect(() => {
@@ -29333,9 +29372,10 @@ return (
 
 <input
   id="employeeShiftUpload"
+  ref={employeeShiftUploadInputRef}
   type="file"
   accept=".csv,.xlsx,.xls"
-  onChange={handleEmployeeShiftUpload}
+  onChange={handleEmployeeShiftFileChange}
   style={{ display: "none" }}
 />
 
@@ -29802,22 +29842,107 @@ return (
   Upload Batch Prep
 </button>
 
-<button
-  onClick={() => {
-    selectedUploadTypeRef.current = "employee_shifts";
-    setUploadType("employee_shifts");
-
-    const input = document.getElementById("employeeShiftUpload");
-    if (input) input.value = "";
-    input?.click();
-  }}
+<div
   style={{
-    ...setupSecondaryButton,
-    gridColumn: isMobile ? "auto" : "1 / span 3",
+    display: "flex",
+    flexDirection: "column",
+    gap: "10px",
+    minWidth: 0,
   }}
 >
-  Upload Employee Shifts
-</button>
+  <button
+    type="button"
+    onClick={() => {
+      selectedUploadTypeRef.current = "employee_shifts";
+      setUploadType("employee_shifts");
+
+      if (employeeShiftUploadInputRef.current) {
+        employeeShiftUploadInputRef.current.value = "";
+        employeeShiftUploadInputRef.current.click();
+      }
+    }}
+    style={{
+      ...setupSecondaryButton,
+      width: "100%",
+    }}
+  >
+    Upload Employee Shifts
+  </button>
+
+  {selectedEmployeeShiftFile && (
+    <div
+      style={{
+        padding: "12px",
+        background: "rgba(15,23,42,0.96)",
+        border: "1px solid rgba(148,163,184,0.22)",
+        borderRadius: "12px",
+        display: "flex",
+        flexDirection: "column",
+        gap: "10px",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+          color: "#e2e8f0",
+        }}
+      >
+        <span>📄</span>
+
+        <strong
+          style={{
+            flex: 1,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {selectedEmployeeShiftFile.name}
+        </strong>
+
+        <span
+          style={{
+            color: "#94a3b8",
+          }}
+        >
+          ({(selectedEmployeeShiftFile.size / 1024).toFixed(1)} KB)
+        </span>
+      </div>
+
+      <button
+        type="button"
+        onClick={() =>
+          handleEmployeeShiftUpload({
+            target: {
+              files: [selectedEmployeeShiftFile],
+            },
+          })
+        }
+        disabled={employeeShiftUploadLoading}
+        style={{
+          width: "100%",
+          padding: "10px 12px",
+          borderRadius: "10px",
+          background: employeeShiftUploadLoading
+            ? "#475569"
+            : "linear-gradient(135deg,#4f46e5,#7c3aed)",
+          color: "#fff",
+          border: "none",
+          fontWeight: "700",
+          cursor: employeeShiftUploadLoading
+            ? "not-allowed"
+            : "pointer",
+        }}
+      >
+        {employeeShiftUploadLoading
+          ? "Processing Employee Shifts..."
+          : "Confirm & Process Employee Shifts"}
+      </button>
+    </div>
+  )}
+</div>
 
 <button
   type="button"
