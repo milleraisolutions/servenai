@@ -11432,143 +11432,88 @@ useEffect(() => {
 }, [dataOwnerId, activeLocation]);
 useEffect(() => {
   let cancelled = false;
-  let retryTimer = null;
+  
 
-  const loadInvoices = async (attempt = 1) => {
-    if (!dataOwnerId || cancelled) return;
+  const loadInvoices = async () => {
+  if (!dataOwnerId || cancelled) return;
 
-    try {
-      let invoiceUploadQuery = supabase
-        .from("invoice_uploads")
-        .select("*")
-        .eq("user_id", dataOwnerId);
+  try {
+    let invoiceUploadQuery = supabase
+      .from("invoice_uploads")
+      .select("*")
+      .eq("user_id", dataOwnerId);
 
-      invoiceUploadQuery = applyLocationFilter(invoiceUploadQuery);
+    invoiceUploadQuery =
+      applyLocationFilter(invoiceUploadQuery);
 
-      const {
-        data: savedInvoiceUploads,
-        error: invoiceUploadError,
-      } = await invoiceUploadQuery.order("created_at", {
-        ascending: false,
-      });
+    const {
+      data: savedInvoiceUploads,
+      error: invoiceUploadError,
+    } = await invoiceUploadQuery.order("created_at", {
+      ascending: false,
+    });
 
-      if (invoiceUploadError) {
-        const errorText = String(
-          invoiceUploadError?.message ||
-            invoiceUploadError?.details ||
-            invoiceUploadError ||
-            ""
-        );
-
-        const isLockError =
-          errorText.includes("Lock broken by another request") ||
-          errorText.includes("AbortError");
-
-        if (isLockError && attempt < 5 && !cancelled) {
-          retryTimer = setTimeout(() => {
-            loadInvoices(attempt + 1);
-          }, 300 * attempt);
-
-          return;
-        }
-
-        console.error(
-          "Invoice uploads load error:",
-          invoiceUploadError
-        );
-
-        return;
-      }
-
-      let invoiceItemsQuery = supabase
-        .from("invoice_line_items")
-        .select("*")
-        .eq("user_id", dataOwnerId);
-
-      invoiceItemsQuery = applyLocationFilter(invoiceItemsQuery);
-
-      const {
-        data: savedInvoiceItems,
-        error: invoiceItemsError,
-      } = await invoiceItemsQuery.order("created_at", {
-        ascending: false,
-      });
-
-      if (invoiceItemsError) {
-        const errorText = String(
-          invoiceItemsError?.message ||
-            invoiceItemsError?.details ||
-            invoiceItemsError ||
-            ""
-        );
-
-        const isLockError =
-          errorText.includes("Lock broken by another request") ||
-          errorText.includes("AbortError");
-
-        if (isLockError && attempt < 5 && !cancelled) {
-          retryTimer = setTimeout(() => {
-            loadInvoices(attempt + 1);
-          }, 300 * attempt);
-
-          return;
-        }
-
-        console.error(
-          "Invoice line items load error:",
-          invoiceItemsError
-        );
-
-        return;
-      }
-
-      if (cancelled) return;
-
-      setInvoiceUploads(savedInvoiceUploads || []);
-      setInvoicesData(savedInvoiceItems || []);
-
-      console.log(
-        "LOADED INVOICE UPLOADS:",
-        savedInvoiceUploads?.length || 0
+    if (invoiceUploadError) {
+      console.error(
+        "Invoice uploads load error:",
+        invoiceUploadError
       );
 
-      console.log(
-        "LOADED INVOICE ITEMS:",
-        savedInvoiceItems?.length || 0
-      );
-    } catch (error) {
-      const errorText = String(
-        error?.message || error || ""
-      );
-
-      const isLockError =
-        errorText.includes("Lock broken by another request") ||
-        errorText.includes("AbortError");
-
-      if (isLockError && attempt < 5 && !cancelled) {
-        retryTimer = setTimeout(() => {
-          loadInvoices(attempt + 1);
-        }, 300 * attempt);
-
-        return;
-      }
-
-      console.error("Invoice load crash:", error);
+      return;
     }
-  };
+
+    if (cancelled) return;
+
+    let invoiceItemsQuery = supabase
+      .from("invoice_line_items")
+      .select("*")
+      .eq("user_id", dataOwnerId);
+
+    invoiceItemsQuery =
+      applyLocationFilter(invoiceItemsQuery);
+
+    const {
+      data: savedInvoiceItems,
+      error: invoiceItemsError,
+    } = await invoiceItemsQuery.order("created_at", {
+      ascending: false,
+    });
+
+    if (invoiceItemsError) {
+      console.error(
+        "Invoice line items load error:",
+        invoiceItemsError
+      );
+
+      return;
+    }
+
+    if (cancelled) return;
+
+    setInvoiceUploads(savedInvoiceUploads || []);
+    setInvoicesData(savedInvoiceItems || []);
+
+    console.log(
+      "LOADED INVOICE UPLOADS:",
+      savedInvoiceUploads?.length || 0
+    );
+
+    console.log(
+      "LOADED INVOICE ITEMS:",
+      savedInvoiceItems?.length || 0
+    );
+  } catch (error) {
+    console.error("Invoice load crash:", error);
+  }
+};
 
   const startTimer = setTimeout(() => {
     loadInvoices();
   }, 500);
-
-  return () => {
-    cancelled = true;
-    clearTimeout(startTimer);
-
-    if (retryTimer) {
-      clearTimeout(retryTimer);
-    }
-  };
+return () => {
+  cancelled = true;
+  clearTimeout(startTimer);
+};
 }, [dataOwnerId, activeLocation]);
 useEffect(() => {
   const loadBatchPrepData = async () => {
@@ -25278,15 +25223,6 @@ useEffect(() => {
         .eq("user_id", employeeDataOwnerId)
         .order("shift_date", { ascending: false });
 
-      if (
-        activeLocation &&
-        activeLocation !== "all"
-      ) {
-        shiftsQuery = shiftsQuery.eq(
-          "location_name",
-          activeLocation
-        );
-      }
 
       const {
         data: shiftsData,
@@ -25315,7 +25251,7 @@ useEffect(() => {
   };
 
   loadEmployees();
-}, [dataOwnerId, activeLocation]);
+}, [dataOwnerId]);
 const handleEmployeeShiftFileChange = async (event) => {
   const file = event.target.files?.[0];
 
