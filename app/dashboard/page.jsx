@@ -10759,10 +10759,16 @@ useEffect(() => {
     const resolvedUserId = dataOwnerId || user?.id;
 
     if (!resolvedUserId || cancelled) {
+      console.log(
+        "LABOR LOAD SKIPPED: user ID not ready"
+      );
       return;
     }
 
     if (loadingLaborRef.current) {
+      console.log(
+        "LABOR LOAD SKIPPED: request already running"
+      );
       return;
     }
 
@@ -10771,7 +10777,7 @@ useEffect(() => {
 
     try {
       console.log(
-        "LABOR LOAD RESOLVED USER ID:",
+        "LABOR LOAD USER ID:",
         resolvedUserId
       );
 
@@ -10782,87 +10788,24 @@ useEffect(() => {
         .order("created_at", {
           ascending: false,
         })
-        .limit(500);
+        .limit(1000);
+
+      console.log("LABOR LOAD RAW DATA:", data);
+      console.log("LABOR LOAD ERROR:", error);
+      console.log(
+        "LABOR LOAD RAW COUNT:",
+        data?.length || 0
+      );
 
       if (error) {
-        console.error(
-          "LABOR LOAD DATABASE ERROR:",
-          error
-        );
-
-        return;
+        throw error;
       }
 
       if (cancelled) {
         return;
       }
 
-      console.log(
-        "LABOR UPLOAD RECORDS:",
-        data
-      );
-
-      /*
-        labor_uploads contains one record per uploaded file.
-        The actual shifts/labor rows are stored in the `rows`
-        JSON field, so flatten those arrays first.
-      */
-      const rawLaborRows = (data || []).flatMap(
-        (uploadRecord) => {
-          const storedRows = uploadRecord?.rows;
-
-          let parsedRows = [];
-
-          if (Array.isArray(storedRows)) {
-            parsedRows = storedRows;
-          } else if (
-            typeof storedRows === "string" &&
-            storedRows.trim()
-          ) {
-            try {
-              const parsed = JSON.parse(storedRows);
-
-              parsedRows = Array.isArray(parsed)
-                ? parsed
-                : [];
-            } catch (parseError) {
-              console.warn(
-                "LABOR ROWS JSON PARSE FAILED:",
-                parseError
-              );
-
-              parsedRows = [];
-            }
-          }
-
-          return parsedRows.map((row) => ({
-            ...row,
-
-            upload_id:
-              row.upload_id ||
-              uploadRecord.id ||
-              null,
-
-            file_name:
-              row.file_name ||
-              uploadRecord.file_name ||
-              null,
-
-            created_at:
-              row.created_at ||
-              uploadRecord.created_at ||
-              null,
-
-            location_name:
-              row.location_name ||
-              row.location ||
-              uploadRecord.location_name ||
-              null,
-          }));
-        }
-      );
-
-      const normalizedLaborRows = rawLaborRows.map(
+      const normalizedLaborRows = (data || []).map(
         (row) => {
           const hours = Number(
             row.hours_worked ||
@@ -10896,7 +10839,10 @@ useEffect(() => {
             ...row,
 
             hours,
+            hours_worked: hours,
+
             rate,
+            hourly_rate: rate,
 
             labor_cost:
               uploadedLaborCost > 0
@@ -10912,11 +10858,27 @@ useEffect(() => {
               row.Date ||
               null,
 
+            shift_date:
+              row.shift_date ||
+              row.work_date ||
+              row.date ||
+              row["Shift Date"] ||
+              row["Work Date"] ||
+              row.Date ||
+              null,
+
             role:
               row.role ||
               row.position ||
               row.Role ||
               row.Position ||
+              "Staff",
+
+            position:
+              row.position ||
+              row.role ||
+              row.Position ||
+              row.Role ||
               "Staff",
 
             location:
@@ -10940,7 +10902,12 @@ useEffect(() => {
       );
 
       console.log(
-        "LABOR NORMALIZED ROW COUNT:",
+        "LABOR NORMALIZED DATA:",
+        normalizedLaborRows
+      );
+
+      console.log(
+        "LABOR NORMALIZED COUNT:",
         normalizedLaborRows.length
       );
 
@@ -10949,31 +10916,25 @@ useEffect(() => {
         normalizedLaborRows[0]
       );
 
-      if (normalizedLaborRows.length > 0) {
-        setLaborData(normalizedLaborRows);
+      setLaborData(normalizedLaborRows);
 
+      if (normalizedLaborRows.length > 0) {
         localStorage.setItem(
           `serven_labor_rows_${resolvedUserId}`,
           JSON.stringify(normalizedLaborRows)
         );
-
-        console.log(
-          "LABOR LOADED SUCCESSFULLY:",
-          normalizedLaborRows.length
-        );
-
-        return;
       }
-
-      console.warn(
-        "LABOR DATABASE RETURNED NO STORED ROWS"
+    } catch (error) {
+      console.error(
+        "LABOR LOAD FAILED:",
+        error
       );
 
       const cachedLabor = localStorage.getItem(
         `serven_labor_rows_${resolvedUserId}`
       );
 
-      if (cachedLabor) {
+      if (cachedLabor && !cancelled) {
         try {
           const parsedCachedLabor =
             JSON.parse(cachedLabor);
@@ -10982,12 +10943,7 @@ useEffect(() => {
             Array.isArray(parsedCachedLabor) &&
             parsedCachedLabor.length > 0
           ) {
-            setLaborData((current) =>
-              Array.isArray(current) &&
-              current.length > 0
-                ? current
-                : parsedCachedLabor
-            );
+            setLaborData(parsedCachedLabor);
 
             console.log(
               "LABOR RESTORED FROM CACHE:",
@@ -10996,16 +10952,11 @@ useEffect(() => {
           }
         } catch (cacheError) {
           console.error(
-            "LABOR CACHE PARSE FAILED:",
+            "LABOR CACHE RESTORE FAILED:",
             cacheError
           );
         }
       }
-    } catch (error) {
-      console.error(
-        "LABOR LOADER CRASHED:",
-        error
-      );
     } finally {
       loadingLaborRef.current = false;
 
