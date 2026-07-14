@@ -16913,20 +16913,61 @@ console.log(
       if (!response.ok || !result.success) {
         throw new Error(result?.error || "Invoice removal endpoint failed.");
       }
-    } else {
-      // Standard upload direct table deletion path
-      const { data: deletedUploadRows, error: uploadDeleteError } = await supabase
-        .from("uploads")
-        .delete()
-        .eq("id", uploadId)
-        .select("id");
+ } else {
+  const {
+    data: { session },
+    error: sessionError,
+  } = await supabase.auth.getSession();
 
-      if (uploadDeleteError) throw uploadDeleteError;
+  if (sessionError) {
+    throw sessionError;
+  }
 
-      if (!deletedUploadRows?.length) {
-        throw new Error("No matching upload row found to delete from database.");
-      }
-    }
+  if (!session?.access_token) {
+    throw new Error(
+      "Your login session was not found. Please log in again."
+    );
+  }
+
+  const response = await fetch("/api/delete-client-upload", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify({
+      uploadId,
+      fileName,
+    }),
+  });
+
+  const responseText = await response.text();
+
+  console.log("DELETE IMPORT API STATUS:", response.status);
+  console.log("DELETE IMPORT API RESPONSE:", responseText);
+
+  let result = {};
+
+  try {
+    result = responseText
+      ? JSON.parse(responseText)
+      : {};
+  } catch {
+    throw new Error(
+      `Delete route returned invalid data: ${responseText.slice(
+        0,
+        300
+      )}`
+    );
+  }
+
+  if (!response.ok || !result.success) {
+    throw new Error(
+      result?.error ||
+        `Delete failed with status ${response.status}.`
+    );
+  }
+}
 
     /*
       3. Global state sync - only runs once database deletion is completely verified.
@@ -28235,6 +28276,13 @@ const handleDeleteUpload = async (uploadId) => {
   setRecentUploads((prev) =>
     (prev || []).filter((item) => item.id !== uploadId)
   );
+  if (uploadType === "employee_shifts") {
+  setEmployeeShifts((previous) =>
+    (previous || []).filter(
+      (shift) => shift.upload_id !== uploadId
+    )
+  );
+}
   setMessage("Deleting import...");
 
   try {
