@@ -10754,142 +10754,258 @@ const { data, error } = await menuItemsQuery;
 }, [dataOwnerId, activeLocation]);
 useEffect(() => {
   let cancelled = false;
-  let retryTimer = null;
 
-  const loadSavedLaborData = async (attempt = 1) => {
-    if (!dataOwnerId || cancelled) return;
-    if (loadingLaborRef.current) return;
+  const loadSavedLaborData = async () => {
+    const resolvedUserId = dataOwnerId || user?.id;
+
+    if (!resolvedUserId || cancelled) {
+      return;
+    }
+
+    if (loadingLaborRef.current) {
+      return;
+    }
 
     loadingLaborRef.current = true;
     setLaborLoading(true);
 
     try {
-      let laborQuery = supabase
+      console.log(
+        "LABOR LOAD RESOLVED USER ID:",
+        resolvedUserId
+      );
+
+      const { data, error } = await supabase
         .from("labor_uploads")
         .select("*")
-        .eq("user_id", dataOwnerId);
-
-      laborQuery = applyLocationFilter(laborQuery);
-
-      const { data, error } = await laborQuery
-        .order("created_at", { ascending: false })
+        .eq("user_id", resolvedUserId)
+        .order("created_at", {
+          ascending: false,
+        })
         .limit(500);
 
       if (error) {
-        const errorText = String(
-          error?.message || error?.details || error || ""
+        console.error(
+          "LABOR LOAD DATABASE ERROR:",
+          error
         );
 
-        const isLockError =
-          errorText.includes("Lock broken by another request") ||
-          errorText.includes("AbortError");
-
-        if (isLockError && attempt < 4 && !cancelled) {
-          retryTimer = setTimeout(() => {
-            loadSavedLaborData(attempt + 1);
-     }, 500 * attempt);
-
-          return;
-        }
-
-        console.error("Failed to load labor data:", error);
         return;
       }
 
-      if (cancelled) return;
+      if (cancelled) {
+        return;
+      }
 
-      const normalizedLaborRows = (data || []).map((row) => ({
-        ...row,
+      console.log(
+        "LABOR UPLOAD RECORDS:",
+        data
+      );
 
-        hours: Number(row.hours_worked || row.hours || 0),
-        rate: Number(row.hourly_rate || row.rate || 0),
-        labor_cost: Number(row.labor_cost || row.cost || 0),
+      /*
+        labor_uploads contains one record per uploaded file.
+        The actual shifts/labor rows are stored in the `rows`
+        JSON field, so flatten those arrays first.
+      */
+      const rawLaborRows = (data || []).flatMap(
+        (uploadRecord) => {
+          const storedRows = uploadRecord?.rows;
 
-        work_date:
-          row.work_date || row.shift_date || row.date || null,
+          let parsedRows = [];
 
-        role: row.role || row.position || "Staff",
+          if (Array.isArray(storedRows)) {
+            parsedRows = storedRows;
+          } else if (
+            typeof storedRows === "string" &&
+            storedRows.trim()
+          ) {
+            try {
+              const parsed = JSON.parse(storedRows);
 
-        location:
-          row.location ||
-          row.location_name ||
-          null,
+              parsedRows = Array.isArray(parsed)
+                ? parsed
+                : [];
+            } catch (parseError) {
+              console.warn(
+                "LABOR ROWS JSON PARSE FAILED:",
+                parseError
+              );
 
-        shift: row.shift || null,
-      }));
+              parsedRows = [];
+            }
+          }
 
-     console.log("LABOR DATABASE ROW COUNT:", normalizedLaborRows.length);
-console.log("LABOR LOAD OWNER ID:", dataOwnerId);
-console.log("LABOR LOAD LOCATION:", {
-  activeLocation,
-  assignedLocation,
-  shouldFilterByLocation,
-});
+          return parsedRows.map((row) => ({
+            ...row,
 
-if (normalizedLaborRows.length > 0) {
-  setLaborData(normalizedLaborRows);
+            upload_id:
+              row.upload_id ||
+              uploadRecord.id ||
+              null,
 
-  localStorage.setItem(
-    `serven_labor_rows_${dataOwnerId}`,
-    JSON.stringify(normalizedLaborRows)
-  );
+            file_name:
+              row.file_name ||
+              uploadRecord.file_name ||
+              null,
 
-  console.log(
-    "LABOR LOADED SUCCESSFULLY:",
-    normalizedLaborRows.length
-  );
-} else {
-  console.warn(
-    "LABOR QUERY RETURNED ZERO ROWS — PRESERVING EXISTING/CACHED LABOR"
-  );
+            created_at:
+              row.created_at ||
+              uploadRecord.created_at ||
+              null,
 
-  const cachedLabor = localStorage.getItem(
-    `serven_labor_rows_${dataOwnerId}`
-  );
+            location_name:
+              row.location_name ||
+              row.location ||
+              uploadRecord.location_name ||
+              null,
+          }));
+        }
+      );
 
-  if (cachedLabor) {
-    try {
-      const parsedCachedLabor = JSON.parse(cachedLabor);
+      const normalizedLaborRows = rawLaborRows.map(
+        (row) => {
+          const hours = Number(
+            row.hours_worked ||
+              row.hours ||
+              row["Hours Worked"] ||
+              row.Hours ||
+              row.total_hours ||
+              row["Total Hours"] ||
+              0
+          );
 
-      if (
-        Array.isArray(parsedCachedLabor) &&
-        parsedCachedLabor.length > 0
-      ) {
-        setLaborData((current) =>
-          Array.isArray(current) && current.length > 0
-            ? current
-            : parsedCachedLabor
+          const rate = Number(
+            row.hourly_rate ||
+              row.rate ||
+              row["Hourly Rate"] ||
+              row.Rate ||
+              row.pay_rate ||
+              row["Pay Rate"] ||
+              0
+          );
+
+          const uploadedLaborCost = Number(
+            row.labor_cost ||
+              row.cost ||
+              row["Labor Cost"] ||
+              row.Cost ||
+              0
+          );
+
+          return {
+            ...row,
+
+            hours,
+            rate,
+
+            labor_cost:
+              uploadedLaborCost > 0
+                ? uploadedLaborCost
+                : hours * rate,
+
+            work_date:
+              row.work_date ||
+              row.shift_date ||
+              row.date ||
+              row["Work Date"] ||
+              row["Shift Date"] ||
+              row.Date ||
+              null,
+
+            role:
+              row.role ||
+              row.position ||
+              row.Role ||
+              row.Position ||
+              "Staff",
+
+            location:
+              row.location ||
+              row.location_name ||
+              null,
+
+            location_name:
+              row.location_name ||
+              row.location ||
+              null,
+
+            shift:
+              row.shift ||
+              row.Shift ||
+              row.daypart ||
+              row.Daypart ||
+              null,
+          };
+        }
+      );
+
+      console.log(
+        "LABOR NORMALIZED ROW COUNT:",
+        normalizedLaborRows.length
+      );
+
+      console.log(
+        "LABOR NORMALIZED FIRST ROW:",
+        normalizedLaborRows[0]
+      );
+
+      if (normalizedLaborRows.length > 0) {
+        setLaborData(normalizedLaborRows);
+
+        localStorage.setItem(
+          `serven_labor_rows_${resolvedUserId}`,
+          JSON.stringify(normalizedLaborRows)
         );
 
         console.log(
-          "RESTORED LABOR FROM CACHE:",
-          parsedCachedLabor.length
+          "LABOR LOADED SUCCESSFULLY:",
+          normalizedLaborRows.length
         );
-      }
-    } catch (cacheError) {
-      console.error(
-        "LABOR CACHE PARSE FAILED:",
-        cacheError
-      );
-    }
-  }
-}
-    } catch (error) {
-      const errorText = String(error?.message || error || "");
-
-      const isLockError =
-        errorText.includes("Lock broken by another request") ||
-        errorText.includes("AbortError");
-
-      if (isLockError && attempt < 4 && !cancelled) {
-        retryTimer = setTimeout(() => {
-          loadSavedLaborData(attempt + 1);
-     }, 500 * attempt);
 
         return;
       }
 
-      console.error("Labor load crashed:", error);
+      console.warn(
+        "LABOR DATABASE RETURNED NO STORED ROWS"
+      );
+
+      const cachedLabor = localStorage.getItem(
+        `serven_labor_rows_${resolvedUserId}`
+      );
+
+      if (cachedLabor) {
+        try {
+          const parsedCachedLabor =
+            JSON.parse(cachedLabor);
+
+          if (
+            Array.isArray(parsedCachedLabor) &&
+            parsedCachedLabor.length > 0
+          ) {
+            setLaborData((current) =>
+              Array.isArray(current) &&
+              current.length > 0
+                ? current
+                : parsedCachedLabor
+            );
+
+            console.log(
+              "LABOR RESTORED FROM CACHE:",
+              parsedCachedLabor.length
+            );
+          }
+        } catch (cacheError) {
+          console.error(
+            "LABOR CACHE PARSE FAILED:",
+            cacheError
+          );
+        }
+      }
+    } catch (error) {
+      console.error(
+        "LABOR LOADER CRASHED:",
+        error
+      );
     } finally {
       loadingLaborRef.current = false;
 
@@ -10903,12 +11019,8 @@ if (normalizedLaborRows.length > 0) {
 
   return () => {
     cancelled = true;
-
-    if (retryTimer) {
-      clearTimeout(retryTimer);
-    }
   };
-}, [dataOwnerId, activeLocation]);
+}, [dataOwnerId, user?.id]);
 useEffect(() => {
   if (!dataOwnerId) return;
 
