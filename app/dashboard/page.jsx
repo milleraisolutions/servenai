@@ -10756,165 +10756,303 @@ useEffect(() => {
   let cancelled = false;
 
   const loadSavedLaborData = async () => {
-    const resolvedUserId = dataOwnerId;
-
-    if (!resolvedUserId) {
-      console.log("LABOR LOAD WAITING FOR DATA OWNER ID");
-      return;
-    }
-
-    setLaborLoading(true);
-
     try {
-      console.log("LABOR LOAD USER ID:", resolvedUserId);
+      setLaborLoading(true);
+
+      const {
+        data: { user: authenticatedUser },
+        error: authError,
+      } = await supabase.auth.getUser();
+
+      if (authError) {
+        throw authError;
+      }
+
+      if (!authenticatedUser?.id) {
+        console.log("LABOR LOAD: NO AUTHENTICATED USER");
+        return;
+      }
+
+      const possibleUserIds = [
+        authenticatedUser.id,
+        dataOwnerId,
+        userProfile?.owner_user_id,
+      ].filter(Boolean);
+
+      const uniqueUserIds = [...new Set(possibleUserIds)];
+
+      console.log("LABOR LOAD USER IDS:", uniqueUserIds);
+      console.log("LABOR AUTH USER:", authenticatedUser.id);
+      console.log("LABOR DATA OWNER:", dataOwnerId);
 
       let laborQuery = supabase
         .from("labor_uploads")
         .select("*")
-        .eq("user_id", resolvedUserId)
+        .in("user_id", uniqueUserIds)
         .order("created_at", {
           ascending: false,
         })
-        .limit(1000);
-
-      if (shouldFilterByLocation && assignedLocation) {
-        laborQuery = laborQuery.eq(
-          "location_name",
-          assignedLocation
-        );
-      }
+        .limit(5000);
 
       const { data, error } = await laborQuery;
 
-      console.log("LABOR LOAD RAW DATA:", data);
-      console.log("LABOR LOAD ERROR:", error);
-      console.log("LABOR LOAD RAW COUNT:", data?.length || 0);
+      console.log("LABOR DATABASE RESULT:", data);
+      console.log("LABOR DATABASE ERROR:", error);
+      console.log("LABOR DATABASE COUNT:", data?.length || 0);
+      console.log(
+        "LABOR DATABASE USER IDS:",
+        (data || []).map((row) => row.user_id)
+      );
 
       if (error) {
         throw error;
       }
 
-      if (cancelled) {
-        console.log("LABOR LOAD CANCELLED BEFORE STATE UPDATE");
-        return;
-      }
+      if (cancelled) return;
 
-      const normalizedLaborRows = (data || []).map((row) => {
-        const hours = Number(
-          row.hours_worked ??
-            row.hours ??
-            row["Hours Worked"] ??
-            row.Hours ??
-            row.total_hours ??
-            row["Total Hours"] ??
-            0
-        );
+      /*
+       * Support both database layouts:
+       *
+       * 1. Each database record is one labor shift.
+       * 2. A database record contains an array in row.rows.
+       */
+      const expandedLaborRows = (data || []).flatMap((databaseRow) => {
+        let storedRows = databaseRow?.rows;
 
-        const rate = Number(
-          row.hourly_rate ??
-            row.rate ??
-            row["Hourly Rate"] ??
-            row.Rate ??
-            row.pay_rate ??
-            row["Pay Rate"] ??
-            0
-        );
+        if (typeof storedRows === "string") {
+          try {
+            storedRows = JSON.parse(storedRows);
+          } catch (parseError) {
+            console.warn(
+              "LABOR ROWS JSON COULD NOT BE PARSED:",
+              parseError
+            );
 
-        const uploadedLaborCost = Number(
-          row.labor_cost ??
-            row.cost ??
-            row["Labor Cost"] ??
-            row.Cost ??
-            0
-        );
+            storedRows = null;
+          }
+        }
 
-        const workDate =
-          row.work_date ||
-          row.shift_date ||
-          row.date ||
-          row["Work Date"] ||
-          row["Shift Date"] ||
-          row.Date ||
-          null;
+        if (Array.isArray(storedRows) && storedRows.length > 0) {
+          return storedRows.map((storedRow) => ({
+            ...storedRow,
 
-        return {
-          ...row,
+            id:
+              storedRow.id ||
+              `${databaseRow.id}-${Math.random()}`,
 
-          hours,
-          hours_worked: hours,
+            upload_id:
+              storedRow.upload_id ||
+              databaseRow.upload_id ||
+              databaseRow.id,
 
-          rate,
-          hourly_rate: rate,
+            file_name:
+              storedRow.file_name ||
+              databaseRow.file_name,
 
-          labor_cost:
-            uploadedLaborCost > 0
-              ? uploadedLaborCost
-              : hours * rate,
+            created_at:
+              storedRow.created_at ||
+              databaseRow.created_at,
 
-          work_date: workDate,
-          shift_date: workDate,
+            user_id:
+              storedRow.user_id ||
+              databaseRow.user_id,
 
-          employee_name:
-            row.employee_name ||
-            row.employee ||
-            row["Employee Name"] ||
-            row.name ||
-            "Unknown Employee",
+            location_name:
+              storedRow.location_name ||
+              storedRow.location ||
+              databaseRow.location_name ||
+              databaseRow.location ||
+              null,
+          }));
+        }
 
-          role:
-            row.role ||
-            row.position ||
-            row.Role ||
-            row.Position ||
-            "Staff",
-
-          position:
-            row.position ||
-            row.role ||
-            row.Position ||
-            row.Role ||
-            "Staff",
-
-          location:
-            row.location ||
-            row.location_name ||
-            null,
-
-          location_name:
-            row.location_name ||
-            row.location ||
-            null,
-
-          shift:
-            row.shift ||
-            row.Shift ||
-            row.daypart ||
-            row.Daypart ||
-            "Unknown",
-        };
+        return [databaseRow];
       });
 
       console.log(
-        "LABOR NORMALIZED COUNT:",
-        normalizedLaborRows.length
+        "LABOR EXPANDED COUNT:",
+        expandedLaborRows.length
+      );
+
+      const normalizeNumber = (value) => {
+        const cleaned = String(value ?? "")
+          .replaceAll("$", "")
+          .replaceAll(",", "")
+          .replaceAll("%", "")
+          .trim();
+
+        const number = Number(cleaned);
+
+        return Number.isFinite(number) ? number : 0;
+      };
+
+      const normalizedLaborRows = expandedLaborRows.map(
+        (row, index) => {
+          const hours = normalizeNumber(
+            row.hours_worked ??
+              row.hours ??
+              row.total_hours ??
+              row["Hours Worked"] ??
+              row["Total Hours"] ??
+              row.Hours
+          );
+
+          const rate = normalizeNumber(
+            row.hourly_rate ??
+              row.rate ??
+              row.pay_rate ??
+              row["Hourly Rate"] ??
+              row["Pay Rate"] ??
+              row.Rate
+          );
+
+          const uploadedLaborCost = normalizeNumber(
+            row.labor_cost ??
+              row.laborCost ??
+              row.cost ??
+              row.payroll ??
+              row.wages ??
+              row.total_pay ??
+              row.gross_pay ??
+              row["Labor Cost"] ??
+              row["Payroll Cost"] ??
+              row["Total Pay"] ??
+              row.Cost
+          );
+
+          const laborCost =
+            uploadedLaborCost > 0
+              ? uploadedLaborCost
+              : hours * rate;
+
+          const workDate =
+            row.work_date ||
+            row.shift_date ||
+            row.date ||
+            row.business_date ||
+            row.clock_date ||
+            row["Work Date"] ||
+            row["Shift Date"] ||
+            row.Date ||
+            null;
+
+          const locationName =
+            row.location_name ||
+            row.location ||
+            row.store_name ||
+            row.store ||
+            row.restaurant_location ||
+            null;
+
+          return {
+            ...row,
+
+            id:
+              row.id ||
+              row.upload_id ||
+              `labor-${index}`,
+
+            employee:
+              row.employee ||
+              row.employee_name ||
+              row.staff_name ||
+              row.name ||
+              row["Employee Name"] ||
+              "Unknown Employee",
+
+            employee_name:
+              row.employee_name ||
+              row.employee ||
+              row.staff_name ||
+              row.name ||
+              row["Employee Name"] ||
+              "Unknown Employee",
+
+            role:
+              row.role ||
+              row.position ||
+              row.job_title ||
+              row.department ||
+              row.Role ||
+              row.Position ||
+              "Staff",
+
+            position:
+              row.position ||
+              row.role ||
+              row.job_title ||
+              row.Position ||
+              row.Role ||
+              "Staff",
+
+            hours,
+            hours_worked: hours,
+
+            rate,
+            hourly_rate: rate,
+
+            labor_cost: laborCost,
+
+            work_date: workDate,
+            shift_date: workDate,
+
+            location: locationName,
+            location_name: locationName,
+
+            shift:
+              row.shift ||
+              row.shift_name ||
+              row.daypart ||
+              row.period ||
+              row.service ||
+              row.Shift ||
+              row.Daypart ||
+              "Unknown",
+          };
+        }
+      );
+
+      const locationFilteredRows =
+        shouldFilterByLocation && assignedLocation
+          ? normalizedLaborRows.filter((row) => {
+              return (
+                String(
+                  row.location_name ||
+                    row.location ||
+                    ""
+                )
+                  .trim()
+                  .toLowerCase() ===
+                String(assignedLocation)
+                  .trim()
+                  .toLowerCase()
+              );
+            })
+          : normalizedLaborRows;
+
+      console.log(
+        "FINAL LABOR ROW COUNT:",
+        locationFilteredRows.length
       );
 
       console.log(
-        "LABOR NORMALIZED FIRST ROW:",
-        normalizedLaborRows[0]
+        "FINAL LABOR FIRST ROW:",
+        locationFilteredRows[0]
       );
 
-      setLaborData(normalizedLaborRows);
+      if (cancelled) return;
 
-      if (normalizedLaborRows.length > 0) {
+      setLaborData(locationFilteredRows);
+
+      if (locationFilteredRows.length > 0) {
         localStorage.setItem(
-          `serven_labor_rows_${resolvedUserId}`,
-          JSON.stringify(normalizedLaborRows)
+          `serven_labor_rows_${authenticatedUser.id}`,
+          JSON.stringify(locationFilteredRows)
         );
-      } else {
-        console.warn(
-          "LABOR DATABASE QUERY RETURNED ZERO ROWS FOR:",
-          resolvedUserId
+
+        localStorage.setItem(
+          "serven_labor_rows",
+          JSON.stringify(locationFilteredRows)
         );
       }
     } catch (error) {
@@ -10923,24 +11061,29 @@ useEffect(() => {
       if (cancelled) return;
 
       try {
-        const cachedLabor = localStorage.getItem(
-          `serven_labor_rows_${resolvedUserId}`
-        );
+        const authenticatedUserId =
+          user?.id || dataOwnerId;
 
-        const parsedCachedLabor = cachedLabor
+        const cachedLabor =
+          localStorage.getItem(
+            `serven_labor_rows_${authenticatedUserId}`
+          ) ||
+          localStorage.getItem("serven_labor_rows");
+
+        const parsedLabor = cachedLabor
           ? JSON.parse(cachedLabor)
           : [];
 
         if (
-          Array.isArray(parsedCachedLabor) &&
-          parsedCachedLabor.length > 0
+          Array.isArray(parsedLabor) &&
+          parsedLabor.length > 0
         ) {
-          setLaborData(parsedCachedLabor);
-
           console.log(
             "LABOR RESTORED FROM CACHE:",
-            parsedCachedLabor.length
+            parsedLabor.length
           );
+
+          setLaborData(parsedLabor);
         }
       } catch (cacheError) {
         console.error(
@@ -10962,6 +11105,8 @@ useEffect(() => {
   };
 }, [
   dataOwnerId,
+  user?.id,
+  userProfile?.owner_user_id,
   shouldFilterByLocation,
   assignedLocation,
 ]);
