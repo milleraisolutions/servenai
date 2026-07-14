@@ -25682,70 +25682,7 @@ const cleanUploadRow = {
   }
 }
 };
-useEffect(() => {
-  const fetchLaborAndShifts = async () => {
-    if (!user?.id) {
-      console.log("FETCH: No user logged in yet, skipping fetch.");
-      return;
-    }
 
-    try {
-      console.log("FETCH: Loading labor files and shift records for user:", user.id);
-
-      // 1. Fetch your upload tracking logs (the "labor files" list)
-      const { data: uploadsData, error: uploadsError } = await supabase
-        .from("uploads")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
-
-      if (uploadsError) {
-        console.error("Error fetching uploads log:", uploadsError);
-      } else {
-        // Update your imports list states so files show up in your "recent files" tables
-        const laborUploadsOnly = (uploadsData || []).filter(
-          (item) => item.upload_type === "employee_shifts" || item.source_name === "employee_shift_upload"
-        );
-
-        if (typeof setClientImports === "function") {
-          setClientImports(uploadsData || []);
-        }
-        if (typeof setRecentUploads === "function") {
-          setRecentUploads(uploadsData || []);
-        }
-        // If your code uses a specific state for labor files list:
-        if (typeof setLaborData === "function") {
-          setLaborData(laborUploadsOnly);
-        }
-      }
-
-      // 2. Fetch the actual raw shift records
-      let shiftsQuery = supabase
-        .from("employee_shifts")
-        .select("*")
-        .eq("user_id", user.id);
-
-      if (typeof activeLocation !== "undefined" && activeLocation && activeLocation !== "all") {
-        shiftsQuery = shiftsQuery.eq("location_name", activeLocation);
-      }
-
-      const { data: shiftsData, error: shiftsError } = await shiftsQuery.order("shift_date", { ascending: false });
-
-      if (shiftsError) {
-        console.error("Error fetching employee shifts:", shiftsError);
-      } else {
-        if (typeof setEmployeeShifts === "function") {
-          setEmployeeShifts(shiftsData || []);
-        }
-      }
-
-    } catch (err) {
-      console.error("Failed to load labor database states on mount:", err);
-    }
-  };
-
-  fetchLaborAndShifts();
-}, [user?.id, typeof activeLocation !== "undefined" ? activeLocation : null]);
 useEffect(() => {
   const loadBeverageData = async () => {
     const {
