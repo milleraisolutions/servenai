@@ -25683,46 +25683,68 @@ const cleanUploadRow = {
 }
 };
 useEffect(() => {
-  const fetchEmployeeShifts = async () => {
-    // 1. Safety check: make sure we have a logged-in user before querying
+  const fetchLaborAndShifts = async () => {
     if (!user?.id) {
-      console.log("FETCH SHIFTS: No user logged in yet, skipping fetch.");
+      console.log("FETCH: No user logged in yet, skipping fetch.");
       return;
     }
 
     try {
-      console.log("FETCH SHIFTS: Fetching employee shifts for user:", user.id);
-      
-      let query = supabase
+      console.log("FETCH: Loading labor files and shift records for user:", user.id);
+
+      // 1. Fetch your upload tracking logs (the "labor files" list)
+      const { data: uploadsData, error: uploadsError } = await supabase
+        .from("uploads")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (uploadsError) {
+        console.error("Error fetching uploads log:", uploadsError);
+      } else {
+        // Update your imports list states so files show up in your "recent files" tables
+        const laborUploadsOnly = (uploadsData || []).filter(
+          (item) => item.upload_type === "employee_shifts" || item.source_name === "employee_shift_upload"
+        );
+
+        if (typeof setClientImports === "function") {
+          setClientImports(uploadsData || []);
+        }
+        if (typeof setRecentUploads === "function") {
+          setRecentUploads(uploadsData || []);
+        }
+        // If your code uses a specific state for labor files list:
+        if (typeof setLaborData === "function") {
+          setLaborData(laborUploadsOnly);
+        }
+      }
+
+      // 2. Fetch the actual raw shift records
+      let shiftsQuery = supabase
         .from("employee_shifts")
         .select("*")
         .eq("user_id", user.id);
 
-      // 2. Location Filtering (if your app filters by location)
       if (typeof activeLocation !== "undefined" && activeLocation && activeLocation !== "all") {
-        query = query.eq("location_name", activeLocation);
+        shiftsQuery = shiftsQuery.eq("location_name", activeLocation);
       }
 
-      // 3. Sort by date so newest shifts load first
-      const { data, error } = await query.order("shift_date", { ascending: false });
+      const { data: shiftsData, error: shiftsError } = await shiftsQuery.order("shift_date", { ascending: false });
 
-      if (error) {
-        console.error("Supabase error fetching employee shifts:", error);
-        return;
+      if (shiftsError) {
+        console.error("Error fetching employee shifts:", shiftsError);
+      } else {
+        if (typeof setEmployeeShifts === "function") {
+          setEmployeeShifts(shiftsData || []);
+        }
       }
 
-      console.log(`FETCH SHIFTS: Successfully loaded ${data?.length || 0} shifts from DB.`);
-      
-      // 4. Update the state with database values
-      if (typeof setEmployeeShifts === "function") {
-        setEmployeeShifts(data || []);
-      }
     } catch (err) {
-      console.error("Failed to fetch shifts on mount:", err);
+      console.error("Failed to load labor database states on mount:", err);
     }
   };
 
-  fetchEmployeeShifts();
+  fetchLaborAndShifts();
 }, [user?.id, typeof activeLocation !== "undefined" ? activeLocation : null]);
 useEffect(() => {
   const loadBeverageData = async () => {
