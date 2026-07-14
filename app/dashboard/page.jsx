@@ -25295,7 +25295,8 @@ const handleEmployeeShiftFileChange = async (event) => {
 const handleEmployeeShiftUpload = async (event) => {
   console.log("EMPLOYEE SHIFT UPLOAD FIRED");
  setEmployeeShiftUploadLoading(true);
-  let uploadRow = null;
+let uploadRow = null;
+let importCommitted = false;
 
   try {
     const file = event.target.files?.[0];
@@ -25604,9 +25605,13 @@ const handleEmployeeShiftUpload = async (event) => {
           console.log("EMPLOYEE SHIFT insertedShifts:", insertedShifts);
           console.log("EMPLOYEE SHIFT shiftsError:", shiftsError);
 
-          if (shiftsError) throw shiftsError;
+      if (shiftsError) throw shiftsError;
 
-          const cleanUploadRow = {
+// The employee shift rows are safely stored.
+// Any later UI error must not delete them.
+importCommitted = true;
+
+const cleanUploadRow = {
             ...uploadRow,
             status: "completed",
             upload_type: "employee_shifts",
@@ -25654,7 +25659,7 @@ const handleEmployeeShiftUpload = async (event) => {
         } catch (innerError) {
           console.error("Employee shift upload inner error:", innerError);
 
-          if (uploadRow?.id) {
+          if (uploadRow?.id && !importCommitted) {
             await supabase
               .from("employee_shifts")
               .delete()
