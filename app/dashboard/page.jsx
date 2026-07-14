@@ -25682,7 +25682,94 @@ const cleanUploadRow = {
   }
 }
 };
+useEffect(() => {
+  let cancelled = false;
 
+  const loadEmployeesAndShifts = async () => {
+    const resolvedUserId = dataOwnerId || user?.id;
+
+    if (!resolvedUserId) {
+      console.log(
+        "EMPLOYEE SHIFT LOAD SKIPPED: user ID not ready"
+      );
+      return;
+    }
+
+    try {
+      console.log(
+        "EMPLOYEE SHIFT LOAD USER ID:",
+        resolvedUserId
+      );
+
+      const [
+        employeesResult,
+        shiftsResult,
+      ] = await Promise.all([
+        supabase
+          .from("employees")
+          .select("*")
+          .eq("user_id", resolvedUserId)
+          .order("created_at", {
+            ascending: false,
+          }),
+
+        supabase
+          .from("employee_shifts")
+          .select("*")
+          .eq("user_id", resolvedUserId)
+          .order("shift_date", {
+            ascending: false,
+          }),
+      ]);
+
+      if (cancelled) return;
+
+      if (employeesResult.error) {
+        console.error(
+          "EMPLOYEES LOAD ERROR:",
+          employeesResult.error
+        );
+      } else {
+        console.log(
+          "EMPLOYEES LOAD COUNT:",
+          employeesResult.data?.length || 0
+        );
+
+        setEmployees(employeesResult.data || []);
+      }
+
+      if (shiftsResult.error) {
+        console.error(
+          "EMPLOYEE SHIFTS LOAD ERROR:",
+          shiftsResult.error
+        );
+      } else {
+        console.log(
+          "EMPLOYEE SHIFTS LOAD DATA:",
+          shiftsResult.data
+        );
+
+        console.log(
+          "EMPLOYEE SHIFTS LOAD COUNT:",
+          shiftsResult.data?.length || 0
+        );
+
+        setEmployeeShifts(shiftsResult.data || []);
+      }
+    } catch (loadError) {
+      console.error(
+        "EMPLOYEE SHIFT LOADER CRASHED:",
+        loadError
+      );
+    }
+  };
+
+  loadEmployeesAndShifts();
+
+  return () => {
+    cancelled = true;
+  };
+}, [user?.id, dataOwnerId]);
 useEffect(() => {
   const loadBeverageData = async () => {
     const {
