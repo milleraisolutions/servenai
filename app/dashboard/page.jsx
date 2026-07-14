@@ -25774,7 +25774,7 @@ useEffect(() => {
   let cancelled = false;
 
   const loadBeverageData = async () => {
-    const resolvedUserId = user?.id || dataOwnerId;
+   const resolvedUserId = dataOwnerId || user?.id;
 
     if (!resolvedUserId) {
       console.log(
