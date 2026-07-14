@@ -25230,43 +25230,91 @@ const handleRecipeUpload = async (event) => {
 
 useEffect(() => {
   const loadEmployees = async () => {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    try {
+      const {
+        data: { user: authenticatedUser },
+        error: userError,
+      } = await supabase.auth.getUser();
 
-    if (!user?.id) return;
+      if (userError) {
+        console.error("EMPLOYEE LOAD USER ERROR:", userError);
+        return;
+      }
 
-    const { data: employeesData, error: employeesError } = await supabase
-      .from("employees")
-      .select("*")
-      .eq("user_id", dataOwnerId || user.id)
-      .order("created_at", { ascending: false });
+      if (!authenticatedUser?.id) {
+        console.log("EMPLOYEE LOAD STOPPED: no authenticated user");
+        return;
+      }
 
-    if (employeesError) {
-      console.error("Employees load error:", employeesError);
-      return;
+      const employeeDataOwnerId =
+        dataOwnerId || authenticatedUser.id;
+
+      console.log("EMPLOYEE LOAD AUTH USER:", authenticatedUser.id);
+      console.log("EMPLOYEE LOAD DATA OWNER:", dataOwnerId);
+      console.log(
+        "EMPLOYEE LOAD RESOLVED OWNER:",
+        employeeDataOwnerId
+      );
+
+      const {
+        data: employeesData,
+        error: employeesError,
+      } = await supabase
+        .from("employees")
+        .select("*")
+        .eq("user_id", employeeDataOwnerId)
+        .order("created_at", { ascending: false });
+
+      console.log("EMPLOYEES LOAD DATA:", employeesData);
+      console.log("EMPLOYEES LOAD ERROR:", employeesError);
+
+      if (employeesError) {
+        throw employeesError;
+      }
+
+      let shiftsQuery = supabase
+        .from("employee_shifts")
+        .select("*")
+        .eq("user_id", employeeDataOwnerId)
+        .order("shift_date", { ascending: false });
+
+      if (
+        activeLocation &&
+        activeLocation !== "all"
+      ) {
+        shiftsQuery = shiftsQuery.eq(
+          "location_name",
+          activeLocation
+        );
+      }
+
+      const {
+        data: shiftsData,
+        error: shiftsError,
+      } = await shiftsQuery;
+
+      console.log("EMPLOYEE SHIFTS LOAD DATA:", shiftsData);
+      console.log("EMPLOYEE SHIFTS LOAD ERROR:", shiftsError);
+      console.log(
+        "EMPLOYEE SHIFTS LOAD COUNT:",
+        shiftsData?.length || 0
+      );
+
+      if (shiftsError) {
+        throw shiftsError;
+      }
+
+      setEmployees(employeesData || []);
+      setEmployeeShifts(shiftsData || []);
+    } catch (loadError) {
+      console.error(
+        "EMPLOYEE AND SHIFT LOAD FAILED:",
+        loadError
+      );
     }
-
-    const { data: shiftsData, error: shiftsError } = await supabase
-      .from("employee_shifts")
-      .select("*")
-      .eq("user_id", dataOwnerId || user.id)
-      .order("shift_date", { ascending: false });
-
-    if (shiftsError) {
-      console.error("Employee shifts load error:", shiftsError);
-      return;
-    }
-
-    setEmployees(employeesData || []);
-    setEmployeeShifts(shiftsData || []);
   };
 
-  if (!dataOwnerId) return;
-
   loadEmployees();
-
- 
 }, [dataOwnerId, activeLocation]);
 const handleEmployeeShiftFileChange = async (event) => {
   const file = event.target.files?.[0];
