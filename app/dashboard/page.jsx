@@ -28674,6 +28674,63 @@ const handleDeleteUpload = async (uploadId) => {
   try {
     // ✅ EMPLOYEE SHIFT FILE DELETE
     if (uploadIdString.startsWith("employee-shift-file-")) {
+      // ✅ NORMAL EMPLOYEE SHIFT UPLOAD DELETE
+if (
+  uploadType === "employee_shifts" &&
+  !uploadIdString.startsWith("employee-shift-file-") &&
+  !uploadIdString.startsWith("employee-shift-")
+) {
+  console.log("DELETING EMPLOYEE SHIFT UPLOAD UUID:", uploadId);
+
+  const { error: shiftsDeleteError } = await supabase
+    .from("employee_shifts")
+    .delete()
+    .eq("upload_id", uploadId);
+
+  if (shiftsDeleteError) {
+    console.error(
+      "EMPLOYEE SHIFT ROW DELETE ERROR:",
+      shiftsDeleteError
+    );
+
+    throw shiftsDeleteError;
+  }
+
+  const { error: uploadDeleteError } = await supabase
+    .from("uploads")
+    .delete()
+    .eq("id", uploadId);
+
+  if (uploadDeleteError) {
+    console.error(
+      "EMPLOYEE SHIFT UPLOAD DELETE ERROR:",
+      uploadDeleteError
+    );
+
+    throw uploadDeleteError;
+  }
+
+  setEmployeeShifts((previous) =>
+    (previous || []).filter(
+      (shift) => shift.upload_id !== uploadId
+    )
+  );
+
+  setClientImports((previous) =>
+    (previous || []).filter(
+      (item) => item.id !== uploadId
+    )
+  );
+
+  setRecentUploads((previous) =>
+    (previous || []).filter(
+      (item) => item.id !== uploadId
+    )
+  );
+
+  setMessage("Employee shift import deleted.");
+  return;
+}
       const employeeShiftFileKey = uploadIdString.replace(
         "employee-shift-file-",
         ""
