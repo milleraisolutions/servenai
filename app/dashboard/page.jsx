@@ -25774,7 +25774,7 @@ useEffect(() => {
   let cancelled = false;
 
   const loadBeverageData = async () => {
-    const resolvedUserId = dataOwnerId || user?.id;
+    const resolvedUserId = user?.id || dataOwnerId;
 
     if (!resolvedUserId) {
       console.log(
@@ -26218,7 +26218,7 @@ const handleBeverageUpload = async (event) => {
           if (beverageInsertError) {
             throw beverageInsertError;
           }
-
+importCommitted = true;
           const importedCount =
             insertedBeverages?.length ||
             beverageRows.length ||
@@ -26284,7 +26284,7 @@ const handleBeverageUpload = async (event) => {
             innerError
           );
 
-          if (uploadRow?.id) {
+          if (uploadRow?.id && !importCommitted) {
             await supabase
               .from("beverage_items")
               .delete()
@@ -26376,7 +26376,8 @@ const handleBeverageUsageUpload = async (event) => {
   }
 
   let uploadRow = null;
-  let optimisticUpload = null;
+let optimisticUpload = null;
+let importCommitted = false;
 
   try {
     setMessage("Importing beverage usage...");
