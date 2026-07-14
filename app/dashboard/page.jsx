@@ -25682,7 +25682,48 @@ const cleanUploadRow = {
   }
 }
 };
+useEffect(() => {
+  const fetchEmployeeShifts = async () => {
+    // 1. Safety check: make sure we have a logged-in user before querying
+    if (!user?.id) {
+      console.log("FETCH SHIFTS: No user logged in yet, skipping fetch.");
+      return;
+    }
 
+    try {
+      console.log("FETCH SHIFTS: Fetching employee shifts for user:", user.id);
+      
+      let query = supabase
+        .from("employee_shifts")
+        .select("*")
+        .eq("user_id", user.id);
+
+      // 2. Location Filtering (if your app filters by location)
+      if (typeof activeLocation !== "undefined" && activeLocation && activeLocation !== "all") {
+        query = query.eq("location_name", activeLocation);
+      }
+
+      // 3. Sort by date so newest shifts load first
+      const { data, error } = await query.order("shift_date", { ascending: false });
+
+      if (error) {
+        console.error("Supabase error fetching employee shifts:", error);
+        return;
+      }
+
+      console.log(`FETCH SHIFTS: Successfully loaded ${data?.length || 0} shifts from DB.`);
+      
+      // 4. Update the state with database values
+      if (typeof setEmployeeShifts === "function") {
+        setEmployeeShifts(data || []);
+      }
+    } catch (err) {
+      console.error("Failed to fetch shifts on mount:", err);
+    }
+  };
+
+  fetchEmployeeShifts();
+}, [user?.id, typeof activeLocation !== "undefined" ? activeLocation : null]);
 useEffect(() => {
   const loadBeverageData = async () => {
     const {
