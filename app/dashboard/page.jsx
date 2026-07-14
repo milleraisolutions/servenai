@@ -311,6 +311,9 @@ const invoiceUploadInputRef = useRef(null);
 const loadingCustomersRef = useRef(false);
 // Add this next to your other useState hooks at the top of your file
 const [selectedInvoiceFile, setSelectedInvoiceFile] = useState(null);
+const [selectedLaborFile, setSelectedLaborFile] = useState(null);
+const [laborUploadLoading, setLaborUploadLoading] = useState(false);
+const laborUploadInputRef = useRef(null);
 const loadAdminData = async () => {
   const { data: usersData, error: usersError } = await supabase
     .from("users")
@@ -832,6 +835,121 @@ const handleInvoiceFileChange = (event) => {
   
   setSelectedInvoiceFile(file);
   setMessage(`File loaded: "${file.name}". Ready to import.`);
+};
+const handleLaborFileChange = async (event) => {
+  console.log("LABOR FILE SELECTED");
+
+  const input = event.currentTarget;
+  const file = input.files?.[0] || null;
+
+  if (!file) {
+    setSelectedLaborFile(null);
+    return;
+  }
+
+  const fileError = validateUploadFile(file, 25);
+
+  if (fileError) {
+    setSelectedLaborFile(null);
+    setMessage(fileError);
+    alert(fileError);
+    input.value = "";
+    return;
+  }
+
+  try {
+    setLaborUploadLoading(true);
+    setMessage(`Reading ${file.name}...`);
+
+    let parsedLaborRows = [];
+
+    const extension = String(file.name || "")
+      .split(".")
+      .pop()
+      .toLowerCase();
+
+    if (extension === "csv") {
+      parsedLaborRows = await new Promise((resolve, reject) => {
+        Papa.parse(file, {
+          header: true,
+          skipEmptyLines: true,
+          complete: (results) => {
+            resolve(results.data || []);
+          },
+          error: (error) => reject(error),
+        });
+      });
+    } else if (["xlsx", "xls"].includes(extension)) {
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer, {
+        type: "array",
+      });
+
+      const firstSheetName = workbook.SheetNames?.[0];
+
+      if (!firstSheetName) {
+        throw new Error("No worksheet was found in the labor file.");
+      }
+
+      parsedLaborRows = XLSX.utils.sheet_to_json(
+        workbook.Sheets[firstSheetName],
+        {
+          defval: "",
+        }
+      );
+    } else {
+      throw new Error(
+        "Labor files must be CSV, XLSX, or XLS."
+      );
+    }
+
+    const validRows = (parsedLaborRows || []).filter((row) =>
+      Object.values(row || {}).some(
+        (value) => String(value ?? "").trim() !== ""
+      )
+    );
+
+    if (!validRows.length) {
+      throw new Error(
+        "No labor rows were found in the selected file."
+      );
+    }
+
+    setSelectedLaborFile(file);
+
+    setPendingUploadRows(validRows);
+    pendingUploadRowsRef.current = validRows;
+
+    setPendingUploadSummary({
+      uploadType: "labor",
+      fileName: file.name,
+      rowCount: validRows.length,
+      rows: validRows,
+    });
+
+    setUploadType("labor");
+    selectedUploadTypeRef.current = "labor";
+
+    setMessage(
+      `${file.name} loaded with ${validRows.length} labor rows. Click Confirm & Process Labor.`
+    );
+
+    console.log("STAGED LABOR ROWS:", validRows);
+  } catch (error) {
+    console.error("LABOR FILE READ ERROR:", error);
+
+    setSelectedLaborFile(null);
+
+    const errorMessage =
+      error?.message || "Labor file could not be read.";
+
+    setMessage(errorMessage);
+    alert(errorMessage);
+
+    input.value = "";
+  } finally {
+    setLaborUploadLoading(false);
+  }
 };
 const handleInvoiceUpload = async () => {
   console.log("INVOICE UPLOAD INITIALIZED");
@@ -13977,6 +14095,7 @@ const menuEngineeringInsight =
 
 const handleImportLabor = async (rowsOverride = null) => {
   console.log("=== LABOR IMPORT STARTED ===");
+  setLaborUploadLoading(true);
   console.log("PENDING SUMMARY:", pendingUploadSummary);
   console.log("LABOR DATA STATE:", laborData);
 
@@ -14138,42 +14257,162 @@ location_name:
     console.log("DATABASE INSERTION SUCCESS:", insertedLaborRows);
 
     // 5. Structure State Manifest Update
-    const newLaborUpload = {
-      id: `labor-${Date.now()}`,
-      file_name: pendingUploadSummary?.fileName || "Labor upload",
-      source_name: "labor_upload",
-      row_count: rowsToInsert.length,
-      created_at: new Date().toISOString(),
-      rows: insertedLaborRows || rowsToInsert,
-    };
+    // 5. Reload the permanent labor records from Supabase
+let refreshedLaborRows = [];
+let refreshError = null;
 
-    setClientImports((prev) =>
-      (prev || []).map((item) => (item.id === optimisticUpload.id ? newLaborUpload : item))
+for (let attempt = 1; attempt <= 5; attempt += 1) {
+  let laborQuery = supabase
+    .from("labor_uploads")
+    .select("*")
+    .eq("user_id", ownerId)
+    .order("created_at", { ascending: false });
+
+  if (shouldFilterByLocation && assignedLocation) {
+    laborQuery = laborQuery.eq(
+      "location_name",
+      assignedLocation
     );
-
-    setRecentUploads((prev) =>
-      (prev || []).map((item) => (item.id === optimisticUpload.id ? newLaborUpload : item))
-    );
-
-    setLaborData(insertedLaborRows || rowsToInsert);
-
-    // Clear caching structures
-    setPendingUploadSummary(null);
-    setPendingUploadRows([]);
-    if (pendingUploadRowsRef?.current) {
-      pendingUploadRowsRef.current = [];
-    }
-
-    const csvInput = document.getElementById("csvUpload");
-    if (csvInput) csvInput.value = "";
-
-    setMessage(`Successfully imported ${rowsToInsert.length} labor rows.`);
-    setTimeout(() => setMessage(""), 3000);
-
-  } catch (catchError) {
-    console.error("Critical fatal error runtime catch during execution:", catchError);
-    setMessage("An unexpected processing error occurred. Check browser console logs.");
   }
+
+  const {
+    data: loadedLaborRows,
+    error: laborReloadError,
+  } = await laborQuery;
+
+  if (!laborReloadError) {
+    refreshedLaborRows = loadedLaborRows || [];
+    refreshError = null;
+    break;
+  }
+
+  refreshError = laborReloadError;
+
+  const errorText = String(
+    laborReloadError?.message ||
+      laborReloadError?.details ||
+      ""
+  );
+
+  const isLockError =
+    errorText.includes("Lock broken by another request") ||
+    errorText.includes("AbortError");
+
+  if (!isLockError || attempt === 5) {
+    break;
+  }
+
+  await new Promise((resolve) =>
+    setTimeout(resolve, 300 * attempt)
+  );
+}
+
+if (refreshError) {
+  console.error(
+    "LABOR RELOAD AFTER IMPORT FAILED:",
+    refreshError
+  );
+
+  // Preserve the successfully inserted rows if reload is temporarily aborted.
+  setLaborData((previous) => {
+    const existing = Array.isArray(previous)
+      ? previous
+      : [];
+
+    const incoming = insertedLaborRows || rowsToInsert;
+
+    const merged = [...incoming, ...existing];
+
+    return merged.filter(
+      (row, index, array) =>
+        index ===
+        array.findIndex((candidate) => {
+          if (row.id && candidate.id) {
+            return row.id === candidate.id;
+          }
+
+          return (
+            String(candidate.employee_name || "") ===
+              String(row.employee_name || "") &&
+            String(candidate.work_date || "") ===
+              String(row.work_date || "") &&
+            String(candidate.clock_in || "") ===
+              String(row.clock_in || "")
+          );
+        })
+    );
+  });
+} else {
+  setLaborData(refreshedLaborRows);
+}
+
+const firstInsertedId =
+  insertedLaborRows?.[0]?.id || Date.now();
+
+const newLaborUpload = {
+  id: `labor-${firstInsertedId}`,
+  file_name:
+    pendingUploadSummary?.fileName ||
+    selectedLaborFile?.name ||
+    "Labor upload",
+  source_name: "labor_upload",
+  upload_type: "labor",
+  row_count:
+    insertedLaborRows?.length ||
+    rowsToInsert.length,
+  created_at:
+    insertedLaborRows?.[0]?.created_at ||
+    new Date().toISOString(),
+  rows: insertedLaborRows || rowsToInsert,
+};
+
+setClientImports((previous) => [
+  newLaborUpload,
+  ...(previous || []).filter(
+    (item) =>
+      item.id !== optimisticUpload.id &&
+      item.id !== newLaborUpload.id
+  ),
+]);
+
+setRecentUploads((previous) => [
+  newLaborUpload,
+  ...(previous || []).filter(
+    (item) =>
+      item.id !== optimisticUpload.id &&
+      item.id !== newLaborUpload.id
+  ),
+]);
+
+setPendingUploadSummary(null);
+setPendingUploadRows([]);
+pendingUploadRowsRef.current = [];
+
+setSelectedLaborFile(null);
+
+if (laborUploadInputRef.current) {
+  laborUploadInputRef.current.value = "";
+}
+
+setMessage(
+  `Successfully imported ${rowsToInsert.length} labor rows.`
+);
+
+setTimeout(() => setMessage(""), 3000);
+
+ } catch (catchError) {
+  console.error(
+    "Critical fatal error runtime catch during execution:",
+    catchError
+  );
+
+  setMessage(
+    catchError?.message ||
+      "An unexpected labor processing error occurred."
+  );
+} finally {
+  setLaborUploadLoading(false);
+}
 };
 const handleImportBatchPrep = async (
   rowsOverride = null,
@@ -28972,9 +29211,10 @@ return (
 
 <input
   id="laborUpload"
+  ref={laborUploadInputRef}
   type="file"
   accept=".csv,.xlsx,.xls"
-  onChange={handleFileUpload}
+  onChange={handleLaborFileChange}
   style={{ display: "none" }}
 />
 
@@ -29156,19 +29396,109 @@ return (
   Upload POS Data
 </button>
 
-<button
-  onClick={() => {
-    selectedUploadTypeRef.current = "labor";
-    setUploadType("labor");
-
-    const input = document.getElementById("laborUpload");
-    if (input) input.value = "";
-    input?.click();
+<div
+  style={{
+    display: "flex",
+    flexDirection: "column",
+    gap: "10px",
+    minWidth: 0,
   }}
-  style={setupPrimaryButton}
 >
-  Upload Labor Data
-</button>
+  <button
+    type="button"
+    onClick={() => {
+      selectedUploadTypeRef.current = "labor";
+      setUploadType("labor");
+
+      if (laborUploadInputRef.current) {
+        laborUploadInputRef.current.value = "";
+        laborUploadInputRef.current.click();
+      }
+    }}
+    style={{
+      ...setupPrimaryButton,
+      width: "100%",
+    }}
+  >
+    Upload Labor Data
+  </button>
+
+  {selectedLaborFile && (
+    <div
+      style={{
+        padding: "12px",
+        background: "rgba(15,23,42,0.96)",
+        border: "1px solid rgba(148,163,184,0.22)",
+        borderRadius: "12px",
+        display: "flex",
+        flexDirection: "column",
+        gap: "10px",
+        minWidth: 0,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+          color: "#e2e8f0",
+          minWidth: 0,
+        }}
+      >
+        <span>📄</span>
+
+        <strong
+          style={{
+            flex: 1,
+            minWidth: 0,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {selectedLaborFile.name}
+        </strong>
+
+        <span
+          style={{
+            color: "#94a3b8",
+            flexShrink: 0,
+          }}
+        >
+          ({(selectedLaborFile.size / 1024).toFixed(1)} KB)
+        </span>
+      </div>
+
+      <button
+        type="button"
+        onClick={() =>
+          handleImportLabor(
+            pendingUploadSummary?.rows || []
+          )
+        }
+        disabled={laborUploadLoading}
+        style={{
+          width: "100%",
+          padding: "10px 12px",
+          borderRadius: "10px",
+          background: laborUploadLoading
+            ? "#475569"
+            : "linear-gradient(135deg, #4f46e5, #7c3aed)",
+          color: "#fff",
+          border: "none",
+          fontWeight: "700",
+          cursor: laborUploadLoading
+            ? "not-allowed"
+            : "pointer",
+        }}
+      >
+        {laborUploadLoading
+          ? "Processing Labor..."
+          : "Confirm & Process Labor"}
+      </button>
+    </div>
+  )}
+</div>
 
 <button
   onClick={() => {
