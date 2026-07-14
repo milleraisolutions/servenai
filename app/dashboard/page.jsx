@@ -10784,7 +10784,7 @@ useEffect(() => {
         if (isLockError && attempt < 4 && !cancelled) {
           retryTimer = setTimeout(() => {
             loadSavedLaborData(attempt + 1);
-          }, 150);
+     }, 500 * attempt);
 
           return;
         }
@@ -10815,15 +10815,62 @@ useEffect(() => {
         shift: row.shift || null,
       }));
 
-      setLaborData(normalizedLaborRows);
-localStorage.setItem(
-  `serven_labor_rows_${dataOwnerId}`,
-  JSON.stringify(normalizedLaborRows)
-);
-      console.log(
-        "LABOR LOADED SUCCESSFULLY:",
-        normalizedLaborRows.length
+     console.log("LABOR DATABASE ROW COUNT:", normalizedLaborRows.length);
+console.log("LABOR LOAD OWNER ID:", dataOwnerId);
+console.log("LABOR LOAD LOCATION:", {
+  activeLocation,
+  assignedLocation,
+  shouldFilterByLocation,
+});
+
+if (normalizedLaborRows.length > 0) {
+  setLaborData(normalizedLaborRows);
+
+  localStorage.setItem(
+    `serven_labor_rows_${dataOwnerId}`,
+    JSON.stringify(normalizedLaborRows)
+  );
+
+  console.log(
+    "LABOR LOADED SUCCESSFULLY:",
+    normalizedLaborRows.length
+  );
+} else {
+  console.warn(
+    "LABOR QUERY RETURNED ZERO ROWS — PRESERVING EXISTING/CACHED LABOR"
+  );
+
+  const cachedLabor = localStorage.getItem(
+    `serven_labor_rows_${dataOwnerId}`
+  );
+
+  if (cachedLabor) {
+    try {
+      const parsedCachedLabor = JSON.parse(cachedLabor);
+
+      if (
+        Array.isArray(parsedCachedLabor) &&
+        parsedCachedLabor.length > 0
+      ) {
+        setLaborData((current) =>
+          Array.isArray(current) && current.length > 0
+            ? current
+            : parsedCachedLabor
+        );
+
+        console.log(
+          "RESTORED LABOR FROM CACHE:",
+          parsedCachedLabor.length
+        );
+      }
+    } catch (cacheError) {
+      console.error(
+        "LABOR CACHE PARSE FAILED:",
+        cacheError
       );
+    }
+  }
+}
     } catch (error) {
       const errorText = String(error?.message || error || "");
 
@@ -10834,7 +10881,7 @@ localStorage.setItem(
       if (isLockError && attempt < 4 && !cancelled) {
         retryTimer = setTimeout(() => {
           loadSavedLaborData(attempt + 1);
-       }, 150);
+     }, 500 * attempt);
 
         return;
       }
