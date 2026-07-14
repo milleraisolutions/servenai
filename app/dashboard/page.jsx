@@ -25859,87 +25859,50 @@ useEffect(() => {
 const handleBeverageUpload = async (event) => {
   console.log("BEVERAGE UPLOAD FIRED");
 
+  const file = event.target.files?.[0];
+
+  if (!file) {
+    setMessage("No beverage file selected.");
+    return;
+  }
+
+  const fileError = validateUploadFile(file, 25);
+
+  if (fileError) {
+    alert(fileError);
+    setMessage(fileError);
+    event.target.value = "";
+    return;
+  }
+
+  let uploadRow = null;
+  let optimisticUpload = null;
+
   try {
-    const file = event.target.files?.[0];
-    const fileError = validateUploadFile(file, 25);
-
-    if (fileError) {
-      alert(fileError);
-      setMessage(fileError);
-      return;
-    }
-
-    if (!file) {
-      setMessage("No beverage file selected.");
-      return;
-    }
-
     setMessage("Importing beverage data...");
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const currentUser = user;
 
-    if (!user?.id) {
+    if (!currentUser?.id) {
       setMessage("You must be logged in to upload beverage data.");
+      alert("You must be logged in to upload beverage data.");
+      event.target.value = "";
       return;
     }
 
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
+      worker: false,
 
       complete: async (results) => {
         try {
-          const rows = results.data || [];
+          console.log("BEVERAGE PARSE RESULTS:", results);
 
-          if (!rows.length) {
-            setMessage("No beverage rows found in file.");
-            return;
-          }
+          const rawRows = results.data || [];
 
-          const optimisticUpload = startOptimisticImport({
-            fileName: file.name || "Beverage Upload",
-            sourceName: "beverage_upload",
-            rowCount: rows.length,
-          });
-
-          const { data: uploadRow, error: uploadError } = await supabase
-            .from("uploads")
-            .insert([
-              {
-                user_id: user.id,
-                file_name: file.name || "Beverage Upload",
-                source_name: "beverage_upload",
-                row_count: rows.length,
-                upload_type: "beverage",
-                status: "completed",
-                archived: false,
-                location_id: selectedUploadLocationId || null,
-                location_name:
-                  activeLocation !== "all"
-                    ? activeLocation
-                    : assignedLocation || null,
-              },
-            ])
-            .select()
-            .single();
-
-          if (uploadError) {
-            throw uploadError;
-          }
-
-          const beverageRows = rows.map((row) => ({
-            user_id: user.id,
-            upload_id: uploadRow?.id || null,
-            file_name: file.name || "Beverage Upload",
-
-            location_name:
-              activeLocation !== "all"
-                ? activeLocation
-                : assignedLocation || null,
-
-            beverage_name:
+          const rows = rawRows.filter((row) => {
+            const beverageName =
               row.beverage_name ||
               row["Beverage Name"] ||
               row.name ||
@@ -25947,197 +25910,391 @@ const handleBeverageUpload = async (event) => {
               row.item ||
               row.Item ||
               row.product ||
-              row.Product ||
-              "Beverage",
+              row.Product;
 
-            category:
-              row.category ||
-              row.Category ||
-              row.type ||
-              row.Type ||
-              "Beverage",
+            return String(beverageName || "").trim();
+          });
 
-            bottle_size_oz: Number(
+          console.log("BEVERAGE CLEAN ROWS:", rows);
+
+          if (!rows.length) {
+            setMessage("No valid beverage rows found.");
+            alert("No valid beverage rows found.");
+            event.target.value = "";
+            return;
+          }
+
+          const fileName = file.name || "Beverage Upload";
+
+          optimisticUpload = startOptimisticImport({
+            fileName,
+            sourceName: "beverage_upload",
+            rowCount: rows.length,
+          });
+
+          const { data: createdUploadRow, error: uploadError } =
+            await supabase
+              .from("uploads")
+              .insert([
+                {
+                  user_id: currentUser.id,
+                  file_name: fileName,
+                  source_name: "beverage_upload",
+                  row_count: rows.length,
+                  upload_type: "beverage",
+                  status: "completed",
+                  archived: false,
+                  location_id: selectedUploadLocationId || null,
+                  location_name:
+                    activeLocation !== "all"
+                      ? activeLocation
+                      : assignedLocation || null,
+                },
+              ])
+              .select()
+              .single();
+
+          console.log("BEVERAGE UPLOAD ROW:", createdUploadRow);
+          console.log("BEVERAGE UPLOAD ERROR:", uploadError);
+
+          if (uploadError) {
+            throw uploadError;
+          }
+
+          uploadRow = createdUploadRow;
+
+          const safeNumber = (value) => {
+            if (
+              value === null ||
+              value === undefined ||
+              String(value).trim() === ""
+            ) {
+              return 0;
+            }
+
+            const parsedValue = Number(
+              String(value)
+                .replace(/[$,%]/g, "")
+                .replace(/,/g, "")
+                .trim()
+            );
+
+            return Number.isFinite(parsedValue)
+              ? parsedValue
+              : 0;
+          };
+
+          const beverageRows = rows.map((row) => {
+            const bottleSizeOz = safeNumber(
               row.bottle_size_oz ||
                 row["Bottle Size Oz"] ||
                 row["Bottle Size"] ||
                 row.size_oz ||
-                row["Size Oz"] ||
-                0
-            ),
+                row["Size Oz"]
+            );
 
-            cost_per_bottle: Number(
+            const costPerBottle = safeNumber(
               row.cost_per_bottle ||
                 row["Cost Per Bottle"] ||
                 row.bottle_cost ||
                 row["Bottle Cost"] ||
                 row.cost ||
-                row.Cost ||
-                0
-            ),
+                row.Cost
+            );
 
-            pour_size_oz: Number(
+            const pourSizeOz = safeNumber(
               row.pour_size_oz ||
                 row["Pour Size Oz"] ||
                 row["Pour Size"] ||
-                row.pour_size ||
-                0
-            ),
+                row.pour_size
+            );
 
-            selling_price: Number(
+            const sellingPrice = safeNumber(
               row.selling_price ||
                 row["Selling Price"] ||
                 row.price ||
                 row.Price ||
                 row.menu_price ||
-                row["Menu Price"] ||
-                0
-            ),
-          }));
+                row["Menu Price"]
+            );
 
-          const { data, error } = await supabase
+            const poursPerBottle =
+              bottleSizeOz > 0 && pourSizeOz > 0
+                ? bottleSizeOz / pourSizeOz
+                : 0;
+
+            const theoreticalCostPerPour =
+              poursPerBottle > 0
+                ? costPerBottle / poursPerBottle
+                : 0;
+
+            const theoreticalMargin =
+              sellingPrice > 0
+                ? ((sellingPrice - theoreticalCostPerPour) /
+                    sellingPrice) *
+                  100
+                : 0;
+
+            return {
+              user_id: currentUser.id,
+              upload_id: uploadRow.id,
+              file_name: fileName,
+
+              location_name:
+                activeLocation !== "all"
+                  ? activeLocation
+                  : assignedLocation || null,
+
+              beverage_name: String(
+                row.beverage_name ||
+                  row["Beverage Name"] ||
+                  row.name ||
+                  row.Name ||
+                  row.item ||
+                  row.Item ||
+                  row.product ||
+                  row.Product ||
+                  "Beverage"
+              ).trim(),
+
+              category:
+                row.category ||
+                row.Category ||
+                row.type ||
+                row.Type ||
+                "Beverage",
+
+              bottle_size_oz: bottleSizeOz,
+              cost_per_bottle: costPerBottle,
+              pour_size_oz: pourSizeOz,
+              selling_price: sellingPrice,
+              pours_per_bottle: poursPerBottle,
+              theoretical_cost_per_pour:
+                theoreticalCostPerPour,
+              theoretical_margin: theoreticalMargin,
+            };
+          });
+
+          console.log(
+            "BEVERAGE ROWS TO INSERT:",
+            beverageRows
+          );
+
+          const {
+            data: insertedBeverages,
+            error: beverageInsertError,
+          } = await supabase
             .from("beverage_items")
             .insert(beverageRows)
             .select();
 
-          if (error) {
-            await supabase.from("uploads").delete().eq("id", uploadRow?.id);
-            throw error;
+          console.log(
+            "BEVERAGE INSERTED ROWS:",
+            insertedBeverages
+          );
+
+          console.log(
+            "BEVERAGE INSERT ERROR:",
+            beverageInsertError
+          );
+
+          if (beverageInsertError) {
+            throw beverageInsertError;
           }
+
+          const importedCount =
+            insertedBeverages?.length ||
+            beverageRows.length ||
+            0;
 
           const cleanUploadRow = {
             ...uploadRow,
             status: "completed",
             upload_type: "beverage",
             source_name: "beverage_upload",
-            row_count: data?.length || beverageRows.length || 0,
+            row_count: importedCount,
           };
 
-          setBeverageItems((prev) => [...(data || []), ...(prev || [])]);
+          setBeverageItems((prev) => [
+            ...(insertedBeverages || beverageRows),
+            ...(prev || []),
+          ]);
 
           setClientImports((prev) => [
             cleanUploadRow,
-            ...(prev || []).filter((item) => item.id !== optimisticUpload.id),
+            ...(prev || []).filter(
+              (item) =>
+                item.id !== optimisticUpload?.id
+            ),
           ]);
 
           setRecentUploads((prev) => [
             cleanUploadRow,
-            ...(prev || []).filter((item) => item.id !== optimisticUpload.id),
+            ...(prev || []).filter(
+              (item) =>
+                item.id !== optimisticUpload?.id
+            ),
           ]);
 
-          setMessage(`Imported ${data?.length || 0} beverage item(s).`);
+          setPendingUploadSummary(null);
+          setPendingUploadRows([]);
+          pendingUploadRowsRef.current = [];
+
+          setMessage(
+            `Imported ${importedCount} beverage item(s).`
+          );
+
+          event.target.value = "";
+
+          logAuditEvent({
+            action: "uploaded_beverage_items",
+            entityType: "beverage_items",
+            entityId: uploadRow?.id || null,
+            details: `Uploaded beverage items with ${importedCount} row(s).`,
+          }).catch((auditError) => {
+            console.warn(
+              "Beverage audit log failed:",
+              auditError
+            );
+          });
 
           setTimeout(() => {
             setMessage("");
           }, 2500);
+        } catch (innerError) {
+          console.error(
+            "Beverage upload inner error:",
+            innerError
+          );
+
+          if (uploadRow?.id) {
+            await supabase
+              .from("beverage_items")
+              .delete()
+              .eq("upload_id", uploadRow.id);
+
+            await supabase
+              .from("uploads")
+              .delete()
+              .eq("id", uploadRow.id);
+          }
+
+          if (optimisticUpload?.id) {
+            setClientImports((prev) =>
+              (prev || []).filter(
+                (item) =>
+                  item.id !== optimisticUpload.id
+              )
+            );
+
+            setRecentUploads((prev) =>
+              (prev || []).filter(
+                (item) =>
+                  item.id !== optimisticUpload.id
+              )
+            );
+          }
+
+          setMessage(
+            innerError?.message ||
+              "Beverage upload failed."
+          );
+
+          alert(
+            innerError?.message ||
+              "Beverage upload failed."
+          );
 
           event.target.value = "";
-
-          await logAuditEvent({
-            action: "uploaded_beverage_items",
-            entityType: "beverage_items",
-            entityId: uploadRow?.id || null,
-            details: `Uploaded beverage items with ${data?.length || 0} row(s).`,
-          });
-       } catch (innerError) {
-  console.error("Beverage import inner error:", innerError);
-
-  setClientImports((prev) =>
-    (prev || []).filter((item) => item.id !== optimisticUpload?.id)
-  );
-
-  setRecentUploads((prev) =>
-    (prev || []).filter((item) => item.id !== optimisticUpload?.id)
-  );
-
-  setMessage("Beverage import failed. Check console.");
-}
+        }
       },
 
       error: (parseError) => {
-        console.error("BEVERAGE PARSE ERROR:", parseError);
-        alert(`Beverage CSV parse failed: ${parseError.message}`);
+        console.error(
+          "BEVERAGE PARSE ERROR:",
+          parseError
+        );
+
         setMessage("Beverage CSV parse failed.");
+
+        alert(
+          `Beverage CSV parse failed: ${parseError.message}`
+        );
+
+        event.target.value = "";
       },
     });
   } catch (error) {
     console.error("Beverage upload crashed:", error);
-    alert(`Beverage upload crashed: ${error.message}`);
-    setMessage("Beverage upload failed. Check console.");
+
+    setMessage(
+      error?.message || "Beverage upload failed."
+    );
+
+    alert(
+      error?.message || "Beverage upload failed."
+    );
+
+    event.target.value = "";
   }
 };
 
 const handleBeverageUsageUpload = async (event) => {
+  console.log("BEVERAGE USAGE UPLOAD FIRED");
+
+  const file = event.target.files?.[0];
+
+  if (!file) {
+    setMessage("No beverage usage file selected.");
+    return;
+  }
+
+  const fileError = validateUploadFile(file, 25);
+
+  if (fileError) {
+    alert(fileError);
+    setMessage(fileError);
+    event.target.value = "";
+    return;
+  }
+
+  let uploadRow = null;
+  let optimisticUpload = null;
+
   try {
-    const file = event.target.files?.[0];
-    const fileError = validateUploadFile(file, 25);
+    setMessage("Importing beverage usage...");
 
-    if (fileError) {
-      alert(fileError);
-      setMessage(fileError);
-      return;
-    }
+    const currentUser = user;
 
-    if (!file) {
-      setMessage("No beverage usage file selected.");
-      return;
-    }
+    if (!currentUser?.id) {
+      setMessage(
+        "You must be logged in to upload beverage usage."
+      );
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+      alert(
+        "You must be logged in to upload beverage usage."
+      );
 
-    if (!user?.id) {
-      setMessage("You must be logged in to upload beverage usage.");
+      event.target.value = "";
       return;
     }
 
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
+      worker: false,
 
       complete: async (results) => {
         try {
-          const rows = results.data || [];
+          console.log(
+            "BEVERAGE USAGE PARSE RESULTS:",
+            results
+          );
 
-          if (!rows.length) {
-            setMessage("No beverage usage rows found in file.");
-            return;
-          }
+          const rawRows = results.data || [];
 
-          const optimisticUpload = startOptimisticImport({
-            fileName: file.name || "Beverage Usage Upload",
-            sourceName: "beverage_usage_upload",
-            rowCount: rows.length,
-          });
-
-          const { data: uploadRow, error: uploadError } = await supabase
-            .from("uploads")
-            .insert([
-              {
-                user_id: user.id,
-                file_name: file.name || "Beverage Usage Upload",
-                source_name: "beverage_usage_upload",
-                row_count: rows.length,
-                upload_type: "beverage_usage",
-                status: "completed",
-                archived: false,
-                location_id: selectedUploadLocationId || null,
-              },
-            ])
-            .select()
-            .single();
-
-          if (uploadError) {
-            throw uploadError;
-          }
-
-          const usageRows = rows.map((row) => ({
-            user_id: user.id,
-            upload_id: uploadRow?.id || null,
-            file_name: file.name || "Beverage Usage Upload",
-
-            beverage_name:
+          const rows = rawRows.filter((row) => {
+            const beverageName =
               row.beverage_name ||
               row["Beverage Name"] ||
               row.name ||
@@ -26145,8 +26302,120 @@ const handleBeverageUsageUpload = async (event) => {
               row.item ||
               row.Item ||
               row.product ||
-              row.Product ||
-              "Beverage",
+              row.Product;
+
+            return String(beverageName || "").trim();
+          });
+
+          console.log(
+            "BEVERAGE USAGE CLEAN ROWS:",
+            rows
+          );
+
+          if (!rows.length) {
+            setMessage(
+              "No valid beverage usage rows found."
+            );
+
+            alert(
+              "No valid beverage usage rows found."
+            );
+
+            event.target.value = "";
+            return;
+          }
+
+          const fileName =
+            file.name || "Beverage Usage Upload";
+
+          optimisticUpload = startOptimisticImport({
+            fileName,
+            sourceName: "beverage_usage_upload",
+            rowCount: rows.length,
+          });
+
+          const { data: createdUploadRow, error: uploadError } =
+            await supabase
+              .from("uploads")
+              .insert([
+                {
+                  user_id: currentUser.id,
+                  file_name: fileName,
+                  source_name:
+                    "beverage_usage_upload",
+                  row_count: rows.length,
+                  upload_type: "beverage_usage",
+                  status: "completed",
+                  archived: false,
+                  location_id:
+                    selectedUploadLocationId || null,
+                  location_name:
+                    activeLocation !== "all"
+                      ? activeLocation
+                      : assignedLocation || null,
+                },
+              ])
+              .select()
+              .single();
+
+          console.log(
+            "BEVERAGE USAGE UPLOAD ROW:",
+            createdUploadRow
+          );
+
+          console.log(
+            "BEVERAGE USAGE UPLOAD ERROR:",
+            uploadError
+          );
+
+          if (uploadError) {
+            throw uploadError;
+          }
+
+          uploadRow = createdUploadRow;
+
+          const safeNumber = (value) => {
+            if (
+              value === null ||
+              value === undefined ||
+              String(value).trim() === ""
+            ) {
+              return 0;
+            }
+
+            const parsedValue = Number(
+              String(value)
+                .replace(/[$,%]/g, "")
+                .replace(/,/g, "")
+                .trim()
+            );
+
+            return Number.isFinite(parsedValue)
+              ? parsedValue
+              : 0;
+          };
+
+          const usageRows = rows.map((row) => ({
+            user_id: currentUser.id,
+            upload_id: uploadRow.id,
+            file_name: fileName,
+
+            location_name:
+              activeLocation !== "all"
+                ? activeLocation
+                : assignedLocation || null,
+
+            beverage_name: String(
+              row.beverage_name ||
+                row["Beverage Name"] ||
+                row.name ||
+                row.Name ||
+                row.item ||
+                row.Item ||
+                row.product ||
+                row.Product ||
+                "Beverage"
+            ).trim(),
 
             usage_date:
               row.usage_date ||
@@ -26164,96 +26433,208 @@ const handleBeverageUsageUpload = async (event) => {
               row.Server ||
               null,
 
-            shift: row.shift || row.Shift || null,
+            shift:
+              row.shift ||
+              row.Shift ||
+              null,
 
-            expected_oz: Number(
+            expected_oz: safeNumber(
               row.expected_oz ||
                 row["Expected Oz"] ||
                 row.expected ||
-                row.Expected ||
-                0
+                row.Expected
             ),
 
-            actual_oz: Number(
+            actual_oz: safeNumber(
               row.actual_oz ||
                 row["Actual Oz"] ||
                 row.actual ||
-                row.Actual ||
-                0
+                row.Actual
             ),
 
-            waste_oz: Number(
+            waste_oz: safeNumber(
               row.waste_oz ||
                 row["Waste Oz"] ||
                 row.waste ||
-                row.Waste ||
-                0
+                row.Waste
             ),
 
-            comps_oz: Number(
+            comps_oz: safeNumber(
               row.comps_oz ||
                 row["Comps Oz"] ||
                 row.comps ||
-                row.Comps ||
-                0
+                row.Comps
             ),
           }));
 
-          const { data, error } = await supabase
+          console.log(
+            "BEVERAGE USAGE ROWS TO INSERT:",
+            usageRows
+          );
+
+          const {
+            data: insertedUsage,
+            error: usageInsertError,
+          } = await supabase
             .from("beverage_usage")
             .insert(usageRows)
             .select();
 
-          if (error) {
-            await supabase.from("uploads").delete().eq("id", uploadRow?.id);
-            throw error;
+          console.log(
+            "BEVERAGE USAGE INSERTED ROWS:",
+            insertedUsage
+          );
+
+          console.log(
+            "BEVERAGE USAGE INSERT ERROR:",
+            usageInsertError
+          );
+
+          if (usageInsertError) {
+            throw usageInsertError;
           }
+
+          const importedCount =
+            insertedUsage?.length ||
+            usageRows.length ||
+            0;
 
           const cleanUploadRow = {
             ...uploadRow,
             status: "completed",
             upload_type: "beverage_usage",
             source_name: "beverage_usage_upload",
-            row_count: data?.length || usageRows.length || 0,
+            row_count: importedCount,
           };
 
-          setBeverageUsage((prev) => [...(data || []), ...(prev || [])]);
+          setBeverageUsage((prev) => [
+            ...(insertedUsage || usageRows),
+            ...(prev || []),
+          ]);
 
           setClientImports((prev) => [
             cleanUploadRow,
-            ...(prev || []).filter((item) => item.id !== optimisticUpload.id),
+            ...(prev || []).filter(
+              (item) =>
+                item.id !== optimisticUpload?.id
+            ),
           ]);
 
           setRecentUploads((prev) => [
             cleanUploadRow,
-            ...(prev || []).filter((item) => item.id !== optimisticUpload.id),
+            ...(prev || []).filter(
+              (item) =>
+                item.id !== optimisticUpload?.id
+            ),
           ]);
 
-          await logAuditEvent({
+          setPendingUploadSummary(null);
+          setPendingUploadRows([]);
+          pendingUploadRowsRef.current = [];
+
+          setMessage(
+            `Imported ${importedCount} beverage usage row(s).`
+          );
+
+          event.target.value = "";
+
+          logAuditEvent({
             action: "uploaded_beverage_usage",
             entityType: "beverage_usage",
             entityId: uploadRow?.id || null,
-            details: `Uploaded beverage usage with ${data?.length || 0} row(s).`,
+            details: `Uploaded beverage usage with ${importedCount} row(s).`,
+          }).catch((auditError) => {
+            console.warn(
+              "Beverage usage audit log failed:",
+              auditError
+            );
           });
 
-          setMessage(`Imported ${data?.length || 0} beverage usage row(s).`);
-          event.target.value = "";
+          setTimeout(() => {
+            setMessage("");
+          }, 2500);
         } catch (innerError) {
-          console.error("Beverage usage import inner error:", innerError);
-          setMessage("Beverage usage import failed. Check console.");
+          console.error(
+            "Beverage usage upload inner error:",
+            innerError
+          );
+
+          if (uploadRow?.id) {
+            await supabase
+              .from("beverage_usage")
+              .delete()
+              .eq("upload_id", uploadRow.id);
+
+            await supabase
+              .from("uploads")
+              .delete()
+              .eq("id", uploadRow.id);
+          }
+
+          if (optimisticUpload?.id) {
+            setClientImports((prev) =>
+              (prev || []).filter(
+                (item) =>
+                  item.id !== optimisticUpload.id
+              )
+            );
+
+            setRecentUploads((prev) =>
+              (prev || []).filter(
+                (item) =>
+                  item.id !== optimisticUpload.id
+              )
+            );
+          }
+
+          setMessage(
+            innerError?.message ||
+              "Beverage usage upload failed."
+          );
+
+          alert(
+            innerError?.message ||
+              "Beverage usage upload failed."
+          );
+
+          event.target.value = "";
         }
       },
 
       error: (parseError) => {
-        console.error("Beverage usage CSV parse failed:", parseError);
-        alert(`Beverage usage CSV parse failed: ${parseError.message}`);
-        setMessage("Beverage usage CSV parse failed.");
+        console.error(
+          "BEVERAGE USAGE PARSE ERROR:",
+          parseError
+        );
+
+        setMessage(
+          "Beverage usage CSV parse failed."
+        );
+
+        alert(
+          `Beverage usage CSV parse failed: ${parseError.message}`
+        );
+
+        event.target.value = "";
       },
     });
   } catch (error) {
-    console.error("Beverage usage upload crashed:", error);
-    alert(`Beverage usage upload crashed: ${error.message}`);
-    setMessage("Beverage usage upload failed. Check console.");
+    console.error(
+      "Beverage usage upload crashed:",
+      error
+    );
+
+    setMessage(
+      error?.message ||
+        "Beverage usage upload failed."
+    );
+
+    alert(
+      error?.message ||
+        "Beverage usage upload failed."
+    );
+
+    event.target.value = "";
   }
 };
 
