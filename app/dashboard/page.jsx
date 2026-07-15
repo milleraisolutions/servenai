@@ -50118,7 +50118,7 @@ minWidth: 0,
           color: "white",
         }}
       >
-       ${Number(totalRevenue || 0).toLocaleString()}
+       ${Number(liveTotalRevenue || 0).toLocaleString()}
       </div>
     </div>
 
@@ -50182,7 +50182,7 @@ minWidth: 0,
           color: "white",
         }}
       >
-        ${Number(totalRevenue || 0).toLocaleString()}
+       ${Number(liveTotalRevenue || 0).toLocaleString()}
       </div>
     </div>
   </div>
@@ -52855,7 +52855,7 @@ Recovered profit is based on saved AI action impact.
 },
 {
   label: "Current Revenue",
-  value: `$${Number(totalRevenue || liveTotalRevenue || 0).toLocaleString()}`,
+  value: `$${Number(liveTotalRevenue || totalRevenue || 0).toLocaleString()}`,
 },
 {
   label: "Operational Priority",
