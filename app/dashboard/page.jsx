@@ -802,18 +802,28 @@ const filterByActiveLocation = (rows = []) => {
   }
 
   return (rows || []).filter((row) => {
-    const location =
+    const rawLocation =
       row.location ||
       row.location_name ||
       row.store ||
       row.store_name ||
       row.restaurant_location ||
-      "Main Location";
+      "";
 
-    return (
-      String(location).trim().toLowerCase() ===
-      String(activeLocation).trim().toLowerCase()
-    );
+    const normalizedRowLocation = String(rawLocation)
+      .trim()
+      .toLowerCase();
+
+    const normalizedActiveLocation = String(activeLocation)
+      .trim()
+      .toLowerCase();
+
+    // Keep older rows that were uploaded before location tracking existed.
+    if (!normalizedRowLocation) {
+      return true;
+    }
+
+    return normalizedRowLocation === normalizedActiveLocation;
   });
 };
 const locationSalesData = filterByActiveLocation(salesData);
