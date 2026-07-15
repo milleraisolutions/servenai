@@ -826,13 +826,50 @@ const filterByActiveLocation = (rows = []) => {
     return normalizedRowLocation === normalizedActiveLocation;
   });
 };
-const locationSalesData = filterByActiveLocation(salesData);
+const resolvedSalesData =
+  Array.isArray(dbSalesRows) && dbSalesRows.length > 0
+    ? dbSalesRows
+    : Array.isArray(salesData)
+    ? salesData
+    : [];
+
+const locationSalesData =
+  filterByActiveLocation(resolvedSalesData);
+console.log("POS SALES DATA BEFORE LOCATION FILTER:", salesData?.length || 0);
+console.log(
+  "POS SALES DATA AFTER LOCATION FILTER:",
+  locationSalesData?.length || 0
+);
+console.log("POS ACTIVE LOCATION:", activeLocation);
+console.log(
+  "POS ROW LOCATIONS:",
+  [...new Set(
+    (salesData || []).map(
+      (row) =>
+        row.location ||
+        row.location_name ||
+        row.store ||
+        row.store_name ||
+        row.restaurant_location ||
+        null
+    )
+  )]
+);
 const locationLaborData = filterByActiveLocation(laborData);
 const locationMenuItemsData = filterByActiveLocation(menuItemsData);
 const locationIngredientsData = filterByActiveLocation(ingredientsData);
 
 const locationInvoicesData = filterByActiveLocation(invoicesData);
-
+console.log("DB POS ROWS:", dbSalesRows?.length || 0);
+console.log("HOOK POS ROWS:", salesData?.length || 0);
+console.log(
+  "RESOLVED POS ROWS:",
+  resolvedSalesData?.length || 0
+);
+console.log(
+  "FILTERED POS ROWS:",
+  locationSalesData?.length || 0
+);
 const handleInvoiceFileChange = (event) => {
   console.log("INVOICE FILE SELECTED");
   const input = event.currentTarget;
