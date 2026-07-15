@@ -8280,37 +8280,166 @@ const laborIntelligence = useMemo(() => {
     insight,
   };
 }, [dashboardRevenue, totalRevenue]);
-
-const loadSalesFromDatabase = async () => {
-  try {
-    if (!dataOwnerId) return;
-
-    let salesQuery = supabase
-      .from("sales")
-      .select("*")
-      .eq("user_id", dataOwnerId);
-
-    salesQuery = applyLocationFilter(salesQuery);
-
-    const { data, error } = await salesQuery.order("sale_date", {
-      ascending: true,
-    });
-
-    if (error) {
-      console.error("Sales error:", error);
-      return;
-    }
-
-    setDbSalesRows(data || []);
-  } catch (error) {
-    console.error("Load sales error:", error);
-  }
-};
 useEffect(() => {
-  if (!dataOwnerId) return;
+  let cancelled = false;
+
+  const loadSalesFromDatabase = async () => {
+    try {
+      const {
+        data: { user: authenticatedUser },
+        error: authError,
+      } = await supabase.auth.getUser();
+
+      if (authError) {
+        throw authError;
+      }
+
+      if (!authenticatedUser?.id) {
+        console.log("POS LOAD: NO AUTHENTICATED USER");
+        return;
+      }
+
+      const possibleUserIds = [
+        authenticatedUser.id,
+        dataOwnerId,
+        userProfile?.owner_user_id,
+      ].filter(Boolean);
+
+      const uniqueUserIds = [...new Set(possibleUserIds)];
+
+      console.log("POS LOAD USER IDS:", uniqueUserIds);
+
+      const { data, error } = await supabase
+        .from("sales")
+        .select("*")
+        .in("user_id", uniqueUserIds)
+        .order("sale_date", {
+          ascending: true,
+        })
+        .limit(10000);
+
+      console.log("POS DATABASE DATA:", data);
+      console.log("POS DATABASE ERROR:", error);
+      console.log("POS DATABASE COUNT:", data?.length || 0);
+      console.log("POS FIRST DATABASE ROW:", data?.[0]);
+
+      if (error) {
+        throw error;
+      }
+
+      if (cancelled) return;
+
+      const normalizedRows = (data || []).map((row, index) => {
+        const revenue = Number(
+          String(
+            row.revenue ??
+              row.value ??
+              row.total ??
+              row.total_revenue ??
+              row.total_amount ??
+              row.sales_amount ??
+              row.gross_sales ??
+              row.net_sales ??
+              row.amount ??
+              row.sales ??
+              row.total_sales ??
+              0
+          )
+            .replaceAll("$", "")
+            .replaceAll(",", "")
+            .trim()
+        );
+
+        const saleDate =
+          row.sale_date ||
+          row.date ||
+          row.order_date ||
+          row.business_date ||
+          row.created_at ||
+          null;
+
+        const locationName =
+          row.location_name ||
+          row.location ||
+          row.store_name ||
+          row.store ||
+          row.restaurant_location ||
+          null;
+
+        return {
+          ...row,
+
+          id: row.id || row.upload_id || `sale-${index}`,
+
+          revenue: Number.isFinite(revenue) ? revenue : 0,
+
+          sale_date: saleDate,
+          date: saleDate,
+
+          location: locationName,
+          location_name: locationName,
+        };
+      });
+
+      const filteredRows =
+        activeLocation !== "all" && activeLocation
+          ? normalizedRows.filter((row) => {
+              const rowLocation = String(
+                row.location_name ||
+                  row.location ||
+                  ""
+              )
+                .trim()
+                .toLowerCase();
+
+              const selectedLocation = String(activeLocation)
+                .trim()
+                .toLowerCase();
+
+              if (!rowLocation) {
+                return true;
+              }
+
+              return rowLocation === selectedLocation;
+            })
+          : normalizedRows;
+
+      console.log("POS NORMALIZED COUNT:", normalizedRows.length);
+      console.log("POS FILTERED COUNT:", filteredRows.length);
+      console.log("POS NORMALIZED FIRST ROW:", filteredRows[0]);
+
+      console.log(
+        "POS NORMALIZED TOTAL REVENUE:",
+        filteredRows.reduce(
+          (sum, row) =>
+            sum + Number(row.revenue || 0),
+          0
+        )
+      );
+
+      if (cancelled) return;
+
+      setDbSalesRows(filteredRows);
+    } catch (error) {
+      console.error("LOAD SALES ERROR:", error);
+
+      if (!cancelled) {
+        setDbSalesRows([]);
+      }
+    }
+  };
 
   loadSalesFromDatabase();
-}, [dataOwnerId, activeLocation]);
+
+  return () => {
+    cancelled = true;
+  };
+}, [
+  dataOwnerId,
+  user?.id,
+  userProfile?.owner_user_id,
+  activeLocation,
+]);
 useEffect(() => {
   if (!autopilotEnabled) return;
 
