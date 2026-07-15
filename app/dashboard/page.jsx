@@ -305,7 +305,7 @@ const [analyticsView, setAnalyticsView] = useState("revenue");
 const [beverageView, setBeverageView] = useState("overview");
 const [laborView, setLaborView] = useState("overview");
 const [laborLoading, setLaborLoading] = useState(true);
-const loadingLaborRef = useRef(false);
+
 const loadingKitchenPrepRef = useRef(false);
 const invoiceUploadInputRef = useRef(null);
 const loadingCustomersRef = useRef(false);
@@ -10795,7 +10795,13 @@ useEffect(() => {
         .limit(5000);
 
       const { data, error } = await laborQuery;
+console.log("LABOR RAW DATA:", data);
+console.log("LABOR RAW LENGTH:", data?.length);
+console.log("LABOR ERROR:", error);
 
+if (data?.length) {
+  console.log("FIRST LABOR ROW:", data[0]);
+}
       console.log("LABOR DATABASE RESULT:", data);
       console.log("LABOR DATABASE ERROR:", error);
       console.log("LABOR DATABASE COUNT:", data?.length || 0);
@@ -10816,58 +10822,12 @@ useEffect(() => {
        * 1. Each database record is one labor shift.
        * 2. A database record contains an array in row.rows.
        */
-      const expandedLaborRows = (data || []).flatMap((databaseRow) => {
-        let storedRows = databaseRow?.rows;
+      const expandedLaborRows = Array.isArray(data) ? data : [];
 
-        if (typeof storedRows === "string") {
-          try {
-            storedRows = JSON.parse(storedRows);
-          } catch (parseError) {
-            console.warn(
-              "LABOR ROWS JSON COULD NOT BE PARSED:",
-              parseError
-            );
-
-            storedRows = null;
-          }
-        }
-
-        if (Array.isArray(storedRows) && storedRows.length > 0) {
-          return storedRows.map((storedRow) => ({
-            ...storedRow,
-
-            id:
-              storedRow.id ||
-              `${databaseRow.id}-${Math.random()}`,
-
-            upload_id:
-              storedRow.upload_id ||
-              databaseRow.upload_id ||
-              databaseRow.id,
-
-            file_name:
-              storedRow.file_name ||
-              databaseRow.file_name,
-
-            created_at:
-              storedRow.created_at ||
-              databaseRow.created_at,
-
-            user_id:
-              storedRow.user_id ||
-              databaseRow.user_id,
-
-            location_name:
-              storedRow.location_name ||
-              storedRow.location ||
-              databaseRow.location_name ||
-              databaseRow.location ||
-              null,
-          }));
-        }
-
-        return [databaseRow];
-      });
+console.log(
+  "LABOR DIRECT ROW COUNT:",
+  expandedLaborRows.length
+);
 
       console.log(
         "LABOR EXPANDED COUNT:",
