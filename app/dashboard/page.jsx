@@ -30030,23 +30030,82 @@ const formatChartDate = (value) => {
   });
 };
 
+const laborImportAlreadyExists = (clientImports || []).some(
+  (item) =>
+    item.upload_type === "labor" ||
+    item.source_name === "labor_upload"
+);
+
+const laborImportFallback =
+  !laborImportAlreadyExists &&
+  Array.isArray(laborData) &&
+  laborData.length > 0
+    ? {
+        id: "labor-file-persisted-labor-data",
+        file_name:
+          laborData.find((row) => row.file_name)?.file_name ||
+          "Labor Upload",
+        upload_type: "labor",
+        source_name: "labor_upload",
+        row_count: laborData.length,
+        created_at:
+          laborData
+            .map((row) => row.created_at)
+            .filter(Boolean)
+            .sort(
+              (a, b) =>
+                new Date(b).getTime() -
+                new Date(a).getTime()
+            )[0] ||
+          new Date().toISOString(),
+        synthetic_from_labor_state: true,
+      }
+    : null;
+
+const importsWithLaborFallback = [
+  ...(clientImports || []),
+  ...(laborImportFallback
+    ? [laborImportFallback]
+    : []),
+];
+
 const filteredRecentUploads = [
   ...new Map(
-    (clientImports || []).map((item) => [
-      item.source_name === "labor_upload"
-        ? `labor-${item.file_name || "Labor Upload"}`
-        : item.id,
-      item,
-    ])
+    importsWithLaborFallback.map((item) => {
+      const isLaborImport =
+        item.upload_type === "labor" ||
+        item.source_name === "labor_upload";
+
+      const key = isLaborImport
+        ? `labor-${
+            item.file_name ||
+            "Labor Upload"
+          }`
+        : item.id;
+
+      return [key, item];
+    })
   ).values(),
 ].filter((upload) => {
-  const search = importsSearch.toLowerCase();
+  const search = String(
+    importsSearch || ""
+  )
+    .trim()
+    .toLowerCase();
 
   return (
-    String(upload.file_name || "").toLowerCase().includes(search) ||
-    String(upload.upload_type || "").toLowerCase().includes(search) ||
-    String(upload.source_name || "").toLowerCase().includes(search) ||
-    String(upload.created_at || "").toLowerCase().includes(search)
+    String(upload.file_name || "")
+      .toLowerCase()
+      .includes(search) ||
+    String(upload.upload_type || "")
+      .toLowerCase()
+      .includes(search) ||
+    String(upload.source_name || "")
+      .toLowerCase()
+      .includes(search) ||
+    String(upload.created_at || "")
+      .toLowerCase()
+      .includes(search)
   );
 });
 const uploadChecklist = [
@@ -31287,16 +31346,7 @@ return (
   }}
 >
   {filteredRecentUploads.length} Showing /{" "}
-  {[
-    ...new Map(
-      (clientImports || []).map((item) => [
-        item.source_name === "labor_upload"
-          ? `labor-${item.file_name || "Labor Upload"}`
-          : item.id,
-        item,
-      ])
-    ).values(),
-  ].length} Total Imports
+{filteredRecentUploads.length} Total Imports
 </div>
   </div>
 
