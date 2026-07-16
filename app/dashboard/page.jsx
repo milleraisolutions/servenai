@@ -16949,7 +16949,7 @@ const loadClientImports = async () => {
       .eq("user_id", dataOwnerId || user.id)
       .or("archived.is.false,archived.is.null")
       .order("created_at", { ascending: false })
-      .limit(10);
+      .limit(100);
       console.log("RECENT IMPORTS OWNER ID:", dataOwnerId || user.id);
 console.log("UPLOADS DATA:", uploadsData);
 console.log("UPLOAD TYPES:", uploadsData?.map(x => x.upload_type));
@@ -16963,9 +16963,18 @@ console.log(
      .eq("user_id", dataOwnerId || user.id)
       .order("created_at", { ascending: false })
       .limit(1000);
-
+const { data: salesImportData, error: salesImportError } =
+  await supabase
+    .from("sales")
+    .select(
+      "id, user_id, upload_id, file_name, created_at, sale_date"
+    )
+    .eq("user_id", dataOwnerId || user.id)
+    .order("created_at", { ascending: false })
+    .limit(10000);
     if (uploadsError) throw uploadsError;
-    if (laborError) throw laborError;
+if (laborError) throw laborError;
+if (salesImportError) throw salesImportError;
 
    const laborGroupedByFile = Object.values(
   (laborData || []).reduce((acc, row) => {
@@ -16991,15 +17000,88 @@ console.log(
     return acc;
   }, {})
 );
+const posGroupedByUpload = Object.values(
+  (salesImportData || []).reduce((acc, row) => {
+    const uploadKey =
+      row.upload_id ||
+      row.file_name ||
+      `legacy-pos-${row.created_at || row.sale_date || "unknown"}`;
 
-    const combinedImports = [
-      ...(uploadsData || []),
-     ...laborGroupedByFile,
-    ].sort(
-      (a, b) =>
-        new Date(b.created_at || 0) -
-        new Date(a.created_at || 0)
+    if (!acc[uploadKey]) {
+      acc[uploadKey] = {
+        id: row.upload_id || `pos-file-${uploadKey}`,
+        file_name: row.file_name || "POS Sales Upload",
+        upload_type: "pos",
+        source_name: "pos_upload",
+        row_count: 0,
+        created_at:
+          row.created_at ||
+          row.sale_date ||
+          new Date().toISOString(),
+        synthetic_from_sales: !row.upload_id,
+      };
+    }
+
+    acc[uploadKey].row_count += 1;
+
+    const currentDate = new Date(
+      acc[uploadKey].created_at || 0
     );
+
+    const rowDate = new Date(
+      row.created_at ||
+        row.sale_date ||
+        0
+    );
+
+    if (rowDate > currentDate) {
+      acc[uploadKey].created_at =
+        row.created_at ||
+        row.sale_date;
+    }
+
+    return acc;
+  }, {})
+);
+   const combinedImportsMap = new Map();
+
+[
+  ...(uploadsData || []),
+  ...laborGroupedByFile,
+  ...posGroupedByUpload,
+].forEach((item) => {
+  const key =
+    item.upload_type === "labor"
+      ? `labor-${item.file_name || item.id}`
+      : item.upload_type === "pos" ||
+        item.source_name === "pos_upload"
+      ? `pos-${item.id || item.file_name}`
+      : item.id;
+
+  if (!combinedImportsMap.has(key)) {
+    combinedImportsMap.set(key, item);
+    return;
+  }
+
+  const existing = combinedImportsMap.get(key);
+
+  combinedImportsMap.set(key, {
+    ...item,
+    ...existing,
+    row_count: Math.max(
+      Number(existing?.row_count || 0),
+      Number(item?.row_count || 0)
+    ),
+  });
+});
+
+const combinedImports = [
+  ...combinedImportsMap.values(),
+].sort(
+  (a, b) =>
+    new Date(b.created_at || 0) -
+    new Date(a.created_at || 0)
+);
 
     console.log("COMBINED IMPORTS LOADED:", combinedImports);
 
@@ -17022,8 +17104,10 @@ console.log(
 };
 
 useEffect(() => {
+  if (!dataOwnerId && !user?.id) return;
+
   loadClientImports();
-}, []);
+}, [dataOwnerId, user?.id]);
 
 const archiveImport = async (uploadId) => {
   if (!uploadId) {
