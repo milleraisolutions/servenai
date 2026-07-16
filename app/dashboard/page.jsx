@@ -326,16 +326,7 @@ const loadAdminData = async () => {
     setUsers(usersData || []);
   }
 
- const { data: importData, error: importError } = await supabase
-  .from("uploads")
-  .select("*")
-  .eq("user_id", dataOwnerId || user.id)
-  .or("archived.is.false,archived.is.null")
-  .order("created_at", { ascending: false });
 
-  if (!importError) {
-    setClientImports(importData || []);
-  }
 const { data: batchPrepRows, error: batchPrepError } = await supabase
   .from("batch_prep_data")
   .select("*")
