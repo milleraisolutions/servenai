@@ -179,7 +179,7 @@ const [clientUploads, setClientUploads] = useState([]);
 const [locations, setLocations] = useState([]);
 const [user, setUser] = useState(null);
 const [selectedEnterpriseLocation, setSelectedEnterpriseLocation] = useState(null);
-const loadingImportsRef = useRef(false);
+const importsRequestIdRef = useRef(0);
 const isMobile =
   typeof window !== "undefined" && window.innerWidth < 640;
 const [clientAlerts, setClientAlerts] = useState([]);
@@ -16922,192 +16922,417 @@ const deleteLead = async (leadId) => {
   
 };
 const loadClientImports = async () => {
-  if (loadingImportsRef.current) {
-    console.log("LOAD CLIENT IMPORTS SKIPPED");
-    return;
-  }
+  const requestId = importsRequestIdRef.current + 1;
+  importsRequestIdRef.current = requestId;
 
-  loadingImportsRef.current = true;
   setImportsLoading(true);
 
   try {
-    setImportsLoading(true);
-
     const {
-      data: { user },
+      data: { user: authenticatedUser },
+      error: authError,
     } = await supabase.auth.getUser();
 
-    if (!user?.id) {
-      setClientImports([]);
-      setRecentUploads([]);
+    if (authError) {
+      throw authError;
+    }
+
+    const resolvedOwnerId =
+      dataOwnerId ||
+      authenticatedUser?.id ||
+      null;
+
+    if (!resolvedOwnerId) {
+      console.log(
+        "RECENT IMPORTS LOAD WAITING FOR OWNER ID"
+      );
       return;
     }
 
-    const { data: uploadsData, error: uploadsError } = await supabase
-      .from("uploads")
-      .select("*")
-      .eq("user_id", dataOwnerId || user.id)
-      .or("archived.is.false,archived.is.null")
-      .order("created_at", { ascending: false })
-      .limit(100);
-      console.log("RECENT IMPORTS OWNER ID:", dataOwnerId || user.id);
-console.log("UPLOADS DATA:", uploadsData);
-console.log("UPLOAD TYPES:", uploadsData?.map(x => x.upload_type));
-console.log(
-  "LOCATION UPLOADS:",
-  uploadsData?.filter(x => x.upload_type === "locations")
-);
-    const { data: laborData, error: laborError } = await supabase
-      .from("labor_uploads")
-      .select("*")
-     .eq("user_id", dataOwnerId || user.id)
-      .order("created_at", { ascending: false })
-      .limit(1000);
-const { data: salesImportData, error: salesImportError } =
-  await supabase
-    .from("sales")
-    .select(
-      "id, user_id, upload_id, file_name, created_at, sale_date"
-    )
-    .eq("user_id", dataOwnerId || user.id)
-    .order("created_at", { ascending: false })
-    .limit(10000);
-    if (uploadsError) throw uploadsError;
-if (laborError) throw laborError;
-if (salesImportError) throw salesImportError;
+    console.log(
+      "RECENT IMPORTS RESOLVED OWNER ID:",
+      resolvedOwnerId
+    );
 
-   const laborGroupedByFile = Object.values(
-  (laborData || []).reduce((acc, row) => {
-    const key = row.file_name || "Labor Upload";
+    const [
+      uploadsResult,
+      laborResult,
+      salesResult,
+    ] = await Promise.all([
+      supabase
+        .from("uploads")
+        .select("*")
+        .eq("user_id", resolvedOwnerId)
+        .or("archived.is.false,archived.is.null")
+        .order("created_at", {
+          ascending: false,
+        })
+        .limit(100),
 
-    if (!acc[key]) {
-      acc[key] = {
-        id: `labor-file-${key}-${row.created_at}`,
-        file_name: row.file_name || "Labor Upload",
-        upload_type: "labor",
-        source_name: "labor_upload",
-        row_count: 0,
-        created_at: row.created_at,
-      };
+      supabase
+        .from("labor_uploads")
+        .select("*")
+        .eq("user_id", resolvedOwnerId)
+        .order("created_at", {
+          ascending: false,
+        })
+        .limit(5000),
+
+      supabase
+        .from("sales")
+        .select(
+          "id, user_id, upload_id, file_name, created_at, sale_date"
+        )
+        .eq("user_id", resolvedOwnerId)
+        .order("created_at", {
+          ascending: false,
+        })
+        .limit(10000),
+    ]);
+
+    if (uploadsResult.error) {
+      throw uploadsResult.error;
     }
 
-    acc[key].row_count += 1;
-
-    if (new Date(row.created_at) > new Date(acc[key].created_at)) {
-      acc[key].created_at = row.created_at;
+    if (laborResult.error) {
+      throw laborResult.error;
     }
 
-    return acc;
-  }, {})
-);
-const posGroupedByUpload = Object.values(
-  (salesImportData || []).reduce((acc, row) => {
-    const uploadKey =
-      row.upload_id ||
-      row.file_name ||
-      `legacy-pos-${row.created_at || row.sale_date || "unknown"}`;
+    if (salesResult.error) {
+      throw salesResult.error;
+    }
 
-    if (!acc[uploadKey]) {
-      acc[uploadKey] = {
-        id: row.upload_id || `pos-file-${uploadKey}`,
-        file_name: row.file_name || "POS Sales Upload",
-        upload_type: "pos",
-        source_name: "pos_upload",
-        row_count: 0,
-        created_at:
+    /*
+     * Ignore an older request if a newer request
+     * started while these queries were running.
+     */
+    if (
+      requestId !== importsRequestIdRef.current
+    ) {
+      console.log(
+        "RECENT IMPORTS OLD REQUEST IGNORED:",
+        requestId
+      );
+      return;
+    }
+
+    const uploadsData =
+      uploadsResult.data || [];
+
+    const laborRows =
+      laborResult.data || [];
+
+    const salesRows =
+      salesResult.data || [];
+
+    console.log(
+      "RECENT IMPORTS UPLOAD ROWS:",
+      uploadsData.length
+    );
+
+    console.log(
+      "RECENT IMPORTS LABOR ROWS:",
+      laborRows.length
+    );
+
+    console.log(
+      "RECENT IMPORTS SALES ROWS:",
+      salesRows.length
+    );
+
+    /*
+     * Reconstruct labor imports from labor_uploads.
+     *
+     * Prefer upload_id when present. Older labor
+     * records may have no upload_id or file_name,
+     * so those are grouped into one legacy import.
+     */
+    const laborGroupedByFile = Object.values(
+      laborRows.reduce((acc, row) => {
+        const uploadId =
+          row.upload_id || null;
+
+        const fileName =
+          row.file_name ||
+          "Labor Upload";
+
+        const key = uploadId
+          ? `upload-${uploadId}`
+          : row.file_name
+          ? `labor-file-${row.file_name}`
+          : "legacy-labor-upload";
+
+        if (!acc[key]) {
+          acc[key] = {
+            id:
+              uploadId ||
+              `labor-file-${encodeURIComponent(
+                fileName
+              )}`,
+
+            file_name: fileName,
+            upload_type: "labor",
+            source_name: "labor_upload",
+            row_count: 0,
+
+            created_at:
+              row.created_at ||
+              new Date().toISOString(),
+
+            synthetic_from_labor: true,
+            merge_key: key,
+          };
+        }
+
+        acc[key].row_count += 1;
+
+        const existingTime = new Date(
+          acc[key].created_at || 0
+        ).getTime();
+
+        const rowTime = new Date(
+          row.created_at || 0
+        ).getTime();
+
+        if (rowTime > existingTime) {
+          acc[key].created_at =
+            row.created_at;
+        }
+
+        return acc;
+      }, {})
+    );
+
+    /*
+     * Reconstruct POS imports from sales rows.
+     */
+    const posGroupedByUpload = Object.values(
+      salesRows.reduce((acc, row) => {
+        const uploadId =
+          row.upload_id || null;
+
+        const fileName =
+          row.file_name ||
+          "POS Sales Upload";
+
+        const key = uploadId
+          ? `upload-${uploadId}`
+          : row.file_name
+          ? `pos-file-${row.file_name}`
+          : "legacy-pos-upload";
+
+        if (!acc[key]) {
+          acc[key] = {
+            id:
+              uploadId ||
+              `pos-file-${encodeURIComponent(
+                fileName
+              )}`,
+
+            file_name: fileName,
+            upload_type: "pos",
+            source_name: "pos_upload",
+            row_count: 0,
+
+            created_at:
+              row.created_at ||
+              row.sale_date ||
+              new Date().toISOString(),
+
+            synthetic_from_sales: true,
+            merge_key: key,
+          };
+        }
+
+        acc[key].row_count += 1;
+
+        const existingTime = new Date(
+          acc[key].created_at || 0
+        ).getTime();
+
+        const rowTime = new Date(
           row.created_at ||
-          row.sale_date ||
-          new Date().toISOString(),
-        synthetic_from_sales: !row.upload_id,
-      };
-    }
+            row.sale_date ||
+            0
+        ).getTime();
 
-    acc[uploadKey].row_count += 1;
+        if (rowTime > existingTime) {
+          acc[key].created_at =
+            row.created_at ||
+            row.sale_date;
+        }
 
-    const currentDate = new Date(
-      acc[uploadKey].created_at || 0
+        return acc;
+      }, {})
     );
 
-    const rowDate = new Date(
-      row.created_at ||
-        row.sale_date ||
-        0
+    /*
+     * Merge real upload records with reconstructed
+     * labor and POS imports.
+     *
+     * Matching upload_id values use the same key,
+     * preventing duplicate POS or labor cards.
+     */
+    const combinedImportsMap = new Map();
+
+    const addImportToMap = (item) => {
+      const mergeKey =
+        item.merge_key ||
+        (item.id
+          ? `upload-${item.id}`
+          : `${item.upload_type || "upload"}-${
+              item.file_name || "unknown"
+            }`);
+
+      const existing =
+        combinedImportsMap.get(mergeKey);
+
+      if (!existing) {
+        combinedImportsMap.set(
+          mergeKey,
+          item
+        );
+
+        return;
+      }
+
+      /*
+       * Preserve metadata from the real uploads row,
+       * while keeping the largest verified row count.
+       */
+      const existingIsRealUpload =
+        !existing.synthetic_from_labor &&
+        !existing.synthetic_from_sales;
+
+      const itemIsRealUpload =
+        !item.synthetic_from_labor &&
+        !item.synthetic_from_sales;
+
+      const preferredRecord =
+        itemIsRealUpload && !existingIsRealUpload
+          ? item
+          : existing;
+
+      const secondaryRecord =
+        preferredRecord === existing
+          ? item
+          : existing;
+
+      combinedImportsMap.set(
+        mergeKey,
+        {
+          ...secondaryRecord,
+          ...preferredRecord,
+
+          row_count: Math.max(
+            Number(existing.row_count || 0),
+            Number(item.row_count || 0)
+          ),
+
+          created_at:
+            new Date(
+              existing.created_at || 0
+            ) >
+            new Date(item.created_at || 0)
+              ? existing.created_at
+              : item.created_at,
+        }
+      );
+    };
+
+    /*
+     * Add real upload records first.
+     */
+    uploadsData.forEach((item) => {
+      addImportToMap({
+        ...item,
+        merge_key: item.id
+          ? `upload-${item.id}`
+          : null,
+      });
+    });
+
+    laborGroupedByFile.forEach(
+      addImportToMap
     );
 
-    if (rowDate > currentDate) {
-      acc[uploadKey].created_at =
-        row.created_at ||
-        row.sale_date;
-    }
+    posGroupedByUpload.forEach(
+      addImportToMap
+    );
 
-    return acc;
-  }, {})
-);
-   const combinedImportsMap = new Map();
+    const combinedImports = [
+      ...combinedImportsMap.values(),
+    ].sort(
+      (a, b) =>
+        new Date(
+          b.created_at || 0
+        ).getTime() -
+        new Date(
+          a.created_at || 0
+        ).getTime()
+    );
 
-[
-  ...(uploadsData || []),
-  ...laborGroupedByFile,
-  ...posGroupedByUpload,
-].forEach((item) => {
-  const key =
-    item.upload_type === "labor"
-      ? `labor-${item.file_name || item.id}`
-      : item.upload_type === "pos" ||
-        item.source_name === "pos_upload"
-      ? `pos-${item.id || item.file_name}`
-      : item.id;
+    console.log(
+      "LABOR IMPORT CARDS:",
+      combinedImports.filter(
+        (item) =>
+          item.upload_type === "labor" ||
+          item.source_name ===
+            "labor_upload"
+      )
+    );
 
-  if (!combinedImportsMap.has(key)) {
-    combinedImportsMap.set(key, item);
-    return;
-  }
+    console.log(
+      "POS IMPORT CARDS:",
+      combinedImports.filter(
+        (item) =>
+          item.upload_type === "pos" ||
+          item.source_name === "pos_upload"
+      )
+    );
 
-  const existing = combinedImportsMap.get(key);
-
-  combinedImportsMap.set(key, {
-    ...item,
-    ...existing,
-    row_count: Math.max(
-      Number(existing?.row_count || 0),
-      Number(item?.row_count || 0)
-    ),
-  });
-});
-
-const combinedImports = [
-  ...combinedImportsMap.values(),
-].sort(
-  (a, b) =>
-    new Date(b.created_at || 0) -
-    new Date(a.created_at || 0)
-);
-
-    console.log("COMBINED IMPORTS LOADED:", combinedImports);
+    console.log(
+      "COMBINED IMPORT COUNT:",
+      combinedImports.length
+    );
 
     setClientImports(combinedImports);
     setRecentUploads(combinedImports);
-    } catch (error) {
+  } catch (error) {
     if (
-      String(error?.message || "").includes("AbortError") ||
-      String(error?.details || "").includes("AbortError")
+      String(
+        error?.message || ""
+      ).includes("AbortError") ||
+      String(
+        error?.details || ""
+      ).includes("AbortError")
     ) {
-      console.warn("Recent imports request cancelled");
+      console.warn(
+        "Recent imports request cancelled"
+      );
+
       return;
     }
 
-    console.error("Recent imports load failed:", error);
+    console.error(
+      "Recent imports load failed:",
+      error
+    );
   } finally {
-    loadingImportsRef.current = false;
-    setImportsLoading(false);
+    if (
+      requestId ===
+      importsRequestIdRef.current
+    ) {
+      setImportsLoading(false);
+    }
   }
 };
 
 useEffect(() => {
-  if (!dataOwnerId && !user?.id) return;
+  if (!dataOwnerId) return;
 
   loadClientImports();
-}, [dataOwnerId, user?.id]);
+}, [dataOwnerId]);
 
 const archiveImport = async (uploadId) => {
   if (!uploadId) {
