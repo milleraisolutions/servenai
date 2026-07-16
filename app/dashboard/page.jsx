@@ -8423,9 +8423,13 @@ useEffect(() => {
     } catch (error) {
       console.error("LOAD SALES ERROR:", error);
 
-      if (!cancelled) {
-        setDbSalesRows([]);
-      }
+if (!cancelled) {
+  setDbSalesRows((currentRows) =>
+    Array.isArray(currentRows)
+      ? currentRows
+      : []
+  );
+}
     }
   };
 
@@ -11178,7 +11182,15 @@ console.log(
 
       if (cancelled) return;
 
-      setLaborData(locationFilteredRows);
+   setLaborData((currentRows) => {
+  if (locationFilteredRows.length > 0) {
+    return locationFilteredRows;
+  }
+
+  return Array.isArray(currentRows)
+    ? currentRows
+    : [];
+});
 
       if (locationFilteredRows.length > 0) {
         localStorage.setItem(
