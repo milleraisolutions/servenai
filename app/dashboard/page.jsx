@@ -16984,8 +16984,8 @@ const loadClientImports = async () => {
       supabase
         .from("sales")
         .select(
-          "id, user_id, upload_id, file_name, created_at, sale_date"
-        )
+  "id, user_id, upload_id, created_at, sale_date"
+)
         .eq("user_id", resolvedOwnerId)
         .order("created_at", {
           ascending: false,
