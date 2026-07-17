@@ -2555,6 +2555,184 @@ const rawSales = Array.isArray(locationSalesData) && locationSalesData.length
         : "flat",
   };
 }, [dbSalesRows, locationSalesData, pendingUploadRows]);
+const liveOverviewMetrics = useMemo(() => {
+  const salesRows =
+    Array.isArray(locationSalesData) && locationSalesData.length
+      ? locationSalesData
+      : Array.isArray(dbSalesRows)
+      ? dbSalesRows
+      : [];
+
+  const menuRows =
+    Array.isArray(locationMenuItemsData) &&
+    locationMenuItemsData.length
+      ? locationMenuItemsData
+      : Array.isArray(menuItemsData)
+      ? menuItemsData
+      : [];
+
+  const laborRows =
+    Array.isArray(locationLaborData) &&
+    locationLaborData.length
+      ? locationLaborData
+      : Array.isArray(laborData)
+      ? laborData
+      : [];
+
+  const totalRevenue = salesRows.reduce((sum, row) => {
+    return sum + Number(getSaleRevenue(row) || 0);
+  }, 0);
+
+  let totalMenuRevenue = 0;
+  let totalMenuCost = 0;
+
+  menuRows.forEach((row) => {
+    const quantitySold = Number(
+      row.quantity_sold ??
+        row.quantity ??
+        row.qty_sold ??
+        row.units_sold ??
+        0
+    );
+
+    const price = Number(
+      String(
+        row.price ??
+          row.menu_price ??
+          row.selling_price ??
+          0
+      )
+        .replaceAll("$", "")
+        .replaceAll(",", "")
+        .trim()
+    );
+
+    const unitCost = Number(
+      String(
+        row.cost ??
+          row.item_cost ??
+          row.food_cost ??
+          row.unit_cost ??
+          0
+      )
+        .replaceAll("$", "")
+        .replaceAll(",", "")
+        .trim()
+    );
+
+    const uploadedRevenue = Number(
+      String(row.revenue ?? row.total_revenue ?? 0)
+        .replaceAll("$", "")
+        .replaceAll(",", "")
+        .trim()
+    );
+
+    const rowRevenue =
+      uploadedRevenue > 0
+        ? uploadedRevenue
+        : price * quantitySold;
+
+    const uploadedTotalCost = Number(
+      String(row.total_cost ?? 0)
+        .replaceAll("$", "")
+        .replaceAll(",", "")
+        .trim()
+    );
+
+    const rowCost =
+      uploadedTotalCost > 0
+        ? uploadedTotalCost
+        : unitCost * quantitySold;
+
+    totalMenuRevenue +=
+      Number.isFinite(rowRevenue) ? rowRevenue : 0;
+
+    totalMenuCost +=
+      Number.isFinite(rowCost) ? rowCost : 0;
+  });
+
+  const totalLaborCost = laborRows.reduce((sum, row) => {
+    const uploadedCost = Number(
+      String(
+        row.labor_cost ??
+          row.total_labor_cost ??
+          row.payroll ??
+          row.wages ??
+          row.total_pay ??
+          row.gross_pay ??
+          0
+      )
+        .replaceAll("$", "")
+        .replaceAll(",", "")
+        .trim()
+    );
+
+    const hours = Number(
+      row.hours ??
+        row.hours_worked ??
+        row.total_hours ??
+        0
+    );
+
+    const rate = Number(
+      String(
+        row.rate ??
+          row.hourly_rate ??
+          row.pay_rate ??
+          0
+      )
+        .replaceAll("$", "")
+        .replaceAll(",", "")
+        .trim()
+    );
+
+    const calculatedCost =
+      uploadedCost > 0
+        ? uploadedCost
+        : hours * rate;
+
+    return (
+      sum +
+      (Number.isFinite(calculatedCost)
+        ? calculatedCost
+        : 0)
+    );
+  }, 0);
+
+  const liveFoodCostPercentage =
+    totalMenuRevenue > 0
+      ? (totalMenuCost / totalMenuRevenue) * 100
+      : 0;
+
+  const liveAverageMargin =
+    totalMenuRevenue > 0
+      ? ((totalMenuRevenue - totalMenuCost) /
+          totalMenuRevenue) *
+        100
+      : 0;
+
+  const liveLaborCostPercentage =
+    totalRevenue > 0
+      ? (totalLaborCost / totalRevenue) * 100
+      : 0;
+
+  return {
+    totalRevenue,
+    totalMenuRevenue,
+    totalMenuCost,
+    totalLaborCost,
+    foodCostPercentage: liveFoodCostPercentage,
+    averageMargin: liveAverageMargin,
+    laborCostPercentage: liveLaborCostPercentage,
+  };
+}, [
+  dbSalesRows,
+  locationSalesData,
+  menuItemsData,
+  locationMenuItemsData,
+  laborData,
+  locationLaborData,
+]);
 const realSalesMetrics = useMemo(() => {
   const rows = dbSalesRows || [];
 
@@ -4410,40 +4588,96 @@ const getPriorityTone = (priority) => {
   };
 };
 const weeklyExecutiveSummary = useMemo(() => {
-  const revenueDelta = Number(revenueTrend?.growthPercent || 0);
-  const revenueNow = Number(revenueTrend?.currentWeekRevenue || 0);
-  const marginNow = Number(avgMargin || 0);
-  const foodCostNow = Number(foodCostPercentage || 0);
+  const revenueDelta = Number(
+    revenueTrend?.growthPercent || 0
+  );
 
-  let headline = "The business is stable this week.";
+  const revenueNow = Number(
+    revenueTrend?.currentWeekRevenue || 0
+  );
+
+  const marginNow = Number(
+    liveOverviewMetrics?.averageMargin || 0
+  );
+
+  const foodCostNow = Number(
+    liveOverviewMetrics?.foodCostPercentage || 0
+  );
+
+  let headline =
+    "The business is stable this week.";
+
   let summary =
     "Serven AI is monitoring revenue, margin, labor, and food cost for the next best optimization opportunities.";
+
   let priority = "low";
 
-  if (revenueDelta > 0 && marginNow >= 60 && foodCostNow <= 30) {
-    headline = "Revenue is rising and operations look healthy.";
+  if (
+    revenueNow <= 0 &&
+    liveOverviewMetrics.totalRevenue <= 0
+  ) {
+    headline =
+      "Upload POS data to activate the executive summary.";
+
+    summary =
+      "Revenue data is required before Serven can generate weekly operating intelligence.";
+
+    priority = "low";
+  } else if (
+    revenueDelta > 0 &&
+    marginNow >= 60 &&
+    foodCostNow <= 30
+  ) {
+    headline =
+      "Revenue is rising and operations look healthy.";
+
     summary = `This week revenue is tracking at $${revenueNow.toLocaleString()} with margin at ${marginNow.toFixed(
       1
     )}%. AI sees a strong opportunity to scale what is already working.`;
+
     priority = "low";
-  } else if (revenueDelta > 0 && foodCostNow > 30) {
-    headline = "Sales are improving, but food cost is limiting upside.";
+  } else if (
+    revenueDelta > 0 &&
+    foodCostNow > 30
+  ) {
+    headline =
+      "Sales are improving, but food cost is limiting upside.";
+
     summary = `Revenue momentum is positive, but food cost is elevated at ${foodCostNow.toFixed(
       1
     )}%. AI recommends protecting gains through tighter cost controls.`;
+
     priority = "medium";
-  } else if (revenueDelta < 0 && marginNow < 60) {
-    headline = "Revenue softened and margins need attention.";
+  } else if (
+    revenueDelta < 0 &&
+    marginNow < 60
+  ) {
+    headline =
+      "Revenue softened and margins need attention.";
+
     summary = `This week revenue is under pressure and average margin is ${marginNow.toFixed(
       1
     )}%. AI recommends prioritizing pricing and profitability fixes first.`;
+
     priority = "high";
   } else if (foodCostNow > 30) {
-    headline = "Food cost is the main operational pressure this week.";
+    headline =
+      "Food cost is the main operational pressure this week.";
+
     summary = `Revenue is relatively stable, but food cost at ${foodCostNow.toFixed(
       1
     )}% is limiting profit conversion. AI sees cost recovery as the fastest path to improvement.`;
+
     priority = "medium";
+  } else {
+    headline =
+      "Revenue data is connected and operations are being analyzed.";
+
+    summary = `Serven analyzed $${Number(
+      liveOverviewMetrics.totalRevenue || 0
+    ).toLocaleString()} in uploaded revenue. Current estimated margin is ${marginNow.toFixed(
+      1
+    )}% and food cost is ${foodCostNow.toFixed(1)}%.`;
   }
 
   return {
@@ -4452,7 +4686,10 @@ const weeklyExecutiveSummary = useMemo(() => {
     priority,
     tone: getPriorityTone(priority),
   };
-}, [revenueTrend, avgMargin, foodCostPercentage]);
+}, [
+  revenueTrend,
+  liveOverviewMetrics,
+]);
 const handleCSVUpload = async (e) => {
   setShowDataSourceMenu(false);
 
@@ -32407,12 +32644,14 @@ increase margin efficiency, and reduce operational leakage.
 
 
 
-{hasRevenueData ? (
+{liveOverviewMetrics.totalRevenue > 0 ? (
   <WeeklyExecutiveSummary
     weeklyExecutiveSummary={weeklyExecutiveSummary}
     revenueTrend={revenueTrend}
-    avgMargin={avgMargin}
-    foodCostPercentage={foodCostPercentage}
+    avgMargin={liveOverviewMetrics.averageMargin}
+foodCostPercentage={
+  liveOverviewMetrics.foodCostPercentage
+}
     restaurantName={userProfile?.restaurant_name}
     revenueChartData={revenueTrend?.chartData || []}
     alcoholRevenue={alcoholRevenue}
