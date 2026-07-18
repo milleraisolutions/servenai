@@ -13476,9 +13476,27 @@ const executiveInvoiceRecoveryOpportunity = (invoicesData || []).reduce(
   },
   0
 );
+const healthyMarginTarget = 20;
+
+const effectiveProfitMargin = Number(
+  liveOverviewMetrics?.averageMargin ||
+    avgMargin ||
+    0
+);
+
+const estimatedMarginRecovery =
+  effectiveProfitMargin > 0 &&
+  effectiveProfitMargin < healthyMarginTarget &&
+  Number(liveTotalRevenue || 0) > 0
+    ? Math.round(
+        ((healthyMarginTarget - effectiveProfitMargin) / 100) *
+          Number(liveTotalRevenue || 0)
+      )
+    : 0;
 const totalAIRecoveryOpportunity =
   estimatedFoodRecovery +
   estimatedLaborRecovery +
+  estimatedMarginRecovery +
   operationalEstimatedWasteRecovery +
   estimatedAlcoholRecovery +
   Number(shelfLifeLoss || 0) +
@@ -13575,47 +13593,59 @@ const profitRecoverySummary = useMemo(() => {
     };
   };
 
-  return {
-    monthlyRecoverable: estimatedRecoverable,
-    annualRecoverable: Number(annualRecoverableProfit || 0),
-    verifiedRecovered,
-    remaining,
-    recoveryProgress,
-    verifiedActionCount: verifiedRecoveryActions.length,
+ return {
+  monthlyRecoverable: estimatedRecoverable,
+  annualRecoverable: Number(annualRecoverableProfit || 0),
+  verifiedRecovered,
+  remaining,
+  recoveryProgress,
+  verifiedActionCount: verifiedRecoveryActions.length,
 
-    categories: [
-      buildCategory({
-        icon: "👥",
-        label: "Labor",
-        route: "labor",
-        action: "Review schedule pressure, overtime, and low-revenue shifts.",
-        opportunity: estimatedLaborRecovery,
-      }),
-      buildCategory({
-        icon: "📦",
-        label: "Inventory",
-        route: "inventory",
-        action: "Review waste exposure, depletion risk, and over-ordering.",
-        opportunity: operationalEstimatedWasteRecovery,
-      }),
-      buildCategory({
-        icon: "🍽",
-        label: "Menu",
-        route: "menu",
-        action: "Review low-margin items, pricing gaps, and menu mix drag.",
-        opportunity: estimatedFoodRecovery,
-      }),
-      buildCategory({
-        icon: "🍸",
-        label: "Beverage",
-        route: "beverage",
-        action: "Review pour variance, alcohol cost, and beverage margin leakage.",
-        opportunity: estimatedAlcoholRecovery,
-      }),
-    ]
-      .filter((category) => Number(category.opportunity || 0) > 0)
-      .sort((a, b) => b.opportunity - a.opportunity),
-  };
+  categories: [
+    buildCategory({
+      icon: "👥",
+      label: "Labor",
+      route: "labor",
+      action: "Review schedule pressure, overtime, and low-revenue shifts.",
+      opportunity: estimatedLaborRecovery,
+    }),
+
+    buildCategory({
+      icon: "📈",
+      label: "Margin",
+      route: "analytics",
+      action:
+        "Review menu pricing, product mix, discounts, and low-margin items.",
+      opportunity: estimatedMarginRecovery,
+    }),
+
+    buildCategory({
+      icon: "📦",
+      label: "Inventory",
+      route: "inventory",
+      action: "Review waste exposure, depletion risk, and over-ordering.",
+      opportunity: operationalEstimatedWasteRecovery,
+    }),
+
+    buildCategory({
+      icon: "🍽",
+      label: "Menu",
+      route: "menu",
+      action: "Review low-margin items, pricing gaps, and menu mix drag.",
+      opportunity: estimatedFoodRecovery,
+    }),
+
+    buildCategory({
+      icon: "🍸",
+      label: "Beverage",
+      route: "beverage",
+      action: "Review pour variance, alcohol cost, and beverage margin leakage.",
+      opportunity: estimatedAlcoholRecovery,
+    }),
+  ]
+    .filter((category) => Number(category.opportunity || 0) > 0)
+    .sort((a, b) => b.opportunity - a.opportunity),
+};
 }, [
   totalAIRecoveryOpportunity,
   annualRecoverableProfit,
