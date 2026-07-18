@@ -17530,50 +17530,13 @@ const deleteImport = async (uploadId) => {
 
   if (!confirmed) return;
 
-  /*
-    1. Keep your existing labor delete behavior.
-  */
-  if (String(uploadId).startsWith("labor-")) {
-    const laborId = String(uploadId).replace("labor-", "");
-
-    const { data: deletedLaborRows, error: laborError } =
-      await supabase
-        .from("labor_uploads")
-        .delete()
-        .eq("id", laborId)
-        .select("id");
-
-    if (laborError) {
-      console.error("Labor delete failed:", laborError);
-      alert(`Labor delete failed: ${laborError.message}`);
-      return;
-    }
-
-    if (!deletedLaborRows?.length) {
-      alert("No matching labor upload was deleted.");
-      return;
-    }
-
-    setClientImports((prev) => (prev || []).filter((item) => item.id !== uploadId));
-    setRecentUploads((prev) => (prev || []).filter((item) => item.id !== uploadId));
-    setLaborData((prev) => (prev || []).filter((row) => row.id !== laborId));
-
-    // Clear operational overview preview rows if this was the current open dataset
-    if (typeof setRows === "function") setRows([]);
-    if (typeof setPendingUploadRows === "function") {
-      setPendingUploadRows([]);
-      if (pendingUploadRowsRef) pendingUploadRowsRef.current = [];
-    }
-    if (typeof setPendingUploadSummary === "function") setPendingUploadSummary(null);
-
-    setMessage("Labor import permanently deleted.");
-    return;
-  }
-
-  // Locate the target item metadata inside active component tracking sheets
   const upload =
-    (clientImports || []).find((item) => item.id === uploadId) ||
-    (recentUploads || []).find((item) => item.id === uploadId) ||
+    (clientImports || []).find(
+      (item) => String(item.id) === String(uploadId)
+    ) ||
+    (recentUploads || []).find(
+      (item) => String(item.id) === String(uploadId)
+    ) ||
     null;
 
   const uploadType = String(
@@ -17584,40 +17547,350 @@ const deleteImport = async (uploadId) => {
     .trim()
     .toLowerCase();
 
-  const fileName = upload?.file_name || upload?.name || null;
+  const fileName = String(
+    upload?.file_name ||
+      upload?.name ||
+      ""
+  ).trim();
+
+  const uploadIdString = String(uploadId);
+
+  const isSyntheticLaborId =
+    uploadIdString.startsWith("labor-") &&
+    !uploadIdString.startsWith("labor-file-");
+
+  const isLaborFileId =
+    uploadIdString.startsWith("labor-file-");
+
+  const isLaborUpload =
+    isSyntheticLaborId ||
+    isLaborFileId ||
+    uploadType === "labor" ||
+    uploadType === "labor_upload";
+
+  const isInvoiceUpload = [
+    "invoice",
+    "invoices",
+    "invoice_upload",
+    "invoice_uploads",
+  ].includes(uploadType);
 
   console.log("DELETE IMPORT TARGET:", {
     uploadId,
+    uploadIdString,
     uploadType,
     fileName,
+    isLaborUpload,
+    isInvoiceUpload,
+    upload,
   });
+
+  const previousClientImports = clientImports || [];
+  const previousRecentUploads = recentUploads || [];
+  const previousLaborData = laborData || [];
+  const previousLaborUploads = laborUploads || [];
+  const previousInvoiceUploads = invoiceUploads || [];
+  const previousInvoicesData = invoicesData || [];
 
   try {
     setMessage("Deleting import...");
 
+    const {
+      data: { user: currentUser },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError) {
+      throw userError;
+    }
+
+    const ownerId = dataOwnerId || currentUser?.id;
+
+    if (!ownerId) {
+      throw new Error(
+        "Could not identify the data owner. Please log in again."
+      );
+    }
+
     /*
-      2. Invoice uploads are removed through the server route
-      because the invoice records were created server-side.
+      ==========================================
+      LABOR IMPORT DELETE
+      ==========================================
     */
-    const isInvoiceUpload = [
-      "invoice",
-      "invoices",
-      "invoice_upload",
-    ].includes(uploadType);
+    if (isLaborUpload) {
+      console.log("LABOR DELETE START:", {
+        uploadId,
+        uploadType,
+        fileName,
+        ownerId,
+      });
 
-    if (isInvoiceUpload) {
-      const {
-        data: { session },
-        error: sessionError,
-      } = await supabase.auth.getSession();
+      let laborId = null;
+      let resolvedLaborFileName = fileName;
 
-      if (sessionError) throw sessionError;
-
-      if (!session?.access_token) {
-        throw new Error("Your login session was not found. Please log in again.");
+      if (isSyntheticLaborId) {
+        laborId = uploadIdString.replace("labor-", "");
       }
 
-      const response = await fetch("/api/delete-client-upload", {
+      if (isLaborFileId && !resolvedLaborFileName) {
+        const laborFileKey = uploadIdString.replace(
+          "labor-file-",
+          ""
+        );
+
+        resolvedLaborFileName =
+          laborFileKey.split("-2026-")[0] ||
+          laborFileKey;
+      }
+
+      let deletedLaborRows = [];
+
+      if (laborId) {
+        const {
+          data,
+          error: laborDeleteError,
+        } = await supabase
+          .from("labor_uploads")
+          .delete()
+          .eq("id", laborId)
+          .eq("user_id", ownerId)
+          .select("id, file_name");
+
+        console.log(
+          "LABOR DELETE BY ID RESULT:",
+          data
+        );
+
+        console.log(
+          "LABOR DELETE BY ID ERROR:",
+          laborDeleteError
+        );
+
+        if (laborDeleteError) {
+          throw laborDeleteError;
+        }
+
+        deletedLaborRows = data || [];
+      } else if (resolvedLaborFileName) {
+        const {
+          data,
+          error: laborDeleteError,
+        } = await supabase
+          .from("labor_uploads")
+          .delete()
+          .eq("user_id", ownerId)
+          .eq("file_name", resolvedLaborFileName)
+          .select("id, file_name");
+
+        console.log(
+          "LABOR DELETE BY FILE RESULT:",
+          data
+        );
+
+        console.log(
+          "LABOR DELETE BY FILE ERROR:",
+          laborDeleteError
+        );
+
+        if (laborDeleteError) {
+          throw laborDeleteError;
+        }
+
+        deletedLaborRows = data || [];
+      } else {
+        throw new Error(
+          "Could not identify the labor row or labor file name."
+        );
+      }
+
+      /*
+        Delete the matching uploads row only when this is
+        a normal uploads-table UUID.
+      */
+      if (
+        !isSyntheticLaborId &&
+        !isLaborFileId
+      ) {
+        const {
+          data: deletedUploadRows,
+          error: uploadDeleteError,
+        } = await supabase
+          .from("uploads")
+          .delete()
+          .eq("id", uploadId)
+          .eq("user_id", ownerId)
+          .select("id");
+
+        console.log(
+          "LABOR UPLOAD RECORD DELETE RESULT:",
+          deletedUploadRows
+        );
+
+        console.log(
+          "LABOR UPLOAD RECORD DELETE ERROR:",
+          uploadDeleteError
+        );
+
+        if (uploadDeleteError) {
+          throw uploadDeleteError;
+        }
+      }
+
+      const deletedLaborIds = new Set(
+        (deletedLaborRows || []).map(
+          (row) => String(row.id)
+        )
+      );
+
+      setLaborData((previous) =>
+        (previous || []).filter((row) => {
+          const rowId = String(row.id || "");
+          const rowFileName = String(
+            row.file_name || ""
+          ).trim();
+
+          if (
+            laborId &&
+            rowId === String(laborId)
+          ) {
+            return false;
+          }
+
+          if (
+            deletedLaborIds.has(rowId)
+          ) {
+            return false;
+          }
+
+          if (
+            resolvedLaborFileName &&
+            rowFileName === resolvedLaborFileName
+          ) {
+            return false;
+          }
+
+          return true;
+        })
+      );
+
+      setLaborUploads((previous) =>
+        (previous || []).filter((row) => {
+          const rowId = String(row.id || "");
+          const rowFileName = String(
+            row.file_name || ""
+          ).trim();
+
+          if (
+            laborId &&
+            rowId === String(laborId)
+          ) {
+            return false;
+          }
+
+          if (
+            deletedLaborIds.has(rowId)
+          ) {
+            return false;
+          }
+
+          if (
+            resolvedLaborFileName &&
+            rowFileName === resolvedLaborFileName
+          ) {
+            return false;
+          }
+
+          return true;
+        })
+      );
+
+      setClientImports((previous) =>
+        (previous || []).filter(
+          (item) =>
+            String(item.id) !== String(uploadId) &&
+            !(
+              resolvedLaborFileName &&
+              String(
+                item.file_name ||
+                  item.name ||
+                  ""
+              ).trim() === resolvedLaborFileName
+            )
+        )
+      );
+
+      setRecentUploads((previous) =>
+        (previous || []).filter(
+          (item) =>
+            String(item.id) !== String(uploadId) &&
+            !(
+              resolvedLaborFileName &&
+              String(
+                item.file_name ||
+                  item.name ||
+                  ""
+              ).trim() === resolvedLaborFileName
+            )
+        )
+      );
+
+      if (typeof setRows === "function") {
+        setRows([]);
+      }
+
+      if (
+        typeof setPendingUploadRows ===
+        "function"
+      ) {
+        setPendingUploadRows([]);
+
+        if (pendingUploadRowsRef) {
+          pendingUploadRowsRef.current = [];
+        }
+      }
+
+      if (
+        typeof setPendingUploadSummary ===
+        "function"
+      ) {
+        setPendingUploadSummary(null);
+      }
+
+      setMessage(
+        "Labor import permanently deleted."
+      );
+
+      console.log(
+        "LABOR DELETE COMPLETE:",
+        deletedLaborRows
+      );
+
+      return;
+    }
+
+    /*
+      ==========================================
+      ALL OTHER IMPORT TYPES
+      ==========================================
+    */
+    const {
+      data: { session },
+      error: sessionError,
+    } = await supabase.auth.getSession();
+
+    if (sessionError) {
+      throw sessionError;
+    }
+
+    if (!session?.access_token) {
+      throw new Error(
+        "Your login session was not found. Please log in again."
+      );
+    }
+
+    const response = await fetch(
+      "/api/delete-client-upload",
+      {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -17625,128 +17898,278 @@ const deleteImport = async (uploadId) => {
         },
         body: JSON.stringify({
           uploadId,
-          fileName,
+          fileName: fileName || null,
+          uploadType: uploadType || null,
         }),
-      });
+      }
+    );
 
     const responseText = await response.text();
 
-console.log(
-  "DELETE INVOICE API STATUS:",
-  response.status
-);
-
-console.log(
-  "DELETE INVOICE API RAW RESPONSE:",
-  responseText
-);
-
-      let result = {};
-      try {
-        result = responseText ? JSON.parse(responseText) : {};
-      } catch {
-        result = {};
-      }
-
-      if (!response.ok || !result.success) {
-        throw new Error(result?.error || "Invoice removal endpoint failed.");
-      }
- } else {
-  const {
-    data: { session },
-    error: sessionError,
-  } = await supabase.auth.getSession();
-
-  if (sessionError) {
-    throw sessionError;
-  }
-
-  if (!session?.access_token) {
-    throw new Error(
-      "Your login session was not found. Please log in again."
+    console.log(
+      "DELETE IMPORT API STATUS:",
+      response.status
     );
-  }
 
-  const response = await fetch("/api/delete-client-upload", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${session.access_token}`,
-    },
-    body: JSON.stringify({
-      uploadId,
-      fileName,
-    }),
-  });
-
-  const responseText = await response.text();
-
-  console.log("DELETE IMPORT API STATUS:", response.status);
-  console.log("DELETE IMPORT API RESPONSE:", responseText);
-
-  let result = {};
-
-  try {
-    result = responseText
-      ? JSON.parse(responseText)
-      : {};
-  } catch {
-    throw new Error(
-      `Delete route returned invalid data: ${responseText.slice(
-        0,
-        300
-      )}`
+    console.log(
+      "DELETE IMPORT API RESPONSE:",
+      responseText
     );
-  }
 
-  if (!response.ok || !result.success) {
-    throw new Error(
-      result?.error ||
-        `Delete failed with status ${response.status}.`
-    );
-  }
-}
+    let result = {};
 
-    /*
-      3. Global state sync - only runs once database deletion is completely verified.
-    */
-    setClientImports((prev) => (prev || []).filter((item) => item.id !== uploadId));
-    setRecentUploads((prev) => (prev || []).filter((item) => item.id !== uploadId));
-
-    if (isInvoiceUpload) {
-      // Deep-clean invoice uploads lists
-      setInvoiceUploads((prev) =>
-        (prev || []).filter(
-          (invoice) =>
-            invoice.id !== uploadId &&
-            invoice.upload_id !== uploadId &&
-            invoice.file_name !== fileName
-        )
+    try {
+      result = responseText
+        ? JSON.parse(responseText)
+        : {};
+    } catch {
+      throw new Error(
+        `Delete route returned invalid data: ${responseText.slice(
+          0,
+          300
+        )}`
       );
-
-      // Deep-clean single invoice parsed line items out of your system metrics
-      setInvoicesData((prev) =>
-        (prev || []).filter(
-          (row) =>
-            row.upload_id !== uploadId &&
-            row.invoice_id !== uploadId &&
-            row.file_name !== fileName
-        )
-      );
-
-      // Wipe out table data preview views if this deleted document was open on the screen
-      if (typeof setRows === "function") setRows([]);
-      if (typeof setPendingUploadRows === "function") {
-        setPendingUploadRows([]);
-        if (pendingUploadRowsRef) pendingUploadRowsRef.current = [];
-      }
-      if (typeof setPendingUploadSummary === "function") setPendingUploadSummary(null);
     }
 
-    setMessage("Import permanently deleted.");
+    if (!response.ok || !result.success) {
+      throw new Error(
+        result?.error ||
+          `Delete failed with status ${response.status}.`
+      );
+    }
+
+    /*
+      ==========================================
+      SHARED UI CLEANUP
+      ==========================================
+    */
+    setClientImports((previous) =>
+      (previous || []).filter(
+        (item) =>
+          String(item.id) !== String(uploadId)
+      )
+    );
+
+    setRecentUploads((previous) =>
+      (previous || []).filter(
+        (item) =>
+          String(item.id) !== String(uploadId)
+      )
+    );
+
+    /*
+      ==========================================
+      INVOICE UI CLEANUP
+      ==========================================
+    */
+    if (isInvoiceUpload) {
+      setInvoiceUploads((previous) =>
+        (previous || []).filter(
+          (invoice) =>
+            String(invoice.id) !==
+              String(uploadId) &&
+            String(invoice.upload_id) !==
+              String(uploadId) &&
+            !(
+              fileName &&
+              String(
+                invoice.file_name || ""
+              ).trim() === fileName
+            )
+        )
+      );
+
+      setInvoicesData((previous) =>
+        (previous || []).filter(
+          (row) =>
+            String(row.upload_id) !==
+              String(uploadId) &&
+            String(row.invoice_id) !==
+              String(uploadId) &&
+            !(
+              fileName &&
+              String(
+                row.file_name || ""
+              ).trim() === fileName
+            )
+        )
+      );
+    }
+
+    /*
+      ==========================================
+      LOCAL DATA CLEANUP BY UPLOAD ID
+      ==========================================
+    */
+    if (typeof setDbSalesRows === "function") {
+      setDbSalesRows((previous) =>
+        (previous || []).filter(
+          (row) =>
+            String(row.upload_id) !==
+            String(uploadId)
+        )
+      );
+    }
+
+    if (
+      typeof setMenuItemsData === "function"
+    ) {
+      setMenuItemsData((previous) =>
+        (previous || []).filter(
+          (row) =>
+            String(row.upload_id) !==
+            String(uploadId)
+        )
+      );
+    }
+
+    if (
+      typeof setIngredientsData === "function"
+    ) {
+      setIngredientsData((previous) =>
+        (previous || []).filter(
+          (row) =>
+            String(row.upload_id) !==
+            String(uploadId)
+        )
+      );
+    }
+
+    if (
+      typeof setInventoryData === "function"
+    ) {
+      setInventoryData((previous) =>
+        (previous || []).filter(
+          (row) =>
+            String(row.upload_id) !==
+            String(uploadId)
+        )
+      );
+    }
+
+    if (
+      typeof setBeverageItems === "function"
+    ) {
+      setBeverageItems((previous) =>
+        (previous || []).filter(
+          (row) =>
+            String(row.upload_id) !==
+            String(uploadId)
+        )
+      );
+    }
+
+    if (
+      typeof setBeverageUsage === "function"
+    ) {
+      setBeverageUsage((previous) =>
+        (previous || []).filter(
+          (row) =>
+            String(row.upload_id) !==
+            String(uploadId)
+        )
+      );
+    }
+
+    if (
+      typeof setEmployeeShifts === "function"
+    ) {
+      setEmployeeShifts((previous) =>
+        (previous || []).filter(
+          (row) =>
+            String(row.upload_id) !==
+            String(uploadId)
+        )
+      );
+    }
+
+    if (
+      typeof setBatchPrepData === "function"
+    ) {
+      setBatchPrepData((previous) =>
+        (previous || []).filter(
+          (row) =>
+            String(row.upload_id) !==
+            String(uploadId)
+        )
+      );
+    }
+
+    if (typeof setRecipes === "function") {
+      setRecipes((previous) =>
+        (previous || []).filter(
+          (row) =>
+            String(row.upload_id) !==
+            String(uploadId)
+        )
+      );
+    }
+
+    if (
+      typeof setRecipeIngredients ===
+      "function"
+    ) {
+      setRecipeIngredients((previous) =>
+        (previous || []).filter(
+          (row) =>
+            String(row.upload_id) !==
+            String(uploadId)
+        )
+      );
+    }
+
+    if (typeof setRows === "function") {
+      setRows([]);
+    }
+
+    if (
+      typeof setPendingUploadRows ===
+      "function"
+    ) {
+      setPendingUploadRows([]);
+
+      if (pendingUploadRowsRef) {
+        pendingUploadRowsRef.current = [];
+      }
+    }
+
+    if (
+      typeof setPendingUploadSummary ===
+      "function"
+    ) {
+      setPendingUploadSummary(null);
+    }
+
+    setMessage(
+      isInvoiceUpload
+        ? "Invoice import permanently deleted."
+        : "Import permanently deleted."
+    );
   } catch (error) {
-    console.error("DELETE IMPORT FAILED:", error);
-    const errorMessage = error?.message || "Import delete failed.";
+    console.error(
+      "DELETE IMPORT FAILED:",
+      error
+    );
+
+    setClientImports(
+      previousClientImports
+    );
+
+    setRecentUploads(
+      previousRecentUploads
+    );
+
+    setLaborData(previousLaborData);
+    setLaborUploads(previousLaborUploads);
+    setInvoiceUploads(
+      previousInvoiceUploads
+    );
+    setInvoicesData(previousInvoicesData);
+
+    const errorMessage =
+      error?.message ||
+      "Import delete failed.";
+
     setMessage(errorMessage);
     alert(errorMessage);
   }
