@@ -31603,7 +31603,7 @@ return (
   type="button"
   onClick={() => {
     console.log("RECENT IMPORT DELETE ITEM:", item);
-    deleteImport(item.id);
+    handleDeleteUpload(item.id);
   }}
       style={{
         padding: "8px 12px",
