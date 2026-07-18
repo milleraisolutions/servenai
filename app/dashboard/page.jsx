@@ -29568,13 +29568,7 @@ const handleDeleteUpload = async (uploadId) => {
   setRecentUploads((prev) =>
     (prev || []).filter((item) => item.id !== uploadId)
   );
-  if (uploadType === "employee_shifts") {
-  setEmployeeShifts((previous) =>
-    (previous || []).filter(
-      (shift) => shift.upload_id !== uploadId
-    )
-  );
-}
+
   setMessage("Deleting import...");
 
   try {
@@ -29851,6 +29845,65 @@ if (uploadIdString.startsWith("labor-file-")) {
       setMessage("Upload removed from screen.");
       return;
     }
+    // ✅ NORMAL LABOR UPLOAD DELETE
+if (
+  uploadRow?.upload_type === "labor" ||
+  uploadRow?.source_name === "labor_upload"
+) {
+  console.log("NORMAL LABOR DELETE START");
+  console.log("LABOR UPLOAD ROW:", uploadRow);
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const ownerId = dataOwnerId || user?.id;
+
+  const laborFileName =
+    uploadRow.file_name ||
+    uploadRow.source_name ||
+    null;
+
+  if (!ownerId) {
+    throw new Error("Could not identify labor data owner.");
+  }
+
+  let laborDeleteQuery = supabase
+    .from("labor_uploads")
+    .delete()
+    .eq("user_id", ownerId);
+
+  if (laborFileName) {
+    laborDeleteQuery = laborDeleteQuery.eq("file_name", laborFileName);
+  } else {
+    laborDeleteQuery = laborDeleteQuery.eq("id", uploadId);
+  }
+
+  const { error: laborDeleteError } = await laborDeleteQuery;
+
+  console.log("NORMAL LABOR DELETE ERROR:", laborDeleteError);
+
+  if (laborDeleteError) {
+    throw laborDeleteError;
+  }
+
+  setLaborData((previous) =>
+    (previous || []).filter((row) => {
+      const rowFileName =
+        row.file_name ||
+        row.source_name ||
+        "";
+
+      return (
+        row.upload_id !== uploadId &&
+        row.id !== uploadId &&
+        (!laborFileName || rowFileName !== laborFileName)
+      );
+    })
+  );
+
+  console.log("NORMAL LABOR ROWS DELETED");
+}
 // ✅ INVOICE DELETE — IMPORTANT
 if (uploadRow?.upload_type === "invoices") {
   console.log("INVOICE DELETE START");
