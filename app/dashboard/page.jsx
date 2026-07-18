@@ -31912,9 +31912,11 @@ selectedHandler();
       letterSpacing: "0.06em",
     }}
   >
-    {Number(totalAIRecoveryOpportunity || 0) > 0
+   {!hasFullRecoveryData
+  ? "Profit Recovery Analysis"
+  : Number(totalAIRecoveryOpportunity || 0) > 0
   ? "You're Losing"
-  : "Profit Recovery Analysis"}
+  : "Operations Currently Optimized"}
   </div>
 
   <div
@@ -31926,9 +31928,11 @@ selectedHandler();
       marginBottom: "18px",
     }}
   >
-   {Number(totalAIRecoveryOpportunity || 0) > 0
+  {!hasFullRecoveryData
+  ? "Upload Data To Reveal"
+  : Number(totalAIRecoveryOpportunity || 0) > 0
   ? `$${Number(totalAIRecoveryOpportunity || 0).toLocaleString()}/mo`
-  : "Upload Data To Reveal"}
+  : "$0/mo"}
   </div>
 
   <div
