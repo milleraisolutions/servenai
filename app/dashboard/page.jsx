@@ -2448,30 +2448,36 @@ const rawSales = Array.isArray(locationSalesData) && locationSalesData.length
 
 
 const revenueTrend = useMemo(() => {
-const rawSales = Array.isArray(locationSalesData) && locationSalesData.length
-  ? locationSalesData
-  : Array.isArray(dbSalesRows)
-  ? dbSalesRows
-  : [];
+  const normalizeSalesRows = (rows) =>
+    (Array.isArray(rows) ? rows : [])
+      .map((sale) => {
+        const date = getSaleDate(sale);
+        const revenue = Number(getSaleRevenue(sale) || 0);
 
-  const safeSales = rawSales
-    .map((sale) => {
-      const date = getSaleDate(sale);
-      const revenue = getSaleRevenue(sale);
+        return {
+          ...sale,
+          revenue,
+          date,
+        };
+      })
+      .filter(
+        (sale) =>
+          sale.date instanceof Date &&
+          !Number.isNaN(sale.date.getTime()) &&
+          sale.revenue > 0
+      )
+      .sort((a, b) => a.date.getTime() - b.date.getTime());
 
-     return {
-  ...sale,
-  revenue: Number(revenue || 0),
-  date,
-};
-    })
-    .filter(
-      (sale) =>
-        sale.date &&
-        !Number.isNaN(sale.date.getTime()) &&
-        sale.revenue > 0
-    )
-    .sort((a, b) => a.date.getTime() - b.date.getTime());
+  const normalizedLocationSales =
+    normalizeSalesRows(locationSalesData);
+
+  const normalizedDatabaseSales =
+    normalizeSalesRows(dbSalesRows);
+
+  const safeSales =
+    normalizedLocationSales.length > 0
+      ? normalizedLocationSales
+      : normalizedDatabaseSales;
 
   if (!safeSales.length) {
     return {
@@ -2554,7 +2560,7 @@ const rawSales = Array.isArray(locationSalesData) && locationSalesData.length
         ? "down"
         : "flat",
   };
-}, [dbSalesRows, locationSalesData, pendingUploadRows]);
+}, [dbSalesRows, locationSalesData]);
 const liveOverviewMetrics = useMemo(() => {
   const salesRows =
     Array.isArray(locationSalesData) && locationSalesData.length
