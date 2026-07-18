@@ -3,16 +3,76 @@ import { createClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseUrl =
+  process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+const supabaseServiceRoleKey =
+  process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!supabaseUrl || !supabaseServiceRoleKey) {
-  throw new Error("Missing Supabase server environment variables.");
+  throw new Error(
+    "Missing Supabase server environment variables."
+  );
 }
 
-const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
+const supabase = createClient(
+  supabaseUrl,
+  supabaseServiceRoleKey,
+  {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  }
+);
 
-async function safeDeleteByUploadId(uploadId) {
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/*
+  ==========================================
+  AUTHENTICATE REQUEST
+  ==========================================
+*/
+async function getAuthenticatedUser(req) {
+  const authorization =
+    req.headers.get("authorization") || "";
+
+  const accessToken = authorization.startsWith(
+    "Bearer "
+  )
+    ? authorization.slice(7).trim()
+    : "";
+
+  if (!accessToken) {
+    throw new Error(
+      "Missing authentication token."
+    );
+  }
+
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser(accessToken);
+
+  if (error || !user?.id) {
+    throw new Error(
+      "Your login session is invalid or expired."
+    );
+  }
+
+  return user;
+}
+
+/*
+  ==========================================
+  NORMAL CHILD TABLE DELETE
+  ==========================================
+*/
+async function safeDeleteByUploadId(
+  uploadId,
+  ownerId
+) {
   const deleteSteps = [
     ["sales", "upload_id"],
     ["menu_items", "upload_id"],
@@ -30,23 +90,87 @@ async function safeDeleteByUploadId(uploadId) {
     ["locations", "upload_id"],
   ];
 
+  const results = [];
+
   for (const [table, column] of deleteSteps) {
-    const { error } = await supabase.from(table).delete().eq(column, uploadId);
+    let query = supabase
+      .from(table)
+      .delete()
+      .eq(column, uploadId);
+
+    /*
+      Add user ownership where these tables normally
+      include user_id. If a table doesn't have user_id,
+      the fallback query below handles it.
+    */
+    if (ownerId) {
+      query = query.eq("user_id", ownerId);
+    }
+
+    let { data, error } = await query.select("*");
+
+    /*
+      Some older tables may not contain user_id.
+      Retry using upload_id only when that happens.
+    */
+    if (
+      error &&
+      String(error.message || "")
+        .toLowerCase()
+        .includes("user_id")
+    ) {
+      const fallbackResult = await supabase
+        .from(table)
+        .delete()
+        .eq(column, uploadId)
+        .select("*");
+
+      data = fallbackResult.data;
+      error = fallbackResult.error;
+    }
 
     if (error) {
-      console.warn(`DELETE API ${table} skipped/failed:`, error);
+      console.warn(
+        `DELETE API ${table} skipped/failed:`,
+        error
+      );
+
+      results.push({
+        table,
+        success: false,
+        error: error.message,
+      });
+
+      continue;
     }
+
+    results.push({
+      table,
+      success: true,
+      deletedCount: data?.length || 0,
+    });
   }
+
+  return results;
 }
 
-async function deleteInvoiceData(uploadId) {
+/*
+  ==========================================
+  INVOICE DELETE
+  ==========================================
+*/
+async function deleteInvoiceData(
+  uploadId,
+  ownerId
+) {
   const {
     data: invoiceRows,
     error: invoiceLookupError,
   } = await supabase
     .from("invoice_uploads")
-    .select("id")
-    .eq("upload_id", uploadId);
+    .select("id, upload_id, file_name, user_id")
+    .eq("upload_id", uploadId)
+    .eq("user_id", ownerId);
 
   if (invoiceLookupError) {
     throw invoiceLookupError;
@@ -56,265 +180,635 @@ async function deleteInvoiceData(uploadId) {
     .map((row) => row.id)
     .filter(Boolean);
 
-  const { error: lineByUploadError } =
-    await supabase
-      .from("invoice_line_items")
-      .delete()
-      .eq("upload_id", uploadId);
+  const {
+    data: deletedLinesByUpload,
+    error: lineByUploadError,
+  } = await supabase
+    .from("invoice_line_items")
+    .delete()
+    .eq("upload_id", uploadId)
+    .eq("user_id", ownerId)
+    .select("id");
 
   if (lineByUploadError) {
     throw lineByUploadError;
   }
 
+  let deletedLinesByInvoice = [];
+
   if (invoiceIds.length > 0) {
-    const { error: lineByInvoiceError } =
-      await supabase
-        .from("invoice_line_items")
-        .delete()
-        .in("invoice_id", invoiceIds);
+    const {
+      data,
+      error: lineByInvoiceError,
+    } = await supabase
+      .from("invoice_line_items")
+      .delete()
+      .in("invoice_id", invoiceIds)
+      .eq("user_id", ownerId)
+      .select("id");
 
     if (lineByInvoiceError) {
       throw lineByInvoiceError;
     }
+
+    deletedLinesByInvoice = data || [];
   }
 
-  const { error: invoiceDeleteError } =
-    await supabase
-      .from("invoice_uploads")
-      .delete()
-      .eq("upload_id", uploadId);
+  const {
+    data: deletedInvoiceUploads,
+    error: invoiceDeleteError,
+  } = await supabase
+    .from("invoice_uploads")
+    .delete()
+    .eq("upload_id", uploadId)
+    .eq("user_id", ownerId)
+    .select("id");
 
   if (invoiceDeleteError) {
     throw invoiceDeleteError;
   }
-}
-
-async function deleteLaborByFileName(fileName) {
-  if (!fileName) return null;
-
-  const cleanFileName = String(fileName).trim();
-
-  if (!cleanFileName) return null;
-
-  console.log("DELETE API labor by file_name:", cleanFileName);
-
-  const { data: laborRows, error: laborLookupError } = await supabase
-    .from("labor_uploads")
-    .select("id, file_name")
-    .ilike("file_name", cleanFileName);
-
-  if (laborLookupError) throw laborLookupError;
-
-  if (!laborRows?.length) {
-    console.log("DELETE API no labor rows matched file_name:", cleanFileName);
-    return null;
-  }
-
-  const { error: laborDeleteError } = await supabase
-    .from("labor_uploads")
-    .delete()
-    .ilike("file_name", cleanFileName);
-
-  if (laborDeleteError) throw laborDeleteError;
 
   return {
-    fileName: cleanFileName,
-    deletedCount: laborRows.length,
-    ids: laborRows.map((row) => row.id),
+    deletedInvoiceUploads:
+      deletedInvoiceUploads?.length || 0,
+    deletedLineItems:
+      (deletedLinesByUpload?.length || 0) +
+      (deletedLinesByInvoice?.length || 0),
   };
 }
 
-async function deleteLaborUpload(id) {
-  const rawId = String(id || "");
+/*
+  ==========================================
+  LABOR DELETE BY FILE
+  ==========================================
+*/
+async function deleteLaborByFileName({
+  fileName,
+  ownerId,
+}) {
+  const cleanFileName = String(
+    fileName || ""
+  ).trim();
 
-  if (!rawId) return null;
-
-  if (rawId.startsWith("labor-file-")) {
-    return null;
+  if (!cleanFileName || !ownerId) {
+    return {
+      matched: false,
+      deletedCount: 0,
+      ids: [],
+      fileName: cleanFileName,
+    };
   }
 
-  const laborId = rawId.startsWith("labor-")
-    ? rawId.slice("labor-".length)
-    : rawId;
+  console.log(
+    "DELETE API LABOR FILE LOOKUP:",
+    {
+      ownerId,
+      fileName: cleanFileName,
+    }
+  );
 
-  const uuidRegex =
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-  if (!uuidRegex.test(laborId)) {
-    console.log("DELETE API skipping labor lookup, not a UUID:", {
-      rawId,
-      laborId,
-    });
-    return null;
-  }
-
-  const { data: laborRow, error: laborLookupError } = await supabase
+  const {
+    data: matchingRows,
+    error: lookupError,
+  } = await supabase
     .from("labor_uploads")
-    .select("id")
-    .eq("id", laborId)
-    .maybeSingle();
+    .select("id, user_id, file_name")
+    .eq("user_id", ownerId)
+    .ilike("file_name", cleanFileName);
 
-  if (laborLookupError) throw laborLookupError;
+  if (lookupError) {
+    throw lookupError;
+  }
 
-  if (!laborRow?.id) return null;
+  if (!matchingRows?.length) {
+    console.log(
+      "DELETE API NO LABOR FILE MATCH:",
+      cleanFileName
+    );
 
-  const { error: laborDeleteError } = await supabase
+    return {
+      matched: false,
+      deletedCount: 0,
+      ids: [],
+      fileName: cleanFileName,
+    };
+  }
+
+  const laborIds = matchingRows
+    .map((row) => row.id)
+    .filter(Boolean);
+
+  const {
+    data: deletedRows,
+    error: laborDeleteError,
+  } = await supabase
     .from("labor_uploads")
     .delete()
-    .eq("id", laborId);
+    .eq("user_id", ownerId)
+    .in("id", laborIds)
+    .select("id, file_name");
 
-  if (laborDeleteError) throw laborDeleteError;
+  if (laborDeleteError) {
+    throw laborDeleteError;
+  }
 
-  return laborId;
+  console.log(
+    "DELETE API LABOR ROWS DELETED:",
+    deletedRows
+  );
+
+  return {
+    matched: true,
+    deletedCount: deletedRows?.length || 0,
+    ids: (deletedRows || []).map(
+      (row) => row.id
+    ),
+    fileName: cleanFileName,
+  };
 }
 
+/*
+  ==========================================
+  LABOR DELETE BY LABOR ROW ID
+  ==========================================
+*/
+async function deleteLaborById({
+  laborId,
+  ownerId,
+}) {
+  if (
+    !laborId ||
+    !ownerId ||
+    !UUID_REGEX.test(String(laborId))
+  ) {
+    return null;
+  }
+
+  const {
+    data: deletedRows,
+    error,
+  } = await supabase
+    .from("labor_uploads")
+    .delete()
+    .eq("id", laborId)
+    .eq("user_id", ownerId)
+    .select("id, file_name");
+
+  if (error) {
+    throw error;
+  }
+
+  if (!deletedRows?.length) {
+    return null;
+  }
+
+  return {
+    deletedCount: deletedRows.length,
+    ids: deletedRows.map((row) => row.id),
+    fileName:
+      deletedRows[0]?.file_name || null,
+  };
+}
+
+/*
+  ==========================================
+  MAIN DELETE ROUTE
+  ==========================================
+*/
 export async function POST(req) {
   try {
+    const authenticatedUser =
+      await getAuthenticatedUser(req);
+
     const body = await req.json();
 
-    const rawId = body?.id || body?.uploadId;
-    const laborFileName = body?.laborFileName || null;
+    const rawId =
+      body?.uploadId ||
+      body?.id ||
+      null;
+
+    const requestedFileName = String(
+      body?.fileName ||
+        body?.laborFileName ||
+        ""
+    ).trim();
+
+    const requestedUploadType = String(
+      body?.uploadType || ""
+    )
+      .trim()
+      .toLowerCase();
 
     if (!rawId) {
       return NextResponse.json(
-        { error: "Upload id is required." },
+        {
+          success: false,
+          error: "Upload id is required.",
+        },
         { status: 400 }
       );
     }
 
-    const id = String(rawId);
+    const id = String(rawId).trim();
 
-    console.log("DELETE CLIENT UPLOAD API START:", {
-      id,
-      laborFileName,
-    });
+    const ownerId =
+      body?.dataOwnerId ||
+      authenticatedUser.id;
 
-    // ✅ 1. Labor file group delete by filename.
-    if (laborFileName) {
-      const deletedLaborFile = await deleteLaborByFileName(laborFileName);
-
-      if (deletedLaborFile) {
-        return NextResponse.json({
-          success: true,
-          deletedFrom: "labor_uploads",
-          deletedUploadId: id,
-          deletedFileName: deletedLaborFile.fileName,
-          deletedCount: deletedLaborFile.deletedCount,
-          deletedLaborIds: deletedLaborFile.ids,
-        });
+    console.log(
+      "DELETE CLIENT UPLOAD API START:",
+      {
+        id,
+        ownerId,
+        requestedFileName,
+        requestedUploadType,
       }
-    }
+    );
 
-    // ✅ 2. Labor single UUID delete.
-    const deletedLaborId = await deleteLaborUpload(id);
+    /*
+      ========================================
+      SYNTHETIC LABOR FILE ID
+      ========================================
+    */
+    if (id.startsWith("labor-file-")) {
+      let laborFileName = requestedFileName;
 
-    if (deletedLaborId) {
+      if (!laborFileName) {
+        const laborFileKey = id.replace(
+          "labor-file-",
+          ""
+        );
+
+        laborFileName =
+          laborFileKey.split("-2026-")[0] ||
+          laborFileKey;
+      }
+
+      const laborResult =
+        await deleteLaborByFileName({
+          fileName: laborFileName,
+          ownerId,
+        });
+
+      if (!laborResult.deletedCount) {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              "No matching labor rows were found for that file.",
+            searchedFileName: laborFileName,
+          },
+          { status: 404 }
+        );
+      }
+
       return NextResponse.json({
         success: true,
         deletedFrom: "labor_uploads",
-        deletedUploadId: deletedLaborId,
+        deletedUploadId: id,
+        deletedFileName:
+          laborResult.fileName,
+        deletedCount:
+          laborResult.deletedCount,
+        deletedLaborIds:
+          laborResult.ids,
       });
     }
 
-    // ✅ 3. Normal uploads table rows.
-    const uuidRegex =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    /*
+      ========================================
+      SYNTHETIC LABOR ROW ID
+      ========================================
+    */
+    if (
+      id.startsWith("labor-") &&
+      !id.startsWith("labor-file-")
+    ) {
+      const laborId = id.replace(
+        "labor-",
+        ""
+      );
 
-    if (!uuidRegex.test(id)) {
+      const laborResult =
+        await deleteLaborById({
+          laborId,
+          ownerId,
+        });
+
+      if (!laborResult) {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              "No matching labor upload was found.",
+            searchedLaborId: laborId,
+          },
+          { status: 404 }
+        );
+      }
+
+      return NextResponse.json({
+        success: true,
+        deletedFrom: "labor_uploads",
+        deletedUploadId: laborId,
+        deletedCount:
+          laborResult.deletedCount,
+        deletedLaborIds:
+          laborResult.ids,
+      });
+    }
+
+    /*
+      ========================================
+      NORMAL UPLOAD UUID LOOKUP
+      ========================================
+    */
+    if (!UUID_REGEX.test(id)) {
       return NextResponse.json(
         {
-          error: "No matching upload was found to delete.",
+          success: false,
+          error:
+            "No matching upload was found to delete.",
           searchedId: id,
         },
         { status: 404 }
       );
     }
 
-    const { data: uploadRow, error: uploadLookupError } = await supabase
+    const {
+      data: uploadRow,
+      error: uploadLookupError,
+    } = await supabase
       .from("uploads")
-      .select("*")
+      .select(
+        "id, user_id, upload_type, source_name, file_name, created_at"
+      )
       .eq("id", id)
       .maybeSingle();
 
-    if (uploadLookupError) throw uploadLookupError;
+    if (uploadLookupError) {
+      throw uploadLookupError;
+    }
+
+    /*
+      Do not allow a normal user to delete another
+      user's upload.
+    */
+    if (
+      uploadRow?.user_id &&
+      uploadRow.user_id !== ownerId
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "You do not have permission to delete this upload.",
+        },
+        { status: 403 }
+      );
+    }
 
     if (uploadRow?.id) {
-      if (uploadRow.upload_type === "invoices") {
-        await deleteInvoiceData(uploadRow.id);
+      const uploadType = String(
+        uploadRow.upload_type ||
+          uploadRow.source_name ||
+          requestedUploadType ||
+          ""
+      )
+        .trim()
+        .toLowerCase();
+
+      const resolvedFileName = String(
+        uploadRow.file_name ||
+          requestedFileName ||
+          ""
+      ).trim();
+
+      const isLaborUpload = [
+        "labor",
+        "labor_upload",
+        "labor_uploads",
+      ].includes(uploadType);
+
+      const isInvoiceUpload = [
+        "invoice",
+        "invoices",
+        "invoice_upload",
+        "invoice_uploads",
+      ].includes(uploadType);
+
+      let laborResult = null;
+      let invoiceResult = null;
+
+      /*
+        Delete labor_uploads rows BEFORE deleting
+        the uploads tracking record.
+      */
+      if (isLaborUpload) {
+        console.log(
+          "DELETE API NORMAL LABOR UPLOAD:",
+          {
+            uploadId: uploadRow.id,
+            fileName: resolvedFileName,
+            ownerId,
+          }
+        );
+
+        if (!resolvedFileName) {
+          throw new Error(
+            "The labor upload does not contain a file name."
+          );
+        }
+
+        laborResult =
+          await deleteLaborByFileName({
+            fileName: resolvedFileName,
+            ownerId,
+          });
+
+        if (!laborResult.deletedCount) {
+          throw new Error(
+            `No labor rows matched the file "${resolvedFileName}".`
+          );
+        }
       }
 
-      await safeDeleteByUploadId(uploadRow.id);
+      if (isInvoiceUpload) {
+        invoiceResult =
+          await deleteInvoiceData(
+            uploadRow.id,
+            ownerId
+          );
+      }
 
-    const {
-  data: deletedUploadRows,
-  error: uploadDeleteError,
-} = await supabase
-  .from("uploads")
-  .delete()
-  .eq("id", uploadRow.id)
-  .select("id");
+      const childDeleteResults =
+        await safeDeleteByUploadId(
+          uploadRow.id,
+          ownerId
+        );
 
-if (uploadDeleteError) {
-  throw uploadDeleteError;
-}
+      const {
+        data: deletedUploadRows,
+        error: uploadDeleteError,
+      } = await supabase
+        .from("uploads")
+        .delete()
+        .eq("id", uploadRow.id)
+        .eq("user_id", ownerId)
+        .select("id");
 
-if (!deletedUploadRows?.length) {
-  throw new Error(
-    "The upload row was not permanently deleted."
-  );
-}
+      if (uploadDeleteError) {
+        throw uploadDeleteError;
+      }
 
-console.log(
-  "PERMANENTLY DELETED UPLOAD ROW:",
-  deletedUploadRows
-);
+      if (!deletedUploadRows?.length) {
+        throw new Error(
+          "The upload tracking row was not permanently deleted."
+        );
+      }
+
+      console.log(
+        "PERMANENTLY DELETED UPLOAD ROW:",
+        deletedUploadRows
+      );
 
       return NextResponse.json({
         success: true,
-        deletedFrom: "uploads",
+        deletedFrom: isLaborUpload
+          ? "labor_uploads_and_uploads"
+          : isInvoiceUpload
+            ? "invoice_tables_and_uploads"
+            : "uploads",
         deletedUploadId: uploadRow.id,
+        deletedFileName:
+          resolvedFileName || null,
+        deletedLaborCount:
+          laborResult?.deletedCount || 0,
+        deletedLaborIds:
+          laborResult?.ids || [],
+        deletedInvoiceData:
+          invoiceResult,
+        childDeleteResults,
       });
     }
 
-    // ✅ 4. Fallback for old client_data_uploads-only rows.
-    const { data: clientRow, error: clientLookupError } = await supabase
+    /*
+      ========================================
+      FALLBACK: OLD LABOR ROW BY UUID
+      ========================================
+    */
+    const fallbackLaborResult =
+      await deleteLaborById({
+        laborId: id,
+        ownerId,
+      });
+
+    if (fallbackLaborResult) {
+      return NextResponse.json({
+        success: true,
+        deletedFrom: "labor_uploads",
+        deletedUploadId: id,
+        deletedCount:
+          fallbackLaborResult.deletedCount,
+        deletedLaborIds:
+          fallbackLaborResult.ids,
+      });
+    }
+
+    /*
+      ========================================
+      FALLBACK: OLD CLIENT DATA ROW
+      ========================================
+    */
+    const {
+      data: clientRow,
+      error: clientLookupError,
+    } = await supabase
       .from("client_data_uploads")
-      .select("id")
+      .select("id, user_id")
       .eq("id", id)
       .maybeSingle();
 
-    if (clientLookupError) throw clientLookupError;
+    if (clientLookupError) {
+      throw clientLookupError;
+    }
 
     if (clientRow?.id) {
-      const { error: clientDataDeleteError } = await supabase
+      if (
+        clientRow.user_id &&
+        clientRow.user_id !== ownerId
+      ) {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              "You do not have permission to delete this upload.",
+          },
+          { status: 403 }
+        );
+      }
+
+      const {
+        data: deletedClientRows,
+        error: clientDataDeleteError,
+      } = await supabase
         .from("client_data_uploads")
         .delete()
-        .eq("id", id);
+        .eq("id", id)
+        .eq("user_id", ownerId)
+        .select("id");
 
-      if (clientDataDeleteError) throw clientDataDeleteError;
+      if (clientDataDeleteError) {
+        throw clientDataDeleteError;
+      }
+
+      if (!deletedClientRows?.length) {
+        throw new Error(
+          "The client upload was not permanently deleted."
+        );
+      }
 
       return NextResponse.json({
         success: true,
-        deletedFrom: "client_data_uploads",
+        deletedFrom:
+          "client_data_uploads",
         deletedUploadId: id,
       });
     }
 
     return NextResponse.json(
       {
-        error: "No matching upload was found to delete.",
+        success: false,
+        error:
+          "No matching upload was found to delete.",
         searchedId: id,
       },
       { status: 404 }
     );
   } catch (error) {
-    console.error("Delete route failed:", error);
+    console.error(
+      "DELETE CLIENT UPLOAD ROUTE FAILED:",
+      error
+    );
+
+    const status =
+      String(error?.message || "")
+        .toLowerCase()
+        .includes("authentication") ||
+      String(error?.message || "")
+        .toLowerCase()
+        .includes("session")
+        ? 401
+        : 500;
 
     return NextResponse.json(
       {
-        error: error?.message || "Something went wrong.",
+        success: false,
+        error:
+          error?.message ||
+          "Something went wrong.",
       },
-      { status: 500 }
+      { status }
     );
   }
 }
