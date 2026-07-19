@@ -30457,21 +30457,36 @@ if (
     laborUploadRowId = uploadIdString.replace("labor-", "");
   }
 
-  // Check whether clicked ID is a real uploads UUID
-  const { data: matchingUploadRow, error: uploadLookupError } =
-    await supabase
-      .from("uploads")
-      .select("id, user_id, upload_type, source_name, file_name")
-      .eq("id", uploadId)
-      .maybeSingle();
+// Check whether the clicked ID is a real uploads UUID.
+// Never send synthetic IDs such as "labor-..." into a UUID column.
+const uuidPattern =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+let matchingUploadRow = null;
+
+if (uuidPattern.test(uploadIdString)) {
+  const { data, error: uploadLookupError } = await supabase
+    .from("uploads")
+    .select("id, user_id, upload_type, source_name, file_name")
+    .eq("id", uploadIdString)
+    .eq("user_id", ownerId)
+    .maybeSingle();
 
   if (uploadLookupError) {
     throw uploadLookupError;
   }
 
-  if (matchingUploadRow?.id) {
-    realUploadId = matchingUploadRow.id;
-  }
+  matchingUploadRow = data;
+} else {
+  console.log(
+    "SKIPPING UPLOAD UUID LOOKUP FOR SYNTHETIC LABOR ID:",
+    uploadIdString
+  );
+}
+
+if (matchingUploadRow?.id) {
+  realUploadId = matchingUploadRow.id;
+}
 
   let fileName = String(
     matchingUploadRow?.file_name ||
