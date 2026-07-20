@@ -30561,88 +30561,100 @@ if (!deletedLaborRows || deletedLaborRows.length === 0) {
     throw laborDeleteError;
   }
 
-  // 2. Delete the Recent Imports/uploads record
-  let uploadsDeleteQuery = supabase
+// 2. Delete only the matching Recent Imports/uploads record
+let deletedUploadRows = [];
+let uploadsDeleteError = null;
+
+if (realUploadId) {
+  const { data, error } = await supabase
     .from("uploads")
     .delete()
-    .eq("user_id", ownerId);
+    .eq("id", realUploadId)
+    .eq("user_id", ownerId)
+    .select("id, file_name, upload_type");
 
-  if (realUploadId) {
-    uploadsDeleteQuery = uploadsDeleteQuery.eq("id", realUploadId);
-  } else if (fileName) {
-    uploadsDeleteQuery = uploadsDeleteQuery
-      .eq("upload_type", "labor")
-      .ilike("file_name", fileName);
-  }
+  deletedUploadRows = data || [];
+  uploadsDeleteError = error;
+} else if (fileName) {
+  const { data, error } = await supabase
+    .from("uploads")
+    .delete()
+    .eq("user_id", ownerId)
+    .eq("upload_type", "labor")
+    .ilike("file_name", fileName)
+    .select("id, file_name, upload_type");
 
-  const {
-    data: deletedUploadRows,
-    error: uploadsDeleteError,
-  } = await uploadsDeleteQuery.select("id, file_name, upload_type");
-
-  console.log("DELETED UPLOAD ROWS:", deletedUploadRows);
-  console.log("UPLOADS DELETE ERROR:", uploadsDeleteError);
-
-  if (uploadsDeleteError) {
-    throw uploadsDeleteError;
-  }
-
-  const deletedUploadIds = new Set(
-    (deletedUploadRows || []).map((row) => String(row.id))
+  deletedUploadRows = data || [];
+  uploadsDeleteError = error;
+} else {
+  console.warn(
+    "SKIPPING UPLOADS DELETE: no real upload ID or labor filename was found."
   );
+}
 
-  if (realUploadId) {
-    deletedUploadIds.add(String(realUploadId));
+console.log("DELETED UPLOAD ROWS:", deletedUploadRows);
+console.log("UPLOADS DELETE ERROR:", uploadsDeleteError);
+
+if (uploadsDeleteError) {
+  throw uploadsDeleteError;
+}
+
+const deletedUploadIds = new Set(
+  (deletedUploadRows || []).map((row) => String(row.id))
+);
+
+if (realUploadId) {
+  deletedUploadIds.add(String(realUploadId));
+}
+
+deletedUploadIds.add(String(uploadId));
+
+const normalizedFileName = String(fileName || "")
+  .trim()
+  .toLowerCase();
+
+const shouldKeepLaborRow = (row) => {
+  const rowId = String(row.id || "");
+  const rowUploadId = String(row.upload_id || "");
+  const rowFileName = String(row.file_name || "")
+    .trim()
+    .toLowerCase();
+
+  if (laborUploadRowId && rowId === String(laborUploadRowId)) {
+    return false;
   }
 
-  deletedUploadIds.add(String(uploadId));
+  if (deletedUploadIds.has(rowUploadId)) {
+    return false;
+  }
 
-  const normalizedFileName = fileName.toLowerCase();
+  if (normalizedFileName && rowFileName === normalizedFileName) {
+    return false;
+  }
 
-  const shouldKeepLaborRow = (row) => {
-    const rowId = String(row.id || "");
-    const rowUploadId = String(row.upload_id || "");
-    const rowFileName = String(row.file_name || "")
-      .trim()
-      .toLowerCase();
+  return true;
+};
 
-    if (laborUploadRowId && rowId === String(laborUploadRowId)) {
-      return false;
-    }
+const shouldKeepImport = (item) => {
+  const itemId = String(item.id || "");
+  const itemFileName = String(item.file_name || item.name || "")
+    .trim()
+    .toLowerCase();
 
-    if (deletedUploadIds.has(rowUploadId)) {
-      return false;
-    }
+  if (deletedUploadIds.has(itemId)) {
+    return false;
+  }
 
-    if (normalizedFileName && rowFileName === normalizedFileName) {
-      return false;
-    }
+  if (
+    normalizedFileName &&
+    itemFileName === normalizedFileName &&
+    String(item.upload_type || "").toLowerCase() === "labor"
+  ) {
+    return false;
+  }
 
-    return true;
-  };
-
-  const shouldKeepImport = (item) => {
-    const itemId = String(item.id || "");
-    const itemFileName = String(
-      item.file_name || item.name || ""
-    )
-      .trim()
-      .toLowerCase();
-
-    if (deletedUploadIds.has(itemId)) {
-      return false;
-    }
-
-    if (
-      normalizedFileName &&
-      itemFileName === normalizedFileName &&
-      String(item.upload_type || "").toLowerCase() === "labor"
-    ) {
-      return false;
-    }
-
-    return true;
-  };
+  return true;
+};
 
   // 3. Remove deleted data from React state immediately
   setLaborData((previous) =>
