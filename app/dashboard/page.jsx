@@ -11960,7 +11960,10 @@ if (shouldShowLoading) {
 }
 
 useEffect(() => {
-  if (!dataOwnerId) return;
+  console.log("IMPORT LOADER EFFECT FIRED:", {
+    dataOwnerId,
+    activeLocation,
+  });
 
   loadClientImports();
 }, [dataOwnerId, activeLocation]);
@@ -17474,9 +17477,10 @@ const loadClientImports = async () => {
     }
   }
 };
-
 useEffect(() => {
-  if (!dataOwnerId) return;
+  console.log("IMPORT LOADER EFFECT FIRED:", {
+    dataOwnerId,
+  });
 
   loadClientImports();
 }, [dataOwnerId]);
