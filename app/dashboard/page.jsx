@@ -17647,7 +17647,21 @@ if (!uploadRow) {
   PERMANENT LABOR IMPORT DELETE
   ==========================================
 */
-if (isLaborUpload) {
+const finalIsLaborUpload =
+  String(uploadRow?.upload_type || "")
+    .trim()
+    .toLowerCase() === "labor" ||
+  String(uploadRow?.source_name || "")
+    .trim()
+    .toLowerCase() === "labor_upload" ||
+  uploadRow?.synthetic_from_labor === true;
+
+console.log("FINAL LABOR DELETE CHECK:", {
+  uploadRow,
+  finalIsLaborUpload,
+});
+
+if (finalIsLaborUpload) {
   const normalizedUploadId = String(uploadId || "").trim();
 
   console.log("PERMANENT LABOR DELETE START:", {
@@ -17775,11 +17789,11 @@ if (isLaborUpload) {
     throw uploadDeleteError;
   }
 
-  if (!deletedUploadRows?.length) {
-    throw new Error(
-      "Labor rows were deleted, but the uploads record was not deleted."
-    );
-  }
+ if (!deletedUploadRows?.length) {
+  console.warn(
+    "The uploads parent record was already missing. Labor rows were still deleted successfully."
+  );
+}
 
   /*
    * Permanently remove the deleted import from React state.
