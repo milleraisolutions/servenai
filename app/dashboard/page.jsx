@@ -30379,8 +30379,7 @@ if (currentUserError) {
 if (!ownerId) {
   throw new Error("Could not identify the data owner.");
 }
-
-const { data: uploadRow, error: uploadLookupError } = await supabase
+let { data: uploadRow, error: uploadLookupError } = await supabase
   .from("uploads")
   .select("*")
   .eq("id", uploadId)
@@ -30394,12 +30393,44 @@ if (uploadLookupError) {
   throw uploadLookupError;
 }
 
+/*
+ * The uploads parent row may already be gone while labor_uploads
+ * still contains the imported labor rows. Recover the delete type
+ * directly from labor_uploads so those orphaned rows can be removed.
+ */
 if (!uploadRow) {
-  throw new Error(
-    "No matching upload record was found. Nothing was deleted."
-  );
+  const { data: matchingLaborRows, error: laborFallbackError } =
+    await supabase
+      .from("labor_uploads")
+      .select("id, upload_id, user_id, file_name")
+      .eq("upload_id", String(uploadId))
+      .eq("user_id", ownerId)
+      .limit(1);
+
+  console.log("LABOR FALLBACK MATCH:", matchingLaborRows);
+  console.log("LABOR FALLBACK ERROR:", laborFallbackError);
+
+  if (laborFallbackError) {
+    throw laborFallbackError;
+  }
+
+  if ((matchingLaborRows || []).length > 0) {
+    uploadRow = {
+      id: String(uploadId),
+      user_id: ownerId,
+      upload_type: "labor",
+      source_name: "labor_upload",
+      file_name: matchingLaborRows[0]?.file_name || "Labor Upload",
+      synthetic_from_labor: true,
+    };
+  }
 }
 
+if (!uploadRow) {
+  throw new Error(
+    "No matching upload or labor import record was found."
+  );
+}
 /*
  * ==========================================
  * INVOICE DELETE
