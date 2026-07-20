@@ -11959,14 +11959,7 @@ if (shouldShowLoading) {
   );
 }
 
-useEffect(() => {
-  console.log("IMPORT LOADER EFFECT FIRED:", {
-    dataOwnerId,
-    activeLocation,
-  });
 
-  loadClientImports();
-}, [dataOwnerId, activeLocation]);
 useEffect(() => {
   let cancelled = false;
   
@@ -17480,10 +17473,11 @@ const loadClientImports = async () => {
 useEffect(() => {
   console.log("IMPORT LOADER EFFECT FIRED:", {
     dataOwnerId,
+    activeLocation,
   });
 
   loadClientImports();
-}, [dataOwnerId]);
+}, [dataOwnerId, activeLocation]);
 
 const archiveImport = async (uploadId) => {
   if (!uploadId) {
