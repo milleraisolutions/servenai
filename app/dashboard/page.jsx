@@ -17609,6 +17609,11 @@ const deleteImport = async (uploadId) => {
         "Could not identify the data owner. Please log in again."
       );
     }
+    if (!uploadRow) {
+  throw new Error(
+    "No matching upload record was found. Nothing was deleted."
+  );
+}
 /*
   ==========================================
   PERMANENT LABOR IMPORT DELETE
