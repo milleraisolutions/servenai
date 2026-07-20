@@ -30475,6 +30475,155 @@ if (!uploadRow) {
 }
 /*
  * ==========================================
+ * PERMANENT LABOR IMPORT DELETE
+ * ==========================================
+ */
+const finalIsLaborUpload =
+  String(uploadRow?.upload_type || "")
+    .trim()
+    .toLowerCase() === "labor" ||
+  String(uploadRow?.source_name || "")
+    .trim()
+    .toLowerCase() === "labor_upload" ||
+  uploadRow?.synthetic_from_labor === true;
+
+console.log("FINAL LABOR DELETE CHECK:", {
+  uploadRow,
+  finalIsLaborUpload,
+});
+
+if (finalIsLaborUpload) {
+  const normalizedUploadId = String(uploadId || "").trim();
+
+  console.log("PERMANENT LABOR DELETE START:", {
+    normalizedUploadId,
+    ownerId,
+    uploadRow,
+  });
+
+  const {
+    data: matchingLaborRows,
+    error: laborLookupError,
+  } = await supabase
+    .from("labor_uploads")
+    .select("id, user_id, upload_id, file_name")
+    .eq("upload_id", normalizedUploadId)
+    .eq("user_id", ownerId);
+
+  console.log("LABOR ROWS MATCHING DELETE:", matchingLaborRows);
+  console.log("LABOR LOOKUP ERROR:", laborLookupError);
+
+  if (laborLookupError) {
+    throw laborLookupError;
+  }
+
+  if (!matchingLaborRows?.length) {
+    throw new Error(
+      "No labor rows matched this upload."
+    );
+  }
+
+  const {
+    data: deletedLaborRows,
+    error: laborDeleteError,
+  } = await supabase
+    .from("labor_uploads")
+    .delete()
+    .eq("upload_id", normalizedUploadId)
+    .eq("user_id", ownerId)
+    .select("id, upload_id, file_name");
+
+  console.log(
+    "PERMANENT LABOR ROW DELETE RESULT:",
+    deletedLaborRows
+  );
+  console.log(
+    "PERMANENT LABOR ROW DELETE ERROR:",
+    laborDeleteError
+  );
+
+  if (laborDeleteError) {
+    throw laborDeleteError;
+  }
+
+  if (
+    !deletedLaborRows ||
+    deletedLaborRows.length !== matchingLaborRows.length
+  ) {
+    throw new Error(
+      `Expected to delete ${matchingLaborRows.length} labor rows, but deleted ${
+        deletedLaborRows?.length || 0
+      }.`
+    );
+  }
+
+  const {
+    data: deletedUploadRows,
+    error: laborUploadDeleteError,
+  } = await supabase
+    .from("uploads")
+    .delete()
+    .eq("id", normalizedUploadId)
+    .eq("user_id", ownerId)
+    .select("id, upload_type, file_name");
+
+  console.log(
+    "PERMANENT UPLOAD RECORD DELETE RESULT:",
+    deletedUploadRows
+  );
+  console.log(
+    "PERMANENT UPLOAD RECORD DELETE ERROR:",
+    laborUploadDeleteError
+  );
+
+  if (laborUploadDeleteError) {
+    throw laborUploadDeleteError;
+  }
+
+  if (!deletedUploadRows?.length) {
+    console.warn(
+      "The uploads parent record was already missing."
+    );
+  }
+
+  setLaborData((previous) =>
+    (previous || []).filter(
+      (row) =>
+        String(row.upload_id || "") !== normalizedUploadId
+    )
+  );
+
+  setLaborUploads((previous) =>
+    (previous || []).filter(
+      (row) =>
+        String(row.upload_id || "") !== normalizedUploadId
+    )
+  );
+
+  setClientImports((previous) =>
+    (previous || []).filter(
+      (item) =>
+        String(item.id || "") !== normalizedUploadId
+    )
+  );
+
+  setRecentUploads((previous) =>
+    (previous || []).filter(
+      (item) =>
+        String(item.id || "") !== normalizedUploadId
+    )
+  );
+
+  setMessage("Labor import permanently deleted.");
+
+  console.log("PERMANENT LABOR DELETE COMPLETE:", {
+    deletedLaborRowCount: deletedLaborRows.length,
+  });
+
+  return;
+}
+/*
+ * ==========================================
  * INVOICE DELETE
  * ==========================================
  */
