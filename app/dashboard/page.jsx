@@ -17609,9 +17609,37 @@ const deleteImport = async (uploadId) => {
         "Could not identify the data owner. Please log in again."
       );
     }
-    if (!uploadRow) {
+   if (!uploadRow) {
+  const { data: matchingLaborRows, error: laborFallbackError } =
+    await supabase
+      .from("labor_uploads")
+      .select("id, upload_id, user_id, file_name")
+      .eq("upload_id", String(uploadId))
+      .eq("user_id", ownerId)
+      .limit(1);
+
+  console.log("LABOR FALLBACK MATCH:", matchingLaborRows);
+  console.log("LABOR FALLBACK ERROR:", laborFallbackError);
+
+  if (laborFallbackError) {
+    throw laborFallbackError;
+  }
+
+  if ((matchingLaborRows || []).length > 0) {
+    uploadRow = {
+      id: String(uploadId),
+      user_id: ownerId,
+      upload_type: "labor",
+      source_name: "labor_upload",
+      file_name: matchingLaborRows[0]?.file_name || "Labor Upload",
+      synthetic_from_labor: true,
+    };
+  }
+}
+
+if (!uploadRow) {
   throw new Error(
-    "No matching upload record was found. Nothing was deleted."
+    "No matching upload or labor import record was found."
   );
 }
 /*
