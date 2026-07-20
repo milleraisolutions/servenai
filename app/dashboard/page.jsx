@@ -17615,262 +17615,259 @@ const deleteImport = async (uploadId) => {
         "Could not identify the data owner. Please log in again."
       );
     }
+/*
+  ==========================================
+  LABOR IMPORT DELETE
+  ==========================================
+*/
+if (isLaborUpload) {
+  console.log("LABOR DELETE START:", {
+    uploadId,
+    uploadType,
+    fileName,
+    ownerId,
+  });
 
-    /*
-      ==========================================
-      LABOR IMPORT DELETE
-      ==========================================
-    */
-    if (isLaborUpload) {
-      console.log("LABOR DELETE START:", {
-        uploadId,
-        uploadType,
-        fileName,
-        ownerId,
-      });
+  const normalizedUploadId = String(uploadId || "").trim();
+  const normalizedFileName = String(fileName || "").trim();
 
-      let laborId = null;
-      let resolvedLaborFileName = fileName;
+  const uuidPattern =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-      if (isSyntheticLaborId) {
-        laborId = uploadIdString.replace("labor-", "");
-      }
+  const isRealUploadUuid = uuidPattern.test(normalizedUploadId);
 
-      if (isLaborFileId && !resolvedLaborFileName) {
-        const laborFileKey = uploadIdString.replace(
-          "labor-file-",
-          ""
-        );
+  let deletedLaborRows = [];
+  let deletedUploadRows = [];
 
-        resolvedLaborFileName =
-          laborFileKey.split("-2026-")[0] ||
-          laborFileKey;
-      }
+  /*
+   * 1. Delete all labor rows belonging to the upload.
+   *
+   * New labor imports should use labor_uploads.upload_id.
+   * Filename and synthetic IDs are retained only as legacy fallbacks.
+   */
+  if (isRealUploadUuid) {
+    const { data, error } = await supabase
+      .from("labor_uploads")
+      .delete()
+      .eq("user_id", ownerId)
+      .eq("upload_id", normalizedUploadId)
+      .select("id, upload_id, file_name");
 
-      let deletedLaborRows = [];
+    console.log("LABOR DELETE BY UPLOAD ID RESULT:", data);
+    console.log("LABOR DELETE BY UPLOAD ID ERROR:", error);
 
-      if (laborId) {
-        const {
-          data,
-          error: laborDeleteError,
-        } = await supabase
-          .from("labor_uploads")
-          .delete()
-          .eq("id", laborId)
-          .eq("user_id", ownerId)
-          .select("id, file_name");
-
-        console.log(
-          "LABOR DELETE BY ID RESULT:",
-          data
-        );
-
-        console.log(
-          "LABOR DELETE BY ID ERROR:",
-          laborDeleteError
-        );
-
-        if (laborDeleteError) {
-          throw laborDeleteError;
-        }
-
-        deletedLaborRows = data || [];
-      } else if (resolvedLaborFileName) {
-        const {
-          data,
-          error: laborDeleteError,
-        } = await supabase
-          .from("labor_uploads")
-          .delete()
-          .eq("user_id", ownerId)
-          .eq("file_name", resolvedLaborFileName)
-          .select("id, file_name");
-
-        console.log(
-          "LABOR DELETE BY FILE RESULT:",
-          data
-        );
-
-        console.log(
-          "LABOR DELETE BY FILE ERROR:",
-          laborDeleteError
-        );
-
-        if (laborDeleteError) {
-          throw laborDeleteError;
-        }
-
-        deletedLaborRows = data || [];
-      } else {
-        throw new Error(
-          "Could not identify the labor row or labor file name."
-        );
-      }
-
-      /*
-        Delete the matching uploads row only when this is
-        a normal uploads-table UUID.
-      */
-      if (
-        !isSyntheticLaborId &&
-        !isLaborFileId
-      ) {
-        const {
-          data: deletedUploadRows,
-          error: uploadDeleteError,
-        } = await supabase
-          .from("uploads")
-          .delete()
-          .eq("id", uploadId)
-          .eq("user_id", ownerId)
-          .select("id");
-
-        console.log(
-          "LABOR UPLOAD RECORD DELETE RESULT:",
-          deletedUploadRows
-        );
-
-        console.log(
-          "LABOR UPLOAD RECORD DELETE ERROR:",
-          uploadDeleteError
-        );
-
-        if (uploadDeleteError) {
-          throw uploadDeleteError;
-        }
-      }
-
-      const deletedLaborIds = new Set(
-        (deletedLaborRows || []).map(
-          (row) => String(row.id)
-        )
-      );
-
-      setLaborData((previous) =>
-        (previous || []).filter((row) => {
-          const rowId = String(row.id || "");
-          const rowFileName = String(
-            row.file_name || ""
-          ).trim();
-
-          if (
-            laborId &&
-            rowId === String(laborId)
-          ) {
-            return false;
-          }
-
-          if (
-            deletedLaborIds.has(rowId)
-          ) {
-            return false;
-          }
-
-          if (
-            resolvedLaborFileName &&
-            rowFileName === resolvedLaborFileName
-          ) {
-            return false;
-          }
-
-          return true;
-        })
-      );
-
-      setLaborUploads((previous) =>
-        (previous || []).filter((row) => {
-          const rowId = String(row.id || "");
-          const rowFileName = String(
-            row.file_name || ""
-          ).trim();
-
-          if (
-            laborId &&
-            rowId === String(laborId)
-          ) {
-            return false;
-          }
-
-          if (
-            deletedLaborIds.has(rowId)
-          ) {
-            return false;
-          }
-
-          if (
-            resolvedLaborFileName &&
-            rowFileName === resolvedLaborFileName
-          ) {
-            return false;
-          }
-
-          return true;
-        })
-      );
-
-      setClientImports((previous) =>
-        (previous || []).filter(
-          (item) =>
-            String(item.id) !== String(uploadId) &&
-            !(
-              resolvedLaborFileName &&
-              String(
-                item.file_name ||
-                  item.name ||
-                  ""
-              ).trim() === resolvedLaborFileName
-            )
-        )
-      );
-
-      setRecentUploads((previous) =>
-        (previous || []).filter(
-          (item) =>
-            String(item.id) !== String(uploadId) &&
-            !(
-              resolvedLaborFileName &&
-              String(
-                item.file_name ||
-                  item.name ||
-                  ""
-              ).trim() === resolvedLaborFileName
-            )
-        )
-      );
-
-      if (typeof setRows === "function") {
-        setRows([]);
-      }
-
-      if (
-        typeof setPendingUploadRows ===
-        "function"
-      ) {
-        setPendingUploadRows([]);
-
-        if (pendingUploadRowsRef) {
-          pendingUploadRowsRef.current = [];
-        }
-      }
-
-      if (
-        typeof setPendingUploadSummary ===
-        "function"
-      ) {
-        setPendingUploadSummary(null);
-      }
-
-      setMessage(
-        "Labor import permanently deleted."
-      );
-
-      console.log(
-        "LABOR DELETE COMPLETE:",
-        deletedLaborRows
-      );
-
-      return;
+    if (error) {
+      throw error;
     }
+
+    deletedLaborRows = data || [];
+  } else if (normalizedUploadId.startsWith("labor-file-")) {
+    const laborRowId = normalizedUploadId.replace(
+      "labor-file-",
+      ""
+    );
+
+    const { data, error } = await supabase
+      .from("labor_uploads")
+      .delete()
+      .eq("user_id", ownerId)
+      .eq("id", laborRowId)
+      .select("id, upload_id, file_name");
+
+    console.log("LEGACY LABOR FILE DELETE RESULT:", data);
+    console.log("LEGACY LABOR FILE DELETE ERROR:", error);
+
+    if (error) {
+      throw error;
+    }
+
+    deletedLaborRows = data || [];
+  } else if (normalizedUploadId.startsWith("labor-")) {
+    const laborRowId = normalizedUploadId.replace(
+      "labor-",
+      ""
+    );
+
+    const { data, error } = await supabase
+      .from("labor_uploads")
+      .delete()
+      .eq("user_id", ownerId)
+      .eq("id", laborRowId)
+      .select("id, upload_id, file_name");
+
+    console.log("LEGACY LABOR ROW DELETE RESULT:", data);
+    console.log("LEGACY LABOR ROW DELETE ERROR:", error);
+
+    if (error) {
+      throw error;
+    }
+
+    deletedLaborRows = data || [];
+  } else if (normalizedFileName) {
+    const { data, error } = await supabase
+      .from("labor_uploads")
+      .delete()
+      .eq("user_id", ownerId)
+      .ilike("file_name", normalizedFileName)
+      .select("id, upload_id, file_name");
+
+    console.log("LABOR DELETE BY FILE RESULT:", data);
+    console.log("LABOR DELETE BY FILE ERROR:", error);
+
+    if (error) {
+      throw error;
+    }
+
+    deletedLaborRows = data || [];
+  } else {
+    throw new Error("Could not identify the labor import to delete.");
+  }
+
+  if (!deletedLaborRows.length) {
+    throw new Error(
+      "No labor rows were deleted from Supabase. Check that labor_uploads.upload_id matches the uploads record and that the delete policy allows this user."
+    );
+  }
+
+  /*
+   * 2. Delete the Recent Imports/uploads record.
+   */
+  if (isRealUploadUuid) {
+    const { data, error } = await supabase
+      .from("uploads")
+      .delete()
+      .eq("id", normalizedUploadId)
+      .eq("user_id", ownerId)
+      .select("id, file_name, upload_type");
+
+    console.log("LABOR UPLOAD RECORD DELETE RESULT:", data);
+    console.log("LABOR UPLOAD RECORD DELETE ERROR:", error);
+
+    if (error) {
+      throw error;
+    }
+
+    deletedUploadRows = data || [];
+
+    if (!deletedUploadRows.length) {
+      throw new Error(
+        "The labor rows were deleted, but the uploads record was not deleted."
+      );
+    }
+  } else {
+    const deletedLaborUploadIds = [
+      ...new Set(
+        deletedLaborRows
+          .map((row) => row.upload_id)
+          .filter(Boolean)
+          .map(String)
+      ),
+    ];
+
+    if (deletedLaborUploadIds.length) {
+      const { data, error } = await supabase
+        .from("uploads")
+        .delete()
+        .eq("user_id", ownerId)
+        .in("id", deletedLaborUploadIds)
+        .select("id, file_name, upload_type");
+
+      console.log("LEGACY LABOR UPLOAD DELETE RESULT:", data);
+      console.log("LEGACY LABOR UPLOAD DELETE ERROR:", error);
+
+      if (error) {
+        throw error;
+      }
+
+      deletedUploadRows = data || [];
+    }
+  }
+
+  const deletedLaborIds = new Set(
+    deletedLaborRows.map((row) => String(row.id))
+  );
+
+  const deletedUploadIds = new Set([
+    normalizedUploadId,
+    ...deletedUploadRows.map((row) => String(row.id)),
+    ...deletedLaborRows
+      .map((row) => row.upload_id)
+      .filter(Boolean)
+      .map(String),
+  ]);
+
+  const lowerFileName = normalizedFileName.toLowerCase();
+
+  const keepLaborRow = (row) => {
+    const rowId = String(row.id || "");
+    const rowUploadId = String(row.upload_id || "");
+    const rowFileName = String(row.file_name || "")
+      .trim()
+      .toLowerCase();
+
+    if (deletedLaborIds.has(rowId)) return false;
+    if (deletedUploadIds.has(rowUploadId)) return false;
+
+    if (
+      lowerFileName &&
+      rowFileName === lowerFileName
+    ) {
+      return false;
+    }
+
+    return true;
+  };
+
+  const keepImport = (item) => {
+    const itemId = String(item.id || "");
+    const itemType = String(item.upload_type || "")
+      .trim()
+      .toLowerCase();
+
+    const itemFileName = String(
+      item.file_name || item.name || ""
+    )
+      .trim()
+      .toLowerCase();
+
+    if (deletedUploadIds.has(itemId)) return false;
+
+    if (
+      itemType === "labor" &&
+      lowerFileName &&
+      itemFileName === lowerFileName
+    ) {
+      return false;
+    }
+
+    return true;
+  };
+
+  setLaborData((previous) =>
+    (previous || []).filter(keepLaborRow)
+  );
+
+  setLaborUploads((previous) =>
+    (previous || []).filter(keepLaborRow)
+  );
+
+  setClientImports((previous) =>
+    (previous || []).filter(keepImport)
+  );
+
+  setRecentUploads((previous) =>
+    (previous || []).filter(keepImport)
+  );
+
+  setMessage("Labor import permanently deleted.");
+
+  console.log("LABOR DELETE COMPLETE:", {
+    deletedLaborRows,
+    deletedUploadRows,
+  });
+
+  return;
+}
 
     /*
       ==========================================
@@ -30419,267 +30416,7 @@ try {
     setMessage("Batch prep row deleted.");
     return;
   }
-// ✅ UNIFIED LABOR DELETE
-if (
-  uploadIdString.startsWith("labor-") ||
-  uploadIdString.startsWith("labor-file-")
-) {
-  console.log("UNIFIED LABOR DELETE START:", uploadId);
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const ownerId = dataOwnerId || user?.id;
-
-  if (!ownerId) {
-    throw new Error("Could not identify the labor data owner.");
-  }
-
-  const allImports = [
-    ...(clientImports || []),
-    ...(recentUploads || []),
-  ];
-
-  const laborMatch = allImports.find(
-    (item) => String(item.id) === String(uploadId)
-  );
-
-  let realUploadId = null;
-  let laborUploadRowId = null;
-
-  // Synthetic labor-file ID
-  if (uploadIdString.startsWith("labor-file-")) {
-    laborUploadRowId = uploadIdString.replace("labor-file-", "");
-  }
-
-  // Synthetic labor-ID
-  if (
-    uploadIdString.startsWith("labor-") &&
-    !uploadIdString.startsWith("labor-file-")
-  ) {
-    laborUploadRowId = uploadIdString.replace("labor-", "");
-  }
-
-// Check whether the clicked ID is a real uploads UUID.
-// Never send synthetic IDs such as "labor-..." into a UUID column.
-const uuidPattern =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-let matchingUploadRow = null;
-
-if (uuidPattern.test(uploadIdString)) {
-  const { data, error: uploadLookupError } = await supabase
-    .from("uploads")
-    .select("id, user_id, upload_type, source_name, file_name")
-    .eq("id", uploadIdString)
-    .eq("user_id", ownerId)
-    .maybeSingle();
-
-  if (uploadLookupError) {
-    throw uploadLookupError;
-  }
-
-  matchingUploadRow = data;
-} else {
-  console.log(
-    "SKIPPING UPLOAD UUID LOOKUP FOR SYNTHETIC LABOR ID:",
-    uploadIdString
-  );
-}
-
-if (matchingUploadRow?.id) {
-  realUploadId = matchingUploadRow.id;
-}
-
-  let fileName = String(
-    matchingUploadRow?.file_name ||
-      laborMatch?.file_name ||
-      laborMatch?.name ||
-      ""
-  ).trim();
-
-  // If filename is still unknown, look up the labor_uploads row
-  if (!fileName && laborUploadRowId) {
-    const { data: laborRow, error: laborLookupError } = await supabase
-      .from("labor_uploads")
-      .select("id, file_name, user_id")
-      .eq("id", laborUploadRowId)
-      .eq("user_id", ownerId)
-      .maybeSingle();
-
-    if (laborLookupError) {
-      throw laborLookupError;
-    }
-
-    fileName = String(laborRow?.file_name || "").trim();
-  }
-
-  console.log("LABOR OWNER ID:", ownerId);
-  console.log("LABOR FILE NAME:", fileName);
-  console.log("LABOR UPLOAD ROW ID:", laborUploadRowId);
-  console.log("REAL UPLOAD ID:", realUploadId);
-
-  if (!fileName && !laborUploadRowId && !realUploadId) {
-    throw new Error("Could not identify the labor import.");
-  }
-
-// 1. Delete the exact labor_uploads record
-let laborDeleteQuery = supabase
-  .from("labor_uploads")
-  .delete()
-  .eq("user_id", ownerId);
-
-// Synthetic labor IDs contain the exact labor_uploads.id.
-// Always prioritize the row ID over the filename.
-if (laborUploadRowId) {
-  laborDeleteQuery = laborDeleteQuery.eq("id", laborUploadRowId);
-} else if (fileName) {
-  laborDeleteQuery = laborDeleteQuery.ilike("file_name", fileName);
-} else {
-  throw new Error("Could not identify the labor record to delete.");
-}
-
-const {
-  data: deletedLaborRows,
-  error: laborDeleteError,
-} = await laborDeleteQuery.select("id, user_id, file_name");
-
-console.log("DELETED LABOR ROWS:", deletedLaborRows);
-console.log("LABOR DELETE ERROR:", laborDeleteError);
-
-if (laborDeleteError) {
-  throw laborDeleteError;
-}
-
-if (!deletedLaborRows || deletedLaborRows.length === 0) {
-  throw new Error(
-    "The labor record was not deleted from Supabase. Check the labor_uploads delete policy."
-  );
-}
-
-  console.log("DELETED LABOR ROWS:", deletedLaborRows);
-  console.log("LABOR DELETE ERROR:", laborDeleteError);
-
-  if (laborDeleteError) {
-    throw laborDeleteError;
-  }
-
-// 2. Delete only the matching Recent Imports/uploads record
-let deletedUploadRows = [];
-let uploadsDeleteError = null;
-
-if (realUploadId) {
-  const { data, error } = await supabase
-    .from("uploads")
-    .delete()
-    .eq("id", realUploadId)
-    .eq("user_id", ownerId)
-    .select("id, file_name, upload_type");
-
-  deletedUploadRows = data || [];
-  uploadsDeleteError = error;
-} else if (fileName) {
-  const { data, error } = await supabase
-    .from("uploads")
-    .delete()
-    .eq("user_id", ownerId)
-    .eq("upload_type", "labor")
-    .ilike("file_name", fileName)
-    .select("id, file_name, upload_type");
-
-  deletedUploadRows = data || [];
-  uploadsDeleteError = error;
-} else {
-  console.warn(
-    "SKIPPING UPLOADS DELETE: no real upload ID or labor filename was found."
-  );
-}
-
-console.log("DELETED UPLOAD ROWS:", deletedUploadRows);
-console.log("UPLOADS DELETE ERROR:", uploadsDeleteError);
-
-if (uploadsDeleteError) {
-  throw uploadsDeleteError;
-}
-
-const deletedUploadIds = new Set(
-  (deletedUploadRows || []).map((row) => String(row.id))
-);
-
-if (realUploadId) {
-  deletedUploadIds.add(String(realUploadId));
-}
-
-deletedUploadIds.add(String(uploadId));
-
-const normalizedFileName = String(fileName || "")
-  .trim()
-  .toLowerCase();
-
-const shouldKeepLaborRow = (row) => {
-  const rowId = String(row.id || "");
-  const rowUploadId = String(row.upload_id || "");
-  const rowFileName = String(row.file_name || "")
-    .trim()
-    .toLowerCase();
-
-  if (laborUploadRowId && rowId === String(laborUploadRowId)) {
-    return false;
-  }
-
-  if (deletedUploadIds.has(rowUploadId)) {
-    return false;
-  }
-
-  if (normalizedFileName && rowFileName === normalizedFileName) {
-    return false;
-  }
-
-  return true;
-};
-
-const shouldKeepImport = (item) => {
-  const itemId = String(item.id || "");
-  const itemFileName = String(item.file_name || item.name || "")
-    .trim()
-    .toLowerCase();
-
-  if (deletedUploadIds.has(itemId)) {
-    return false;
-  }
-
-  if (
-    normalizedFileName &&
-    itemFileName === normalizedFileName &&
-    String(item.upload_type || "").toLowerCase() === "labor"
-  ) {
-    return false;
-  }
-
-  return true;
-};
-
-  // 3. Remove deleted data from React state immediately
-  setLaborData((previous) =>
-    (previous || []).filter(shouldKeepLaborRow)
-  );
-
-  setLaborUploads((previous) =>
-    (previous || []).filter(shouldKeepLaborRow)
-  );
-
-  setClientImports((previous) =>
-    (previous || []).filter(shouldKeepImport)
-  );
-
-  setRecentUploads((previous) =>
-    (previous || []).filter(shouldKeepImport)
-  );
-
-  setMessage("Labor import deleted.");
-  return;
-}
 // ✅ NORMAL UPLOAD LOOKUP
 const {
   data: { user: currentUser },
@@ -30717,154 +30454,6 @@ if (!uploadRow) {
 }
 
 /*
- * ==========================================
- * NORMAL LABOR UUID DELETE
- * ==========================================
- */
-if (
-  String(uploadRow?.upload_type || "").toLowerCase() === "labor" ||
-  String(uploadRow?.source_name || "").toLowerCase() === "labor_upload"
-) {
-  console.log("NORMAL LABOR UUID DELETE START:", uploadRow);
-
-  const laborFileName = String(
-    uploadRow?.file_name ||
-      uploadRow?.source_file ||
-      uploadRow?.name ||
-      ""
-  ).trim();
-
-  console.log("LABOR OWNER ID:", ownerId);
-  console.log("LABOR FILE NAME:", laborFileName);
-
-  if (!laborFileName) {
-    throw new Error("Labor upload file name is missing.");
-  }
-
-  const {
-    data: deletedLaborRows,
-    error: laborDeleteError,
-  } = await supabase
-    .from("labor_uploads")
-    .delete()
-    .eq("user_id", ownerId)
-    .ilike("file_name", laborFileName)
-    .select("id, file_name");
-
-  console.log("DELETED LABOR ROWS:", deletedLaborRows);
-  console.log("LABOR DELETE ERROR:", laborDeleteError);
-
-  if (laborDeleteError) {
-    throw laborDeleteError;
-  }
-
-  const {
-    data: deletedUploadRows,
-    error: laborUploadDeleteError,
-  } = await supabase
-    .from("uploads")
-    .delete()
-    .eq("id", uploadId)
-    .eq("user_id", ownerId)
-    .select("id, file_name, upload_type");
-
-  console.log(
-    "DELETED LABOR UPLOAD RECORD:",
-    deletedUploadRows
-  );
-
-  console.log(
-    "LABOR UPLOAD RECORD DELETE ERROR:",
-    laborUploadDeleteError
-  );
-
-  if (laborUploadDeleteError) {
-    throw laborUploadDeleteError;
-  }
-
-  const normalizedLaborFileName = laborFileName.toLowerCase();
-
-  setLaborData((previous) =>
-    (previous || []).filter((row) => {
-      const rowFileName = String(row.file_name || "")
-        .trim()
-        .toLowerCase();
-
-      const rowUploadId = String(row.upload_id || "");
-
-      return (
-        rowFileName !== normalizedLaborFileName &&
-        rowUploadId !== String(uploadId)
-      );
-    })
-  );
-
-  setLaborUploads((previous) =>
-    (previous || []).filter((row) => {
-      const rowFileName = String(row.file_name || "")
-        .trim()
-        .toLowerCase();
-
-      const rowUploadId = String(row.upload_id || "");
-
-      return (
-        rowFileName !== normalizedLaborFileName &&
-        rowUploadId !== String(uploadId)
-      );
-    })
-  );
-
-  setClientImports((previous) =>
-    (previous || []).filter((item) => {
-      const itemId = String(item.id || "");
-
-      const itemFileName = String(
-        item.file_name || item.name || ""
-      )
-        .trim()
-        .toLowerCase();
-
-      const itemType = String(item.upload_type || "")
-        .trim()
-        .toLowerCase();
-
-      return (
-        itemId !== String(uploadId) &&
-        !(
-          itemType === "labor" &&
-          itemFileName === normalizedLaborFileName
-        )
-      );
-    })
-  );
-
-  setRecentUploads((previous) =>
-    (previous || []).filter((item) => {
-      const itemId = String(item.id || "");
-
-      const itemFileName = String(
-        item.file_name || item.name || ""
-      )
-        .trim()
-        .toLowerCase();
-
-      const itemType = String(item.upload_type || "")
-        .trim()
-        .toLowerCase();
-
-      return (
-        itemId !== String(uploadId) &&
-        !(
-          itemType === "labor" &&
-          itemFileName === normalizedLaborFileName
-        )
-      );
-    })
-  );
-
-  setMessage("Labor import deleted.");
-  return;
-}/*
  * ==========================================
  * INVOICE DELETE
  * ==========================================
