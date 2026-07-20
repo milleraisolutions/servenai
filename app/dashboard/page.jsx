@@ -30520,22 +30520,39 @@ if (matchingUploadRow?.id) {
     throw new Error("Could not identify the labor import.");
   }
 
-  // 1. Delete actual labor data
-  let laborDeleteQuery = supabase
-    .from("labor_uploads")
-    .delete()
-    .eq("user_id", ownerId);
+// 1. Delete the exact labor_uploads record
+let laborDeleteQuery = supabase
+  .from("labor_uploads")
+  .delete()
+  .eq("user_id", ownerId);
 
-  if (fileName) {
-    laborDeleteQuery = laborDeleteQuery.ilike("file_name", fileName);
-  } else {
-    laborDeleteQuery = laborDeleteQuery.eq("id", laborUploadRowId);
-  }
+// Synthetic labor IDs contain the exact labor_uploads.id.
+// Always prioritize the row ID over the filename.
+if (laborUploadRowId) {
+  laborDeleteQuery = laborDeleteQuery.eq("id", laborUploadRowId);
+} else if (fileName) {
+  laborDeleteQuery = laborDeleteQuery.ilike("file_name", fileName);
+} else {
+  throw new Error("Could not identify the labor record to delete.");
+}
 
-  const {
-    data: deletedLaborRows,
-    error: laborDeleteError,
-  } = await laborDeleteQuery.select("id, file_name");
+const {
+  data: deletedLaborRows,
+  error: laborDeleteError,
+} = await laborDeleteQuery.select("id, user_id, file_name");
+
+console.log("DELETED LABOR ROWS:", deletedLaborRows);
+console.log("LABOR DELETE ERROR:", laborDeleteError);
+
+if (laborDeleteError) {
+  throw laborDeleteError;
+}
+
+if (!deletedLaborRows || deletedLaborRows.length === 0) {
+  throw new Error(
+    "The labor record was not deleted from Supabase. Check the labor_uploads delete policy."
+  );
+}
 
   console.log("DELETED LABOR ROWS:", deletedLaborRows);
   console.log("LABOR DELETE ERROR:", laborDeleteError);
