@@ -6352,7 +6352,7 @@ console.log("FILE SELECTED:", e.target.files?.[0]);
 
   try {
     
-    const activeUploadType = selectedUploadTypeRef.current || uploadType;
+  let activeUploadType = selectedUploadTypeRef.current || uploadType;
 
     let dataRows = [];
 
@@ -6447,6 +6447,25 @@ console.log(
   )
 );
 console.log("==========================================");
+// =========================================================
+// SERVEN AUTO DATASET ROUTER
+// Only runs if no upload type was manually selected.
+// =========================================================
+
+if (!activeUploadType || activeUploadType === "unknown") {
+  if (servenAnalysis.hasSales) {
+    activeUploadType = "pos";
+  } else if (servenAnalysis.hasLabor) {
+    activeUploadType = "labor";
+  } else if (servenAnalysis.hasMenuItems) {
+    activeUploadType = "menu_items";
+  }
+
+  console.log(
+    "SERVEN AUTO ROUTED UPLOAD TYPE:",
+    activeUploadType
+  );
+} 
     pendingUploadRowsRef.current = safeRows;
     setPendingUploadRows(safeRows);
 
