@@ -804,6 +804,10 @@ const [analyticsView, setAnalyticsView] = useState("revenue");
 const [beverageView, setBeverageView] = useState("overview");
 const [laborView, setLaborView] = useState("overview");
 const [laborLoading, setLaborLoading] = useState(true);
+const [selectedPosFile, setSelectedPosFile] = useState(null);
+const [posUploadLoading, setPosUploadLoading] = useState(false);
+
+
 
 const loadingKitchenPrepRef = useRef(false);
 const invoiceUploadInputRef = useRef(null);
@@ -5200,7 +5204,7 @@ const handleCSVUpload = async (e) => {
 
   const file = e.target.files?.[0];
   if (!file) return;
-
+setSelectedPosFile(file);
   try {
     let rows = [];
 
@@ -6349,7 +6353,12 @@ console.log("FILE SELECTED:", e.target.files?.[0]);
 
   const file = e.target.files?.[0];
   if (!file) return;
+const selectedType =
+  selectedUploadTypeRef.current || uploadType;
 
+if (selectedType === "pos") {
+  setSelectedPosFile(file);
+}
   try {
     
   let activeUploadType = selectedUploadTypeRef.current || uploadType;
@@ -32405,28 +32414,42 @@ return (
       Primary Imports
     </div>
 
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: isMobile
-          ? "1fr"
-          : "repeat(4, minmax(0, 1fr))",
-        gap: "14px",
-        alignItems: "stretch",
-      }}
-    ><button
-  onClick={() => {
-    selectedUploadTypeRef.current = "pos";
-    setUploadType("pos");
-
-    const input = document.getElementById("posUpload");
-    if (input) input.value = "";
-    input?.click();
+   <div
+  style={{
+    display: "grid",
+    gridTemplateColumns: isMobile
+      ? "1fr"
+      : "repeat(4, minmax(0, 1fr))",
+    gap: "14px",
+    alignItems: "stretch",
   }}
-  style={setupPrimaryButton}
 >
-  Upload POS Data
-</button>
+  <div
+    style={{
+      display: "flex",
+      flexDirection: "column",
+      gap: "10px",
+      minWidth: 0,
+    }}
+  >
+    <button
+      type="button"
+      onClick={() => {
+        selectedUploadTypeRef.current = "pos";
+        setUploadType("pos");
+
+        const input = document.getElementById("posUpload");
+        if (input) input.value = "";
+        input?.click();
+      }}
+      style={{
+        ...setupPrimaryButton,
+        width: "100%",
+      }}
+    >
+      Upload POS Data
+    </button>
+  </div>
 
 <div
   style={{
