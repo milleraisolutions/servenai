@@ -31335,7 +31335,117 @@ if (
     "INVOICE CHILD DATA DELETED. FINAL UPLOAD ID:",
     deleteUploadId
   );
-}// ✅ GENERAL CHILD TABLE DELETE
+}
+// ==========================================
+// PERMANENT POS IMPORT DELETE
+// ==========================================
+const normalizedUploadType = String(
+  uploadRow?.upload_type || uploadRow?.source_name || ""
+)
+  .trim()
+  .toLowerCase();
+
+const isPosUpload =
+  normalizedUploadType === "pos" ||
+  normalizedUploadType === "sales" ||
+  normalizedUploadType === "pos_upload";
+
+if (isPosUpload) {
+  const normalizedPosUploadId = String(deleteUploadId || uploadId).trim();
+
+  console.log("PERMANENT POS DELETE START:", {
+    uploadId: normalizedPosUploadId,
+    ownerId,
+    uploadRow,
+  });
+
+  if (!normalizedPosUploadId) {
+    throw new Error("Missing POS upload ID.");
+  }
+
+  // 1. Permanently delete every sales row connected to this upload.
+  const {
+    data: deletedSalesRows,
+    error: salesDeleteError,
+  } = await supabase
+    .from("sales")
+    .delete()
+    .eq("upload_id", normalizedPosUploadId)
+    .eq("user_id", ownerId)
+    .select("id, upload_id");
+
+  console.log("POS SALES DELETE RESULT:", deletedSalesRows);
+  console.log("POS SALES DELETE ERROR:", salesDeleteError);
+
+  if (salesDeleteError) {
+    throw salesDeleteError;
+  }
+
+  // 2. Permanently delete the Recent Imports upload record.
+  const {
+    data: deletedPosUploadRows,
+    error: posUploadDeleteError,
+  } = await supabase
+    .from("uploads")
+    .delete()
+    .eq("id", normalizedPosUploadId)
+    .eq("user_id", ownerId)
+    .select("id, upload_type, file_name");
+
+  console.log("POS UPLOAD DELETE RESULT:", deletedPosUploadRows);
+  console.log("POS UPLOAD DELETE ERROR:", posUploadDeleteError);
+
+  if (posUploadDeleteError) {
+    throw posUploadDeleteError;
+  }
+
+  if (!deletedPosUploadRows?.length) {
+    throw new Error(
+      "The POS upload record was not deleted. Check the upload ID and Supabase delete policy."
+    );
+  }
+
+  // 3. Remove the deleted POS data from the website immediately.
+  setDbSalesRows((previous) =>
+    (previous || []).filter(
+      (row) => String(row.upload_id || "") !== normalizedPosUploadId
+    )
+  );
+
+  setClientImports((previous) =>
+    (previous || []).filter(
+      (item) => String(item.id || "") !== normalizedPosUploadId
+    )
+  );
+
+  setRecentUploads((previous) =>
+    (previous || []).filter(
+      (item) => String(item.id || "") !== normalizedPosUploadId
+    )
+  );
+
+  setPendingUploadSummary(null);
+  setPendingUploadRows([]);
+  pendingUploadRowsRef.current = [];
+
+  setMessage(
+    `POS import permanently deleted${
+      deletedSalesRows?.length
+        ? ` with ${deletedSalesRows.length} sales rows`
+        : ""
+    }.`
+  );
+
+  console.log("PERMANENT POS DELETE COMPLETE:", {
+    uploadId: normalizedPosUploadId,
+    deletedSalesCount: deletedSalesRows?.length || 0,
+    deletedUploadCount: deletedPosUploadRows.length,
+  });
+
+  return;
+}
+
+// ✅ GENERAL CHILD TABLE DELETE
 const deleteSteps = [
   ["sales", "upload_id"],
   ["menu_items", "upload_id"],
