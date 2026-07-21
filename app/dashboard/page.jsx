@@ -150,6 +150,505 @@ function CountUpValue({ value, duration = 900, prefix = "", suffix = "" }) {
     </span>
   );
 }
+/*
+ * =========================================================
+ * SERVEN UNIVERSAL FILE ANALYZER — HEADER DICTIONARY
+ * =========================================================
+ */
+
+const normalizeImportHeader = (value) =>
+  String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[_-]+/g, " ")
+    .replace(/[^\w\s%$]/g, "")
+    .replace(/\s+/g, " ");
+
+/*
+ * Each key represents a normalized field Serven understands.
+ * The values are possible column names used by different
+ * POS, payroll, scheduling, and restaurant systems.
+ */
+const SERVEN_IMPORT_HEADERS = {
+  sales: {
+    date: [
+      "date",
+      "sale date",
+      "sales date",
+      "business date",
+      "transaction date",
+      "order date",
+      "check date",
+      "closed date",
+      "created date",
+    ],
+
+    revenue: [
+      "revenue",
+      "sales",
+      "net sales",
+      "gross sales",
+      "total sales",
+      "sales total",
+      "net revenue",
+      "gross revenue",
+      "amount",
+      "total amount",
+      "check total",
+      "order total",
+      "food sales",
+      "beverage sales",
+    ],
+
+    orders: [
+      "orders",
+      "order count",
+      "orders count",
+      "number of orders",
+      "checks",
+      "check count",
+      "guest checks",
+      "transactions",
+      "transaction count",
+      "tickets",
+      "ticket count",
+    ],
+
+    category: [
+      "category",
+      "sales category",
+      "menu category",
+      "item category",
+      "department",
+      "revenue center",
+      "sales group",
+    ],
+
+    location: [
+      "location",
+      "location name",
+      "store",
+      "store name",
+      "restaurant",
+      "restaurant location",
+      "venue",
+      "branch",
+      "unit",
+      "site",
+    ],
+
+    employee: [
+      "employee",
+      "employee name",
+      "server",
+      "server name",
+      "cashier",
+      "cashier name",
+      "team member",
+      "staff member",
+    ],
+
+    shift: [
+      "shift",
+      "daypart",
+      "meal period",
+      "service period",
+      "revenue period",
+    ],
+  },
+
+  labor: {
+    date: [
+      "date",
+      "work date",
+      "shift date",
+      "business date",
+      "pay date",
+      "labor date",
+      "clock date",
+    ],
+
+    employee: [
+      "employee",
+      "employee name",
+      "staff",
+      "staff name",
+      "team member",
+      "worker",
+      "associate",
+      "server",
+    ],
+
+    employeeId: [
+      "employee id",
+      "employee number",
+      "employee no",
+      "staff id",
+      "worker id",
+      "team member id",
+    ],
+
+    position: [
+      "position",
+      "job",
+      "job title",
+      "role",
+      "labor category",
+      "department",
+      "job code",
+    ],
+
+    hours: [
+      "hours",
+      "hours worked",
+      "worked hours",
+      "total hours",
+      "regular hours",
+      "clocked hours",
+      "actual hours",
+      "paid hours",
+    ],
+
+    overtimeHours: [
+      "overtime",
+      "overtime hours",
+      "ot hours",
+      "extra hours",
+    ],
+
+    rate: [
+      "rate",
+      "hourly rate",
+      "pay rate",
+      "wage rate",
+      "hourly wage",
+      "base rate",
+    ],
+
+    laborCost: [
+      "labor cost",
+      "labor",
+      "payroll",
+      "payroll cost",
+      "gross pay",
+      "total pay",
+      "wages",
+      "wage cost",
+      "staff cost",
+      "employee cost",
+      "labor dollars",
+      "labor $",
+      "total labor",
+    ],
+
+    clockIn: [
+      "clock in",
+      "clock in time",
+      "clockin",
+      "start time",
+      "shift start",
+      "time in",
+    ],
+
+    clockOut: [
+      "clock out",
+      "clock out time",
+      "clockout",
+      "end time",
+      "shift end",
+      "time out",
+    ],
+
+    location: [
+      "location",
+      "location name",
+      "store",
+      "store name",
+      "restaurant",
+      "restaurant location",
+      "venue",
+      "branch",
+      "unit",
+      "site",
+    ],
+
+    shift: [
+      "shift",
+      "daypart",
+      "meal period",
+      "service period",
+      "schedule period",
+    ],
+  },
+
+  menuItems: {
+    name: [
+      "item",
+      "item name",
+      "menu item",
+      "menu item name",
+      "product",
+      "product name",
+      "dish",
+      "dish name",
+      "plu name",
+    ],
+
+    itemId: [
+      "item id",
+      "menu item id",
+      "product id",
+      "plu",
+      "plu number",
+      "sku",
+      "sku number",
+    ],
+
+    category: [
+      "category",
+      "menu category",
+      "item category",
+      "product category",
+      "department",
+      "sales category",
+      "menu group",
+    ],
+
+    quantity: [
+      "quantity",
+      "qty",
+      "quantity sold",
+      "qty sold",
+      "units sold",
+      "items sold",
+      "count sold",
+    ],
+
+    price: [
+      "price",
+      "menu price",
+      "selling price",
+      "unit price",
+      "sale price",
+      "retail price",
+    ],
+
+    cost: [
+      "cost",
+      "item cost",
+      "food cost",
+      "unit cost",
+      "recipe cost",
+      "product cost",
+    ],
+
+    revenue: [
+      "revenue",
+      "item revenue",
+      "item sales",
+      "net sales",
+      "gross sales",
+      "sales amount",
+      "total sales",
+      "extended price",
+    ],
+
+    date: [
+      "date",
+      "sale date",
+      "business date",
+      "transaction date",
+      "order date",
+    ],
+
+    location: [
+      "location",
+      "location name",
+      "store",
+      "store name",
+      "restaurant",
+      "restaurant location",
+      "venue",
+      "branch",
+      "unit",
+      "site",
+    ],
+  },
+};
+
+/*
+ * Creates normalized lookup sets so detection remains fast,
+ * even when files contain thousands of rows.
+ */
+const SERVEN_IMPORT_HEADER_LOOKUPS = Object.fromEntries(
+  Object.entries(SERVEN_IMPORT_HEADERS).map(([datasetName, fields]) => [
+    datasetName,
+    Object.fromEntries(
+      Object.entries(fields).map(([fieldName, aliases]) => [
+        fieldName,
+        new Set(aliases.map(normalizeImportHeader)),
+      ])
+    ),
+  ])
+);
+/*
+ * =========================================================
+ * SERVEN UNIVERSAL FILE ANALYZER — DATASET DETECTION
+ * =========================================================
+ */
+
+const analyzeServenImportHeaders = (rawHeaders = []) => {
+  const normalizedHeaders = [
+    ...new Set(
+      (rawHeaders || [])
+        .map(normalizeImportHeader)
+        .filter(Boolean)
+    ),
+  ];
+
+  const detectionRules = {
+    sales: {
+      requiredAny: ["revenue"],
+      supporting: [
+        "date",
+        "orders",
+        "category",
+        "location",
+        "employee",
+        "shift",
+      ],
+      minimumScore: 35,
+    },
+
+    labor: {
+      requiredAny: ["hours", "laborCost"],
+      supporting: [
+        "date",
+        "employee",
+        "employeeId",
+        "position",
+        "overtimeHours",
+        "rate",
+        "clockIn",
+        "clockOut",
+        "location",
+        "shift",
+      ],
+      minimumScore: 35,
+    },
+
+    menuItems: {
+      requiredAny: ["name"],
+      supporting: [
+        "itemId",
+        "category",
+        "quantity",
+        "price",
+        "cost",
+        "revenue",
+        "date",
+        "location",
+      ],
+      minimumScore: 35,
+    },
+  };
+
+  const datasetResults = Object.entries(
+    SERVEN_IMPORT_HEADER_LOOKUPS
+  ).map(([datasetName, fieldLookups]) => {
+    const matchedFields = {};
+    const unmatchedFields = [];
+
+    Object.entries(fieldLookups).forEach(
+      ([fieldName, aliasSet]) => {
+        const matchedHeader = normalizedHeaders.find((header) =>
+          aliasSet.has(header)
+        );
+
+        if (matchedHeader) {
+          matchedFields[fieldName] = matchedHeader;
+        } else {
+          unmatchedFields.push(fieldName);
+        }
+      }
+    );
+
+    const rules = detectionRules[datasetName] || {
+      requiredAny: [],
+      supporting: Object.keys(fieldLookups),
+      minimumScore: 35,
+    };
+
+    const requiredMatches = rules.requiredAny.filter(
+      (fieldName) => matchedFields[fieldName]
+    );
+
+    const supportingMatches = rules.supporting.filter(
+      (fieldName) => matchedFields[fieldName]
+    );
+
+    const requiredSatisfied =
+      rules.requiredAny.length === 0 ||
+      requiredMatches.length > 0;
+
+    const requiredScore =
+      rules.requiredAny.length > 0
+        ? Math.min(
+            60,
+            (requiredMatches.length /
+              rules.requiredAny.length) *
+              60
+          )
+        : 0;
+
+    const supportingScore =
+      rules.supporting.length > 0
+        ? Math.min(
+            40,
+            (supportingMatches.length /
+              rules.supporting.length) *
+              40
+          )
+        : 0;
+
+    const confidence = Math.round(
+      requiredScore + supportingScore
+    );
+
+    const detected =
+      requiredSatisfied &&
+      confidence >= rules.minimumScore;
+
+    return {
+      dataset: datasetName,
+      detected,
+      confidence,
+      matchedFields,
+      unmatchedFields,
+      matchedFieldCount: Object.keys(matchedFields).length,
+      normalizedHeaders,
+    };
+  });
+
+  const detectedDatasets = datasetResults.filter(
+    (result) => result.detected
+  );
+
+  return {
+    headers: normalizedHeaders,
+    detectedDatasets,
+    datasets: datasetResults,
+    hasSales: detectedDatasets.some(
+      (result) => result.dataset === "sales"
+    ),
+    hasLabor: detectedDatasets.some(
+      (result) => result.dataset === "labor"
+    ),
+    hasMenuItems: detectedDatasets.some(
+      (result) => result.dataset === "menuItems"
+    ),
+  };
+};
 /* ================= MAIN ================= */
 
 export default function Dashboard() {
@@ -5926,7 +6425,28 @@ console.log("FILE SELECTED:", e.target.files?.[0]);
     const safeRows = dataRows.filter((row) =>
       Object.values(row).some((value) => String(value || "").trim() !== "")
     );
+/* =========================================================
+   SERVEN UNIVERSAL FILE ANALYZER
+========================================================= */
 
+const detectedHeaders = safeRows.length
+  ? Object.keys(safeRows[0])
+  : [];
+
+const servenAnalysis =
+  analyzeServenImportHeaders(detectedHeaders);
+
+console.log("========== SERVEN FILE ANALYSIS ==========");
+console.log("FILE:", file.name);
+console.log("HEADERS:", detectedHeaders);
+console.log("ANALYSIS:", servenAnalysis);
+console.log(
+  "DETECTED DATASETS:",
+  servenAnalysis.detectedDatasets.map(
+    (dataset) => `${dataset.dataset} (${dataset.confidence}%)`
+  )
+);
+console.log("==========================================");
     pendingUploadRowsRef.current = safeRows;
     setPendingUploadRows(safeRows);
 
