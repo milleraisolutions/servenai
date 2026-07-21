@@ -6832,9 +6832,14 @@ setTimeout(() => {
     uploadedAt: Date.now(),
     rows: cleanedLaborRows,
   });
-
 setMessage(`Importing ${cleanedLaborRows.length} labor rows...`);
-handleImportLabor(cleanedLaborRows);
+
+await handleImportLabor(cleanedLaborRows);
+
+setPendingUploadSummary(null);
+setPendingUploadRows([]);
+pendingUploadRowsRef.current = [];
+setMessage(`Successfully imported ${cleanedLaborRows.length} labor rows.`);
 
 } else if (activeUploadType === "invoices") {
   setPendingUploadSummary({
