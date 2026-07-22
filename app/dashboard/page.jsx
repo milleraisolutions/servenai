@@ -18178,12 +18178,35 @@ const deleteImport = async (uploadId) => {
         "Could not identify the data owner. Please log in again."
       );
     }
+    const rawUploadId = String(uploadId || "").trim();
+
+const laborUploadId = rawUploadId.startsWith("labor-file-")
+  ? rawUploadId.replace(/^labor-file-/, "")
+  : rawUploadId;
+
+let { data: uploadRow, error: uploadLookupError } = await supabase
+  .from("uploads")
+  .select("*")
+  .eq("id", laborUploadId)
+  .eq("user_id", ownerId)
+  .maybeSingle();
+
+console.log("DELETE IMPORT UPLOAD LOOKUP:", {
+  rawUploadId,
+  laborUploadId,
+  uploadRow,
+  uploadLookupError,
+});
+
+if (uploadLookupError) {
+  throw uploadLookupError;
+}
    if (!uploadRow) {
   const { data: matchingLaborRows, error: laborFallbackError } =
     await supabase
       .from("labor_uploads")
       .select("id, upload_id, user_id, file_name")
-      .eq("upload_id", String(uploadId))
+      .eq("upload_id", laborUploadId)
       .eq("user_id", ownerId)
       .limit(1);
 
@@ -18231,7 +18254,7 @@ console.log("FINAL LABOR DELETE CHECK:", {
 });
 
 if (finalIsLaborUpload) {
-  const normalizedUploadId = String(uploadId || "").trim();
+  const normalizedUploadId = laborUploadId;
 
   console.log("PERMANENT LABOR DELETE START:", {
     normalizedUploadId,
