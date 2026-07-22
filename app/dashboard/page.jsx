@@ -17944,39 +17944,43 @@ const loadClientImports = async () => {
      */
     const posGroups = new Map();
 
-    salesRows.forEach((row) => {
-      if (!row.upload_id) return;
+// Only build synthetic POS uploads when there are NO real uploads.
+// If uploads exist (or were just deleted), trust the uploads table.
+if ((uploadsData || []).length === 0) {
+  salesRows.forEach((row) => {
+    if (!row.upload_id) return;
 
-      const key = `upload-${row.upload_id}`;
-      const existing = posGroups.get(key);
+    const key = `upload-${row.upload_id}`;
 
-      if (!existing) {
-        posGroups.set(key, {
-          id: row.upload_id,
-          upload_id: row.upload_id,
-          file_name: "POS Sales Upload",
-          upload_type: "pos",
-          source_name: "pos_upload",
-          row_count: 1,
-          created_at:
-            row.sale_date ||
-            new Date().toISOString(),
-          synthetic_from_sales: true,
-          merge_key: key,
-        });
+    const existing = posGroups.get(key);
 
-        return;
-      }
+    if (!existing) {
+      posGroups.set(key, {
+        id: row.upload_id,
+        upload_id: row.upload_id,
+        file_name: "POS Sales Upload",
+        upload_type: "pos",
+        source_name: "pos_upload",
+        row_count: 1,
+        created_at:
+          row.sale_date || new Date().toISOString(),
+        synthetic_from_sales: true,
+        merge_key: key,
+      });
 
-      existing.row_count += 1;
+      return;
+    }
 
-      if (
-        new Date(row.sale_date || 0).getTime() >
-        new Date(existing.created_at || 0).getTime()
-      ) {
-        existing.created_at = row.sale_date;
-      }
-    });
+    existing.row_count += 1;
+
+    if (
+      new Date(row.sale_date || 0).getTime() >
+      new Date(existing.created_at || 0).getTime()
+    ) {
+      existing.created_at = row.sale_date;
+    }
+  });
+}
 
     posGroups.forEach(addImport);
 
