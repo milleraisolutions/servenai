@@ -6908,7 +6908,19 @@ e.target.value = "";
 console.log("TRACE AFTER HANDLE FILE UPLOAD");
 console.log("TRACE BEFORE IMPORT MAPPED SALES");
 const handleImportMappedSales = async () => {
+  console.trace("🚨 handleImportMappedSales CALLED");
+  console.log("POS IMPORT CALL STATE:", {
+    rowsCount: rows?.length || 0,
+    uploadedFileName,
+    pendingUploadSummary,
+    selectedDataSource,
+    selectedUploadLocationId,
+    currentUrl: window.location.href,
+    time: new Date().toISOString(),
+  });
+
   if (importLockRef.current) return;
+
   importLockRef.current = true;
 
   try {
