@@ -33282,10 +33282,18 @@ return (
 
     <button
   type="button"
-  onClick={() => {
-    console.log("RECENT IMPORT DELETE ITEM:", item);
-    handleDeleteUpload(item.id);
-  }}
+ onClick={async () => {
+  console.log("RECENT IMPORT DELETE ITEM:", item);
+  console.log("CALLING HANDLE DELETE WITH ID:", item?.id);
+
+  try {
+    await handleDeleteUpload(item?.id);
+    console.log("HANDLE DELETE FINISHED");
+  } catch (error) {
+    console.error("HANDLE DELETE BUTTON ERROR:", error);
+    alert(`Delete button failed: ${error?.message || "Unknown error"}`);
+  }
+}}
       style={{
         padding: "8px 12px",
         borderRadius: "10px",
