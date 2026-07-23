@@ -18202,13 +18202,19 @@ if (uploadLookupError) {
   throw uploadLookupError;
 }
 if (!uploadRow && isLaborUpload) {
-  const { data: matchingLaborRows, error: laborFallbackError } =
-    await supabase
-      .from("labor_uploads")
-      .select("id, upload_id, user_id, file_name")
-      .eq("id", laborUploadId)
-      .eq("user_id", ownerId)
-      .limit(1);
+ const laborFileName = String(
+  uploadRow?.file_name || fileName || ""
+).trim();
+
+const {
+  data: matchingLaborRows,
+  error: laborLookupError,
+} = await supabase
+  .from("labor_uploads")
+  .select("id, user_id, upload_id, file_name")
+  .eq("file_name", laborFileName)
+  .eq("user_id", deleteOwnerId);
+  
 
   console.log("LABOR FALLBACK MATCH:", matchingLaborRows);
   console.log("LABOR FALLBACK ERROR:", laborFallbackError);
@@ -18321,15 +18327,15 @@ if (finalIsLaborUpload) {
   /*
    * Delete all 62 labor rows connected to this upload.
    */
-  const {
-    data: deletedLaborRows,
-    error: laborDeleteError,
-  } = await supabase
-    .from("labor_uploads")
-    .delete()
-    .eq("id", normalizedUploadId)
-    .eq("user_id", deleteOwnerId)
-    .select("id, upload_id, file_name");
+ const {
+  data: deletedLaborRows,
+  error: laborDeleteError,
+} = await supabase
+  .from("labor_uploads")
+  .delete()
+  .eq("file_name", laborFileName)
+  .eq("user_id", deleteOwnerId)
+  .select("id, upload_id, file_name");
 
   console.log(
     "PERMANENT LABOR ROW DELETE RESULT:",
