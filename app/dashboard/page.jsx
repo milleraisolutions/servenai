@@ -31155,15 +31155,46 @@ console.log("UI CLEANUP COMPLETE:", cleanupUploadId);
     });
 
     setMessage("Upload deleted.");
-  } catch (error) {
-    console.error("Delete import failed:", error);
+} catch (error) {
+  console.error("DELETE IMPORT FULL ERROR:", {
+    error,
+    name: error?.name,
+    message: error?.message,
+    code: error?.code,
+    details: error?.details,
+    hint: error?.hint,
+    status: error?.status,
+    uploadId,
+  });
 
-    setClientImports(previousClientImports);
-    setRecentUploads(previousRecentUploads);
+  console.error(
+    "DELETE IMPORT ERROR JSON:",
+    JSON.stringify(
+      {
+        name: error?.name || null,
+        message: error?.message || String(error),
+        code: error?.code || null,
+        details: error?.details || null,
+        hint: error?.hint || null,
+        status: error?.status || null,
+        uploadId: String(uploadId || ""),
+      },
+      null,
+      2
+    )
+  );
 
-    alert(`Delete failed: ${error.message}`);
-    setMessage("Delete failed.");
-  }
+  setClientImports(previousClientImports);
+  setRecentUploads(previousRecentUploads);
+
+  const errorMessage =
+    error?.message ||
+    error?.details ||
+    "Unknown delete error";
+
+  alert(`Delete failed: ${errorMessage}`);
+  setMessage(`Delete failed: ${errorMessage}`);
+}
 };
 
 const batchPrepIntelligence = (batchPrepData || []).map((batch) => {
