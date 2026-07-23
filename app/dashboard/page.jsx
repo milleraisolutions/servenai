@@ -30343,10 +30343,19 @@ if (currentUserError) {
 if (!ownerId) {
   throw new Error("Could not identify the data owner.");
 }
+const rawUploadId = String(uploadId || "").trim();
+
+const normalizedLookupId = rawUploadId
+  .replace(/^labor-file-/, "")
+  .replace(/^labor-/, "");
+
+console.log("RAW DELETE ID:", rawUploadId);
+console.log("NORMALIZED DELETE ID:", normalizedLookupId);
+
 let { data: uploadRow, error: uploadLookupError } = await supabase
   .from("uploads")
   .select("*")
-  .eq("id", uploadId)
+  .eq("id", normalizedLookupId)
   .eq("user_id", ownerId)
   .maybeSingle();
 
@@ -30367,7 +30376,7 @@ if (!uploadRow) {
     await supabase
       .from("labor_uploads")
       .select("id, upload_id, user_id, file_name")
-      .eq("upload_id", String(uploadId))
+      .eq("upload_id", normalizedLookupId)
       .eq("user_id", ownerId)
       .limit(1);
 
@@ -30415,7 +30424,10 @@ console.log("FINAL LABOR DELETE CHECK:", {
 });
 
 if (finalIsLaborUpload) {
-  const normalizedUploadId = String(uploadId || "").trim();
+  const normalizedUploadId = String(uploadId || "")
+  .trim()
+  .replace(/^labor-file-/, "")
+  .replace(/^labor-/, "");
 
   console.log("PERMANENT LABOR DELETE START:", {
     normalizedUploadId,
@@ -30533,12 +30545,16 @@ if (finalIsLaborUpload) {
   })
 );
 
-  setRecentUploads((previous) =>
-    (previous || []).filter(
-      (item) =>
-        String(item.id || "") !== normalizedUploadId
-    )
-  );
+ setRecentUploads((previous) =>
+  (previous || []).filter((item) => {
+    const itemId = String(item.id || "");
+
+    return (
+      itemId !== rawUploadId &&
+      itemId !== normalizedUploadId
+    );
+  })
+);
 
   setMessage("Labor import permanently deleted.");
 
