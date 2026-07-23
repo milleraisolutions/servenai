@@ -18201,12 +18201,12 @@ console.log("DELETE IMPORT UPLOAD LOOKUP:", {
 if (uploadLookupError) {
   throw uploadLookupError;
 }
-   if (!uploadRow) {
+if (!uploadRow && isLaborUpload) {
   const { data: matchingLaborRows, error: laborFallbackError } =
     await supabase
       .from("labor_uploads")
       .select("id, upload_id, user_id, file_name")
-      .eq("upload_id", laborUploadId)
+      .eq("id", laborUploadId)
       .eq("user_id", ownerId)
       .limit(1);
 
@@ -18219,12 +18219,14 @@ if (uploadLookupError) {
 
   if ((matchingLaborRows || []).length > 0) {
     uploadRow = {
-      id: String(uploadId),
+      id: rawUploadId,
       user_id: ownerId,
       upload_type: "labor",
       source_name: "labor_upload",
-      file_name: matchingLaborRows[0]?.file_name || "Labor Upload",
+      file_name:
+        matchingLaborRows[0]?.file_name || "Labor Upload",
       synthetic_from_labor: true,
+      labor_upload_id: matchingLaborRows[0]?.id,
     };
   }
 }
@@ -18297,7 +18299,7 @@ if (finalIsLaborUpload) {
   } = await supabase
     .from("labor_uploads")
     .select("id, user_id, upload_id, file_name")
-    .eq("upload_id", normalizedUploadId)
+  .eq("id", normalizedUploadId)
     .eq("user_id", deleteOwnerId);
 
   if (laborLookupError) {
@@ -18325,7 +18327,7 @@ if (finalIsLaborUpload) {
   } = await supabase
     .from("labor_uploads")
     .delete()
-    .eq("upload_id", normalizedUploadId)
+    .eq("id", normalizedUploadId)
     .eq("user_id", deleteOwnerId)
     .select("id, upload_id, file_name");
 
@@ -18418,11 +18420,16 @@ if (finalIsLaborUpload) {
     )
   );
 
-  setRecentUploads((previous) =>
-    (previous || []).filter(
-      (item) => String(item.id || "") !== normalizedUploadId
-    )
-  );
+setRecentUploads((previous) =>
+  (previous || []).filter((item) => {
+    const itemId = String(item.id || "");
+
+    return (
+      itemId !== rawUploadId &&
+      itemId !== normalizedUploadId
+    );
+  })
+);
 
   if (typeof setRows === "function") {
     setRows([]);
@@ -31192,12 +31199,16 @@ if (finalIsLaborUpload) {
     )
   );
 
-  setClientImports((previous) =>
-    (previous || []).filter(
-      (item) =>
-        String(item.id || "") !== normalizedUploadId
-    )
-  );
+ setClientImports((previous) =>
+  (previous || []).filter((item) => {
+    const itemId = String(item.id || "");
+
+    return (
+      itemId !== rawUploadId &&
+      itemId !== normalizedUploadId
+    );
+  })
+);
 
   setRecentUploads((previous) =>
     (previous || []).filter(
