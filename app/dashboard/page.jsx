@@ -18190,7 +18190,7 @@ let { data: uploadRow, error: uploadLookupError } = await supabase
   .eq("id", laborUploadId)
   .eq("user_id", ownerId)
   .maybeSingle();
-
+console.log("UPLOAD LOOKUP RESULT:", uploadRow);
 console.log("DELETE IMPORT UPLOAD LOOKUP:", {
   rawUploadId,
   laborUploadId,
@@ -33324,8 +33324,10 @@ return (
  onClick={async () => {
   console.log("RECENT IMPORT DELETE ITEM:", item);
   console.log("CALLING HANDLE DELETE WITH ID:", item?.id);
-
+console.log("DELETE BUTTON ITEM:", item);
+console.log("DELETE BUTTON ID:", item?.id);
   try {
+    
    await deleteImport(item?.id);
     console.log("HANDLE DELETE FINISHED");
   } catch (error) {
