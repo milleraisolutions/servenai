@@ -18180,9 +18180,9 @@ const deleteImport = async (uploadId) => {
     }
     const rawUploadId = String(uploadId || "").trim();
 
-const laborUploadId = rawUploadId.startsWith("labor-file-")
-  ? rawUploadId.replace(/^labor-file-/, "")
-  : rawUploadId;
+const laborUploadId = rawUploadId
+  .replace(/^labor-file-/, "")
+  .replace(/^labor-/, "");
 
 let { data: uploadRow, error: uploadLookupError } = await supabase
   .from("uploads")
@@ -33326,7 +33326,7 @@ return (
   console.log("CALLING HANDLE DELETE WITH ID:", item?.id);
 
   try {
-    await handleDeleteUpload(item?.id);
+   await deleteImport(item?.id);
     console.log("HANDLE DELETE FINISHED");
   } catch (error) {
     console.error("HANDLE DELETE BUTTON ERROR:", error);
