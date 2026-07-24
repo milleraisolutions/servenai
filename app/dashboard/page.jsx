@@ -30543,19 +30543,43 @@ if (realParentUploadId) {
     );
   }
 
-  setLaborData((previous) =>
-    (previous || []).filter(
-      (row) =>
-        String(row.upload_id || "") !== normalizedUploadId
-    )
-  );
+const deletedLaborIds = new Set(
+  (deletedLaborRows || []).map((row) => String(row.id))
+);
 
-  setLaborUploads((previous) =>
-    (previous || []).filter(
-      (row) =>
-        String(row.upload_id || "") !== normalizedUploadId
-    )
-  );
+const deletedLaborUploadIds = new Set(
+  (deletedLaborRows || [])
+    .map((row) => String(row.upload_id || ""))
+    .filter(Boolean)
+);
+
+setLaborData((previous) =>
+  (previous || []).filter((row) => {
+    const rowId = String(row.id || "");
+    const rowUploadId = String(row.upload_id || "");
+
+    return (
+      !deletedLaborIds.has(rowId) &&
+      !deletedLaborUploadIds.has(rowUploadId) &&
+      rowId !== laborRowId &&
+      rowUploadId !== normalizedUploadId
+    );
+  })
+);
+
+setLaborUploads((previous) =>
+  (previous || []).filter((row) => {
+    const rowId = String(row.id || "");
+    const rowUploadId = String(row.upload_id || "");
+
+    return (
+      !deletedLaborIds.has(rowId) &&
+      !deletedLaborUploadIds.has(rowUploadId) &&
+      rowId !== laborRowId &&
+      rowUploadId !== normalizedUploadId
+    );
+  })
+);
 
  setClientImports((previous) =>
   (previous || []).filter((item) => {
@@ -32727,7 +32751,7 @@ return (
   type="button"
  onClick={async () => {
 
-    alert(`Delete clicked: ${item?.id}`); 
+   
   console.log("RECENT IMPORT DELETE ITEM:", item);
   console.log("CALLING HANDLE DELETE WITH ID:", item?.id);
 console.log("DELETE BUTTON ITEM:", item);
