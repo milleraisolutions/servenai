@@ -32726,6 +32726,8 @@ return (
     <button
   type="button"
  onClick={async () => {
+
+    alert(`Delete clicked: ${item?.id}`); 
   console.log("RECENT IMPORT DELETE ITEM:", item);
   console.log("CALLING HANDLE DELETE WITH ID:", item?.id);
 console.log("DELETE BUTTON ITEM:", item);
