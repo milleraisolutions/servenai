@@ -30376,8 +30376,10 @@ if (!uploadRow) {
     await supabase
       .from("labor_uploads")
       .select("id, upload_id, user_id, file_name")
-      .eq("upload_id", normalizedLookupId)
       .eq("user_id", ownerId)
+      .or(
+        `id.eq.${normalizedLookupId},upload_id.eq.${normalizedLookupId}`
+      )
       .limit(1);
 
   console.log("LABOR FALLBACK MATCH:", matchingLaborRows);
@@ -30388,12 +30390,15 @@ if (!uploadRow) {
   }
 
   if ((matchingLaborRows || []).length > 0) {
+    const laborMatch = matchingLaborRows[0];
+
     uploadRow = {
-      id: String(uploadId),
+      id: laborMatch.upload_id || laborMatch.id,
+      labor_row_id: laborMatch.id,
       user_id: ownerId,
       upload_type: "labor",
       source_name: "labor_upload",
-      file_name: matchingLaborRows[0]?.file_name || "Labor Upload",
+      file_name: laborMatch.file_name || "Labor Upload",
       synthetic_from_labor: true,
     };
   }
@@ -30424,10 +30429,16 @@ console.log("FINAL LABOR DELETE CHECK:", {
 });
 
 if (finalIsLaborUpload) {
-  const normalizedUploadId = String(uploadId || "")
-  .trim()
-  .replace(/^labor-file-/, "")
-  .replace(/^labor-/, "");
+  const normalizedUploadId = String(
+    uploadRow?.upload_id ||
+      uploadRow?.id ||
+      normalizedLookupId
+  ).trim();
+
+  const laborRowId = String(
+    uploadRow?.labor_row_id ||
+      normalizedLookupId
+  ).trim();
 
   console.log("PERMANENT LABOR DELETE START:", {
     normalizedUploadId,
@@ -30435,14 +30446,16 @@ if (finalIsLaborUpload) {
     uploadRow,
   });
 
-  const {
-    data: matchingLaborRows,
-    error: laborLookupError,
-  } = await supabase
-    .from("labor_uploads")
-    .select("id, user_id, upload_id, file_name")
-    .eq("upload_id", normalizedUploadId)
-    .eq("user_id", ownerId);
+const {
+  data: matchingLaborRows,
+  error: laborLookupError,
+} = await supabase
+  .from("labor_uploads")
+  .select("id, user_id, upload_id, file_name")
+  .eq("user_id", ownerId)
+  .or(
+    `id.eq.${laborRowId},upload_id.eq.${normalizedUploadId}`
+  );
 
   console.log("LABOR ROWS MATCHING DELETE:", matchingLaborRows);
   console.log("LABOR LOOKUP ERROR:", laborLookupError);
@@ -30458,14 +30471,16 @@ if (finalIsLaborUpload) {
   }
 
   const {
-    data: deletedLaborRows,
-    error: laborDeleteError,
-  } = await supabase
-    .from("labor_uploads")
-    .delete()
-    .eq("upload_id", normalizedUploadId)
-    .eq("user_id", ownerId)
-    .select("id, upload_id, file_name");
+  data: deletedLaborRows,
+  error: laborDeleteError,
+} = await supabase
+  .from("labor_uploads")
+  .delete()
+  .eq("user_id", ownerId)
+  .or(
+    `id.eq.${laborRowId},upload_id.eq.${normalizedUploadId}`
+  )
+  .select("id, upload_id, file_name");
 
   console.log(
     "PERMANENT LABOR ROW DELETE RESULT:",
@@ -30491,15 +30506,23 @@ if (finalIsLaborUpload) {
     );
   }
 
-  const {
-    data: deletedUploadRows,
-    error: laborUploadDeleteError,
-  } = await supabase
+  let deletedUploadRows = [];
+let laborUploadDeleteError = null;
+
+const realParentUploadId =
+  matchingLaborRows?.[0]?.upload_id || null;
+
+if (realParentUploadId) {
+  const result = await supabase
     .from("uploads")
     .delete()
-    .eq("id", normalizedUploadId)
+    .eq("id", realParentUploadId)
     .eq("user_id", ownerId)
     .select("id, upload_type, file_name");
+
+  deletedUploadRows = result.data || [];
+  laborUploadDeleteError = result.error;
+}
 
   console.log(
     "PERMANENT UPLOAD RECORD DELETE RESULT:",
