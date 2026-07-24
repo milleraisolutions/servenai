@@ -30606,10 +30606,11 @@ setLaborUploads((previous) =>
   setMessage("Labor import permanently deleted.");
 
   console.log("PERMANENT LABOR DELETE COMPLETE:", {
-    deletedLaborRowCount: deletedLaborRows.length,
-  });
+  deletedLaborRowCount: deletedLaborRows.length,
+});
 
-  return;
+window.location.reload();
+return;
 }
 /*
  * ==========================================
