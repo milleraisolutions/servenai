@@ -15364,41 +15364,149 @@ console.log(
   return {
   user_id: ownerId,
   upload_id: uploadedFileRow.id,
-        employee_name: row.employee_name || row.employee || row.Employee || row["Employee Name"] || row.name || row.Name || "Unknown Employee",
-        role: row.role || row.Role || row.position || row.Position || row.job || row.Job || "Staff",
-        work_date: targetDate,
-        hours_worked: hours,
-        hourly_rate: rate,
-        labor_cost: calculatedCost,
-        sales_generated: Number(row.sales_generated || row.salesGenerated || row.revenue_during_shift || row.revenueDuringShift || row.shift_revenue || row["Shift Revenue"] || row.sales || row.Sales || row.revenue || row.Revenue || 0),
-        orders_handled: Number(row.orders_handled || row.ordersHandled || row.order_count || row["Order Count"] || row.orders || row.Orders || row.transactions || row["Transactions"] || 0),
-        labor_percent: Number(row.labor_percent || row.laborPercent || row["Labor Percent"] || row["Labor %"] || 0),
-        overtime_hours: Number(row.overtime_hours || row.overtimeHours || row["Overtime Hours"] || row.ot_hours || row["OT Hours"] || 0),
-        overtime_cost: Number(row.overtime_cost || row.overtimeCost || row["Overtime Cost"] || row.ot_cost || row["OT Cost"] || 0),
-        clock_in: formatTimestamp(targetDate, rawClockIn),
-       location:
-  row.location ||
-  row.Location ||
-  row.store ||
-  row.Store ||
-  row.restaurant ||
-  row.Restaurant ||
-  uploadLocationName,
 
-location_name:
-  row.location_name ||
-  row["Location Name"] ||
-  row.location ||
-  row.Location ||
-  row.store ||
-  row.Store ||
-  row.restaurant ||
-  row.Restaurant ||
-  uploadLocationName,
-        shift: detectedShift,
-       file_name: laborFileName,
-        source_name: "labor_upload",
-      };
+  employee:
+    row.employee ||
+    row.Employee ||
+    row.employee_name ||
+    row.employeeName ||
+    row["Employee Name"] ||
+    row.name ||
+    row.Name ||
+    "Unknown Employee",
+
+  employee_name:
+    row.employee_name ||
+    row.employeeName ||
+    row.employee ||
+    row.Employee ||
+    row["Employee Name"] ||
+    row.name ||
+    row.Name ||
+    "Unknown Employee",
+
+  role:
+    row.role ||
+    row.Role ||
+    row.position ||
+    row.Position ||
+    row.job ||
+    row.Job ||
+    "Staff",
+
+  department:
+    row.department ||
+    row.Department ||
+    row.dept ||
+    row.Dept ||
+    row.section ||
+    row.Section ||
+    row.team ||
+    row.Team ||
+    row.position ||
+    row.Position ||
+    "Labor",
+
+  work_date: targetDate,
+
+  hours_worked: hours,
+  hourly_rate: rate,
+  labor_cost: calculatedCost,
+
+  sales_generated: Number(
+    row.sales_generated ||
+      row.salesGenerated ||
+      row.revenue_during_shift ||
+      row.revenueDuringShift ||
+      row.shift_revenue ||
+      row["Shift Revenue"] ||
+      row.sales ||
+      row.Sales ||
+      row.revenue ||
+      row.Revenue ||
+      0
+  ),
+
+  orders_handled: Number(
+    row.orders_handled ||
+      row.ordersHandled ||
+      row.order_count ||
+      row["Order Count"] ||
+      row.orders ||
+      row.Orders ||
+      row.transactions ||
+      row["Transactions"] ||
+      0
+  ),
+
+  labor_percent: Number(
+    row.labor_percent ||
+      row.laborPercent ||
+      row["Labor Percent"] ||
+      row["Labor %"] ||
+      0
+  ),
+
+  overtime_hours: Number(
+    row.overtime_hours ||
+      row.overtimeHours ||
+      row["Overtime Hours"] ||
+      row.ot_hours ||
+      row["OT Hours"] ||
+      0
+  ),
+
+  overtime_cost: Number(
+    row.overtime_cost ||
+      row.overtimeCost ||
+      row["Overtime Cost"] ||
+      row.ot_cost ||
+      row["OT Cost"] ||
+      0
+  ),
+
+  clock_in: formatTimestamp(targetDate, rawClockIn),
+
+  clock_out: formatTimestamp(targetDate, rawClockOut),
+
+  location_id:
+    row.location_id ||
+    row.locationId ||
+    row["Location ID"] ||
+    selectedUploadLocationId ||
+    null,
+
+  location:
+    row.location ||
+    row.Location ||
+    row.location_name ||
+    row["Location Name"] ||
+    row.store ||
+    row.Store ||
+    row.restaurant ||
+    row.Restaurant ||
+    uploadLocationName ||
+    assignedLocation ||
+    null,
+
+  location_name:
+    row.location_name ||
+    row["Location Name"] ||
+    row.location ||
+    row.Location ||
+    row.store ||
+    row.Store ||
+    row.restaurant ||
+    row.Restaurant ||
+    uploadLocationName ||
+    assignedLocation ||
+    null,
+
+  shift: detectedShift,
+
+  file_name: laborFileName,
+  source_name: "labor_upload",
+};
     });
 
     console.log(`PREPPED ${rowsToInsert.length} ROWS FOR DATABASE. SAMPLE:`, rowsToInsert[0]);
