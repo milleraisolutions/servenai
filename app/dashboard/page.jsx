@@ -31548,7 +31548,23 @@ const uploadChecklist = [
   { label: "Locations", complete: (locations || []).length > 0 },
 ];
 
+const dedicatedUploadTypes = [
+  "pos",
+  "labor",
+  "inventory",
+  "menu_items",
+  "ingredients",
+  "employee_shifts",
+  "batch_prep",
+  "beverage",
+  "invoices",
+];
 
+const usesDedicatedUploadCard = dedicatedUploadTypes.includes(
+  String(pendingUploadSummary?.uploadType || "")
+    .trim()
+    .toLowerCase()
+);
 
 
 
@@ -33049,12 +33065,7 @@ console.log("DELETE BUTTON ID:", item?.id);
 </div>
 
 {/* UPLOAD SUMMARY + CONFIRM */}
-{pendingUploadSummary &&
-  !["labor", "inventory"].includes(
-    String(pendingUploadSummary.uploadType || "")
-      .trim()
-      .toLowerCase()
-  ) && (
+{pendingUploadSummary && !usesDedicatedUploadCard && (
   <div
     style={{
       marginTop: "14px",
