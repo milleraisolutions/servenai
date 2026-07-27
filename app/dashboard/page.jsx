@@ -32339,7 +32339,75 @@ return (
 >
   Upload Inventory
 </button>
+{pendingUploadSummary?.uploadType === "inventory" && (
+  <div
+    style={{
+      marginTop: "10px",
+      padding: "12px",
+      background: "rgba(15,23,42,0.96)",
+      border: "1px solid rgba(148,163,184,0.22)",
+      borderRadius: "12px",
+      display: "flex",
+      flexDirection: "column",
+      gap: "10px",
+      minWidth: 0,
+    }}
+  >
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "8px",
+        color: "#e2e8f0",
+        minWidth: 0,
+      }}
+    >
+      <span>📄</span>
 
+      <strong
+        style={{
+          flex: 1,
+          minWidth: 0,
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {pendingUploadSummary.fileName || "Inventory file"}
+      </strong>
+
+      <span
+        style={{
+          color: "#94a3b8",
+          flexShrink: 0,
+        }}
+      >
+        {Number(
+          pendingUploadSummary.rowCount || 0
+        ).toLocaleString()}{" "}
+        rows
+      </span>
+    </div>
+
+    <button
+      type="button"
+      onClick={handleImportInventory}
+      style={{
+        width: "100%",
+        padding: "10px 12px",
+        borderRadius: "10px",
+        background:
+          "linear-gradient(135deg, #4f46e5, #7c3aed)",
+        color: "#fff",
+        border: "none",
+        fontWeight: "700",
+        cursor: "pointer",
+      }}
+    >
+      Confirm & Process Inventory
+    </button>
+  </div>
+)}
 <div
   style={{
     display: "flex",
@@ -32981,7 +33049,12 @@ console.log("DELETE BUTTON ID:", item?.id);
 </div>
 
 {/* UPLOAD SUMMARY + CONFIRM */}
-{pendingUploadSummary && (
+{pendingUploadSummary &&
+  !["labor", "inventory"].includes(
+    String(pendingUploadSummary.uploadType || "")
+      .trim()
+      .toLowerCase()
+  ) && (
   <div
     style={{
       marginTop: "14px",
