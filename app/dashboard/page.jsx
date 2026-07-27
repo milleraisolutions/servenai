@@ -15322,6 +15322,19 @@ console.log(
 
     // 3. Map Rows Safely
     const rowsToInsert = laborRows.map((row, index) => {
+      const resolvedLaborLocation =
+  row.location_name ||
+  row["Location Name"] ||
+  row.location ||
+  row.Location ||
+  uploadLocationName ||
+  (assignedLocation && assignedLocation !== "All Locations"
+    ? assignedLocation
+    : null) ||
+  (activeLocation && activeLocation !== "All Locations"
+    ? activeLocation
+    : null) ||
+  "Main Location";
       // Extract shift markers
       const rawShift = row.shift || row.Shift || row.shift_name || row["Shift Name"] || 
                         row.daypart || row.Daypart || row.period || row.Period || 
@@ -15486,32 +15499,9 @@ const validLocationId =
 
 location_id: validLocationId,
 
-  location:
-    row.location ||
-    row.Location ||
-    row.location_name ||
-    row["Location Name"] ||
-    row.store ||
-    row.Store ||
-    row.restaurant ||
-    row.Restaurant ||
-    uploadLocationName ||
-    assignedLocation ||
-    null,
+ location: resolvedLaborLocation,
 
-  location_name:
-    row.location_name ||
-    row["Location Name"] ||
-    row.location ||
-    row.Location ||
-    row.store ||
-    row.Store ||
-    row.restaurant ||
-    row.Restaurant ||
-    uploadLocationName ||
-    assignedLocation ||
-    null,
-
+location_name: resolvedLaborLocation,
   shift: detectedShift,
 
   file_name: laborFileName,
@@ -15627,7 +15617,18 @@ if (refreshError) {
     );
   });
 } else {
-  setLaborData(refreshedLaborRows);
+setLaborData((previous) => {
+  const existing = Array.isArray(previous) ? previous : [];
+  const incoming = insertedLaborRows || [];
+
+  const merged = [...incoming, ...existing];
+
+  return merged.filter(
+    (row, index, array) =>
+      index ===
+      array.findIndex((candidate) => candidate.id === row.id)
+  );
+});
 }
 
 
