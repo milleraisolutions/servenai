@@ -17955,40 +17955,58 @@ const loadClientImports = async () => {
      * Add labor records only when there is no matching
      * uploads-table record.
      */
-    laborRows.forEach((row) => {
-      const uploadId = row.upload_id || null;
+  /*
+ * Only create Recent Import cards from labor rows
+ * that are linked to a real uploads parent record.
+ *
+ * Old labor rows with upload_id = null are ignored here
+ * so they cannot create broken synthetic delete IDs.
+ */
+const groupedLaborUploads = new Map();
 
-      const fileName =
-        row.file_name || "Labor Upload";
+(laborRows || []).forEach((row) => {
+  const uploadId = String(row.upload_id || "").trim();
 
-      addImport({
-        id:
-          uploadId ||
-          `labor-${row.id}`,
+  // Ignore legacy unlinked rows.
+  if (!uploadId) {
+    return;
+  }
 
-        upload_id: uploadId,
-        file_name: fileName,
-        upload_type: "labor",
-        source_name: "labor_upload",
-
-        row_count: Number(
-          row.row_count ||
-            (Array.isArray(row.rows)
-              ? row.rows.length
-              : 1)
-        ),
-
-        created_at:
-          row.created_at ||
-          new Date().toISOString(),
-
-        synthetic_from_labor: true,
-
-        merge_key: uploadId
-          ? `upload-${uploadId}`
-          : `labor-${row.id}`,
-      });
+  if (!groupedLaborUploads.has(uploadId)) {
+    groupedLaborUploads.set(uploadId, {
+      id: uploadId,
+      upload_id: uploadId,
+      file_name: row.file_name || "Labor Upload",
+      upload_type: "labor",
+      source_name: "labor_upload",
+      row_count: 0,
+      created_at: row.created_at || new Date().toISOString(),
+      synthetic_from_labor: false,
+      merge_key: `upload-${uploadId}`,
     });
+  }
+
+  const laborImport = groupedLaborUploads.get(uploadId);
+
+  laborImport.row_count += Number(
+    row.row_count ||
+      (Array.isArray(row.rows)
+        ? row.rows.length
+        : 1)
+  );
+
+  if (
+    row.created_at &&
+    new Date(row.created_at) >
+      new Date(laborImport.created_at)
+  ) {
+    laborImport.created_at = row.created_at;
+  }
+});
+
+groupedLaborUploads.forEach((laborImport) => {
+  addImport(laborImport);
+});
 
     /*
      * Group older POS rows by upload_id.
