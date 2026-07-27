@@ -15361,6 +15361,21 @@ console.log(
       const rawClockIn = row.clock_in || row.clockIn || row["Clock In"] || row.start_time || row["Start Time"] || row.in_time || row["In Time"];
       const rawClockOut = row.clock_out || row.clockOut || row["Clock Out"] || row.end_time || row["End Time"] || row.out_time || row["Out Time"];
 
+      const rawLocationId =
+  row.location_id ||
+  row.locationId ||
+  row["Location ID"] ||
+  selectedUploadLocationId ||
+  null;
+
+const validLocationId =
+  rawLocationId &&
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    String(rawLocationId)
+  )
+    ? String(rawLocationId)
+    : null;
+
   return {
   user_id: ownerId,
   upload_id: uploadedFileRow.id,
@@ -15469,12 +15484,7 @@ console.log(
 
   clock_out: formatTimestamp(targetDate, rawClockOut),
 
-  location_id:
-    row.location_id ||
-    row.locationId ||
-    row["Location ID"] ||
-    selectedUploadLocationId ||
-    null,
+location_id: validLocationId,
 
   location:
     row.location ||
@@ -15512,11 +15522,16 @@ console.log(
     console.log(`PREPPED ${rowsToInsert.length} ROWS FOR DATABASE. SAMPLE:`, rowsToInsert[0]);
 
     // 4. Supabase DB Payload dispatch
+    console.log("🚀 STARTING labor_uploads INSERT");
+    
     const { data: insertedLaborRows, error: dbError } = await supabase
       .from("labor_uploads")
       .insert(rowsToInsert)
       .select();
-
+console.log("✅ FINISHED labor_uploads INSERT", {
+  insertedCount: insertedLaborRows?.length || 0,
+  dbError,
+});
     if (dbError) {
       console.error("Supabase Database Insertion Error:", dbError);
       setMessage(`Import failed: ${dbError.message || "Check Row Level Security (RLS) policies."}`);
