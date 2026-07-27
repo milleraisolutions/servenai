@@ -15650,7 +15650,13 @@ setRecentUploads((previous) => [
       item.id !== newLaborUpload.id
   ),
 ]);
+// ✅ Finish the upload immediately.
+// Background refreshes can continue after this.
+setLaborUploadLoading(false);
 
+setMessage(
+  `Successfully imported ${rowsToInsert.length} labor rows.`
+);
 setPendingUploadSummary(null);
 setPendingUploadRows([]);
 pendingUploadRowsRef.current = [];
@@ -15661,9 +15667,6 @@ if (laborUploadInputRef.current) {
   laborUploadInputRef.current.value = "";
 }
 
-setMessage(
-  `Successfully imported ${rowsToInsert.length} labor rows.`
-);
 
 setTimeout(() => setMessage(""), 3000);
 
@@ -15678,7 +15681,10 @@ setTimeout(() => setMessage(""), 3000);
       "An unexpected labor processing error occurred."
   );
 } finally {
-  setLaborUploadLoading(false);
+  // Already cleared after a successful upload.
+  if (laborUploadLoading) {
+    setLaborUploadLoading(false);
+  }
 }
 };
 const handleImportBatchPrep = async (
