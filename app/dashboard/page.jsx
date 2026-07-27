@@ -15255,6 +15255,46 @@ const ownerId = dataOwnerId || user.id;
 
 const uploadLocationName =
   activeLocation !== "all" ? activeLocation : assignedLocation || null;
+  const laborFileName =
+  pendingUploadSummary?.fileName ||
+  selectedLaborFile?.name ||
+  "Labor Upload";
+
+const {
+  data: uploadedFileRow,
+  error: uploadInsertError,
+} = await supabase
+  .from("uploads")
+  .insert({
+    user_id: ownerId,
+    upload_type: "labor",
+    source_name: "labor_upload",
+    file_name: laborFileName,
+    row_count: laborRows.length,
+    archived: false,
+  })
+  .select("id, file_name, upload_type")
+  .single();
+
+if (uploadInsertError) {
+  console.error(
+    "LABOR PARENT UPLOAD INSERT ERROR:",
+    uploadInsertError
+  );
+
+  throw uploadInsertError;
+}
+
+if (!uploadedFileRow?.id) {
+  throw new Error(
+    "The labor parent upload record was not created."
+  );
+}
+
+console.log(
+  "LABOR PARENT UPLOAD CREATED:",
+  uploadedFileRow
+);
     // --- Helper Sanitization Functions ---
     const cleanDate = (value) => {
       if (!value || String(value).trim() === "") {
