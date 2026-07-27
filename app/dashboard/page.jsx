@@ -15322,18 +15322,24 @@ console.log(
 
     // 3. Map Rows Safely
     const rowsToInsert = laborRows.map((row, index) => {
-      const resolvedLaborLocation =
+     const isRealLocation = (value) => {
+  const normalized = String(value || "").trim().toLowerCase();
+
+  return (
+    normalized &&
+    normalized !== "all" &&
+    normalized !== "all locations"
+  );
+};
+
+const resolvedLaborLocation =
   row.location_name ||
   row["Location Name"] ||
   row.location ||
   row.Location ||
-  uploadLocationName ||
-  (assignedLocation && assignedLocation !== "All Locations"
-    ? assignedLocation
-    : null) ||
-  (activeLocation && activeLocation !== "All Locations"
-    ? activeLocation
-    : null) ||
+  (isRealLocation(uploadLocationName) ? uploadLocationName : null) ||
+  (isRealLocation(assignedLocation) ? assignedLocation : null) ||
+  (isRealLocation(activeLocation) ? activeLocation : null) ||
   "Main Location";
       // Extract shift markers
       const rawShift = row.shift || row.Shift || row.shift_name || row["Shift Name"] || 
