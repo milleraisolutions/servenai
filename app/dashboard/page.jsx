@@ -15507,11 +15507,9 @@ if (refreshError) {
   setLaborData(refreshedLaborRows);
 }
 
-const firstInsertedId =
-  insertedLaborRows?.[0]?.id || Date.now();
 
 const newLaborUpload = {
-  id: `labor-${firstInsertedId}`,
+ id: uploadedFileRow.id,
   file_name:
     pendingUploadSummary?.fileName ||
     selectedLaborFile?.name ||
