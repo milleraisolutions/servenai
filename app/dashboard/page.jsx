@@ -6503,9 +6503,7 @@ console.log("FIRST ROW:", safeRows[0]);
 
  setMessage(`Importing ${safeRows.length} POS sales rows...`);
 
-setTimeout(() => {
-  handleImportMappedSales();
-}, 0);
+await handleImportMappedSales(safeRows);
 
 } else if (activeUploadType === "menu_items") {
   const {
@@ -6907,7 +6905,7 @@ e.target.value = "";
 
 console.log("TRACE AFTER HANDLE FILE UPLOAD");
 console.log("TRACE BEFORE IMPORT MAPPED SALES");
-const handleImportMappedSales = async () => {
+const handleImportMappedSales = async (rowsOverride = null) => {
   console.trace("🚨 handleImportMappedSales CALLED");
   console.log("POS IMPORT CALL STATE:", {
     rowsCount: rows?.length || 0,
@@ -6936,12 +6934,17 @@ const handleImportMappedSales = async () => {
       return;
     }
 
-    if (!rows?.length) {
-      setMessage("No rows to import");
-      return;
-    }
-
-    const salesRows = rows
+    if (!posRows.length) {
+  setMessage("No rows to import");
+  return;
+}
+const posRows =
+  rowsOverride?.length
+    ? rowsOverride
+    : rows?.length
+    ? rows
+    : pendingUploadSummary?.rows || [];
+    const salesRows = posRows
       .map((row) => {
         const rawDate =
           row.sale_date ||
