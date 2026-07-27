@@ -15361,8 +15361,9 @@ console.log(
       const rawClockIn = row.clock_in || row.clockIn || row["Clock In"] || row.start_time || row["Start Time"] || row.in_time || row["In Time"];
       const rawClockOut = row.clock_out || row.clockOut || row["Clock Out"] || row.end_time || row["End Time"] || row.out_time || row["Out Time"];
 
-      return {
-       user_id: ownerId,
+  return {
+  user_id: ownerId,
+  upload_id: uploadedFileRow.id,
         employee_name: row.employee_name || row.employee || row.Employee || row["Employee Name"] || row.name || row.Name || "Unknown Employee",
         role: row.role || row.Role || row.position || row.Position || row.job || row.Job || "Staff",
         work_date: targetDate,
@@ -15395,7 +15396,7 @@ location_name:
   row.Restaurant ||
   uploadLocationName,
         shift: detectedShift,
-        file_name: pendingUploadSummary?.fileName || null,
+       file_name: laborFileName,
         source_name: "labor_upload",
       };
     });
