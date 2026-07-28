@@ -33152,7 +33152,6 @@ const importHandlers = {
   inventory: handleImportInventory,
   invoices: handleImportInvoices,
   batch_prep: handleImportBatchPrep,
-  pos: handleImportMappedSales,
 };
 
 const selectedHandler = importHandlers[currentType];
