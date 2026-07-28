@@ -7133,9 +7133,36 @@ setPendingUploadSummary(null);
 setRows([]);
 setPendingUploadRows([]);
 } catch (error) {
-  console.error("Import failed:", error);
-  alert(`Import failed: ${error.message}`);
-  setMessage("Import failed");
+  console.error("POS IMPORT FULL ERROR:", {
+    message: error?.message,
+    details: error?.details,
+    hint: error?.hint,
+    code: error?.code,
+    stack: error?.stack,
+    error,
+  });
+
+  alert(
+    JSON.stringify(
+      {
+        message: error?.message,
+        details: error?.details,
+        hint: error?.hint,
+        code: error?.code,
+      },
+      null,
+      2
+    )
+  );
+
+  setMessage(
+    `Import failed: ${
+      error?.message ||
+      error?.details ||
+      error?.hint ||
+      "Unknown error"
+    }`
+  );
 } finally {
    console.log("POS IMPORT FINALLY - unlocked");
   importLockRef.current = false;
