@@ -26968,7 +26968,28 @@ shift_end:
           });
 
           console.log("EMPLOYEE SHIFT shiftsToInsert:", shiftsToInsert);
+console.log("RAW EMPLOYEE SHIFT ROWS:", rows);
 
+console.log(
+  "EMPLOYEE SHIFT MAPPED TIMES:",
+  shiftsToInsert.map((shift) => ({
+    employee_name: shift.employee_name,
+    shift_date: shift.shift_date,
+    shift_start: shift.shift_start,
+    shift_end: shift.shift_end,
+    upload_id: shift.upload_id,
+  }))
+);
+console.log(
+  "EMPLOYEE SHIFT DATABASE RESULT:",
+  insertedShifts?.map((shift) => ({
+    id: shift.id,
+    employee_name: shift.employee_name,
+    shift_start: shift.shift_start,
+    shift_end: shift.shift_end,
+    upload_id: shift.upload_id,
+  }))
+);
           const { data: insertedShifts, error: shiftsError } = await supabase
             .from("employee_shifts")
             .insert(shiftsToInsert)
