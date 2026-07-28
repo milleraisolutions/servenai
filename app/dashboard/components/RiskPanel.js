@@ -1,6 +1,7 @@
 "use client";
 
 export default function RiskPanel({
+  canSeeOwnerDashboard,
   riskPanelCardStyle,
   riskStatCardStyle,
   sortedRiskClients,
@@ -15,7 +16,6 @@ export default function RiskPanel({
   markRiskClientReviewed,
   isRiskClientReviewed,
 }) {
-  const isOwner = true;
   return (
     <div style={riskPanelCardStyle}>
       {/* 🔥 RISK PANEL */}

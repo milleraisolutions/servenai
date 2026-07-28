@@ -6503,7 +6503,9 @@ console.log("FIRST ROW:", safeRows[0]);
 
  setMessage(`Importing ${safeRows.length} POS sales rows...`);
 
-await handleImportMappedSales(safeRows);
+setTimeout(() => {
+  handleImportMappedSales(safeRows);
+}, 0);
 
 } else if (activeUploadType === "menu_items") {
   const {
@@ -35146,21 +35148,22 @@ const color = !hasScore
   </div>
 </div>
 {isServenOwner && (
-  <RiskPanel
-    riskPanelCardStyle={riskPanelCardStyle}
-    riskStatCardStyle={riskStatCardStyle}
-    sortedRiskClients={sortedRiskClients}
-    highRiskClients={highRiskClients}
-    watchClients={watchClients}
-    healthyClients={healthyClients}
-    selectedRiskClient={selectedRiskClient}
-    setSelectedRiskClient={setSelectedRiskClient}
-    getRiskStatusText={getRiskStatusText}
-    getRiskArrow={getRiskArrow}
-    openRiskEmailModal={openRiskEmailModal}
-    markRiskClientReviewed={markRiskClientReviewed}
-    isRiskClientReviewed={isRiskClientReviewed}
-  />
+ <RiskPanel
+  canSeeOwnerDashboard={canSeeOwnerDashboard}
+  riskPanelCardStyle={riskPanelCardStyle}
+  riskStatCardStyle={riskStatCardStyle}
+  sortedRiskClients={sortedRiskClients}
+  highRiskClients={highRiskClients}
+  watchClients={watchClients}
+  healthyClients={healthyClients}
+  selectedRiskClient={selectedRiskClient}
+  setSelectedRiskClient={setSelectedRiskClient}
+  getRiskStatusText={getRiskStatusText}
+  getRiskArrow={getRiskArrow}
+  openRiskEmailModal={openRiskEmailModal}
+  markRiskClientReviewed={markRiskClientReviewed}
+  isRiskClientReviewed={isRiskClientReviewed}
+/>
 )}
 </div>
 {hasFullRecoveryData && (
