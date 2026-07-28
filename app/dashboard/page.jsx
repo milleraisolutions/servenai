@@ -6936,16 +6936,17 @@ const handleImportMappedSales = async (rowsOverride = null) => {
       return;
     }
 
-    if (!posRows.length) {
-  setMessage("No rows to import");
-  return;
-}
-const posRows =
+  const posRows =
   rowsOverride?.length
     ? rowsOverride
     : rows?.length
     ? rows
     : pendingUploadSummary?.rows || [];
+
+if (!posRows.length) {
+  setMessage("No rows to import");
+  return;
+}
     const salesRows = posRows
       .map((row) => {
         const rawDate =
