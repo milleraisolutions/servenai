@@ -69,10 +69,7 @@ async function getAuthenticatedUser(req) {
   NORMAL CHILD TABLE DELETE
   ==========================================
 */
-async function safeDeleteByUploadId(
-  uploadId,
-  ownerId
-) {
+async function safeDeleteByUploadId(uploadId, ownerId) {
   const deleteSteps = [
     ["sales", "upload_id"],
     ["menu_items", "upload_id"],
@@ -92,26 +89,41 @@ async function safeDeleteByUploadId(
 
   const results = [];
 
+  console.log("DELETE API START:", {
+    uploadId,
+    ownerId,
+  });
+
   for (const [table, column] of deleteSteps) {
+    console.log(`DELETE API STARTING ${table}:`, {
+      table,
+      column,
+      uploadId,
+      ownerId,
+    });
+
     let query = supabase
       .from(table)
       .delete()
       .eq(column, uploadId);
 
-    /*
-      Add user ownership where these tables normally
-      include user_id. If a table doesn't have user_id,
-      the fallback query below handles it.
-    */
     if (ownerId) {
       query = query.eq("user_id", ownerId);
     }
 
     let { data, error } = await query.select("*");
 
+    console.log(`DELETE API ${table} RESULT:`, {
+      uploadId,
+      ownerId,
+      deletedRows: data,
+      deletedCount: data?.length || 0,
+      error,
+    });
+
     /*
-      Some older tables may not contain user_id.
-      Retry using upload_id only when that happens.
+      Retry without user_id only when Supabase says
+      the table does not contain a user_id column.
     */
     if (
       error &&
@@ -119,6 +131,10 @@ async function safeDeleteByUploadId(
         .toLowerCase()
         .includes("user_id")
     ) {
+      console.warn(
+        `DELETE API ${table}: retrying without user_id`
+      );
+
       const fallbackResult = await supabase
         .from(table)
         .delete()
@@ -127,29 +143,38 @@ async function safeDeleteByUploadId(
 
       data = fallbackResult.data;
       error = fallbackResult.error;
+
+      console.log(`DELETE API ${table} FALLBACK RESULT:`, {
+        uploadId,
+        deletedRows: data,
+        deletedCount: data?.length || 0,
+        error,
+      });
     }
 
     if (error) {
-  console.error(
-    `DELETE API ${table} FAILED:`,
-    error
-  );
+      console.error(`DELETE API ${table} FAILED:`, error);
 
-  throw new Error(
-    `${table} delete failed: ${error.message}`
-  );
-}
+      throw new Error(
+        `${table} delete failed: ${error.message}`
+      );
+    }
 
     results.push({
       table,
       success: true,
       deletedCount: data?.length || 0,
     });
+
+    console.log(`DELETE API ${table} COMPLETE:`, {
+      deletedCount: data?.length || 0,
+    });
   }
+
+  console.log("DELETE API ALL CHILD TABLES COMPLETE:", results);
 
   return results;
 }
-
 /*
   ==========================================
   INVOICE DELETE
