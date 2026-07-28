@@ -7063,32 +7063,61 @@ location_id: selectedUploadLocationId || null,
       setMessage("No valid sales rows found. Check your date/revenue mapping.");
       return;
     }
+const uploadPayload = {
+  user_id: user.id,
+  file_name:
+    uploadedFileName ||
+    pendingUploadSummary?.fileName ||
+    "POS Upload",
+  source_name: selectedDataSource || "Manual Upload",
+  row_count: Number(salesRows.length || 0),
+  upload_type: "pos",
+  status: "completed",
+  location_id: selectedUploadLocationId || null,
+};
 
-    const { data: uploadedFileRow, error: uploadInsertError } = await supabase
-      .from("uploads")
-      .insert([
-        {
-          user_id: user.id,
-          file_name:
-            uploadedFileName ||
-            pendingUploadSummary?.fileName ||
-            "POS Upload",
-          source_name: selectedDataSource || "Manual Upload",
-          row_count: Number(salesRows.length || 0),
-          upload_type: "pos",
-          status: "completed",
-          location_id: selectedUploadLocationId || null,
-        },
-      ])
-      .select()
-      .single();
+console.log("POS UPLOAD PAYLOAD:", uploadPayload);
 
-    if (uploadInsertError) {
-      console.error("Uploads insert failed:", uploadInsertError);
-      alert(`POS upload log failed: ${uploadInsertError.message}`);
-      setMessage(uploadInsertError?.message || "Upload failed");
-      return;
-    }
+const { data: uploadedFileRow, error: uploadInsertError } = await supabase
+  .from("uploads")
+  .insert([uploadPayload])
+  .select("*")
+  .single();
+
+console.log("POS UPLOAD INSERT RESULT:", {
+  uploadedFileRow,
+  uploadInsertError,
+});
+
+if (uploadInsertError) {
+  console.error("Uploads insert failed:", {
+    message: uploadInsertError?.message,
+    details: uploadInsertError?.details,
+    hint: uploadInsertError?.hint,
+    code: uploadInsertError?.code,
+    fullError: uploadInsertError,
+  });
+
+  alert(
+    `POS upload log failed: ${
+      uploadInsertError?.message ||
+      uploadInsertError?.details ||
+      "Unknown upload error"
+    }`
+  );
+
+  setMessage(
+    uploadInsertError?.message ||
+      uploadInsertError?.details ||
+      "Upload failed"
+  );
+
+  return;
+}
+
+if (!uploadedFileRow?.id) {
+  throw new Error("Upload record was created but no upload ID was returned.");
+}
 
     const finalSalesRows = salesRows.map((row) => ({
       ...row,
