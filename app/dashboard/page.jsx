@@ -31153,7 +31153,13 @@ const deleteSteps = [
 ];
 
 console.log("DELETE FINAL ID USED:", deleteUploadId);
+const { data: menuRows } = await supabase
+  .from("menu_items")
+  .select("id, upload_id, user_id, name")
+  .eq("user_id", ownerId);
 
+console.log("MENU ROWS BEFORE DELETE:", menuRows);
+console.log("DELETE ID:", deleteUploadId);
 for (const [table, column] of deleteSteps) {
   console.log(`Deleting ${table}...`);
 

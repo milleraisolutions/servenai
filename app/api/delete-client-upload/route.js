@@ -130,19 +130,15 @@ async function safeDeleteByUploadId(
     }
 
     if (error) {
-      console.warn(
-        `DELETE API ${table} skipped/failed:`,
-        error
-      );
+  console.error(
+    `DELETE API ${table} FAILED:`,
+    error
+  );
 
-      results.push({
-        table,
-        success: false,
-        error: error.message,
-      });
-
-      continue;
-    }
+  throw new Error(
+    `${table} delete failed: ${error.message}`
+  );
+}
 
     results.push({
       table,
