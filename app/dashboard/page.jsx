@@ -30162,18 +30162,26 @@ const handleDeleteUpload = async (uploadId) => {
   setMessage("Deleting import...");
 
 try {
+let ownerId = dataOwnerId || null;
+
+if (!ownerId) {
   const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
+    data: { session },
+    error: sessionError,
+  } = await supabase.auth.getSession();
 
-  if (userError) throw userError;
-
-  const ownerId = dataOwnerId || user?.id;
-
-  if (!ownerId) {
-    throw new Error("Could not identify the data owner.");
+  if (sessionError) {
+    throw sessionError;
   }
+
+  ownerId = session?.user?.id || null;
+}
+
+if (!ownerId) {
+  throw new Error("Could not identify the data owner.");
+}
+
+console.log("DELETE OWNER ID:", ownerId);
 
   const allImports = [
     ...(clientImports || []),
@@ -30584,17 +30592,6 @@ try {
   }
 
 // ✅ NORMAL UPLOAD LOOKUP
-const {
-  data: { user: currentUser },
-  error: currentUserError,
-} = await supabase.auth.getUser();
-
-if (currentUserError) {
-  throw currentUserError;
-}
-
-
-
 if (!ownerId) {
   throw new Error("Could not identify the data owner.");
 }
