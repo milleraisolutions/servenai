@@ -26931,20 +26931,25 @@ let importCommitted = false;
                 row.work_date ||
                 row["Work Date"] ||
                 null,
+shift_start:
+  row.shift_start ||
+  row["Shift Start"] ||
+  row.clock_in ||
+  row["Clock In"] ||
+  row["clock in"] ||
+  row.start ||
+  row.Start ||
+  null,
 
-              shift_start:
-                row.shift_start ||
-                row["Shift Start"] ||
-                row.start ||
-                row.Start ||
-                null,
-
-              shift_end:
-                row.shift_end ||
-                row["Shift End"] ||
-                row.end ||
-                row.End ||
-                null,
+shift_end:
+  row.shift_end ||
+  row["Shift End"] ||
+  row.clock_out ||
+  row["Clock Out"] ||
+  row["clock out"] ||
+  row.end ||
+  row.End ||
+  null,
 
               hours_worked: hoursWorked,
 
@@ -30219,14 +30224,14 @@ console.log("DELETE OWNER ID:", ownerId);
     }
 
     const {
-      data: deletedShiftRows,
-      error: shiftsDeleteError,
-    } = await supabase
-      .from("employee_shifts")
-      .delete()
-      .eq("user_id", ownerId)
-      .ilike("file_name", fileName)
-      .select("id, upload_id, file_name");
+  data: deletedShiftRows,
+  error: shiftsDeleteError,
+} = await supabase
+  .from("employee_shifts")
+  .delete()
+  .eq("upload_id", deleteUploadId)
+  .eq("user_id", ownerId)
+  .select("id, upload_id, file_name");
 
     console.log("DELETED EMPLOYEE SHIFT ROWS:", deletedShiftRows);
     console.log("EMPLOYEE SHIFT DELETE ERROR:", shiftsDeleteError);
