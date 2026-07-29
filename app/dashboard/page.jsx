@@ -27099,22 +27099,14 @@ useEffect(() => {
     const resolvedUserId = dataOwnerId || user?.id;
 
     if (!resolvedUserId) {
-      console.log(
-        "EMPLOYEE SHIFT LOAD SKIPPED: user ID not ready"
-      );
+      console.log("EMPLOYEE SHIFT LOAD SKIPPED: user ID not ready");
       return;
     }
 
     try {
-      console.log(
-        "EMPLOYEE SHIFT LOAD USER ID:",
-        resolvedUserId
-      );
+      console.log("EMPLOYEE SHIFT LOAD USER ID:", resolvedUserId);
 
-      const [
-        employeesResult,
-        shiftsResult,
-      ] = await Promise.all([
+      const [employeesResult, shiftsResult] = await Promise.all([
         supabase
           .from("employees")
           .select("*")
@@ -27135,10 +27127,7 @@ useEffect(() => {
       if (cancelled) return;
 
       if (employeesResult.error) {
-        console.error(
-          "EMPLOYEES LOAD ERROR:",
-          employeesResult.error
-        );
+        console.error("EMPLOYEES LOAD ERROR:", employeesResult.error);
       } else {
         console.log(
           "EMPLOYEES LOAD COUNT:",
