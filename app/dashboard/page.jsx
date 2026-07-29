@@ -31421,7 +31421,10 @@ try {
 
 console.log("GENERIC DELETE API STATUS:", deleteResponse.status);
 console.log("GENERIC DELETE API RESULT:", deleteResult);
-
+console.log(
+  "FULL CHILD DELETE RESULTS:",
+  JSON.stringify(deleteResult?.childDeleteResults || [], null, 2)
+);
 if (!deleteResponse.ok || !deleteResult?.success) {
   throw new Error(
     deleteResult?.error ||
