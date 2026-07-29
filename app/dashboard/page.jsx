@@ -30629,6 +30629,90 @@ let { data: uploadRow, error: uploadLookupError } = await supabase
 
 console.log("DELETE UPLOAD ROW:", uploadRow);
 console.log("DELETE LOOKUP ERROR:", uploadLookupError);
+const isBatchPrepUpload =
+  String(uploadRow?.upload_type || "").toLowerCase() === "batch_prep" ||
+  String(uploadRow?.source_name || "").toLowerCase() ===
+    "batch_prep_upload";
+
+if (isBatchPrepUpload) {
+  const realUploadId = String(uploadRow?.id || uploadId).trim();
+
+  console.log("NORMAL UUID BATCH PREP DELETE:", {
+    realUploadId,
+    ownerId,
+    uploadRow,
+  });
+
+  const {
+    data: deletedBatchPrepRows,
+    error: batchPrepDeleteError,
+  } = await supabase
+    .from("batch_prep_data")
+    .delete()
+    .eq("upload_id", realUploadId)
+    .eq("user_id", ownerId)
+    .select("id, upload_id, file_name");
+
+  console.log(
+    "DELETED BATCH PREP DATA ROWS:",
+    deletedBatchPrepRows
+  );
+
+  console.log(
+    "BATCH PREP DATA DELETE ERROR:",
+    batchPrepDeleteError
+  );
+
+  if (batchPrepDeleteError) {
+    throw batchPrepDeleteError;
+  }
+
+  const {
+    data: deletedUploadRows,
+    error: uploadDeleteError,
+  } = await supabase
+    .from("uploads")
+    .delete()
+    .eq("id", realUploadId)
+    .eq("user_id", ownerId)
+    .select("id, upload_type, file_name");
+
+  console.log(
+    "DELETED BATCH PREP UPLOAD ROW:",
+    deletedUploadRows
+  );
+
+  console.log(
+    "BATCH PREP UPLOAD DELETE ERROR:",
+    uploadDeleteError
+  );
+
+  if (uploadDeleteError) {
+    throw uploadDeleteError;
+  }
+
+  setBatchPrepData((previous) =>
+    (previous || []).filter(
+      (row) =>
+        String(row.upload_id || "") !== realUploadId
+    )
+  );
+
+  setClientImports((previous) =>
+    (previous || []).filter(
+      (item) => String(item.id || "") !== realUploadId
+    )
+  );
+
+  setRecentUploads((previous) =>
+    (previous || []).filter(
+      (item) => String(item.id || "") !== realUploadId
+    )
+  );
+
+  setMessage("Batch prep import deleted.");
+  return;
+}
 const isEmployeeShiftUpload =
   String(uploadRow?.upload_type || "").toLowerCase() === "employee_shifts" ||
   String(uploadRow?.source_name || "").toLowerCase() === "employee_shift_upload";
@@ -31203,7 +31287,6 @@ const deleteSteps = [
   ["inventory_items", "upload_id"],
   ["beverage_items", "upload_id"],
   ["beverage_usage", "upload_id"],
-  ["batch_prep_data", "upload_id"],
   ["recipe_ingredients", "upload_id"],
   ["recipes", "upload_id"],
   ["restaurant_customers", "upload_id"],
