@@ -31372,51 +31372,61 @@ if (isPosUpload) {
   return;
 }
 
-// ✅ GENERAL CHILD TABLE DELETE
-const deleteSteps = [
-  ["sales", "upload_id"],
-  ["menu_items", "upload_id"],
-  ["ingredients", "upload_id"],
-  ["inventory_items", "upload_id"],
-  ["beverage_items", "upload_id"],
-  ["beverage_usage", "upload_id"],
-  ["recipe_ingredients", "upload_id"],
-  ["recipes", "upload_id"],
-  ["restaurant_customers", "upload_id"],
-  ["customers", "upload_id"],
-  ["client_data_uploads", "upload_id"],
-  ["locations", "upload_id"],
-];
+// ✅ GENERIC SERVER-SIDE DELETE
+console.log("GENERIC DELETE USING API:", {
+  uploadId: deleteUploadId,
+  uploadType: uploadRow?.upload_type,
+  sourceName: uploadRow?.source_name,
+});
 
-console.log("DELETE FINAL ID USED:", deleteUploadId);
-console.log("DELETE OWNER ID:", ownerId);
+const {
+  data: { session },
+  error: sessionError,
+} = await supabase.auth.getSession();
 
-for (const [table, column] of deleteSteps) {
-  console.log(`Deleting ${table}...`);
+if (sessionError) {
+  throw sessionError;
+}
 
-  console.log("DELETE STEP DETAILS:", {
-    table,
-    column,
-    deleteUploadId,
-    ownerId,
-  });
+if (!session?.access_token) {
+  throw new Error(
+    "Your login session is missing. Please sign in again."
+  );
+}
 
-  const { data: deletedRows, error } = await supabase
-    .from(table)
-    .delete()
-    .eq(column, deleteUploadId)
-    .eq("user_id", ownerId)
-    .select();
+const deleteResponse = await fetch("/api/delete-client-upload", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${session.access_token}`,
+  },
+  body: JSON.stringify({
+    id: String(deleteUploadId),
+    uploadId: String(deleteUploadId),
+    uploadType:
+      uploadRow?.upload_type ||
+      uploadRow?.source_name ||
+      "",
+    fileName: uploadRow?.file_name || "",
+  }),
+});
 
-  console.log(`${table} deleted rows:`, deletedRows);
-  console.log(`${table} deleted count:`, deletedRows?.length || 0);
+let deleteResult = {};
 
-  if (error) {
-    console.error(`${table} delete failed:`, error);
-    throw error;
-  }
+try {
+  deleteResult = await deleteResponse.json();
+} catch {
+  deleteResult = {};
+}
 
-  console.log(`${table} delete complete.`);
+console.log("GENERIC DELETE API STATUS:", deleteResponse.status);
+console.log("GENERIC DELETE API RESULT:", deleteResult);
+
+if (!deleteResponse.ok || !deleteResult?.success) {
+  throw new Error(
+    deleteResult?.error ||
+      `Delete failed with status ${deleteResponse.status}.`
+  );
 }
 // ✅ RECIPES / RECIPE CARDS DELETE
 if (

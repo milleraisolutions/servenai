@@ -152,13 +152,39 @@ async function safeDeleteByUploadId(uploadId, ownerId) {
       });
     }
 
-    if (error) {
-      console.error(`DELETE API ${table} FAILED:`, error);
+   if (error) {
+  const errorMessage = String(error?.message || "").toLowerCase();
 
-      throw new Error(
-        `${table} delete failed: ${error.message}`
-      );
-    }
+  const isMissingSchemaProblem =
+    errorMessage.includes("does not exist") ||
+    errorMessage.includes("could not find") ||
+    errorMessage.includes("schema cache") ||
+    errorMessage.includes("column");
+
+  console.error(`DELETE API ${table} FAILED:`, {
+    table,
+    uploadId,
+    ownerId,
+    error,
+    ignored: isMissingSchemaProblem,
+  });
+
+  if (isMissingSchemaProblem) {
+    results.push({
+      table,
+      success: false,
+      skipped: true,
+      deletedCount: 0,
+      error: error.message,
+    });
+
+    continue;
+  }
+
+  throw new Error(
+    `${table} delete failed: ${error.message}`
+  );
+}
 
     results.push({
       table,
