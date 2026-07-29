@@ -12675,16 +12675,17 @@ return () => {
 useEffect(() => {
   const loadBatchPrepData = async () => {
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+     const ownerId = dataOwnerId || user?.id;
 
-      if (!user?.id) return;
+if (!ownerId) {
+  console.log("BATCH PREP LOAD SKIPPED: owner ID not ready");
+  return;
+}
 
       let batchPrepQuery = supabase
         .from("batch_prep_data")
         .select("*")
-        .eq("user_id", dataOwnerId || user.id);
+       .eq("user_id", ownerId);
 
       batchPrepQuery = applyLocationFilter(batchPrepQuery);
 
@@ -12692,7 +12693,7 @@ useEffect(() => {
         .order("prep_date", { ascending: false })
         .limit(1000);
 console.log("BATCH PREP QUERY RESULT:", {
-  user: dataOwnerId || user.id,
+  user: ownerId,
   rows: data,
   count: data?.length,
   error,
@@ -26980,6 +26981,11 @@ console.log(
     upload_id: shift.upload_id,
   }))
 );
+
+          const { data: insertedShifts, error: shiftsError } = await supabase
+            .from("employee_shifts")
+            .insert(shiftsToInsert)
+            .select();
 console.log(
   "EMPLOYEE SHIFT DATABASE RESULT:",
   insertedShifts?.map((shift) => ({
@@ -26990,11 +26996,6 @@ console.log(
     upload_id: shift.upload_id,
   }))
 );
-          const { data: insertedShifts, error: shiftsError } = await supabase
-            .from("employee_shifts")
-            .insert(shiftsToInsert)
-            .select();
-
           console.log("EMPLOYEE SHIFT insertedShifts:", insertedShifts);
           console.log("EMPLOYEE SHIFT shiftsError:", shiftsError);
 
