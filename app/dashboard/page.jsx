@@ -30649,13 +30649,34 @@ if (isEmployeeShiftUpload) {
 
   const realUploadId = String(uploadRow.id);
 
-  const { error: shiftDeleteError } = await supabase
+  const {
+    data: deletedEmployeeShiftRows,
+    error: shiftDeleteError,
+  } = await supabase
     .from("employee_shifts")
     .delete()
     .eq("upload_id", realUploadId)
-    .eq("user_id", ownerId);
+    .eq("user_id", ownerId)
+    .select("id, upload_id, user_id, employee_name");
 
-  if (shiftDeleteError) throw shiftDeleteError;
+  console.log(
+    "PERMANENT EMPLOYEE SHIFT DELETE RESULT:",
+    deletedEmployeeShiftRows
+  );
+  console.log(
+    "PERMANENT EMPLOYEE SHIFT DELETE ERROR:",
+    shiftDeleteError
+  );
+
+  if (shiftDeleteError) {
+    throw shiftDeleteError;
+  }
+
+  if (!deletedEmployeeShiftRows?.length) {
+    throw new Error(
+      "No employee shift rows matched this upload ID."
+    );
+  }
 
   setEmployeeShifts((prev) =>
     (prev || []).filter(
@@ -31196,7 +31217,6 @@ const deleteSteps = [
   ["batch_prep_data", "upload_id"],
   ["recipe_ingredients", "upload_id"],
   ["recipes", "upload_id"],
-  ["employee_shifts", "upload_id"],
   ["restaurant_customers", "upload_id"],
   ["customers", "upload_id"],
   ["client_data_uploads", "upload_id"],
