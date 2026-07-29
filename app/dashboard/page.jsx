@@ -31393,7 +31393,7 @@ if (!session?.access_token) {
     "Your login session is missing. Please sign in again."
   );
 }
-
+console.log("STEP 1 - Delete button clicked");
 const deleteResponse = await fetch("/api/delete-client-upload", {
   method: "POST",
   headers: {
@@ -31410,7 +31410,7 @@ const deleteResponse = await fetch("/api/delete-client-upload", {
     fileName: uploadRow?.file_name || "",
   }),
 });
-
+console.log("STEP 2 - Fetch completed");
 let deleteResult = {};
 
 try {
@@ -31428,6 +31428,7 @@ if (!deleteResponse.ok || !deleteResult?.success) {
       `Delete failed with status ${deleteResponse.status}.`
   );
 }
+console.log("STEP 3 - Delete API succeeded");
 // ✅ RECIPES / RECIPE CARDS DELETE
 if (
   uploadRow?.upload_type === "recipes" ||
