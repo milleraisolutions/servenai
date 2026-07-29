@@ -30640,7 +30640,31 @@ let { data: uploadRow, error: uploadLookupError } = await supabase
 
 console.log("DELETE UPLOAD ROW:", uploadRow);
 console.log("DELETE LOOKUP ERROR:", uploadLookupError);
+const isEmployeeShiftUpload =
+  String(uploadRow?.upload_type || "").toLowerCase() === "employee_shifts" ||
+  String(uploadRow?.source_name || "").toLowerCase() === "employee_shift_upload";
 
+if (isEmployeeShiftUpload) {
+  console.log("PERMANENT EMPLOYEE SHIFT DELETE:", uploadRow);
+
+  const realUploadId = String(uploadRow.id);
+
+  const { error: shiftDeleteError } = await supabase
+    .from("employee_shifts")
+    .delete()
+    .eq("upload_id", realUploadId)
+    .eq("user_id", ownerId);
+
+  if (shiftDeleteError) throw shiftDeleteError;
+
+  setEmployeeShifts((prev) =>
+    (prev || []).filter(
+      (row) => String(row.upload_id || "") !== realUploadId
+    )
+  );
+
+  deleteUploadId = realUploadId;
+}
 if (uploadLookupError) {
   throw uploadLookupError;
 }
