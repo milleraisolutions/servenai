@@ -30922,7 +30922,7 @@ setLaborUploads((previous) =>
   deletedLaborRowCount: deletedLaborRows.length,
 });
 
-window.location.reload();
+await loadClientImports();
 return;
 }
 /*
@@ -31526,7 +31526,9 @@ console.log("UI CLEANUP COMPLETE:", cleanupUploadId);
       details: "User deleted an import.",
     });
 
-    setMessage("Upload deleted.");
+    await loadClientImports();
+
+setMessage("Upload deleted.");
 } catch (error) {
   console.error("DELETE IMPORT FULL ERROR:", {
     error,
