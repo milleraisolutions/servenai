@@ -78,8 +78,7 @@ async function safeDeleteByUploadId(uploadId, ownerId) {
     ["beverage_items", "upload_id"],
     ["beverage_usage", "upload_id"],
     ["batch_prep_data", "upload_id"],
-    ["recipe_ingredients", "upload_id"],
-    ["recipes", "upload_id"],
+    
     ["employee_shifts", "upload_id"],
     ["restaurant_customers", "upload_id"],
     ["customers", "upload_id"],
@@ -200,6 +199,151 @@ async function safeDeleteByUploadId(uploadId, ownerId) {
   console.log("DELETE API ALL CHILD TABLES COMPLETE:", results);
 
   return results;
+}
+
+/*
+  ==========================================
+  RECIPE DELETE
+  ==========================================
+*/
+async function deleteRecipeData(uploadId, ownerId) {
+  console.log("DELETE API RECIPE START:", {
+    uploadId,
+    ownerId,
+  });
+
+  // Find every recipe belonging to this upload.
+  const {
+    data: recipeRows,
+    error: recipeLookupError,
+  } = await supabase
+    .from("recipes")
+    .select("id")
+    .eq("upload_id", uploadId)
+    .eq("user_id", ownerId);
+
+  if (recipeLookupError) {
+    throw new Error(
+      `Recipe lookup failed: ${recipeLookupError.message}`
+    );
+  }
+
+  const recipeIds = (recipeRows || [])
+    .map((recipe) => recipe.id)
+    .filter(Boolean);
+
+  console.log("DELETE API RECIPE IDS:", recipeIds);
+
+  let deletedUsageRules = [];
+  let deletedIngredientsByRecipe = [];
+
+  /*
+    Delete anything connected through recipe_id first.
+    This prevents foreign-key errors when recipes are deleted.
+  */
+  if (recipeIds.length > 0) {
+    const {
+      data: usageRuleRows,
+      error: usageRulesError,
+    } = await supabase
+      .from("recipe_usage_rules")
+      .delete()
+      .in("recipe_id", recipeIds)
+      .select("id");
+
+    if (usageRulesError) {
+      throw new Error(
+        `Recipe usage rules delete failed: ${usageRulesError.message}`
+      );
+    }
+
+    deletedUsageRules = usageRuleRows || [];
+
+    const {
+      data: ingredientRows,
+      error: ingredientsByRecipeError,
+    } = await supabase
+      .from("recipe_ingredients")
+      .delete()
+      .in("recipe_id", recipeIds)
+      .select("id");
+
+    if (ingredientsByRecipeError) {
+      throw new Error(
+        `Recipe ingredients delete failed: ${ingredientsByRecipeError.message}`
+      );
+    }
+
+    deletedIngredientsByRecipe = ingredientRows || [];
+  }
+
+  /*
+    Also delete recipe ingredients connected directly by upload_id.
+    This covers both structures currently used by your app.
+  */
+  const {
+    data: deletedIngredientsByUpload,
+    error: ingredientsByUploadError,
+  } = await supabase
+    .from("recipe_ingredients")
+    .delete()
+    .eq("upload_id", uploadId)
+    .select("id");
+
+  if (ingredientsByUploadError) {
+    const message = String(
+      ingredientsByUploadError.message || ""
+    ).toLowerCase();
+
+    // Only ignore this if recipe_ingredients has no upload_id column.
+    if (
+      !message.includes("upload_id") &&
+      !message.includes("column") &&
+      !message.includes("schema cache")
+    ) {
+      throw new Error(
+        `Recipe ingredients upload delete failed: ${ingredientsByUploadError.message}`
+      );
+    }
+
+    console.warn(
+      "recipe_ingredients upload_id delete skipped:",
+      ingredientsByUploadError.message
+    );
+  }
+
+  const {
+    data: deletedRecipes,
+    error: recipesDeleteError,
+  } = await supabase
+    .from("recipes")
+    .delete()
+    .eq("upload_id", uploadId)
+    .eq("user_id", ownerId)
+    .select("id");
+
+  if (recipesDeleteError) {
+    throw new Error(
+      `Recipes delete failed: ${recipesDeleteError.message}`
+    );
+  }
+
+  console.log("DELETE API RECIPE COMPLETE:", {
+    deletedUsageRules: deletedUsageRules.length,
+    deletedIngredientsByRecipe:
+      deletedIngredientsByRecipe.length,
+    deletedIngredientsByUpload:
+      deletedIngredientsByUpload?.length || 0,
+    deletedRecipes: deletedRecipes?.length || 0,
+  });
+
+  return {
+    deletedUsageRules: deletedUsageRules.length,
+    deletedIngredients:
+      deletedIngredientsByRecipe.length +
+      (deletedIngredientsByUpload?.length || 0),
+    deletedRecipes: deletedRecipes?.length || 0,
+  };
 }
 /*
   ==========================================
@@ -643,9 +787,15 @@ export async function POST(req) {
         "invoice_upload",
         "invoice_uploads",
       ].includes(uploadType);
-
+const isRecipeUpload = [
+  "recipe",
+  "recipes",
+  "recipe_upload",
+  "recipe_uploads",
+].includes(uploadType);
       let laborResult = null;
-      let invoiceResult = null;
+let invoiceResult = null;
+let recipeResult = null;
 
       /*
         Delete labor_uploads rows BEFORE deleting
@@ -680,13 +830,13 @@ export async function POST(req) {
         }
       }
 
-      if (isInvoiceUpload) {
-        invoiceResult =
-          await deleteInvoiceData(
-            uploadRow.id,
-            ownerId
-          );
-      }
+     if (isRecipeUpload) {
+  recipeResult =
+    await deleteRecipeData(
+      uploadRow.id,
+      ownerId
+    );
+}
 
       const childDeleteResults =
         await safeDeleteByUploadId(
@@ -721,11 +871,13 @@ export async function POST(req) {
 
       return NextResponse.json({
         success: true,
-        deletedFrom: isLaborUpload
-          ? "labor_uploads_and_uploads"
-          : isInvoiceUpload
-            ? "invoice_tables_and_uploads"
-            : "uploads",
+      deletedFrom: isLaborUpload
+  ? "labor_uploads_and_uploads"
+  : isInvoiceUpload
+    ? "invoice_tables_and_uploads"
+    : isRecipeUpload
+      ? "recipe_tables_and_uploads"
+      : "uploads",
         deletedUploadId: uploadRow.id,
         deletedFileName:
           resolvedFileName || null,
@@ -736,6 +888,8 @@ export async function POST(req) {
         deletedInvoiceData:
           invoiceResult,
         childDeleteResults,
+        deletedRecipeData:
+  recipeResult,
       });
     }
 
