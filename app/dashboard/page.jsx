@@ -31349,6 +31349,7 @@ try {
 
 console.log("GENERIC DELETE API STATUS:", deleteResponse.status);
 console.log("GENERIC DELETE API RESULT:", deleteResult);
+console.log("DELETE RESPONSE OBJECT:", deleteResponse);
 console.log(
   "FULL CHILD DELETE RESULTS:",
   JSON.stringify(deleteResult?.childDeleteResults || [], null, 2)
@@ -31360,147 +31361,7 @@ if (!deleteResponse.ok || !deleteResult?.success) {
   );
 }
 console.log("STEP 3 - Delete API succeeded");
-// ✅ RECIPES / RECIPE CARDS DELETE
-if (
-  uploadRow?.upload_type === "recipes" ||
-  uploadRow?.upload_type === "recipe_cards" ||
-  uploadRow?.source_name === "recipe_upload"
-) {
-  console.log("RECIPE DELETE START:", {
-    uploadId,
-    uploadType: uploadRow?.upload_type,
-    sourceName: uploadRow?.source_name,
-  });
 
-  const normalizedUploadId = String(uploadId);
-
-  // 1. Find every recipe connected to this upload
-  const { data: recipesToDelete, error: recipeLookupError } = await supabase
-    .from("recipes")
-    .select("id, recipe_name, upload_id")
-    .eq("upload_id", normalizedUploadId);
-
-  if (recipeLookupError) {
-    console.error("RECIPE LOOKUP ERROR:", recipeLookupError);
-    throw recipeLookupError;
-  }
-
-  const recipeIds = (recipesToDelete || [])
-    .map((recipe) => recipe.id)
-    .filter(Boolean);
-
-  console.log("RECIPES FOUND FOR DELETE:", recipesToDelete);
-  console.log("RECIPE IDS FOUND FOR DELETE:", recipeIds);
-
-  // 2. Delete recipe ingredients connected directly by upload_id
-  const {
-    error: recipeIngredientsUploadDeleteError,
-  } = await supabase
-    .from("recipe_ingredients")
-    .delete()
-    .eq("upload_id", normalizedUploadId);
-
-  if (recipeIngredientsUploadDeleteError) {
-    console.error(
-      "RECIPE INGREDIENT DELETE BY UPLOAD ERROR:",
-      recipeIngredientsUploadDeleteError
-    );
-    throw recipeIngredientsUploadDeleteError;
-  }
-
-  // 3. Delete any remaining ingredients connected by recipe_id
-  if (recipeIds.length > 0) {
-    const {
-      error: recipeIngredientsRecipeDeleteError,
-    } = await supabase
-      .from("recipe_ingredients")
-      .delete()
-      .in("recipe_id", recipeIds);
-
-    if (recipeIngredientsRecipeDeleteError) {
-      console.error(
-        "RECIPE INGREDIENT DELETE BY RECIPE ERROR:",
-        recipeIngredientsRecipeDeleteError
-      );
-      throw recipeIngredientsRecipeDeleteError;
-    }
-  }
-
-  // 4. Delete recipe usage rules by upload_id
-  const { error: usageRulesUploadDeleteError } = await supabase
-    .from("recipe_usage_rules")
-    .delete()
-    .eq("upload_id", normalizedUploadId);
-
-  if (usageRulesUploadDeleteError) {
-    console.error(
-      "RECIPE USAGE RULE DELETE BY UPLOAD ERROR:",
-      usageRulesUploadDeleteError
-    );
-    throw usageRulesUploadDeleteError;
-  }
-
-  // 5. Delete any remaining usage rules connected by recipe_id
-  if (recipeIds.length > 0) {
-    const { error: usageRulesRecipeDeleteError } = await supabase
-      .from("recipe_usage_rules")
-      .delete()
-      .in("recipe_id", recipeIds);
-
-    if (usageRulesRecipeDeleteError) {
-      console.error(
-        "RECIPE USAGE RULE DELETE BY RECIPE ERROR:",
-        usageRulesRecipeDeleteError
-      );
-      throw usageRulesRecipeDeleteError;
-    }
-  }
-
-  // 6. Delete the recipe records
-  let recipeDeleteQuery = supabase.from("recipes").delete();
-
-  if (recipeIds.length > 0) {
-    recipeDeleteQuery = recipeDeleteQuery.in("id", recipeIds);
-  } else {
-    recipeDeleteQuery = recipeDeleteQuery.eq(
-      "upload_id",
-      normalizedUploadId
-    );
-  }
-
-  const { error: recipesDeleteError } = await recipeDeleteQuery;
-
-  if (recipesDeleteError) {
-    console.error("RECIPES DELETE ERROR:", recipesDeleteError);
-    throw recipesDeleteError;
-  }
-
-  // 7. Immediately remove deleted data from the website
-  setRecipeIngredients((previous) =>
-    (previous || []).filter((row) => {
-      const rowUploadId = String(row.upload_id || "");
-      const rowRecipeId = row.recipe_id;
-
-      return (
-        rowUploadId !== normalizedUploadId &&
-        !recipeIds.includes(rowRecipeId)
-      );
-    })
-  );
-
-  setRecipes((previous) =>
-    (previous || []).filter((row) => {
-      const rowUploadId = String(row.upload_id || "");
-
-      return (
-        rowUploadId !== normalizedUploadId &&
-        !recipeIds.includes(row.id)
-      );
-    })
-  );
-
-  console.log("RECIPE DELETE COMPLETE:", normalizedUploadId);
-}
 // ✅ LOCATIONS DELETE
 if (uploadRow?.upload_type === "locations") {
   const normalizedUploadId = String(uploadId);
