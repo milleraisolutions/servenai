@@ -8029,6 +8029,26 @@ if (recentUploadError) {
   console.error("Invoice recent upload record failed:", recentUploadError);
   throw recentUploadError;
 }
+const { error: invoiceLinkError } = await supabase
+  .from("invoice_uploads")
+  .update({
+    upload_id: recentUploadRow.id,
+  })
+  .eq("id", invoiceUpload.id)
+  .eq("user_id", user.id);
+
+if (invoiceLinkError) {
+  console.error(
+    "Failed to connect invoice_uploads to uploads:",
+    invoiceLinkError
+  );
+  throw invoiceLinkError;
+}
+
+console.log("INVOICE UPLOAD LINKED:", {
+  invoiceUploadId: invoiceUpload.id,
+  recentUploadId: recentUploadRow.id,
+});
     const cleanedRows = rows
       .map((row) => {
         const itemName = getValue(row, [
@@ -30759,99 +30779,7 @@ if (isEmployeeShiftUpload) {
 
   deleteUploadId = realUploadId;
 }
-const isBeverageUpload =
-  String(uploadRow?.upload_type || "").toLowerCase() === "beverage" ||
-  String(uploadRow?.source_name || "").toLowerCase() === "beverage_upload";
 
-if (isBeverageUpload) {
-  console.log("PERMANENT BEVERAGE DELETE:", uploadRow);
-
-  const realUploadId = String(uploadRow.id);
-
-  const {
-    data: deletedBeverageRows,
-    error: beverageDeleteError,
-  } = await supabase
-    .from("beverage_items")
-    .delete()
-    .eq("upload_id", realUploadId)
-    .eq("user_id", ownerId)
-    .select("id, upload_id, beverage_name");
-
-  console.log(
-    "PERMANENT BEVERAGE DELETE RESULT:",
-    deletedBeverageRows
-  );
-
-  console.log(
-    "PERMANENT BEVERAGE DELETE ERROR:",
-    beverageDeleteError
-  );
-
-  if (beverageDeleteError) {
-    throw beverageDeleteError;
-  }
-
-  const {
-    data: deletedUsageRows,
-    error: usageDeleteError,
-  } = await supabase
-    .from("beverage_usage")
-    .delete()
-    .eq("upload_id", realUploadId)
-    .eq("user_id", ownerId)
-    .select("id");
-
-  console.log(
-    "PERMANENT BEVERAGE USAGE DELETE:",
-    deletedUsageRows
-  );
-
-  if (usageDeleteError) {
-    throw usageDeleteError;
-  }
-
-  const {
-    data: deletedUploadRows,
-    error: uploadDeleteError,
-  } = await supabase
-    .from("uploads")
-    .delete()
-    .eq("id", realUploadId)
-    .eq("user_id", ownerId)
-    .select("id");
-
-  if (uploadDeleteError) {
-    throw uploadDeleteError;
-  }
-
-  setBeverageItems((prev) =>
-    (prev || []).filter(
-      (row) => String(row.upload_id || "") !== realUploadId
-    )
-  );
-
-  setBeverageUsage((prev) =>
-    (prev || []).filter(
-      (row) => String(row.upload_id || "") !== realUploadId
-    )
-  );
-
-  setClientImports((prev) =>
-    (prev || []).filter(
-      (item) => String(item.id || "") !== realUploadId
-    )
-  );
-
-  setRecentUploads((prev) =>
-    (prev || []).filter(
-      (item) => String(item.id || "") !== realUploadId
-    )
-  );
-
-  setMessage("Beverage import deleted.");
-  return;
-}
 if (uploadLookupError) {
   throw uploadLookupError;
 }
