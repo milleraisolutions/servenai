@@ -227,55 +227,28 @@ async function deleteRecipeData(uploadId, ownerId) {
       `Recipe lookup failed: ${recipeLookupError.message}`
     );
   }
-
-  const recipeIds = (recipeRows || [])
-    .map((recipe) => recipe.id)
-    .filter(Boolean);
-
-  console.log("DELETE API RECIPE IDS:", recipeIds);
-
-  let deletedUsageRules = [];
-  let deletedIngredientsByRecipe = [];
+let deletedUsageRules = [];
 
   /*
     Delete anything connected through recipe_id first.
     This prevents foreign-key errors when recipes are deleted.
   */
-  if (recipeIds.length > 0) {
-    const {
-      data: usageRuleRows,
-      error: usageRulesError,
-    } = await supabase
-      .from("recipe_usage_rules")
-      .delete()
-      .in("recipe_id", recipeIds)
-      .select("id");
+ const {
+  data: usageRuleRows,
+  error: usageRulesError,
+} = await supabase
+  .from("recipe_usage_rules")
+  .delete()
+  .eq("upload_id", uploadId)
+  .select("id");
 
-    if (usageRulesError) {
-      throw new Error(
-        `Recipe usage rules delete failed: ${usageRulesError.message}`
-      );
-    }
+if (usageRulesError) {
+  throw new Error(
+    `Recipe usage rules delete failed: ${usageRulesError.message}`
+  );
+}
 
-    deletedUsageRules = usageRuleRows || [];
-
-    const {
-      data: ingredientRows,
-      error: ingredientsByRecipeError,
-    } = await supabase
-      .from("recipe_ingredients")
-      .delete()
-      .in("recipe_id", recipeIds)
-      .select("id");
-
-    if (ingredientsByRecipeError) {
-      throw new Error(
-        `Recipe ingredients delete failed: ${ingredientsByRecipeError.message}`
-      );
-    }
-
-    deletedIngredientsByRecipe = ingredientRows || [];
-  }
+deletedUsageRules = usageRuleRows || [];
 
   /*
     Also delete recipe ingredients connected directly by upload_id.
@@ -328,22 +301,24 @@ async function deleteRecipeData(uploadId, ownerId) {
     );
   }
 
-  console.log("DELETE API RECIPE COMPLETE:", {
-    deletedUsageRules: deletedUsageRules.length,
-    deletedIngredientsByRecipe:
-      deletedIngredientsByRecipe.length,
-    deletedIngredientsByUpload:
-      deletedIngredientsByUpload?.length || 0,
-    deletedRecipes: deletedRecipes?.length || 0,
-  });
+console.log("DELETE API RECIPE COMPLETE:", {
+  deletedUsageRules: deletedUsageRules.length,
+  deletedIngredients:
+    deletedIngredientsByUpload?.length || 0,
+  deletedRecipes:
+    deletedRecipes?.length || 0,
+});
 
-  return {
-    deletedUsageRules: deletedUsageRules.length,
-    deletedIngredients:
-      deletedIngredientsByRecipe.length +
-      (deletedIngredientsByUpload?.length || 0),
-    deletedRecipes: deletedRecipes?.length || 0,
-  };
+return {
+  deletedUsageRules:
+    deletedUsageRules.length,
+
+  deletedIngredients:
+    deletedIngredientsByUpload?.length || 0,
+
+  deletedRecipes:
+    deletedRecipes?.length || 0,
+};
 }
 /*
   ==========================================
@@ -830,9 +805,9 @@ let recipeResult = null;
         }
       }
 
-     if (isRecipeUpload) {
-  recipeResult =
-    await deleteRecipeData(
+    if (isInvoiceUpload) {
+  invoiceResult =
+    await deleteInvoiceData(
       uploadRow.id,
       ownerId
     );
