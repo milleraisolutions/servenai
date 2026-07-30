@@ -31362,61 +31362,8 @@ if (!deleteResponse.ok || !deleteResult?.success) {
 }
 console.log("STEP 3 - Delete API succeeded");
 
-// ✅ LOCATIONS DELETE
-if (uploadRow?.upload_type === "locations") {
-  const normalizedUploadId = String(uploadId);
 
-  console.log("LOCATION DELETE START:", {
-    uploadId: normalizedUploadId,
-    uploadType: uploadRow?.upload_type,
-  });
 
-  const { data: deletedLocations, error: locationsDeleteError } =
-    await supabase
-      .from("locations")
-      .delete()
-      .eq("upload_id", normalizedUploadId)
-      .select("id, upload_id, location_name");
-
-  if (locationsDeleteError) {
-    console.error("LOCATION DELETE ERROR:", locationsDeleteError);
-    throw locationsDeleteError;
-  }
-
-  console.log("LOCATIONS DELETED:", deletedLocations);
-
-  setLocations((previous) =>
-    (previous || []).filter(
-      (row) => String(row.upload_id || "") !== normalizedUploadId
-    )
-  );
-
-  console.log("LOCATION DELETE COMPLETE:", normalizedUploadId);
-}// ✅ FINAL UPLOAD ROW DELETE
-const normalizedUploadId = String(deleteUploadId);
-
-console.log("ABOUT TO DELETE UPLOAD");
-console.log("UPLOAD ID:", normalizedUploadId);
-console.log("UPLOAD ROW:", uploadRow);
-
-const { data: deletedUpload, error: uploadDeleteError } = await supabase
-  .from("uploads")
-  .delete()
-  .eq("id", normalizedUploadId)
-  .select("id, upload_type, source_name, file_name");
-
-console.log("UPLOAD DELETE RESULT:", deletedUpload);
-console.log("UPLOAD DELETE ERROR:", uploadDeleteError);
-
-if (uploadDeleteError) {
-  throw uploadDeleteError;
-}
-
-if (!deletedUpload || deletedUpload.length === 0) {
-  console.warn(
-    "No upload row was deleted. It may have already been removed or the ID did not match."
-  );
-}
    // ✅ UI CLEANUP
 const cleanupUploadId = String(deleteUploadId || uploadId);
 
