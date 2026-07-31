@@ -286,14 +286,21 @@ deletedUsageRules = usageRuleRows || [];
   }
 
   const {
-    data: deletedRecipes,
-    error: recipesDeleteError,
-  } = await supabase
-    .from("recipes")
-    .delete()
-    .eq("upload_id", uploadId)
-    .eq("user_id", ownerId)
-    .select("id");
+  data: deletedRecipes,
+  error: recipesDeleteError,
+} = await supabase
+  .from("recipes")
+  .delete()
+  .eq("upload_id", uploadId)
+  .select("id");
+
+console.log("RECIPE DELETE RESULT:", {
+  uploadId,
+  ownerId,
+  deletedRecipes,
+  deletedCount: deletedRecipes?.length || 0,
+  recipesDeleteError,
+});
 
   if (recipesDeleteError) {
     throw new Error(
