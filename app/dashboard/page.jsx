@@ -806,7 +806,10 @@ const [laborView, setLaborView] = useState("overview");
 const [laborLoading, setLaborLoading] = useState(true);
 const [selectedPosFile, setSelectedPosFile] = useState(null);
 const [posUploadLoading, setPosUploadLoading] = useState(false);
-
+const [livePosOrders, setLivePosOrders] = useState([]);
+const [livePosOrderItems, setLivePosOrderItems] = useState([]);
+const [livePosLoading, setLivePosLoading] = useState(false);
+const [livePosError, setLivePosError] = useState("");
 
 
 const loadingKitchenPrepRef = useRef(false);
@@ -31948,7 +31951,90 @@ const usesDedicatedUploadCard = dedicatedUploadTypes.includes(
     .toLowerCase()
 );
 
+const loadLivePosData = async () => {
+  try {
+    setLivePosLoading(true);
+    setLivePosError("");
 
+    const {
+      data: { user: authenticatedUser },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError) {
+      throw authError;
+    }
+
+    const resolvedOwnerId =
+      dataOwnerId || authenticatedUser?.id || null;
+
+    if (!resolvedOwnerId) {
+      console.log("LIVE POS WAITING FOR OWNER ID");
+      return;
+    }
+
+    const [ordersResult, itemsResult] =
+      await Promise.all([
+        supabase
+          .from("pos_orders")
+          .select("*")
+          .eq("user_id", resolvedOwnerId)
+          .order("opened_at", {
+            ascending: false,
+          })
+          .limit(5000),
+
+        supabase
+          .from("pos_order_items")
+          .select("*")
+          .eq("user_id", resolvedOwnerId)
+          .order("sent_to_kitchen_at", {
+            ascending: false,
+          })
+          .limit(10000),
+      ]);
+
+    if (ordersResult.error) {
+      throw ordersResult.error;
+    }
+
+    if (itemsResult.error) {
+      throw itemsResult.error;
+    }
+
+    const orderRows = ordersResult.data || [];
+    const itemRows = itemsResult.data || [];
+
+    console.log("LIVE POS ORDERS:", orderRows.length);
+    console.log("LIVE POS ITEMS:", itemRows.length);
+    console.log(
+      "LIVE POS FIRST ORDER:",
+      orderRows[0]
+    );
+    console.log(
+      "LIVE POS FIRST ITEM:",
+      itemRows[0]
+    );
+
+    setLivePosOrders(orderRows);
+    setLivePosOrderItems(itemRows);
+  } catch (error) {
+    console.error(
+      "LIVE POS DATA LOAD FAILED:",
+      error
+    );
+
+    setLivePosError(
+      error?.message ||
+        "Live POS data could not be loaded."
+    );
+  } finally {
+    setLivePosLoading(false);
+  }
+};
+useEffect(() => {
+  loadLivePosData();
+}, [dataOwnerId]);
 
 
 
