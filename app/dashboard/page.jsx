@@ -20147,7 +20147,33 @@ const consumablesSummary = (() => {
   return "Consumables usage appears operationally stable based on estimated depletion patterns.";
 })();
 
+const hasFinancialData =
+  Number(liveTotalRevenue || 0) > 0 ||
+  (dbSalesRows || []).length > 0 ||
+  (salesData || []).length > 0;
 
+const hasLaborData =
+  (laborData || []).length > 0 ||
+  (employeeShifts || []).length > 0;
+
+const hasInventoryData =
+  (inventoryData || []).length > 0;
+
+const hasWasteData =
+  (aiWasteDetection || []).length > 0 ||
+  (inventoryData || []).length > 0;
+
+const hasVendorData =
+  (invoicesData || []).length > 0 ||
+  (ingredientsData || []).length > 0;
+
+const hasMarginData =
+  (menuItemsData || []).length > 0 ||
+  Number(liveAvgMargin || 0) > 0;
+
+const hasShiftData =
+  (shiftOperationalData || []).length > 0 ||
+  (employeeShifts || []).length > 0;
 
 const categoryScores = {
   financialHealth: clamp(
@@ -20202,28 +20228,77 @@ const categoryScores = {
       : 65
   ),
 };
+const weightedHealthCategories = [
+  hasFinancialData && {
+    score: categoryScores.financialHealth,
+    weight: 0.2,
+  },
 
-  const overallScore = clamp(
-  categoryScores.financialHealth * 0.2 +
-    categoryScores.laborHealth * 0.14 +
-    categoryScores.inventoryHealth * 0.12 +
-    categoryScores.wasteHealth * 0.14 +
-    categoryScores.vendorHealth * 0.09 +
-    categoryScores.marginHealth * 0.13 +
-    categoryScores.forecastStability * 0.1 +
-    categoryScores.shiftHealth * 0.08
+  hasLaborData && {
+    score: categoryScores.laborHealth,
+    weight: 0.14,
+  },
+
+  hasInventoryData && {
+    score: categoryScores.inventoryHealth,
+    weight: 0.12,
+  },
+
+  hasWasteData && {
+    score: categoryScores.wasteHealth,
+    weight: 0.14,
+  },
+
+  hasVendorData && {
+    score: categoryScores.vendorHealth,
+    weight: 0.09,
+  },
+
+  hasMarginData && {
+    score: categoryScores.marginHealth,
+    weight: 0.13,
+  },
+
+  (hasFinancialData || hasLaborData) && {
+    score: categoryScores.forecastStability,
+    weight: 0.1,
+  },
+
+  hasShiftData && {
+    score: categoryScores.shiftHealth,
+    weight: 0.08,
+  },
+].filter(Boolean);
+
+const totalHealthWeight = weightedHealthCategories.reduce(
+  (sum, category) => sum + Number(category.weight || 0),
+  0
 );
 
-  const grade =
-    overallScore >= 90
-      ? "Elite"
-      : overallScore >= 80
-      ? "Strong"
-      : overallScore >= 70
-      ? "Stable"
-      : overallScore >= 60
-      ? "Watch Closely"
-      : "Critical";
+const overallScore =
+  totalHealthWeight > 0
+    ? clamp(
+        weightedHealthCategories.reduce(
+          (sum, category) =>
+            sum +
+            Number(category.score || 0) *
+              Number(category.weight || 0),
+          0
+        ) / totalHealthWeight
+      )
+    : 0;
+const grade =
+  totalHealthWeight === 0
+    ? "Waiting for data"
+    : overallScore >= 90
+    ? "Elite"
+    : overallScore >= 80
+    ? "Strong"
+    : overallScore >= 70
+    ? "Stable"
+    : overallScore >= 60
+    ? "Watch Closely"
+    : "Critical";
 
   const statusColor =
     overallScore >= 80
@@ -20241,28 +20316,31 @@ const currentScore = overallScore;
       ? "Declining"
       : "Stable";
 
-  const primaryRisk =
-    categoryScores.laborHealth < 60
-      ? "Labor pressure"
-      : categoryScores.wasteHealth < 60
-      ? "Waste variance"
-      : categoryScores.inventoryHealth < 60
-      ? "Inventory risk"
-      : categoryScores.vendorHealth < 60
-      ? "Vendor cost spikes"
-      : categoryScores.marginHealth < 60
-      ? "Margin compression"
-      : "No major risk";
+ const primaryRisk =
+  hasLaborData && categoryScores.laborHealth < 60
+    ? "Labor pressure"
+    : hasWasteData && categoryScores.wasteHealth < 60
+    ? "Waste variance"
+    : hasInventoryData && categoryScores.inventoryHealth < 60
+    ? "Inventory risk"
+    : hasVendorData && categoryScores.vendorHealth < 60
+    ? "Vendor cost spikes"
+    : hasMarginData && categoryScores.marginHealth < 60
+    ? "Margin compression"
+    : totalHealthWeight === 0
+    ? "Awaiting operational data"
+    : "No major risk";
 
-  const insight =
-    overallScore >= 80
-      ? `Restaurant health is ${grade}. AI sees strong operational stability with ${primaryRisk.toLowerCase()} as the main area to monitor.`
-      : overallScore >= 70
-      ? `Restaurant health is ${grade}. Operations are stable, but AI recommends monitoring ${primaryRisk.toLowerCase()} before it becomes expensive.`
-      : overallScore >= 60
-      ? `Restaurant health is ${grade}. AI detected pressure from ${primaryRisk.toLowerCase()} and recommends action this week.`
-      : `Restaurant health is ${grade}. AI detected serious operational risk driven by ${primaryRisk.toLowerCase()}. Immediate review is recommended.`;
-
+const insight =
+  totalHealthWeight === 0
+    ? "Upload restaurant data to activate the AI operational health engine."
+    : overallScore >= 80
+    ? `Restaurant health is ${grade}. AI sees strong operational stability with ${primaryRisk.toLowerCase()} as the main area to monitor.`
+    : overallScore >= 70
+    ? `Restaurant health is ${grade}. Operations are stable, but AI recommends monitoring ${primaryRisk.toLowerCase()} before it becomes expensive.`
+    : overallScore >= 60
+    ? `Restaurant health is ${grade}. AI detected pressure from ${primaryRisk.toLowerCase()} and recommends action this week.`
+    : `Restaurant health is ${grade}. AI detected serious operational risk driven by ${primaryRisk.toLowerCase()}. Immediate review is recommended.`;
       console.log("AI HEALTH ENGINE DEBUG", {
   overallScore,
   grade,
@@ -23874,7 +23952,7 @@ const crossSystemSignals = useMemo(() => {
 
   if (
     operationalMemoryRiskCount > 1 &&
-    overallAIHealthScore < 75
+    Number(aiHealthEngine?.overallScore || restaurantHealthScore || 0) < 75
   ) {
     signals.push({
       title: "Multiple Risk Memories Are Pulling Down Health Score",
@@ -28718,10 +28796,10 @@ const benchmarkScores = [
   },
   {
     label: "AI Health",
-    actual: `${Number(restaurantHealthScore || overallAIHealthScore || 0)}/100`,
-    target: `${aiBenchmarks.healthTarget}/100`,
-    status:
-      Number(restaurantHealthScore || overallAIHealthScore || 0) >=
+    actual: `${Number(aiHealthEngine?.overallScore || restaurantHealthScore || 0)}/100`,
+target: `${aiBenchmarks.healthTarget}/100`,
+status:
+  Number(aiHealthEngine?.overallScore || restaurantHealthScore || 0) >=
       aiBenchmarks.healthTarget
         ? "Healthy"
         : "Needs Work",
