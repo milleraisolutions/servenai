@@ -23878,7 +23878,7 @@ if (Number(aiHealthEngine?.categoryScores?.consumablesHealth ?? 0) < 75) {
 
 const operationalMemorySummary = (() => {
   if (!operationalMemoryEvents.length) {
-    return "AI has not detected any major operational memory events yet. Upload more sales, labor, inventory, invoice, and beverage data to build the timeline.";
+   return "No operational history yet. Upload POS, labor, inventory, invoices, menu, or beverage data to allow SerVen AI to build operational memory, detect recurring issues, and measure recovered profit over time.";
   }
 
   const topEvent = operationalMemoryEvents[0];
@@ -24629,7 +24629,157 @@ const restaurantDigitalTwin = useMemo(() => {
   crossSystemSignals,
   executiveActionQueue,
 ]);
+/* =========================
+   AI TABLE TURN INTELLIGENCE
+========================= */
 
+const tableTurnIntelligence = useMemo(() => {
+  const salesRows =
+    locationSalesData?.length > 0
+      ? locationSalesData
+      : resolvedSalesData || [];
+
+  const hasSalesData =
+    salesRows.length > 0 &&
+    Number(liveTotalRevenue || 0) > 0;
+
+  if (!hasSalesData) {
+    return {
+      hasData: false,
+      averageTurnMinutes: 0,
+      targetTurnMinutes: 0,
+      estimatedLostTables: 0,
+      estimatedLostRevenue: 0,
+      peakDaypart: "Waiting for data",
+      confidence: "Waiting for data",
+      status: "Waiting for data",
+      primaryRisk: "Awaiting POS activity",
+      recommendation:
+        "Connect POS sales and order activity to activate AI table turn intelligence.",
+    };
+  }
+
+  const totalRevenue = Number(liveTotalRevenue || 0);
+
+  const totalOrders =
+  Number(liveTotalOrders || 0) ||
+  salesRows.reduce(
+    (sum, row) =>
+      sum +
+      Number(
+        row.orders_count ||
+          row.order_count ||
+          row.orders ||
+          row.transactions ||
+          0
+      ),
+    0
+  );
+const averageCheck =
+  totalOrders > 0
+    ? totalRevenue / totalOrders
+    : 0;
+
+  /*
+   * Phase A estimate:
+   * We do not yet have seated/open/closed timestamps,
+   * so estimate table-turn pressure from order volume,
+   * revenue, and labor coverage.
+   */
+  const laborHours = Number(totalLaborHours || 0);
+
+  const salesPerLaborHour =
+    laborHours > 0 ? totalRevenue / laborHours : 0;
+
+  const targetTurnMinutes = 60;
+
+  let estimatedTurnMinutes = 65;
+
+  if (salesPerLaborHour > 0) {
+    if (salesPerLaborHour < 45) {
+      estimatedTurnMinutes = 82;
+    } else if (salesPerLaborHour < 65) {
+      estimatedTurnMinutes = 74;
+    } else if (salesPerLaborHour < 90) {
+      estimatedTurnMinutes = 66;
+    } else {
+      estimatedTurnMinutes = 58;
+    }
+  }
+
+  const excessTurnMinutes = Math.max(
+    0,
+    estimatedTurnMinutes - targetTurnMinutes
+  );
+
+  const estimatedLostTables =
+  totalOrders > 0
+    ? Math.max(
+        0,
+        Math.round(
+          (totalOrders * excessTurnMinutes) /
+            targetTurnMinutes
+        )
+      )
+    : 0;
+
+  const estimatedLostRevenue = Math.max(
+    0,
+    Math.round(estimatedLostTables * averageCheck)
+  );
+
+  const peakDaypart =
+    topShift?.shift ||
+    mostLaborHeavyShift?.shift ||
+    "Peak service period";
+
+  const status =
+    estimatedTurnMinutes > 80
+      ? "Critical"
+      : estimatedTurnMinutes > 70
+      ? "High"
+      : estimatedTurnMinutes > targetTurnMinutes
+      ? "Watch"
+      : "Healthy";
+
+  const primaryRisk =
+    status === "Healthy"
+      ? "Table flow appears efficient"
+      : salesPerLaborHour > 0 && salesPerLaborHour < 65
+      ? "Low sales throughput relative to labor coverage"
+      : "Service flow may be limiting seating capacity";
+
+  const recommendation =
+    status === "Healthy"
+      ? "Maintain current service flow and continue monitoring peak periods."
+      : `Review seating, ticket-time, and payment delays during ${peakDaypart}. Focus first on the stage adding the most time to the guest cycle.`;
+
+  return {
+    hasData: true,
+    averageTurnMinutes: estimatedTurnMinutes,
+    targetTurnMinutes,
+    estimatedLostTables,
+    estimatedLostRevenue,
+    peakDaypart,
+    confidence:
+      laborHours > 0 && totalOrders > 0
+        ? "Medium"
+        : "Low",
+    status,
+    primaryRisk,
+    recommendation,
+    averageCheck,
+    salesPerLaborHour,
+  };
+}, [
+  locationSalesData,
+  resolvedSalesData,
+  liveTotalRevenue,
+  liveTotalOrders,
+  totalLaborHours,
+  topShift,
+  mostLaborHeavyShift,
+]);
 const autonomousProfitRecoveryEngine = useMemo(() => {
   const recommendations = autonomousAIRecommendations || [];
   const executiveActions = executiveActionQueue || [];
@@ -53456,7 +53606,7 @@ Recovered profit is based on saved AI action impact.
             fontSize: "14px",
           }}
         >
-          No operational memory events detected yet.
+          No operational history yet. Upload POS, labor, inventory, invoices, menu, or beverage data to let SerVen AI track recurring issues and recovered profit over time.
         </div>
       )}
     </div>
