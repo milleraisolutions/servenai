@@ -36575,7 +36575,9 @@ const color = noData
         fontWeight: "900",
       }}
     >
-      AI currently detects no critical operational actions.
+     {aiHealthEngine?.grade === "Waiting for data"
+  ? "Upload restaurant data to activate AI health actions."
+  : "AI currently detects no critical operational actions."}
     </div>
   )}
 </div>
