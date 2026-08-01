@@ -20207,14 +20207,17 @@ const categoryScores = {
     )
 ),
 
-  consumablesHealth: clamp(
-    100 -
-      Math.min(
-        40,
-        Number(consumablesVarianceRisk?.length || 0) * 12 +
-          Number(consumablesEstimatedLeakage || 0) / 120
+  consumablesHealth:
+  consumablesIntelligenceData.length > 0
+    ? clamp(
+        100 -
+          Math.min(
+            40,
+            Number(consumablesVarianceRisk?.length || 0) * 12 +
+              Number(consumablesEstimatedLeakage || 0) / 120
+          )
       )
-  ),
+    : 0,
 
   wasteHealth: clamp(scoreWaste),
 
@@ -20359,15 +20362,23 @@ currentScore,
   primaryRisk,
 });
   return {
-    overallScore,
-    grade,
-    statusColor,
-currentScore,
-    trend,
-    primaryRisk,
-    insight,
-    categoryScores,
-  };
+  overallScore,
+  grade,
+  statusColor,
+  currentScore,
+  trend,
+  primaryRisk,
+  insight,
+  categoryScores,
+
+  consumablesVarianceRiskCount:
+    consumablesVarianceRisk.length,
+
+  topConsumablesRisk:
+    consumablesVarianceRisk[0] || null,
+    consumablesEstimatedLeakage:
+  Number(consumablesEstimatedLeakage || 0),
+};
 }, [
   livePrimeCost,
   primeCostPercentage,
@@ -24096,9 +24107,21 @@ const executiveSummaryNarrative = (() => {
       ).toLocaleString()} in operational recovery impact.`
     );
   }
-if (Number(aiHealthEngine?.categoryScores?.consumablesHealth ?? 0) < 75) {
+const consumablesHealthScore = Number(
+  aiHealthEngine?.categoryScores?.consumablesHealth || 0
+);
+
+const consumablesRiskCount = Number(
+  aiHealthEngine?.consumablesVarianceRiskCount || 0
+);
+
+if (
+  consumablesHealthScore > 0 &&
+  consumablesHealthScore < 75 &&
+  consumablesRiskCount > 0
+) {
   insights.push(
-    `Consumables intelligence detected ${consumablesVarianceRisk.length} oil, garnish, citrus, herb, or berry variance risk(s).`
+    `Consumables intelligence detected ${consumablesRiskCount} oil, garnish, citrus, herb, or berry variance risk(s).`
   );
 }
   return insights.join(" ");
@@ -24108,8 +24131,19 @@ const executivePriorityFocus = (() => {
   if (crossSystemSignals?.[0]?.title) {
     return crossSystemSignals[0].title;
   }
-if (Number(aiHealthEngine?.categoryScores?.consumablesHealth ?? 0) < 75) {
-  return `Review ${consumablesVarianceRisk[0].name} consumables variance`;
+const topConsumablesRisk =
+  aiHealthEngine?.topConsumablesRisk || null;
+
+const consumablesHealthScore = Number(
+  aiHealthEngine?.categoryScores?.consumablesHealth || 0
+);
+
+if (
+  consumablesHealthScore > 0 &&
+  consumablesHealthScore < 75 &&
+  topConsumablesRisk?.name
+) {
+  return `Review ${topConsumablesRisk.name} consumables variance`;
 }
   if (weakestHealthCategory?.key) {
     return `${formatHealthName(
@@ -28773,7 +28807,9 @@ const benchmarkScores = [
   status:
     Number(aiHealthEngine?.categoryScores?.consumablesHealth ?? 0) >= 90
       ? "Healthy"
-      : Number(consumablesEstimatedLeakage || 0) <= 500
+      : Number(
+    aiHealthEngine?.consumablesEstimatedLeakage || 0
+  ) <= 500
       ? "Watch"
       : "Above Target",
 },
@@ -36379,6 +36415,8 @@ const noData =
   item.label === "Financial Health" &&
   financialHealthScoreData?.status === "Waiting for data"
 ) ||
+(item.label === "Consumables Health" &&
+  consumablesIntelligenceData.length === 0) ||
   (item.label === "Labor Health" && !hasLaborData) ||
   (item.label === "Inventory Health" && !hasInventoryData) ||
   (item.label === "Waste Health" && !hasWasteData) ||
