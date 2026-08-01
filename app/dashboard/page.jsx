@@ -36365,7 +36365,10 @@ const color = !hasScore
       },
     ].map((item) => {
 const noData =
-  (item.label === "Financial Health" && !hasFinancialData) ||
+  (
+  item.label === "Financial Health" &&
+  financialHealthScoreData?.status === "Waiting for data"
+) ||
   (item.label === "Labor Health" && !hasLaborData) ||
   (item.label === "Inventory Health" && !hasInventoryData) ||
   (item.label === "Waste Health" && !hasWasteData) ||
