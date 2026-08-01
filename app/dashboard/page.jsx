@@ -12063,15 +12063,7 @@ console.log(
 
       if (cancelled) return;
 
-   setLaborData((currentRows) => {
-  if (locationFilteredRows.length > 0) {
-    return locationFilteredRows;
-  }
-
-  return Array.isArray(currentRows)
-    ? currentRows
-    : [];
-});
+  setLaborData(locationFilteredRows);
 
       if (locationFilteredRows.length > 0) {
         localStorage.setItem(
@@ -18092,7 +18084,33 @@ const loadClientImports = async () => {
 
     const uploadsData =
       uploadsResponse?.data || [];
+console.log("ALL RAW UPLOAD ROWS:", uploadsData);
 
+console.log(
+  "RAW UPLOAD TYPES:",
+  uploadsData.map((row) => ({
+    id: row.id,
+    file_name: row.file_name,
+    upload_type: row.upload_type,
+    source_name: row.source_name,
+    user_id: row.user_id,
+    archived: row.archived,
+  }))
+);
+
+console.log(
+  "INVOICE ROWS FOUND IN UPLOADS QUERY:",
+  uploadsData.filter((row) => {
+    const uploadType = String(row.upload_type || "").toLowerCase();
+    const sourceName = String(row.source_name || "").toLowerCase();
+
+    return (
+      uploadType.includes("invoice") ||
+      sourceName.includes("invoice") ||
+      String(row.file_name || "").toLowerCase().includes("invoice")
+    );
+  })
+);
     const laborRows =
       laborResponse?.error
         ? []
@@ -18104,7 +18122,15 @@ const loadClientImports = async () => {
         : salesResponse?.data || [];
 
     const combinedImportsMap = new Map();
-
+console.log(
+  "FINAL COMBINED IMPORTS:",
+  combinedImports.map((row) => ({
+    id: row.id,
+    file_name: row.file_name,
+    upload_type: row.upload_type,
+    source_name: row.source_name,
+  }))
+);
     const addImport = (item) => {
       if (!item) return;
 
