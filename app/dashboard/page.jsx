@@ -23753,7 +23753,18 @@ const aiHealthInsight = (() => {
 
 const operationalMemoryEvents = useMemo(() => {
   const events = [];
+  const hasOperationalData =
+    liveTotalRevenue > 0 ||
+    laborData.length > 0 ||
+    inventoryData.length > 0 ||
+    menuItemsData.length > 0 ||
+    ingredientsData.length > 0 ||
+    beverageItems.length > 0 ||
+    supplierAlerts.length > 0;
 
+  if (!hasOperationalData) {
+    return [];
+  }
   if (Number(liveMomentumPercent || 0) < 0) {
     events.push({
       type: "Revenue",
