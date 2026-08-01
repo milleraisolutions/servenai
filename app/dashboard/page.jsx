@@ -36434,18 +36434,7 @@ const color = !hasScore
       },
     ].map((item) => {
 const noData =
-  (
-  item.label === "Financial Health" &&
-  financialHealthScoreData?.status === "Waiting for data"
-) ||
-(item.label === "Consumables Health" &&
-  consumablesIntelligenceData.length === 0) ||
-  (item.label === "Labor Health" && !hasLaborData) ||
-  (item.label === "Inventory Health" && !hasInventoryData) ||
-  (item.label === "Waste Health" && !hasWasteData) ||
-  (item.label === "Vendor Health" && !hasVendorData) ||
-  (item.label === "Forecast Stability" && !(hasFinancialData || hasLaborData)) ||
-  (item.label === "Shift Health" && !hasShiftData);
+  aiHealthEngine?.grade === "Waiting for data";
 
 const color = noData
   ? "#94a3b8"
