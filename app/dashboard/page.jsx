@@ -20240,15 +20240,18 @@ const categoryScores = {
       scoreLabor * 0.25
   ),
 
-  shiftHealth: clamp(
-    mostLaborHeavyShift?.laborPercent > 35
-      ? 55
-      : mostLaborHeavyShift?.laborPercent > 28
-      ? 72
-      : topShift?.revenue > 0
-      ? 88
-      : 65
-  ),
+  shiftHealth:
+  hasShiftData
+    ? clamp(
+        mostLaborHeavyShift?.laborPercent > 35
+          ? 55
+          : mostLaborHeavyShift?.laborPercent > 28
+          ? 72
+          : topShift?.revenue > 0
+          ? 88
+          : 65
+      )
+    : 0,
 };
 const weightedHealthCategories = [
   hasFinancialData && {
