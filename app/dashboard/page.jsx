@@ -19990,6 +19990,15 @@ const scoreWaste = (() => {
 })();
 
 const scoreVendor = (() => {
+  const hasVendorScoreData =
+    (vendorPriceSpikeData || []).length > 0 ||
+    (invoicesData || []).length > 0 ||
+    (ingredientsData || []).length > 0;
+
+  if (!hasVendorScoreData) {
+    return 0;
+  }
+
   const spikes = (vendorPriceSpikeData || []).filter(
     (item) => Number(item.priceChange || 0) > 10
   ).length;
