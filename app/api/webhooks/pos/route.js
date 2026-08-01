@@ -1,96 +1,577 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import crypto from "crypto";
 
 export const runtime = "nodejs";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY // Safe to use here inside your secure backend route
+  process.env.SUPABASE_SERVICE_ROLE_KEY,
+  {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  }
 );
 
-export async function POST(req) {
+const safeNumber = (value, fallback = 0) => {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+};
+
+const safeDate = (value) => {
+  if (!value) return null;
+
+  const date = new Date(value);
+
+  return Number.isNaN(date.getTime())
+    ? null
+    : date.toISOString();
+};
+
+const safeBusinessDate = (value) => {
+  if (!value) return null;
+
+  const date = new Date(value);
+
+  return Number.isNaN(date.getTime())
+    ? null
+    : date.toISOString().split("T")[0];
+};
+
+const calculateMinutes = (startValue, endValue) => {
+  const start = safeDate(startValue);
+  const end = safeDate(endValue);
+
+  if (!start || !end) return 0;
+
+  const difference =
+    new Date(end).getTime() -
+    new Date(start).getTime();
+
+  return difference > 0
+    ? Number((difference / 60000).toFixed(2))
+    : 0;
+};
+
+const buildLineItemId = ({
+  externalOrderId,
+  item,
+  index,
+}) => {
+  const providedId = String(
+    item.external_line_item_id ||
+      item.line_item_id ||
+      item.id ||
+      ""
+  ).trim();
+
+  if (providedId) return providedId;
+
+  return crypto
+    .createHash("sha256")
+    .update(
+      [
+        externalOrderId,
+        item.external_item_id || item.item_id || "",
+        item.item_name || item.name || "",
+        index,
+      ].join("|")
+    )
+    .digest("hex");
+};
+
+export async function POST(request) {
+  let webhookEventRowId = null;
+
   try {
-    const body = await req.json();
-    
-    // 1. Identify what type of POS event occurred.
-    // (Note: This property path varies slightly depending on whether you are using 
-    // Toast, Clover, or Square, but the event structure remains highly similar)
-    const eventType = body.eventType || body.type; 
+    const suppliedSecret =
+      request.headers.get("x-serven-webhook-secret");
 
-    // ==========================================
-    // CASE A: NEW DISH ORDER SENT TO KITCHEN
-    // ==========================================
-    if (eventType === "order.created" || eventType === "ticket.sent") {
-      const { item_id, item_name, pos_order_id, modifiers } = body.data;
+    const expectedSecret =
+      process.env.POS_WEBHOOK_TEST_SECRET;
 
-      // Pull base menu item config rules from your existing table
-      const { data: menuItem } = await supabaseAdmin
-        .from("menu_items")
-        .select("base_prep_time, primary_station")
-        .eq("id", item_id)
-        .single();
-
-      const basePrep = menuItem?.base_prep_time || 5;
-      const station = menuItem?.primary_station || "Line";
-
-      // Scan modification array names to find time-compounding culinary components
-      let modifierExtraTime = 0;
-      if (modifiers && modifiers.length > 0) {
-        modifiers.forEach((mod) => {
-          const name = mod.name.toLowerCase();
-          if (name.includes("salad")) modifierExtraTime = Math.max(modifierExtraTime, 3);
-          if (name.includes("veggie") || name.includes("broccoli") || name.includes("asparagus")) {
-            modifierExtraTime = Math.max(modifierExtraTime, 4);
-          }
-          if (name.includes("fruit") || name.includes("avocado") || name.includes("berry")) {
-            modifierExtraTime = Math.max(modifierExtraTime, 2);
-          }
-        });
-      }
-
-      // Calculate Target Prep: Maximum concurrent station setup time + 1 min plating buffer
-      const finalTargetPrep = Math.max(basePrep, modifierExtraTime) + 1;
-
-      // Track it into your data stream
-      const { error: insertError } = await supabaseAdmin
-        .from("order_items")
-        .insert({
-          pos_order_id,
-          item_name,
-          menu_item_id: item_id,
-          station,
-          target_prep_time: finalTargetPrep,
-        });
-
-      if (insertError) {
-        console.error("❌ Error logging new POS order tracking:", insertError.message);
-      } else {
-        console.log(`✅ Live ticket logged: ${item_name} -> Target: ${finalTargetPrep}m`);
-      }
+    if (
+      !expectedSecret ||
+      suppliedSecret !== expectedSecret
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Invalid webhook secret.",
+        },
+        { status: 401 }
+      );
     }
 
-    // ==========================================
-    // CASE B: COOK PRESSED "DONE" / BUMPED TICKET
-    // ==========================================
-    if (eventType === "order.completed" || eventType === "ticket.bumped") {
-      const { pos_order_id } = body.data;
+    const connectionId = String(
+      request.headers.get(
+        "x-serven-connection-id"
+      ) || ""
+    ).trim();
 
-      const { error: updateError } = await supabaseAdmin
-        .from("order_items")
-        .update({ completed_at: new Date().toISOString() })
-        .eq("pos_order_id", pos_order_id);
-
-      if (updateError) {
-        console.error("❌ Error updating POS bump time:", updateError.message);
-      } else {
-        console.log(`⏱️ Ticket ${pos_order_id} successfully bumped in real-time.`);
-      }
+    if (!connectionId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "Missing x-serven-connection-id header.",
+        },
+        { status: 400 }
+      );
     }
 
-    return NextResponse.json({ success: true });
+    const body = await request.json();
 
-  } catch (err) {
-    console.error("❌ POS Webhook internal breakdown:", err.message);
-    return new Response("Internal Processing Error", { status: 500 });
+    const eventId = String(
+      body.event_id ||
+        body.eventId ||
+        ""
+    ).trim();
+
+    const eventType = String(
+      body.event_type ||
+        body.eventType ||
+        body.type ||
+        ""
+    )
+      .trim()
+      .toLowerCase();
+
+    if (!eventId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "event_id is required.",
+        },
+        { status: 400 }
+      );
+    }
+
+    if (!eventType) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "event_type is required.",
+        },
+        { status: 400 }
+      );
+    }
+
+    const {
+      data: connection,
+      error: connectionError,
+    } = await supabaseAdmin
+      .from("integration_connections")
+      .select("*")
+      .eq("id", connectionId)
+      .eq("provider", "generic")
+      .eq("connection_status", "active")
+      .single();
+
+    if (connectionError || !connection) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            connectionError?.message ||
+            "Active generic integration connection not found.",
+        },
+        { status: 404 }
+      );
+    }
+
+    const {
+      data: existingEvent,
+      error: existingEventError,
+    } = await supabaseAdmin
+      .from("pos_webhook_events")
+      .select("id, processing_status")
+      .eq("provider", "generic")
+      .eq("external_event_id", eventId)
+      .maybeSingle();
+
+    if (existingEventError) {
+      throw existingEventError;
+    }
+
+    if (existingEvent) {
+      return NextResponse.json({
+        success: true,
+        duplicate: true,
+        message:
+          "Webhook event was already received.",
+        eventId,
+        processingStatus:
+          existingEvent.processing_status,
+      });
+    }
+
+    const {
+      data: webhookEvent,
+      error: webhookInsertError,
+    } = await supabaseAdmin
+      .from("pos_webhook_events")
+      .insert({
+        provider: "generic",
+        external_event_id: eventId,
+        event_type: eventType,
+        user_id: connection.user_id,
+        integration_connection_id:
+          connection.id,
+        processing_status: "received",
+        payload: body,
+      })
+      .select("id")
+      .single();
+
+    if (webhookInsertError) {
+      throw webhookInsertError;
+    }
+
+    webhookEventRowId = webhookEvent.id;
+
+    const order = body.order || body.data || {};
+
+    const externalOrderId = String(
+      order.external_order_id ||
+        order.order_id ||
+        order.pos_order_id ||
+        order.id ||
+        ""
+    ).trim();
+
+    if (!externalOrderId) {
+      throw new Error(
+        "The webhook order is missing external_order_id."
+      );
+    }
+
+    const openedAt = safeDate(
+      order.opened_at ||
+        order.created_at ||
+        order.order_opened_at
+    );
+
+    const sentToKitchenAt = safeDate(
+      order.sent_to_kitchen_at ||
+        order.kitchen_sent_at
+    );
+
+    const completedAt = safeDate(
+      order.completed_at ||
+        order.fulfilled_at
+    );
+
+    const closedAt = safeDate(
+      order.closed_at ||
+        order.paid_at
+    );
+
+    const subtotal = safeNumber(order.subtotal);
+    const discounts = safeNumber(order.discounts);
+    const taxes = safeNumber(order.taxes);
+    const tips = safeNumber(order.tips);
+    const refunds = safeNumber(order.refunds);
+    const total = safeNumber(
+      order.total,
+      subtotal -
+        discounts +
+        taxes +
+        tips -
+        refunds
+    );
+    const netSales = safeNumber(
+      order.net_sales,
+      subtotal - discounts - refunds
+    );
+
+    const orderStatus = String(
+      order.order_status ||
+        order.status ||
+        (eventType.includes("closed")
+          ? "closed"
+          : eventType.includes("completed") ||
+            eventType.includes("bumped")
+          ? "completed"
+          : "open")
+    ).toLowerCase();
+
+    const {
+      data: posOrder,
+      error: orderUpsertError,
+    } = await supabaseAdmin
+      .from("pos_orders")
+      .upsert(
+        {
+          user_id: connection.user_id,
+          location_id:
+            connection.location_id || null,
+          integration_connection_id:
+            connection.id,
+
+          provider: "generic",
+          external_order_id: externalOrderId,
+          external_location_id:
+            connection.external_location_id ||
+            order.external_location_id ||
+            null,
+
+          order_status: orderStatus,
+          dining_option:
+            order.dining_option || null,
+          revenue_center:
+            order.revenue_center || null,
+
+          table_id:
+            order.table_id || null,
+          table_name:
+            order.table_name || null,
+          guest_count: Math.max(
+            0,
+            Math.round(
+              safeNumber(order.guest_count)
+            )
+          ),
+
+          opened_at: openedAt,
+          sent_to_kitchen_at: sentToKitchenAt,
+          completed_at: completedAt,
+          closed_at: closedAt,
+
+          business_date: safeBusinessDate(
+            order.business_date ||
+              openedAt ||
+              closedAt
+          ),
+
+          subtotal,
+          discounts,
+          taxes,
+          tips,
+          refunds,
+          total,
+          net_sales: netSales,
+
+          raw_payload: order,
+          updated_at:
+            new Date().toISOString(),
+        },
+        {
+          onConflict:
+            "provider,external_order_id,user_id",
+        }
+      )
+      .select("*")
+      .single();
+
+    if (orderUpsertError) {
+      throw orderUpsertError;
+    }
+
+    const items = Array.isArray(order.items)
+      ? order.items
+      : [];
+
+    let savedItemCount = 0;
+
+    if (items.length > 0) {
+      const normalizedItems = items.map(
+        (item, index) => {
+          const quantity = Math.max(
+            0,
+            safeNumber(item.quantity, 1)
+          );
+
+          const unitPrice = safeNumber(
+            item.unit_price ||
+              item.price
+          );
+
+          const grossSales = safeNumber(
+            item.gross_sales,
+            quantity * unitPrice
+          );
+
+          const itemDiscounts = safeNumber(
+            item.discounts
+          );
+
+          const itemNetSales = safeNumber(
+            item.net_sales,
+            grossSales - itemDiscounts
+          );
+
+          const itemSentAt = safeDate(
+            item.sent_to_kitchen_at ||
+              sentToKitchenAt
+          );
+
+          const itemCompletedAt = safeDate(
+            item.completed_at ||
+              completedAt
+          );
+
+          return {
+            user_id: connection.user_id,
+            location_id:
+              connection.location_id || null,
+
+            pos_order_id: posOrder.id,
+
+            provider: "generic",
+            external_order_id:
+              externalOrderId,
+
+            external_item_id: String(
+              item.external_item_id ||
+                item.item_id ||
+                ""
+            ).trim() || null,
+
+            external_line_item_id:
+              buildLineItemId({
+                externalOrderId,
+                item,
+                index,
+              }),
+
+            menu_item_id: null,
+
+            item_name: String(
+              item.item_name ||
+                item.name ||
+                "Unknown Item"
+            ).trim(),
+
+            quantity,
+            unit_price: unitPrice,
+            gross_sales: grossSales,
+            discounts: itemDiscounts,
+            net_sales: itemNetSales,
+
+            station:
+              item.station || null,
+
+            modifiers: Array.isArray(
+              item.modifiers
+            )
+              ? item.modifiers
+              : [],
+
+            sent_to_kitchen_at:
+              itemSentAt,
+
+            completed_at:
+              itemCompletedAt,
+
+            target_prep_minutes:
+              Math.max(
+                0,
+                safeNumber(
+                  item.target_prep_minutes
+                )
+              ),
+
+            actual_prep_minutes:
+              calculateMinutes(
+                itemSentAt,
+                itemCompletedAt
+              ),
+
+            raw_payload: item,
+            updated_at:
+              new Date().toISOString(),
+          };
+        }
+      );
+
+      const {
+        data: savedItems,
+        error: itemUpsertError,
+      } = await supabaseAdmin
+        .from("pos_order_items")
+        .upsert(normalizedItems, {
+          onConflict:
+            "provider,external_line_item_id,user_id",
+        })
+        .select("id");
+
+      if (itemUpsertError) {
+        throw itemUpsertError;
+      }
+
+      savedItemCount =
+        savedItems?.length || 0;
+    }
+
+    const {
+      error: processedEventError,
+    } = await supabaseAdmin
+      .from("pos_webhook_events")
+      .update({
+        processing_status: "processed",
+        processing_error: null,
+        processed_at:
+          new Date().toISOString(),
+      })
+      .eq("id", webhookEventRowId);
+
+    if (processedEventError) {
+      throw processedEventError;
+    }
+
+    await supabaseAdmin
+      .from("integration_connections")
+      .update({
+        last_synced_at:
+          new Date().toISOString(),
+        updated_at:
+          new Date().toISOString(),
+      })
+      .eq("id", connection.id);
+
+    return NextResponse.json({
+      success: true,
+      duplicate: false,
+      provider: "generic",
+      eventId,
+      eventType,
+      connectionId: connection.id,
+      posOrderId: posOrder.id,
+      externalOrderId,
+      savedItemCount,
+      orderStatus: posOrder.order_status,
+    });
+  } catch (error) {
+    console.error(
+      "GENERIC POS WEBHOOK FAILED:",
+      error
+    );
+
+    if (webhookEventRowId) {
+      await supabaseAdmin
+        .from("pos_webhook_events")
+        .update({
+          processing_status: "failed",
+          processing_error:
+            error?.message ||
+            "Unknown processing error",
+          processed_at:
+            new Date().toISOString(),
+        })
+        .eq("id", webhookEventRowId);
+    }
+
+    return NextResponse.json(
+      {
+        success: false,
+        error:
+          error?.message ||
+          "Internal POS webhook error.",
+      },
+      { status: 500 }
+    );
   }
 }
