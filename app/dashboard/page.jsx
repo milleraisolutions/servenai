@@ -19998,7 +19998,17 @@ const scoreVendor = (() => {
 })();
 
 const scoreRevenue = (() => {
+  const hasRevenueData =
+    Number(liveTotalRevenue || 0) > 0 ||
+    (dbSalesRows || []).length > 0 ||
+    (salesData || []).length > 0;
+
+  if (!hasRevenueData) {
+    return 0;
+  }
+
   const momentum = Number(liveMomentumPercent || 0);
+
   return clampScore(70 + momentum * 2);
 })();
 
