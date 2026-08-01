@@ -36364,14 +36364,24 @@ const color = !hasScore
         score: restaurantHealthCurrentScore,
       },
     ].map((item) => {
-      const color =
-        item.score >= 80
-          ? "#86efac"
-          : item.score >= 70
-          ? "#c7d2fe"
-          : item.score >= 60
-          ? "#fbbf24"
-          : "#f87171";
+const noData =
+  (item.label === "Financial Health" && !hasFinancialData) ||
+  (item.label === "Labor Health" && !hasLaborData) ||
+  (item.label === "Inventory Health" && !hasInventoryData) ||
+  (item.label === "Waste Health" && !hasWasteData) ||
+  (item.label === "Vendor Health" && !hasVendorData) ||
+  (item.label === "Forecast Stability" && !(hasFinancialData || hasLaborData)) ||
+  (item.label === "Shift Health" && !hasShiftData);
+
+const color = noData
+  ? "#94a3b8"
+  : item.score >= 80
+  ? "#86efac"
+  : item.score >= 70
+  ? "#c7d2fe"
+  : item.score >= 60
+  ? "#fbbf24"
+  : "#f87171";
 
       return (
         <div
@@ -36402,7 +36412,7 @@ const color = !hasScore
               fontWeight: "1000",
             }}
           >
-           {Number(item.score || 0) > 0 ? `${item.score}/100` : "Waiting for data"}
+          {noData ? "Waiting for data" : `${Number(item.score || 0)}/100`}
           </div>
         </div>
       );
@@ -41759,7 +41769,7 @@ Restaurant AI Health is currently rated{" "}
           >
             <div
               style={{
-                width: `${item.score}%`,
+                width: noData ? "0%" : `${Number(item.score || 0)}%`,
                 height: "100%",
                 borderRadius: "999px",
                 background: color,
