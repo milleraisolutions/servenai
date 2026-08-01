@@ -36733,6 +36733,292 @@ const color = noData
 </div>
 
 </div>
+{/* =========================
+   🪑 AI TABLE TURN INTELLIGENCE
+========================= */}
+
+<div
+  style={{
+    marginBottom: "22px",
+    padding: isMobile ? "20px" : "24px",
+    borderRadius: "26px",
+    background:
+      "radial-gradient(circle at top right, rgba(14,165,233,0.20), transparent 34%), linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.94))",
+    border: "1px solid rgba(56,189,248,0.22)",
+    boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
+  }}
+>
+  <div
+    style={{
+      color: "#7dd3fc",
+      fontSize: "12px",
+      fontWeight: "950",
+      letterSpacing: "0.09em",
+      textTransform: "uppercase",
+      marginBottom: "10px",
+    }}
+  >
+    AI Table Turn Intelligence
+  </div>
+
+  <h3
+    style={{
+      color: "white",
+      fontSize: isMobile ? "24px" : "30px",
+      fontWeight: "1000",
+      margin: "0 0 10px",
+    }}
+  >
+    Identify where slow table flow is limiting revenue.
+  </h3>
+
+  <p
+    style={{
+      color: "#cbd5e1",
+      fontSize: "14px",
+      lineHeight: 1.8,
+      margin: "0 0 18px",
+      maxWidth: "900px",
+    }}
+  >
+    {tableTurnIntelligence?.hasData
+      ? tableTurnIntelligence.recommendation
+      : "Connect POS sales and order activity to let SerVen estimate table-turn pressure, lost seating capacity, and potential revenue recovery."}
+  </p>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile
+        ? "1fr"
+        : "repeat(4, minmax(0, 1fr))",
+      gap: "14px",
+      marginBottom: "18px",
+    }}
+  >
+    {[
+      {
+        label: "Estimated Turn",
+        value: tableTurnIntelligence?.hasData
+          ? `${Number(
+              tableTurnIntelligence.averageTurnMinutes || 0
+            )} min`
+          : "Waiting for data",
+        subtext: "Estimated guest cycle",
+      },
+      {
+        label: "Target Turn",
+        value: tableTurnIntelligence?.hasData
+          ? `${Number(
+              tableTurnIntelligence.targetTurnMinutes || 0
+            )} min`
+          : "Waiting for data",
+        subtext: "Current AI target",
+      },
+      {
+        label: "Lost Table Capacity",
+        value: tableTurnIntelligence?.hasData
+          ? Number(
+              tableTurnIntelligence.estimatedLostTables || 0
+            ).toLocaleString()
+          : "Waiting for data",
+        subtext: "Estimated missed turns",
+      },
+      {
+        label: "Revenue Opportunity",
+        value: tableTurnIntelligence?.hasData
+          ? `$${Number(
+              tableTurnIntelligence.estimatedLostRevenue || 0
+            ).toLocaleString()}`
+          : "Waiting for data",
+        subtext: "Estimated recovery opportunity",
+      },
+    ].map((item) => (
+      <div
+        key={item.label}
+        style={{
+          padding: "16px",
+          borderRadius: "18px",
+          background: "rgba(15,23,42,0.72)",
+          border: "1px solid rgba(56,189,248,0.16)",
+          minWidth: 0,
+        }}
+      >
+        <div
+          style={{
+            color: "#94a3b8",
+            fontSize: "11px",
+            fontWeight: "900",
+            textTransform: "uppercase",
+            letterSpacing: "0.07em",
+          }}
+        >
+          {item.label}
+        </div>
+
+        <div
+          style={{
+            color: "white",
+            fontSize: tableTurnIntelligence?.hasData
+              ? "26px"
+              : "15px",
+            fontWeight: "1000",
+            marginTop: "8px",
+            overflowWrap: "anywhere",
+          }}
+        >
+          {item.value}
+        </div>
+
+        <div
+          style={{
+            color: "#cbd5e1",
+            fontSize: "12px",
+            marginTop: "6px",
+          }}
+        >
+          {item.subtext}
+        </div>
+      </div>
+    ))}
+  </div>
+
+  {tableTurnIntelligence?.hasData ? (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: isMobile
+          ? "1fr"
+          : "repeat(3, minmax(0, 1fr))",
+        gap: "14px",
+      }}
+    >
+      <div
+        style={{
+          padding: "16px",
+          borderRadius: "18px",
+          background: "rgba(255,255,255,0.045)",
+          border: "1px solid rgba(148,163,184,0.14)",
+        }}
+      >
+        <div
+          style={{
+            color: "#94a3b8",
+            fontSize: "11px",
+            fontWeight: "900",
+            textTransform: "uppercase",
+            letterSpacing: "0.07em",
+          }}
+        >
+          Status
+        </div>
+
+        <div
+          style={{
+            color:
+              tableTurnIntelligence.status === "Critical"
+                ? "#f87171"
+                : tableTurnIntelligence.status === "High"
+                ? "#fbbf24"
+                : tableTurnIntelligence.status === "Watch"
+                ? "#7dd3fc"
+                : "#86efac",
+            fontSize: "20px",
+            fontWeight: "1000",
+            marginTop: "8px",
+          }}
+        >
+          {tableTurnIntelligence.status}
+        </div>
+      </div>
+
+      <div
+        style={{
+          padding: "16px",
+          borderRadius: "18px",
+          background: "rgba(255,255,255,0.045)",
+          border: "1px solid rgba(148,163,184,0.14)",
+        }}
+      >
+        <div
+          style={{
+            color: "#94a3b8",
+            fontSize: "11px",
+            fontWeight: "900",
+            textTransform: "uppercase",
+            letterSpacing: "0.07em",
+          }}
+        >
+          Primary Risk
+        </div>
+
+        <div
+          style={{
+            color: "white",
+            fontSize: "15px",
+            fontWeight: "900",
+            lineHeight: 1.5,
+            marginTop: "8px",
+          }}
+        >
+          {tableTurnIntelligence.primaryRisk}
+        </div>
+      </div>
+
+      <div
+        style={{
+          padding: "16px",
+          borderRadius: "18px",
+          background: "rgba(255,255,255,0.045)",
+          border: "1px solid rgba(148,163,184,0.14)",
+        }}
+      >
+        <div
+          style={{
+            color: "#94a3b8",
+            fontSize: "11px",
+            fontWeight: "900",
+            textTransform: "uppercase",
+            letterSpacing: "0.07em",
+          }}
+        >
+          Confidence
+        </div>
+
+        <div
+          style={{
+            color:
+              tableTurnIntelligence.confidence === "Medium"
+                ? "#fbbf24"
+                : "#7dd3fc",
+            fontSize: "20px",
+            fontWeight: "1000",
+            marginTop: "8px",
+          }}
+        >
+          {tableTurnIntelligence.confidence}
+        </div>
+      </div>
+    </div>
+  ) : (
+    <div
+      style={{
+        padding: "16px",
+        borderRadius: "18px",
+        background: "rgba(56,189,248,0.08)",
+        border: "1px solid rgba(56,189,248,0.18)",
+        color: "#bae6fd",
+        fontSize: "14px",
+        fontWeight: "800",
+        lineHeight: 1.7,
+      }}
+    >
+      Next step: connect POS sales with order counts to activate estimated table
+      turns. Actual seated, order-open, check-close, and table-reset timestamps
+      will replace these estimates after live POS integration.
+    </div>
+  )}
+</div>
 {/* 🧠 AI OPERATIONAL MEMORY ENGINE */}
 <div
   style={{
@@ -37163,6 +37449,7 @@ const color = noData
     )}
   </div>
 </div>
+
 {/* 🔮 AI PREDICTIVE RISK ENGINE */}
 <div
   style={{
