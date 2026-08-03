@@ -724,6 +724,7 @@ const [employees, setEmployees] = useState([]);
 const [employeeShifts, setEmployeeShifts] = useState([]);
 const [beverageItems, setBeverageItems] = useState([]);
 const [beverageUsage, setBeverageUsage] = useState([]);
+
 const [importsSearch, setImportsSearch] = useState("");
 const [mapping, setMapping] = useState({
   name: "",
@@ -31956,17 +31957,8 @@ const loadLivePosData = async () => {
     setLivePosLoading(true);
     setLivePosError("");
 
-    const {
-      data: { user: authenticatedUser },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError) {
-      throw authError;
-    }
-
-    const resolvedOwnerId =
-      dataOwnerId || authenticatedUser?.id || null;
+   const resolvedOwnerId =
+  dataOwnerId || user?.id || null;
 
     if (!resolvedOwnerId) {
       console.log("LIVE POS WAITING FOR OWNER ID");
@@ -32033,8 +32025,10 @@ const loadLivePosData = async () => {
   }
 };
 useEffect(() => {
+  if (!dataOwnerId && !user?.id) return;
+
   loadLivePosData();
-}, [dataOwnerId]);
+}, [dataOwnerId, user?.id]);
 
 
 
