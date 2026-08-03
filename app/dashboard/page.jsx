@@ -24694,139 +24694,329 @@ const tableTurnIntelligence = useMemo(() => {
       ? locationSalesData
       : resolvedSalesData || [];
 
+  const targetTurnMinutes = 60;
+
+  /*
+   * LIVE MEASURED ORDER CYCLES
+   * This is not yet a true seated-to-reset table turn.
+   * It measures opened_at to closed_at/completed_at.
+   */
+  const measuredCycles = (livePosOrders || [])
+    .map((order) => {
+      const startValue = order.opened_at;
+
+      const endValue =
+        order.closed_at ||
+        order.completed_at;
+
+      if (!startValue || !endValue) {
+        return null;
+      }
+
+      const start = new Date(startValue);
+      const end = new Date(endValue);
+
+      if (
+        Number.isNaN(start.getTime()) ||
+        Number.isNaN(end.getTime())
+      ) {
+        return null;
+      }
+
+      const minutes =
+        (end.getTime() - start.getTime()) /
+        60000;
+
+      /*
+       * Ignore impossible or unusable cycles:
+       * under 5 minutes or over 6 hours.
+       */
+      if (minutes < 5 || minutes > 360) {
+        return null;
+      }
+
+      return {
+        orderId:
+          order.external_order_id ||
+          order.id,
+        minutes,
+        guestCount: Number(
+          order.guest_count || 0
+        ),
+        netSales: Number(
+          order.net_sales ||
+            order.subtotal ||
+            order.total ||
+            0
+        ),
+        diningOption:
+          order.dining_option ||
+          "Unknown",
+        revenueCenter:
+          order.revenue_center ||
+          "Unknown",
+        tableName:
+          order.table_name ||
+          order.table_id ||
+          "Unknown table",
+        openedAt: startValue,
+        endedAt: endValue,
+      };
+    })
+    .filter(Boolean);
+
+  const measuredOrderCount =
+    measuredCycles.length;
+
+  const hasMeasuredData =
+    measuredOrderCount > 0;
+
+  const measuredAverageMinutes =
+    hasMeasuredData
+      ? Math.round(
+          measuredCycles.reduce(
+            (sum, cycle) =>
+              sum +
+              Number(cycle.minutes || 0),
+            0
+          ) / measuredOrderCount
+        )
+      : 0;
+
+  const measuredRevenue =
+    measuredCycles.reduce(
+      (sum, cycle) =>
+        sum +
+        Number(cycle.netSales || 0),
+      0
+    );
+
+  const measuredGuestCount =
+    measuredCycles.reduce(
+      (sum, cycle) =>
+        sum +
+        Number(cycle.guestCount || 0),
+      0
+    );
+
+  const measuredAverageCheck =
+    measuredOrderCount > 0
+      ? measuredRevenue /
+        measuredOrderCount
+      : 0;
+
+  /*
+   * FALLBACK ESTIMATE
+   * Used only when measured POS timestamps
+   * are not available.
+   */
   const hasSalesData =
     salesRows.length > 0 &&
     Number(liveTotalRevenue || 0) > 0;
 
-  if (!hasSalesData) {
-    return {
-      hasData: false,
-      averageTurnMinutes: 0,
-      targetTurnMinutes: 0,
-      estimatedLostTables: 0,
-      estimatedLostRevenue: 0,
-      peakDaypart: "Waiting for data",
-      confidence: "Waiting for data",
-      status: "Waiting for data",
-      primaryRisk: "Awaiting POS activity",
-      recommendation:
-        "Connect POS sales and order activity to activate AI table turn intelligence.",
-    };
-  }
-
-  const totalRevenue = Number(liveTotalRevenue || 0);
+  const totalRevenue =
+    Number(liveTotalRevenue || 0);
 
   const totalOrders =
-  Number(liveTotalOrders || 0) ||
-  salesRows.reduce(
-    (sum, row) =>
-      sum +
-      Number(
-        row.orders_count ||
-          row.order_count ||
-          row.orders ||
-          row.transactions ||
-          0
-      ),
-    0
-  );
-const averageCheck =
-  totalOrders > 0
-    ? totalRevenue / totalOrders
-    : 0;
+    Number(liveTotalOrders || 0) ||
+    salesRows.reduce(
+      (sum, row) =>
+        sum +
+        Number(
+          row.orders_count ||
+            row.order_count ||
+            row.orders ||
+            row.transactions ||
+            0
+        ),
+      0
+    );
 
-  /*
-   * Phase A estimate:
-   * We do not yet have seated/open/closed timestamps,
-   * so estimate table-turn pressure from order volume,
-   * revenue, and labor coverage.
-   */
-  const laborHours = Number(totalLaborHours || 0);
+  const estimatedAverageCheck =
+    totalOrders > 0
+      ? totalRevenue / totalOrders
+      : 0;
+
+  const laborHours =
+    Number(totalLaborHours || 0);
 
   const salesPerLaborHour =
-    laborHours > 0 ? totalRevenue / laborHours : 0;
-
-  const targetTurnMinutes = 60;
+    laborHours > 0
+      ? totalRevenue / laborHours
+      : 0;
 
   let estimatedTurnMinutes = 65;
 
   if (salesPerLaborHour > 0) {
     if (salesPerLaborHour < 45) {
       estimatedTurnMinutes = 82;
-    } else if (salesPerLaborHour < 65) {
+    } else if (
+      salesPerLaborHour < 65
+    ) {
       estimatedTurnMinutes = 74;
-    } else if (salesPerLaborHour < 90) {
+    } else if (
+      salesPerLaborHour < 90
+    ) {
       estimatedTurnMinutes = 66;
     } else {
       estimatedTurnMinutes = 58;
     }
   }
 
+  const source = hasMeasuredData
+    ? "measured"
+    : hasSalesData
+    ? "estimated"
+    : "waiting";
+
+  const averageTurnMinutes =
+    hasMeasuredData
+      ? measuredAverageMinutes
+      : hasSalesData
+      ? estimatedTurnMinutes
+      : 0;
+
+  const effectiveOrderCount =
+    hasMeasuredData
+      ? measuredOrderCount
+      : totalOrders;
+
+  const averageCheck =
+    hasMeasuredData
+      ? measuredAverageCheck
+      : estimatedAverageCheck;
+
   const excessTurnMinutes = Math.max(
     0,
-    estimatedTurnMinutes - targetTurnMinutes
+    averageTurnMinutes -
+      targetTurnMinutes
   );
 
+  /*
+   * This estimates missed equivalent turns
+   * across the observed order sample.
+   */
   const estimatedLostTables =
-  totalOrders > 0
-    ? Math.max(
-        0,
-        Math.round(
-          (totalOrders * excessTurnMinutes) /
-            targetTurnMinutes
+    effectiveOrderCount > 0
+      ? Math.max(
+          0,
+          Math.round(
+            (effectiveOrderCount *
+              excessTurnMinutes) /
+              targetTurnMinutes
+          )
         )
-      )
-    : 0;
+      : 0;
 
-  const estimatedLostRevenue = Math.max(
-    0,
-    Math.round(estimatedLostTables * averageCheck)
-  );
+  const estimatedLostRevenue =
+    Math.max(
+      0,
+      Math.round(
+        estimatedLostTables *
+          averageCheck
+      )
+    );
 
   const peakDaypart =
     topShift?.shift ||
     mostLaborHeavyShift?.shift ||
+    measuredCycles?.[0]
+      ?.revenueCenter ||
     "Peak service period";
 
   const status =
-    estimatedTurnMinutes > 80
+    source === "waiting"
+      ? "Waiting for data"
+      : averageTurnMinutes > 90
       ? "Critical"
-      : estimatedTurnMinutes > 70
+      : averageTurnMinutes > 75
       ? "High"
-      : estimatedTurnMinutes > targetTurnMinutes
+      : averageTurnMinutes >
+        targetTurnMinutes
       ? "Watch"
       : "Healthy";
 
+  const confidence =
+    source === "measured"
+      ? measuredOrderCount >= 30
+        ? "High"
+        : measuredOrderCount >= 10
+        ? "Medium"
+        : "Early Sample"
+      : source === "estimated"
+      ? laborHours > 0 &&
+        totalOrders > 0
+        ? "Medium"
+        : "Low"
+      : "Waiting for data";
+
+  const metricLabel =
+    source === "measured"
+      ? "Measured Order Cycle"
+      : source === "estimated"
+      ? "Estimated Table Turn"
+      : "Table Turn Intelligence";
+
   const primaryRisk =
-    status === "Healthy"
+    source === "waiting"
+      ? "Awaiting POS activity"
+      : status === "Healthy"
       ? "Table flow appears efficient"
-      : salesPerLaborHour > 0 && salesPerLaborHour < 65
+      : source === "measured"
+      ? `${metricLabel} is ${excessTurnMinutes.toFixed(
+          0
+        )} minutes above the current target`
+      : salesPerLaborHour > 0 &&
+        salesPerLaborHour < 65
       ? "Low sales throughput relative to labor coverage"
       : "Service flow may be limiting seating capacity";
 
   const recommendation =
-    status === "Healthy"
+    source === "waiting"
+      ? "Connect POS sales and order activity to activate AI table turn intelligence."
+      : status === "Healthy"
       ? "Maintain current service flow and continue monitoring peak periods."
+      : source === "measured"
+      ? `Review the guest cycle during ${peakDaypart}. Compare order-open, kitchen completion, payment close, and table-reset timing to identify where the additional ${Math.round(
+          excessTurnMinutes
+        )} minutes are occurring.`
       : `Review seating, ticket-time, and payment delays during ${peakDaypart}. Focus first on the stage adding the most time to the guest cycle.`;
 
   return {
-    hasData: true,
-    averageTurnMinutes: estimatedTurnMinutes,
+    hasData:
+      source !== "waiting",
+
+    source,
+    metricLabel,
+
+    averageTurnMinutes,
     targetTurnMinutes,
+
+    measuredOrderCount,
+    measuredGuestCount,
+    measuredCycles,
+
     estimatedLostTables,
     estimatedLostRevenue,
+
     peakDaypart,
-    confidence:
-      laborHours > 0 && totalOrders > 0
-        ? "Medium"
-        : "Low",
+    confidence,
     status,
     primaryRisk,
     recommendation,
+
     averageCheck,
     salesPerLaborHour,
+
+    dataDisclosure:
+      source === "measured"
+        ? "Based on POS order-open to order-complete or order-close timestamps. True seated-to-reset timing requires seating and table-reset events."
+        : source === "estimated"
+        ? "Estimated from sales volume, order counts, revenue, and labor coverage."
+        : "Waiting for live POS or uploaded sales data.",
   };
 }, [
+  livePosOrders,
   locationSalesData,
   resolvedSalesData,
   liveTotalRevenue,
