@@ -31957,48 +31957,74 @@ const loadLivePosData = async () => {
     setLivePosLoading(true);
     setLivePosError("");
 
-   const resolvedOwnerId =
-  dataOwnerId || user?.id || null;
+    const resolvedOwnerId =
+      dataOwnerId || user?.id || null;
 
     if (!resolvedOwnerId) {
       console.log("LIVE POS WAITING FOR OWNER ID");
       return;
     }
 
-    const [ordersResult, itemsResult] =
-      await Promise.all([
-        supabase
-          .from("pos_orders")
-          .select("*")
-          .eq("user_id", resolvedOwnerId)
-          .order("opened_at", {
-            ascending: false,
-          })
-          .limit(5000),
+    const {
+      data: sessionData,
+      error: sessionError,
+    } = await supabase.auth.getSession();
 
-        supabase
-          .from("pos_order_items")
-          .select("*")
-          .eq("user_id", resolvedOwnerId)
-          .order("sent_to_kitchen_at", {
-            ascending: false,
-          })
-          .limit(10000),
-      ]);
-
-    if (ordersResult.error) {
-      throw ordersResult.error;
+    if (sessionError) {
+      throw sessionError;
     }
 
-    if (itemsResult.error) {
-      throw itemsResult.error;
+    const accessToken =
+      sessionData?.session?.access_token || "";
+
+    if (!accessToken) {
+      throw new Error(
+        "No authenticated access token was found."
+      );
     }
 
-    const orderRows = ordersResult.data || [];
-    const itemRows = itemsResult.data || [];
+    const response = await fetch(
+      `/api/live-pos-data?ownerId=${encodeURIComponent(
+        resolvedOwnerId
+      )}`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+        cache: "no-store",
+      }
+    );
 
-    console.log("LIVE POS ORDERS:", orderRows.length);
-    console.log("LIVE POS ITEMS:", itemRows.length);
+    const result = await response.json();
+
+    if (!response.ok || !result?.success) {
+      throw new Error(
+        result?.error ||
+          "Live POS data could not be loaded."
+      );
+    }
+
+    const orderRows = Array.isArray(result.orders)
+      ? result.orders
+      : [];
+
+    const itemRows = Array.isArray(result.items)
+      ? result.items
+      : [];
+
+    console.log(
+      "LIVE POS API OWNER:",
+      result.ownerId
+    );
+    console.log(
+      "LIVE POS ORDERS:",
+      orderRows.length
+    );
+    console.log(
+      "LIVE POS ITEMS:",
+      itemRows.length
+    );
     console.log(
       "LIVE POS FIRST ORDER:",
       orderRows[0]
@@ -32015,6 +32041,9 @@ const loadLivePosData = async () => {
       "LIVE POS DATA LOAD FAILED:",
       error
     );
+
+    setLivePosOrders([]);
+    setLivePosOrderItems([]);
 
     setLivePosError(
       error?.message ||
