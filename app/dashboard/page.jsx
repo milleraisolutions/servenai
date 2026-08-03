@@ -37145,15 +37145,32 @@ const color = noData
     }}
   >
     {[
-      {
-        label: "Estimated Turn",
-        value: tableTurnIntelligence?.hasData
-          ? `${Number(
-              tableTurnIntelligence.averageTurnMinutes || 0
-            )} min`
-          : "Waiting for data",
-        subtext: "Estimated guest cycle",
-      },
+     {
+  label:
+    tableTurnIntelligence?.metricLabel ||
+    "Table Turn Intelligence",
+
+  value: tableTurnIntelligence?.hasData
+    ? `${Number(
+        tableTurnIntelligence.averageTurnMinutes || 0
+      )} min`
+    : "Waiting for data",
+
+  subtext:
+    tableTurnIntelligence?.source === "measured"
+      ? `${Number(
+          tableTurnIntelligence.measuredOrderCount || 0
+        )} completed order cycle${
+          Number(
+            tableTurnIntelligence.measuredOrderCount || 0
+          ) === 1
+            ? ""
+            : "s"
+        } analyzed`
+      : tableTurnIntelligence?.source === "estimated"
+      ? "Estimated from sales and labor activity"
+      : "Awaiting live POS activity",
+},
       {
         label: "Target Turn",
         value: tableTurnIntelligence?.hasData
