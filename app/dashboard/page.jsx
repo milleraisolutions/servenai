@@ -677,6 +677,9 @@ const [pendingUploadSummary, setPendingUploadSummary] = useState(null);
 const [clientUploads, setClientUploads] = useState([]);
 const [locations, setLocations] = useState([]);
 const [user, setUser] = useState(null);
+const [authSession, setAuthSession] = useState(null);
+const authSessionRef = useRef(null);
+const accessTokenRef = useRef("");
 const [selectedEnterpriseLocation, setSelectedEnterpriseLocation] = useState(null);
 const importsRequestIdRef = useRef(0);
 const isMobile =
@@ -5654,49 +5657,97 @@ useEffect(() => {
     setUserProfile(profileData);
   };
 
-  const loadUser = async () => {
-    try {
-      const {
-        data: { session },
-        error: sessionError,
-      } = await supabase.auth.getSession();
+const cacheAuthSession = (session) => {
+  const safeSession = session || null;
 
-      if (sessionError) {
-        console.error("Failed to load session:", sessionError);
-        setUser(null);
-        setUserProfile(null);
-        return;
-      }
+  setAuthSession(safeSession);
+  authSessionRef.current = safeSession;
+  accessTokenRef.current =
+    safeSession?.access_token || "";
 
-      const authUser = session?.user || null;
+  return safeSession;
+};
 
-      console.log("AUTH USER:", authUser);
-      setUser(authUser);
+const loadUser = async () => {
+  try {
+    const {
+      data: { session },
+      error: sessionError,
+    } = await supabase.auth.getSession();
 
-      await fetchUserProfile(authUser, "PROFILE");
-    } catch (err) {
-      console.error("Failed to get current user:", err);
+    if (sessionError) {
+      console.error(
+        "Failed to load session:",
+        sessionError
+      );
+
+      cacheAuthSession(null);
       setUser(null);
       setUserProfile(null);
+      return;
     }
-  };
 
-  loadUser();
+    const cachedSession =
+      cacheAuthSession(session);
 
-  const {
-    data: { subscription },
-  } = supabase.auth.onAuthStateChange(async (_event, session) => {
-    const authUser = session?.user || null;
+    const authUser =
+      cachedSession?.user || null;
 
-    console.log("AUTH STATE CHANGED:", authUser);
+    console.log("AUTH USER:", authUser);
+
     setUser(authUser);
 
-    await fetchUserProfile(authUser, "PROFILE AFTER AUTH CHANGE");
-  });
+    await fetchUserProfile(
+      authUser,
+      "PROFILE"
+    );
+  } catch (err) {
+    console.error(
+      "Failed to get current user:",
+      err
+    );
 
-  return () => {
-    subscription?.unsubscribe();
-  };
+    cacheAuthSession(null);
+    setUser(null);
+    setUserProfile(null);
+  }
+};
+
+loadUser();
+
+const {
+  data: { subscription },
+} = supabase.auth.onAuthStateChange(
+  (_event, session) => {
+    const cachedSession =
+      cacheAuthSession(session);
+
+    const authUser =
+      cachedSession?.user || null;
+
+    console.log(
+      "AUTH STATE CHANGED:",
+      authUser
+    );
+
+    setUser(authUser);
+
+    /*
+     * Run profile loading outside the synchronous
+     * auth callback so it does not hold the auth lock.
+     */
+    setTimeout(() => {
+      fetchUserProfile(
+        authUser,
+        "PROFILE AFTER AUTH CHANGE"
+      );
+    }, 0);
+  }
+);
+
+return () => {
+  subscription?.unsubscribe();
+};
 }, []);
 useEffect(() => {
   if (!(user?.id && isOwner)) {
@@ -31965,17 +32016,10 @@ const loadLivePosData = async () => {
       return;
     }
 
-    const {
-      data: sessionData,
-      error: sessionError,
-    } = await supabase.auth.getSession();
-
-    if (sessionError) {
-      throw sessionError;
-    }
-
-    const accessToken =
-      sessionData?.session?.access_token || "";
+  const accessToken =
+  accessTokenRef.current ||
+  authSession?.access_token ||
+  "";
 
     if (!accessToken) {
       throw new Error(
@@ -32055,9 +32099,14 @@ const loadLivePosData = async () => {
 };
 useEffect(() => {
   if (!dataOwnerId && !user?.id) return;
+  if (!accessTokenRef.current && !authSession?.access_token) return;
 
   loadLivePosData();
-}, [dataOwnerId, user?.id]);
+}, [
+  dataOwnerId,
+  user?.id,
+  authSession?.access_token,
+]);
 
 
 
