@@ -26634,7 +26634,20 @@ const aiSmartNotifications = useMemo(() => {
     });
   }
 
-  return notifications.slice(0, 8);
+ const severityOrder = {
+  Critical: 4,
+  High: 3,
+  Watch: 2,
+  Normal: 1,
+};
+
+return [...notifications]
+  .sort(
+    (a, b) =>
+      (severityOrder[b.severity] || 0) -
+      (severityOrder[a.severity] || 0)
+  )
+  .slice(0, 8);
 }, [
   predictiveRiskSignals,
   crossLocationAlerts,
