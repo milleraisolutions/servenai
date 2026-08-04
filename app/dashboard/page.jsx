@@ -54397,9 +54397,36 @@ Recovered profit is based on saved AI action impact.
     >
       {(aiSmartNotifications || []).length > 0 ? (
         aiSmartNotifications.map((note, index) => (
-          <div
-            key={`${note.title}-${index}`}
-            style={{
+         <div
+  key={`${note.title}-${index}`}
+  onClick={() => {
+    let targetId = null;
+
+    if (
+      note.title?.toLowerCase().includes("kitchen")
+    ) {
+      targetId = "kitchen-bottleneck-intelligence";
+    } else if (
+      note.title?.toLowerCase().includes("service")
+    ) {
+      targetId = "service-speed-intelligence";
+    } else if (
+      note.title?.toLowerCase().includes("table")
+    ) {
+      targetId = "ai-table-turn-intelligence";
+    }
+
+    if (targetId) {
+      document
+        .getElementById(targetId)
+        ?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+    }
+  }}
+  style={{
+    cursor: "pointer",
               padding: "16px",
               borderRadius: "18px",
               background: "rgba(255,255,255,0.05)",
@@ -54694,8 +54721,8 @@ Recovered profit is based on saved AI action impact.
 {/* =========================
    🪑 AI TABLE TURN INTELLIGENCE
 ========================= */}
-
 <div
+  id="ai-table-turn-intelligence"
   style={{
     marginBottom: "22px",
     padding: isMobile ? "20px" : "24px",
@@ -54999,6 +55026,7 @@ Recovered profit is based on saved AI action impact.
 ========================= */}
 
 <div
+  id="kitchen-bottleneck-intelligence"
   style={{
     marginBottom: "22px",
     padding: isMobile ? "20px" : "24px",
@@ -55708,6 +55736,7 @@ Recovered profit is based on saved AI action impact.
 ========================= */}
 
 <div
+  id="service-speed-intelligence"
   style={{
     marginBottom: "22px",
     padding: isMobile ? "20px" : "24px",
