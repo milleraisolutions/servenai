@@ -55574,6 +55574,349 @@ Recovered profit is based on saved AI action impact.
       })}
   </div>
 </div>
+
+{/* =========================
+   ⚡ AI SERVICE SPEED INTELLIGENCE
+========================= */}
+
+<div
+  style={{
+    marginBottom: "22px",
+    padding: isMobile ? "20px" : "24px",
+    borderRadius: "26px",
+    background:
+      "radial-gradient(circle at top right, rgba(59,130,246,0.20), transparent 34%), linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.94))",
+    border: "1px solid rgba(96,165,250,0.22)",
+    boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
+  }}
+>
+  <div
+    style={{
+      color: "#93c5fd",
+      fontSize: "12px",
+      fontWeight: "950",
+      letterSpacing: "0.09em",
+      textTransform: "uppercase",
+      marginBottom: "10px",
+    }}
+  >
+    AI Service Speed Intelligence
+  </div>
+
+  <h3
+    style={{
+      color: "white",
+      fontSize: isMobile ? "24px" : "30px",
+      fontWeight: "1000",
+      margin: "0 0 10px",
+    }}
+  >
+    Connect kitchen execution to the complete guest service cycle.
+  </h3>
+
+  <p
+    style={{
+      color: "#cbd5e1",
+      fontSize: "14px",
+      lineHeight: 1.8,
+      margin: "0 0 18px",
+      maxWidth: "900px",
+    }}
+  >
+    {serviceSpeedIntelligence?.hasData
+      ? serviceSpeedIntelligence.recommendation
+      : "Connect completed POS orders and kitchen timing events to activate service-speed intelligence."}
+  </p>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile
+        ? "1fr"
+        : "repeat(5, minmax(0, 1fr))",
+      gap: "14px",
+      marginBottom: "18px",
+    }}
+  >
+    {[
+      {
+        label: "Service Score",
+        value: serviceSpeedIntelligence?.hasData
+          ? `${Number(
+              serviceSpeedIntelligence.serviceScore || 0
+            )}/100`
+          : "Waiting for data",
+        subtext: "Combined service performance",
+      },
+      {
+        label: "Guest Cycle",
+        value: serviceSpeedIntelligence?.hasData
+          ? `${Number(
+              serviceSpeedIntelligence.guestCycleMinutes || 0
+            ).toFixed(1)} min`
+          : "Waiting for data",
+        subtext: "Measured order cycle",
+      },
+      {
+        label: "Kitchen Time",
+        value: serviceSpeedIntelligence?.hasData
+          ? `${Number(
+              serviceSpeedIntelligence.kitchenTimeMinutes || 0
+            ).toFixed(1)} min`
+          : "Waiting for data",
+        subtext: serviceSpeedIntelligence?.hasData
+          ? `${Number(
+              serviceSpeedIntelligence.targetKitchenMinutes || 0
+            ).toFixed(1)} min target`
+          : "Awaiting completed kitchen items",
+      },
+      {
+        label: "On-Time Items",
+        value: serviceSpeedIntelligence?.hasData
+          ? `${Number(
+              serviceSpeedIntelligence.onTimePercent || 0
+            ).toFixed(0)}%`
+          : "Waiting for data",
+        subtext: serviceSpeedIntelligence?.hasData
+          ? `${Number(
+              serviceSpeedIntelligence.onTimeItemCount || 0
+            )} of ${Number(
+              serviceSpeedIntelligence.measuredItemCount || 0
+            )} items`
+          : "Awaiting item timing",
+      },
+      {
+        label: "Delayed Revenue",
+        value: serviceSpeedIntelligence?.hasData
+          ? `$${Number(
+              serviceSpeedIntelligence.delayedRevenue || 0
+            ).toLocaleString()}`
+          : "Waiting for data",
+        subtext: "Sales tied to delayed items",
+      },
+    ].map((item) => (
+      <div
+        key={item.label}
+        style={{
+          padding: "16px",
+          borderRadius: "18px",
+          background: "rgba(15,23,42,0.72)",
+          border: "1px solid rgba(96,165,250,0.16)",
+          minWidth: 0,
+        }}
+      >
+        <div
+          style={{
+            color: "#94a3b8",
+            fontSize: "11px",
+            fontWeight: "900",
+            textTransform: "uppercase",
+            letterSpacing: "0.07em",
+          }}
+        >
+          {item.label}
+        </div>
+
+        <div
+          style={{
+            color: "white",
+            fontSize: serviceSpeedIntelligence?.hasData
+              ? "25px"
+              : "15px",
+            fontWeight: "1000",
+            marginTop: "8px",
+            overflowWrap: "anywhere",
+          }}
+        >
+          {item.value}
+        </div>
+
+        <div
+          style={{
+            color: "#cbd5e1",
+            fontSize: "12px",
+            marginTop: "6px",
+            lineHeight: 1.5,
+          }}
+        >
+          {item.subtext}
+        </div>
+      </div>
+    ))}
+  </div>
+
+  {serviceSpeedIntelligence?.hasData ? (
+    <>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: isMobile
+            ? "1fr"
+            : "repeat(3, minmax(0, 1fr))",
+          gap: "14px",
+          marginBottom: "18px",
+        }}
+      >
+        <div
+          style={{
+            padding: "16px",
+            borderRadius: "18px",
+            background: "rgba(255,255,255,0.045)",
+            border: "1px solid rgba(148,163,184,0.14)",
+          }}
+        >
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "11px",
+              fontWeight: "900",
+              textTransform: "uppercase",
+            }}
+          >
+            Status
+          </div>
+
+          <div
+            style={{
+              color:
+                serviceSpeedIntelligence.status === "Excellent"
+                  ? "#86efac"
+                  : serviceSpeedIntelligence.status === "Healthy"
+                  ? "#4ade80"
+                  : serviceSpeedIntelligence.status === "Watch"
+                  ? "#7dd3fc"
+                  : serviceSpeedIntelligence.status === "High"
+                  ? "#fbbf24"
+                  : "#f87171",
+              fontSize: "20px",
+              fontWeight: "1000",
+              marginTop: "8px",
+            }}
+          >
+            {serviceSpeedIntelligence.status}
+          </div>
+        </div>
+
+        <div
+          style={{
+            padding: "16px",
+            borderRadius: "18px",
+            background: "rgba(255,255,255,0.045)",
+            border: "1px solid rgba(148,163,184,0.14)",
+          }}
+        >
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "11px",
+              fontWeight: "900",
+              textTransform: "uppercase",
+            }}
+          >
+            Primary Risk
+          </div>
+
+          <div
+            style={{
+              color: "white",
+              fontSize: "15px",
+              fontWeight: "900",
+              lineHeight: 1.5,
+              marginTop: "8px",
+            }}
+          >
+            {serviceSpeedIntelligence.primaryRisk}
+          </div>
+        </div>
+
+        <div
+          style={{
+            padding: "16px",
+            borderRadius: "18px",
+            background: "rgba(255,255,255,0.045)",
+            border: "1px solid rgba(148,163,184,0.14)",
+          }}
+        >
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "11px",
+              fontWeight: "900",
+              textTransform: "uppercase",
+            }}
+          >
+            Confidence
+          </div>
+
+          <div
+            style={{
+              color:
+                serviceSpeedIntelligence.confidence === "High"
+                  ? "#86efac"
+                  : serviceSpeedIntelligence.confidence === "Medium"
+                  ? "#fbbf24"
+                  : "#7dd3fc",
+              fontSize: "20px",
+              fontWeight: "1000",
+              marginTop: "8px",
+            }}
+          >
+            {serviceSpeedIntelligence.confidence}
+          </div>
+        </div>
+      </div>
+
+      <div
+        style={{
+          padding: "18px",
+          borderRadius: "20px",
+          background: "rgba(34,197,94,0.07)",
+          border: "1px solid rgba(74,222,128,0.16)",
+        }}
+      >
+        <div
+          style={{
+            color: "#86efac",
+            fontSize: "11px",
+            fontWeight: "900",
+            textTransform: "uppercase",
+            letterSpacing: "0.07em",
+          }}
+        >
+          Recommended Action
+        </div>
+
+        <div
+          style={{
+            color: "white",
+            fontSize: "15px",
+            fontWeight: "800",
+            lineHeight: 1.7,
+            marginTop: "8px",
+          }}
+        >
+          {serviceSpeedIntelligence.recommendation}
+        </div>
+      </div>
+    </>
+  ) : (
+    <div
+      style={{
+        padding: "16px",
+        borderRadius: "18px",
+        background: "rgba(96,165,250,0.08)",
+        border: "1px solid rgba(96,165,250,0.18)",
+        color: "#bfdbfe",
+        fontSize: "14px",
+        fontWeight: "800",
+        lineHeight: 1.7,
+      }}
+    >
+      Completed order cycles and kitchen timestamps are required to calculate
+      service speed.
+    </div>
+  )}
+</div>
 {/* =========================
    EXECUTIVE RISK RADAR
 ========================= */}
