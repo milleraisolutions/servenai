@@ -25246,6 +25246,481 @@ const restaurantCapacityEngine = useMemo(() => {
   tableTurnIntelligence,
 ]);
 
+const kitchenBottleneckEngine = useMemo(() => {
+  const validItems = (livePosOrderItems || [])
+    .map((item) => {
+      const sentAt =
+        item.sent_to_kitchen_at || null;
+
+      const completedAt =
+        item.completed_at || null;
+
+      const storedActualMinutes = Number(
+        item.actual_prep_minutes || 0
+      );
+
+      let calculatedActualMinutes = 0;
+
+      if (sentAt && completedAt) {
+        const start = new Date(sentAt);
+        const end = new Date(completedAt);
+
+        if (
+          !Number.isNaN(start.getTime()) &&
+          !Number.isNaN(end.getTime())
+        ) {
+          calculatedActualMinutes =
+            (end.getTime() - start.getTime()) /
+            60000;
+        }
+      }
+
+      const actualPrepMinutes =
+        storedActualMinutes > 0
+          ? storedActualMinutes
+          : calculatedActualMinutes;
+
+      const targetPrepMinutes = Number(
+        item.target_prep_minutes || 0
+      );
+
+      /*
+       * Reject missing or impossible timing records.
+       */
+      if (
+        actualPrepMinutes <= 0 ||
+        actualPrepMinutes > 240
+      ) {
+        return null;
+      }
+
+      const varianceMinutes =
+        targetPrepMinutes > 0
+          ? actualPrepMinutes -
+            targetPrepMinutes
+          : 0;
+
+      const variancePercent =
+        targetPrepMinutes > 0
+          ? (varianceMinutes /
+              targetPrepMinutes) *
+            100
+          : 0;
+
+      return {
+        id: item.id,
+
+        orderId:
+          item.external_order_id ||
+          item.pos_order_id ||
+          null,
+
+        itemName:
+          item.item_name ||
+          "Unknown Item",
+
+        station:
+          item.station ||
+          "Unassigned",
+
+        quantity: Number(
+          item.quantity || 1
+        ),
+
+        actualPrepMinutes: Number(
+          actualPrepMinutes.toFixed(2)
+        ),
+
+        targetPrepMinutes,
+
+        varianceMinutes: Number(
+          varianceMinutes.toFixed(2)
+        ),
+
+        variancePercent: Number(
+          variancePercent.toFixed(1)
+        ),
+
+        netSales: Number(
+          item.net_sales ||
+            item.gross_sales ||
+            0
+        ),
+
+        delayed:
+          targetPrepMinutes > 0 &&
+          actualPrepMinutes >
+            targetPrepMinutes,
+      };
+    })
+    .filter(Boolean);
+
+  if (!validItems.length) {
+    return {
+      hasData: false,
+      status: "Waiting for data",
+      confidence: "Waiting for data",
+
+      measuredItemCount: 0,
+      averagePrepMinutes: 0,
+      averageTargetMinutes: 0,
+
+      delayedItemCount: 0,
+      delayedItemPercent: 0,
+
+      slowestStation: null,
+      slowestItem: null,
+      stationPerformance: [],
+      itemPerformance: [],
+
+      revenueAffected: 0,
+
+      primaryRisk:
+        "Awaiting completed kitchen timing data",
+
+      recommendation:
+        "Connect live kitchen completion events to activate Kitchen Bottleneck Intelligence.",
+    };
+  }
+
+  const measuredItemCount =
+    validItems.length;
+
+  const averagePrepMinutes =
+    validItems.reduce(
+      (sum, item) =>
+        sum +
+        item.actualPrepMinutes,
+      0
+    ) / measuredItemCount;
+
+  const itemsWithTargets =
+    validItems.filter(
+      (item) =>
+        item.targetPrepMinutes > 0
+    );
+
+  const averageTargetMinutes =
+    itemsWithTargets.length > 0
+      ? itemsWithTargets.reduce(
+          (sum, item) =>
+            sum +
+            item.targetPrepMinutes,
+          0
+        ) / itemsWithTargets.length
+      : 0;
+
+  const delayedItems =
+    validItems.filter(
+      (item) => item.delayed
+    );
+
+  const delayedItemCount =
+    delayedItems.length;
+
+  const delayedItemPercent =
+    itemsWithTargets.length > 0
+      ? (delayedItemCount /
+          itemsWithTargets.length) *
+        100
+      : 0;
+
+  const stationMap = {};
+
+  validItems.forEach((item) => {
+    const key =
+      item.station || "Unassigned";
+
+    if (!stationMap[key]) {
+      stationMap[key] = {
+        station: key,
+        itemCount: 0,
+        totalActualMinutes: 0,
+        totalTargetMinutes: 0,
+        targetItemCount: 0,
+        delayedItemCount: 0,
+        revenueAffected: 0,
+      };
+    }
+
+    stationMap[key].itemCount += 1;
+
+    stationMap[key].totalActualMinutes +=
+      item.actualPrepMinutes;
+
+    if (item.targetPrepMinutes > 0) {
+      stationMap[key].targetItemCount += 1;
+
+      stationMap[key].totalTargetMinutes +=
+        item.targetPrepMinutes;
+    }
+
+    if (item.delayed) {
+      stationMap[key].delayedItemCount += 1;
+
+      stationMap[key].revenueAffected +=
+        item.netSales;
+    }
+  });
+
+  const stationPerformance =
+    Object.values(stationMap)
+      .map((station) => {
+        const averageActual =
+          station.itemCount > 0
+            ? station.totalActualMinutes /
+              station.itemCount
+            : 0;
+
+        const averageTarget =
+          station.targetItemCount > 0
+            ? station.totalTargetMinutes /
+              station.targetItemCount
+            : 0;
+
+        const variance =
+          averageTarget > 0
+            ? averageActual -
+              averageTarget
+            : 0;
+
+        const delayedPercent =
+          station.targetItemCount > 0
+            ? (station.delayedItemCount /
+                station.targetItemCount) *
+              100
+            : 0;
+
+        return {
+          station: station.station,
+          itemCount:
+            station.itemCount,
+
+          averageActualMinutes:
+            Number(
+              averageActual.toFixed(2)
+            ),
+
+          averageTargetMinutes:
+            Number(
+              averageTarget.toFixed(2)
+            ),
+
+          varianceMinutes:
+            Number(
+              variance.toFixed(2)
+            ),
+
+          delayedItemCount:
+            station.delayedItemCount,
+
+          delayedPercent:
+            Number(
+              delayedPercent.toFixed(1)
+            ),
+
+          revenueAffected:
+            Math.round(
+              station.revenueAffected
+            ),
+        };
+      })
+      .sort(
+        (a, b) =>
+          b.varianceMinutes -
+          a.varianceMinutes
+      );
+
+  const itemMap = {};
+
+  validItems.forEach((item) => {
+    const key = `${item.station}::${item.itemName}`;
+
+    if (!itemMap[key]) {
+      itemMap[key] = {
+        itemName: item.itemName,
+        station: item.station,
+        count: 0,
+        totalActualMinutes: 0,
+        totalTargetMinutes: 0,
+        targetCount: 0,
+        delayedCount: 0,
+        revenueAffected: 0,
+      };
+    }
+
+    itemMap[key].count += 1;
+
+    itemMap[key].totalActualMinutes +=
+      item.actualPrepMinutes;
+
+    if (item.targetPrepMinutes > 0) {
+      itemMap[key].targetCount += 1;
+
+      itemMap[key].totalTargetMinutes +=
+        item.targetPrepMinutes;
+    }
+
+    if (item.delayed) {
+      itemMap[key].delayedCount += 1;
+
+      itemMap[key].revenueAffected +=
+        item.netSales;
+    }
+  });
+
+  const itemPerformance =
+    Object.values(itemMap)
+      .map((item) => {
+        const averageActual =
+          item.count > 0
+            ? item.totalActualMinutes /
+              item.count
+            : 0;
+
+        const averageTarget =
+          item.targetCount > 0
+            ? item.totalTargetMinutes /
+              item.targetCount
+            : 0;
+
+        return {
+          itemName:
+            item.itemName,
+
+          station:
+            item.station,
+
+          count:
+            item.count,
+
+          averageActualMinutes:
+            Number(
+              averageActual.toFixed(2)
+            ),
+
+          averageTargetMinutes:
+            Number(
+              averageTarget.toFixed(2)
+            ),
+
+          varianceMinutes:
+            Number(
+              (
+                averageActual -
+                averageTarget
+              ).toFixed(2)
+            ),
+
+          delayedCount:
+            item.delayedCount,
+
+          revenueAffected:
+            Math.round(
+              item.revenueAffected
+            ),
+        };
+      })
+      .sort(
+        (a, b) =>
+          b.varianceMinutes -
+          a.varianceMinutes
+      );
+
+  const slowestStation =
+    stationPerformance.find(
+      (station) =>
+        station.varianceMinutes > 0
+    ) ||
+    stationPerformance[0] ||
+    null;
+
+  const slowestItem =
+    itemPerformance.find(
+      (item) =>
+        item.varianceMinutes > 0
+    ) ||
+    itemPerformance[0] ||
+    null;
+
+  const revenueAffected =
+    Math.round(
+      delayedItems.reduce(
+        (sum, item) =>
+          sum +
+          item.netSales,
+        0
+      )
+    );
+
+  const status =
+    delayedItemPercent >= 50
+      ? "Critical"
+      : delayedItemPercent >= 30
+      ? "High"
+      : delayedItemPercent > 10
+      ? "Watch"
+      : "Healthy";
+
+  const confidence =
+    measuredItemCount >= 100
+      ? "High"
+      : measuredItemCount >= 30
+      ? "Medium"
+      : "Early Sample";
+
+  const primaryRisk =
+    status === "Healthy"
+      ? "Kitchen execution is currently within target"
+      : slowestStation
+      ? `${slowestStation.station} is averaging ${slowestStation.averageActualMinutes} minutes against a ${slowestStation.averageTargetMinutes}-minute target`
+      : "Kitchen prep times are exceeding configured targets";
+
+  const recommendation =
+    status === "Healthy"
+      ? "Maintain current station flow and continue monitoring peak service periods."
+      : slowestStation
+      ? `Review staffing, prep readiness, ticket sequencing, and expo coordination at the ${slowestStation.station} station. Start with ${slowestItem?.itemName || "the slowest menu item"}, which is averaging ${slowestItem?.averageActualMinutes || 0} minutes against a ${slowestItem?.averageTargetMinutes || 0}-minute target.`
+      : "Review kitchen staffing, prep readiness, and ticket sequencing during peak service.";
+
+  return {
+    hasData: true,
+    status,
+    confidence,
+
+    measuredItemCount,
+
+    averagePrepMinutes: Number(
+      averagePrepMinutes.toFixed(2)
+    ),
+
+    averageTargetMinutes: Number(
+      averageTargetMinutes.toFixed(2)
+    ),
+
+    delayedItemCount,
+
+    delayedItemPercent: Number(
+      delayedItemPercent.toFixed(1)
+    ),
+
+    slowestStation,
+    slowestItem,
+
+    stationPerformance,
+    itemPerformance,
+
+    revenueAffected,
+
+    primaryRisk,
+    recommendation,
+
+    measuredItems: validItems,
+  };
+}, [
+  livePosOrderItems,
+]);
+
 const autonomousProfitRecoveryEngine = useMemo(() => {
   const recommendations = autonomousAIRecommendations || [];
   const executiveActions = executiveActionQueue || [];
