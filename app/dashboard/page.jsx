@@ -25720,7 +25720,338 @@ const kitchenBottleneckEngine = useMemo(() => {
 }, [
   livePosOrderItems,
 ]);
+const serviceSpeedIntelligence = useMemo(() => {
+  const orders = Array.isArray(livePosOrders)
+    ? livePosOrders
+    : [];
 
+  const items = Array.isArray(livePosOrderItems)
+    ? livePosOrderItems
+    : [];
+
+  const completedOrders = orders.filter((order) => {
+    const openedAt = order.opened_at;
+    const endedAt =
+      order.closed_at ||
+      order.completed_at;
+
+    if (!openedAt || !endedAt) return false;
+
+    const start = new Date(openedAt);
+    const end = new Date(endedAt);
+
+    if (
+      Number.isNaN(start.getTime()) ||
+      Number.isNaN(end.getTime())
+    ) {
+      return false;
+    }
+
+    const minutes =
+      (end.getTime() - start.getTime()) /
+      60000;
+
+    return minutes >= 5 && minutes <= 360;
+  });
+
+  const completedItems = items.filter((item) => {
+    const sentAt = item.sent_to_kitchen_at;
+    const completedAt = item.completed_at;
+
+    if (!sentAt || !completedAt) {
+      return false;
+    }
+
+    const start = new Date(sentAt);
+    const end = new Date(completedAt);
+
+    if (
+      Number.isNaN(start.getTime()) ||
+      Number.isNaN(end.getTime())
+    ) {
+      return false;
+    }
+
+    const minutes =
+      (end.getTime() - start.getTime()) /
+      60000;
+
+    return minutes > 0 && minutes <= 240;
+  });
+
+  if (
+    !completedOrders.length &&
+    !completedItems.length
+  ) {
+    return {
+      hasData: false,
+      status: "Waiting for data",
+      confidence: "Waiting for data",
+
+      serviceScore: 0,
+      guestCycleMinutes: 0,
+      kitchenTimeMinutes: 0,
+
+      onTimeItemCount: 0,
+      delayedItemCount: 0,
+      onTimePercent: 0,
+      delayedPercent: 0,
+
+      delayedRevenue: 0,
+
+      fastestStation: null,
+      slowestStation: null,
+
+      primaryRisk:
+        "Awaiting completed POS and kitchen timing data",
+
+      recommendation:
+        "Connect completed order and kitchen events to activate AI Service Speed Intelligence.",
+    };
+  }
+
+  const guestCycleMinutes = Number(
+    tableTurnIntelligence?.averageTurnMinutes || 0
+  );
+
+  const kitchenTimeMinutes = Number(
+    kitchenBottleneckEngine?.averagePrepMinutes || 0
+  );
+
+  const targetKitchenMinutes = Number(
+    kitchenBottleneckEngine?.averageTargetMinutes || 0
+  );
+
+  const delayedItemCount = Number(
+    kitchenBottleneckEngine?.delayedItemCount || 0
+  );
+
+  const measuredItemCount = Number(
+    kitchenBottleneckEngine?.measuredItemCount || 0
+  );
+
+  const onTimeItemCount = Math.max(
+    0,
+    measuredItemCount - delayedItemCount
+  );
+
+  const onTimePercent =
+    measuredItemCount > 0
+      ? (onTimeItemCount /
+          measuredItemCount) *
+        100
+      : 0;
+
+  const delayedPercent =
+    measuredItemCount > 0
+      ? (delayedItemCount /
+          measuredItemCount) *
+        100
+      : 0;
+
+  const delayedRevenue = Number(
+    kitchenBottleneckEngine?.revenueAffected || 0
+  );
+
+  const stationPerformance =
+    kitchenBottleneckEngine?.stationPerformance || [];
+
+  const fastestStation =
+    stationPerformance.length > 0
+      ? [...stationPerformance].sort(
+          (a, b) =>
+            Number(a.varianceMinutes || 0) -
+            Number(b.varianceMinutes || 0)
+        )[0]
+      : null;
+
+  const slowestStation =
+    kitchenBottleneckEngine?.slowestStation ||
+    null;
+
+  /*
+   * Service score:
+   * 50% kitchen target adherence
+   * 30% on-time item rate
+   * 20% guest-cycle performance
+   */
+  const kitchenScore =
+    targetKitchenMinutes > 0 &&
+    kitchenTimeMinutes > 0
+      ? Math.max(
+          0,
+          Math.min(
+            100,
+            (targetKitchenMinutes /
+              kitchenTimeMinutes) *
+              100
+          )
+        )
+      : 0;
+
+  const itemScore = Math.max(
+    0,
+    Math.min(100, onTimePercent)
+  );
+
+  const targetGuestCycle = Number(
+    restaurantCapacityEngine?.targetTurnMinutes ||
+      tableTurnIntelligence?.targetTurnMinutes ||
+      0
+  );
+
+  const guestCycleScore =
+    targetGuestCycle > 0 &&
+    guestCycleMinutes > 0
+      ? Math.max(
+          0,
+          Math.min(
+            100,
+            (targetGuestCycle /
+              guestCycleMinutes) *
+              100
+          )
+        )
+      : 0;
+
+  const scoreParts = [];
+
+  if (kitchenScore > 0) {
+    scoreParts.push({
+      score: kitchenScore,
+      weight: 0.5,
+    });
+  }
+
+  if (measuredItemCount > 0) {
+    scoreParts.push({
+      score: itemScore,
+      weight: 0.3,
+    });
+  }
+
+  if (guestCycleScore > 0) {
+    scoreParts.push({
+      score: guestCycleScore,
+      weight: 0.2,
+    });
+  }
+
+  const totalWeight = scoreParts.reduce(
+    (sum, part) => sum + part.weight,
+    0
+  );
+
+  const serviceScore =
+    totalWeight > 0
+      ? Math.round(
+          scoreParts.reduce(
+            (sum, part) =>
+              sum +
+              part.score * part.weight,
+            0
+          ) / totalWeight
+        )
+      : 0;
+
+  const status =
+    serviceScore >= 90
+      ? "Excellent"
+      : serviceScore >= 80
+      ? "Healthy"
+      : serviceScore >= 65
+      ? "Watch"
+      : serviceScore >= 50
+      ? "High"
+      : "Critical";
+
+  const sampleSize = Math.max(
+    completedOrders.length,
+    measuredItemCount
+  );
+
+  const confidence =
+    sampleSize >= 100
+      ? "High"
+      : sampleSize >= 30
+      ? "Medium"
+      : "Early Sample";
+
+  const primaryRisk =
+    delayedPercent >= 30 && slowestStation
+      ? `${slowestStation.station} is creating the largest service-speed delay`
+      : guestCycleMinutes >
+        targetGuestCycle &&
+        targetGuestCycle > 0
+      ? `The measured guest cycle is ${Math.round(
+          guestCycleMinutes -
+            targetGuestCycle
+        )} minutes above target`
+      : status === "Excellent" ||
+        status === "Healthy"
+      ? "Service flow is currently performing within target"
+      : "Service speed is being affected by delayed kitchen execution";
+
+  const recommendation =
+    status === "Excellent" ||
+    status === "Healthy"
+      ? "Maintain current service flow and continue monitoring peak periods."
+      : slowestStation
+      ? `Focus first on the ${slowestStation.station} station. Review staffing, prep readiness, ticket sequencing, and expo coordination to improve the overall service score.`
+      : "Review order pacing, kitchen execution, and table-close timing during peak service.";
+
+  return {
+    hasData: true,
+    status,
+    confidence,
+
+    serviceScore,
+
+    guestCycleMinutes: Number(
+      guestCycleMinutes.toFixed(1)
+    ),
+
+    kitchenTimeMinutes: Number(
+      kitchenTimeMinutes.toFixed(1)
+    ),
+
+    targetKitchenMinutes: Number(
+      targetKitchenMinutes.toFixed(1)
+    ),
+
+    onTimeItemCount,
+    delayedItemCount,
+
+    onTimePercent: Number(
+      onTimePercent.toFixed(1)
+    ),
+
+    delayedPercent: Number(
+      delayedPercent.toFixed(1)
+    ),
+
+    delayedRevenue: Math.round(
+      delayedRevenue
+    ),
+
+    fastestStation,
+    slowestStation,
+
+    measuredOrderCount:
+      completedOrders.length,
+
+    measuredItemCount,
+
+    primaryRisk,
+    recommendation,
+  };
+}, [
+  livePosOrders,
+  livePosOrderItems,
+  tableTurnIntelligence,
+  restaurantCapacityEngine,
+  kitchenBottleneckEngine,
+]);
 const autonomousProfitRecoveryEngine = useMemo(() => {
   const recommendations = autonomousAIRecommendations || [];
   const executiveActions = executiveActionQueue || [];
