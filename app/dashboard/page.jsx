@@ -24684,6 +24684,31 @@ const restaurantDigitalTwin = useMemo(() => {
   crossSystemSignals,
   executiveActionQueue,
 ]);
+
+const activeLocationRecord = useMemo(() => {
+  if (!locations?.length) return null;
+
+  return (
+    locations.find((loc) => {
+      const name = String(
+        loc.location_name ||
+        loc.name ||
+        ""
+      )
+        .trim()
+        .toLowerCase();
+
+      return (
+        name ===
+        String(activeLocation || "")
+          .trim()
+          .toLowerCase()
+      );
+    }) || null
+  );
+}, [locations, activeLocation]);
+
+
 /* =========================
    AI TABLE TURN INTELLIGENCE
 ========================= */
@@ -25025,6 +25050,202 @@ const tableTurnIntelligence = useMemo(() => {
   topShift,
   mostLaborHeavyShift,
 ]);
+
+const restaurantCapacityEngine = useMemo(() => {
+  const location = activeLocationRecord;
+
+  const tableCount = Number(
+    location?.table_count || 0
+  );
+
+  const serviceStartTime =
+    location?.service_start_time || "";
+
+  const serviceEndTime =
+    location?.service_end_time || "";
+
+  const configuredTargetTurnMinutes = Number(
+    location?.target_turn_minutes || 0
+  );
+
+  const measuredTurnMinutes = Number(
+    tableTurnIntelligence?.averageTurnMinutes || 0
+  );
+
+  const averageCheck = Number(
+    tableTurnIntelligence?.averageCheck || 0
+  );
+
+  const parseTimeToMinutes = (value) => {
+    if (!value) return null;
+
+    const [hoursValue, minutesValue] = String(value)
+      .split(":")
+      .map(Number);
+
+    if (
+      !Number.isFinite(hoursValue) ||
+      !Number.isFinite(minutesValue)
+    ) {
+      return null;
+    }
+
+    return hoursValue * 60 + minutesValue;
+  };
+
+  const startMinutes =
+    parseTimeToMinutes(serviceStartTime);
+
+  const endMinutes =
+    parseTimeToMinutes(serviceEndTime);
+
+  let serviceMinutes = 0;
+
+  if (
+    startMinutes !== null &&
+    endMinutes !== null
+  ) {
+    serviceMinutes =
+      endMinutes > startMinutes
+        ? endMinutes - startMinutes
+        : 1440 - startMinutes + endMinutes;
+  }
+
+  const targetTurnMinutes =
+    configuredTargetTurnMinutes > 0
+      ? configuredTargetTurnMinutes
+      : Number(
+          tableTurnIntelligence?.targetTurnMinutes || 0
+        );
+
+  const hasCapacitySettings =
+    tableCount > 0 &&
+    serviceMinutes > 0 &&
+    targetTurnMinutes > 0;
+
+  const hasMeasuredTurnData =
+    tableTurnIntelligence?.source === "measured" &&
+    measuredTurnMinutes > 0;
+
+  if (
+    !location ||
+    !hasCapacitySettings ||
+    !hasMeasuredTurnData
+  ) {
+    return {
+      hasData: false,
+      status: "Waiting for capacity data",
+
+      locationName:
+        location?.location_name ||
+        location?.name ||
+        activeLocation ||
+        "Current location",
+
+      tableCount,
+      serviceMinutes,
+      currentTurnMinutes: measuredTurnMinutes,
+      targetTurnMinutes,
+
+      currentTurnsPerTable: 0,
+      targetTurnsPerTable: 0,
+      additionalTurnsPerTable: 0,
+
+      estimatedLostTables: 0,
+      estimatedRevenueOpportunity: 0,
+
+      reason: !location
+        ? "No matching location record was found."
+        : !hasCapacitySettings
+        ? "Add table count, service hours, and target turn time for this location."
+        : "At least one completed live POS order cycle is required.",
+    };
+  }
+
+  const currentTurnsPerTable =
+    serviceMinutes / measuredTurnMinutes;
+
+  const targetTurnsPerTable =
+    serviceMinutes / targetTurnMinutes;
+
+  const additionalTurnsPerTable = Math.max(
+    0,
+    targetTurnsPerTable - currentTurnsPerTable
+  );
+
+  const estimatedLostTables = Math.max(
+    0,
+    Math.round(
+      additionalTurnsPerTable * tableCount
+    )
+  );
+
+  const estimatedRevenueOpportunity = Math.max(
+    0,
+    Math.round(
+      estimatedLostTables * averageCheck
+    )
+  );
+
+  const status =
+    measuredTurnMinutes <= targetTurnMinutes
+      ? "Healthy"
+      : measuredTurnMinutes >
+        targetTurnMinutes * 1.25
+      ? "Critical"
+      : measuredTurnMinutes >
+        targetTurnMinutes * 1.1
+      ? "High"
+      : "Watch";
+
+  return {
+    hasData: true,
+    status,
+
+    locationName:
+      location.location_name ||
+      location.name ||
+      "Current location",
+
+    diningStyle:
+      location.dining_style || "Not configured",
+
+    tableCount,
+    serviceMinutes,
+
+    currentTurnMinutes: measuredTurnMinutes,
+    targetTurnMinutes,
+
+    currentTurnsPerTable: Number(
+      currentTurnsPerTable.toFixed(2)
+    ),
+
+    targetTurnsPerTable: Number(
+      targetTurnsPerTable.toFixed(2)
+    ),
+
+    additionalTurnsPerTable: Number(
+      additionalTurnsPerTable.toFixed(2)
+    ),
+
+    estimatedLostTables,
+    estimatedRevenueOpportunity,
+
+    averageCheck: Number(
+      averageCheck.toFixed(2)
+    ),
+
+    reason:
+      estimatedLostTables > 0
+        ? `Reducing the measured order cycle from ${measuredTurnMinutes} to ${targetTurnMinutes} minutes could create capacity for approximately ${estimatedLostTables} additional table turns during a comparable service period.`
+        : "The measured order cycle is currently at or below the configured target.",
+  };
+}, [
+  activeLocationRecord,
+  activeLocation,
+  tableTurnIntelligence,
+]);
+
 const autonomousProfitRecoveryEngine = useMemo(() => {
   const recommendations = autonomousAIRecommendations || [];
   const executiveActions = executiveActionQueue || [];
