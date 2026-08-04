@@ -54536,6 +54536,714 @@ Recovered profit is based on saved AI action impact.
   )}
 </div>
 {/* =========================
+   🍽️ KITCHEN BOTTLENECK INTELLIGENCE
+========================= */}
+
+<div
+  style={{
+    marginBottom: "22px",
+    padding: isMobile ? "20px" : "24px",
+    borderRadius: "26px",
+    background:
+      "radial-gradient(circle at top left, rgba(249,115,22,0.20), transparent 34%), linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.94))",
+    border: "1px solid rgba(251,146,60,0.22)",
+    boxShadow: "0 24px 70px rgba(2,6,23,0.34)",
+  }}
+>
+  <div
+    style={{
+      color: "#fdba74",
+      fontSize: "12px",
+      fontWeight: "950",
+      letterSpacing: "0.09em",
+      textTransform: "uppercase",
+      marginBottom: "10px",
+    }}
+  >
+    Kitchen Bottleneck Intelligence
+  </div>
+
+  <h3
+    style={{
+      color: "white",
+      fontSize: isMobile ? "24px" : "30px",
+      fontWeight: "1000",
+      margin: "0 0 10px",
+    }}
+  >
+    Identify which kitchen stations and menu items are delaying service.
+  </h3>
+
+  <p
+    style={{
+      color: "#cbd5e1",
+      fontSize: "14px",
+      lineHeight: 1.8,
+      margin: "0 0 18px",
+      maxWidth: "900px",
+    }}
+  >
+    {kitchenBottleneckEngine?.hasData
+      ? kitchenBottleneckEngine.recommendation
+      : "Connect live kitchen completion events to measure prep time, identify delayed stations, and surface the operational cause of slow table turns."}
+  </p>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile
+        ? "1fr"
+        : "repeat(4, minmax(0, 1fr))",
+      gap: "14px",
+      marginBottom: "18px",
+    }}
+  >
+    {[
+      {
+        label: "Average Prep",
+        value: kitchenBottleneckEngine?.hasData
+          ? `${Number(
+              kitchenBottleneckEngine.averagePrepMinutes || 0
+            ).toFixed(1)} min`
+          : "Waiting for data",
+        subtext: kitchenBottleneckEngine?.hasData
+          ? `${Number(
+              kitchenBottleneckEngine.measuredItemCount || 0
+            )} completed item${
+              Number(
+                kitchenBottleneckEngine.measuredItemCount || 0
+              ) === 1
+                ? ""
+                : "s"
+            } analyzed`
+          : "Awaiting completed kitchen items",
+      },
+      {
+        label: "Target Prep",
+        value: kitchenBottleneckEngine?.hasData
+          ? `${Number(
+              kitchenBottleneckEngine.averageTargetMinutes || 0
+            ).toFixed(1)} min`
+          : "Waiting for data",
+        subtext: "Average configured item target",
+      },
+      {
+        label: "Delayed Items",
+        value: kitchenBottleneckEngine?.hasData
+          ? `${Number(
+              kitchenBottleneckEngine.delayedItemCount || 0
+            )} (${Number(
+              kitchenBottleneckEngine.delayedItemPercent || 0
+            ).toFixed(0)}%)`
+          : "Waiting for data",
+        subtext: "Items above prep target",
+      },
+      {
+        label: "Revenue Affected",
+        value: kitchenBottleneckEngine?.hasData
+          ? `$${Number(
+              kitchenBottleneckEngine.revenueAffected || 0
+            ).toLocaleString()}`
+          : "Waiting for data",
+        subtext: "Sales tied to delayed items",
+      },
+    ].map((item) => (
+      <div
+        key={item.label}
+        style={{
+          padding: "16px",
+          borderRadius: "18px",
+          background: "rgba(15,23,42,0.72)",
+          border: "1px solid rgba(251,146,60,0.16)",
+          minWidth: 0,
+        }}
+      >
+        <div
+          style={{
+            color: "#94a3b8",
+            fontSize: "11px",
+            fontWeight: "900",
+            textTransform: "uppercase",
+            letterSpacing: "0.07em",
+          }}
+        >
+          {item.label}
+        </div>
+
+        <div
+          style={{
+            color: "white",
+            fontSize: kitchenBottleneckEngine?.hasData
+              ? "26px"
+              : "15px",
+            fontWeight: "1000",
+            marginTop: "8px",
+            overflowWrap: "anywhere",
+          }}
+        >
+          {item.value}
+        </div>
+
+        <div
+          style={{
+            color: "#cbd5e1",
+            fontSize: "12px",
+            marginTop: "6px",
+            lineHeight: 1.5,
+          }}
+        >
+          {item.subtext}
+        </div>
+      </div>
+    ))}
+  </div>
+
+  {kitchenBottleneckEngine?.hasData ? (
+    <>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: isMobile
+            ? "1fr"
+            : "repeat(3, minmax(0, 1fr))",
+          gap: "14px",
+          marginBottom: "18px",
+        }}
+      >
+        <div
+          style={{
+            padding: "16px",
+            borderRadius: "18px",
+            background: "rgba(255,255,255,0.045)",
+            border: "1px solid rgba(148,163,184,0.14)",
+          }}
+        >
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "11px",
+              fontWeight: "900",
+              textTransform: "uppercase",
+              letterSpacing: "0.07em",
+            }}
+          >
+            Status
+          </div>
+
+          <div
+            style={{
+              color:
+                kitchenBottleneckEngine.status === "Critical"
+                  ? "#f87171"
+                  : kitchenBottleneckEngine.status === "High"
+                  ? "#fbbf24"
+                  : kitchenBottleneckEngine.status === "Watch"
+                  ? "#7dd3fc"
+                  : "#86efac",
+              fontSize: "20px",
+              fontWeight: "1000",
+              marginTop: "8px",
+            }}
+          >
+            {kitchenBottleneckEngine.status}
+          </div>
+        </div>
+
+        <div
+          style={{
+            padding: "16px",
+            borderRadius: "18px",
+            background: "rgba(255,255,255,0.045)",
+            border: "1px solid rgba(148,163,184,0.14)",
+          }}
+        >
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "11px",
+              fontWeight: "900",
+              textTransform: "uppercase",
+              letterSpacing: "0.07em",
+            }}
+          >
+            Slowest Station
+          </div>
+
+          <div
+            style={{
+              color: "white",
+              fontSize: "18px",
+              fontWeight: "1000",
+              marginTop: "8px",
+              lineHeight: 1.5,
+            }}
+          >
+            {kitchenBottleneckEngine.slowestStation?.station ||
+              "No delayed station"}
+          </div>
+
+          <div
+            style={{
+              color: "#cbd5e1",
+              fontSize: "12px",
+              marginTop: "6px",
+              lineHeight: 1.5,
+            }}
+          >
+            {kitchenBottleneckEngine.slowestStation
+              ? `${Number(
+                  kitchenBottleneckEngine.slowestStation
+                    .averageActualMinutes || 0
+                ).toFixed(1)} min actual vs ${Number(
+                  kitchenBottleneckEngine.slowestStation
+                    .averageTargetMinutes || 0
+                ).toFixed(1)} min target`
+              : "No station timing available"}
+          </div>
+        </div>
+
+        <div
+          style={{
+            padding: "16px",
+            borderRadius: "18px",
+            background: "rgba(255,255,255,0.045)",
+            border: "1px solid rgba(148,163,184,0.14)",
+          }}
+        >
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "11px",
+              fontWeight: "900",
+              textTransform: "uppercase",
+              letterSpacing: "0.07em",
+            }}
+          >
+            Confidence
+          </div>
+
+          <div
+            style={{
+              color:
+                kitchenBottleneckEngine.confidence === "High"
+                  ? "#86efac"
+                  : kitchenBottleneckEngine.confidence === "Medium"
+                  ? "#fbbf24"
+                  : "#7dd3fc",
+              fontSize: "20px",
+              fontWeight: "1000",
+              marginTop: "8px",
+            }}
+          >
+            {kitchenBottleneckEngine.confidence}
+          </div>
+        </div>
+      </div>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: isMobile
+            ? "1fr"
+            : "repeat(2, minmax(0, 1fr))",
+          gap: "14px",
+          marginBottom: "18px",
+        }}
+      >
+        <div
+          style={{
+            padding: "18px",
+            borderRadius: "20px",
+            background: "rgba(249,115,22,0.08)",
+            border: "1px solid rgba(251,146,60,0.18)",
+          }}
+        >
+          <div
+            style={{
+              color: "#fdba74",
+              fontSize: "11px",
+              fontWeight: "900",
+              textTransform: "uppercase",
+              letterSpacing: "0.07em",
+            }}
+          >
+            Primary Risk
+          </div>
+
+          <div
+            style={{
+              color: "white",
+              fontSize: "16px",
+              fontWeight: "900",
+              lineHeight: 1.6,
+              marginTop: "8px",
+            }}
+          >
+            {kitchenBottleneckEngine.primaryRisk}
+          </div>
+        </div>
+
+        <div
+          style={{
+            padding: "18px",
+            borderRadius: "20px",
+            background: "rgba(56,189,248,0.07)",
+            border: "1px solid rgba(56,189,248,0.16)",
+          }}
+        >
+          <div
+            style={{
+              color: "#7dd3fc",
+              fontSize: "11px",
+              fontWeight: "900",
+              textTransform: "uppercase",
+              letterSpacing: "0.07em",
+            }}
+          >
+            Slowest Menu Item
+          </div>
+
+          <div
+            style={{
+              color: "white",
+              fontSize: "16px",
+              fontWeight: "900",
+              lineHeight: 1.6,
+              marginTop: "8px",
+            }}
+          >
+            {kitchenBottleneckEngine.slowestItem?.itemName ||
+              "No delayed item"}
+          </div>
+
+          <div
+            style={{
+              color: "#cbd5e1",
+              fontSize: "12px",
+              marginTop: "6px",
+              lineHeight: 1.5,
+            }}
+          >
+            {kitchenBottleneckEngine.slowestItem
+              ? `${Number(
+                  kitchenBottleneckEngine.slowestItem
+                    .averageActualMinutes || 0
+                ).toFixed(1)} min actual vs ${Number(
+                  kitchenBottleneckEngine.slowestItem
+                    .averageTargetMinutes || 0
+                ).toFixed(1)} min target`
+              : "No item timing available"}
+          </div>
+        </div>
+      </div>
+
+      <div
+        style={{
+          padding: "18px",
+          borderRadius: "20px",
+          background: "rgba(34,197,94,0.07)",
+          border: "1px solid rgba(74,222,128,0.16)",
+        }}
+      >
+        <div
+          style={{
+            color: "#86efac",
+            fontSize: "11px",
+            fontWeight: "900",
+            textTransform: "uppercase",
+            letterSpacing: "0.07em",
+          }}
+        >
+          Recommended Action
+        </div>
+
+        <div
+          style={{
+            color: "white",
+            fontSize: "15px",
+            fontWeight: "800",
+            lineHeight: 1.7,
+            marginTop: "8px",
+          }}
+        >
+          {kitchenBottleneckEngine.recommendation}
+        </div>
+      </div>
+    </>
+  ) : (
+    <div
+      style={{
+        padding: "16px",
+        borderRadius: "18px",
+        background: "rgba(251,146,60,0.08)",
+        border: "1px solid rgba(251,146,60,0.18)",
+        color: "#fed7aa",
+        fontSize: "14px",
+        fontWeight: "800",
+        lineHeight: 1.7,
+      }}
+    >
+      Upload or connect completed kitchen ticket events with station, target
+      prep time, sent time, and completion time to activate bottleneck
+      detection.
+    </div>
+  )}
+</div>
+{/* =========================
+   KITCHEN STATION RANKINGS
+========================= */}
+
+<div
+  style={{
+    marginBottom: "18px",
+    padding: "18px",
+    borderRadius: "20px",
+    background: "rgba(15,23,42,0.66)",
+    border: "1px solid rgba(251,146,60,0.16)",
+  }}
+>
+  <div
+    style={{
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "flex-start",
+      gap: "12px",
+      flexWrap: "wrap",
+      marginBottom: "14px",
+    }}
+  >
+    <div>
+      <div
+        style={{
+          color: "#fdba74",
+          fontSize: "11px",
+          fontWeight: "900",
+          textTransform: "uppercase",
+          letterSpacing: "0.07em",
+        }}
+      >
+        Kitchen Station Rankings
+      </div>
+
+      <div
+        style={{
+          color: "white",
+          fontSize: "20px",
+          fontWeight: "1000",
+          marginTop: "6px",
+        }}
+      >
+        Station performance vs prep targets
+      </div>
+    </div>
+
+    <div
+      style={{
+        padding: "8px 12px",
+        borderRadius: "999px",
+        background: "rgba(251,146,60,0.10)",
+        border: "1px solid rgba(251,146,60,0.18)",
+        color: "#fed7aa",
+        fontSize: "12px",
+        fontWeight: "900",
+      }}
+    >
+      {Number(
+        kitchenBottleneckEngine.stationPerformance?.length || 0
+      )} station
+      {Number(
+        kitchenBottleneckEngine.stationPerformance?.length || 0
+      ) === 1
+        ? ""
+        : "s"}
+    </div>
+  </div>
+
+  <div
+    style={{
+      display: "grid",
+      gap: "12px",
+    }}
+  >
+    {(kitchenBottleneckEngine.stationPerformance || [])
+      .slice(0, 6)
+      .map((station, index) => {
+        const isDelayed =
+          Number(station.varianceMinutes || 0) > 0;
+
+        const performancePercent =
+          Number(station.averageTargetMinutes || 0) > 0
+            ? (
+                (Number(station.averageActualMinutes || 0) /
+                  Number(station.averageTargetMinutes || 1) -
+                  1) *
+                100
+              )
+            : 0;
+
+        return (
+          <div
+            key={`${station.station}-${index}`}
+            style={{
+              padding: "16px",
+              borderRadius: "18px",
+              background: isDelayed
+                ? "rgba(239,68,68,0.07)"
+                : "rgba(34,197,94,0.06)",
+              border: isDelayed
+                ? "1px solid rgba(248,113,113,0.16)"
+                : "1px solid rgba(74,222,128,0.14)",
+            }}
+          >
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: isMobile
+                  ? "1fr"
+                  : "minmax(0, 1.3fr) repeat(4, minmax(100px, 1fr))",
+                gap: "12px",
+                alignItems: "center",
+              }}
+            >
+              <div style={{ minWidth: 0 }}>
+                <div
+                  style={{
+                    color: "white",
+                    fontSize: "16px",
+                    fontWeight: "1000",
+                    overflowWrap: "anywhere",
+                  }}
+                >
+                  #{index + 1} {station.station}
+                </div>
+
+                <div
+                  style={{
+                    color: isDelayed ? "#fca5a5" : "#86efac",
+                    fontSize: "12px",
+                    fontWeight: "900",
+                    marginTop: "5px",
+                  }}
+                >
+                  {isDelayed
+                    ? `${Math.abs(
+                        performancePercent
+                      ).toFixed(0)}% above target`
+                    : "Within target"}
+                </div>
+              </div>
+
+              <div>
+                <div
+                  style={{
+                    color: "#94a3b8",
+                    fontSize: "10px",
+                    fontWeight: "900",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Actual
+                </div>
+
+                <div
+                  style={{
+                    color: "white",
+                    fontSize: "17px",
+                    fontWeight: "1000",
+                    marginTop: "4px",
+                  }}
+                >
+                  {Number(
+                    station.averageActualMinutes || 0
+                  ).toFixed(1)}{" "}
+                  min
+                </div>
+              </div>
+
+              <div>
+                <div
+                  style={{
+                    color: "#94a3b8",
+                    fontSize: "10px",
+                    fontWeight: "900",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Target
+                </div>
+
+                <div
+                  style={{
+                    color: "white",
+                    fontSize: "17px",
+                    fontWeight: "1000",
+                    marginTop: "4px",
+                  }}
+                >
+                  {Number(
+                    station.averageTargetMinutes || 0
+                  ).toFixed(1)}{" "}
+                  min
+                </div>
+              </div>
+
+              <div>
+                <div
+                  style={{
+                    color: "#94a3b8",
+                    fontSize: "10px",
+                    fontWeight: "900",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Delayed
+                </div>
+
+                <div
+                  style={{
+                    color: isDelayed ? "#fca5a5" : "#86efac",
+                    fontSize: "17px",
+                    fontWeight: "1000",
+                    marginTop: "4px",
+                  }}
+                >
+                  {Number(station.delayedItemCount || 0)}
+                </div>
+              </div>
+
+              <div>
+                <div
+                  style={{
+                    color: "#94a3b8",
+                    fontSize: "10px",
+                    fontWeight: "900",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Revenue Affected
+                </div>
+
+                <div
+                  style={{
+                    color: "#fde68a",
+                    fontSize: "17px",
+                    fontWeight: "1000",
+                    marginTop: "4px",
+                  }}
+                >
+                  $
+                  {Number(
+                    station.revenueAffected || 0
+                  ).toLocaleString()}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+  </div>
+</div>
+{/* =========================
    EXECUTIVE RISK RADAR
 ========================= */}
 
