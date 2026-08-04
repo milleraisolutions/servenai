@@ -26569,14 +26569,41 @@ const aiSmartNotifications = useMemo(() => {
     });
   });
 
-  (crossLocationAlerts || []).slice(0, 3).forEach((alert) => {
-    notifications.push({
-      title: alert.title,
-      type: "Location Alert",
-      severity: alert.severity || "Watch",
-      message: `${alert.location}: ${alert.message}`,
-    });
+ (crossLocationAlerts || []).slice(0, 3).forEach((alert) => {
+  const locationName = String(
+    alert.location ||
+      alert.location_name ||
+      ""
+  ).trim();
+
+  const alertMessage =
+    alert.message ||
+    alert.detail ||
+    alert.recommendation ||
+    "Review this operational issue.";
+
+  notifications.push({
+    title:
+      alert.title ||
+      alert.type ||
+      "Operational Alert",
+
+    type:
+      alert.type ||
+      (locationName
+        ? "Location Alert"
+        : "Operational Alert"),
+
+    severity:
+      alert.severity ||
+      alert.priority ||
+      "Watch",
+
+    message: locationName
+      ? `${locationName}: ${alertMessage}`
+      : alertMessage,
   });
+});
 
   if (Number(aiFinancialCommand?.projectedMonthlyRecovery || 0) > 0) {
     notifications.push({
