@@ -53847,33 +53847,33 @@ Recovered profit is based on saved AI action impact.
       ? "Estimated from sales and labor activity"
       : "Awaiting live POS activity",
 },
-      {
-        label: "Target Turn",
-        value: tableTurnIntelligence?.hasData
-          ? `${Number(
-              tableTurnIntelligence.targetTurnMinutes || 0
-            )} min`
-          : "Waiting for data",
-        subtext: "Current AI target",
-      },
-      {
-        label: "Lost Table Capacity",
-        value: tableTurnIntelligence?.hasData
-          ? Number(
-              tableTurnIntelligence.estimatedLostTables || 0
-            ).toLocaleString()
-          : "Waiting for data",
-        subtext: "Estimated missed turns",
-      },
-      {
-        label: "Revenue Opportunity",
-        value: tableTurnIntelligence?.hasData
-          ? `$${Number(
-              tableTurnIntelligence.estimatedLostRevenue || 0
-            ).toLocaleString()}`
-          : "Waiting for data",
-        subtext: "Estimated recovery opportunity",
-      },
+{
+  label: "Target Turn",
+  value: restaurantCapacityEngine?.hasData
+    ? `${Number(
+        restaurantCapacityEngine.targetTurnMinutes || 0
+      )} min`
+    : "Waiting for capacity data",
+  subtext: "Configured location target",
+},
+{
+  label: "Lost Table Capacity",
+  value: restaurantCapacityEngine?.hasData
+    ? Number(
+        restaurantCapacityEngine.estimatedLostTables || 0
+      ).toLocaleString()
+    : "Waiting for capacity data",
+  subtext: "Potential additional table turns",
+},
+{
+  label: "Revenue Opportunity",
+  value: restaurantCapacityEngine?.hasData
+    ? `$${Number(
+        restaurantCapacityEngine.estimatedRevenueOpportunity || 0
+      ).toLocaleString()}`
+    : "Waiting for capacity data",
+  subtext: "Estimated capacity recovery",
+},
     ].map((item) => (
       <div
         key={item.label}
