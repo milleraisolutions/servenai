@@ -26052,6 +26052,60 @@ const serviceSpeedIntelligence = useMemo(() => {
   restaurantCapacityEngine,
   kitchenBottleneckEngine,
 ]);
+
+const enhancedOperationalAlerts = useMemo(() => {
+  const alerts = [...(operationalAlerts || [])];
+
+  if (
+    kitchenBottleneckEngine?.hasData &&
+    ["Critical", "High"].includes(
+      kitchenBottleneckEngine.status
+    )
+  ) {
+    alerts.push({
+      type: "Kitchen Bottleneck",
+      severity: kitchenBottleneckEngine.status,
+      title: `${
+        kitchenBottleneckEngine.slowestStation?.station || "Kitchen"
+      } bottleneck detected`,
+      detail: kitchenBottleneckEngine.primaryRisk,
+      estimatedImpact:
+        kitchenBottleneckEngine.revenueAffected || 0,
+      recommendation:
+        kitchenBottleneckEngine.recommendation,
+      confidence:
+        kitchenBottleneckEngine.confidence,
+      source: "Live POS Kitchen Intelligence",
+    });
+  }
+
+  if (
+    serviceSpeedIntelligence?.hasData &&
+    ["Critical", "High"].includes(
+      serviceSpeedIntelligence.status
+    )
+  ) {
+    alerts.push({
+      type: "Service Speed",
+      severity: serviceSpeedIntelligence.status,
+      title: "Guest service speed below target",
+      detail: serviceSpeedIntelligence.primaryRisk,
+      estimatedImpact:
+        serviceSpeedIntelligence.delayedRevenue || 0,
+      recommendation:
+        serviceSpeedIntelligence.recommendation,
+      confidence:
+        serviceSpeedIntelligence.confidence,
+      source: "Live POS Service Intelligence",
+    });
+  }
+
+  return alerts.slice(0, 14);
+}, [
+  operationalAlerts,
+  kitchenBottleneckEngine,
+  serviceSpeedIntelligence,
+]);
 const autonomousProfitRecoveryEngine = useMemo(() => {
   const recommendations = autonomousAIRecommendations || [];
   const executiveActions = executiveActionQueue || [];
@@ -26359,7 +26413,54 @@ const crossLocationAlerts = useMemo(() => {
       });
     }
   });
+if (
+  kitchenBottleneckEngine?.hasData &&
+  (kitchenBottleneckEngine.status === "Critical" ||
+    kitchenBottleneckEngine.status === "High")
+) {
+  alerts.push({
+    type: "Kitchen Bottleneck",
+    severity: kitchenBottleneckEngine.status,
 
+    title: `${kitchenBottleneckEngine.slowestStation?.station || "Kitchen"} bottleneck detected`,
+
+    detail: kitchenBottleneckEngine.primaryRisk,
+
+    estimatedImpact: kitchenBottleneckEngine.revenueAffected,
+
+    recommendation: kitchenBottleneckEngine.recommendation,
+
+    confidence: kitchenBottleneckEngine.confidence,
+
+    source: "Live POS Kitchen Intelligence",
+  });
+}
+if (
+  serviceSpeedIntelligence?.hasData &&
+  (serviceSpeedIntelligence.status === "Critical" ||
+    serviceSpeedIntelligence.status === "High")
+) {
+  alerts.push({
+    type: "Service Speed",
+
+    severity: serviceSpeedIntelligence.status,
+
+    title: "Guest service speed below target",
+
+    detail: serviceSpeedIntelligence.primaryRisk,
+
+    estimatedImpact:
+      serviceSpeedIntelligence.delayedRevenue,
+
+    recommendation:
+      serviceSpeedIntelligence.recommendation,
+
+    confidence:
+      serviceSpeedIntelligence.confidence,
+
+    source: "Live POS Service Intelligence",
+  });
+}
   return alerts;
 }, [multiLocationIntelligence]);
 
@@ -89244,7 +89345,8 @@ minWidth: 0,
         spikes, and revenue warning signals.
       </p>
 
-      {(!operationalAlerts || operationalAlerts.length === 0) && (
+      {(!enhancedOperationalAlerts ||
+  enhancedOperationalAlerts.length === 0) && (
         <div
           style={{
             padding: "14px",
@@ -89262,7 +89364,7 @@ minWidth: 0,
       )}
 
       <div style={{ display: "grid", gap: "12px" }}>
-        {(operationalAlerts || []).map((alert, index) => (
+        {(enhancedOperationalAlerts || []).map((alert, index) => (
           <div
             key={`${alert.type}-${index}`}
             style={{
