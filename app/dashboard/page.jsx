@@ -53453,6 +53453,89 @@ Recovered profit is based on saved AI action impact.
           </div>
         ))}
       </div>
+      {/* =========================
+         COMMAND CENTER ACTION CONTROLS
+      ========================= */}
+
+      <div
+        style={{
+          marginTop: "18px",
+          display: "flex",
+          gap: "12px",
+          flexWrap: "wrap",
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => {
+            pushActivity(
+              `Command Center reviewed: ${
+                aiCommandCenter?.commandStatus || "Stable"
+              }`,
+              "command"
+            );
+
+            setSavedMessage("Command Center reviewed");
+
+            setTimeout(() => setSavedMessage(""), 2000);
+          }}
+          style={{
+            padding: "12px 16px",
+            borderRadius: "14px",
+            border: "1px solid rgba(168,85,247,0.28)",
+            background: "rgba(88,28,135,0.30)",
+            color: "#e9d5ff",
+            fontWeight: "900",
+            cursor: "pointer",
+            width: isMobile ? "100%" : "auto",
+          }}
+        >
+          Mark Command Reviewed
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setGeneratedCampaignPreview({
+              title: "AI Command Center Action Plan",
+              sms:
+                aiCommandCenter?.commandMessage ||
+                "AI Command Center generated an operational plan.",
+              emailBody:
+                aiCommandCenter?.commandMessage ||
+                "AI Command Center generated an operational plan.",
+              audience: "Restaurant Operators",
+              issue: "AI Command Center",
+              reason: aiCommandCenter?.commandStatus || "Stable",
+            });
+
+            setSavedMessage("Command action plan generated");
+
+            setTimeout(() => setSavedMessage(""), 2000);
+          }}
+          style={{
+            padding: "12px 16px",
+            borderRadius: "14px",
+            border: "none",
+            background:
+              aiCommandCenter?.commandStatus === "Critical"
+                ? "linear-gradient(135deg, #ef4444, #f97316)"
+                : aiCommandCenter?.commandStatus === "Monitoring"
+                ? "linear-gradient(135deg, #facc15, #f97316)"
+                : "linear-gradient(135deg, #8b5cf6, #6366f1)",
+            color: "white",
+            fontWeight: "950",
+            cursor: "pointer",
+            width: isMobile ? "100%" : "auto",
+          }}
+        >
+          Generate Command Plan
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
 {/* =========================
    🪑 AI TABLE TURN INTELLIGENCE
 ========================= */}
@@ -53756,89 +53839,6 @@ Recovered profit is based on saved AI action impact.
     </div>
   )}
 </div>
-      {/* =========================
-         COMMAND CENTER ACTION CONTROLS
-      ========================= */}
-
-      <div
-        style={{
-          marginTop: "18px",
-          display: "flex",
-          gap: "12px",
-          flexWrap: "wrap",
-        }}
-      >
-        <button
-          type="button"
-          onClick={() => {
-            pushActivity(
-              `Command Center reviewed: ${
-                aiCommandCenter?.commandStatus || "Stable"
-              }`,
-              "command"
-            );
-
-            setSavedMessage("Command Center reviewed");
-
-            setTimeout(() => setSavedMessage(""), 2000);
-          }}
-          style={{
-            padding: "12px 16px",
-            borderRadius: "14px",
-            border: "1px solid rgba(168,85,247,0.28)",
-            background: "rgba(88,28,135,0.30)",
-            color: "#e9d5ff",
-            fontWeight: "900",
-            cursor: "pointer",
-            width: isMobile ? "100%" : "auto",
-          }}
-        >
-          Mark Command Reviewed
-        </button>
-
-        <button
-          type="button"
-          onClick={() => {
-            setGeneratedCampaignPreview({
-              title: "AI Command Center Action Plan",
-              sms:
-                aiCommandCenter?.commandMessage ||
-                "AI Command Center generated an operational plan.",
-              emailBody:
-                aiCommandCenter?.commandMessage ||
-                "AI Command Center generated an operational plan.",
-              audience: "Restaurant Operators",
-              issue: "AI Command Center",
-              reason: aiCommandCenter?.commandStatus || "Stable",
-            });
-
-            setSavedMessage("Command action plan generated");
-
-            setTimeout(() => setSavedMessage(""), 2000);
-          }}
-          style={{
-            padding: "12px 16px",
-            borderRadius: "14px",
-            border: "none",
-            background:
-              aiCommandCenter?.commandStatus === "Critical"
-                ? "linear-gradient(135deg, #ef4444, #f97316)"
-                : aiCommandCenter?.commandStatus === "Monitoring"
-                ? "linear-gradient(135deg, #facc15, #f97316)"
-                : "linear-gradient(135deg, #8b5cf6, #6366f1)",
-            color: "white",
-            fontWeight: "950",
-            cursor: "pointer",
-            width: isMobile ? "100%" : "auto",
-          }}
-        >
-          Generate Command Plan
-        </button>
-      </div>
-    </div>
-  </div>
-)}
-
 {/* =========================
    EXECUTIVE RISK RADAR
 ========================= */}
