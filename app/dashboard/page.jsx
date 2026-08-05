@@ -26411,53 +26411,6 @@ const crossLocationAlerts = useMemo(() => {
       });
     }
   });
-if (
-  kitchenBottleneckEngine?.hasData &&
-  (kitchenBottleneckEngine.status === "Critical" ||
-    kitchenBottleneckEngine.status === "High")
-) {
-  alerts.push({
-    type: "Kitchen Bottleneck",
-    severity: kitchenBottleneckEngine.status,
-
-title: "Critical Kitchen Bottleneck",
-    detail: kitchenBottleneckEngine.primaryRisk,
-
-    estimatedImpact: kitchenBottleneckEngine.revenueAffected,
-
-    recommendation: kitchenBottleneckEngine.recommendation,
-
-    confidence: kitchenBottleneckEngine.confidence,
-
-    source: "Live POS Kitchen Intelligence",
-  });
-}
-if (
-  serviceSpeedIntelligence?.hasData &&
-  (serviceSpeedIntelligence.status === "Critical" ||
-    serviceSpeedIntelligence.status === "High")
-) {
-  alerts.push({
-    type: "Service Speed",
-
-    severity: serviceSpeedIntelligence.status,
-
-   title: "Service Speed Risk",
-
-    detail: serviceSpeedIntelligence.primaryRisk,
-
-    estimatedImpact:
-      serviceSpeedIntelligence.delayedRevenue,
-
-    recommendation:
-      serviceSpeedIntelligence.recommendation,
-
-    confidence:
-      serviceSpeedIntelligence.confidence,
-
-    source: "Live POS Service Intelligence",
-  });
-}
   return alerts;
 }, [multiLocationIntelligence]);
 
