@@ -26558,12 +26558,13 @@ const aiSmartNotifications = useMemo(() => {
   const notifications = [];
 
   (predictiveRiskSignals || []).slice(0, 3).forEach((risk) => {
-    notifications.push({
-      title: risk.title,
-      type: "Predictive Risk",
-      severity: risk.level || "Watch",
-      message: risk.message,
-    });
+   notifications.push({
+  title: risk.title,
+  type: "Predictive Risk",
+  severity: risk.level || "Watch",
+  message: risk.message,
+  detectedAt: new Date().toISOString(),
+});
   });
 
  (crossLocationAlerts || []).slice(0, 3).forEach((alert) => {
@@ -26580,37 +26581,44 @@ const aiSmartNotifications = useMemo(() => {
     "Review this operational issue.";
 
   notifications.push({
-    title:
-      alert.title ||
-      alert.type ||
-      "Operational Alert",
+  title:
+    alert.title ||
+    alert.type ||
+    "Operational Alert",
 
-    type:
-      alert.type ||
-      (locationName
-        ? "Location Alert"
-        : "Operational Alert"),
+  type:
+    alert.type ||
+    (locationName
+      ? "Location Alert"
+      : "Operational Alert"),
 
-    severity:
-      alert.severity ||
-      alert.priority ||
-      "Watch",
+  severity:
+    alert.severity ||
+    alert.priority ||
+    "Watch",
 
-    message: locationName
-      ? `${locationName}: ${alertMessage}`
-      : alertMessage,
-  });
+  message: locationName
+    ? `${locationName}: ${alertMessage}`
+    : alertMessage,
+
+  detectedAt:
+    alert.detectedAt ||
+    alert.created_at ||
+    alert.timestamp ||
+    new Date().toISOString(),
+});
 });
 
   if (Number(aiFinancialCommand?.projectedMonthlyRecovery || 0) > 0) {
     notifications.push({
-      title: "Profit Recovery Opportunity",
-      type: "Financial",
-      severity: "High",
-      message: `AI detected $${Number(
-        aiFinancialCommand.projectedMonthlyRecovery || 0
-      ).toLocaleString()} in projected monthly recovery opportunity.`,
-    });
+  title: "Profit Recovery Opportunity",
+  type: "Financial",
+  severity: "High",
+  message: `AI detected $${Number(
+    aiFinancialCommand.projectedMonthlyRecovery || 0
+  ).toLocaleString()} in projected monthly recovery opportunity.`,
+  detectedAt: new Date().toISOString(),
+});
   }
 
   if (executiveActionQueue?.[0]) {
@@ -54513,6 +54521,23 @@ Recovered profit is based on saved AI action impact.
   >
     {note.type}
   </span>
+</div>
+<div
+  style={{
+    color: "#64748b",
+    fontSize: "11px",
+    fontWeight: "700",
+    marginTop: "8px",
+    marginBottom: "8px",
+  }}
+>
+  Detected{" "}
+  {note.detectedAt
+    ? new Date(note.detectedAt).toLocaleTimeString([], {
+        hour: "numeric",
+        minute: "2-digit",
+      })
+    : "just now"}
 </div>
             <p
               style={{
