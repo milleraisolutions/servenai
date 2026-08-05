@@ -26065,9 +26065,7 @@ const enhancedOperationalAlerts = useMemo(() => {
     alerts.push({
       type: "Kitchen Bottleneck",
       severity: kitchenBottleneckEngine.status,
-      title: `${
-        kitchenBottleneckEngine.slowestStation?.station || "Kitchen"
-      } bottleneck detected`,
+    title: "Critical Kitchen Bottleneck",
       detail: kitchenBottleneckEngine.primaryRisk,
       estimatedImpact:
         kitchenBottleneckEngine.revenueAffected || 0,
@@ -26088,7 +26086,7 @@ const enhancedOperationalAlerts = useMemo(() => {
     alerts.push({
       type: "Service Speed",
       severity: serviceSpeedIntelligence.status,
-      title: "Guest service speed below target",
+      title: "Service Speed Risk",
       detail: serviceSpeedIntelligence.primaryRisk,
       estimatedImpact:
         serviceSpeedIntelligence.delayedRevenue || 0,
@@ -26422,8 +26420,7 @@ if (
     type: "Kitchen Bottleneck",
     severity: kitchenBottleneckEngine.status,
 
-    title: `${kitchenBottleneckEngine.slowestStation?.station || "Kitchen"} bottleneck detected`,
-
+title: "Critical Kitchen Bottleneck",
     detail: kitchenBottleneckEngine.primaryRisk,
 
     estimatedImpact: kitchenBottleneckEngine.revenueAffected,
@@ -26445,7 +26442,7 @@ if (
 
     severity: serviceSpeedIntelligence.status,
 
-    title: "Guest service speed below target",
+   title: "Service Speed Risk",
 
     detail: serviceSpeedIntelligence.primaryRisk,
 
