@@ -26579,8 +26579,7 @@ const aiSmartNotifications = useMemo(() => {
     alert.detail ||
     alert.recommendation ||
     "Review this operational issue.";
-
-  notifications.push({
+notifications.push({
   title:
     alert.title ||
     alert.type ||
@@ -26597,6 +26596,14 @@ const aiSmartNotifications = useMemo(() => {
     alert.priority ||
     "Watch",
 
+  confidence:
+    alert.confidence ||
+    null,
+estimatedImpact:
+  alert.estimatedImpact ||
+  alert.revenueAffected ||
+  alert.delayedRevenue ||
+  0,
   message: locationName
     ? `${locationName}: ${alertMessage}`
     : alertMessage,
@@ -54539,6 +54546,78 @@ Recovered profit is based on saved AI action impact.
       })
     : "just now"}
 </div>
+{note.confidence && (
+  <div
+    style={{
+      display: "inline-flex",
+      alignItems: "center",
+      marginBottom: "8px",
+      padding: "5px 9px",
+      borderRadius: "999px",
+      background:
+        note.confidence === "High"
+          ? "rgba(34,197,94,0.14)"
+          : note.confidence === "Medium"
+          ? "rgba(245,158,11,0.14)"
+          : "rgba(56,189,248,0.12)",
+      border:
+        note.confidence === "High"
+          ? "1px solid rgba(74,222,128,0.24)"
+          : note.confidence === "Medium"
+          ? "1px solid rgba(251,191,36,0.24)"
+          : "1px solid rgba(125,211,252,0.22)",
+      color:
+        note.confidence === "High"
+          ? "#86efac"
+          : note.confidence === "Medium"
+          ? "#fde68a"
+          : "#7dd3fc",
+      fontSize: "10px",
+      fontWeight: "950",
+      letterSpacing: "0.06em",
+      textTransform: "uppercase",
+    }}
+  >
+    {note.confidence} Confidence
+  </div>
+)}
+
+{Number(note.estimatedImpact || 0) > 0 && (
+  <div
+    style={{
+      marginBottom: "8px",
+      padding: "10px 12px",
+      borderRadius: "12px",
+      background: "rgba(250,204,21,0.08)",
+      border: "1px solid rgba(250,204,21,0.16)",
+    }}
+  >
+    <div
+      style={{
+        color: "#fde68a",
+        fontSize: "10px",
+        fontWeight: "900",
+        textTransform: "uppercase",
+        letterSpacing: "0.07em",
+      }}
+    >
+      Estimated Revenue Impact
+    </div>
+
+    <div
+      style={{
+        color: "white",
+        fontSize: "18px",
+        fontWeight: "1000",
+        marginTop: "4px",
+      }}
+    >
+      ${Number(note.estimatedImpact || 0).toLocaleString()}
+    </div>
+  </div>
+)}
+
+
             <p
               style={{
                 color: "#cbd5e1",
