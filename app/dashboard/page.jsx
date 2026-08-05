@@ -54524,6 +54524,69 @@ Recovered profit is based on saved AI action impact.
             >
               {note.message}
             </p>
+            {(() => {
+  const normalizedTitle = String(
+    note.title || ""
+  ).toLowerCase();
+
+  const normalizedType = String(
+    note.type || ""
+  ).toLowerCase();
+
+  let targetId = null;
+  let buttonLabel = "";
+
+  if (
+    normalizedTitle.includes("kitchen") ||
+    normalizedType.includes("kitchen")
+  ) {
+    targetId = "kitchen-bottleneck-intelligence";
+    buttonLabel = "View Kitchen";
+  } else if (
+    normalizedTitle.includes("service") ||
+    normalizedType.includes("service")
+  ) {
+    targetId = "service-speed-intelligence";
+    buttonLabel = "View Service";
+  } else if (
+    normalizedTitle.includes("table") ||
+    normalizedType.includes("table")
+  ) {
+    targetId = "ai-table-turn-intelligence";
+    buttonLabel = "View Table Turns";
+  }
+
+  if (!targetId) return null;
+
+  return (
+    <button
+      type="button"
+      onClick={(event) => {
+        event.stopPropagation();
+
+        document
+          .getElementById(targetId)
+          ?.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+          });
+      }}
+      style={{
+        marginTop: "4px",
+        padding: "9px 13px",
+        borderRadius: "10px",
+        border: "1px solid rgba(129,140,248,0.30)",
+        background: "rgba(99,102,241,0.14)",
+        color: "#c7d2fe",
+        fontSize: "12px",
+        fontWeight: "900",
+        cursor: "pointer",
+      }}
+    >
+      {buttonLabel} →
+    </button>
+  );
+})()}
           </div>
         ))
       ) : (
