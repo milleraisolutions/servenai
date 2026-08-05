@@ -54455,22 +54455,65 @@ Recovered profit is based on saved AI action impact.
               {note.title}
             </div>
 
-            <div
-              style={{
-                color:
-                  note.severity === "Critical"
-                    ? "#fca5a5"
-                    : note.severity === "High"
-                    ? "#fde68a"
-                    : "#93c5fd",
-                fontSize: "12px",
-                fontWeight: "900",
-                marginTop: "4px",
-              }}
-            >
-              {note.type} • {note.severity}
-            </div>
+           <div
+  style={{
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    flexWrap: "wrap",
+    marginTop: "6px",
+  }}
+>
+  <span
+    style={{
+      display: "inline-flex",
+      alignItems: "center",
+      padding: "5px 9px",
+      borderRadius: "999px",
+      background:
+        note.severity === "Critical"
+          ? "rgba(239,68,68,0.16)"
+          : note.severity === "High"
+          ? "rgba(245,158,11,0.16)"
+          : note.severity === "Watch"
+          ? "rgba(56,189,248,0.14)"
+          : "rgba(148,163,184,0.12)",
+      border:
+        note.severity === "Critical"
+          ? "1px solid rgba(248,113,113,0.28)"
+          : note.severity === "High"
+          ? "1px solid rgba(251,191,36,0.26)"
+          : note.severity === "Watch"
+          ? "1px solid rgba(125,211,252,0.24)"
+          : "1px solid rgba(148,163,184,0.20)",
+      color:
+        note.severity === "Critical"
+          ? "#fca5a5"
+          : note.severity === "High"
+          ? "#fde68a"
+          : note.severity === "Watch"
+          ? "#7dd3fc"
+          : "#cbd5e1",
+      fontSize: "10px",
+      fontWeight: "950",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase",
+      lineHeight: 1,
+    }}
+  >
+    {note.severity}
+  </span>
 
+  <span
+    style={{
+      color: "#cbd5e1",
+      fontSize: "12px",
+      fontWeight: "800",
+    }}
+  >
+    {note.type}
+  </span>
+</div>
             <p
               style={{
                 color: "#cbd5e1",
