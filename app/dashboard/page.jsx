@@ -18229,15 +18229,7 @@ console.log(
         : salesResponse?.data || [];
 
     const combinedImportsMap = new Map();
-console.log(
-  "FINAL COMBINED IMPORTS:",
-  combinedImports.map((row) => ({
-    id: row.id,
-    file_name: row.file_name,
-    upload_type: row.upload_type,
-    source_name: row.source_name,
-  }))
-);
+
     const addImport = (item) => {
       if (!item) return;
 
@@ -18413,6 +18405,15 @@ if ((uploadsData || []).length === 0) {
         new Date(a.created_at || 0).getTime()
     );
 
+    console.log(
+  "FINAL COMBINED IMPORTS:",
+  combinedImports.map((row) => ({
+    id: row.id,
+    file_name: row.file_name,
+    upload_type: row.upload_type,
+    source_name: row.source_name,
+  }))
+);
     console.log(
       "UPLOADS TABLE COUNT:",
       uploadsData.length
