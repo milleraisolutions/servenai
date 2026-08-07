@@ -686,6 +686,7 @@ const isMobile =
   typeof window !== "undefined" && window.innerWidth < 640;
 const [clientAlerts, setClientAlerts] = useState([]);
 const [alertsLoading, setAlertsLoading] = useState(false);
+
 const [clientAlertFilter, setClientAlertFilter] = useState("all");
 const [lastScanTime, setLastScanTime] = useState(null);
 const [selectedAlertAction, setSelectedAlertAction] = useState(null);
@@ -814,7 +815,7 @@ const [livePosOrders, setLivePosOrders] = useState([]);
 const [livePosOrderItems, setLivePosOrderItems] = useState([]);
 const [livePosLoading, setLivePosLoading] = useState(false);
 const [livePosError, setLivePosError] = useState("");
-
+const [completedRoleActions, setCompletedRoleActions] = useState([]);
 
 const loadingKitchenPrepRef = useRef(false);
 const invoiceUploadInputRef = useRef(null);
@@ -888,14 +889,38 @@ const userRole = String(
     "executive"
 ).toLowerCase();
 
-const isOwnerRole = userRole === "owner";
+const isOwnerRole = userRole === "restaurant_owner";
 const isExecutiveRole = userRole === "executive";
 const isGMRole = userRole === "gm";
 const isKitchenManagerRole = userRole === "kitchen_manager";
 const isCorporateAdminRole = userRole === "corporate_admin";
+const isRegionalDirectorRole =
+  userRole === "regional_director";
 
+const isFinanceRole =
+  userRole === "finance" ||
+  userRole === "cfo";
+
+const isMarketingRole =
+  userRole === "marketing" ||
+  userRole === "cmo";
+
+const isCIORole =
+  userRole === "cio";
+
+const isCOORole =
+  userRole === "coo";
+
+const isAssistantManagerRole =
+  userRole === "assistant_manager";
+
+const isInventoryManagerRole =
+  userRole === "inventory_manager";
+
+const isBeverageManagerRole =
+  userRole === "beverage_manager";
 const isOwner =
-  userProfile?.role === "owner" ||
+  userProfile?.role === "restaurant_owner" ||
   isServenOwner;
 
 const dataOwnerId = userProfile?.owner_user_id || user?.id || null;
@@ -906,7 +931,10 @@ const isManager =
   userRole === "store_manager" ||
   userRole === "general_manager" ||
   userRole === "kitchen_manager" ||
-  userRole === "gm";
+  userRole === "gm" ||
+  userRole === "assistant_manager" ||
+  userRole === "inventory_manager" ||
+  userRole === "beverage_manager";
 
 const canSeeOwnerDashboard =
   isOwnerRole ||
@@ -914,11 +942,25 @@ const canSeeOwnerDashboard =
   isCorporateAdminRole ||
   isServenOwner ||
   isOwner;
-
+const canSeeLeadershipDashboard =
+  canSeeOwnerDashboard ||
+  isRegionalDirectorRole ||
+  isFinanceRole ||
+  isMarketingRole ||
+  isCIORole ||
+  isCOORole;
 const canSeeManagerDashboard = isManager && !canSeeOwnerDashboard;
 
 const shouldFilterByLocation =
-  ["gm", "kitchen_manager"].includes(userRole) && assignedLocation;
+  [
+    "gm",
+    "general_manager",
+    "store_manager",
+    "kitchen_manager",
+    "assistant_manager",
+    "inventory_manager",
+    "beverage_manager",
+  ].includes(userRole) && assignedLocation;
 
 const applyLocationFilter = (query) => {
   if (!shouldFilterByLocation) return query;
@@ -952,10 +994,25 @@ const normalizedPlan = String(
   .trim()
   .toLowerCase();
 
-const hasTeamAccess =
-  ["gm", "kitchen_manager", "executive"].includes(
-    userProfile?.role
-  );
+const hasTeamAccess = [
+  "restaurant_owner",
+  "executive",
+  "corporate_admin",
+  "regional_director",
+  "gm",
+  "general_manager",
+  "store_manager",
+  "kitchen_manager",
+  "finance",
+  "cfo",
+  "marketing",
+  "cmo",
+  "cio",
+  "coo",
+  "assistant_manager",
+  "inventory_manager",
+  "beverage_manager",
+].includes(userRole);
 
 const hasPaidAccess =
   isOwner ||
@@ -17765,16 +17822,11 @@ const locationOptions = useMemo(() => {
 
 
 const isRestaurantOwner =
-  userRole === "owner" ||
   userRole === "restaurant_owner" ||
   userRole === "executive";
 
 
-const isRegionalDirectorRole =
-  userRole === "regional_director";
 
-const isFinanceRole =
-  userRole === "finance";
 
 
 
@@ -17894,9 +17946,9 @@ const allowedTabsByRole = {
 
 const canViewTab = (tabId) => {
   if (
-    userRole === "owner" ||
-    userRole === "executive" ||
-    userRole === "corporate_admin"
+   userRole === "restaurant_owner" ||
+userRole === "executive" ||
+userRole === "corporate_admin"
   ) {
     return true;
   }
@@ -25246,6 +25298,1544 @@ const restaurantCapacityEngine = useMemo(() => {
   tableTurnIntelligence,
 ]);
 
+/* =========================
+   PEAK HOUR CONGESTION ENGINE
+========================= */
+
+const peakHourCongestionEngine = useMemo(() => {
+  const orders = Array.isArray(livePosOrders)
+    ? livePosOrders
+    : [];
+
+  const targetTurnMinutes = Number(
+    restaurantCapacityEngine?.targetTurnMinutes ||
+      tableTurnIntelligence?.targetTurnMinutes ||
+      0
+  );
+
+  const averageCheck = Number(
+    tableTurnIntelligence?.averageCheck || 0
+  );
+
+  const tableCount = Number(
+    restaurantCapacityEngine?.tableCount || 0
+  );
+
+  const validOrders = orders
+    .map((order) => {
+      const openedValue =
+        order.opened_at ||
+        order.created_at ||
+        null;
+
+      if (!openedValue) return null;
+
+      const openedAt = new Date(openedValue);
+
+      if (Number.isNaN(openedAt.getTime())) {
+        return null;
+      }
+
+      const closedValue =
+        order.closed_at ||
+        order.completed_at ||
+        null;
+
+      let cycleMinutes = 0;
+
+      if (closedValue) {
+        const closedAt = new Date(closedValue);
+
+        if (!Number.isNaN(closedAt.getTime())) {
+          cycleMinutes =
+            (closedAt.getTime() -
+              openedAt.getTime()) /
+            60000;
+        }
+      }
+
+      if (
+        cycleMinutes < 0 ||
+        cycleMinutes > 360
+      ) {
+        cycleMinutes = 0;
+      }
+
+      const revenue = Number(
+        order.net_total ||
+          order.total ||
+          order.total_amount ||
+          order.net_sales ||
+          order.gross_sales ||
+          order.amount ||
+          0
+      );
+
+      const guestCount = Number(
+        order.guest_count ||
+          order.guests ||
+          order.cover_count ||
+          order.covers ||
+          0
+      );
+
+      return {
+        id:
+          order.id ||
+          order.external_order_id ||
+          null,
+
+        openedAt,
+
+        hour: openedAt.getHours(),
+
+        cycleMinutes,
+
+        revenue,
+
+        guestCount,
+
+        serverName:
+          order.server_name ||
+          order.employee_name ||
+          order.staff_name ||
+          order.server ||
+          "Unassigned",
+
+        tableName:
+          order.table_name ||
+          order.table_number ||
+          order.table_id ||
+          null,
+      };
+    })
+    .filter(Boolean);
+
+  if (!validOrders.length) {
+    return {
+      hasData: false,
+
+      status: "Waiting for data",
+      confidence: "Waiting for data",
+
+      peakHour: null,
+      peakHourLabel: "Waiting for data",
+
+      ordersDuringPeak: 0,
+      revenueDuringPeak: 0,
+      guestsDuringPeak: 0,
+
+      averageTurnMinutesDuringPeak: 0,
+      averageCheckDuringPeak: 0,
+
+      estimatedConcurrentOrders: 0,
+      estimatedCapacityUtilization: 0,
+
+      congestionScore: 0,
+
+      estimatedLostTurns: 0,
+      estimatedLostRevenue: 0,
+
+      hourlyPerformance: [],
+
+      primaryRisk:
+        "Awaiting live POS order timing data",
+
+      recommendation:
+        "Connect live POS order-open and order-close activity to activate peak-hour congestion intelligence.",
+    };
+  }
+
+  const hourlyMap = {};
+
+  validOrders.forEach((order) => {
+    const hour = order.hour;
+
+    if (!hourlyMap[hour]) {
+      hourlyMap[hour] = {
+        hour,
+
+        orderCount: 0,
+        revenue: 0,
+        guestCount: 0,
+
+        cycleTotal: 0,
+        measuredCycleCount: 0,
+
+        cycleOrders: [],
+      };
+    }
+
+    hourlyMap[hour].orderCount += 1;
+
+    hourlyMap[hour].revenue +=
+      order.revenue;
+
+    hourlyMap[hour].guestCount +=
+      order.guestCount;
+
+    if (order.cycleMinutes > 0) {
+      hourlyMap[hour].cycleTotal +=
+        order.cycleMinutes;
+
+      hourlyMap[hour].measuredCycleCount += 1;
+
+      hourlyMap[hour].cycleOrders.push(order);
+    }
+  });
+
+  const formatHour = (hour) => {
+    const normalizedHour =
+      ((Number(hour) % 24) + 24) % 24;
+
+    const nextHour =
+      (normalizedHour + 1) % 24;
+
+    const formatSingleHour = (value) => {
+      const suffix =
+        value >= 12 ? "PM" : "AM";
+
+      const displayHour =
+        value % 12 || 12;
+
+      return `${displayHour}:00 ${suffix}`;
+    };
+
+    return `${formatSingleHour(
+      normalizedHour
+    )}–${formatSingleHour(nextHour)}`;
+  };
+
+  const hourlyPerformance =
+    Object.values(hourlyMap)
+      .map((hourData) => {
+        const averageTurnMinutes =
+          hourData.measuredCycleCount > 0
+            ? hourData.cycleTotal /
+              hourData.measuredCycleCount
+            : 0;
+
+        const averageCheckForHour =
+          hourData.orderCount > 0
+            ? hourData.revenue /
+              hourData.orderCount
+            : 0;
+
+        /*
+         * Estimated average number of active orders
+         * during this hour.
+         */
+        const estimatedConcurrentOrders =
+          averageTurnMinutes > 0
+            ? (hourData.orderCount *
+                averageTurnMinutes) /
+              60
+            : hourData.orderCount;
+
+        const estimatedCapacityUtilization =
+          tableCount > 0
+            ? Math.min(
+                200,
+                (estimatedConcurrentOrders /
+                  tableCount) *
+                  100
+              )
+            : 0;
+
+        const turnPressure =
+          targetTurnMinutes > 0 &&
+          averageTurnMinutes > 0
+            ? Math.max(
+                0,
+                ((averageTurnMinutes -
+                  targetTurnMinutes) /
+                  targetTurnMinutes) *
+                  100
+              )
+            : 0;
+
+        const volumeScore = Math.min(
+          100,
+          hourData.orderCount * 10
+        );
+
+        const congestionScore = Math.round(
+          Math.min(
+            100,
+            volumeScore * 0.4 +
+              Math.min(
+                100,
+                estimatedCapacityUtilization
+              ) *
+                0.35 +
+              Math.min(100, turnPressure) *
+                0.25
+          )
+        );
+
+        const excessTurnMinutes =
+          targetTurnMinutes > 0
+            ? Math.max(
+                0,
+                averageTurnMinutes -
+                  targetTurnMinutes
+              )
+            : 0;
+
+        const estimatedLostTurns =
+          excessTurnMinutes > 0 &&
+          hourData.orderCount > 0 &&
+          targetTurnMinutes > 0
+            ? Math.max(
+                0,
+                Math.round(
+                  (hourData.orderCount *
+                    excessTurnMinutes) /
+                    targetTurnMinutes
+                )
+              )
+            : 0;
+
+        const estimatedLostRevenue =
+          Math.max(
+            0,
+            Math.round(
+              estimatedLostTurns *
+                (averageCheckForHour ||
+                  averageCheck)
+            )
+          );
+
+        return {
+          hour: hourData.hour,
+          hourLabel: formatHour(
+            hourData.hour
+          ),
+
+          orderCount:
+            hourData.orderCount,
+
+          revenue: Math.round(
+            hourData.revenue
+          ),
+
+          guestCount:
+            hourData.guestCount,
+
+          averageTurnMinutes: Number(
+            averageTurnMinutes.toFixed(1)
+          ),
+
+          averageCheck: Number(
+            averageCheckForHour.toFixed(2)
+          ),
+
+          estimatedConcurrentOrders:
+            Number(
+              estimatedConcurrentOrders.toFixed(
+                1
+              )
+            ),
+
+          estimatedCapacityUtilization:
+            Number(
+              estimatedCapacityUtilization.toFixed(
+                1
+              )
+            ),
+
+          congestionScore,
+
+          estimatedLostTurns,
+          estimatedLostRevenue,
+        };
+      })
+      .sort(
+        (a, b) =>
+          Number(a.hour) -
+          Number(b.hour)
+      );
+
+  const peakHour =
+    [...hourlyPerformance].sort(
+      (a, b) =>
+        b.congestionScore -
+          a.congestionScore ||
+        b.orderCount -
+          a.orderCount ||
+        b.revenue -
+          a.revenue
+    )[0] || null;
+
+  if (!peakHour) {
+    return {
+      hasData: false,
+
+      status: "Waiting for data",
+      confidence: "Waiting for data",
+
+      peakHour: null,
+      peakHourLabel: "Waiting for data",
+
+      ordersDuringPeak: 0,
+      revenueDuringPeak: 0,
+      guestsDuringPeak: 0,
+
+      averageTurnMinutesDuringPeak: 0,
+      averageCheckDuringPeak: 0,
+
+      estimatedConcurrentOrders: 0,
+      estimatedCapacityUtilization: 0,
+
+      congestionScore: 0,
+
+      estimatedLostTurns: 0,
+      estimatedLostRevenue: 0,
+
+      hourlyPerformance: [],
+
+      primaryRisk:
+        "No usable peak-hour activity was found",
+
+      recommendation:
+        "Continue collecting live POS order timing data.",
+    };
+  }
+
+  const status =
+    peakHour.congestionScore >= 85
+      ? "Critical"
+      : peakHour.congestionScore >= 70
+      ? "High"
+      : peakHour.congestionScore >= 50
+      ? "Watch"
+      : "Healthy";
+
+  const measuredCycleCount =
+    validOrders.filter(
+      (order) =>
+        order.cycleMinutes > 0
+    ).length;
+
+  const confidence =
+    measuredCycleCount >= 100
+      ? "High"
+      : measuredCycleCount >= 30
+      ? "Medium"
+      : "Early Sample";
+
+  const primaryRisk =
+    status === "Healthy"
+      ? "Peak-hour service flow is currently within target"
+      : peakHour.estimatedCapacityUtilization >=
+        100
+      ? `${peakHour.peakHourLabel || peakHour.hourLabel} is operating at or above estimated table capacity`
+      : peakHour.averageTurnMinutes >
+        targetTurnMinutes &&
+        targetTurnMinutes > 0
+      ? `${peakHour.hourLabel} is averaging ${peakHour.averageTurnMinutes} minutes against a ${targetTurnMinutes}-minute target`
+      : `${peakHour.hourLabel} has the highest concentration of order volume and service pressure`;
+
+  const recommendation =
+    status === "Healthy"
+      ? "Maintain current staffing and service flow during the busiest hour."
+      : peakHour.estimatedCapacityUtilization >=
+        100
+      ? `Review host pacing, server section balance, kitchen staffing, and payment-close speed during ${peakHour.hourLabel}. The estimated active-order load is exceeding configured table capacity.`
+      : peakHour.averageTurnMinutes >
+        targetTurnMinutes &&
+        targetTurnMinutes > 0
+      ? `Focus on reducing the guest cycle during ${peakHour.hourLabel}. Review kitchen completion, server follow-up, payment close, and table reset timing.`
+      : `Review staffing coverage, ticket sequencing, and order pacing during ${peakHour.hourLabel}.`;
+
+  return {
+    hasData: true,
+
+    status,
+    confidence,
+
+    peakHour:
+      peakHour.hour,
+
+    peakHourLabel:
+      peakHour.hourLabel,
+
+    ordersDuringPeak:
+      peakHour.orderCount,
+
+    revenueDuringPeak:
+      peakHour.revenue,
+
+    guestsDuringPeak:
+      peakHour.guestCount,
+
+    averageTurnMinutesDuringPeak:
+      peakHour.averageTurnMinutes,
+
+    averageCheckDuringPeak:
+      peakHour.averageCheck,
+
+    estimatedConcurrentOrders:
+      peakHour.estimatedConcurrentOrders,
+
+    estimatedCapacityUtilization:
+      peakHour.estimatedCapacityUtilization,
+
+    congestionScore:
+      peakHour.congestionScore,
+
+    estimatedLostTurns:
+      peakHour.estimatedLostTurns,
+
+    estimatedLostRevenue:
+      peakHour.estimatedLostRevenue,
+
+    hourlyPerformance,
+
+    primaryRisk,
+    recommendation,
+  };
+}, [
+  livePosOrders,
+  tableTurnIntelligence,
+  restaurantCapacityEngine,
+]);
+/* =========================
+   SERVER BOTTLENECK ENGINE
+========================= */
+
+const serverBottleneckEngine = useMemo(() => {
+  const orders = Array.isArray(livePosOrders)
+    ? livePosOrders
+    : [];
+
+  const targetTurnMinutes = Number(
+    restaurantCapacityEngine?.targetTurnMinutes ||
+      tableTurnIntelligence?.targetTurnMinutes ||
+      0
+  );
+
+  const fallbackAverageCheck = Number(
+    tableTurnIntelligence?.averageCheck || 0
+  );
+
+  const peakHour = Number(
+    peakHourCongestionEngine?.peakHour
+  );
+
+  const validOrders = orders
+    .map((order) => {
+      const openedValue =
+        order.opened_at ||
+        order.created_at ||
+        null;
+
+      const closedValue =
+        order.closed_at ||
+        order.completed_at ||
+        null;
+
+      if (!openedValue || !closedValue) {
+        return null;
+      }
+
+      const openedAt = new Date(openedValue);
+      const closedAt = new Date(closedValue);
+
+      if (
+        Number.isNaN(openedAt.getTime()) ||
+        Number.isNaN(closedAt.getTime())
+      ) {
+        return null;
+      }
+
+      const cycleMinutes =
+        (closedAt.getTime() -
+          openedAt.getTime()) /
+        60000;
+
+      if (
+        cycleMinutes < 5 ||
+        cycleMinutes > 360
+      ) {
+        return null;
+      }
+
+      const rawServerName =
+        order.server_name ||
+        order.employee_name ||
+        order.staff_name ||
+        order.server ||
+        order.employee ||
+        order.team_member ||
+        "";
+
+      const serverName = String(
+        rawServerName || ""
+      ).trim();
+
+      /*
+       * Do not manufacture server-level intelligence
+       * when the POS order has no server assignment.
+       */
+      if (
+        !serverName ||
+        serverName.toLowerCase() === "unassigned" ||
+        serverName.toLowerCase() === "unknown"
+      ) {
+        return null;
+      }
+
+      const revenue = Number(
+        order.net_total ||
+          order.total ||
+          order.total_amount ||
+          order.net_sales ||
+          order.gross_sales ||
+          order.amount ||
+          order.check_total ||
+          0
+      );
+
+      const guestCount = Number(
+        order.guest_count ||
+          order.guests ||
+          order.cover_count ||
+          order.covers ||
+          0
+      );
+
+      return {
+        id:
+          order.id ||
+          order.external_order_id ||
+          null,
+
+        serverName,
+        openedAt,
+        hour: openedAt.getHours(),
+
+        cycleMinutes,
+        revenue,
+        guestCount,
+
+        tableName:
+          order.table_name ||
+          order.table_number ||
+          order.table_id ||
+          null,
+      };
+    })
+    .filter(Boolean);
+
+  if (!validOrders.length) {
+    return {
+      hasData: false,
+
+      status: "Waiting for data",
+      confidence: "Waiting for data",
+
+      slowestServer: null,
+      fastestServer: null,
+      serverPerformance: [],
+
+      measuredServerCount: 0,
+      measuredOrderCount: 0,
+
+      averageServerCycleMinutes: 0,
+      targetTurnMinutes,
+
+      ordersAboveTarget: 0,
+      percentAboveTarget: 0,
+
+      estimatedLostTurns: 0,
+      estimatedLostRevenue: 0,
+
+      primaryRisk:
+        "Awaiting live POS orders with server assignments",
+
+      recommendation:
+        "Connect server or employee assignments to live POS orders to activate Server Bottleneck Intelligence.",
+    };
+  }
+
+  const serverMap = {};
+
+  validOrders.forEach((order) => {
+    const key = order.serverName;
+
+    if (!serverMap[key]) {
+      serverMap[key] = {
+        serverName: key,
+
+        orderCount: 0,
+        guestCount: 0,
+        revenue: 0,
+
+        totalCycleMinutes: 0,
+        aboveTargetCount: 0,
+        excessCycleMinutes: 0,
+
+        peakHourOrderCount: 0,
+        tables: new Set(),
+      };
+    }
+
+    serverMap[key].orderCount += 1;
+    serverMap[key].guestCount +=
+      order.guestCount;
+    serverMap[key].revenue +=
+      order.revenue;
+    serverMap[key].totalCycleMinutes +=
+      order.cycleMinutes;
+
+    if (
+      order.tableName !== null &&
+      order.tableName !== undefined &&
+      String(order.tableName).trim()
+    ) {
+      serverMap[key].tables.add(
+        String(order.tableName)
+      );
+    }
+
+    if (
+      targetTurnMinutes > 0 &&
+      order.cycleMinutes >
+        targetTurnMinutes
+    ) {
+      serverMap[key].aboveTargetCount += 1;
+
+      serverMap[key].excessCycleMinutes +=
+        order.cycleMinutes -
+        targetTurnMinutes;
+    }
+
+    if (
+      Number.isFinite(peakHour) &&
+      order.hour === peakHour
+    ) {
+      serverMap[key].peakHourOrderCount += 1;
+    }
+  });
+
+  const serverPerformance =
+    Object.values(serverMap)
+      .map((server) => {
+        const averageCycleMinutes =
+          server.orderCount > 0
+            ? server.totalCycleMinutes /
+              server.orderCount
+            : 0;
+
+        const averageCheck =
+          server.orderCount > 0
+            ? server.revenue /
+              server.orderCount
+            : 0;
+
+        const averageGuestsPerOrder =
+          server.orderCount > 0
+            ? server.guestCount /
+              server.orderCount
+            : 0;
+
+        const percentAboveTarget =
+          server.orderCount > 0
+            ? (server.aboveTargetCount /
+                server.orderCount) *
+              100
+            : 0;
+
+        const averageExcessMinutes =
+          server.aboveTargetCount > 0
+            ? server.excessCycleMinutes /
+              server.aboveTargetCount
+            : 0;
+
+        const estimatedLostTurns =
+          targetTurnMinutes > 0
+            ? Math.max(
+                0,
+                Math.round(
+                  server.excessCycleMinutes /
+                    targetTurnMinutes
+                )
+              )
+            : 0;
+
+        const estimatedLostRevenue =
+          Math.max(
+            0,
+            Math.round(
+              estimatedLostTurns *
+                (averageCheck ||
+                  fallbackAverageCheck)
+            )
+          );
+
+        return {
+          serverName:
+            server.serverName,
+
+          orderCount:
+            server.orderCount,
+
+          guestCount:
+            server.guestCount,
+
+          revenue: Math.round(
+            server.revenue
+          ),
+
+          tableCount:
+            server.tables.size,
+
+          peakHourOrderCount:
+            server.peakHourOrderCount,
+
+          averageCycleMinutes: Number(
+            averageCycleMinutes.toFixed(1)
+          ),
+
+          averageCheck: Number(
+            averageCheck.toFixed(2)
+          ),
+
+          averageGuestsPerOrder: Number(
+            averageGuestsPerOrder.toFixed(1)
+          ),
+
+          ordersAboveTarget:
+            server.aboveTargetCount,
+
+          percentAboveTarget: Number(
+            percentAboveTarget.toFixed(1)
+          ),
+
+          averageExcessMinutes: Number(
+            averageExcessMinutes.toFixed(1)
+          ),
+
+          estimatedLostTurns,
+          estimatedLostRevenue,
+        };
+      })
+      .sort(
+        (a, b) =>
+          b.averageCycleMinutes -
+            a.averageCycleMinutes ||
+          b.percentAboveTarget -
+            a.percentAboveTarget ||
+          b.orderCount -
+            a.orderCount
+      );
+
+  const slowestServer =
+    serverPerformance.find(
+      (server) =>
+        targetTurnMinutes > 0 &&
+        server.averageCycleMinutes >
+          targetTurnMinutes
+    ) ||
+    serverPerformance[0] ||
+    null;
+
+  const fastestServer =
+    [...serverPerformance].sort(
+      (a, b) =>
+        a.averageCycleMinutes -
+          b.averageCycleMinutes ||
+        b.orderCount -
+          a.orderCount
+    )[0] || null;
+
+  const measuredServerCount =
+    serverPerformance.length;
+
+  const measuredOrderCount =
+    validOrders.length;
+
+  const averageServerCycleMinutes =
+    measuredOrderCount > 0
+      ? validOrders.reduce(
+          (sum, order) =>
+            sum +
+            order.cycleMinutes,
+          0
+        ) / measuredOrderCount
+      : 0;
+
+  const ordersAboveTarget =
+    targetTurnMinutes > 0
+      ? validOrders.filter(
+          (order) =>
+            order.cycleMinutes >
+            targetTurnMinutes
+        ).length
+      : 0;
+
+  const percentAboveTarget =
+    measuredOrderCount > 0
+      ? (ordersAboveTarget /
+          measuredOrderCount) *
+        100
+      : 0;
+
+  const estimatedLostTurns =
+    serverPerformance.reduce(
+      (sum, server) =>
+        sum +
+        Number(
+          server.estimatedLostTurns || 0
+        ),
+      0
+    );
+
+  const estimatedLostRevenue =
+    serverPerformance.reduce(
+      (sum, server) =>
+        sum +
+        Number(
+          server.estimatedLostRevenue || 0
+        ),
+      0
+    );
+
+  const status =
+    percentAboveTarget >= 50
+      ? "Critical"
+      : percentAboveTarget >= 30
+      ? "High"
+      : percentAboveTarget > 10
+      ? "Watch"
+      : "Healthy";
+
+  const confidence =
+    measuredOrderCount >= 100 &&
+    measuredServerCount >= 3
+      ? "High"
+      : measuredOrderCount >= 30 &&
+        measuredServerCount >= 2
+      ? "Medium"
+      : "Early Sample";
+
+  const primaryRisk =
+    status === "Healthy"
+      ? "Server-managed order cycles are currently within target"
+      : slowestServer
+      ? `${slowestServer.serverName} is averaging ${slowestServer.averageCycleMinutes} minutes per order cycle, with ${slowestServer.percentAboveTarget}% of measured orders above the ${targetTurnMinutes}-minute target`
+      : "Server-level order cycles are exceeding the configured target";
+
+  const recommendation =
+    status === "Healthy"
+      ? "Maintain current server section balance and continue monitoring peak-hour performance."
+      : slowestServer
+      ? `Review section size, table distribution, order-entry timing, guest follow-up, and payment-close speed for ${slowestServer.serverName}. Compare performance with ${fastestServer?.serverName || "the fastest-performing server"} before changing staffing or section assignments.`
+      : "Review server section balance, order-entry timing, guest follow-up, and payment-close workflow during peak periods.";
+
+  return {
+    hasData: true,
+
+    status,
+    confidence,
+
+    slowestServer,
+    fastestServer,
+    serverPerformance,
+
+    measuredServerCount,
+    measuredOrderCount,
+
+    averageServerCycleMinutes:
+      Number(
+        averageServerCycleMinutes.toFixed(1)
+      ),
+
+    targetTurnMinutes,
+
+    ordersAboveTarget,
+
+    percentAboveTarget:
+      Number(
+        percentAboveTarget.toFixed(1)
+      ),
+
+    estimatedLostTurns,
+    estimatedLostRevenue,
+
+    primaryRisk,
+    recommendation,
+  };
+}, [
+  livePosOrders,
+  tableTurnIntelligence,
+  restaurantCapacityEngine,
+  peakHourCongestionEngine,
+]);
+
+/* =========================
+   TABLE UTILIZATION ENGINE
+========================= */
+
+const tableUtilizationEngine = useMemo(() => {
+  const orders = Array.isArray(livePosOrders)
+    ? livePosOrders
+    : [];
+
+  const targetTurnMinutes = Number(
+    restaurantCapacityEngine?.targetTurnMinutes ||
+      tableTurnIntelligence?.targetTurnMinutes ||
+      0
+  );
+
+  const fallbackAverageCheck = Number(
+    tableTurnIntelligence?.averageCheck || 0
+  );
+
+  const validOrders = orders
+    .map((order) => {
+      const openedValue =
+        order.opened_at ||
+        order.created_at ||
+        null;
+
+      const closedValue =
+        order.closed_at ||
+        order.completed_at ||
+        null;
+
+      const rawTableName =
+        order.table_name ||
+        order.table_number ||
+        order.table_id ||
+        "";
+
+      const tableName = String(
+        rawTableName || ""
+      ).trim();
+
+      /*
+       * Do not create table-level intelligence
+       * without a real table assignment.
+       */
+      if (
+        !tableName ||
+        tableName.toLowerCase() === "unknown" ||
+        tableName.toLowerCase() === "unknown table" ||
+        tableName.toLowerCase() === "unassigned"
+      ) {
+        return null;
+      }
+
+      if (!openedValue || !closedValue) {
+        return null;
+      }
+
+      const openedAt = new Date(openedValue);
+      const closedAt = new Date(closedValue);
+
+      if (
+        Number.isNaN(openedAt.getTime()) ||
+        Number.isNaN(closedAt.getTime())
+      ) {
+        return null;
+      }
+
+      const cycleMinutes =
+        (closedAt.getTime() -
+          openedAt.getTime()) /
+        60000;
+
+      if (
+        cycleMinutes < 5 ||
+        cycleMinutes > 360
+      ) {
+        return null;
+      }
+
+      const guestCount = Number(
+        order.guest_count ||
+          order.guests ||
+          order.cover_count ||
+          order.covers ||
+          0
+      );
+
+      const revenue = Number(
+        order.net_total ||
+          order.total ||
+          order.total_amount ||
+          order.net_sales ||
+          order.gross_sales ||
+          order.amount ||
+          order.check_total ||
+          0
+      );
+
+      return {
+        id:
+          order.id ||
+          order.external_order_id ||
+          null,
+
+        tableName,
+        openedAt,
+        hour: openedAt.getHours(),
+
+        cycleMinutes,
+        guestCount,
+        revenue,
+
+        serverName:
+          order.server_name ||
+          order.employee_name ||
+          order.staff_name ||
+          order.server ||
+          null,
+      };
+    })
+    .filter(Boolean);
+
+  if (!validOrders.length) {
+    return {
+      hasData: false,
+
+      status: "Waiting for data",
+      confidence: "Waiting for data",
+
+      mostUsedTable: null,
+      slowestTable: null,
+      highestRevenueTable: null,
+      highestGuestVolumeTable: null,
+
+      tablePerformance: [],
+
+      measuredTableCount: 0,
+      measuredOrderCount: 0,
+
+      averageCycleMinutes: 0,
+      averageGuestsPerSeating: 0,
+      averageRevenuePerSeating: 0,
+
+      tablesAboveTarget: 0,
+      percentTablesAboveTarget: 0,
+
+      estimatedLostTurns: 0,
+      estimatedLostRevenue: 0,
+
+      primaryRisk:
+        "Awaiting live POS orders with table assignments",
+
+      recommendation:
+        "Connect table numbers or table IDs to completed POS orders to activate Table Utilization Intelligence.",
+
+      dataDisclosure:
+        "Table utilization requires completed orders with table assignments. Seat-capacity data is still required for true table-mix analysis.",
+    };
+  }
+
+  const tableMap = {};
+
+  validOrders.forEach((order) => {
+    const key = order.tableName;
+
+    if (!tableMap[key]) {
+      tableMap[key] = {
+        tableName: key,
+
+        orderCount: 0,
+        guestCount: 0,
+        revenue: 0,
+
+        totalCycleMinutes: 0,
+        ordersAboveTarget: 0,
+        excessCycleMinutes: 0,
+
+        peakHourOrders: {},
+        servers: new Set(),
+      };
+    }
+
+    tableMap[key].orderCount += 1;
+
+    tableMap[key].guestCount +=
+      order.guestCount;
+
+    tableMap[key].revenue +=
+      order.revenue;
+
+    tableMap[key].totalCycleMinutes +=
+      order.cycleMinutes;
+
+    if (order.serverName) {
+      tableMap[key].servers.add(
+        String(order.serverName)
+      );
+    }
+
+    if (!tableMap[key].peakHourOrders[order.hour]) {
+      tableMap[key].peakHourOrders[order.hour] = 0;
+    }
+
+    tableMap[key].peakHourOrders[order.hour] += 1;
+
+    if (
+      targetTurnMinutes > 0 &&
+      order.cycleMinutes >
+        targetTurnMinutes
+    ) {
+      tableMap[key].ordersAboveTarget += 1;
+
+      tableMap[key].excessCycleMinutes +=
+        order.cycleMinutes -
+        targetTurnMinutes;
+    }
+  });
+
+  const formatHour = (hour) => {
+    const normalizedHour =
+      ((Number(hour) % 24) + 24) % 24;
+
+    const suffix =
+      normalizedHour >= 12
+        ? "PM"
+        : "AM";
+
+    const displayHour =
+      normalizedHour % 12 || 12;
+
+    return `${displayHour}:00 ${suffix}`;
+  };
+
+  const tablePerformance =
+    Object.values(tableMap)
+      .map((table) => {
+        const averageCycleMinutes =
+          table.orderCount > 0
+            ? table.totalCycleMinutes /
+              table.orderCount
+            : 0;
+
+        const averageGuestsPerSeating =
+          table.orderCount > 0
+            ? table.guestCount /
+              table.orderCount
+            : 0;
+
+        const averageRevenuePerSeating =
+          table.orderCount > 0
+            ? table.revenue /
+              table.orderCount
+            : 0;
+
+        const percentAboveTarget =
+          table.orderCount > 0
+            ? (table.ordersAboveTarget /
+                table.orderCount) *
+              100
+            : 0;
+
+        const averageExcessMinutes =
+          table.ordersAboveTarget > 0
+            ? table.excessCycleMinutes /
+              table.ordersAboveTarget
+            : 0;
+
+        const estimatedLostTurns =
+          targetTurnMinutes > 0
+            ? Math.max(
+                0,
+                Math.round(
+                  table.excessCycleMinutes /
+                    targetTurnMinutes
+                )
+              )
+            : 0;
+
+        const estimatedLostRevenue =
+          Math.max(
+            0,
+            Math.round(
+              estimatedLostTurns *
+                (averageRevenuePerSeating ||
+                  fallbackAverageCheck)
+            )
+          );
+
+        const peakHourEntry =
+          Object.entries(
+            table.peakHourOrders
+          ).sort(
+            (a, b) =>
+              Number(b[1]) -
+              Number(a[1])
+          )[0] || null;
+
+        const peakHour =
+          peakHourEntry
+            ? Number(peakHourEntry[0])
+            : null;
+
+        return {
+          tableName:
+            table.tableName,
+
+          orderCount:
+            table.orderCount,
+
+          guestCount:
+            table.guestCount,
+
+          revenue: Math.round(
+            table.revenue
+          ),
+
+          serverCount:
+            table.servers.size,
+
+          averageCycleMinutes:
+            Number(
+              averageCycleMinutes.toFixed(1)
+            ),
+
+          averageGuestsPerSeating:
+            Number(
+              averageGuestsPerSeating.toFixed(1)
+            ),
+
+          averageRevenuePerSeating:
+            Number(
+              averageRevenuePerSeating.toFixed(2)
+            ),
+
+          ordersAboveTarget:
+            table.ordersAboveTarget,
+
+          percentAboveTarget:
+            Number(
+              percentAboveTarget.toFixed(1)
+            ),
+
+          averageExcessMinutes:
+            Number(
+              averageExcessMinutes.toFixed(1)
+            ),
+
+          peakHour,
+
+          peakHourLabel:
+            peakHour !== null
+              ? formatHour(peakHour)
+              : "Not available",
+
+          estimatedLostTurns,
+          estimatedLostRevenue,
+        };
+      })
+      .sort(
+        (a, b) =>
+          b.orderCount -
+            a.orderCount ||
+          b.revenue -
+            a.revenue
+      );
+
+  const mostUsedTable =
+    tablePerformance[0] ||
+    null;
+
+  const slowestTable =
+    [...tablePerformance].sort(
+      (a, b) =>
+        b.averageCycleMinutes -
+          a.averageCycleMinutes ||
+        b.percentAboveTarget -
+          a.percentAboveTarget
+    )[0] || null;
+
+  const highestRevenueTable =
+    [...tablePerformance].sort(
+      (a, b) =>
+        b.revenue -
+          a.revenue ||
+        b.orderCount -
+          a.orderCount
+    )[0] || null;
+
+  const highestGuestVolumeTable =
+    [...tablePerformance].sort(
+      (a, b) =>
+        b.guestCount -
+          a.guestCount ||
+        b.orderCount -
+          a.orderCount
+    )[0] || null;
+
+  const measuredTableCount =
+    tablePerformance.length;
+
+  const measuredOrderCount =
+    validOrders.length;
+
+  const totalGuestCount =
+    validOrders.reduce(
+      (sum, order) =>
+        sum +
+        Number(order.guestCount || 0),
+      0
+    );
+
+  const totalRevenue =
+    validOrders.reduce(
+      (sum, order) =>
+        sum +
+        Number(order.revenue || 0),
+      0
+    );
+
+  const averageCycleMinutes =
+    measuredOrderCount > 0
+      ? validOrders.reduce(
+          (sum, order) =>
+            sum +
+            order.cycleMinutes,
+          0
+        ) / measuredOrderCount
+      : 0;
+
+  const averageGuestsPerSeating =
+    measuredOrderCount > 0
+      ? totalGuestCount /
+        measuredOrderCount
+      : 0;
+
+  const averageRevenuePerSeating =
+    measuredOrderCount > 0
+      ? totalRevenue /
+        measuredOrderCount
+      : 0;
+
+  const tablesAboveTarget =
+    targetTurnMinutes > 0
+      ? tablePerformance.filter(
+          (table) =>
+            table.averageCycleMinutes >
+            targetTurnMinutes
+        ).length
+      : 0;
+
+  const percentTablesAboveTarget =
+    measuredTableCount > 0
+      ? (tablesAboveTarget /
+          measuredTableCount) *
+        100
+      : 0;
+
+  const estimatedLostTurns =
+    tablePerformance.reduce(
+      (sum, table) =>
+        sum +
+        Number(
+          table.estimatedLostTurns || 0
+        ),
+      0
+    );
+
+  const estimatedLostRevenue =
+    tablePerformance.reduce(
+      (sum, table) =>
+        sum +
+        Number(
+          table.estimatedLostRevenue || 0
+        ),
+      0
+    );
+
+  const status =
+    percentTablesAboveTarget >= 50
+      ? "Critical"
+      : percentTablesAboveTarget >= 30
+      ? "High"
+      : percentTablesAboveTarget > 10
+      ? "Watch"
+      : "Healthy";
+
+  const confidence =
+    measuredOrderCount >= 100 &&
+    measuredTableCount >= 10
+      ? "High"
+      : measuredOrderCount >= 30 &&
+        measuredTableCount >= 5
+      ? "Medium"
+      : "Early Sample";
+
+  const primaryRisk =
+    status === "Healthy"
+      ? "Measured tables are currently turning within target"
+      : slowestTable
+      ? `${slowestTable.tableName} is averaging ${slowestTable.averageCycleMinutes} minutes per seating, with ${slowestTable.percentAboveTarget}% of measured orders above the ${targetTurnMinutes}-minute target`
+      : "Table-level order cycles are exceeding the configured target";
+
+  const recommendation =
+    status === "Healthy"
+      ? "Maintain current table assignment and reset flow while continuing to monitor peak periods."
+      : slowestTable
+      ? `Review seating patterns, server coverage, kitchen timing, payment close, and table reset workflow for ${slowestTable.tableName}. Compare it with ${mostUsedTable?.tableName || "the most-used table"} before changing floor assignments.`
+      : "Review table assignment, server coverage, guest-cycle timing, and reset workflow during peak periods.";
+
+  return {
+    hasData: true,
+
+    status,
+    confidence,
+
+    mostUsedTable,
+    slowestTable,
+    highestRevenueTable,
+    highestGuestVolumeTable,
+
+    tablePerformance,
+
+    measuredTableCount,
+    measuredOrderCount,
+
+    averageCycleMinutes:
+      Number(
+        averageCycleMinutes.toFixed(1)
+      ),
+
+    averageGuestsPerSeating:
+      Number(
+        averageGuestsPerSeating.toFixed(1)
+      ),
+
+    averageRevenuePerSeating:
+      Number(
+        averageRevenuePerSeating.toFixed(2)
+      ),
+
+    tablesAboveTarget,
+
+    percentTablesAboveTarget:
+      Number(
+        percentTablesAboveTarget.toFixed(1)
+      ),
+
+    estimatedLostTurns,
+    estimatedLostRevenue,
+
+    primaryRisk,
+    recommendation,
+
+    dataDisclosure:
+      "This analysis measures completed POS order cycles by table. True table-mix opportunity requires configured seat capacity for each table.",
+  };
+}, [
+  livePosOrders,
+  tableTurnIntelligence,
+  restaurantCapacityEngine,
+]);
 const kitchenBottleneckEngine = useMemo(() => {
   const validItems = (livePosOrderItems || [])
     .map((item) => {
@@ -26053,6 +27643,332 @@ const serviceSpeedIntelligence = useMemo(() => {
   kitchenBottleneckEngine,
 ]);
 
+/* =========================
+   TABLE TURN EXECUTIVE ENGINE
+========================= */
+
+const tableTurnExecutiveEngine = useMemo(() => {
+  const severityRank = {
+    Critical: 4,
+    High: 3,
+    Watch: 2,
+    Healthy: 1,
+    "Waiting for data": 0,
+    "Waiting for capacity data": 0,
+  };
+
+  const constraints = [
+    {
+      key: "capacity",
+      label: "Overall Table Capacity",
+      hasData: Boolean(
+        restaurantCapacityEngine?.hasData
+      ),
+      status:
+        restaurantCapacityEngine?.status ||
+        "Waiting for data",
+      impact: Number(
+        restaurantCapacityEngine
+          ?.estimatedRevenueOpportunity || 0
+      ),
+      recommendation:
+        restaurantCapacityEngine?.reason ||
+        "Review overall table capacity and turn-time performance.",
+      supportingMetric:
+        restaurantCapacityEngine?.hasData
+          ? `${Number(
+              restaurantCapacityEngine.currentTurnMinutes || 0
+            ).toFixed(1)} min current turn vs ${Number(
+              restaurantCapacityEngine.targetTurnMinutes || 0
+            ).toFixed(1)} min target`
+          : "Waiting for capacity settings and measured order cycles",
+      confidence:
+        tableTurnIntelligence?.confidence ||
+        "Waiting for data",
+    },
+
+    {
+      key: "peakCongestion",
+      label: "Peak-Hour Congestion",
+      hasData: Boolean(
+        peakHourCongestionEngine?.hasData
+      ),
+      status:
+        peakHourCongestionEngine?.status ||
+        "Waiting for data",
+      impact: Number(
+        peakHourCongestionEngine
+          ?.estimatedLostRevenue || 0
+      ),
+      recommendation:
+        peakHourCongestionEngine?.recommendation ||
+        "Review the busiest service window.",
+      supportingMetric:
+        peakHourCongestionEngine?.hasData
+          ? `${peakHourCongestionEngine.peakHourLabel}: ${Number(
+              peakHourCongestionEngine.congestionScore || 0
+            )}/100 congestion score`
+          : "Waiting for live POS timing",
+      confidence:
+        peakHourCongestionEngine?.confidence ||
+        "Waiting for data",
+    },
+
+    {
+      key: "server",
+      label: "Server Bottleneck",
+      hasData: Boolean(
+        serverBottleneckEngine?.hasData
+      ),
+      status:
+        serverBottleneckEngine?.status ||
+        "Waiting for data",
+      impact: Number(
+        serverBottleneckEngine
+          ?.estimatedLostRevenue || 0
+      ),
+      recommendation:
+        serverBottleneckEngine?.recommendation ||
+        "Review server-level cycle performance.",
+      supportingMetric:
+        serverBottleneckEngine?.hasData
+          ? `${serverBottleneckEngine.slowestServer?.serverName || "Slowest server"} averaging ${Number(
+              serverBottleneckEngine.slowestServer
+                ?.averageCycleMinutes || 0
+            ).toFixed(1)} min`
+          : "Waiting for server assignments",
+      confidence:
+        serverBottleneckEngine?.confidence ||
+        "Waiting for data",
+    },
+
+    {
+      key: "tableUtilization",
+      label: "Table Utilization",
+      hasData: Boolean(
+        tableUtilizationEngine?.hasData
+      ),
+      status:
+        tableUtilizationEngine?.status ||
+        "Waiting for data",
+      impact: Number(
+        tableUtilizationEngine
+          ?.estimatedLostRevenue || 0
+      ),
+      recommendation:
+        tableUtilizationEngine?.recommendation ||
+        "Review table-level cycle performance.",
+      supportingMetric:
+        tableUtilizationEngine?.hasData
+          ? `${tableUtilizationEngine.slowestTable?.tableName || "Slowest table"} averaging ${Number(
+              tableUtilizationEngine.slowestTable
+                ?.averageCycleMinutes || 0
+            ).toFixed(1)} min`
+          : "Waiting for table assignments",
+      confidence:
+        tableUtilizationEngine?.confidence ||
+        "Waiting for data",
+    },
+
+    {
+      key: "kitchen",
+      label: "Kitchen Bottleneck",
+      hasData: Boolean(
+        kitchenBottleneckEngine?.hasData
+      ),
+      status:
+        kitchenBottleneckEngine?.status ||
+        "Waiting for data",
+      impact: Number(
+        kitchenBottleneckEngine
+          ?.revenueAffected || 0
+      ),
+      recommendation:
+        kitchenBottleneckEngine?.recommendation ||
+        "Review kitchen station timing.",
+      supportingMetric:
+        kitchenBottleneckEngine?.hasData
+          ? `${kitchenBottleneckEngine.slowestStation?.station || "Slowest station"} averaging ${Number(
+              kitchenBottleneckEngine.slowestStation
+                ?.averageActualMinutes || 0
+            ).toFixed(1)} min`
+          : "Waiting for completed kitchen timing data",
+      confidence:
+        kitchenBottleneckEngine?.confidence ||
+        "Waiting for data",
+    },
+
+    {
+      key: "serviceSpeed",
+      label: "Guest Service Speed",
+      hasData: Boolean(
+        serviceSpeedIntelligence?.hasData
+      ),
+      status:
+        serviceSpeedIntelligence?.status ||
+        "Waiting for data",
+      impact: Number(
+        serviceSpeedIntelligence
+          ?.delayedRevenue || 0
+      ),
+      recommendation:
+        serviceSpeedIntelligence?.recommendation ||
+        "Review the full guest service cycle.",
+      supportingMetric:
+        serviceSpeedIntelligence?.hasData
+          ? `${Number(
+              serviceSpeedIntelligence.serviceScore || 0
+            )}/100 service score with ${Number(
+              serviceSpeedIntelligence.delayedPercent || 0
+            ).toFixed(1)}% delayed items`
+          : "Waiting for service-flow data",
+      confidence:
+        serviceSpeedIntelligence?.confidence ||
+        "Waiting for data",
+    },
+  ];
+
+  const activeConstraints = constraints.filter(
+    (constraint) =>
+      constraint.hasData
+  );
+
+  if (!activeConstraints.length) {
+    return {
+      hasData: false,
+
+      status: "Waiting for data",
+      confidence: "Waiting for data",
+
+      primaryConstraint: null,
+      primaryConstraintLabel:
+        "Waiting for data",
+
+      highestEstimatedImpact: 0,
+
+      recommendedFirstAction:
+        "Connect live POS order timing, table assignments, server assignments, and kitchen completion events to activate Table Turn Executive Intelligence.",
+
+      supportingMetrics: [],
+
+      rankedConstraints: [],
+
+      dataDisclosure:
+        "Current analysis requires live POS and service-flow timing data. Payment-delay, slow-seating, and true table-mix analysis require additional timestamps and table-capacity fields.",
+    };
+  }
+
+  const rankedConstraints =
+    [...activeConstraints].sort(
+      (a, b) =>
+        Number(
+          severityRank[b.status] || 0
+        ) -
+          Number(
+            severityRank[a.status] || 0
+          ) ||
+        Number(b.impact || 0) -
+          Number(a.impact || 0)
+    );
+
+  const primaryConstraint =
+    rankedConstraints[0] || null;
+
+  const highestEstimatedImpact =
+    Number(
+      primaryConstraint?.impact || 0
+    );
+
+  const status =
+    primaryConstraint?.status ||
+    "Healthy";
+
+  const confidenceScores = {
+    High: 3,
+    Medium: 2,
+    "Early Sample": 1,
+    Low: 1,
+    "Waiting for data": 0,
+  };
+
+  const availableConfidence =
+    activeConstraints
+      .map(
+        (constraint) =>
+          constraint.confidence
+      )
+      .filter(Boolean);
+
+  const averageConfidenceScore =
+    availableConfidence.length > 0
+      ? availableConfidence.reduce(
+          (sum, confidence) =>
+            sum +
+            Number(
+              confidenceScores[confidence] || 0
+            ),
+          0
+        ) /
+        availableConfidence.length
+      : 0;
+
+  const confidence =
+    averageConfidenceScore >= 2.5
+      ? "High"
+      : averageConfidenceScore >= 1.5
+      ? "Medium"
+      : "Early Sample";
+
+  const supportingMetrics =
+    rankedConstraints
+      .slice(0, 3)
+      .map((constraint) => ({
+        label: constraint.label,
+        status: constraint.status,
+        impact: constraint.impact,
+        metric:
+          constraint.supportingMetric,
+      }));
+
+  const recommendedFirstAction =
+    primaryConstraint?.recommendation ||
+    "Maintain current service flow and continue monitoring table-turn performance.";
+
+  return {
+    hasData: true,
+
+    status,
+    confidence,
+
+    primaryConstraint:
+      primaryConstraint?.key ||
+      null,
+
+    primaryConstraintLabel:
+      primaryConstraint?.label ||
+      "No active constraint",
+
+    highestEstimatedImpact,
+
+    recommendedFirstAction,
+
+    supportingMetrics,
+
+    rankedConstraints,
+
+    dataDisclosure:
+      "This executive recommendation compares measured capacity, congestion, server, table, kitchen, and service-speed constraints. Payment-delay, slow-seating, and true table-mix analysis remain unavailable until their required timestamps and seat-capacity fields are connected.",
+  };
+}, [
+  tableTurnIntelligence,
+  restaurantCapacityEngine,
+  peakHourCongestionEngine,
+  serverBottleneckEngine,
+  tableUtilizationEngine,
+  kitchenBottleneckEngine,
+  serviceSpeedIntelligence,
+]);
+
 const enhancedOperationalAlerts = useMemo(() => {
   const alerts = [...(operationalAlerts || [])];
 
@@ -26097,12 +28013,74 @@ const enhancedOperationalAlerts = useMemo(() => {
       source: "Live POS Service Intelligence",
     });
   }
-
+if (
+  peakHourCongestionEngine?.hasData &&
+  ["Critical", "High"].includes(
+    peakHourCongestionEngine.status
+  )
+) {
+  alerts.push({
+    type: "Peak Hour Congestion",
+    severity: peakHourCongestionEngine.status,
+    title: "Peak Hour Capacity Pressure",
+    detail: peakHourCongestionEngine.primaryRisk,
+    estimatedImpact:
+      peakHourCongestionEngine.estimatedLostRevenue || 0,
+    recommendation:
+      peakHourCongestionEngine.recommendation,
+    confidence:
+      peakHourCongestionEngine.confidence,
+    source: "Live POS Congestion Intelligence",
+  });
+}
+if (
+  serverBottleneckEngine?.hasData &&
+  ["Critical", "High"].includes(
+    serverBottleneckEngine.status
+  )
+) {
+  alerts.push({
+    type: "Server Bottleneck",
+    severity: serverBottleneckEngine.status,
+    title: "Server Cycle Bottleneck",
+    detail: serverBottleneckEngine.primaryRisk,
+    estimatedImpact:
+      serverBottleneckEngine.estimatedLostRevenue || 0,
+    recommendation:
+      serverBottleneckEngine.recommendation,
+    confidence:
+      serverBottleneckEngine.confidence,
+    source: "Live POS Server Intelligence",
+  });
+}
+if (
+  tableUtilizationEngine?.hasData &&
+  ["Critical", "High"].includes(
+    tableUtilizationEngine.status
+  )
+) {
+  alerts.push({
+    type: "Table Utilization",
+    severity: tableUtilizationEngine.status,
+    title: "Table Utilization Risk",
+    detail: tableUtilizationEngine.primaryRisk,
+    estimatedImpact:
+      tableUtilizationEngine.estimatedLostRevenue || 0,
+    recommendation:
+      tableUtilizationEngine.recommendation,
+    confidence:
+      tableUtilizationEngine.confidence,
+    source: "Live POS Table Intelligence",
+  });
+}
   return alerts.slice(0, 14);
 }, [
   operationalAlerts,
   kitchenBottleneckEngine,
   serviceSpeedIntelligence,
+   peakHourCongestionEngine,
+     serverBottleneckEngine,
+     tableUtilizationEngine,
 ]);
 const autonomousProfitRecoveryEngine = useMemo(() => {
   const recommendations = autonomousAIRecommendations || [];
@@ -27396,51 +29374,318 @@ const aiStaffPerformanceIntelligence = {
 };
 
 
+/* =========================
+   AI GUEST BEHAVIOR INTELLIGENCE
+========================= */
+
 const aiGuestIntelligence = useMemo(() => {
-  const guests = customerData || [];
+  const guests = Array.isArray(customerData)
+    ? customerData
+    : [];
+
+  const now = new Date();
 
   return guests.map((guest, index) => {
-    const visits =
-      Number(guest.visits || guest.total_visits || 1);
+    const visits = Math.max(
+      0,
+      Number(
+        guest.visits ||
+          guest.total_visits ||
+          guest.visit_count ||
+          0
+      )
+    );
 
-    const spend =
-      Number(guest.total_spend || guest.lifetime_spend || 0);
+    const spend = Math.max(
+      0,
+      Number(
+        guest.total_spend ||
+          guest.lifetime_spend ||
+          guest.spend ||
+          0
+      )
+    );
+
+    const storedAverageSpend = Number(
+      guest.avg_spend ||
+        guest.average_spend ||
+        0
+    );
 
     const avgSpend =
-      visits > 0 ? spend / visits : spend;
+      storedAverageSpend > 0
+        ? storedAverageSpend
+        : visits > 0
+        ? spend / visits
+        : spend;
+
+    const rawLastVisit =
+      guest.last_visit ||
+      guest.last_seen ||
+      guest.last_visit_date ||
+      null;
+
+    const parsedLastVisit = rawLastVisit
+      ? new Date(rawLastVisit)
+      : null;
+
+    const hasValidLastVisit =
+      parsedLastVisit &&
+      !Number.isNaN(parsedLastVisit.getTime());
+
+    const daysSinceLastVisit = hasValidLastVisit
+      ? Math.max(
+          0,
+          Math.floor(
+            (now.getTime() -
+              parsedLastVisit.getTime()) /
+              86400000
+          )
+        )
+      : null;
+
+    /*
+     * Recency score:
+     * 100 = visited very recently
+     * 0 = long inactive period
+     */
+    const recencyScore =
+      daysSinceLastVisit === null
+        ? null
+        : daysSinceLastVisit <= 7
+        ? 100
+        : daysSinceLastVisit <= 14
+        ? 90
+        : daysSinceLastVisit <= 30
+        ? 75
+        : daysSinceLastVisit <= 60
+        ? 55
+        : daysSinceLastVisit <= 90
+        ? 35
+        : daysSinceLastVisit <= 180
+        ? 15
+        : 5;
+
+    const frequencyScore = Math.min(
+      100,
+      Math.round(visits * 8)
+    );
+
+    const valueScore = Math.min(
+      100,
+      Math.round(
+        Math.min(spend / 20, 70) +
+          Math.min(avgSpend / 4, 30)
+      )
+    );
 
     const loyaltyScore = Math.min(
       100,
-      Math.round(visits * 6 + avgSpend * 0.12)
+      Math.round(
+        frequencyScore * 0.45 +
+          valueScore * 0.35 +
+          Number(recencyScore ?? 50) * 0.2
+      )
     );
 
+    const guestHealthScore = Math.min(
+      100,
+      Math.round(
+        Number(recencyScore ?? 45) * 0.45 +
+          frequencyScore * 0.3 +
+          valueScore * 0.25
+      )
+    );
+
+    const churnProbability =
+      daysSinceLastVisit === null
+        ? visits <= 1
+          ? 70
+          : visits <= 3
+          ? 45
+          : 25
+        : Math.min(
+            100,
+            Math.max(
+              5,
+              Math.round(
+                daysSinceLastVisit * 0.65 +
+                  (visits <= 1
+                    ? 25
+                    : visits <= 3
+                    ? 12
+                    : 0) -
+                  Math.min(loyaltyScore * 0.25, 20)
+              )
+            )
+          );
+
     const churnRisk =
-      visits <= 1
+      churnProbability >= 70
         ? "High"
-        : visits <= 3
+        : churnProbability >= 40
         ? "Medium"
         : "Low";
 
+    const visitHealth =
+      daysSinceLastVisit === null
+        ? "Unknown"
+        : daysSinceLastVisit <= 30
+        ? "Active"
+        : daysSinceLastVisit <= 60
+        ? "Cooling"
+        : daysSinceLastVisit <= 90
+        ? "At Risk"
+        : "Lapsed";
+
     const guestTier =
-      spend >= 2000
+      spend >= 2000 ||
+      (visits >= 12 && avgSpend >= 75)
         ? "VIP"
-        : spend >= 800
+        : spend >= 800 ||
+          (visits >= 6 && avgSpend >= 45)
         ? "Premium"
         : "Standard";
 
+    const estimatedAnnualVisits =
+      visits >= 12
+        ? visits
+        : Math.max(
+            visits,
+            Math.round(visits * 1.5)
+          );
+
+    const estimatedLifetimeValue = Math.max(
+      spend,
+      Math.round(
+        avgSpend *
+          Math.max(estimatedAnnualVisits, 1) *
+          (guestTier === "VIP"
+            ? 3
+            : guestTier === "Premium"
+            ? 2
+            : 1.25)
+      )
+    );
+
+    const revenueAtRisk =
+      churnRisk === "High"
+        ? Math.round(
+            Math.max(
+              avgSpend * Math.max(visits, 2),
+              estimatedLifetimeValue * 0.35
+            )
+          )
+        : churnRisk === "Medium"
+        ? Math.round(
+            Math.max(
+              avgSpend * Math.max(visits * 0.5, 1),
+              estimatedLifetimeValue * 0.18
+            )
+          )
+        : 0;
+
+    const recoverableValue = Math.round(
+      revenueAtRisk *
+        (churnRisk === "High"
+          ? 0.4
+          : churnRisk === "Medium"
+          ? 0.25
+          : 0)
+    );
+
+    const vipProbability = Math.min(
+      100,
+      Math.round(
+        valueScore * 0.5 +
+          frequencyScore * 0.3 +
+          Number(recencyScore ?? 40) * 0.2
+      )
+    );
+
+    const nextBestAction =
+      churnRisk === "High" &&
+      guestTier === "VIP"
+        ? "Launch high-value VIP win-back offer"
+        : churnRisk === "High"
+        ? "Launch personalized comeback offer"
+        : churnRisk === "Medium"
+        ? "Send loyalty re-engagement campaign"
+        : guestTier === "VIP"
+        ? "Invite to VIP experience"
+        : loyaltyScore >= 60
+        ? "Offer loyalty reward"
+        : visits <= 1
+        ? "Send first-return incentive"
+        : "Maintain regular engagement";
+
+    const confidence =
+      hasValidLastVisit &&
+      visits >= 5 &&
+      spend > 0
+        ? "High"
+        : (hasValidLastVisit &&
+            visits >= 2) ||
+          (visits >= 5 && spend > 0)
+        ? "Medium"
+        : "Early Sample";
+
     return {
+      ...guest,
+
       id: guest.id || index,
+
       name:
         guest.name ||
         guest.customer_name ||
         `Guest ${index + 1}`,
 
+      email: guest.email || null,
+      phone: guest.phone || null,
+
       visits,
       spend,
+      totalSpend: spend,
       avgSpend,
+
+      lastVisit:
+        hasValidLastVisit
+          ? parsedLastVisit.toISOString()
+          : null,
+
+      daysSinceLastVisit,
+
+      recencyScore,
+      frequencyScore,
+      valueScore,
+
       loyaltyScore,
+      guestHealthScore,
+
+      churnProbability,
       churnRisk,
+      visitHealth,
+
       guestTier,
+      vipProbability,
+
+      estimatedLifetimeValue,
+
+      projectedRevenueRisk:
+        revenueAtRisk,
+
+      lifetimeValueAtRisk:
+        revenueAtRisk,
+
+      recoverableValue,
+
+      nextBestAction,
+      confidence,
+
+      dataDisclosure:
+        hasValidLastVisit
+          ? "Guest behavior is based on visit count, total spend, average spend, and last-visit recency."
+          : "Last-visit data is unavailable, so recency and churn calculations use visit and spend history only.",
     };
   });
 }, [customerData]);
@@ -27483,7 +29728,1074 @@ const avgGuestSpend =
   });
 }, [aiGuestIntelligence]);
 
+/* =========================
+   AI GUEST EXECUTIVE ENGINE
+========================= */
 
+const guestBehaviorExecutiveEngine = useMemo(() => {
+  const guests = aiGuestIntelligence || [];
+
+  if (!guests.length) {
+    return {
+      hasData: false,
+      guestCount: 0,
+      activeGuests: 0,
+      coolingGuests: 0,
+      atRiskGuests: 0,
+      lapsedGuests: 0,
+      vipGuests: 0,
+      averageHealthScore: 0,
+      totalLifetimeValue: 0,
+      revenueAtRisk: 0,
+      recoverableRevenue: 0,
+      confidence: "Waiting for Data",
+      recommendation:
+        "Upload guest history to activate Guest Behavior Intelligence.",
+    };
+  }
+
+  const activeGuests = guests.filter(
+    (g) => g.visitHealth === "Active"
+  ).length;
+
+  const coolingGuests = guests.filter(
+    (g) => g.visitHealth === "Cooling"
+  ).length;
+
+  const atRiskGuests = guests.filter(
+    (g) => g.visitHealth === "At Risk"
+  ).length;
+
+  const lapsedGuests = guests.filter(
+    (g) => g.visitHealth === "Lapsed"
+  ).length;
+
+  const vipGuests = guests.filter(
+    (g) => g.guestTier === "VIP"
+  ).length;
+
+  const averageHealthScore = Math.round(
+    guests.reduce(
+      (sum, guest) => sum + Number(guest.guestHealthScore || 0),
+      0
+    ) / guests.length
+  );
+
+  const totalLifetimeValue = Math.round(
+    guests.reduce(
+      (sum, guest) =>
+        sum + Number(guest.estimatedLifetimeValue || 0),
+      0
+    )
+  );
+
+  const revenueAtRisk = Math.round(
+    guests.reduce(
+      (sum, guest) =>
+        sum + Number(guest.projectedRevenueRisk || 0),
+      0
+    )
+  );
+
+  const recoverableRevenue = Math.round(
+    guests.reduce(
+      (sum, guest) =>
+        sum + Number(guest.recoverableValue || 0),
+      0
+    )
+  );
+
+  const highestRiskGuest =
+    guests
+      .filter((g) => g.churnRisk === "High")
+      .sort(
+        (a, b) =>
+          Number(b.recoverableValue || 0) -
+          Number(a.recoverableValue || 0)
+      )[0] || null;
+
+  return {
+    hasData: true,
+    guestCount: guests.length,
+    activeGuests,
+    coolingGuests,
+    atRiskGuests,
+    lapsedGuests,
+    vipGuests,
+    averageHealthScore,
+    totalLifetimeValue,
+    revenueAtRisk,
+    recoverableRevenue,
+    confidence:
+      averageHealthScore >= 80
+        ? "High"
+        : averageHealthScore >= 60
+        ? "Medium"
+        : "Low",
+
+    highestRiskGuest,
+
+    recommendation:
+      highestRiskGuest
+        ? `Recover ${highestRiskGuest.name} first. Estimated recoverable value: $${Number(
+            highestRiskGuest.recoverableValue || 0
+          ).toLocaleString()}.`
+        : "Guest portfolio is healthy. Continue loyalty and retention campaigns.",
+  };
+}, [aiGuestIntelligence]);
+
+
+/* =========================
+   RESTAURANT DIGITAL TWIN EXECUTIVE ENGINE
+========================= */
+
+const restaurantDigitalTwinExecutiveEngine = useMemo(() => {
+  const severityRank = {
+    Critical: 5,
+    High: 4,
+    "At Risk": 4,
+    Watch: 3,
+    Medium: 3,
+    Stable: 2,
+    Healthy: 1,
+    Low: 1,
+    Monitoring: 1,
+    "Waiting for data": 0,
+    "Waiting for Data": 0,
+  };
+
+  const confidenceRank = {
+    High: 3,
+    Medium: 2,
+    "Early Sample": 1,
+    Low: 1,
+    "Waiting for data": 0,
+    "Waiting for Data": 0,
+  };
+
+  const normalizeSeverity = (value) => {
+    const normalized = String(value || "")
+      .trim()
+      .toLowerCase();
+
+    if (
+      normalized === "critical" ||
+      normalized.includes("critical")
+    ) {
+      return "Critical";
+    }
+
+    if (
+      normalized === "high" ||
+      normalized === "at risk" ||
+      normalized.includes("high risk")
+    ) {
+      return "High";
+    }
+
+    if (
+      normalized === "watch" ||
+      normalized === "medium"
+    ) {
+      return "Watch";
+    }
+
+    if (
+      normalized === "healthy" ||
+      normalized === "stable" ||
+      normalized === "low"
+    ) {
+      return "Healthy";
+    }
+
+    return "Watch";
+  };
+
+  const normalizeConfidence = (value) => {
+    const normalized = String(value || "")
+      .trim()
+      .toLowerCase();
+
+    if (
+      normalized.includes("high") ||
+      normalized.includes("90") ||
+      normalized.includes("95")
+    ) {
+      return "High";
+    }
+
+    if (
+      normalized.includes("medium") ||
+      normalized.includes("moderate")
+    ) {
+      return "Medium";
+    }
+
+    if (
+      normalized.includes("early") ||
+      normalized.includes("low")
+    ) {
+      return "Early Sample";
+    }
+
+    return "Medium";
+  };
+
+  const safeImpact = (value) => {
+    const numericValue = Number(value || 0);
+
+    if (
+      !Number.isFinite(numericValue) ||
+      numericValue < 0
+    ) {
+      return 0;
+    }
+
+    return Math.round(numericValue);
+  };
+
+  const decisions = [];
+
+  /*
+   * =========================================
+   * TABLE TURN EXECUTIVE SIGNAL
+   * =========================================
+   */
+
+  if (tableTurnExecutiveEngine?.hasData) {
+    decisions.push({
+      key: "table-turn",
+
+      department: "Operations",
+
+      title:
+        tableTurnExecutiveEngine.primaryConstraintLabel ||
+        "Table Turn Optimization",
+
+      severity: normalizeSeverity(
+        tableTurnExecutiveEngine.status
+      ),
+
+      impact: safeImpact(
+        tableTurnExecutiveEngine.highestEstimatedImpact
+      ),
+
+      confidence: normalizeConfidence(
+        tableTurnExecutiveEngine.confidence
+      ),
+
+      recommendation:
+        tableTurnExecutiveEngine.recommendedFirstAction ||
+        "Review table-turn performance and remove the highest-impact service constraint.",
+
+      source:
+        "Table Turn Executive Intelligence",
+
+      metric:
+        tableTurnExecutiveEngine.primaryConstraintLabel ||
+        "Table Turn Performance",
+    });
+  }
+
+  /*
+   * =========================================
+   * GUEST BEHAVIOR EXECUTIVE SIGNAL
+   * =========================================
+   */
+
+  if (guestBehaviorExecutiveEngine?.hasData) {
+    const guestSeverity =
+      Number(
+        guestBehaviorExecutiveEngine.revenueAtRisk || 0
+      ) > 0
+        ? guestBehaviorExecutiveEngine.lapsedGuests > 0 ||
+          guestBehaviorExecutiveEngine.atRiskGuests > 0
+          ? "High"
+          : "Watch"
+        : "Healthy";
+
+    decisions.push({
+      key: "guest-recovery",
+
+      department: "Marketing",
+
+      title:
+        guestBehaviorExecutiveEngine.highestRiskGuest?.name
+          ? `Recover ${guestBehaviorExecutiveEngine.highestRiskGuest.name}`
+          : "Guest Retention",
+
+      severity: guestSeverity,
+
+      impact: safeImpact(
+        guestBehaviorExecutiveEngine.recoverableRevenue
+      ),
+
+      confidence: normalizeConfidence(
+        guestBehaviorExecutiveEngine.confidence
+      ),
+
+      recommendation:
+        guestBehaviorExecutiveEngine.recommendation ||
+        "Maintain guest retention and loyalty activity.",
+
+      source:
+        "Guest Behavior Executive Intelligence",
+
+      metric: `${Number(
+        guestBehaviorExecutiveEngine.atRiskGuests || 0
+      )} at risk • ${Number(
+        guestBehaviorExecutiveEngine.lapsedGuests || 0
+      )} lapsed`,
+    });
+  }
+
+  /*
+   * =========================================
+   * KITCHEN BOTTLENECK SIGNAL
+   * =========================================
+   */
+
+  if (kitchenBottleneckEngine?.hasData) {
+    decisions.push({
+      key: "kitchen",
+
+      department: "Kitchen",
+
+      title:
+        kitchenBottleneckEngine.primaryRisk ||
+        "Kitchen Bottleneck",
+
+      severity: normalizeSeverity(
+        kitchenBottleneckEngine.status
+      ),
+
+      impact: safeImpact(
+        kitchenBottleneckEngine.revenueAffected
+      ),
+
+      confidence: normalizeConfidence(
+        kitchenBottleneckEngine.confidence
+      ),
+
+      recommendation:
+        kitchenBottleneckEngine.recommendation ||
+        "Review the slowest kitchen station and rebalance production flow.",
+
+      source:
+        "Kitchen Bottleneck Intelligence",
+
+      metric: kitchenBottleneckEngine.slowestStation
+        ? `${
+            kitchenBottleneckEngine.slowestStation.station ||
+            "Slowest station"
+          }`
+        : "Kitchen service flow",
+    });
+  }
+
+  /*
+   * =========================================
+   * SERVICE SPEED SIGNAL
+   * =========================================
+   */
+
+  if (serviceSpeedIntelligence?.hasData) {
+    decisions.push({
+      key: "service-speed",
+
+      department: "Service",
+
+      title:
+        serviceSpeedIntelligence.primaryRisk ||
+        "Service Speed Optimization",
+
+      severity: normalizeSeverity(
+        serviceSpeedIntelligence.status
+      ),
+
+      impact: safeImpact(
+        serviceSpeedIntelligence.delayedRevenue
+      ),
+
+      confidence: normalizeConfidence(
+        serviceSpeedIntelligence.confidence
+      ),
+
+      recommendation:
+        serviceSpeedIntelligence.recommendation ||
+        "Review guest service flow and remove the largest delay.",
+
+      source:
+        "Service Speed Intelligence",
+
+      metric:
+        Number(
+          serviceSpeedIntelligence.serviceScore || 0
+        ) > 0
+          ? `${Number(
+              serviceSpeedIntelligence.serviceScore || 0
+            )}/100 service score`
+          : "Guest service flow",
+    });
+  }
+
+  /*
+   * =========================================
+   * EXISTING EXECUTIVE ACTION QUEUE
+   * =========================================
+   */
+
+  (executiveActionQueue || [])
+    .slice(0, 10)
+    .forEach((action, index) => {
+      const title =
+        action.title ||
+        action.action ||
+        action.name ||
+        action.department ||
+        `Executive Action ${index + 1}`;
+
+      const recommendation =
+        action.recommendation ||
+        action.description ||
+        action.detail ||
+        action.insight ||
+        title;
+
+      decisions.push({
+        key: `executive-${String(
+          title
+        )
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")}`,
+
+        department:
+          action.department ||
+          action.category ||
+          "Executive",
+
+        title,
+
+        severity: normalizeSeverity(
+          action.severity ||
+            action.priority ||
+            action.status
+        ),
+
+        impact: safeImpact(
+          action.impact ||
+            action.estimatedImpact ||
+            action.estimated_value ||
+            action.value
+        ),
+
+        confidence: normalizeConfidence(
+          action.confidence
+        ),
+
+        recommendation,
+
+        source:
+          action.source ||
+          "Executive Action Queue",
+
+        metric:
+          action.metric ||
+          action.subtitle ||
+          action.category ||
+          "Cross-system intelligence",
+      });
+    });
+
+  /*
+   * =========================================
+   * OPERATIONAL ALERT SIGNALS
+   * =========================================
+   */
+
+  (enhancedOperationalAlerts || [])
+    .slice(0, 12)
+    .forEach((alert, index) => {
+      const title =
+        alert.title ||
+        alert.type ||
+        `Operational Alert ${index + 1}`;
+
+      decisions.push({
+        key: `alert-${String(
+          alert.type ||
+            alert.title ||
+            index
+        )
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")}`,
+
+        department:
+          alert.type ||
+          "Operations",
+
+        title,
+
+        severity: normalizeSeverity(
+          alert.severity ||
+            alert.status
+        ),
+
+        impact: safeImpact(
+          alert.estimatedImpact ||
+            alert.impact
+        ),
+
+        confidence: normalizeConfidence(
+          alert.confidence
+        ),
+
+        recommendation:
+          alert.recommendation ||
+          alert.detail ||
+          alert.message ||
+          "Review this operational risk.",
+
+        source:
+          alert.source ||
+          "Operational Intelligence",
+
+        metric:
+          alert.detail ||
+          alert.message ||
+          alert.type ||
+          "Operational signal",
+      });
+    });
+
+  /*
+   * =========================================
+   * REMOVE DUPLICATE DECISIONS
+   * =========================================
+   */
+
+  const uniqueDecisionMap = new Map();
+
+  decisions.forEach((decision) => {
+    const normalizedTitle = String(
+      decision.title || decision.key
+    )
+      .trim()
+      .toLowerCase();
+
+    const normalizedDepartment = String(
+      decision.department || ""
+    )
+      .trim()
+      .toLowerCase();
+
+    const dedupeKey =
+      `${normalizedDepartment}-${normalizedTitle}`;
+
+    const existing =
+      uniqueDecisionMap.get(dedupeKey);
+
+    if (!existing) {
+      uniqueDecisionMap.set(
+        dedupeKey,
+        decision
+      );
+
+      return;
+    }
+
+    const existingScore =
+      Number(
+        severityRank[
+          existing.severity
+        ] || 0
+      ) * 100000 +
+      Number(existing.impact || 0);
+
+    const newScore =
+      Number(
+        severityRank[
+          decision.severity
+        ] || 0
+      ) * 100000 +
+      Number(decision.impact || 0);
+
+    if (newScore > existingScore) {
+      uniqueDecisionMap.set(
+        dedupeKey,
+        decision
+      );
+    }
+  });
+
+  const uniqueDecisions = Array.from(
+    uniqueDecisionMap.values()
+  );
+
+  /*
+   * =========================================
+   * DECISION PRIORITY SCORE
+   * =========================================
+   */
+
+  const scoredDecisions =
+    uniqueDecisions.map(
+      (decision) => {
+        const severityScore =
+          Number(
+            severityRank[
+              decision.severity
+            ] || 0
+          );
+
+        const confidenceScore =
+          Number(
+            confidenceRank[
+              decision.confidence
+            ] || 0
+          );
+
+        const impactScore = Math.min(
+          100,
+          Number(
+            decision.impact || 0
+          ) / 100
+        );
+
+        const priorityScore = Math.round(
+          severityScore * 15 +
+            confidenceScore * 8 +
+            impactScore
+        );
+
+        return {
+          ...decision,
+          priorityScore,
+        };
+      }
+    );
+
+  /*
+   * =========================================
+   * RANK ALL DECISIONS
+   * =========================================
+   */
+
+  const rankedDecisions =
+    [...scoredDecisions].sort(
+      (a, b) =>
+        Number(
+          severityRank[b.severity] || 0
+        ) -
+          Number(
+            severityRank[a.severity] || 0
+          ) ||
+        Number(b.impact || 0) -
+          Number(a.impact || 0) ||
+        Number(b.priorityScore || 0) -
+          Number(a.priorityScore || 0)
+    );
+
+  const topDecisions =
+    rankedDecisions.slice(0, 5);
+
+  const primaryDecision =
+    topDecisions[0] || null;
+
+  /*
+   * =========================================
+   * CROSS-SYSTEM HEALTH
+   * =========================================
+   */
+
+  const baseHealthScore = Number(
+    restaurantDigitalTwin?.aiHealth || 0
+  );
+
+  const criticalCount =
+    rankedDecisions.filter(
+      (decision) =>
+        decision.severity === "Critical"
+    ).length;
+
+  const highCount =
+    rankedDecisions.filter(
+      (decision) =>
+        decision.severity === "High"
+    ).length;
+
+  const watchCount =
+    rankedDecisions.filter(
+      (decision) =>
+        decision.severity === "Watch"
+    ).length;
+
+  const riskPenalty =
+    criticalCount * 12 +
+    highCount * 7 +
+    watchCount * 3;
+
+  const executiveHealthScore =
+    baseHealthScore > 0
+      ? Math.max(
+          0,
+          Math.min(
+            100,
+            Math.round(
+              baseHealthScore -
+                riskPenalty
+            )
+          )
+        )
+      : rankedDecisions.length
+      ? Math.max(
+          0,
+          100 - riskPenalty
+        )
+      : 0;
+
+  const crossSystemRiskScore =
+    Math.min(
+      100,
+      Math.round(
+        criticalCount * 25 +
+          highCount * 15 +
+          watchCount * 6
+      )
+    );
+
+  /*
+   * =========================================
+   * ESTIMATED MONTHLY OPPORTUNITY
+   * =========================================
+   *
+   * Only use the ranked top decisions so the
+   * executive view does not blindly total
+   * every alert in the system.
+   */
+
+  const estimatedMonthlyOpportunity =
+    topDecisions.reduce(
+      (sum, decision) =>
+        sum +
+        Number(
+          decision.impact || 0
+        ),
+      0
+    );
+
+  /*
+   * =========================================
+   * DECISION CONFIDENCE
+   * =========================================
+   */
+
+  const decisionsWithConfidence =
+    topDecisions.filter(
+      (decision) =>
+        decision.confidence
+    );
+
+  const averageConfidenceScore =
+    decisionsWithConfidence.length > 0
+      ? decisionsWithConfidence.reduce(
+          (sum, decision) =>
+            sum +
+            Number(
+              confidenceRank[
+                decision.confidence
+              ] || 0
+            ),
+          0
+        ) /
+        decisionsWithConfidence.length
+      : 0;
+
+  const confidence =
+    averageConfidenceScore >= 2.5
+      ? "High"
+      : averageConfidenceScore >= 1.5
+      ? "Medium"
+      : rankedDecisions.length > 0
+      ? "Early Sample"
+      : "Waiting for Data";
+
+  /*
+   * =========================================
+   * OPERATING STATUS
+   * =========================================
+   */
+
+  const status =
+    criticalCount > 0
+      ? "Critical"
+      : highCount > 0
+      ? "High"
+      : watchCount > 0
+      ? "Watch"
+      : rankedDecisions.length > 0
+      ? "Healthy"
+      : "Waiting for Data";
+
+  /*
+   * =========================================
+   * HIGHEST PRIORITY DEPARTMENT
+   * =========================================
+   */
+
+  const departmentImpact = {};
+
+  rankedDecisions.forEach(
+    (decision) => {
+      const department =
+        decision.department ||
+        "Executive";
+
+      if (!departmentImpact[department]) {
+        departmentImpact[
+          department
+        ] = {
+          department,
+          impact: 0,
+          riskScore: 0,
+          decisionCount: 0,
+        };
+      }
+
+      departmentImpact[
+        department
+      ].impact += Number(
+        decision.impact || 0
+      );
+
+      departmentImpact[
+        department
+      ].riskScore += Number(
+        severityRank[
+          decision.severity
+        ] || 0
+      );
+
+      departmentImpact[
+        department
+      ].decisionCount += 1;
+    }
+  );
+
+  const departmentRanking =
+    Object.values(
+      departmentImpact
+    ).sort(
+      (a, b) =>
+        Number(b.riskScore || 0) -
+          Number(a.riskScore || 0) ||
+        Number(b.impact || 0) -
+          Number(a.impact || 0)
+    );
+
+  const highestPriorityDepartment =
+    departmentRanking[0]
+      ?.department ||
+    "Stable";
+
+  /*
+   * =========================================
+   * EXECUTIVE RECOMMENDATION
+   * =========================================
+   */
+
+  const executiveRecommendation =
+    primaryDecision
+      ? `${primaryDecision.department}: ${primaryDecision.recommendation}`
+      : "No urgent cross-system action is currently required. Continue monitoring restaurant performance.";
+
+  const executiveSummary =
+    primaryDecision
+      ? `${primaryDecision.title} is the highest-priority decision currently detected. Estimated impact: $${Number(
+          primaryDecision.impact || 0
+        ).toLocaleString()}.`
+      : "The Digital Twin is monitoring restaurant operations and has not detected a high-priority intervention.";
+
+  /*
+   * =========================================
+   * ROLE-SPECIFIC DECISION VIEWS
+   * =========================================
+   */
+
+const roleViews = {
+  owner: rankedDecisions,
+
+  gm: rankedDecisions.filter(
+    (decision) =>
+      [
+        "Operations",
+        "Kitchen",
+        "Service",
+        "Labor",
+        "Inventory",
+      ].includes(decision.department)
+  ),
+
+  km: rankedDecisions.filter(
+    (decision) =>
+      [
+        "Kitchen",
+        "Inventory",
+        "Recipes",
+        "Recipe",
+        "Labor",
+        "Operations",
+        "Vendor",
+      ].includes(decision.department)
+  ),
+
+  regional: rankedDecisions,
+
+  coo: rankedDecisions.filter(
+    (decision) =>
+      [
+        "Operations",
+        "Kitchen",
+        "Service",
+        "Labor",
+        "Inventory",
+        "Executive",
+      ].includes(decision.department)
+  ),
+
+  cfo: rankedDecisions.filter(
+    (decision) =>
+      Number(decision.impact || 0) > 0 ||
+      [
+        "Finance",
+        "Financial",
+        "Vendor",
+        "Inventory",
+        "Labor",
+      ].includes(decision.department)
+  ),
+
+  cmo: rankedDecisions.filter(
+    (decision) =>
+      [
+        "Marketing",
+        "Guests",
+        "Guest",
+        "Growth",
+      ].includes(decision.department)
+  ),
+
+  cio: rankedDecisions.filter(
+    (decision) =>
+      [
+        "Technology",
+        "Systems",
+        "Integration",
+        "Executive",
+      ].includes(decision.department)
+  ),
+};
+
+  return {
+    hasData:
+      rankedDecisions.length > 0 ||
+      Number(
+        restaurantDigitalTwin?.revenue || 0
+      ) > 0,
+
+    status,
+    confidence,
+
+    executiveHealthScore,
+    crossSystemRiskScore,
+
+    estimatedMonthlyOpportunity,
+
+    criticalDecisionCount:
+      criticalCount,
+
+    highDecisionCount:
+      highCount,
+
+    watchDecisionCount:
+      watchCount,
+
+    totalDecisionCount:
+      rankedDecisions.length,
+
+    primaryDecision,
+
+    topDecisions,
+    rankedDecisions,
+
+    highestPriorityDepartment,
+    departmentRanking,
+
+    executiveRecommendation,
+    executiveSummary,
+
+    roleViews,
+
+    operatingMode:
+      restaurantDigitalTwin
+        ?.operatingMode ||
+      "Monitoring",
+
+    twinStatus:
+      restaurantDigitalTwin
+        ?.twinStatus ||
+      status,
+
+    monitoredSystems: {
+      tableTurns:
+        Boolean(
+          tableTurnExecutiveEngine
+            ?.hasData
+        ),
+
+      guests:
+        Boolean(
+          guestBehaviorExecutiveEngine
+            ?.hasData
+        ),
+
+      kitchen:
+        Boolean(
+          kitchenBottleneckEngine
+            ?.hasData
+        ),
+
+      service:
+        Boolean(
+          serviceSpeedIntelligence
+            ?.hasData
+        ),
+
+      executiveActions:
+        Number(
+          executiveActionQueue
+            ?.length || 0
+        ) > 0,
+
+      operationalAlerts:
+        Number(
+          enhancedOperationalAlerts
+            ?.length || 0
+        ) > 0,
+    },
+
+    dataDisclosure:
+      "Digital Twin executive decisions combine currently connected restaurant intelligence systems. Estimated impacts are directional decision-support values and should not be interpreted as guaranteed financial outcomes.",
+  };
+}, [
+  restaurantDigitalTwin,
+  tableTurnExecutiveEngine,
+  guestBehaviorExecutiveEngine,
+  kitchenBottleneckEngine,
+  serviceSpeedIntelligence,
+  executiveActionQueue,
+  enhancedOperationalAlerts,
+]);
 
 useEffect(() => {
   const loadCustomers = async () => {
@@ -27520,6 +30832,1021 @@ useEffect(() => {
 
   loadCustomers();
 }, [dataOwnerId, activeLocation]);
+/* =========================
+   ACTIVE DIGITAL TWIN ROLE VIEW
+========================= */
+
+const activeDigitalTwinRoleView = useMemo(() => {
+  const roleViews =
+    restaurantDigitalTwinExecutiveEngine?.roleViews || {};
+
+  if (isServenOwner) {
+    return roleViews.owner || [];
+  }
+
+  if (
+    isOwnerRole ||
+    isExecutiveRole ||
+    isCorporateAdminRole
+  ) {
+    return roleViews.owner || [];
+  }
+
+  if (isRegionalDirectorRole) {
+    return roleViews.regional || [];
+  }
+
+  if (isCOORole) {
+    return roleViews.coo || [];
+  }
+
+  if (isFinanceRole) {
+    return roleViews.cfo || [];
+  }
+
+  if (isMarketingRole) {
+    return roleViews.cmo || [];
+  }
+
+  if (isCIORole) {
+    return roleViews.cio || [];
+  }
+
+  if (isKitchenManagerRole) {
+    return roleViews.km || [];
+  }
+
+  if (
+    isGMRole ||
+    userRole === "general_manager" ||
+    userRole === "store_manager" ||
+    isAssistantManagerRole
+  ) {
+    return roleViews.gm || [];
+  }
+
+  if (isInventoryManagerRole) {
+    return (roleViews.km || []).filter(
+      (decision) =>
+        [
+          "Inventory",
+          "Vendor",
+          "Recipes",
+          "Recipe",
+          "Operations",
+        ].includes(decision.department)
+    );
+  }
+
+  if (isBeverageManagerRole) {
+    return (
+      restaurantDigitalTwinExecutiveEngine?.rankedDecisions || []
+    ).filter(
+      (decision) =>
+        [
+          "Beverage",
+          "Inventory",
+          "Vendor",
+          "Operations",
+        ].includes(decision.department)
+    );
+  }
+
+  return [];
+}, [
+  restaurantDigitalTwinExecutiveEngine,
+  isServenOwner,
+  isOwnerRole,
+  isExecutiveRole,
+  isCorporateAdminRole,
+  isRegionalDirectorRole,
+  isCOORole,
+  isFinanceRole,
+  isMarketingRole,
+  isCIORole,
+  isKitchenManagerRole,
+  isGMRole,
+  isAssistantManagerRole,
+  isInventoryManagerRole,
+  isBeverageManagerRole,
+  userRole,
+]);
+
+/* =========================
+   ACTIVE DIGITAL TWIN ROLE LABEL
+========================= */
+
+const activeDigitalTwinRoleLabel = useMemo(() => {
+  if (isServenOwner) return "Serven Platform Owner";
+
+  if (isOwnerRole) return "Restaurant Owner";
+  if (isExecutiveRole) return "Executive";
+  if (isCorporateAdminRole) return "Corporate Admin";
+
+  if (isRegionalDirectorRole) return "Regional Director";
+
+  if (isCOORole) return "COO";
+
+  if (isFinanceRole) {
+    return userRole === "cfo"
+      ? "CFO"
+      : "Finance";
+  }
+
+  if (isMarketingRole) {
+    return userRole === "cmo"
+      ? "CMO"
+      : "Marketing";
+  }
+
+  if (isCIORole) return "CIO";
+
+  if (isKitchenManagerRole) {
+    return "Kitchen Manager";
+  }
+
+  if (
+    isGMRole ||
+    userRole === "general_manager"
+  ) {
+    return "General Manager";
+  }
+
+  if (userRole === "store_manager") {
+    return "Store Manager";
+  }
+
+  if (isAssistantManagerRole) {
+    return "Assistant Manager";
+  }
+
+  if (isInventoryManagerRole) {
+    return "Inventory Manager";
+  }
+
+  if (isBeverageManagerRole) {
+    return "Beverage Manager";
+  }
+
+  return "Restaurant Team";
+}, [
+  isServenOwner,
+  isOwnerRole,
+  isExecutiveRole,
+  isCorporateAdminRole,
+  isRegionalDirectorRole,
+  isCOORole,
+  isFinanceRole,
+  isMarketingRole,
+  isCIORole,
+  isKitchenManagerRole,
+  isGMRole,
+  isAssistantManagerRole,
+  isInventoryManagerRole,
+  isBeverageManagerRole,
+  userRole,
+]);
+/* =========================
+   ROLE EXECUTIVE BRIEFING ENGINE
+========================= */
+
+const roleExecutiveBriefing = useMemo(() => {
+  const decisions = Array.isArray(activeDigitalTwinRoleView)
+    ? activeDigitalTwinRoleView
+    : [];
+
+  const primaryDecision = decisions[0] || null;
+
+  const topThreeDecisions = decisions.slice(0, 3);
+
+  const totalVisibleImpact = Math.round(
+    topThreeDecisions.reduce(
+      (sum, decision) =>
+        sum + Number(decision?.impact || 0),
+      0
+    )
+  );
+
+  const primaryTitle =
+    primaryDecision?.title ||
+    "Restaurant performance is being monitored";
+
+  const primaryRecommendation =
+    primaryDecision?.recommendation ||
+    "Continue monitoring restaurant performance and connected operating systems.";
+
+  const primaryDepartment =
+    primaryDecision?.department ||
+    "Operations";
+
+  const primarySeverity =
+    primaryDecision?.severity ||
+    "Monitoring";
+
+  const primaryConfidence =
+    primaryDecision?.confidence ||
+    restaurantDigitalTwinExecutiveEngine?.confidence ||
+    "Waiting for Data";
+
+  /*
+   * =========================================
+   * KITCHEN MANAGER
+   * =========================================
+   */
+
+  if (isKitchenManagerRole) {
+    return {
+      role: "Kitchen Manager",
+
+      eyebrow:
+        "Kitchen Intelligence Briefing",
+
+      title: primaryDecision
+        ? `Kitchen priority: ${primaryTitle}`
+        : "Kitchen execution is being monitored",
+
+      summary: primaryDecision
+        ? `SerVen identified ${primaryTitle.toLowerCase()} as the highest-priority kitchen issue right now. Focus on execution, prep readiness, inventory availability, recipe control, and service flow before the issue affects additional guests or revenue.`
+        : "SerVen is monitoring kitchen execution, inventory availability, prep readiness, recipe performance, labor coverage, and operational bottlenecks.",
+
+      priorityLabel:
+        "Kitchen Priority Right Now",
+
+      recommendedAction:
+        primaryRecommendation,
+
+      department:
+        primaryDepartment,
+
+      severity:
+        primarySeverity,
+
+      confidence:
+        primaryConfidence,
+
+      estimatedImpact:
+        Number(primaryDecision?.impact || 0),
+
+      totalVisibleImpact,
+
+      decisionCount:
+        decisions.length,
+    };
+  }
+
+  /*
+   * =========================================
+   * GENERAL / STORE / ASSISTANT MANAGER
+   * =========================================
+   */
+
+  if (
+    isGMRole ||
+    userRole === "general_manager" ||
+    userRole === "store_manager" ||
+    isAssistantManagerRole
+  ) {
+    return {
+      role:
+        isAssistantManagerRole
+          ? "Assistant Manager"
+          : userRole === "store_manager"
+          ? "Store Manager"
+          : "General Manager",
+
+      eyebrow:
+        "Location Operations Briefing",
+
+      title: primaryDecision
+        ? `Today's operating priority: ${primaryTitle}`
+        : "Location operations are being monitored",
+
+      summary: primaryDecision
+        ? `SerVen is prioritizing ${primaryTitle.toLowerCase()} for this location. The recommendation considers operational execution, labor, service speed, kitchen performance, inventory pressure, and guest throughput so management can focus on the highest-value action first.`
+        : "SerVen is monitoring this location for labor pressure, service delays, kitchen bottlenecks, inventory risk, table-turn performance, and other operating issues.",
+
+      priorityLabel:
+        "Manager Priority Right Now",
+
+      recommendedAction:
+        primaryRecommendation,
+
+      department:
+        primaryDepartment,
+
+      severity:
+        primarySeverity,
+
+      confidence:
+        primaryConfidence,
+
+      estimatedImpact:
+        Number(primaryDecision?.impact || 0),
+
+      totalVisibleImpact,
+
+      decisionCount:
+        decisions.length,
+    };
+  }
+
+  /*
+   * =========================================
+   * REGIONAL DIRECTOR
+   * =========================================
+   */
+
+  if (isRegionalDirectorRole) {
+    return {
+      role: "Regional Director",
+
+      eyebrow:
+        "Regional Intelligence Briefing",
+
+      title: primaryDecision
+        ? `Regional priority: ${primaryTitle}`
+        : "Regional performance is being monitored",
+
+      summary: primaryDecision
+        ? `SerVen identified ${primaryTitle.toLowerCase()} as the strongest current intervention opportunity across the operating portfolio. Prioritize the location, department, or management team creating the greatest performance gap before moving to lower-impact issues.`
+        : "SerVen is monitoring operating performance across assigned restaurant locations and ranking the locations and departments that require attention.",
+
+      priorityLabel:
+        "Regional Priority Right Now",
+
+      recommendedAction:
+        primaryRecommendation,
+
+      department:
+        primaryDepartment,
+
+      severity:
+        primarySeverity,
+
+      confidence:
+        primaryConfidence,
+
+      estimatedImpact:
+        Number(primaryDecision?.impact || 0),
+
+      totalVisibleImpact,
+
+      decisionCount:
+        decisions.length,
+    };
+  }
+
+  /*
+   * =========================================
+   * CFO / FINANCE
+   * =========================================
+   */
+
+  if (isFinanceRole) {
+    return {
+      role:
+        userRole === "cfo"
+          ? "CFO"
+          : "Finance",
+
+      eyebrow:
+        "Financial Intelligence Briefing",
+
+      title: primaryDecision
+        ? `Financial priority: ${primaryTitle}`
+        : "Financial performance is being monitored",
+
+      summary: primaryDecision
+        ? `SerVen identified ${primaryTitle.toLowerCase()} as the highest-priority financial opportunity currently visible. Focus on the decision with the strongest combination of margin exposure, recoverable value, operating risk, and confidence.`
+        : "SerVen is monitoring labor cost, food cost, vendor pressure, inventory exposure, margin leakage, and recoverable profit opportunities.",
+
+      priorityLabel:
+        "Financial Priority Right Now",
+
+      recommendedAction:
+        primaryRecommendation,
+
+      department:
+        primaryDepartment,
+
+      severity:
+        primarySeverity,
+
+      confidence:
+        primaryConfidence,
+
+      estimatedImpact:
+        Number(primaryDecision?.impact || 0),
+
+      totalVisibleImpact,
+
+      decisionCount:
+        decisions.length,
+    };
+  }
+
+  /*
+   * =========================================
+   * CMO / MARKETING
+   * =========================================
+   */
+
+  if (isMarketingRole) {
+    return {
+      role:
+        userRole === "cmo"
+          ? "CMO"
+          : "Marketing",
+
+      eyebrow:
+        "Guest Growth Intelligence Briefing",
+
+      title: primaryDecision
+        ? `Growth priority: ${primaryTitle}`
+        : "Guest growth is being monitored",
+
+      summary: primaryDecision
+        ? `SerVen identified ${primaryTitle.toLowerCase()} as the strongest current guest or revenue-growth opportunity. Focus marketing resources where churn risk, guest value, visit behavior, and recoverable revenue create the highest expected return.`
+        : "SerVen is monitoring guest retention, VIP behavior, churn risk, demand gaps, campaign opportunities, and recoverable guest revenue.",
+
+      priorityLabel:
+        "Marketing Priority Right Now",
+
+      recommendedAction:
+        primaryRecommendation,
+
+      department:
+        primaryDepartment,
+
+      severity:
+        primarySeverity,
+
+      confidence:
+        primaryConfidence,
+
+      estimatedImpact:
+        Number(primaryDecision?.impact || 0),
+
+      totalVisibleImpact,
+
+      decisionCount:
+        decisions.length,
+    };
+  }
+
+  /*
+   * =========================================
+   * COO
+   * =========================================
+   */
+
+  if (isCOORole) {
+    return {
+      role: "COO",
+
+      eyebrow:
+        "Enterprise Operations Briefing",
+
+      title: primaryDecision
+        ? `Operational priority: ${primaryTitle}`
+        : "Enterprise operations are being monitored",
+
+      summary: primaryDecision
+        ? `SerVen identified ${primaryTitle.toLowerCase()} as the highest-priority operating constraint. Address the largest execution gap first, then move through the remaining ranked decisions to improve consistency, throughput, cost control, and operating standards.`
+        : "SerVen is monitoring labor, kitchen execution, service performance, inventory, throughput, and operational consistency across the restaurant organization.",
+
+      priorityLabel:
+        "Operational Priority Right Now",
+
+      recommendedAction:
+        primaryRecommendation,
+
+      department:
+        primaryDepartment,
+
+      severity:
+        primarySeverity,
+
+      confidence:
+        primaryConfidence,
+
+      estimatedImpact:
+        Number(primaryDecision?.impact || 0),
+
+      totalVisibleImpact,
+
+      decisionCount:
+        decisions.length,
+    };
+  }
+
+  /*
+   * =========================================
+   * CIO
+   * =========================================
+   */
+
+  if (isCIORole) {
+    return {
+      role: "CIO",
+
+      eyebrow:
+        "Technology Intelligence Briefing",
+
+      title: primaryDecision
+        ? `Technology priority: ${primaryTitle}`
+        : "Restaurant systems are being monitored",
+
+      summary: primaryDecision
+        ? `SerVen identified ${primaryTitle.toLowerCase()} as the highest-priority technology or intelligence signal. Focus on system availability, integration coverage, data reliability, automation health, and AI confidence where operational decision quality is most affected.`
+        : "SerVen is monitoring connected systems, integration coverage, operational data quality, automation health, and AI intelligence availability.",
+
+      priorityLabel:
+        "Technology Priority Right Now",
+
+      recommendedAction:
+        primaryRecommendation,
+
+      department:
+        primaryDepartment,
+
+      severity:
+        primarySeverity,
+
+      confidence:
+        primaryConfidence,
+
+      estimatedImpact:
+        Number(primaryDecision?.impact || 0),
+
+      totalVisibleImpact,
+
+      decisionCount:
+        decisions.length,
+    };
+  }
+
+  /*
+   * =========================================
+   * INVENTORY MANAGER
+   * =========================================
+   */
+
+  if (isInventoryManagerRole) {
+    return {
+      role: "Inventory Manager",
+
+      eyebrow:
+        "Inventory Intelligence Briefing",
+
+      title: primaryDecision
+        ? `Inventory priority: ${primaryTitle}`
+        : "Inventory movement is being monitored",
+
+      summary: primaryDecision
+        ? `SerVen identified ${primaryTitle.toLowerCase()} as the highest-priority inventory or supply issue. Focus first on stock availability, depletion risk, vendor exposure, recipe requirements, and operational continuity.`
+        : "SerVen is monitoring stock levels, depletion, vendor exposure, recipe requirements, and inventory-related operating risk.",
+
+      priorityLabel:
+        "Inventory Priority Right Now",
+
+      recommendedAction:
+        primaryRecommendation,
+
+      department:
+        primaryDepartment,
+
+      severity:
+        primarySeverity,
+
+      confidence:
+        primaryConfidence,
+
+      estimatedImpact:
+        Number(primaryDecision?.impact || 0),
+
+      totalVisibleImpact,
+
+      decisionCount:
+        decisions.length,
+    };
+  }
+
+  /*
+   * =========================================
+   * BEVERAGE MANAGER
+   * =========================================
+   */
+
+  if (isBeverageManagerRole) {
+    return {
+      role: "Beverage Manager",
+
+      eyebrow:
+        "Beverage Intelligence Briefing",
+
+      title: primaryDecision
+        ? `Beverage priority: ${primaryTitle}`
+        : "Beverage operations are being monitored",
+
+      summary: primaryDecision
+        ? `SerVen identified ${primaryTitle.toLowerCase()} as the strongest beverage-related operating priority. Focus on inventory, variance, vendor exposure, margin protection, and service readiness.`
+        : "SerVen is monitoring beverage inventory, usage, margin, vendor pressure, and operating performance.",
+
+      priorityLabel:
+        "Beverage Priority Right Now",
+
+      recommendedAction:
+        primaryRecommendation,
+
+      department:
+        primaryDepartment,
+
+      severity:
+        primarySeverity,
+
+      confidence:
+        primaryConfidence,
+
+      estimatedImpact:
+        Number(primaryDecision?.impact || 0),
+
+      totalVisibleImpact,
+
+      decisionCount:
+        decisions.length,
+    };
+  }
+
+  /*
+   * =========================================
+   * RESTAURANT OWNER / EXECUTIVE /
+   * CORPORATE ADMIN / SERVEN OWNER
+   * =========================================
+   */
+
+  return {
+    role:
+      activeDigitalTwinRoleLabel ||
+      "Restaurant Executive",
+
+    eyebrow:
+      "Executive Intelligence Briefing",
+
+    title: primaryDecision
+      ? `Executive priority: ${primaryTitle}`
+      : "Restaurant performance is being monitored",
+
+    summary: primaryDecision
+      ? `SerVen identified ${primaryTitle.toLowerCase()} as the highest-priority decision currently affecting restaurant performance. Address the strongest combination of financial impact, operational risk, and execution urgency first.`
+      : "SerVen is monitoring financial performance, operations, guests, labor, inventory, kitchen execution, and cross-system risk for the next high-value decision.",
+
+    priorityLabel:
+      "Executive Priority Right Now",
+
+    recommendedAction:
+      primaryRecommendation,
+
+    department:
+      primaryDepartment,
+
+    severity:
+      primarySeverity,
+
+    confidence:
+      primaryConfidence,
+
+    estimatedImpact:
+      Number(primaryDecision?.impact || 0),
+
+    totalVisibleImpact,
+
+    decisionCount:
+      decisions.length,
+  };
+}, [
+  activeDigitalTwinRoleView,
+  activeDigitalTwinRoleLabel,
+  restaurantDigitalTwinExecutiveEngine,
+  isKitchenManagerRole,
+  isGMRole,
+  isAssistantManagerRole,
+  isRegionalDirectorRole,
+  isFinanceRole,
+  isMarketingRole,
+  isCOORole,
+  isCIORole,
+  isInventoryManagerRole,
+  isBeverageManagerRole,
+  userRole,
+]);
+
+/* =========================
+   ROLE ACTION PLAN ENGINE
+========================= */
+
+const roleActionPlan = useMemo(() => {
+  const decisions = Array.isArray(activeDigitalTwinRoleView)
+    ? activeDigitalTwinRoleView
+    : [];
+
+  const topDecisions = decisions.slice(0, 5);
+
+  const normalizeAction = (decision, index) => {
+    const recommendation =
+      decision?.recommendation ||
+      decision?.action ||
+      decision?.description ||
+      "Review this priority and take corrective action.";
+
+    const impact = Number(decision?.impact || 0);
+
+    const severity =
+      decision?.severity ||
+      "Monitoring";
+
+    const department =
+      decision?.department ||
+      "Operations";
+
+    return {
+      id:
+        decision?.key ||
+        `role-action-${index}`,
+
+      rank: index + 1,
+
+      title:
+        decision?.title ||
+        `${department} Priority`,
+
+      action:
+        recommendation,
+
+      department,
+
+      severity,
+
+      confidence:
+        decision?.confidence ||
+        roleExecutiveBriefing?.confidence ||
+        "Waiting for Data",
+
+      estimatedImpact:
+        Number.isFinite(impact)
+          ? impact
+          : 0,
+
+      source:
+        decision?.source ||
+        "Digital Twin",
+
+      status: "open",
+    };
+  };
+
+  let actions = topDecisions.map(
+    normalizeAction
+  );
+
+  /*
+   * If the role view has no ranked decisions yet,
+   * still give the user one useful monitoring task.
+   */
+
+  if (!actions.length) {
+    actions = [
+      {
+        id: "monitoring-action",
+        rank: 1,
+        title:
+          roleExecutiveBriefing?.title ||
+          "Monitor restaurant performance",
+
+        action:
+          roleExecutiveBriefing?.recommendedAction ||
+          "Continue monitoring connected restaurant systems for the next high-value decision.",
+
+        department:
+          roleExecutiveBriefing?.department ||
+          "Operations",
+
+        severity:
+          roleExecutiveBriefing?.severity ||
+          "Monitoring",
+
+        confidence:
+          roleExecutiveBriefing?.confidence ||
+          "Waiting for Data",
+
+        estimatedImpact: Number(
+          roleExecutiveBriefing?.estimatedImpact || 0
+        ),
+
+        source:
+          "Role Executive Briefing",
+
+        status: "monitoring",
+      },
+    ];
+  }
+
+  /*
+   * Role-specific fallback enhancement:
+   * ensures the first task feels tailored to
+   * the logged-in person's responsibility.
+   */
+
+  const rolePrefix =
+    isKitchenManagerRole
+      ? "Kitchen"
+      : isFinanceRole
+      ? "Financial"
+      : isMarketingRole
+      ? "Marketing"
+      : isRegionalDirectorRole
+      ? "Regional"
+      : isCOORole
+      ? "Operations"
+      : isCIORole
+      ? "Technology"
+      : isInventoryManagerRole
+      ? "Inventory"
+      : isBeverageManagerRole
+      ? "Beverage"
+      : isGMRole ||
+        userRole === "general_manager" ||
+        userRole === "store_manager" ||
+        isAssistantManagerRole
+      ? "Manager"
+      : "Executive";
+
+  actions = actions.map(
+    (action, index) => ({
+      ...action,
+
+      rank: index + 1,
+
+      roleLabel:
+        activeDigitalTwinRoleLabel ||
+        "Restaurant Team",
+
+      actionLabel:
+        `${rolePrefix} Action ${index + 1}`,
+    })
+  );
+
+  const totalEstimatedImpact =
+    actions.reduce(
+      (sum, action) =>
+        sum +
+        Number(
+          action?.estimatedImpact || 0
+        ),
+      0
+    );
+
+  const criticalCount =
+    actions.filter(
+      (action) =>
+        action.severity === "Critical"
+    ).length;
+
+  const highCount =
+    actions.filter(
+      (action) =>
+        action.severity === "High"
+    ).length;
+
+  return {
+    hasData: actions.length > 0,
+
+    role:
+      activeDigitalTwinRoleLabel ||
+      "Restaurant Team",
+
+    title:
+      isKitchenManagerRole
+        ? "Kitchen Action Plan"
+        : isFinanceRole
+        ? "Financial Action Plan"
+        : isMarketingRole
+        ? "Marketing Action Plan"
+        : isRegionalDirectorRole
+        ? "Regional Action Plan"
+        : isCOORole
+        ? "Operations Action Plan"
+        : isCIORole
+        ? "Technology Action Plan"
+        : isInventoryManagerRole
+        ? "Inventory Action Plan"
+        : isBeverageManagerRole
+        ? "Beverage Action Plan"
+        : isGMRole ||
+          userRole === "general_manager" ||
+          userRole === "store_manager" ||
+          isAssistantManagerRole
+        ? "Manager Action Plan"
+        : "Executive Action Plan",
+
+    subtitle:
+      "Prioritized actions generated from the Digital Twin's current restaurant intelligence.",
+
+    actions,
+
+    totalActions:
+      actions.length,
+
+    totalEstimatedImpact:
+      Math.round(
+        totalEstimatedImpact
+      ),
+
+    criticalCount,
+
+    highCount,
+
+    topAction:
+      actions[0] || null,
+  };
+}, [
+  activeDigitalTwinRoleView,
+  roleExecutiveBriefing,
+  activeDigitalTwinRoleLabel,
+  isKitchenManagerRole,
+  isFinanceRole,
+  isMarketingRole,
+  isRegionalDirectorRole,
+  isCOORole,
+  isCIORole,
+  isInventoryManagerRole,
+  isBeverageManagerRole,
+  isGMRole,
+  isAssistantManagerRole,
+  userRole,
+]);
+
+/* =========================
+   AI EXECUTION CENTER ENGINE
+========================= */
+
+const aiExecutionCenter = useMemo(() => {
+  const completed = Array.isArray(completedRoleActions)
+    ? completedRoleActions
+    : [];
+
+  const actions =
+    roleActionPlan?.actions || [];
+
+  const completedActions = actions.filter((action) =>
+    completed.includes(action.id)
+  );
+
+  const pendingActions = actions.filter(
+    (action) => !completed.includes(action.id)
+  );
+
+  const executionRate =
+    actions.length === 0
+      ? 0
+      : Math.round(
+          (completedActions.length / actions.length) *
+            100
+        );
+
+  const protectedProfit =
+    completedActions.reduce(
+      (sum, action) =>
+        sum +
+        Number(
+          action?.estimatedImpact || 0
+        ),
+      0
+    );
+
+  return {
+    totalActions: actions.length,
+
+    completed:
+      completedActions.length,
+
+    pending:
+      pendingActions.length,
+
+    executionRate,
+
+    protectedProfit,
+
+    completedActions,
+
+    pendingActions,
+  };
+}, [
+  completedRoleActions,
+  roleActionPlan,
+]);
+
+
 
 const handleGuestUpload = async (event) => {
   console.log("GUEST UPLOAD FIRED");
@@ -33430,7 +37757,193 @@ useEffect(() => {
   user?.id,
   authSession?.access_token,
 ]);
+const handleCompleteRoleAction = async (action) => {
+  if (!action?.id) return;
 
+  /*
+   * Don't save the same action twice
+   * during the current session.
+   */
+  if (completedRoleActions.includes(action.id)) {
+    setMessage(
+      `"${action.title || "AI action"}" is already completed.`
+    );
+
+    return;
+  }
+
+  setMessage("Saving completed AI action...");
+
+  const saved =
+    await saveCompletedRoleAction(action);
+
+  if (!saved) {
+    return;
+  }
+
+  setCompletedRoleActions((prev) => {
+    const current = Array.isArray(prev)
+      ? prev
+      : [];
+
+    if (current.includes(action.id)) {
+      return current;
+    }
+
+    return [
+      ...current,
+      action.id,
+    ];
+  });
+};
+
+const handleOpenRoleActionIntelligence = (action) => {
+  const department = String(action?.department || "")
+    .trim()
+    .toLowerCase();
+
+  let targetId = null;
+
+  if (
+    department.includes("kitchen") ||
+    department.includes("recipe")
+  ) {
+    targetId = "kitchen-bottleneck-intelligence";
+  } else if (department.includes("service")) {
+    targetId = "service-speed-intelligence";
+  } else if (
+    department.includes("guest") ||
+    department.includes("marketing") ||
+    department.includes("growth")
+  ) {
+    targetId = "ai-guest-intelligence";
+  } else if (
+    department.includes("table") ||
+    department.includes("capacity")
+  ) {
+    targetId = "ai-table-turn-intelligence";
+  }
+
+  if (!targetId) {
+    setMessage(
+      `${action?.department || "Operations"} intelligence is available in the related dashboard section.`
+    );
+    return;
+  }
+
+  document.getElementById(targetId)?.scrollIntoView({
+    behavior: "smooth",
+    block: "start",
+  });
+};
+
+const handleAssignRoleAction = (action) => {
+  setMessage(
+    `Assignment workflow ready for: ${
+      action?.title || "AI action"
+    }.`
+  );
+};
+
+
+
+
+const saveCompletedRoleAction = async (action) => {
+  try {
+    if (!action?.id) return false;
+
+    const {
+      data: { user: currentUser },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError) {
+      throw userError;
+    }
+
+    if (!currentUser?.id) {
+      setMessage("You must be logged in to complete an AI action.");
+      return false;
+    }
+
+    const now = new Date().toISOString();
+
+    const payload = {
+      user_id: dataOwnerId || currentUser.id,
+
+      action_name:
+        action.title ||
+        "Serven AI Action",
+
+      action_description:
+        action.action ||
+        "AI recommended restaurant action.",
+
+      impact_value: Number(
+        action.estimatedImpact || 0
+      ),
+
+      applied_by:
+        activeDigitalTwinRoleLabel ||
+        "Restaurant Team",
+
+      status: "completed",
+
+      applied_at: now,
+
+      source: String(
+        action.department ||
+        "Role Action Plan"
+      )
+        .trim()
+        .toLowerCase(),
+    };
+
+    console.log(
+      "SAVING ROLE ACTION:",
+      payload
+    );
+
+    const { data, error } = await supabase
+      .from("ai_applied_actions")
+      .insert(payload)
+      .select()
+      .single();
+
+    if (error) {
+      console.error(
+        "SAVE ROLE ACTION SUPABASE ERROR:",
+        error
+      );
+
+      throw error;
+    }
+
+    console.log(
+      "ROLE ACTION SAVED:",
+      data
+    );
+
+    setMessage(
+      `"${action.title || "AI action"}" marked complete.`
+    );
+
+    return true;
+  } catch (error) {
+    console.error(
+      "SAVE COMPLETED ROLE ACTION ERROR:",
+      error
+    );
+
+    setMessage(
+      `Could not save completed action: ${
+        error?.message || "Unknown error"
+      }`
+    );
+
+    return false;
+  }
+};
 
 
 console.log("ACCESS DEBUG:", {
@@ -54374,7 +58887,10 @@ Recovered profit is based on saved AI action impact.
       }}
     >
       {(aiSmartNotifications || []).length > 0 ? (
-        aiSmartNotifications.map((note, index) => (
+        aiSmartNotifications.map((note, index) => {
+  
+
+  return (
          <div
   key={`${note.title}-${index}`}
   onClick={() => {
@@ -54642,10 +59158,12 @@ Recovered profit is based on saved AI action impact.
     >
       {buttonLabel} →
     </button>
+    
   );
 })()}
-          </div>
-        ))
+                   </div>
+        );
+      })
       ) : (
         <div
           style={{
@@ -54944,6 +59462,280 @@ Recovered profit is based on saved AI action impact.
       : "Connect POS sales and order activity to let SerVen estimate table-turn pressure, lost seating capacity, and potential revenue recovery."}
   </p>
 
+
+{/* =========================
+   TABLE TURN EXECUTIVE RECOMMENDATION
+========================= */}
+
+<div
+  style={{
+    marginBottom: "18px",
+    padding: "18px",
+    borderRadius: "20px",
+    background:
+      "linear-gradient(135deg, rgba(99,102,241,0.12), rgba(14,165,233,0.07))",
+    border: "1px solid rgba(129,140,248,0.20)",
+  }}
+>
+  <div
+    style={{
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "flex-start",
+      gap: "14px",
+      flexWrap: "wrap",
+      marginBottom: "14px",
+    }}
+  >
+    <div style={{ minWidth: 0 }}>
+      <div
+        style={{
+          color: "#c7d2fe",
+          fontSize: "11px",
+          fontWeight: "900",
+          textTransform: "uppercase",
+          letterSpacing: "0.07em",
+        }}
+      >
+        AI Executive Priority
+      </div>
+
+      <div
+        style={{
+          color: "white",
+          fontSize: isMobile ? "21px" : "24px",
+          fontWeight: "1000",
+          marginTop: "6px",
+          overflowWrap: "anywhere",
+        }}
+      >
+        {tableTurnExecutiveEngine?.hasData
+          ? tableTurnExecutiveEngine.primaryConstraintLabel
+          : "Waiting for service-flow data"}
+      </div>
+    </div>
+
+    <div
+      style={{
+        padding: "8px 12px",
+        borderRadius: "999px",
+        background:
+          tableTurnExecutiveEngine?.status === "Critical"
+            ? "rgba(239,68,68,0.14)"
+            : tableTurnExecutiveEngine?.status === "High"
+            ? "rgba(245,158,11,0.14)"
+            : tableTurnExecutiveEngine?.status === "Watch"
+            ? "rgba(56,189,248,0.14)"
+            : "rgba(34,197,94,0.12)",
+        color:
+          tableTurnExecutiveEngine?.status === "Critical"
+            ? "#fca5a5"
+            : tableTurnExecutiveEngine?.status === "High"
+            ? "#fde68a"
+            : tableTurnExecutiveEngine?.status === "Watch"
+            ? "#7dd3fc"
+            : "#86efac",
+        fontSize: "11px",
+        fontWeight: "900",
+      }}
+    >
+      {tableTurnExecutiveEngine?.status || "Waiting"}
+    </div>
+  </div>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile
+        ? "1fr"
+        : "repeat(2, minmax(0, 1fr))",
+      gap: "12px",
+      marginBottom: "14px",
+    }}
+  >
+    <div
+      style={{
+        padding: "14px",
+        borderRadius: "16px",
+        background: "rgba(15,23,42,0.56)",
+        border: "1px solid rgba(129,140,248,0.14)",
+      }}
+    >
+      <div
+        style={{
+          color: "#94a3b8",
+          fontSize: "10px",
+          fontWeight: "900",
+          textTransform: "uppercase",
+        }}
+      >
+        Highest Estimated Impact
+      </div>
+
+      <div
+        style={{
+          color: "white",
+          fontSize: "22px",
+          fontWeight: "1000",
+          marginTop: "6px",
+        }}
+      >
+        $
+        {Number(
+          tableTurnExecutiveEngine?.highestEstimatedImpact || 0
+        ).toLocaleString()}
+      </div>
+    </div>
+
+    <div
+      style={{
+        padding: "14px",
+        borderRadius: "16px",
+        background: "rgba(15,23,42,0.56)",
+        border: "1px solid rgba(129,140,248,0.14)",
+      }}
+    >
+      <div
+        style={{
+          color: "#94a3b8",
+          fontSize: "10px",
+          fontWeight: "900",
+          textTransform: "uppercase",
+        }}
+      >
+        Confidence
+      </div>
+
+      <div
+        style={{
+          color: "white",
+          fontSize: "22px",
+          fontWeight: "1000",
+          marginTop: "6px",
+        }}
+      >
+        {tableTurnExecutiveEngine?.confidence || "Waiting"}
+      </div>
+    </div>
+  </div>
+
+  <div
+    style={{
+      padding: "14px",
+      borderRadius: "16px",
+      background: "rgba(15,23,42,0.62)",
+      border: "1px solid rgba(56,189,248,0.14)",
+      marginBottom:
+        tableTurnExecutiveEngine?.supportingMetrics?.length > 0
+          ? "14px"
+          : 0,
+    }}
+  >
+    <div
+      style={{
+        color: "#7dd3fc",
+        fontSize: "10px",
+        fontWeight: "900",
+        textTransform: "uppercase",
+        letterSpacing: "0.06em",
+        marginBottom: "6px",
+      }}
+    >
+      Recommended First Action
+    </div>
+
+    <div
+      style={{
+        color: "#e2e8f0",
+        fontSize: "13px",
+        lineHeight: 1.7,
+      }}
+    >
+      {tableTurnExecutiveEngine?.recommendedFirstAction ||
+        "Connect live service-flow data to activate the executive recommendation."}
+    </div>
+  </div>
+
+  {tableTurnExecutiveEngine?.supportingMetrics?.length > 0 && (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: isMobile
+          ? "1fr"
+          : "repeat(3, minmax(0, 1fr))",
+        gap: "10px",
+      }}
+    >
+      {tableTurnExecutiveEngine.supportingMetrics.map(
+        (metric) => (
+          <div
+            key={metric.label}
+            style={{
+              padding: "12px",
+              borderRadius: "14px",
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(148,163,184,0.10)",
+            }}
+          >
+            <div
+              style={{
+                color: "#cbd5e1",
+                fontSize: "11px",
+                fontWeight: "900",
+              }}
+            >
+              {metric.label}
+            </div>
+
+            <div
+              style={{
+                color:
+                  metric.status === "Critical"
+                    ? "#fca5a5"
+                    : metric.status === "High"
+                    ? "#fde68a"
+                    : metric.status === "Watch"
+                    ? "#7dd3fc"
+                    : "#86efac",
+                fontSize: "10px",
+                fontWeight: "900",
+                marginTop: "4px",
+              }}
+            >
+              {metric.status}
+            </div>
+
+            <div
+              style={{
+                color: "#94a3b8",
+                fontSize: "11px",
+                lineHeight: 1.5,
+                marginTop: "6px",
+              }}
+            >
+              {metric.metric}
+            </div>
+
+            {Number(metric.impact || 0) > 0 && (
+              <div
+                style={{
+                  color: "white",
+                  fontSize: "13px",
+                  fontWeight: "900",
+                  marginTop: "8px",
+                }}
+              >
+                ${Number(metric.impact).toLocaleString()} impact
+              </div>
+            )}
+          </div>
+        )
+      )}
+    </div>
+  )}
+</div>
+
+
   <div
     style={{
       display: "grid",
@@ -55193,6 +59985,660 @@ Recovered profit is based on saved AI action impact.
       will replace these estimates after live POS integration.
     </div>
   )}
+
+{/* =========================
+   PEAK HOUR CONGESTION
+========================= */}
+
+<div
+  style={{
+    marginTop: "18px",
+    padding: "18px",
+    borderRadius: "20px",
+    background: "rgba(14,165,233,0.07)",
+    border: "1px solid rgba(56,189,248,0.18)",
+  }}
+>
+  <div
+    style={{
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "flex-start",
+      gap: "12px",
+      flexWrap: "wrap",
+      marginBottom: "14px",
+    }}
+  >
+    <div>
+      <div
+        style={{
+          color: "#7dd3fc",
+          fontSize: "11px",
+          fontWeight: "900",
+          textTransform: "uppercase",
+          letterSpacing: "0.07em",
+        }}
+      >
+        Peak Hour Congestion
+      </div>
+
+      <div
+        style={{
+          color: "white",
+          fontSize: "20px",
+          fontWeight: "1000",
+          marginTop: "6px",
+        }}
+      >
+        {peakHourCongestionEngine?.hasData
+          ? peakHourCongestionEngine.peakHourLabel
+          : "Waiting for live POS timing"}
+      </div>
+    </div>
+
+    <div
+      style={{
+        padding: "8px 12px",
+        borderRadius: "999px",
+        background:
+          peakHourCongestionEngine?.status === "Critical"
+            ? "rgba(239,68,68,0.14)"
+            : peakHourCongestionEngine?.status === "High"
+            ? "rgba(245,158,11,0.14)"
+            : peakHourCongestionEngine?.status === "Watch"
+            ? "rgba(56,189,248,0.14)"
+            : "rgba(34,197,94,0.12)",
+        color:
+          peakHourCongestionEngine?.status === "Critical"
+            ? "#fca5a5"
+            : peakHourCongestionEngine?.status === "High"
+            ? "#fde68a"
+            : peakHourCongestionEngine?.status === "Watch"
+            ? "#7dd3fc"
+            : "#86efac",
+        fontSize: "11px",
+        fontWeight: "900",
+      }}
+    >
+      {peakHourCongestionEngine?.status || "Waiting"}
+    </div>
+  </div>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile
+        ? "1fr"
+        : "repeat(3, minmax(0, 1fr))",
+      gap: "12px",
+      marginBottom: "14px",
+    }}
+  >
+    {[
+      {
+        label: "Congestion Score",
+        value: peakHourCongestionEngine?.hasData
+          ? `${Number(
+              peakHourCongestionEngine.congestionScore || 0
+            )}/100`
+          : "Waiting",
+      },
+      {
+        label: "Orders During Peak",
+        value: peakHourCongestionEngine?.hasData
+          ? Number(
+              peakHourCongestionEngine.ordersDuringPeak || 0
+            ).toLocaleString()
+          : "Waiting",
+      },
+      {
+        label: "Average Turn",
+        value: peakHourCongestionEngine?.hasData
+          ? `${Number(
+              peakHourCongestionEngine.averageTurnMinutesDuringPeak || 0
+            )} min`
+          : "Waiting",
+      },
+      {
+        label: "Capacity Utilization",
+        value: peakHourCongestionEngine?.hasData
+          ? `${Number(
+              peakHourCongestionEngine.estimatedCapacityUtilization || 0
+            ).toFixed(0)}%`
+          : "Waiting",
+      },
+      {
+        label: "Lost Turns",
+        value: peakHourCongestionEngine?.hasData
+          ? Number(
+              peakHourCongestionEngine.estimatedLostTurns || 0
+            ).toLocaleString()
+          : "Waiting",
+      },
+      {
+        label: "Lost Revenue",
+        value: peakHourCongestionEngine?.hasData
+          ? `$${Number(
+              peakHourCongestionEngine.estimatedLostRevenue || 0
+            ).toLocaleString()}`
+          : "Waiting",
+      },
+    ].map((metric) => (
+      <div
+        key={metric.label}
+        style={{
+          padding: "14px",
+          borderRadius: "16px",
+          background: "rgba(255,255,255,0.045)",
+          border: "1px solid rgba(148,163,184,0.12)",
+        }}
+      >
+        <div
+          style={{
+            color: "#94a3b8",
+            fontSize: "10px",
+            fontWeight: "900",
+            textTransform: "uppercase",
+          }}
+        >
+          {metric.label}
+        </div>
+
+        <div
+          style={{
+            color: "white",
+            fontSize: "19px",
+            fontWeight: "1000",
+            marginTop: "6px",
+          }}
+        >
+          {metric.value}
+        </div>
+      </div>
+    ))}
+  </div>
+
+  <div
+    style={{
+      color: "#cbd5e1",
+      fontSize: "13px",
+      lineHeight: 1.7,
+    }}
+  >
+    {peakHourCongestionEngine?.hasData
+      ? peakHourCongestionEngine.recommendation
+      : "Connect live POS order-open and order-close activity to activate peak-hour congestion intelligence."}
+  </div>
+</div>
+{/* =========================
+   SERVER BOTTLENECK INTELLIGENCE
+========================= */}
+
+<div
+  style={{
+    marginTop: "18px",
+    padding: "18px",
+    borderRadius: "20px",
+    background: "rgba(139,92,246,0.07)",
+    border: "1px solid rgba(167,139,250,0.18)",
+  }}
+>
+  <div
+    style={{
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "flex-start",
+      gap: "12px",
+      flexWrap: "wrap",
+      marginBottom: "14px",
+    }}
+  >
+    <div>
+      <div
+        style={{
+          color: "#c4b5fd",
+          fontSize: "11px",
+          fontWeight: "900",
+          textTransform: "uppercase",
+          letterSpacing: "0.07em",
+        }}
+      >
+        Server Bottleneck Intelligence
+      </div>
+
+      <div
+        style={{
+          color: "white",
+          fontSize: "20px",
+          fontWeight: "1000",
+          marginTop: "6px",
+        }}
+      >
+        {serverBottleneckEngine?.hasData
+          ? serverBottleneckEngine.slowestServer?.serverName ||
+            "No server bottleneck"
+          : "Waiting for server assignments"}
+      </div>
+    </div>
+
+    <div
+      style={{
+        padding: "8px 12px",
+        borderRadius: "999px",
+        background:
+          serverBottleneckEngine?.status === "Critical"
+            ? "rgba(239,68,68,0.14)"
+            : serverBottleneckEngine?.status === "High"
+            ? "rgba(245,158,11,0.14)"
+            : serverBottleneckEngine?.status === "Watch"
+            ? "rgba(56,189,248,0.14)"
+            : "rgba(34,197,94,0.12)",
+        color:
+          serverBottleneckEngine?.status === "Critical"
+            ? "#fca5a5"
+            : serverBottleneckEngine?.status === "High"
+            ? "#fde68a"
+            : serverBottleneckEngine?.status === "Watch"
+            ? "#7dd3fc"
+            : "#86efac",
+        fontSize: "11px",
+        fontWeight: "900",
+      }}
+    >
+      {serverBottleneckEngine?.status || "Waiting"}
+    </div>
+  </div>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile
+        ? "1fr"
+        : "repeat(3, minmax(0, 1fr))",
+      gap: "12px",
+      marginBottom: "14px",
+    }}
+  >
+    {[
+      {
+        label: "Average Cycle",
+        value: serverBottleneckEngine?.hasData
+          ? `${Number(
+              serverBottleneckEngine.slowestServer
+                ?.averageCycleMinutes || 0
+            ).toFixed(1)} min`
+          : "Waiting",
+      },
+      {
+        label: "Orders Above Target",
+        value: serverBottleneckEngine?.hasData
+          ? Number(
+              serverBottleneckEngine.ordersAboveTarget || 0
+            ).toLocaleString()
+          : "Waiting",
+      },
+      {
+        label: "Above Target Rate",
+        value: serverBottleneckEngine?.hasData
+          ? `${Number(
+              serverBottleneckEngine.percentAboveTarget || 0
+            ).toFixed(1)}%`
+          : "Waiting",
+      },
+      {
+        label: "Measured Servers",
+        value: serverBottleneckEngine?.hasData
+          ? Number(
+              serverBottleneckEngine.measuredServerCount || 0
+            ).toLocaleString()
+          : "Waiting",
+      },
+      {
+        label: "Estimated Lost Turns",
+        value: serverBottleneckEngine?.hasData
+          ? Number(
+              serverBottleneckEngine.estimatedLostTurns || 0
+            ).toLocaleString()
+          : "Waiting",
+      },
+      {
+        label: "Estimated Lost Revenue",
+        value: serverBottleneckEngine?.hasData
+          ? `$${Number(
+              serverBottleneckEngine.estimatedLostRevenue || 0
+            ).toLocaleString()}`
+          : "Waiting",
+      },
+    ].map((metric) => (
+      <div
+        key={metric.label}
+        style={{
+          padding: "14px",
+          borderRadius: "16px",
+          background: "rgba(255,255,255,0.045)",
+          border: "1px solid rgba(148,163,184,0.12)",
+        }}
+      >
+        <div
+          style={{
+            color: "#94a3b8",
+            fontSize: "10px",
+            fontWeight: "900",
+            textTransform: "uppercase",
+          }}
+        >
+          {metric.label}
+        </div>
+
+        <div
+          style={{
+            color: "white",
+            fontSize: "19px",
+            fontWeight: "1000",
+            marginTop: "6px",
+          }}
+        >
+          {metric.value}
+        </div>
+      </div>
+    ))}
+  </div>
+
+  <div
+    style={{
+      color: "#cbd5e1",
+      fontSize: "13px",
+      lineHeight: 1.7,
+    }}
+  >
+    {serverBottleneckEngine?.hasData
+      ? serverBottleneckEngine.recommendation
+      : "Connect server or employee assignments to live POS orders to activate Server Bottleneck Intelligence."}
+  </div>
+</div>
+{/* =========================
+   TABLE UTILIZATION INTELLIGENCE
+========================= */}
+
+<div
+  style={{
+    marginTop: "18px",
+    padding: "18px",
+    borderRadius: "20px",
+    background: "rgba(20,184,166,0.07)",
+    border: "1px solid rgba(45,212,191,0.18)",
+  }}
+>
+  <div
+    style={{
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "flex-start",
+      gap: "12px",
+      flexWrap: "wrap",
+      marginBottom: "14px",
+    }}
+  >
+    <div>
+      <div
+        style={{
+          color: "#5eead4",
+          fontSize: "11px",
+          fontWeight: "900",
+          textTransform: "uppercase",
+          letterSpacing: "0.07em",
+        }}
+      >
+        Table Utilization Intelligence
+      </div>
+
+      <div
+        style={{
+          color: "white",
+          fontSize: "20px",
+          fontWeight: "1000",
+          marginTop: "6px",
+        }}
+      >
+        {tableUtilizationEngine?.hasData
+          ? tableUtilizationEngine.slowestTable?.tableName ||
+            "Tables within target"
+          : "Waiting for table assignments"}
+      </div>
+    </div>
+
+    <div
+      style={{
+        padding: "8px 12px",
+        borderRadius: "999px",
+        background:
+          tableUtilizationEngine?.status === "Critical"
+            ? "rgba(239,68,68,0.14)"
+            : tableUtilizationEngine?.status === "High"
+            ? "rgba(245,158,11,0.14)"
+            : tableUtilizationEngine?.status === "Watch"
+            ? "rgba(56,189,248,0.14)"
+            : "rgba(34,197,94,0.12)",
+        color:
+          tableUtilizationEngine?.status === "Critical"
+            ? "#fca5a5"
+            : tableUtilizationEngine?.status === "High"
+            ? "#fde68a"
+            : tableUtilizationEngine?.status === "Watch"
+            ? "#7dd3fc"
+            : "#86efac",
+        fontSize: "11px",
+        fontWeight: "900",
+      }}
+    >
+      {tableUtilizationEngine?.status || "Waiting"}
+    </div>
+  </div>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile
+        ? "1fr"
+        : "repeat(3, minmax(0, 1fr))",
+      gap: "12px",
+      marginBottom: "14px",
+    }}
+  >
+    {[
+      {
+        label: "Slowest Table",
+        value: tableUtilizationEngine?.hasData
+          ? tableUtilizationEngine.slowestTable?.tableName ||
+            "Within target"
+          : "Waiting",
+      },
+      {
+        label: "Most Used Table",
+        value: tableUtilizationEngine?.hasData
+          ? tableUtilizationEngine.mostUsedTable?.tableName ||
+            "Not available"
+          : "Waiting",
+      },
+      {
+        label: "Average Cycle",
+        value: tableUtilizationEngine?.hasData
+          ? `${Number(
+              tableUtilizationEngine.averageCycleMinutes || 0
+            ).toFixed(1)} min`
+          : "Waiting",
+      },
+      {
+        label: "Tables Above Target",
+        value: tableUtilizationEngine?.hasData
+          ? `${Number(
+              tableUtilizationEngine.tablesAboveTarget || 0
+            ).toLocaleString()} (${Number(
+              tableUtilizationEngine.percentTablesAboveTarget || 0
+            ).toFixed(1)}%)`
+          : "Waiting",
+      },
+      {
+        label: "Estimated Lost Turns",
+        value: tableUtilizationEngine?.hasData
+          ? Number(
+              tableUtilizationEngine.estimatedLostTurns || 0
+            ).toLocaleString()
+          : "Waiting",
+      },
+      {
+        label: "Estimated Lost Revenue",
+        value: tableUtilizationEngine?.hasData
+          ? `$${Number(
+              tableUtilizationEngine.estimatedLostRevenue || 0
+            ).toLocaleString()}`
+          : "Waiting",
+      },
+    ].map((metric) => (
+      <div
+        key={metric.label}
+        style={{
+          padding: "14px",
+          borderRadius: "16px",
+          background: "rgba(255,255,255,0.045)",
+          border: "1px solid rgba(148,163,184,0.12)",
+          minWidth: 0,
+        }}
+      >
+        <div
+          style={{
+            color: "#94a3b8",
+            fontSize: "10px",
+            fontWeight: "900",
+            textTransform: "uppercase",
+            letterSpacing: "0.05em",
+          }}
+        >
+          {metric.label}
+        </div>
+
+        <div
+          style={{
+            color: "white",
+            fontSize: "19px",
+            fontWeight: "1000",
+            marginTop: "6px",
+            overflowWrap: "anywhere",
+          }}
+        >
+          {metric.value}
+        </div>
+      </div>
+    ))}
+  </div>
+
+  {tableUtilizationEngine?.hasData && (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: isMobile
+          ? "1fr"
+          : "repeat(2, minmax(0, 1fr))",
+        gap: "12px",
+        marginBottom: "14px",
+      }}
+    >
+      <div
+        style={{
+          padding: "14px",
+          borderRadius: "16px",
+          background: "rgba(15,23,42,0.56)",
+          border: "1px solid rgba(45,212,191,0.14)",
+        }}
+      >
+        <div
+          style={{
+            color: "#94a3b8",
+            fontSize: "10px",
+            fontWeight: "900",
+            textTransform: "uppercase",
+          }}
+        >
+          Average Guests Per Seating
+        </div>
+
+        <div
+          style={{
+            color: "white",
+            fontSize: "19px",
+            fontWeight: "1000",
+            marginTop: "6px",
+          }}
+        >
+          {Number(
+            tableUtilizationEngine.averageGuestsPerSeating || 0
+          ).toFixed(1)}
+        </div>
+      </div>
+
+      <div
+        style={{
+          padding: "14px",
+          borderRadius: "16px",
+          background: "rgba(15,23,42,0.56)",
+          border: "1px solid rgba(45,212,191,0.14)",
+        }}
+      >
+        <div
+          style={{
+            color: "#94a3b8",
+            fontSize: "10px",
+            fontWeight: "900",
+            textTransform: "uppercase",
+          }}
+        >
+          Average Revenue Per Seating
+        </div>
+
+        <div
+          style={{
+            color: "white",
+            fontSize: "19px",
+            fontWeight: "1000",
+            marginTop: "6px",
+          }}
+        >
+          $
+          {Number(
+            tableUtilizationEngine.averageRevenuePerSeating || 0
+          ).toLocaleString(undefined, {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })}
+        </div>
+      </div>
+    </div>
+  )}
+
+  <div
+    style={{
+      color: "#cbd5e1",
+      fontSize: "13px",
+      lineHeight: 1.7,
+    }}
+  >
+    {tableUtilizationEngine?.hasData
+      ? tableUtilizationEngine.recommendation
+      : "Connect table numbers or table IDs to completed POS orders to activate Table Utilization Intelligence."}
+  </div>
+
+  <div
+    style={{
+      color: "#64748b",
+      fontSize: "11px",
+      lineHeight: 1.6,
+      marginTop: "10px",
+    }}
+  >
+    {tableUtilizationEngine?.dataDisclosure ||
+      "True table-mix opportunity requires configured seat capacity for each table."}
+  </div>
+</div>
 </div>
 {/* =========================
    🍽️ KITCHEN BOTTLENECK INTELLIGENCE
@@ -57285,6 +62731,1009 @@ Recovered profit is based on saved AI action impact.
       SerVen AI builds a live operating model of the restaurant using revenue,
       labor, food cost, prime cost, AI health, and executive risk signals.
     </p>
+
+{/* =========================
+   DIGITAL TWIN EXECUTIVE DECISION PANEL
+========================= */}
+
+<div
+  style={{
+    marginTop: "22px",
+    marginBottom: "18px",
+    padding: "20px",
+    borderRadius: "22px",
+    background:
+      "linear-gradient(135deg, rgba(99,102,241,0.14), rgba(14,165,233,0.08))",
+    border: "1px solid rgba(129,140,248,0.20)",
+  }}
+>
+  <div
+    style={{
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "flex-start",
+      gap: "14px",
+      flexWrap: "wrap",
+      marginBottom: "16px",
+    }}
+  >
+    <div style={{ minWidth: 0 }}>
+      <div
+        style={{
+          color: "#c7d2fe",
+          fontSize: "11px",
+          fontWeight: "900",
+          letterSpacing: "0.07em",
+          textTransform: "uppercase",
+        }}
+      >
+        Digital Twin Executive Decision
+      </div>
+
+      <div
+        style={{
+          color: "white",
+          fontSize: isMobile ? "22px" : "26px",
+          fontWeight: "1000",
+          marginTop: "6px",
+          overflowWrap: "anywhere",
+        }}
+      >
+        {roleExecutiveBriefing.title||
+          "Monitoring restaurant operations"}
+      </div>
+
+<div
+  style={{
+    color: "#cbd5e1",
+    fontSize: "13px",
+    lineHeight: 1.7,
+    marginTop: "8px",
+    maxWidth: "900px",
+    overflowWrap: "anywhere",
+  }}
+>
+  {roleExecutiveBriefing.summary ||
+    "SerVen is monitoring restaurant performance and connected operating systems."}
+</div>
+
+
+<div
+  style={{
+    color: "#818cf8",
+    fontSize: "11px",
+    fontWeight: "900",
+    marginTop: "6px",
+    textTransform: "uppercase",
+    letterSpacing: "0.06em",
+  }}
+>
+  View: {activeDigitalTwinRoleLabel}
+</div>
+
+      <div
+        style={{
+          color: "#94a3b8",
+          fontSize: "12px",
+          marginTop: "6px",
+          lineHeight: 1.6,
+        }}
+      >
+        {roleExecutiveBriefing.priorityLabel}:{" "}
+        <span
+          style={{
+            color: "#e2e8f0",
+            fontWeight: "900",
+          }}
+        >
+        {roleExecutiveBriefing.department || "Operations"}
+        </span>
+      </div>
+    </div>
+
+    <div
+      style={{
+        padding: "8px 12px",
+        borderRadius: "999px",
+        background:
+          roleExecutiveBriefing.severity === "Critical"
+            ? "rgba(239,68,68,0.14)"
+            : roleExecutiveBriefing.severity === "High"
+            ? "rgba(245,158,11,0.14)"
+            : roleExecutiveBriefing.severity === "Watch"
+            ? "rgba(56,189,248,0.14)"
+            : "rgba(34,197,94,0.12)",
+        color:
+          roleExecutiveBriefing.severity === "Critical"
+            ? "#fca5a5"
+            : roleExecutiveBriefing.severity === "High"
+            ? "#fde68a"
+            : roleExecutiveBriefing.severity === "Watch"
+            ? "#7dd3fc"
+            : "#86efac",
+        fontSize: "11px",
+        fontWeight: "900",
+      }}
+    >
+      {roleExecutiveBriefing.severity|| "Monitoring"}
+    </div>
+  </div>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile
+        ? "1fr"
+        : "repeat(4, minmax(0, 1fr))",
+      gap: "12px",
+      marginBottom: "16px",
+    }}
+  >
+    {[
+      {
+        label: "Executive Health",
+        value: restaurantDigitalTwinExecutiveEngine?.hasData
+          ? `${Number(
+              restaurantDigitalTwinExecutiveEngine.executiveHealthScore || 0
+            )}/100`
+          : "Waiting",
+      },
+      {
+        label: "Cross-System Risk",
+        value: restaurantDigitalTwinExecutiveEngine?.hasData
+          ? `${Number(
+              restaurantDigitalTwinExecutiveEngine.crossSystemRiskScore || 0
+            )}/100`
+          : "Waiting",
+      },
+      {
+        label: "Monthly Opportunity",
+        value: restaurantDigitalTwinExecutiveEngine?.hasData
+          ? `$${Number(
+              restaurantDigitalTwinExecutiveEngine.estimatedMonthlyOpportunity ||
+                0
+            ).toLocaleString()}`
+          : "Waiting",
+      },
+      {
+        label: "Confidence",
+        value:
+          restaurantDigitalTwinExecutiveEngine?.confidence || "Waiting",
+      },
+    ].map((metric) => (
+      <div
+        key={metric.label}
+        style={{
+          padding: "14px",
+          borderRadius: "16px",
+          background: "rgba(15,23,42,0.58)",
+          border: "1px solid rgba(129,140,248,0.12)",
+          minWidth: 0,
+        }}
+      >
+        <div
+          style={{
+            color: "#94a3b8",
+            fontSize: "10px",
+            fontWeight: "900",
+            textTransform: "uppercase",
+            letterSpacing: "0.04em",
+          }}
+        >
+          {metric.label}
+        </div>
+
+        <div
+          style={{
+            color: "white",
+            fontSize: "20px",
+            fontWeight: "1000",
+            marginTop: "6px",
+            overflowWrap: "anywhere",
+          }}
+        >
+          {metric.value}
+        </div>
+      </div>
+    ))}
+  </div>
+
+  <div
+    style={{
+      padding: "15px",
+      borderRadius: "16px",
+      background: "rgba(15,23,42,0.62)",
+      border: "1px solid rgba(56,189,248,0.14)",
+      marginBottom: "16px",
+    }}
+  >
+    <div
+      style={{
+        color: "#7dd3fc",
+        fontSize: "10px",
+        fontWeight: "900",
+        textTransform: "uppercase",
+        letterSpacing: "0.06em",
+        marginBottom: "6px",
+      }}
+    >
+      Recommended First Action
+    </div>
+
+   <div
+  style={{
+    color: "#e2e8f0",
+    fontSize: "13px",
+    lineHeight: 1.7,
+  }}
+>
+  {roleExecutiveBriefing.recommendedAction ||
+    "The Digital Twin is monitoring restaurant performance for the next high-value decision."}
+</div>
+  </div>
+
+  {(activeDigitalTwinRoleView || []).length > 0 && (
+    <div>
+      <div
+        style={{
+          color: "#c7d2fe",
+          fontSize: "11px",
+          fontWeight: "900",
+          textTransform: "uppercase",
+          letterSpacing: "0.06em",
+          marginBottom: "10px",
+        }}
+      >
+       {isKitchenManagerRole
+  ? "Kitchen Priorities"
+  : isFinanceRole
+  ? "Financial Priorities"
+  : isMarketingRole
+  ? "Marketing & Guest Priorities"
+  : isRegionalDirectorRole
+  ? "Regional Priorities"
+  : isCOORole
+  ? "Operational Priorities"
+  : isCIORole
+  ? "Technology Priorities"
+  : isOwnerRole || isExecutiveRole
+  ? "Executive Priorities"
+  : "Top AI Decisions"}
+      </div>
+
+      <div
+        style={{
+          display: "grid",
+          gap: "10px",
+        }}
+      >
+        {activeDigitalTwinRoleView
+  .slice(0, 5)
+  .map((decision, index) => (
+            <div
+              key={`${decision.key}-${index}`}
+              style={{
+                display: "grid",
+                gridTemplateColumns: isMobile
+                  ? "1fr"
+                  : "42px minmax(0, 1fr) auto",
+                gap: "12px",
+                alignItems: "center",
+                padding: "13px",
+                borderRadius: "15px",
+                background: "rgba(255,255,255,0.04)",
+                border: "1px solid rgba(148,163,184,0.10)",
+              }}
+            >
+              <div
+                style={{
+                  width: "34px",
+                  height: "34px",
+                  borderRadius: "10px",
+                  background: "rgba(99,102,241,0.16)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "#c7d2fe",
+                  fontWeight: "1000",
+                }}
+              >
+                {index + 1}
+              </div>
+
+              <div style={{ minWidth: 0 }}>
+                <div
+                  style={{
+                    color: "white",
+                    fontSize: "13px",
+                    fontWeight: "900",
+                    overflowWrap: "anywhere",
+                  }}
+                >
+                  {decision.title}
+                </div>
+
+                <div
+                  style={{
+                    color: "#94a3b8",
+                    fontSize: "11px",
+                    marginTop: "4px",
+                    overflowWrap: "anywhere",
+                  }}
+                >
+                  {decision.department} • {decision.confidence} confidence
+                </div>
+              </div>
+
+              <div
+                style={{
+                  textAlign: isMobile ? "left" : "right",
+                }}
+              >
+                <div
+                  style={{
+                    color:
+                      decision.severity === "Critical"
+                        ? "#fca5a5"
+                        : decision.severity === "High"
+                        ? "#fde68a"
+                        : decision.severity === "Watch"
+                        ? "#7dd3fc"
+                        : "#86efac",
+                    fontSize: "11px",
+                    fontWeight: "900",
+                  }}
+                >
+                  {decision.severity}
+                </div>
+
+                {Number(decision.impact || 0) > 0 && (
+                  <div
+                    style={{
+                      color: "#86efac",
+                      fontSize: "12px",
+                      fontWeight: "900",
+                      marginTop: "4px",
+                    }}
+                  >
+                    ${Number(decision.impact || 0).toLocaleString()} impact
+                  </div>
+                )}
+              </div>
+            </div>
+          )
+        )}
+      </div>
+    </div>
+  )}
+</div>
+
+{/* =========================
+   ROLE ACTION PLAN
+========================= */}
+
+<div
+  style={{
+    marginTop: "18px",
+    marginBottom: "22px",
+    padding: isMobile ? "18px" : "22px",
+    borderRadius: "24px",
+    background:
+      "linear-gradient(135deg, rgba(34,197,94,0.10), rgba(15,23,42,0.96))",
+    border: "1px solid rgba(74,222,128,0.18)",
+    boxShadow: "0 22px 60px rgba(2,6,23,0.28)",
+  }}
+>
+  <div
+    style={{
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "flex-start",
+      gap: "14px",
+      flexWrap: "wrap",
+      marginBottom: "18px",
+    }}
+  >
+    <div style={{ minWidth: 0 }}>
+      <div
+        style={{
+          color: "#86efac",
+          fontSize: "11px",
+          fontWeight: "900",
+          textTransform: "uppercase",
+          letterSpacing: "0.07em",
+        }}
+      >
+        SerVen AI Action Plan
+      </div>
+
+      <h3
+        style={{
+          color: "white",
+          fontSize: isMobile ? "22px" : "26px",
+          fontWeight: "1000",
+          margin: "6px 0 8px",
+        }}
+      >
+        {roleActionPlan?.title || "Executive Action Plan"}
+      </h3>
+
+      <p
+        style={{
+          color: "#cbd5e1",
+          fontSize: "13px",
+          lineHeight: 1.7,
+          margin: 0,
+          maxWidth: "800px",
+        }}
+      >
+        {roleActionPlan?.subtitle ||
+          "Prioritized actions generated from current restaurant intelligence."}
+      </p>
+    </div>
+
+    <div
+      style={{
+        padding: "8px 12px",
+        borderRadius: "999px",
+        background: "rgba(34,197,94,0.12)",
+        border: "1px solid rgba(74,222,128,0.18)",
+        color: "#86efac",
+        fontSize: "11px",
+        fontWeight: "900",
+      }}
+    >
+      {roleActionPlan?.totalActions || 0} Actions
+    </div>
+  </div>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile
+        ? "1fr"
+        : "repeat(3, minmax(0, 1fr))",
+      gap: "12px",
+      marginBottom: "18px",
+    }}
+  >
+    {[
+      {
+        label: "Estimated Impact",
+        value: `$${Number(
+          roleActionPlan?.totalEstimatedImpact || 0
+        ).toLocaleString()}`,
+      },
+      {
+        label: "Critical Actions",
+        value: Number(roleActionPlan?.criticalCount || 0),
+      },
+      {
+        label: "High Priority",
+        value: Number(roleActionPlan?.highCount || 0),
+      },
+    ].map((metric) => (
+      <div
+        key={metric.label}
+        style={{
+          padding: "14px",
+          borderRadius: "16px",
+          background: "rgba(15,23,42,0.62)",
+          border: "1px solid rgba(74,222,128,0.10)",
+        }}
+      >
+        <div
+          style={{
+            color: "#94a3b8",
+            fontSize: "10px",
+            fontWeight: "900",
+            textTransform: "uppercase",
+          }}
+        >
+          {metric.label}
+        </div>
+
+        <div
+          style={{
+            color: "white",
+            fontSize: "20px",
+            fontWeight: "1000",
+            marginTop: "5px",
+          }}
+        >
+          {metric.value}
+        </div>
+      </div>
+    ))}
+  </div>
+
+  <div
+    style={{
+      display: "grid",
+      gap: "12px",
+    }}
+  >
+    {(roleActionPlan?.actions || []).map((action, index) => (
+      <div
+        key={action.id || index}
+        style={{
+          display: "grid",
+          gridTemplateColumns: isMobile
+            ? "1fr"
+            : "46px minmax(0, 1fr) auto",
+          gap: "14px",
+          alignItems: "center",
+          padding: "15px",
+          borderRadius: "18px",
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(148,163,184,0.10)",
+        }}
+      >
+        <div
+          style={{
+            width: "38px",
+            height: "38px",
+            borderRadius: "12px",
+            background:
+              action.severity === "Critical"
+                ? "rgba(239,68,68,0.16)"
+                : action.severity === "High"
+                ? "rgba(245,158,11,0.16)"
+                : "rgba(34,197,94,0.12)",
+            color:
+              action.severity === "Critical"
+                ? "#fca5a5"
+                : action.severity === "High"
+                ? "#fde68a"
+                : "#86efac",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontWeight: "1000",
+          }}
+        >
+          {index + 1}
+        </div>
+
+        <div style={{ minWidth: 0 }}>
+          <div
+            style={{
+              color: "white",
+              fontSize: "14px",
+              fontWeight: "950",
+              overflowWrap: "anywhere",
+            }}
+          >
+            {action.title}
+          </div>
+
+          <div
+            style={{
+              color: "#cbd5e1",
+              fontSize: "12px",
+              lineHeight: 1.65,
+              marginTop: "5px",
+              overflowWrap: "anywhere",
+            }}
+          >
+            {action.action}
+          </div>
+
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "10px",
+              fontWeight: "800",
+              marginTop: "7px",
+            }}
+          >
+            {action.department} • {action.confidence} confidence
+          </div>
+          <div
+  style={{
+    display: "flex",
+    gap: "8px",
+    flexWrap: "wrap",
+    marginTop: "12px",
+  }}
+>
+  <button
+    type="button"
+    onClick={() => handleCompleteRoleAction(action)}
+    style={{
+      padding: "8px 11px",
+      borderRadius: "10px",
+      border: completedRoleActions.includes(action.id)
+        ? "1px solid rgba(34,197,94,0.35)"
+        : "1px solid rgba(148,163,184,0.20)",
+      background: completedRoleActions.includes(action.id)
+        ? "rgba(34,197,94,0.14)"
+        : "rgba(255,255,255,0.04)",
+      color: completedRoleActions.includes(action.id)
+        ? "#86efac"
+        : "#e2e8f0",
+      fontSize: "11px",
+      fontWeight: "900",
+      cursor: "pointer",
+    }}
+  >
+    {completedRoleActions.includes(action.id)
+      ? "✓ Completed"
+      : "✓ Mark Complete"}
+  </button>
+
+  <button
+    type="button"
+    onClick={() =>
+      handleOpenRoleActionIntelligence(action)
+    }
+    style={{
+      padding: "8px 11px",
+      borderRadius: "10px",
+      border: "1px solid rgba(129,140,248,0.24)",
+      background: "rgba(99,102,241,0.10)",
+      color: "#c7d2fe",
+      fontSize: "11px",
+      fontWeight: "900",
+      cursor: "pointer",
+    }}
+  >
+    Open Intelligence →
+  </button>
+
+  <button
+    type="button"
+    onClick={() => handleAssignRoleAction(action)}
+    style={{
+      padding: "8px 11px",
+      borderRadius: "10px",
+      border: "1px solid rgba(56,189,248,0.22)",
+      background: "rgba(14,165,233,0.08)",
+      color: "#bae6fd",
+      fontSize: "11px",
+      fontWeight: "900",
+      cursor: "pointer",
+    }}
+  >
+    Assign
+  </button>
+</div>
+        </div>
+
+        <div
+          style={{
+            textAlign: isMobile ? "left" : "right",
+            minWidth: "110px",
+          }}
+        >
+          <div
+            style={{
+              color: "#86efac",
+              fontSize: "16px",
+              fontWeight: "1000",
+            }}
+          >
+            ${Number(action.estimatedImpact || 0).toLocaleString()}
+          </div>
+
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "10px",
+              fontWeight: "800",
+              marginTop: "3px",
+            }}
+          >
+            Estimated Impact
+          </div>
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+
+{/* =========================
+   AI EXECUTION CENTER
+========================= */}
+
+<div
+  style={{
+    marginTop: "18px",
+    marginBottom: "24px",
+    padding: isMobile ? "18px" : "24px",
+    borderRadius: "26px",
+    background:
+      "radial-gradient(circle at top right, rgba(34,197,94,0.16), transparent 32%), linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.94))",
+    border: "1px solid rgba(74,222,128,0.18)",
+    boxShadow: "0 24px 70px rgba(2,6,23,0.32)",
+  }}
+>
+  <div
+    style={{
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "flex-start",
+      gap: "14px",
+      flexWrap: "wrap",
+      marginBottom: "20px",
+    }}
+  >
+    <div style={{ minWidth: 0 }}>
+      <div
+        style={{
+          color: "#86efac",
+          fontSize: "11px",
+          fontWeight: "900",
+          textTransform: "uppercase",
+          letterSpacing: "0.08em",
+        }}
+      >
+        AI Execution Center
+      </div>
+
+      <h3
+        style={{
+          color: "white",
+          fontSize: isMobile ? "24px" : "30px",
+          fontWeight: "1000",
+          margin: "7px 0 8px",
+        }}
+      >
+        Restaurant Execution Intelligence
+      </h3>
+
+      <p
+        style={{
+          color: "#cbd5e1",
+          fontSize: "13px",
+          lineHeight: 1.7,
+          margin: 0,
+          maxWidth: "850px",
+        }}
+      >
+        Track AI recommendations from detection through execution and measure
+        how effectively the restaurant team is responding to operational
+        priorities.
+      </p>
+    </div>
+
+    <div
+      style={{
+        padding: "8px 12px",
+        borderRadius: "999px",
+        background:
+          aiExecutionCenter.executionRate >= 80
+            ? "rgba(34,197,94,0.12)"
+            : aiExecutionCenter.executionRate >= 50
+            ? "rgba(245,158,11,0.14)"
+            : "rgba(239,68,68,0.14)",
+        color:
+          aiExecutionCenter.executionRate >= 80
+            ? "#86efac"
+            : aiExecutionCenter.executionRate >= 50
+            ? "#fde68a"
+            : "#fca5a5",
+        fontSize: "11px",
+        fontWeight: "900",
+      }}
+    >
+      {aiExecutionCenter.executionRate}% Execution
+    </div>
+  </div>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile
+        ? "1fr"
+        : "repeat(4, minmax(0, 1fr))",
+      gap: "12px",
+      marginBottom: "20px",
+    }}
+  >
+    {[
+      {
+        label: "Total Actions",
+        value: aiExecutionCenter.totalActions,
+      },
+      {
+        label: "Completed",
+        value: aiExecutionCenter.completed,
+      },
+      {
+        label: "Pending",
+        value: aiExecutionCenter.pending,
+      },
+      {
+        label: "Profit Protected",
+        value: `$${Number(
+          aiExecutionCenter.protectedProfit || 0
+        ).toLocaleString()}`,
+      },
+    ].map((metric) => (
+      <div
+        key={metric.label}
+        style={{
+          padding: "15px",
+          borderRadius: "17px",
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(148,163,184,0.10)",
+          minWidth: 0,
+        }}
+      >
+        <div
+          style={{
+            color: "#94a3b8",
+            fontSize: "10px",
+            fontWeight: "900",
+            textTransform: "uppercase",
+            letterSpacing: "0.05em",
+          }}
+        >
+          {metric.label}
+        </div>
+
+        <div
+          style={{
+            color: "white",
+            fontSize: "22px",
+            fontWeight: "1000",
+            marginTop: "6px",
+          }}
+        >
+          {metric.value}
+        </div>
+      </div>
+    ))}
+  </div>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile
+        ? "1fr"
+        : "repeat(2, minmax(0, 1fr))",
+      gap: "16px",
+    }}
+  >
+    <div
+      style={{
+        padding: "16px",
+        borderRadius: "18px",
+        background: "rgba(34,197,94,0.06)",
+        border: "1px solid rgba(74,222,128,0.14)",
+      }}
+    >
+      <div
+        style={{
+          color: "#86efac",
+          fontSize: "11px",
+          fontWeight: "900",
+          textTransform: "uppercase",
+          marginBottom: "12px",
+        }}
+      >
+        Completed Actions
+      </div>
+
+      {aiExecutionCenter.completedActions.length > 0 ? (
+        <div style={{ display: "grid", gap: "10px" }}>
+          {aiExecutionCenter.completedActions.map((action, index) => (
+            <div
+              key={action.id || index}
+              style={{
+                padding: "12px",
+                borderRadius: "14px",
+                background: "rgba(15,23,42,0.56)",
+                border: "1px solid rgba(74,222,128,0.10)",
+              }}
+            >
+              <div
+                style={{
+                  color: "white",
+                  fontSize: "13px",
+                  fontWeight: "900",
+                }}
+              >
+                ✓ {action.title}
+              </div>
+
+              <div
+                style={{
+                  color: "#94a3b8",
+                  fontSize: "10px",
+                  marginTop: "5px",
+                }}
+              >
+                {action.department} • $
+                {Number(action.estimatedImpact || 0).toLocaleString()} estimated
+                impact
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div
+          style={{
+            color: "#94a3b8",
+            fontSize: "12px",
+            lineHeight: 1.6,
+          }}
+        >
+          No AI actions have been completed yet.
+        </div>
+      )}
+    </div>
+
+    <div
+      style={{
+        padding: "16px",
+        borderRadius: "18px",
+        background: "rgba(245,158,11,0.05)",
+        border: "1px solid rgba(245,158,11,0.14)",
+      }}
+    >
+      <div
+        style={{
+          color: "#fde68a",
+          fontSize: "11px",
+          fontWeight: "900",
+          textTransform: "uppercase",
+          marginBottom: "12px",
+        }}
+      >
+        Pending Actions
+      </div>
+
+      {aiExecutionCenter.pendingActions.length > 0 ? (
+        <div style={{ display: "grid", gap: "10px" }}>
+          {aiExecutionCenter.pendingActions.map((action, index) => (
+            <div
+              key={action.id || index}
+              style={{
+                padding: "12px",
+                borderRadius: "14px",
+                background: "rgba(15,23,42,0.56)",
+                border: "1px solid rgba(245,158,11,0.10)",
+              }}
+            >
+              <div
+                style={{
+                  color: "white",
+                  fontSize: "13px",
+                  fontWeight: "900",
+                }}
+              >
+                {action.title}
+              </div>
+
+              <div
+                style={{
+                  color: "#94a3b8",
+                  fontSize: "10px",
+                  marginTop: "5px",
+                }}
+              >
+                {action.department} • {action.severity}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div
+          style={{
+            color: "#86efac",
+            fontSize: "12px",
+            lineHeight: 1.6,
+            fontWeight: "800",
+          }}
+        >
+          All current AI actions are complete.
+        </div>
+      )}
+    </div>
+  </div>
+</div>
 
     <div
       style={{
@@ -60242,7 +66691,7 @@ profit recovery opportunities, AI recommendations, and forecasted trends.
   value={inviteRole}
   onChange={(e) => setInviteRole(e.target.value)}
 >
-  <option value="owner">Owner</option>
+ <option value="restaurant_owner">Restaurant Owner</option>
   <option value="corporate_admin">Corporate Admin</option>
   <option value="regional_director">Regional Director</option>
   <option value="gm">General Manager</option>
@@ -60338,8 +66787,8 @@ profit recovery opportunities, AI recommendations, and forecasted trends.
         fontWeight: "800",
       }}
     >
-      {member.role === "owner"
-  ? "Owner"
+      {member.role === "restaurant_owner"
+  ? "Restaurant Owner"
   : member.role === "corporate_admin"
   ? "Corporate Admin"
   : member.role === "regional_director"
@@ -62729,8 +69178,8 @@ profit recovery opportunities, AI recommendations, and forecasted trends.
       },
 
       {
-        name: "Owner",
-        role: "Executive visibility & AI intelligence",
+        name: "Restaurant Owner",
+role: "Executive visibility & AI intelligence",
         color: "#c084fc",
       },
     ].map((staff) => (
@@ -68309,6 +74758,263 @@ margin: "0",
     forecasting.
   </div>
 )}
+
+
+{/* =========================
+   GUEST EXECUTIVE SUMMARY
+========================= */}
+
+<div
+  style={{
+    marginBottom: "18px",
+    padding: "18px",
+    borderRadius: "20px",
+    background:
+      "linear-gradient(135deg, rgba(37,99,235,0.12), rgba(14,165,233,0.07))",
+    border: "1px solid rgba(96,165,250,0.20)",
+  }}
+>
+  <div
+    style={{
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "flex-start",
+      gap: "14px",
+      flexWrap: "wrap",
+      marginBottom: "14px",
+    }}
+  >
+    <div>
+      <div
+        style={{
+          color: "#93c5fd",
+          fontSize: "11px",
+          fontWeight: "900",
+          letterSpacing: "0.07em",
+          textTransform: "uppercase",
+        }}
+      >
+        Guest Executive Summary
+      </div>
+
+      <div
+        style={{
+          color: "white",
+          fontSize: isMobile ? "21px" : "24px",
+          fontWeight: "1000",
+          marginTop: "6px",
+        }}
+      >
+        {guestBehaviorExecutiveEngine?.hasData
+          ? guestBehaviorExecutiveEngine.highestRiskGuest?.name ||
+            "Guest portfolio healthy"
+          : "Waiting for guest data"}
+      </div>
+    </div>
+
+    <div
+      style={{
+        padding: "8px 12px",
+        borderRadius: "999px",
+        background:
+          guestBehaviorExecutiveEngine?.averageHealthScore >= 80
+            ? "rgba(34,197,94,0.12)"
+            : guestBehaviorExecutiveEngine?.averageHealthScore >= 60
+            ? "rgba(245,158,11,0.14)"
+            : "rgba(239,68,68,0.14)",
+        color:
+          guestBehaviorExecutiveEngine?.averageHealthScore >= 80
+            ? "#86efac"
+            : guestBehaviorExecutiveEngine?.averageHealthScore >= 60
+            ? "#fde68a"
+            : "#fca5a5",
+        fontSize: "11px",
+        fontWeight: "900",
+      }}
+    >
+      {guestBehaviorExecutiveEngine?.hasData
+        ? `${guestBehaviorExecutiveEngine.averageHealthScore}/100 Health`
+        : "Waiting"}
+    </div>
+  </div>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile
+        ? "1fr"
+        : "repeat(4, minmax(0, 1fr))",
+      gap: "12px",
+      marginBottom: "14px",
+    }}
+  >
+    {[
+      {
+        label: "Total Guests",
+        value: guestBehaviorExecutiveEngine?.hasData
+          ? Number(
+              guestBehaviorExecutiveEngine.guestCount || 0
+            ).toLocaleString()
+          : "Waiting",
+      },
+      {
+        label: "Total Lifetime Value",
+        value: guestBehaviorExecutiveEngine?.hasData
+          ? `$${Number(
+              guestBehaviorExecutiveEngine.totalLifetimeValue || 0
+            ).toLocaleString()}`
+          : "Waiting",
+      },
+      {
+        label: "Revenue At Risk",
+        value: guestBehaviorExecutiveEngine?.hasData
+          ? `$${Number(
+              guestBehaviorExecutiveEngine.revenueAtRisk || 0
+            ).toLocaleString()}`
+          : "Waiting",
+      },
+      {
+        label: "Recoverable Revenue",
+        value: guestBehaviorExecutiveEngine?.hasData
+          ? `$${Number(
+              guestBehaviorExecutiveEngine.recoverableRevenue || 0
+            ).toLocaleString()}`
+          : "Waiting",
+      },
+    ].map((metric) => (
+      <div
+        key={metric.label}
+        style={{
+          padding: "14px",
+          borderRadius: "16px",
+          background: "rgba(15,23,42,0.58)",
+          border: "1px solid rgba(96,165,250,0.12)",
+          minWidth: 0,
+        }}
+      >
+        <div
+          style={{
+            color: "#94a3b8",
+            fontSize: "10px",
+            fontWeight: "900",
+            textTransform: "uppercase",
+            letterSpacing: "0.04em",
+          }}
+        >
+          {metric.label}
+        </div>
+
+        <div
+          style={{
+            color: "white",
+            fontSize: "20px",
+            fontWeight: "1000",
+            marginTop: "6px",
+            overflowWrap: "anywhere",
+          }}
+        >
+          {metric.value}
+        </div>
+      </div>
+    ))}
+  </div>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile
+        ? "1fr"
+        : "repeat(4, minmax(0, 1fr))",
+      gap: "10px",
+      marginBottom: "14px",
+    }}
+  >
+    {[
+      {
+        label: "Active",
+        value: guestBehaviorExecutiveEngine?.activeGuests || 0,
+      },
+      {
+        label: "Cooling",
+        value: guestBehaviorExecutiveEngine?.coolingGuests || 0,
+      },
+      {
+        label: "At Risk",
+        value: guestBehaviorExecutiveEngine?.atRiskGuests || 0,
+      },
+      {
+        label: "Lapsed",
+        value: guestBehaviorExecutiveEngine?.lapsedGuests || 0,
+      },
+    ].map((item) => (
+      <div
+        key={item.label}
+        style={{
+          padding: "12px",
+          borderRadius: "14px",
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(148,163,184,0.10)",
+        }}
+      >
+        <div
+          style={{
+            color: "#94a3b8",
+            fontSize: "10px",
+            fontWeight: "900",
+            textTransform: "uppercase",
+          }}
+        >
+          {item.label}
+        </div>
+
+        <div
+          style={{
+            color: "white",
+            fontSize: "18px",
+            fontWeight: "1000",
+            marginTop: "5px",
+          }}
+        >
+          {Number(item.value || 0).toLocaleString()}
+        </div>
+      </div>
+    ))}
+  </div>
+
+  <div
+    style={{
+      padding: "14px",
+      borderRadius: "16px",
+      background: "rgba(15,23,42,0.62)",
+      border: "1px solid rgba(96,165,250,0.14)",
+    }}
+  >
+    <div
+      style={{
+        color: "#7dd3fc",
+        fontSize: "10px",
+        fontWeight: "900",
+        textTransform: "uppercase",
+        letterSpacing: "0.06em",
+        marginBottom: "6px",
+      }}
+    >
+      Recommended First Action
+    </div>
+
+    <div
+      style={{
+        color: "#e2e8f0",
+        fontSize: "13px",
+        lineHeight: 1.7,
+      }}
+    >
+      {guestBehaviorExecutiveEngine?.recommendation ||
+        "Upload customer history to activate guest recovery recommendations."}
+    </div>
+  </div>
+</div>
+
     <div
       style={{
         display: "grid",
