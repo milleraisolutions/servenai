@@ -38237,6 +38237,83 @@ const handleConnectRestaurantSystem = async (
     setMessage(`Could not connect ${provider}.`);
   }
 };
+const handleDisconnectRestaurantSystem = async (provider) => {
+  try {
+    const connection = getConnectionStatus(provider);
+
+    if (!connection?.id) {
+      setMessage(`${provider} is not connected.`);
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Disconnect ${provider} from Serven?`
+    );
+
+    if (!confirmed) return;
+
+    const { error } = await supabase
+      .from("integrations")
+      .delete()
+      .eq("id", connection.id);
+
+    if (error) {
+      console.error("DISCONNECT INTEGRATION ERROR:", error);
+      setMessage(`Could not disconnect ${provider}.`);
+      return;
+    }
+
+    setMessage(`${provider} disconnected.`);
+
+    await loadRestaurantConnections();
+  } catch (error) {
+    console.error("DISCONNECT SYSTEM ERROR:", error);
+    setMessage(`Could not disconnect ${provider}.`);
+  }
+};
+
+const handleSyncRestaurantSystem = async (provider) => {
+  try {
+    const connection = getConnectionStatus(provider);
+
+    if (!connection?.id) {
+      setMessage(`${provider} must be connected before syncing.`);
+      return;
+    }
+
+    /*
+     * IMPORTANT:
+     * Do not mark last_sync_at yet.
+     *
+     * last_sync_at should only change after a real provider
+     * API sync successfully completes.
+     */
+
+    const { error } = await supabase
+      .from("integrations")
+      .update({
+        last_sync_status: "sync_pending",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", connection.id);
+
+    if (error) {
+      console.error("SYNC REQUEST ERROR:", error);
+      setMessage(`Could not start ${provider} sync.`);
+      return;
+    }
+
+    setMessage(
+      `${provider} sync is ready for provider API connection.`
+    );
+
+    await loadRestaurantConnections();
+  } catch (error) {
+    console.error("SYNC SYSTEM ERROR:", error);
+    setMessage(`Could not start ${provider} sync.`);
+  }
+};
+
 
 const isRestaurantSystemConnected = (provider) => {
   const normalizedProvider = String(provider)
@@ -38269,8 +38346,19 @@ const IntegrationProviderCard = ({
 }) => {
   const connection = getConnectionStatus(provider);
 
+  const connectionStatus = String(
+    connection?.status || ""
+  ).toLowerCase();
+
+  const syncStatus = String(
+    connection?.last_sync_status || ""
+  ).toLowerCase();
+
   const isConnected =
-    String(connection?.status || "").toLowerCase() === "connected";
+    connectionStatus === "connected";
+
+  const isSyncPending =
+    syncStatus === "sync_pending";
 
   return (
     <div
@@ -38283,83 +38371,204 @@ const IntegrationProviderCard = ({
         border: isConnected
           ? "1px solid rgba(34,197,94,0.18)"
           : "1px solid rgba(255,255,255,0.07)",
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
+        display: "grid",
         gap: "12px",
-        flexWrap: "wrap",
       }}
     >
-      <div style={{ minWidth: 0 }}>
-        <div
-          style={{
-            color: "white",
-            fontWeight: "900",
-            fontSize: "14px",
-          }}
-        >
-          {provider}
+      {/* PROVIDER INFO */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          gap: "12px",
+          flexWrap: "wrap",
+        }}
+      >
+        <div style={{ minWidth: 0 }}>
+          <div
+            style={{
+              color: "white",
+              fontWeight: "900",
+              fontSize: "14px",
+            }}
+          >
+            {provider}
+          </div>
+
+          <div
+            style={{
+              color: isConnected
+                ? "#86efac"
+                : "#64748b",
+              fontSize: "11px",
+              fontWeight: "800",
+              marginTop: "4px",
+            }}
+          >
+            {isConnected
+              ? "Connected to Serven"
+              : "Not connected"}
+          </div>
         </div>
 
         <div
           style={{
-            color: isConnected ? "#86efac" : "#64748b",
-            fontSize: "11px",
-            fontWeight: "800",
-            marginTop: "4px",
+            padding: "5px 9px",
+            borderRadius: "999px",
+            background: isConnected
+              ? "rgba(34,197,94,0.12)"
+              : "rgba(148,163,184,0.08)",
+            color: isConnected
+              ? "#86efac"
+              : "#94a3b8",
+            fontSize: "10px",
+            fontWeight: "900",
           }}
         >
           {isConnected
-            ? "Connected to Serven"
-            : "Not connected"}
+            ? "Connected ✓"
+            : "Disconnected"}
         </div>
+      </div>
 
-        {connection?.last_sync_at && (
+      {/* CONNECTION DETAILS */}
+      {isConnected && (
+        <div
+          style={{
+            padding: "10px 12px",
+            borderRadius: "12px",
+            background: "rgba(255,255,255,0.025)",
+            border:
+              "1px solid rgba(255,255,255,0.05)",
+          }}
+        >
           <div
             style={{
               color: "#64748b",
               fontSize: "10px",
-              marginTop: "3px",
+              fontWeight: "900",
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+              marginBottom: "4px",
             }}
           >
-            Last sync:{" "}
-            {new Date(
-              connection.last_sync_at
-            ).toLocaleString()}
+            Last Sync
           </div>
-        )}
-      </div>
 
-      <button
-        type="button"
-        disabled={isConnected}
-        onClick={() =>
-          handleConnectRestaurantSystem(
-            provider,
-            category
-          )
-        }
+          <div
+            style={{
+              color: "#cbd5e1",
+              fontSize: "12px",
+              fontWeight: "800",
+            }}
+          >
+            {connection?.last_sync_at
+              ? new Date(
+                  connection.last_sync_at
+                ).toLocaleString()
+              : "No successful sync yet"}
+          </div>
+
+          {isSyncPending && (
+            <div
+              style={{
+                color: "#fbbf24",
+                fontSize: "10px",
+                fontWeight: "800",
+                marginTop: "5px",
+              }}
+            >
+              Sync pending provider API connection
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ACTIONS */}
+      <div
         style={{
-          padding: "8px 12px",
-          borderRadius: "10px",
-          border: "none",
-          background: isConnected
-            ? "rgba(34,197,94,0.14)"
-            : "linear-gradient(135deg,#6D3DF5,#8b5cf6)",
-          color: isConnected
-            ? "#86efac"
-            : "white",
-          fontWeight: "900",
-          cursor: isConnected
-            ? "default"
-            : "pointer",
-          whiteSpace: "nowrap",
+          display: "flex",
+          gap: "8px",
+          flexWrap: "wrap",
         }}
       >
-        {isConnected
-          ? "Connected ✓"
-          : "Connect"}
-      </button>
+        {!isConnected ? (
+          <button
+            type="button"
+            onClick={() =>
+              handleConnectRestaurantSystem(
+                provider,
+                category
+              )
+            }
+            style={{
+              padding: "8px 12px",
+              borderRadius: "10px",
+              border: "none",
+              background:
+                "linear-gradient(135deg,#6D3DF5,#8b5cf6)",
+              color: "white",
+              fontWeight: "900",
+              cursor: "pointer",
+            }}
+          >
+            Connect
+          </button>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={() =>
+                handleSyncRestaurantSystem(provider)
+              }
+              disabled={isSyncPending}
+              style={{
+                padding: "8px 12px",
+                borderRadius: "10px",
+                border:
+                  "1px solid rgba(167,139,250,0.18)",
+                background: isSyncPending
+                  ? "rgba(245,158,11,0.08)"
+                  : "rgba(109,61,245,0.12)",
+                color: isSyncPending
+                  ? "#fbbf24"
+                  : "#c4b5fd",
+                fontWeight: "900",
+                cursor: isSyncPending
+                  ? "default"
+                  : "pointer",
+              }}
+            >
+              {isSyncPending
+                ? "Sync Pending"
+                : "Sync Now"}
+            </button>
+
+            <button
+              type="button"
+              onClick={() =>
+                handleDisconnectRestaurantSystem(
+                  provider
+                )
+              }
+              style={{
+                padding: "8px 12px",
+                borderRadius: "10px",
+                border:
+                  "1px solid rgba(248,113,113,0.16)",
+                background:
+                  "rgba(239,68,68,0.08)",
+                color: "#fca5a5",
+                fontWeight: "900",
+                cursor: "pointer",
+              }}
+            >
+              Disconnect
+            </button>
+          </>
+        )}
+      </div>
     </div>
   );
 };
