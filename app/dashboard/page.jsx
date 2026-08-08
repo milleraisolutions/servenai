@@ -1200,6 +1200,8 @@ const latestAiAction = aiHistory?.length ? aiHistory[0] : null;
  
   const [appliedFixes, setAppliedFixes] = useState([]);
   const [activeTab, setActiveTab] = useState("overview");
+  const [authenticatedUserId, setAuthenticatedUserId] = useState(null);
+const [authReady, setAuthReady] = useState(false);
   const [autopilot, setAutopilot] = useState(false);
   const [timelineAnimated, setTimelineAnimated] = useState(false);
   const [revenueScenario, setRevenueScenario] = useState("base");
@@ -8451,16 +8453,27 @@ const saveRealAppliedFix = async ({
   return data;
 };
 const loadRealAppliedActions = async () => {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  if (!authReady) {
+    console.log("AI ACTIONS WAITING FOR AUTH");
+    return;
+  }
 
-  if (!user?.id) return;
+  const ownerId =
+    dataOwnerId ||
+    authenticatedUserId ||
+    userProfile?.owner_user_id ||
+    user?.id ||
+    null;
+
+  if (!ownerId) {
+    console.log("AI ACTIONS SKIPPED: no authenticated user");
+    return;
+  }
 
   const { data, error } = await supabase
     .from("ai_applied_actions")
     .select("*")
-    .eq("user_id", user.id)
+    .eq("user_id", ownerId)
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -8470,9 +8483,18 @@ const loadRealAppliedActions = async () => {
 
   setRealAppliedActions(data || []);
 };
+
 useEffect(() => {
+  if (!authReady) return;
+
   loadRealAppliedActions();
-}, []);
+}, [
+  authReady,
+  authenticatedUserId,
+  dataOwnerId,
+  user?.id,
+  userProfile?.owner_user_id,
+]);
 const realTotalAiProfit = realAppliedActions.reduce(
   (sum, action) => sum + Number(action.impact_value || 0),
   0
@@ -9342,24 +9364,29 @@ useEffect(() => {
 
   const loadSalesFromDatabase = async () => {
     try {
-      const {
-        data: { user: authenticatedUser },
-        error: authError,
-      } = await supabase.auth.getUser();
-
-      if (authError) {
-        throw authError;
+      if (!authReady) {
+        console.log("POS LOAD WAITING FOR AUTH");
+        return;
       }
 
-      if (!authenticatedUser?.id) {
-        console.log("POS LOAD: NO AUTHENTICATED USER");
+      const ownerId =
+        dataOwnerId ||
+        authenticatedUserId ||
+        userProfile?.owner_user_id ||
+        user?.id ||
+        null;
+
+      if (!ownerId) {
+        console.log("POS LOAD SKIPPED: no authenticated user");
         return;
       }
 
       const possibleUserIds = [
-        authenticatedUser.id,
+        ownerId,
         dataOwnerId,
+        authenticatedUserId,
         userProfile?.owner_user_id,
+        user?.id,
       ].filter(Boolean);
 
       const uniqueUserIds = [...new Set(possibleUserIds)];
@@ -9426,9 +9453,15 @@ useEffect(() => {
         return {
           ...row,
 
-          id: row.id || row.upload_id || `sale-${index}`,
+          id:
+            row.id ||
+            row.upload_id ||
+            `sale-${index}`,
 
-          revenue: Number.isFinite(revenue) ? revenue : 0,
+          revenue:
+            Number.isFinite(revenue)
+              ? revenue
+              : 0,
 
           sale_date: saleDate,
           date: saleDate,
@@ -9449,7 +9482,9 @@ useEffect(() => {
                 .trim()
                 .toLowerCase();
 
-              const selectedLocation = String(activeLocation)
+              const selectedLocation = String(
+                activeLocation
+              )
                 .trim()
                 .toLowerCase();
 
@@ -9461,9 +9496,20 @@ useEffect(() => {
             })
           : normalizedRows;
 
-      console.log("POS NORMALIZED COUNT:", normalizedRows.length);
-      console.log("POS FILTERED COUNT:", filteredRows.length);
-      console.log("POS NORMALIZED FIRST ROW:", filteredRows[0]);
+      console.log(
+        "POS NORMALIZED COUNT:",
+        normalizedRows.length
+      );
+
+      console.log(
+        "POS FILTERED COUNT:",
+        filteredRows.length
+      );
+
+      console.log(
+        "POS NORMALIZED FIRST ROW:",
+        filteredRows[0]
+      );
 
       console.log(
         "POS NORMALIZED TOTAL REVENUE:",
@@ -9480,13 +9526,13 @@ useEffect(() => {
     } catch (error) {
       console.error("LOAD SALES ERROR:", error);
 
-if (!cancelled) {
-  setDbSalesRows((currentRows) =>
-    Array.isArray(currentRows)
-      ? currentRows
-      : []
-  );
-}
+      if (!cancelled) {
+        setDbSalesRows((currentRows) =>
+          Array.isArray(currentRows)
+            ? currentRows
+            : []
+        );
+      }
     }
   };
 
@@ -9496,6 +9542,8 @@ if (!cancelled) {
     cancelled = true;
   };
 }, [
+  authReady,
+  authenticatedUserId,
   dataOwnerId,
   user?.id,
   userProfile?.owner_user_id,
@@ -10794,46 +10842,33 @@ useEffect(() => {
 
   loadRules();
 }, []);
-useEffect(() => {
-  const loadRestockLogs = async () => {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
 
-    const user = session?.user;
-    if (!user?.id) return;
 
-    const { data, error } = await supabase
-      .from("inventory_restock_logs")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(5);
 
-    if (error) {
-      console.error("Restock logs load failed:", error);
-      return;
-    }
-
-    setRestockLogs(data || []);
-  };
-
-  loadRestockLogs();
-}, []);
 const quickRestockRef = useRef(null);
 
 const loadRestockLogs = async () => {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  if (!authReady) {
+    console.log("RESTOCK LOGS WAITING FOR AUTH");
+    return;
+  }
 
-  const user = session?.user;
-  if (!user?.id) return;
+  const ownerId =
+    dataOwnerId ||
+    authenticatedUserId ||
+    userProfile?.owner_user_id ||
+    user?.id ||
+    null;
+
+  if (!ownerId) {
+    console.log("RESTOCK LOGS SKIPPED: no authenticated user");
+    return;
+  }
 
   const { data, error } = await supabase
     .from("inventory_restock_logs")
     .select("*")
-    .eq("user_id", user.id)
+    .eq("user_id", ownerId)
     .order("created_at", { ascending: false })
     .limit(5);
 
@@ -10844,6 +10879,17 @@ const loadRestockLogs = async () => {
 
   setRestockLogs(data || []);
 };
+useEffect(() => {
+  if (!authReady) return;
+
+  loadRestockLogs();
+}, [
+  authReady,
+  authenticatedUserId,
+  dataOwnerId,
+  user?.id,
+  userProfile?.owner_user_id,
+]);
 const inventoryAlerts = useMemo(() => {
   if (!inventoryRestockContext?.items) return [];
 
@@ -11996,33 +12042,38 @@ useEffect(() => {
     try {
       setLaborLoading(true);
 
-      const {
-        data: { user: authenticatedUser },
-        error: authError,
-      } = await supabase.auth.getUser();
-
-      if (authError) {
-        throw authError;
+      if (!authReady) {
+        console.log("LABOR LOAD WAITING FOR AUTH");
+        return;
       }
 
-      if (!authenticatedUser?.id) {
-        console.log("LABOR LOAD: NO AUTHENTICATED USER");
+      const ownerId =
+        dataOwnerId ||
+        authenticatedUserId ||
+        userProfile?.owner_user_id ||
+        user?.id ||
+        null;
+
+      if (!ownerId) {
+        console.log("LABOR LOAD SKIPPED: no authenticated user");
         return;
       }
 
       const possibleUserIds = [
-        authenticatedUser.id,
+        ownerId,
         dataOwnerId,
+        authenticatedUserId,
         userProfile?.owner_user_id,
+        user?.id,
       ].filter(Boolean);
 
       const uniqueUserIds = [...new Set(possibleUserIds)];
 
       console.log("LABOR LOAD USER IDS:", uniqueUserIds);
-      console.log("LABOR AUTH USER:", authenticatedUser.id);
+      console.log("LABOR AUTH USER:", authenticatedUserId);
       console.log("LABOR DATA OWNER:", dataOwnerId);
 
-      let laborQuery = supabase
+      const { data, error } = await supabase
         .from("labor_uploads")
         .select("*")
         .in("user_id", uniqueUserIds)
@@ -12031,17 +12082,18 @@ useEffect(() => {
         })
         .limit(5000);
 
-      const { data, error } = await laborQuery;
-console.log("LABOR RAW DATA:", data);
-console.log("LABOR RAW LENGTH:", data?.length);
-console.log("LABOR ERROR:", error);
+      console.log("LABOR RAW DATA:", data);
+      console.log("LABOR RAW LENGTH:", data?.length);
+      console.log("LABOR ERROR:", error);
 
-if (data?.length) {
-  console.log("FIRST LABOR ROW:", data[0]);
-}
+      if (data?.length) {
+        console.log("FIRST LABOR ROW:", data[0]);
+      }
+
       console.log("LABOR DATABASE RESULT:", data);
       console.log("LABOR DATABASE ERROR:", error);
       console.log("LABOR DATABASE COUNT:", data?.length || 0);
+
       console.log(
         "LABOR DATABASE USER IDS:",
         (data || []).map((row) => row.user_id)
@@ -12059,12 +12111,14 @@ if (data?.length) {
        * 1. Each database record is one labor shift.
        * 2. A database record contains an array in row.rows.
        */
-      const expandedLaborRows = Array.isArray(data) ? data : [];
+      const expandedLaborRows = Array.isArray(data)
+        ? data
+        : [];
 
-console.log(
-  "LABOR DIRECT ROW COUNT:",
-  expandedLaborRows.length
-);
+      console.log(
+        "LABOR DIRECT ROW COUNT:",
+        expandedLaborRows.length
+      );
 
       console.log(
         "LABOR EXPANDED COUNT:",
@@ -12080,11 +12134,13 @@ console.log(
 
         const number = Number(cleaned);
 
-        return Number.isFinite(number) ? number : 0;
+        return Number.isFinite(number)
+          ? number
+          : 0;
       };
 
-      const normalizedLaborRows = expandedLaborRows.map(
-        (row, index) => {
+      const normalizedLaborRows =
+        expandedLaborRows.map((row, index) => {
           const hours = normalizeNumber(
             row.hours_worked ??
               row.hours ??
@@ -12103,19 +12159,20 @@ console.log(
               row.Rate
           );
 
-          const uploadedLaborCost = normalizeNumber(
-            row.labor_cost ??
-              row.laborCost ??
-              row.cost ??
-              row.payroll ??
-              row.wages ??
-              row.total_pay ??
-              row.gross_pay ??
-              row["Labor Cost"] ??
-              row["Payroll Cost"] ??
-              row["Total Pay"] ??
-              row.Cost
-          );
+          const uploadedLaborCost =
+            normalizeNumber(
+              row.labor_cost ??
+                row.laborCost ??
+                row.cost ??
+                row.payroll ??
+                row.wages ??
+                row.total_pay ??
+                row.gross_pay ??
+                row["Labor Cost"] ??
+                row["Payroll Cost"] ??
+                row["Total Pay"] ??
+                row.Cost
+            );
 
           const laborCost =
             uploadedLaborCost > 0
@@ -12206,8 +12263,7 @@ console.log(
               row.Daypart ||
               "Unknown",
           };
-        }
-      );
+        });
 
       const locationFilteredRows =
         shouldFilterByLocation && assignedLocation
@@ -12239,11 +12295,11 @@ console.log(
 
       if (cancelled) return;
 
-  setLaborData(locationFilteredRows);
+      setLaborData(locationFilteredRows);
 
       if (locationFilteredRows.length > 0) {
         localStorage.setItem(
-          `serven_labor_rows_${authenticatedUser.id}`,
+          `serven_labor_rows_${ownerId}`,
           JSON.stringify(locationFilteredRows)
         );
 
@@ -12258,14 +12314,21 @@ console.log(
       if (cancelled) return;
 
       try {
-        const authenticatedUserId =
-          user?.id || dataOwnerId;
+        const cacheUserId =
+          dataOwnerId ||
+          authenticatedUserId ||
+          userProfile?.owner_user_id ||
+          user?.id;
 
         const cachedLabor =
+          (cacheUserId
+            ? localStorage.getItem(
+                `serven_labor_rows_${cacheUserId}`
+              )
+            : null) ||
           localStorage.getItem(
-            `serven_labor_rows_${authenticatedUserId}`
-          ) ||
-          localStorage.getItem("serven_labor_rows");
+            "serven_labor_rows"
+          );
 
         const parsedLabor = cachedLabor
           ? JSON.parse(cachedLabor)
@@ -12301,6 +12364,8 @@ console.log(
     cancelled = true;
   };
 }, [
+  authReady,
+  authenticatedUserId,
   dataOwnerId,
   user?.id,
   userProfile?.owner_user_id,
@@ -38299,7 +38364,59 @@ const IntegrationProviderCard = ({
   );
 };
 
+useEffect(() => {
+  let mounted = true;
 
+  const initializeDashboardAuth = async () => {
+    try {
+      const {
+        data: { session },
+        error,
+      } = await supabase.auth.getSession();
+
+      if (error) {
+        console.error("DASHBOARD AUTH INIT ERROR:", error);
+        return;
+      }
+
+      if (!mounted) return;
+
+      const userId = session?.user?.id || null;
+
+      setAuthenticatedUserId(userId);
+      setAuthReady(true);
+
+      console.log("DASHBOARD AUTH READY:", userId);
+    } catch (error) {
+      console.error("DASHBOARD AUTH INIT FAILED:", error);
+
+      if (mounted) {
+        setAuthReady(true);
+      }
+    }
+  };
+
+  initializeDashboardAuth();
+
+  const {
+    data: { subscription },
+  } = supabase.auth.onAuthStateChange(
+    (_event, session) => {
+      if (!mounted) return;
+
+      setAuthenticatedUserId(
+        session?.user?.id || null
+      );
+
+      setAuthReady(true);
+    }
+  );
+
+  return () => {
+    mounted = false;
+    subscription?.unsubscribe();
+  };
+}, []);
 
 
 console.log("ACCESS DEBUG:", {
@@ -100506,9 +100623,32 @@ if (!res.ok) {
 
 console.log("Upload summary saved:", result);
 
-const {
-  data: { user: currentUser },
-} = await supabase.auth.getUser();
+if (!authReady) {
+  console.log("LABOR LOAD WAITING FOR AUTH");
+  return;
+}
+
+const ownerId =
+  dataOwnerId ||
+  authenticatedUserId ||
+  userProfile?.owner_user_id ||
+  user?.id ||
+  null;
+
+if (!ownerId) {
+  console.log("LABOR LOAD SKIPPED: no authenticated user");
+  return;
+}
+
+const possibleUserIds = [
+  ownerId,
+  dataOwnerId,
+  authenticatedUserId,
+  userProfile?.owner_user_id,
+  user?.id,
+].filter(Boolean);
+
+const uniqueUserIds = [...new Set(possibleUserIds)];
 console.log("DELETE CLICKED uploadId:", uploadId);
 
 console.log("CURRENT LOGGED IN EMAIL:", currentUser?.email);
