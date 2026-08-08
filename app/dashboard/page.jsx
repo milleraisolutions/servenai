@@ -816,6 +816,13 @@ const [livePosOrderItems, setLivePosOrderItems] = useState([]);
 const [livePosLoading, setLivePosLoading] = useState(false);
 const [livePosError, setLivePosError] = useState("");
 const [completedRoleActions, setCompletedRoleActions] = useState([]);
+const [openConnectionSection, setOpenConnectionSection] = useState("pos");
+const [restaurantConnections, setRestaurantConnections] = useState([]);
+const [connectionsLoading, setConnectionsLoading] = useState(false);
+
+
+
+
 
 const loadingKitchenPrepRef = useRef(false);
 const invoiceUploadInputRef = useRef(null);
@@ -18109,16 +18116,22 @@ const sidebarTabs = isKitchenManagerRole
       { key: "kitchen_manager", label: "Kitchen", icon: "🍳" },
     ]
 
-  : isExecutiveRole || isOwnerRole || isCorporateAdminRole
+ : isExecutiveRole || isOwnerRole || isCorporateAdminRole
 ? [
     { key: "overview", label: "Overview", icon: "📊" },
+
+    {
+  key: "connections",
+  label: "Connected Data",
+  icon: "🔗",
+},
+
     { key: "ai", label: "AI Insights", icon: "🧠" },
     { key: "client_alerts", label: "Client Alerts", icon: "🚨" },
     { key: "analytics", label: "Analytics", icon: "📈" },
     { key: "inventory", label: "Inventory", icon: "📦" },
     { key: "financial", label: "Financial Intelligence", icon: "💰" },
 
-    // NEW
     { key: "profit_recovery", label: "Profit Recovery", icon: "💵" },
 
     { key: "labor", label: "Labor Intelligence", icon: "👥" },
@@ -18132,7 +18145,7 @@ const sidebarTabs = isKitchenManagerRole
     { key: "team_management", label: "Team", icon: "👥" },
     { key: "admin", label: "Account Center", icon: "⚙️" },
     { key: "audit_trail", label: "Audit Trail", icon: "🛡️" },
-  ]
+]
 
 : [];
 console.log("SIDEBAR DEBUG", {
@@ -38057,6 +38070,236 @@ const saveCompletedRoleAction = async (action) => {
     return false;
   }
 };
+const loadRestaurantConnections = async () => {
+  try {
+    setConnectionsLoading(true);
+
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError || !user?.id) {
+      console.error("CONNECTION USER ERROR:", userError);
+      setRestaurantConnections([]);
+      return;
+    }
+
+    const ownerId = dataOwnerId || user.id;
+
+    const { data, error } = await supabase
+      .from("integrations")
+      .select("*")
+      .eq("user_id", ownerId)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("CONNECTION LOAD ERROR:", error);
+      setRestaurantConnections([]);
+      return;
+    }
+
+    setRestaurantConnections(data || []);
+  } catch (error) {
+    console.error("LOAD CONNECTIONS ERROR:", error);
+    setRestaurantConnections([]);
+  } finally {
+    setConnectionsLoading(false);
+  }
+};
+
+useEffect(() => {
+  if (activeTab === "connections") {
+    loadRestaurantConnections();
+  }
+}, [activeTab, dataOwnerId]);
+
+const handleConnectRestaurantSystem = async (
+  provider,
+  category
+) => {
+  try {
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError || !user?.id) {
+      setMessage("You must be logged in to connect a system.");
+      return;
+    }
+
+    const ownerId = dataOwnerId || user.id;
+
+    const normalizedProvider = String(provider)
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, "_");
+
+    const { data: existingConnection } = await supabase
+      .from("integrations")
+      .select("*")
+      .eq("user_id", ownerId)
+      .eq("provider", normalizedProvider)
+      .maybeSingle();
+
+    if (existingConnection) {
+      setMessage(`${provider} is already connected.`);
+      await loadRestaurantConnections();
+      return;
+    }
+
+    const { error } = await supabase
+      .from("integrations")
+      .insert({
+        user_id: ownerId,
+        provider: normalizedProvider,
+        category,
+        status: "connected",
+        last_sync_status: "awaiting_initial_sync",
+      });
+
+    if (error) {
+      console.error("CONNECT INTEGRATION ERROR:", error);
+      setMessage(`Could not connect ${provider}.`);
+      return;
+    }
+
+    setMessage(`${provider} connected.`);
+    await loadRestaurantConnections();
+  } catch (error) {
+    console.error("CONNECT SYSTEM ERROR:", error);
+    setMessage(`Could not connect ${provider}.`);
+  }
+};
+
+const isRestaurantSystemConnected = (provider) => {
+  const normalizedProvider = String(provider)
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "_");
+
+  return (restaurantConnections || []).some(
+    (connection) =>
+      connection.provider === normalizedProvider &&
+      String(connection.status || "").toLowerCase() === "connected"
+  );
+};
+
+const getConnectionStatus = (provider) => {
+  const normalizedProvider = String(provider)
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "_");
+
+  return (restaurantConnections || []).find(
+    (connection) =>
+      connection.provider === normalizedProvider
+  );
+};
+
+const IntegrationProviderCard = ({
+  provider,
+  category,
+}) => {
+  const connection = getConnectionStatus(provider);
+
+  const isConnected =
+    String(connection?.status || "").toLowerCase() === "connected";
+
+  return (
+    <div
+      style={{
+        padding: "16px",
+        borderRadius: "16px",
+        background: isConnected
+          ? "rgba(34,197,94,0.06)"
+          : "rgba(255,255,255,0.035)",
+        border: isConnected
+          ? "1px solid rgba(34,197,94,0.18)"
+          : "1px solid rgba(255,255,255,0.07)",
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        gap: "12px",
+        flexWrap: "wrap",
+      }}
+    >
+      <div style={{ minWidth: 0 }}>
+        <div
+          style={{
+            color: "white",
+            fontWeight: "900",
+            fontSize: "14px",
+          }}
+        >
+          {provider}
+        </div>
+
+        <div
+          style={{
+            color: isConnected ? "#86efac" : "#64748b",
+            fontSize: "11px",
+            fontWeight: "800",
+            marginTop: "4px",
+          }}
+        >
+          {isConnected
+            ? "Connected to Serven"
+            : "Not connected"}
+        </div>
+
+        {connection?.last_sync_at && (
+          <div
+            style={{
+              color: "#64748b",
+              fontSize: "10px",
+              marginTop: "3px",
+            }}
+          >
+            Last sync:{" "}
+            {new Date(
+              connection.last_sync_at
+            ).toLocaleString()}
+          </div>
+        )}
+      </div>
+
+      <button
+        type="button"
+        disabled={isConnected}
+        onClick={() =>
+          handleConnectRestaurantSystem(
+            provider,
+            category
+          )
+        }
+        style={{
+          padding: "8px 12px",
+          borderRadius: "10px",
+          border: "none",
+          background: isConnected
+            ? "rgba(34,197,94,0.14)"
+            : "linear-gradient(135deg,#6D3DF5,#8b5cf6)",
+          color: isConnected
+            ? "#86efac"
+            : "white",
+          fontWeight: "900",
+          cursor: isConnected
+            ? "default"
+            : "pointer",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {isConnected
+          ? "Connected ✓"
+          : "Connect"}
+      </button>
+    </div>
+  );
+};
+
+
 
 
 console.log("ACCESS DEBUG:", {
@@ -38485,6 +38728,353 @@ return (
     height: "auto",
   }}
 >
+  {/* =========================
+   CONNECTED DATA
+========================= */}{activeTab === "connections" && (
+  <div
+    style={{
+      display: "grid",
+      gap: "20px",
+    }}
+  >
+    {/* HERO */}
+    <div
+      style={{
+        padding: isMobile ? "22px" : "30px",
+        borderRadius: "28px",
+        background:
+          "linear-gradient(135deg, rgba(109,61,245,0.18), rgba(15,23,42,0.96))",
+        border: "1px solid rgba(167,139,250,0.20)",
+      }}
+    >
+      <div
+        style={{
+          color: "#c4b5fd",
+          fontSize: "12px",
+          fontWeight: "900",
+          letterSpacing: "0.1em",
+          textTransform: "uppercase",
+          marginBottom: "10px",
+        }}
+      >
+        Connected Data Sources
+      </div>
+
+      <h1
+        style={{
+          color: "white",
+          margin: 0,
+          fontSize: isMobile ? "30px" : "42px",
+          fontWeight: "900",
+        }}
+      >
+        Connect Your Restaurant
+      </h1>
+
+      <p
+        style={{
+          color: "#94a3b8",
+          marginTop: "12px",
+          lineHeight: 1.7,
+          maxWidth: "760px",
+        }}
+      >
+        Connect your POS, labor, distributors, inventory systems, or continue
+        using manual uploads.
+      </p>
+    </div>
+
+    {/* CONNECTION CATEGORIES */}
+    <div
+      style={{
+        display: "grid",
+        gap: "14px",
+      }}
+    >
+      {[
+        {
+          key: "pos",
+          icon: "🧾",
+          title: "POS Systems",
+          description:
+            "Connect sales, orders, menu performance, and transaction data.",
+        },
+        {
+          key: "labor",
+          icon: "👥",
+          title: "Labor Systems",
+          description:
+            "Connect employee shifts, hours, wages, schedules, and labor costs.",
+        },
+        {
+          key: "distributors",
+          icon: "🚚",
+          title: "Food Distributors",
+          description:
+            "Connect purchasing, invoices, product pricing, and vendor data.",
+        },
+        {
+          key: "inventory",
+          icon: "📦",
+          title: "Inventory & Back Office",
+          description:
+            "Connect inventory, food-cost, invoice, and purchasing platforms.",
+        },
+        {
+          key: "uploads",
+          icon: "📄",
+          title: "Manual Uploads",
+          description:
+            "Upload files when a direct integration is unavailable.",
+        },
+      ].map((section) => {
+        const isOpen = openConnectionSection === section.key;
+
+        return (
+          <div
+            key={section.key}
+            style={{
+              borderRadius: "22px",
+              background: "rgba(15,23,42,0.94)",
+              border: isOpen
+                ? "1px solid rgba(167,139,250,0.26)"
+                : "1px solid rgba(255,255,255,0.08)",
+              overflow: "hidden",
+            }}
+          >
+            <button
+              type="button"
+              onClick={() =>
+                setOpenConnectionSection(isOpen ? "" : section.key)
+              }
+              style={{
+                width: "100%",
+                padding: isMobile ? "16px" : "20px",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: "14px",
+                background: "transparent",
+                border: "none",
+                color: "white",
+                cursor: "pointer",
+                textAlign: "left",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "14px",
+                  minWidth: 0,
+                }}
+              >
+                <div
+                  style={{
+                    width: "42px",
+                    height: "42px",
+                    borderRadius: "14px",
+                    display: "grid",
+                    placeItems: "center",
+                    background: "rgba(109,61,245,0.12)",
+                    border: "1px solid rgba(167,139,250,0.16)",
+                    fontSize: "20px",
+                    flexShrink: 0,
+                  }}
+                >
+                  {section.icon}
+                </div>
+
+                <div style={{ minWidth: 0 }}>
+                  <div
+                    style={{
+                      fontSize: "15px",
+                      fontWeight: "900",
+                      color: "#ffffff",
+                    }}
+                  >
+                    {section.title}
+                  </div>
+
+                  <div
+                    style={{
+                      marginTop: "3px",
+                      fontSize: "12px",
+                      color: "#94a3b8",
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    {section.description}
+                  </div>
+                </div>
+              </div>
+
+              <div
+                style={{
+                  color: "#c4b5fd",
+                  fontSize: "20px",
+                  fontWeight: "900",
+                  transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
+                  transition: "transform 0.2s ease",
+                }}
+              >
+                ▾
+              </div>
+            </button>
+
+            {isOpen && (
+              <div
+                style={{
+                  padding: "0 20px 20px",
+                }}
+              >
+          {section.key === "pos" && (
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile
+        ? "1fr"
+        : "repeat(2, minmax(0, 1fr))",
+      gap: "12px",
+    }}
+  >
+    {[
+      "Toast",
+      "Square",
+      "Clover",
+      "SpotOn",
+      "Lightspeed",
+      "NCR Aloha",
+      "Other POS",
+    ].map((provider) => (
+      <IntegrationProviderCard
+        key={provider}
+        provider={provider}
+        category="pos"
+      />
+    ))}
+  </div>
+)}
+{section.key === "labor" && (
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile
+        ? "1fr"
+        : "repeat(2, minmax(0, 1fr))",
+      gap: "12px",
+    }}
+  >
+    {[
+      "7shifts",
+      "HotSchedules",
+      "Homebase",
+      "ADP",
+      "Gusto",
+      "Toast Payroll",
+      "Other Labor",
+    ].map((provider) => (
+      <IntegrationProviderCard
+        key={provider}
+        provider={provider}
+        category="labor"
+      />
+    ))}
+  </div>
+)}{section.key === "distributors" && (
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile
+        ? "1fr"
+        : "repeat(2, minmax(0, 1fr))",
+      gap: "12px",
+    }}
+  >
+    {[
+      "Sysco",
+      "US Foods",
+      "Gordon Food Service",
+      "Performance Food Group",
+      "Ben E. Keith",
+      "Cheney Brothers",
+      "Shamrock Foods",
+      "Other Distributor",
+    ].map((provider) => (
+      <IntegrationProviderCard
+        key={provider}
+        provider={provider}
+        category="distributors"
+      />
+    ))}
+  </div>
+)}
+{section.key === "inventory" && (
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile
+        ? "1fr"
+        : "repeat(2, minmax(0, 1fr))",
+      gap: "12px",
+    }}
+  >
+    {[
+      "MarginEdge",
+      "Restaurant365",
+      "MarketMan",
+      "Craftable",
+      "xtraCHEF",
+      "Other Back Office",
+    ].map((provider) => (
+      <IntegrationProviderCard
+        key={provider}
+        provider={provider}
+        category="inventory"
+      />
+    ))}
+  </div>
+)}
+
+{section.key === "uploads" && (
+  <div
+    style={{
+      padding: "16px",
+      borderRadius: "16px",
+      background: "rgba(255,255,255,0.035)",
+      border: "1px solid rgba(255,255,255,0.07)",
+    }}
+  >
+    <div
+      style={{
+        color: "white",
+        fontWeight: "900",
+        marginBottom: "6px",
+      }}
+    >
+      Manual Uploads
+    </div>
+
+    <div
+      style={{
+        color: "#94a3b8",
+        fontSize: "13px",
+        lineHeight: 1.6,
+      }}
+    >
+      Continue using your existing POS, labor, inventory, invoice,
+      beverage, recipe, location, and other manual import tools.
+    </div>
+  </div>
+)}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  </div>
+)}
 {/* ================================ */}
 {/* FIRST-TIME CLIENT SETUP CARD */}
 {/* ================================ */}
