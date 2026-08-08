@@ -889,11 +889,29 @@ const userRole = String(
     "executive"
 ).toLowerCase();
 
-const isOwnerRole = userRole === "restaurant_owner";
-const isExecutiveRole = userRole === "executive";
-const isGMRole = userRole === "gm";
-const isKitchenManagerRole = userRole === "kitchen_manager";
-const isCorporateAdminRole = userRole === "corporate_admin";
+/* =========================
+   RESTAURANT / COMPANY ROLES
+========================= */
+
+const isRestaurantOwnerRole =
+  userRole === "restaurant_owner" ||
+  userRole === "owner";
+
+const isOwnerRole = isRestaurantOwnerRole;
+
+const isExecutiveRole =
+  userRole === "executive";
+
+const isGMRole =
+  userRole === "gm" ||
+  userRole === "general_manager";
+
+const isKitchenManagerRole =
+  userRole === "kitchen_manager";
+
+const isCorporateAdminRole =
+  userRole === "corporate_admin";
+
 const isRegionalDirectorRole =
   userRole === "regional_director";
 
@@ -920,7 +938,7 @@ const isInventoryManagerRole =
 const isBeverageManagerRole =
   userRole === "beverage_manager";
 const isOwner =
-  userProfile?.role === "restaurant_owner" ||
+  isRestaurantOwnerRole ||
   isServenOwner;
 
 const dataOwnerId = userProfile?.owner_user_id || user?.id || null;
@@ -935,13 +953,11 @@ const isManager =
   userRole === "assistant_manager" ||
   userRole === "inventory_manager" ||
   userRole === "beverage_manager";
-
 const canSeeOwnerDashboard =
-  isOwnerRole ||
+  isRestaurantOwnerRole ||
   isExecutiveRole ||
   isCorporateAdminRole ||
-  isServenOwner ||
-  isOwner;
+  isServenOwner;
 const canSeeLeadershipDashboard =
   canSeeOwnerDashboard ||
   isRegionalDirectorRole ||
@@ -17820,10 +17836,9 @@ const locationOptions = useMemo(() => {
   return Array.from(locations);
 }, [multiLocationSalesRows]);
 
-
 const isRestaurantOwner =
-  userRole === "restaurant_owner" ||
-  userRole === "executive";
+  isRestaurantOwnerRole ||
+  isExecutiveRole;
 
 
 
@@ -17946,9 +17961,9 @@ const allowedTabsByRole = {
 
 const canViewTab = (tabId) => {
   if (
-   userRole === "restaurant_owner" ||
-userRole === "executive" ||
-userRole === "corporate_admin"
+    isRestaurantOwnerRole ||
+    isExecutiveRole ||
+    isCorporateAdminRole
   ) {
     return true;
   }
@@ -18027,7 +18042,11 @@ const sidebarTabs = isKitchenManagerRole
   ]
 
 : [];
-
+console.log("SIDEBAR DEBUG", {
+  userRole,
+  sidebarLength: sidebarTabs.length,
+  sidebarTabs,
+});
  
 const deleteLead = async (leadId) => {
   if (!leadId) return;
