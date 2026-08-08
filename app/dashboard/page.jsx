@@ -2725,13 +2725,54 @@ const aiProfitOpportunities = useMemo(() => {
       }
 
       return {
-        id: index + 1,
-        title: item.title || `AI Opportunity ${index + 1}`,
-        description: actionText,
-        impact: parsedImpact || 0,
-        difficulty,
-        category,
-      };
+  id: item.id || index + 1,
+
+  title:
+    item.title ||
+    `AI Opportunity ${index + 1}`,
+
+  description: actionText,
+
+  // Exact action the restaurant should take.
+  nextAction:
+    item.nextAction ||
+    item.next_action ||
+    item.action ||
+    actionText,
+
+  // Expected monthly profit available from completing this action.
+  expectedRecovery:
+    Number(
+      item.expectedRecovery ??
+      item.expected_recovery ??
+      item.recovery ??
+      parsedImpact ??
+      0
+    ) || 0,
+
+  impact: parsedImpact || 0,
+
+  difficulty,
+
+  category,
+
+  // Prefer an AI-provided timeframe.
+  // Only use category/difficulty logic when one was not supplied.
+  timeframe:
+    item.timeframe ||
+    item.time_to_impact ||
+    item.timeToImpact ||
+    (
+      difficulty === "Easy"
+        ? "1–7 Days"
+        : difficulty === "Medium"
+        ? "1–4 Weeks"
+        : "30+ Days"
+    ),
+
+  status:
+    item.status || "Recommended",
+};
     });
   }
 
@@ -15053,12 +15094,64 @@ const highestROILaborActions = useMemo(() => {
   estimatedLaborRecovery,
   salesPerLaborHour,
 ]);
-const restaurantRetains =
-  Number(totalAIRecoveryOpportunity || 0) * 0.7;
+/* =========================
+   SERVEN PERFORMANCE BILLING
+========================= */
 
-const servenSuccessFee =
-  Number(totalAIRecoveryOpportunity || 0) * 0.3;
+const servenPerformanceRate = 0.15;
 
+const potentialRecovery = Number(
+  profitRecoverySummary?.monthlyRecoverable || 0
+);
+
+const verifiedRecovery = Number(
+  profitRecoverySummary?.verifiedRecovered || 0
+);
+
+const remainingRecovery = Math.max(
+  0,
+  potentialRecovery - verifiedRecovery
+);
+
+const performanceFee =
+  verifiedRecovery > 0
+    ? verifiedRecovery * servenPerformanceRate
+    : 0;
+
+// TODO:
+// Pull this from the customer's billing profile/admin settings.
+// For now, leave it at 0 until we connect the admin billing system.
+const platformFee = 0;
+
+const totalInvoice =
+  platformFee + performanceFee;
+
+const restaurantNetGain = Math.max(
+  0,
+  verifiedRecovery - totalInvoice
+);
+
+const recoveryRate =
+  potentialRecovery > 0
+    ? Math.min(
+        100,
+        Math.round(
+          (verifiedRecovery / potentialRecovery) * 100
+        )
+      )
+    : 0;
+
+const servenPerformanceSummary = {
+  potentialRecovery,
+  verifiedRecovery,
+  remainingRecovery,
+  performanceFee,
+  performanceRate: servenPerformanceRate,
+  platformFee,
+  totalInvoice,
+  restaurantNetGain,
+  recoveryRate,
+};
   const topLossCategories = [
   {
     name: "Labor",
@@ -39738,8 +39831,9 @@ selectedHandler();
   </div>
 </div>
 {hasFullRecoveryData&& (
-  <>
-  {/* EXECUTIVE PROFIT RECOVERY HERO */}
+  <>{/* =========================
+   SERVEN PROFIT RECOVERY SUMMARY
+========================= */}
 <div
   style={{
     marginTop: "18px",
@@ -39747,96 +39841,892 @@ selectedHandler();
     padding: isMobile ? "20px" : "28px",
     borderRadius: "28px",
     background:
-      "radial-gradient(circle at top right, rgba(239,68,68,0.18), transparent 35%), linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.94))",
-    border: "1px solid rgba(248,113,113,0.22)",
+      "radial-gradient(circle at top right, rgba(109,61,245,0.22), transparent 34%), linear-gradient(135deg, rgba(15,23,42,0.99), rgba(30,41,59,0.96))",
+    border: "1px solid rgba(167,139,250,0.22)",
     boxShadow: "0 26px 70px rgba(2,6,23,0.35)",
+    overflow: "hidden",
   }}
 >
+  {/* HEADER */}
   <div
     style={{
-      color: "#fca5a5",
-      fontSize: "12px",
-      fontWeight: "950",
-      letterSpacing: "0.12em",
-      textTransform: "uppercase",
-      marginBottom: "10px",
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "flex-start",
+      gap: "16px",
+      flexWrap: "wrap",
+      marginBottom: "22px",
     }}
   >
-    Profit Recovery Alert
+    <div>
+      <div
+        style={{
+          color: "#c4b5fd",
+          fontSize: "12px",
+          fontWeight: "950",
+          letterSpacing: "0.12em",
+          textTransform: "uppercase",
+          marginBottom: "8px",
+        }}
+      >
+        Serven Performance
+      </div>
+
+      <h2
+        style={{
+          margin: 0,
+          color: "white",
+          fontSize: isMobile ? "26px" : "36px",
+          fontWeight: "1000",
+          letterSpacing: "-0.035em",
+        }}
+      >
+        Monthly Profit Recovery
+      </h2>
+
+      <p
+        style={{
+          margin: "8px 0 0",
+          color: "#94a3b8",
+          fontSize: "13px",
+          lineHeight: 1.6,
+          maxWidth: "700px",
+        }}
+      >
+        See what Serven identified, what has been verified as recovered,
+        what remains available, and the financial impact of your recovery.
+      </p>
+    </div>
+
+    <div
+      style={{
+        padding: "10px 14px",
+        borderRadius: "999px",
+        background:
+          servenPerformanceSummary.verifiedRecovery > 0
+            ? "rgba(34,197,94,0.12)"
+            : "rgba(148,163,184,0.10)",
+        border:
+          servenPerformanceSummary.verifiedRecovery > 0
+            ? "1px solid rgba(34,197,94,0.22)"
+            : "1px solid rgba(148,163,184,0.16)",
+        color:
+          servenPerformanceSummary.verifiedRecovery > 0
+            ? "#86efac"
+            : "#cbd5e1",
+        fontSize: "12px",
+        fontWeight: "900",
+      }}
+    >
+      {servenPerformanceSummary.verifiedRecovery > 0
+        ? `${servenPerformanceSummary.recoveryRate}% Recovered`
+        : "Recovery Tracking Active"}
+    </div>
   </div>
 
+  {/* PRIMARY LOSS NUMBER */}
   <div
     style={{
-      color: "white",
-      fontSize: isMobile ? "18px" : "22px",
-      fontWeight: "950",
-      marginBottom: "10px",
-      textTransform: "uppercase",
-      letterSpacing: "0.06em",
+      padding: isMobile ? "18px" : "22px",
+      borderRadius: "22px",
+      background:
+        "linear-gradient(135deg, rgba(127,29,29,0.24), rgba(69,10,10,0.10))",
+      border: "1px solid rgba(248,113,113,0.18)",
+      marginBottom: "16px",
     }}
   >
-   {!hasFullRecoveryData
-  ? "Profit Recovery Analysis"
-  : Number(totalAIRecoveryOpportunity || 0) > 0
-  ? "You're Losing"
-  : "Operations Currently Optimized"}
+    <div
+      style={{
+        color: "#fca5a5",
+        fontSize: "11px",
+        fontWeight: "950",
+        textTransform: "uppercase",
+        letterSpacing: "0.1em",
+        marginBottom: "8px",
+      }}
+    >
+      You&apos;re Currently Losing
+    </div>
+
+    <div
+      style={{
+        color: "#ffffff",
+        fontSize: isMobile ? "38px" : "56px",
+        lineHeight: 1,
+        fontWeight: "1000",
+        letterSpacing: "-0.045em",
+      }}
+    >
+      $
+      {Number(
+        servenPerformanceSummary.potentialRecovery || 0
+      ).toLocaleString()}
+      <span
+        style={{
+          color: "#94a3b8",
+          fontSize: isMobile ? "16px" : "20px",
+          fontWeight: "800",
+          marginLeft: "6px",
+        }}
+      >
+        /month
+      </span>
+    </div>
+
+    <div
+      style={{
+        color: "#94a3b8",
+        fontSize: "12px",
+        marginTop: "10px",
+      }}
+    >
+      Recoverable profit leakage identified from your uploaded operational
+      data.
+    </div>
   </div>
 
-  <div
-    style={{
-      color: "#fca5a5",
-      fontSize: isMobile ? "42px" : "64px",
-      fontWeight: "1000",
-      lineHeight: 1,
-      marginBottom: "18px",
-    }}
-  >
-  {!hasFullRecoveryData
-  ? "Upload Data To Reveal"
-  : Number(totalAIRecoveryOpportunity || 0) > 0
-  ? `$${Number(totalAIRecoveryOpportunity || 0).toLocaleString()}/mo`
-  : "$0/mo"}
-  </div>
-
+  {/* RECOVERY METRICS */}
   <div
     style={{
       display: "grid",
-      gridTemplateColumns: isMobile ? "1fr" : "repeat(3, minmax(0, 1fr))",
+      gridTemplateColumns: isMobile
+        ? "1fr"
+        : "repeat(3, minmax(0, 1fr))",
       gap: "12px",
-      marginTop: "18px",
+      marginBottom: "16px",
     }}
   >
-    <GlassCard
-      title="Annual Impact"
-      value={
-       hasFullRecoveryData
-          ? `$${Number(annualRecoverableProfit || 0).toLocaleString()}`
-          : "Awaiting Data"
-      }
-      subtext="Projected yearly leakage"
-    />
+    {/* VERIFIED */}
+    <div
+      style={{
+        padding: "18px",
+        borderRadius: "20px",
+        background: "rgba(34,197,94,0.08)",
+        border: "1px solid rgba(34,197,94,0.18)",
+      }}
+    >
+      <div
+        style={{
+          color: "#86efac",
+          fontSize: "11px",
+          fontWeight: "900",
+          textTransform: "uppercase",
+          letterSpacing: "0.08em",
+        }}
+      >
+        Verified Recovered
+      </div>
 
-    <GlassCard
-      title="Operator Keeps"
-      value={
-        hasFullRecoveryData
-          ? `$${Number((restaurantRetains || 0) * 12).toLocaleString()}`
-          : "Awaiting Data"
-      }
-      subtext="70% retained by operator"
-    />
+      <div
+        style={{
+          color: "#ffffff",
+          fontSize: "28px",
+          fontWeight: "1000",
+          marginTop: "7px",
+        }}
+      >
+        $
+        {Number(
+          servenPerformanceSummary.verifiedRecovery || 0
+        ).toLocaleString()}
+      </div>
 
-    <GlassCard
-      title="Serven Success Fee"
-      value={
-        hasFullRecoveryData
-          ? `$${Number((servenSuccessFee || 0) * 12).toLocaleString()}`
-          : "Awaiting Data"
-      }
-      subtext="30% performance share"
-    />
+      <div
+        style={{
+          color: "#64748b",
+          fontSize: "12px",
+          marginTop: "5px",
+        }}
+      >
+        Confirmed profit recovered
+      </div>
+    </div>
+
+    {/* REMAINING */}
+    <div
+      style={{
+        padding: "18px",
+        borderRadius: "20px",
+        background: "rgba(245,158,11,0.07)",
+        border: "1px solid rgba(245,158,11,0.16)",
+      }}
+    >
+      <div
+        style={{
+          color: "#fcd34d",
+          fontSize: "11px",
+          fontWeight: "900",
+          textTransform: "uppercase",
+          letterSpacing: "0.08em",
+        }}
+      >
+        Still Available
+      </div>
+
+      <div
+        style={{
+          color: "#ffffff",
+          fontSize: "28px",
+          fontWeight: "1000",
+          marginTop: "7px",
+        }}
+      >
+        $
+        {Number(
+          servenPerformanceSummary.remainingRecovery || 0
+        ).toLocaleString()}
+      </div>
+
+      <div
+        style={{
+          color: "#64748b",
+          fontSize: "12px",
+          marginTop: "5px",
+        }}
+      >
+        Remaining profit opportunity
+      </div>
+    </div>
+
+    {/* RECOVERY RATE */}
+    <div
+      style={{
+        padding: "18px",
+        borderRadius: "20px",
+        background: "rgba(109,61,245,0.09)",
+        border: "1px solid rgba(167,139,250,0.17)",
+      }}
+    >
+      <div
+        style={{
+          color: "#c4b5fd",
+          fontSize: "11px",
+          fontWeight: "900",
+          textTransform: "uppercase",
+          letterSpacing: "0.08em",
+        }}
+      >
+        Recovery Progress
+      </div>
+
+      <div
+        style={{
+          color: "#ffffff",
+          fontSize: "28px",
+          fontWeight: "1000",
+          marginTop: "7px",
+        }}
+      >
+        {Number(
+          servenPerformanceSummary.recoveryRate || 0
+        ).toLocaleString()}
+        %
+      </div>
+
+      <div
+        style={{
+          color: "#64748b",
+          fontSize: "12px",
+          marginTop: "5px",
+        }}
+      >
+        Of identified opportunity recovered
+      </div>
+    </div>
+  </div>
+
+  {/* SERVEN BILLING / VALUE ROW */}
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile
+        ? "1fr"
+        : "repeat(4, minmax(0, 1fr))",
+      gap: "12px",
+    }}
+  >
+    {[
+      {
+        label: "Performance Fee",
+        value: `$${Number(
+          servenPerformanceSummary.performanceFee || 0
+        ).toLocaleString()}`,
+        subtext: "15% of verified recovery",
+      },
+      {
+        label: "Platform Fee",
+        value:
+          Number(servenPerformanceSummary.platformFee || 0) > 0
+            ? `$${Number(
+                servenPerformanceSummary.platformFee || 0
+              ).toLocaleString()}`
+            : "Admin Set",
+        subtext: "Based on your Serven agreement",
+      },
+      {
+        label: "Current Invoice",
+        value: `$${Number(
+          servenPerformanceSummary.totalInvoice || 0
+        ).toLocaleString()}`,
+        subtext:
+          Number(servenPerformanceSummary.platformFee || 0) > 0
+            ? "Platform + performance"
+            : "Performance fee currently calculated",
+      },
+      {
+        label: "Restaurant Net Gain",
+        value: `+$${Number(
+          servenPerformanceSummary.restaurantNetGain || 0
+        ).toLocaleString()}`,
+        subtext: "Recovered profit after Serven fees",
+      },
+    ].map((item) => (
+      <div
+        key={item.label}
+        style={{
+          padding: "16px",
+          borderRadius: "18px",
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(255,255,255,0.07)",
+          minWidth: 0,
+        }}
+      >
+        <div
+          style={{
+            color: "#94a3b8",
+            fontSize: "10px",
+            fontWeight: "900",
+            textTransform: "uppercase",
+            letterSpacing: "0.08em",
+          }}
+        >
+          {item.label}
+        </div>
+
+        <div
+          style={{
+            color:
+              item.label === "Restaurant Net Gain"
+                ? "#86efac"
+                : "#ffffff",
+            fontSize: "21px",
+            fontWeight: "950",
+            marginTop: "7px",
+            overflowWrap: "anywhere",
+          }}
+        >
+          {item.value}
+        </div>
+
+        <div
+          style={{
+            color: "#64748b",
+            fontSize: "11px",
+            marginTop: "5px",
+            lineHeight: 1.45,
+          }}
+        >
+          {item.subtext}
+        </div>
+      </div>
+    ))}
   </div>
 </div>
+
+{/* =========================
+   SERVEN PERFORMANCE REPORT
+========================= */}
+<div
+  style={{
+    marginBottom: "18px",
+    padding: isMobile ? "20px" : "26px",
+    borderRadius: "26px",
+    background:
+      "radial-gradient(circle at top right, rgba(212,175,55,0.14), transparent 32%), linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.94))",
+    border: "1px solid rgba(212,175,55,0.20)",
+    boxShadow: "0 22px 60px rgba(2,6,23,0.28)",
+    overflow: "hidden",
+  }}
+>
+  {/* REPORT HEADER */}
+  <div
+    style={{
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "flex-start",
+      gap: "14px",
+      flexWrap: "wrap",
+      marginBottom: "22px",
+    }}
+  >
+    <div>
+      <div
+        style={{
+          color: "#d4af37",
+          fontSize: "11px",
+          fontWeight: "950",
+          letterSpacing: "0.12em",
+          textTransform: "uppercase",
+          marginBottom: "8px",
+        }}
+      >
+        Serven Performance Report
+      </div>
+
+      <h3
+        style={{
+          margin: 0,
+          color: "white",
+          fontSize: isMobile ? "24px" : "30px",
+          fontWeight: "950",
+          letterSpacing: "-0.03em",
+        }}
+      >
+        Your Monthly Recovery Performance
+      </h3>
+
+      <p
+        style={{
+          color: "#94a3b8",
+          fontSize: "13px",
+          lineHeight: 1.65,
+          margin: "8px 0 0",
+          maxWidth: "720px",
+        }}
+      >
+        A clear breakdown of the profit Serven identified, the amount
+        verified as recovered, what remains available, and the value retained
+        by your restaurant.
+      </p>
+    </div>
+
+    <div
+      style={{
+        padding: "9px 13px",
+        borderRadius: "999px",
+        background: "rgba(212,175,55,0.08)",
+        border: "1px solid rgba(212,175,55,0.18)",
+        color: "#fde68a",
+        fontSize: "11px",
+        fontWeight: "900",
+        whiteSpace: "nowrap",
+      }}
+    >
+      Monthly Performance
+    </div>
+  </div>
+
+  {/* RECOVERY FLOW */}
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile
+        ? "1fr"
+        : "repeat(3, minmax(0, 1fr))",
+      gap: "14px",
+      marginBottom: "18px",
+    }}
+  >
+    {/* IDENTIFIED */}
+    <div
+      style={{
+        padding: "18px",
+        borderRadius: "20px",
+        background: "rgba(239,68,68,0.07)",
+        border: "1px solid rgba(248,113,113,0.15)",
+      }}
+    >
+      <div
+        style={{
+          color: "#fca5a5",
+          fontSize: "10px",
+          fontWeight: "900",
+          textTransform: "uppercase",
+          letterSpacing: "0.08em",
+          marginBottom: "8px",
+        }}
+      >
+        Profit Leakage Identified
+      </div>
+
+      <div
+        style={{
+          color: "white",
+          fontSize: "28px",
+          fontWeight: "1000",
+        }}
+      >
+        $
+        {Number(
+          servenPerformanceSummary.potentialRecovery || 0
+        ).toLocaleString()}
+      </div>
+
+      <div
+        style={{
+          color: "#64748b",
+          fontSize: "12px",
+          marginTop: "6px",
+        }}
+      >
+        Monthly opportunity detected
+      </div>
+    </div>
+
+    {/* RECOVERED */}
+    <div
+      style={{
+        padding: "18px",
+        borderRadius: "20px",
+        background: "rgba(34,197,94,0.08)",
+        border: "1px solid rgba(34,197,94,0.18)",
+      }}
+    >
+      <div
+        style={{
+          color: "#86efac",
+          fontSize: "10px",
+          fontWeight: "900",
+          textTransform: "uppercase",
+          letterSpacing: "0.08em",
+          marginBottom: "8px",
+        }}
+      >
+        Verified Profit Recovered
+      </div>
+
+      <div
+        style={{
+          color: "white",
+          fontSize: "28px",
+          fontWeight: "1000",
+        }}
+      >
+        $
+        {Number(
+          servenPerformanceSummary.verifiedRecovery || 0
+        ).toLocaleString()}
+      </div>
+
+      <div
+        style={{
+          color: "#64748b",
+          fontSize: "12px",
+          marginTop: "6px",
+        }}
+      >
+        Confirmed financial improvement
+      </div>
+    </div>
+
+    {/* REMAINING */}
+    <div
+      style={{
+        padding: "18px",
+        borderRadius: "20px",
+        background: "rgba(245,158,11,0.07)",
+        border: "1px solid rgba(245,158,11,0.16)",
+      }}
+    >
+      <div
+        style={{
+          color: "#fcd34d",
+          fontSize: "10px",
+          fontWeight: "900",
+          textTransform: "uppercase",
+          letterSpacing: "0.08em",
+          marginBottom: "8px",
+        }}
+      >
+        Remaining Opportunity
+      </div>
+
+      <div
+        style={{
+          color: "white",
+          fontSize: "28px",
+          fontWeight: "1000",
+        }}
+      >
+        $
+        {Number(
+          servenPerformanceSummary.remainingRecovery || 0
+        ).toLocaleString()}
+      </div>
+
+      <div
+        style={{
+          color: "#64748b",
+          fontSize: "12px",
+          marginTop: "6px",
+        }}
+      >
+        Profit still available to recover
+      </div>
+    </div>
+  </div>
+
+  {/* RECOVERY PROGRESS */}
+  <div
+    style={{
+      padding: "18px",
+      borderRadius: "20px",
+      background: "rgba(255,255,255,0.035)",
+      border: "1px solid rgba(255,255,255,0.07)",
+      marginBottom: "18px",
+    }}
+  >
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        gap: "12px",
+        flexWrap: "wrap",
+        marginBottom: "10px",
+      }}
+    >
+      <span
+        style={{
+          color: "#e2e8f0",
+          fontSize: "13px",
+          fontWeight: "900",
+        }}
+      >
+        Recovery Progress
+      </span>
+
+      <span
+        style={{
+          color: "#86efac",
+          fontSize: "14px",
+          fontWeight: "950",
+        }}
+      >
+        {Number(
+          servenPerformanceSummary.recoveryRate || 0
+        ).toLocaleString()}
+        %
+      </span>
+    </div>
+
+    <div
+      style={{
+        width: "100%",
+        height: "10px",
+        borderRadius: "999px",
+        background: "rgba(255,255,255,0.07)",
+        overflow: "hidden",
+      }}
+    >
+      <div
+        style={{
+          width: `${Math.min(
+            100,
+            Number(servenPerformanceSummary.recoveryRate || 0)
+          )}%`,
+          height: "100%",
+          borderRadius: "999px",
+          background:
+            "linear-gradient(90deg, #22c55e, #86efac)",
+          transition: "width 0.4s ease",
+        }}
+      />
+    </div>
+
+    <div
+      style={{
+        color: "#64748b",
+        fontSize: "11px",
+        marginTop: "8px",
+      }}
+    >
+      Percentage of identified monthly profit opportunity that has been
+      verified as recovered.
+    </div>
+  </div>
+
+  {/* BILLING + NET VALUE */}
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile
+        ? "1fr"
+        : "repeat(2, minmax(0, 1fr))",
+      gap: "14px",
+    }}
+  >
+    {/* SERVEN FEES */}
+    <div
+      style={{
+        padding: "18px",
+        borderRadius: "20px",
+        background: "rgba(109,61,245,0.07)",
+        border: "1px solid rgba(167,139,250,0.15)",
+      }}
+    >
+      <div
+        style={{
+          color: "#c4b5fd",
+          fontSize: "11px",
+          fontWeight: "900",
+          textTransform: "uppercase",
+          letterSpacing: "0.08em",
+          marginBottom: "14px",
+        }}
+      >
+        Serven Fees
+      </div>
+
+      <div
+        style={{
+          display: "grid",
+          gap: "10px",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            gap: "12px",
+          }}
+        >
+          <span style={{ color: "#94a3b8", fontSize: "12px" }}>
+            Performance Fee (15%)
+          </span>
+
+          <span
+            style={{
+              color: "white",
+              fontSize: "13px",
+              fontWeight: "900",
+            }}
+          >
+            $
+            {Number(
+              servenPerformanceSummary.performanceFee || 0
+            ).toLocaleString()}
+          </span>
+        </div>
+
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            gap: "12px",
+          }}
+        >
+          <span style={{ color: "#94a3b8", fontSize: "12px" }}>
+            Platform Fee
+          </span>
+
+          <span
+            style={{
+              color: "white",
+              fontSize: "13px",
+              fontWeight: "900",
+            }}
+          >
+            {Number(servenPerformanceSummary.platformFee || 0) > 0
+              ? `$${Number(
+                  servenPerformanceSummary.platformFee || 0
+                ).toLocaleString()}`
+              : "Admin Set"}
+          </span>
+        </div>
+
+        <div
+          style={{
+            height: "1px",
+            background: "rgba(255,255,255,0.07)",
+          }}
+        />
+
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            gap: "12px",
+          }}
+        >
+          <span
+            style={{
+              color: "#e2e8f0",
+              fontSize: "13px",
+              fontWeight: "900",
+            }}
+          >
+            Current Invoice
+          </span>
+
+          <span
+            style={{
+              color: "white",
+              fontSize: "18px",
+              fontWeight: "1000",
+            }}
+          >
+            $
+            {Number(
+              servenPerformanceSummary.totalInvoice || 0
+            ).toLocaleString()}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    {/* RESTAURANT VALUE */}
+    <div
+      style={{
+        padding: "18px",
+        borderRadius: "20px",
+        background: "rgba(34,197,94,0.08)",
+        border: "1px solid rgba(34,197,94,0.18)",
+      }}
+    >
+      <div
+        style={{
+          color: "#86efac",
+          fontSize: "11px",
+          fontWeight: "900",
+          textTransform: "uppercase",
+          letterSpacing: "0.08em",
+          marginBottom: "10px",
+        }}
+      >
+        Restaurant Value Created
+      </div>
+
+      <div
+        style={{
+          color: "#86efac",
+          fontSize: isMobile ? "32px" : "40px",
+          fontWeight: "1000",
+          letterSpacing: "-0.035em",
+        }}
+      >
+        +$
+        {Number(
+          servenPerformanceSummary.restaurantNetGain || 0
+        ).toLocaleString()}
+      </div>
+
+      <div
+        style={{
+          color: "#cbd5e1",
+          fontSize: "12px",
+          lineHeight: 1.6,
+          marginTop: "7px",
+        }}
+      >
+        Verified recovered profit remaining with the restaurant after
+        currently calculated Serven fees.
+      </div>
+    </div>
+  </div>
+</div>
+
+
 {/* EXECUTIVE COMMAND CENTER */}
 <div
   style={{
@@ -72497,11 +73387,18 @@ role: "Executive visibility & AI intelligence",
   const actionPriority =
     index === 0 ? "Highest Priority" : index === 1 ? "High Priority" : "Recommended";
 const timeToImpact =
-  item.difficulty === "Easy"
-    ? "1-7 Days"
-    : item.difficulty === "Medium"
-    ? "1-4 Weeks"
-    : "30+ Days";
+  item.timeframe || "Timing Under Review";
+
+const expectedRecovery = Number(
+  item.expectedRecovery ??
+  item.impact ??
+  0
+);
+
+const nextAction =
+  item.nextAction ||
+  item.description ||
+  "Review this opportunity with your management team.";
       return (
         <div
           key={item.id}
@@ -72536,78 +73433,112 @@ const timeToImpact =
     {actionPriority}
   </div>
 
-  <div
-    style={{
-      color: "white",
-      fontWeight: "900",
-      fontSize: "15px",
-      marginBottom: "6px",
-    }}
-  >
-    {item.title}
-  </div>
-
-            <div
-              style={{
-                color: "#94a3b8",
-                fontSize: "13px",
-                lineHeight: 1.5,
-                marginBottom: "10px",
-              }}
-            >
-              {item.description}
-            </div>
-
-            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-              <span
-                style={{
-                  padding: "4px 10px",
-                  borderRadius: "999px",
-                  background: "rgba(79,70,229,0.16)",
-                  color: "#c7d2fe",
-                  fontSize: "11px",
-                  fontWeight: "800",
-                }}
-              >
-                {item.category}
-              </span>
-
-              <span
-                style={{
-                  padding: "4px 10px",
-                  borderRadius: "999px",
-                  background: "rgba(255,255,255,0.08)",
-                  color: "#cbd5e1",
-                  fontSize: "11px",
-                  fontWeight: "800",
-                }}
-              >
-                {item.difficulty}
-              </span>
-<span
+<div
   style={{
-    padding: "4px 10px",
-    borderRadius: "999px",
-    background: "rgba(251,191,36,0.12)",
-    color: "#fbbf24",
-    fontSize: "11px",
-    fontWeight: "800",
+    color: "#94a3b8",
+    fontSize: "13px",
+    lineHeight: 1.55,
+    marginBottom: "12px",
   }}
 >
-  {timeToImpact}
-</span>
-              <span
-                style={{
-                  padding: "4px 10px",
-                  borderRadius: "999px",
-                  background: "rgba(34,197,94,0.14)",
-                  color: "#6ee7b7",
-                  fontSize: "11px",
-                  fontWeight: "900",
-                }}
-              >
-                +${Number(item.impact || 0).toLocaleString()}/mo
-              </span>
+  {item.description}
+</div>
+
+{/* WHAT TO DO NEXT */}
+<div
+  style={{
+    padding: "12px 14px",
+    borderRadius: "14px",
+    background: "rgba(109,61,245,0.08)",
+    border: "1px solid rgba(167,139,250,0.14)",
+    marginBottom: "12px",
+  }}
+>
+  <div
+    style={{
+      color: "#c4b5fd",
+      fontSize: "10px",
+      fontWeight: "900",
+      textTransform: "uppercase",
+      letterSpacing: "0.08em",
+      marginBottom: "5px",
+    }}
+  >
+    What To Do Next
+  </div>
+
+  <div
+    style={{
+      color: "#e2e8f0",
+      fontSize: "13px",
+      fontWeight: "750",
+      lineHeight: 1.55,
+    }}
+  >
+    {nextAction}
+  </div>
+</div>
+
+{/* ACTION DETAILS */}
+<div
+  style={{
+    display: "flex",
+    gap: "8px",
+    flexWrap: "wrap",
+  }}
+>
+  <span
+    style={{
+      padding: "4px 10px",
+      borderRadius: "999px",
+      background: "rgba(79,70,229,0.16)",
+      color: "#c7d2fe",
+      fontSize: "11px",
+      fontWeight: "800",
+    }}
+  >
+    {item.category}
+  </span>
+
+  <span
+    style={{
+      padding: "4px 10px",
+      borderRadius: "999px",
+      background: "rgba(255,255,255,0.08)",
+      color: "#cbd5e1",
+      fontSize: "11px",
+      fontWeight: "800",
+    }}
+  >
+    {item.difficulty}
+  </span>
+
+  <span
+    style={{
+      padding: "5px 10px",
+      borderRadius: "999px",
+      background: "rgba(251,191,36,0.12)",
+      color: "#fbbf24",
+      fontSize: "11px",
+      fontWeight: "900",
+    }}
+  >
+    ⏱ {timeToImpact}
+  </span>
+
+  <span
+    style={{
+      padding: "5px 10px",
+      borderRadius: "999px",
+      background: "rgba(34,197,94,0.14)",
+      color: "#6ee7b7",
+      fontSize: "11px",
+      fontWeight: "900",
+    }}
+  >
+    Recover up to ${expectedRecovery.toLocaleString()}/mo
+  </span>
+
             </div>
           </div>
 

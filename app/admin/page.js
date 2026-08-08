@@ -191,7 +191,43 @@ export default function AdminPage() {
       const expectedCampaignRevenue = customerCampaigns.reduce((sum, campaign) => sum + Number(campaign.expected_revenue || 0), 0);
       const campaignCount = customerCampaigns.length;
       const totalRevenue = customerSales.reduce((sum, sale) => sum + Number(sale.revenue || 0), 0);
-      const aiProfitGenerated = customerAiActions.reduce((sum, action) => sum + Number(action.impact_value || 0), 0);
+      const verifiedCustomerActions = customerAiActions.filter((action) => {
+  const status = String(
+    action.status ||
+    action.recovery_status ||
+    ""
+  ).toLowerCase();
+
+  return (
+    status === "verified" ||
+    status === "completed" ||
+    action.verified === true ||
+    action.is_verified === true
+  );
+});
+
+const aiProfitGenerated = verifiedCustomerActions.reduce(
+  (sum, action) => {
+    const recoveredValue = Number(
+      action.actual_recovery ||
+      action.actualRecovery ||
+      action.recovered_profit ||
+      action.recoveredProfit ||
+      action.verified_recovered ||
+      action.recovered ||
+      action.impact_value ||
+      action.impactValue ||
+      0
+    );
+
+    return sum + (
+      Number.isFinite(recoveredValue)
+        ? recoveredValue
+        : 0
+    );
+  },
+  0
+);
       const openAlerts = customerAlerts.filter((alert) => String(alert.status || "open").toLowerCase() !== "closed").length;
 
       const lastUpload = customerSales.length
@@ -212,7 +248,8 @@ export default function AdminPage() {
         ...customer,
         totalRevenue,
         aiProfitGenerated,
-        aiActionsCount: customerAiActions.length,
+       aiActionsCount: customerAiActions.length,
+verifiedAiActionsCount: verifiedCustomerActions.length,
         openAlerts,
         lastUpload,
         healthScore,
@@ -599,6 +636,376 @@ const deleteCustomer = async (customerId) => {
     return customers.filter((c) => Number(c.emailUsagePercent || 0) >= 80 || Number(c.smsUsagePercent || 0) >= 80);
   }, [customers]);
 
+/* =========================
+   SERVEN OWNER SUMMARY
+========================= */
+
+const servenOwnerSummary = useMemo(() => {
+  const performanceRate = 0.15;
+
+  const totalVerifiedRecovery = Number(
+    stats?.totalAIProfitGenerated || 0
+  );
+
+  const totalPerformanceFees =
+    totalVerifiedRecovery * performanceRate;
+
+  // We will connect actual client base fees from Admin next.
+  const totalPlatformRevenue = 0;
+
+  const totalMonthlyRevenue =
+    totalPerformanceFees + totalPlatformRevenue;
+
+  const totalClients = customers.length;
+
+  const activeClients = customers.filter(
+    (client) =>
+      String(client.customer_status || "").toLowerCase() === "active"
+  ).length;
+
+  const pilotClients = customers.filter(
+    (client) =>
+      String(client.customer_status || "").toLowerCase() === "pilot"
+  ).length;
+
+  const averageRecoveryPerClient =
+    totalClients > 0
+      ? totalVerifiedRecovery / totalClients
+      : 0;
+
+  return {
+    totalVerifiedRecovery,
+    totalPerformanceFees,
+    totalPlatformRevenue,
+    totalMonthlyRevenue,
+    totalClients,
+    activeClients,
+    pilotClients,
+    averageRecoveryPerClient,
+  };
+}, [
+  stats?.totalAIProfitGenerated,
+  customers,
+]);
+
+const topRecoveringClients = useMemo(() => {
+  return (customers || [])
+    .map((client) => {
+      const verifiedRecovery = Number(
+        client.aiProfitGenerated || 0
+      );
+
+      const performanceFee =
+        verifiedRecovery * 0.15;
+
+      return {
+        ...client,
+        verifiedRecovery,
+        performanceFee,
+      };
+    })
+    .filter((client) => client.verifiedRecovery > 0)
+    .sort(
+      (a, b) =>
+        b.verifiedRecovery - a.verifiedRecovery
+    )
+    .slice(0, 10);
+}, [customers]);
+
+const clientInvoiceQueue = useMemo(() => {
+  return (customers || [])
+    .map((client) => {
+      const verifiedRecovery = Number(
+        client.aiProfitGenerated || 0
+      );
+
+      const performanceFee =
+        verifiedRecovery * 0.15;
+
+      const platformFee = Number(
+        client.monthly_price ||
+        client.platform_fee ||
+        client.base_fee ||
+        0
+      );
+
+      const totalDue =
+        performanceFee + platformFee;
+
+      return {
+        ...client,
+        verifiedRecovery,
+        performanceFee,
+        platformFee,
+        totalDue,
+      };
+    })
+    .filter(
+      (client) =>
+        client.verifiedRecovery > 0 ||
+        client.platformFee > 0
+    )
+    .sort(
+      (a, b) =>
+        b.totalDue - a.totalDue
+    );
+}, [customers]);
+
+const servenRevenueForecast = useMemo(() => {
+  const currentPerformanceFees = Number(
+    servenOwnerSummary?.totalPerformanceFees || 0
+  );
+
+  const currentPlatformRevenue = (customers || []).reduce(
+    (sum, client) =>
+      sum +
+      Number(
+        client.monthly_price ||
+        client.platform_fee ||
+        client.base_fee ||
+        0
+      ),
+    0
+  );
+
+  const currentMonthlyRevenue =
+    currentPerformanceFees + currentPlatformRevenue;
+
+  const pendingContractRevenue = (customers || []).reduce(
+    (sum, client) => {
+      const status = String(
+        client.customer_status || ""
+      ).toLowerCase();
+
+      const monthlyPrice = Number(
+        client.monthly_price ||
+        client.platform_fee ||
+        client.base_fee ||
+        0
+      );
+
+      const isPending =
+        status === "lead" ||
+        status === "pending" ||
+        status === "pilot";
+
+      return isPending
+        ? sum + monthlyPrice
+        : sum;
+    },
+    0
+  );
+
+  const projectedMonthlyRevenue =
+    currentMonthlyRevenue + pendingContractRevenue;
+
+  return {
+    currentPerformanceFees,
+    currentPlatformRevenue,
+    currentMonthlyRevenue,
+    pendingContractRevenue,
+    projectedMonthlyRevenue,
+  };
+}, [
+  customers,
+  servenOwnerSummary?.totalPerformanceFees,
+]);
+
+const servenRevenueTrend = useMemo(() => {
+  const months = [];
+
+  for (let offset = 5; offset >= 0; offset -= 1) {
+    const date = new Date();
+    date.setDate(1);
+    date.setMonth(date.getMonth() - offset);
+
+    const year = date.getFullYear();
+    const month = date.getMonth();
+
+    const label = date.toLocaleDateString("en-US", {
+      month: "short",
+      year: "numeric",
+    });
+
+    const verifiedActions = (aiActions || []).filter((action) => {
+      const status = String(
+        action.status ||
+        action.recovery_status ||
+        ""
+      ).toLowerCase();
+
+      const isVerified =
+        status === "verified" ||
+        status === "completed" ||
+        action.verified === true ||
+        action.is_verified === true;
+
+      if (!isVerified) return false;
+
+      const rawDate =
+        action.completed_at ||
+        action.updated_at ||
+        action.created_at;
+
+      if (!rawDate) return false;
+
+      const actionDate = new Date(rawDate);
+
+      return (
+        !Number.isNaN(actionDate.getTime()) &&
+        actionDate.getFullYear() === year &&
+        actionDate.getMonth() === month
+      );
+    });
+
+    const verifiedRecovery = verifiedActions.reduce(
+      (sum, action) => {
+        const recoveredValue = Number(
+          action.actual_recovery ||
+          action.actualRecovery ||
+          action.recovered_profit ||
+          action.recoveredProfit ||
+          action.verified_recovered ||
+          action.recovered ||
+          action.impact_value ||
+          action.impactValue ||
+          0
+        );
+
+        return (
+          sum +
+          (Number.isFinite(recoveredValue)
+            ? recoveredValue
+            : 0)
+        );
+      },
+      0
+    );
+
+    const performanceFees =
+      verifiedRecovery * 0.15;
+
+    months.push({
+      label,
+      verifiedRecovery,
+      performanceFees,
+    });
+  }
+
+  return months;
+}, [aiActions]);
+
+const clientsRequiringAttention = useMemo(() => {
+  const now = Date.now();
+
+  return (customers || [])
+    .map((client) => {
+      const reasons = [];
+
+      const healthScore = Number(client.healthScore || 0);
+
+      const billingStatus = String(
+        client.billingStatus || ""
+      ).toLowerCase();
+
+      const verifiedRecovery = Number(
+        client.aiProfitGenerated || 0
+      );
+
+      const lastUploadDate = client.lastUpload
+        ? new Date(client.lastUpload)
+        : null;
+
+      const daysSinceUpload =
+        lastUploadDate &&
+        !Number.isNaN(lastUploadDate.getTime())
+          ? Math.floor(
+              (now - lastUploadDate.getTime()) /
+                (1000 * 60 * 60 * 24)
+            )
+          : null;
+
+      if (!client.lastUpload) {
+        reasons.push({
+          label: "No uploads yet",
+          severity: "critical",
+        });
+      } else if (
+        daysSinceUpload !== null &&
+        daysSinceUpload >= 14
+      ) {
+        reasons.push({
+          label: `No upload in ${daysSinceUpload} days`,
+          severity: "warning",
+        });
+      }
+
+      if (healthScore <= 55) {
+        reasons.push({
+          label: `Health score ${healthScore}%`,
+          severity: "critical",
+        });
+      } else if (healthScore <= 80) {
+        reasons.push({
+          label: `Health score ${healthScore}%`,
+          severity: "warning",
+        });
+      }
+
+      if (
+        ["past_due", "unpaid"].includes(
+          billingStatus
+        )
+      ) {
+        reasons.push({
+          label: "Billing needs attention",
+          severity: "critical",
+        });
+      }
+
+      if (
+        String(client.customer_status || "").toLowerCase() ===
+          "active" &&
+        verifiedRecovery <= 0
+      ) {
+        reasons.push({
+          label: "No verified recovery yet",
+          severity: "warning",
+        });
+      }
+
+      const priorityScore = reasons.reduce(
+        (score, reason) =>
+          score +
+          (reason.severity === "critical"
+            ? 2
+            : 1),
+        0
+      );
+
+      return {
+        ...client,
+        attentionReasons: reasons,
+        attentionPriority: priorityScore,
+        daysSinceUpload,
+        verifiedRecovery,
+      };
+    })
+    .filter(
+      (client) =>
+        client.attentionReasons.length > 0
+    )
+    .sort(
+      (a, b) =>
+        b.attentionPriority -
+        a.attentionPriority
+    );
+}, [customers]);
+
+
+
+  
+
   if (loading) {
     return (
       <div style={pageStyle}>
@@ -648,6 +1055,839 @@ const deleteCustomer = async (customerId) => {
   </button>
 </div>
       </div>
+{/* =========================
+   SERVEN OWNER PERFORMANCE
+========================= */}
+<div
+  style={{
+    marginTop: "18px",
+    marginBottom: "20px",
+    padding: "24px",
+    borderRadius: "26px",
+    background:
+      "radial-gradient(circle at top right, rgba(109,61,245,0.20), transparent 34%), linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.95))",
+    border: "1px solid rgba(167,139,250,0.22)",
+    boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
+  }}
+>
+  <div
+    style={{
+      color: "#c4b5fd",
+      fontSize: "12px",
+      fontWeight: "900",
+      letterSpacing: "0.1em",
+      textTransform: "uppercase",
+      marginBottom: "8px",
+    }}
+  >
+    Serven Owner Performance
+  </div>
+
+  <h2
+    style={{
+      margin: 0,
+      color: "white",
+      fontSize: "30px",
+      fontWeight: "950",
+      letterSpacing: "-0.03em",
+    }}
+  >
+    Revenue & Recovery Overview
+  </h2>
+
+  <p
+    style={{
+      color: "#94a3b8",
+      fontSize: "13px",
+      lineHeight: 1.6,
+      marginTop: "8px",
+      marginBottom: "20px",
+    }}
+  >
+    Track verified client recovery, performance fees, platform revenue,
+    and total monthly Serven revenue.
+  </p>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
+      gap: "14px",
+    }}
+  >
+    <StatCard
+      label="Verified Client Recovery"
+      value={`$${Number(
+        servenOwnerSummary.totalVerifiedRecovery || 0
+      ).toLocaleString()}`}
+    />
+
+    <StatCard
+      label="Performance Fees (15%)"
+      value={`$${Number(
+        servenOwnerSummary.totalPerformanceFees || 0
+      ).toLocaleString()}`}
+    />
+
+    <StatCard
+      label="Platform Revenue"
+      value={
+        Number(servenOwnerSummary.totalPlatformRevenue || 0) > 0
+          ? `$${Number(
+              servenOwnerSummary.totalPlatformRevenue || 0
+            ).toLocaleString()}`
+          : "Not Connected"
+      }
+    />
+
+    <StatCard
+      label="Total Monthly Revenue"
+      value={`$${Number(
+        servenOwnerSummary.totalMonthlyRevenue || 0
+      ).toLocaleString()}`}
+    />
+
+    <StatCard
+      label="Active Clients"
+      value={servenOwnerSummary.activeClients}
+    />
+
+    <StatCard
+      label="Pilot Clients"
+      value={servenOwnerSummary.pilotClients}
+    />
+
+    <StatCard
+      label="Avg Recovery / Client"
+      value={`$${Number(
+        servenOwnerSummary.averageRecoveryPerClient || 0
+      ).toLocaleString()}`}
+    />
+  </div>
+</div>
+
+{/* =========================
+   TOP RECOVERING CLIENTS
+========================= */}
+<div
+  style={{
+    marginBottom: "20px",
+    padding: "22px",
+    borderRadius: "24px",
+    background:
+      "linear-gradient(135deg, rgba(34,197,94,0.10), rgba(15,23,42,0.96))",
+    border: "1px solid rgba(34,197,94,0.18)",
+    boxShadow: "0 20px 50px rgba(2,6,23,0.24)",
+  }}
+>
+  <div
+    style={{
+      color: "#86efac",
+      fontSize: "11px",
+      fontWeight: "900",
+      letterSpacing: "0.1em",
+      textTransform: "uppercase",
+      marginBottom: "8px",
+    }}
+  >
+    Client Recovery Leaderboard
+  </div>
+
+  <h2
+    style={{
+      color: "white",
+      fontSize: "24px",
+      fontWeight: "950",
+      margin: "0 0 6px",
+    }}
+  >
+    Top Recovering Clients
+  </h2>
+
+  <p
+    style={{
+      color: "#94a3b8",
+      fontSize: "13px",
+      margin: "0 0 18px",
+      lineHeight: 1.6,
+    }}
+  >
+    See which clients have the most verified recovery and the corresponding
+    15% Serven performance fee.
+  </p>
+
+  {topRecoveringClients.length === 0 ? (
+    <div
+      style={{
+        padding: "18px",
+        borderRadius: "16px",
+        background: "rgba(255,255,255,0.04)",
+        border: "1px solid rgba(255,255,255,0.07)",
+        color: "#94a3b8",
+        fontSize: "13px",
+      }}
+    >
+      No verified client recovery has been recorded yet.
+    </div>
+  ) : (
+    <div
+      style={{
+        display: "grid",
+        gap: "12px",
+      }}
+    >
+      {topRecoveringClients.map((client, index) => (
+        <div
+          key={client.id}
+          style={{
+            display: "grid",
+            gridTemplateColumns:
+              "minmax(0, 1.7fr) minmax(130px, 0.8fr) minmax(130px, 0.8fr) minmax(120px, 0.7fr)",
+            gap: "14px",
+            alignItems: "center",
+            padding: "16px",
+            borderRadius: "18px",
+            background: "rgba(255,255,255,0.035)",
+            border: "1px solid rgba(255,255,255,0.07)",
+          }}
+        >
+          <div style={{ minWidth: 0 }}>
+            <div
+              style={{
+                color: "#86efac",
+                fontSize: "10px",
+                fontWeight: "900",
+                textTransform: "uppercase",
+                letterSpacing: "0.08em",
+                marginBottom: "4px",
+              }}
+            >
+              #{index + 1} Recovery Client
+            </div>
+
+            <div
+              style={{
+                color: "white",
+                fontSize: "16px",
+                fontWeight: "900",
+                overflowWrap: "anywhere",
+              }}
+            >
+              {client.restaurant_name || client.email || "Unnamed Client"}
+            </div>
+
+            <div
+              style={{
+                color: "#64748b",
+                fontSize: "12px",
+                marginTop: "3px",
+                overflowWrap: "anywhere",
+              }}
+            >
+              {client.email}
+            </div>
+          </div>
+
+          <div>
+            <div
+              style={{
+                color: "#94a3b8",
+                fontSize: "10px",
+                fontWeight: "900",
+                textTransform: "uppercase",
+                marginBottom: "4px",
+              }}
+            >
+              Verified Recovery
+            </div>
+
+            <div
+              style={{
+                color: "#86efac",
+                fontSize: "20px",
+                fontWeight: "950",
+              }}
+            >
+              ${Number(client.verifiedRecovery || 0).toLocaleString()}
+            </div>
+          </div>
+
+          <div>
+            <div
+              style={{
+                color: "#94a3b8",
+                fontSize: "10px",
+                fontWeight: "900",
+                textTransform: "uppercase",
+                marginBottom: "4px",
+              }}
+            >
+              Performance Fee
+            </div>
+
+            <div
+              style={{
+                color: "#c4b5fd",
+                fontSize: "20px",
+                fontWeight: "950",
+              }}
+            >
+              ${Number(client.performanceFee || 0).toLocaleString()}
+            </div>
+          </div>
+
+          <div>
+            <div
+              style={{
+                color: "#94a3b8",
+                fontSize: "10px",
+                fontWeight: "900",
+                textTransform: "uppercase",
+                marginBottom: "4px",
+              }}
+            >
+              Status
+            </div>
+
+            <div
+              style={{
+                color: "white",
+                fontSize: "13px",
+                fontWeight: "850",
+                textTransform: "capitalize",
+              }}
+            >
+              {client.customer_status || "lead"}
+            </div>
+
+            <div
+              style={{
+                color: "#64748b",
+                fontSize: "11px",
+                marginTop: "3px",
+                textTransform: "capitalize",
+              }}
+            >
+              {client.plan || "starter"}
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  )}
+</div>
+
+{/* =========================
+   SERVEN REVENUE FORECAST
+========================= */}
+<div
+  style={{
+    marginBottom: "20px",
+    padding: "22px",
+    borderRadius: "24px",
+    background:
+      "linear-gradient(135deg, rgba(14,165,233,0.10), rgba(15,23,42,0.96))",
+    border: "1px solid rgba(56,189,248,0.18)",
+    boxShadow: "0 20px 50px rgba(2,6,23,0.24)",
+  }}
+>
+  <div
+    style={{
+      color: "#7dd3fc",
+      fontSize: "11px",
+      fontWeight: "900",
+      letterSpacing: "0.1em",
+      textTransform: "uppercase",
+      marginBottom: "8px",
+    }}
+  >
+    Serven Revenue Forecast
+  </div>
+
+  <h2
+    style={{
+      color: "white",
+      fontSize: "24px",
+      fontWeight: "950",
+      margin: "0 0 6px",
+    }}
+  >
+    Monthly Revenue Outlook
+  </h2>
+
+  <p
+    style={{
+      color: "#94a3b8",
+      fontSize: "13px",
+      margin: "0 0 18px",
+      lineHeight: 1.6,
+    }}
+  >
+    Track current recurring revenue, performance fees, and additional
+    contracted revenue that could move into the monthly run rate.
+  </p>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns:
+        "repeat(auto-fit, minmax(180px, 1fr))",
+      gap: "14px",
+    }}
+  >
+    <StatCard
+      label="Performance Fees"
+      value={`$${Number(
+        servenRevenueForecast.currentPerformanceFees || 0
+      ).toLocaleString()}`}
+    />
+
+    <StatCard
+      label="Platform Revenue"
+      value={
+        Number(
+          servenRevenueForecast.currentPlatformRevenue || 0
+        ) > 0
+          ? `$${Number(
+              servenRevenueForecast.currentPlatformRevenue || 0
+            ).toLocaleString()}`
+          : "Not Connected"
+      }
+    />
+
+    <StatCard
+      label="Current Monthly Revenue"
+      value={`$${Number(
+        servenRevenueForecast.currentMonthlyRevenue || 0
+      ).toLocaleString()}`}
+    />
+
+    <StatCard
+      label="Pending Contract Revenue"
+      value={`$${Number(
+        servenRevenueForecast.pendingContractRevenue || 0
+      ).toLocaleString()}`}
+    />
+
+    <StatCard
+      label="Projected Monthly Revenue"
+      value={`$${Number(
+        servenRevenueForecast.projectedMonthlyRevenue || 0
+      ).toLocaleString()}`}
+    />
+  </div>
+</div>
+
+{/* =========================
+   MONTHLY RECOVERY TREND
+========================= */}
+<div
+  style={{
+    marginBottom: "20px",
+    padding: "22px",
+    borderRadius: "24px",
+    background:
+      "linear-gradient(135deg, rgba(34,197,94,0.08), rgba(15,23,42,0.96))",
+    border: "1px solid rgba(34,197,94,0.16)",
+    boxShadow: "0 20px 50px rgba(2,6,23,0.24)",
+  }}
+>
+  <div
+    style={{
+      color: "#86efac",
+      fontSize: "11px",
+      fontWeight: "900",
+      letterSpacing: "0.1em",
+      textTransform: "uppercase",
+      marginBottom: "8px",
+    }}
+  >
+    Serven Recovery Trend
+  </div>
+
+  <h2
+    style={{
+      color: "white",
+      fontSize: "24px",
+      fontWeight: "950",
+      margin: "0 0 6px",
+    }}
+  >
+    Monthly Verified Recovery
+  </h2>
+
+  <p
+    style={{
+      color: "#94a3b8",
+      fontSize: "13px",
+      margin: "0 0 18px",
+      lineHeight: 1.6,
+    }}
+  >
+    Verified client profit recovery and the corresponding 15% Serven
+    performance fee across the last six months.
+  </p>
+
+  <div
+    style={{
+      display: "grid",
+      gap: "12px",
+    }}
+  >
+    {servenRevenueTrend.map((month) => {
+      const maxRecovery = Math.max(
+        1,
+        ...servenRevenueTrend.map((item) =>
+          Number(item.verifiedRecovery || 0)
+        )
+      );
+
+      const recoveryWidth = Math.min(
+        100,
+        (Number(month.verifiedRecovery || 0) / maxRecovery) * 100
+      );
+
+      const feeWidth = Math.min(
+        100,
+        (Number(month.performanceFees || 0) / maxRecovery) * 100
+      );
+
+      return (
+        <div
+          key={month.label}
+          style={{
+            padding: "14px",
+            borderRadius: "16px",
+            background: "rgba(255,255,255,0.035)",
+            border: "1px solid rgba(255,255,255,0.07)",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: "12px",
+              flexWrap: "wrap",
+              marginBottom: "10px",
+            }}
+          >
+            <div
+              style={{
+                color: "white",
+                fontWeight: "900",
+                fontSize: "13px",
+              }}
+            >
+              {month.label}
+            </div>
+
+            <div
+              style={{
+                color: "#94a3b8",
+                fontSize: "12px",
+              }}
+            >
+              Recovery:{" "}
+              <span style={{ color: "#86efac", fontWeight: "900" }}>
+                ${Number(month.verifiedRecovery || 0).toLocaleString()}
+              </span>
+              {"  "}•{"  "}
+              Fee:{" "}
+              <span style={{ color: "#c4b5fd", fontWeight: "900" }}>
+                ${Number(month.performanceFees || 0).toLocaleString()}
+              </span>
+            </div>
+          </div>
+
+          <div
+            style={{
+              height: "10px",
+              borderRadius: "999px",
+              background: "rgba(255,255,255,0.06)",
+              overflow: "hidden",
+              marginBottom: "6px",
+            }}
+          >
+            <div
+              style={{
+                width: `${recoveryWidth}%`,
+                height: "100%",
+                borderRadius: "999px",
+                background:
+                  "linear-gradient(90deg, rgba(34,197,94,0.85), rgba(134,239,172,0.9))",
+              }}
+            />
+          </div>
+
+          <div
+            style={{
+              height: "6px",
+              borderRadius: "999px",
+              background: "rgba(255,255,255,0.04)",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                width: `${feeWidth}%`,
+                height: "100%",
+                borderRadius: "999px",
+                background:
+                  "linear-gradient(90deg, rgba(168,85,247,0.85), rgba(196,181,253,0.9))",
+              }}
+            />
+          </div>
+        </div>
+      );
+    })}
+  </div>
+</div>
+
+{/* =========================
+   CLIENTS REQUIRING ATTENTION
+========================= */}
+<div
+  style={{
+    marginBottom: "20px",
+    padding: "22px",
+    borderRadius: "24px",
+    background:
+      "linear-gradient(135deg, rgba(239,68,68,0.08), rgba(15,23,42,0.96))",
+    border: "1px solid rgba(248,113,113,0.16)",
+    boxShadow: "0 20px 50px rgba(2,6,23,0.24)",
+  }}
+>
+  <div
+    style={{
+      color: "#fca5a5",
+      fontSize: "11px",
+      fontWeight: "900",
+      letterSpacing: "0.1em",
+      textTransform: "uppercase",
+      marginBottom: "8px",
+    }}
+  >
+    Owner Action Queue
+  </div>
+
+  <h2
+    style={{
+      color: "white",
+      fontSize: "24px",
+      fontWeight: "950",
+      margin: "0 0 6px",
+    }}
+  >
+    Clients Requiring Attention Today
+  </h2>
+
+  <p
+    style={{
+      color: "#94a3b8",
+      fontSize: "13px",
+      margin: "0 0 18px",
+      lineHeight: 1.6,
+    }}
+  >
+    Clients are prioritized by onboarding gaps, stale uploads, health risk,
+    billing issues, and missing verified recovery.
+  </p>
+
+  {clientsRequiringAttention.length === 0 ? (
+    <div
+      style={{
+        padding: "18px",
+        borderRadius: "16px",
+        background: "rgba(34,197,94,0.06)",
+        border: "1px solid rgba(34,197,94,0.14)",
+        color: "#86efac",
+        fontSize: "13px",
+        fontWeight: "800",
+      }}
+    >
+      No clients currently require immediate attention.
+    </div>
+  ) : (
+    <div style={{ display: "grid", gap: "12px" }}>
+      {clientsRequiringAttention.map((client) => (
+        <div
+          key={client.id}
+          style={{
+            padding: "16px",
+            borderRadius: "18px",
+            background: "rgba(255,255,255,0.035)",
+            border:
+              client.attentionPriority >= 4
+                ? "1px solid rgba(248,113,113,0.22)"
+                : "1px solid rgba(245,158,11,0.18)",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "flex-start",
+              gap: "14px",
+              flexWrap: "wrap",
+            }}
+          >
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div
+                style={{
+                  color: "white",
+                  fontSize: "16px",
+                  fontWeight: "900",
+                  overflowWrap: "anywhere",
+                }}
+              >
+                {client.restaurant_name || client.email || "Unnamed Client"}
+              </div>
+
+              <div
+                style={{
+                  color: "#64748b",
+                  fontSize: "12px",
+                  marginTop: "3px",
+                  overflowWrap: "anywhere",
+                }}
+              >
+                {client.email}
+              </div>
+            </div>
+
+            <div
+              style={{
+                padding: "6px 10px",
+                borderRadius: "999px",
+                background:
+                  client.attentionPriority >= 4
+                    ? "rgba(239,68,68,0.12)"
+                    : "rgba(245,158,11,0.12)",
+                color:
+                  client.attentionPriority >= 4
+                    ? "#fca5a5"
+                    : "#fcd34d",
+                fontSize: "10px",
+                fontWeight: "900",
+                textTransform: "uppercase",
+              }}
+            >
+              {client.attentionPriority >= 4
+                ? "High Attention"
+                : "Review Needed"}
+            </div>
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              gap: "8px",
+              flexWrap: "wrap",
+              marginTop: "12px",
+            }}
+          >
+            {(client.attentionReasons || []).map((reason, index) => (
+              <span
+                key={`${client.id}-${index}`}
+                style={{
+                  padding: "5px 9px",
+                  borderRadius: "999px",
+                  background:
+                    reason.severity === "critical"
+                      ? "rgba(239,68,68,0.10)"
+                      : "rgba(245,158,11,0.10)",
+                  color:
+                    reason.severity === "critical"
+                      ? "#fca5a5"
+                      : "#fcd34d",
+                  border:
+                    reason.severity === "critical"
+                      ? "1px solid rgba(248,113,113,0.14)"
+                      : "1px solid rgba(245,158,11,0.14)",
+                  fontSize: "11px",
+                  fontWeight: "800",
+                }}
+              >
+                {reason.severity === "critical" ? "●" : "•"} {reason.label}
+              </span>
+            ))}
+          </div>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns:
+                "repeat(auto-fit, minmax(130px, 1fr))",
+              gap: "10px",
+              marginTop: "14px",
+            }}
+          >
+            <div>
+              <div style={invoiceLabelStyle}>Verified Recovery</div>
+              <div style={invoiceValueStyle}>
+                ${Number(client.verifiedRecovery || 0).toLocaleString()}
+              </div>
+            </div>
+
+            <div>
+              <div style={invoiceLabelStyle}>Health Score</div>
+              <div style={invoiceValueStyle}>
+                {Number(client.healthScore || 0)}%
+              </div>
+            </div>
+
+            <div>
+              <div style={invoiceLabelStyle}>Open Alerts</div>
+              <div style={invoiceValueStyle}>
+                {Number(client.openAlerts || 0)}
+              </div>
+            </div>
+
+            <div>
+              <div style={invoiceLabelStyle}>Last Upload</div>
+              <div style={{ ...invoiceValueStyle, fontSize: "14px" }}>
+                {client.lastUpload
+                  ? new Date(client.lastUpload).toLocaleDateString()
+                  : "Never"}
+              </div>
+            </div>
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              gap: "8px",
+              flexWrap: "wrap",
+              marginTop: "14px",
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => markContacted(client.id)}
+              style={{
+                ...smallActionButton,
+                background: "#334155",
+              }}
+            >
+              Mark Contacted
+            </button>
+
+            <button
+              type="button"
+              onClick={() => sendClientEmail(client, "intro")}
+              style={{
+                ...smallActionButton,
+                background: "linear-gradient(135deg,#ef4444,#dc2626)",
+              }}
+            >
+              Email Client
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  )}
+</div>
 
       {/* EMAIL CENTER */}
       <div style={panelCard("#0ea5e9")}>
@@ -2011,7 +3251,20 @@ const internalChartCard = {
   flexDirection: "column",
   justifyContent: "space-between"
 };
+const invoiceLabelStyle = {
+  color: "#94a3b8",
+  fontSize: "10px",
+  fontWeight: "900",
+  textTransform: "uppercase",
+  letterSpacing: "0.06em",
+  marginBottom: "4px",
+};
 
+const invoiceValueStyle = {
+  color: "white",
+  fontSize: "18px",
+  fontWeight: "950",
+};
 const chartTitle = { color: "white", fontSize: "16px", fontWeight: "800", margin: "0" };
 const chartSub = { color: "#64748b", fontSize: "12px", margin: "2px 0 12px 0" };
 const chartRowLabel = { display: "flex", justifyContent: "space-between", color: "#cbd5e1", fontSize: "12px", fontWeight: "600", marginBottom: "4px" };
