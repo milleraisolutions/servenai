@@ -40555,7 +40555,8 @@ selectedHandler();
   {(isOwnerRole || isExecutiveRole || canSeeManagerDashboard) && (
   <>
 
-
+false && (
+  <>
 {/* ✅ AI ONBOARDING CENTER */}
 <div
   style={{
@@ -40721,6 +40722,8 @@ selectedHandler();
     </div>
   </div>
 </div>
+ </>
+)
 {hasFullRecoveryData&& (
   <>{/* =========================
    SERVEN PROFIT RECOVERY SUMMARY
