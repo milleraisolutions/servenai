@@ -38140,6 +38140,92 @@ const saveCompletedRoleAction = async (action) => {
     return false;
   }
 };
+
+
+const getActiveConnectionLocation = () => {
+  // 1. Explicitly selected location ID wins.
+  if (selectedUploadLocationId) {
+    const selectedLocation = (locations || []).find(
+      (location) =>
+        String(location?.id || "") === String(selectedUploadLocationId)
+    );
+
+    if (selectedLocation) {
+      return {
+        id: selectedLocation.id,
+        name:
+          selectedLocation.location_name ||
+          selectedLocation.name ||
+          activeLocation ||
+          null,
+      };
+    }
+  }
+
+  // 2. Resolve the dashboard's active location name to a real locations.id.
+  if (activeLocation && activeLocation !== "all") {
+    const normalizedActiveLocation = String(activeLocation)
+      .trim()
+      .toLowerCase();
+
+    const matchingLocation = (locations || []).find((location) => {
+      const locationName = String(
+        location?.location_name ||
+          location?.name ||
+          ""
+      )
+        .trim()
+        .toLowerCase();
+
+      return locationName === normalizedActiveLocation;
+    });
+
+    if (matchingLocation) {
+      return {
+        id: matchingLocation.id,
+        name:
+          matchingLocation.location_name ||
+          matchingLocation.name ||
+          activeLocation,
+      };
+    }
+  }
+
+  // 3. Staff-assigned location fallback.
+  if (assignedLocation) {
+    const normalizedAssignedLocation = String(assignedLocation)
+      .trim()
+      .toLowerCase();
+
+    const matchingLocation = (locations || []).find((location) => {
+      const locationName = String(
+        location?.location_name ||
+          location?.name ||
+          ""
+      )
+        .trim()
+        .toLowerCase();
+
+      return locationName === normalizedAssignedLocation;
+    });
+
+    if (matchingLocation) {
+      return {
+        id: matchingLocation.id,
+        name:
+          matchingLocation.location_name ||
+          matchingLocation.name ||
+          assignedLocation,
+      };
+    }
+  }
+
+  return {
+    id: null,
+    name: null,
+  };
+};
+
 const loadRestaurantConnections = async () => {
   try {
     setConnectionsLoading(true);
@@ -38158,8 +38244,25 @@ const loadRestaurantConnections = async () => {
     const ownerId = dataOwnerId || user.id;
 
     const { data, error } = await supabase
-      .from("integrations")
-      .select("*")
+      .from("restaurant_connections")
+      .select(`
+  id,
+  user_id,
+  location_id,
+  provider,
+  category,
+  status,
+  connection_type,
+  external_account_id,
+  external_location_id,
+  token_expires_at,
+  last_sync_at,
+  last_sync_status,
+  last_sync_error,
+  metadata,
+  created_at,
+  updated_at
+`)
       .eq("user_id", ownerId)
       .order("created_at", { ascending: false });
 
@@ -38200,18 +38303,50 @@ const handleConnectRestaurantSystem = async (
     }
 
     const ownerId = dataOwnerId || user.id;
+const connectionLocation = getActiveConnectionLocation();
 
+console.log("CONNECT RESTAURANT SYSTEM:", {
+  provider,
+  category,
+  ownerId,
+  locationId: connectionLocation.id,
+  locationName: connectionLocation.name,
+});
     const normalizedProvider = String(provider)
       .trim()
       .toLowerCase()
       .replace(/\s+/g, "_");
 
-    const { data: existingConnection } = await supabase
-      .from("integrations")
-      .select("*")
-      .eq("user_id", ownerId)
-      .eq("provider", normalizedProvider)
-      .maybeSingle();
+   let existingConnectionQuery = supabase
+  .from("restaurant_connections")
+  .select("id, provider, status, location_id")
+  .eq("user_id", ownerId)
+  .eq("provider", normalizedProvider);
+
+if (connectionLocation.id) {
+  existingConnectionQuery = existingConnectionQuery.eq(
+    "location_id",
+    connectionLocation.id
+  );
+} else {
+  existingConnectionQuery =
+    existingConnectionQuery.is("location_id", null);
+}
+
+const {
+  data: existingConnection,
+  error: existingConnectionError,
+} = await existingConnectionQuery.maybeSingle();
+
+if (existingConnectionError) {
+  console.error(
+    "CHECK EXISTING CONNECTION ERROR:",
+    existingConnectionError
+  );
+
+  setMessage(`Could not verify ${provider} connection.`);
+  return;
+}
 
     if (existingConnection) {
       setMessage(`${provider} is already connected.`);
@@ -38220,14 +38355,21 @@ const handleConnectRestaurantSystem = async (
     }
 
     const { error } = await supabase
-      .from("integrations")
-      .insert({
-        user_id: ownerId,
-        provider: normalizedProvider,
-        category,
-        status: "connected",
-        last_sync_status: "awaiting_initial_sync",
-      });
+      .from("restaurant_connections")
+  .insert({
+  user_id: ownerId,
+  location_id: connectionLocation.id || null,
+  provider: normalizedProvider,
+  category,
+  status: "connected",
+  connection_type: "manual",
+  last_sync_status: "awaiting_initial_sync",
+
+  metadata: {
+    location_name: connectionLocation.name || null,
+    connection_source: "connected_data",
+  },
+});
 
     if (error) {
       console.error("CONNECT INTEGRATION ERROR:", error);
@@ -38258,7 +38400,7 @@ const handleDisconnectRestaurantSystem = async (provider) => {
     if (!confirmed) return;
 
     const { error } = await supabase
-      .from("integrations")
+      .from("restaurant_connections")
       .delete()
       .eq("id", connection.id);
 
@@ -38295,7 +38437,7 @@ const handleSyncRestaurantSystem = async (provider) => {
      */
 
     const { error } = await supabase
-      .from("integrations")
+     .from("restaurant_connections")
       .update({
         last_sync_status: "sync_pending",
         updated_at: new Date().toISOString(),
@@ -38320,28 +38462,52 @@ const handleSyncRestaurantSystem = async (provider) => {
 };
 
 
-const isRestaurantSystemConnected = (provider) => {
-  const normalizedProvider = String(provider)
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, "_");
-
-  return (restaurantConnections || []).some(
-    (connection) =>
-      connection.provider === normalizedProvider &&
-      String(connection.status || "").toLowerCase() === "connected"
-  );
-};
-
 const getConnectionStatus = (provider) => {
   const normalizedProvider = String(provider)
     .trim()
     .toLowerCase()
     .replace(/\s+/g, "_");
 
-  return (restaurantConnections || []).find(
+  const connectionLocation = getActiveConnectionLocation();
+
+  const providerConnections = (restaurantConnections || []).filter(
     (connection) =>
-      connection.provider === normalizedProvider
+      String(connection?.provider || "")
+        .trim()
+        .toLowerCase() === normalizedProvider
+  );
+
+  // If a specific restaurant location is active,
+  // only return that location's connection.
+  if (connectionLocation.id) {
+    return providerConnections.find(
+      (connection) =>
+        String(connection?.location_id || "") ===
+        String(connectionLocation.id)
+    );
+  }
+
+  // When viewing All Locations, prefer a company-wide/global connection.
+  const globalConnection = providerConnections.find(
+    (connection) => !connection?.location_id
+  );
+
+  if (globalConnection) {
+    return globalConnection;
+  }
+
+  // Otherwise return an existing provider connection so the
+  // owner can still see that the provider is connected somewhere.
+  return providerConnections[0] || null;
+};
+
+const isRestaurantSystemConnected = (provider) => {
+  const connection = getConnectionStatus(provider);
+
+  return (
+    String(connection?.status || "")
+      .trim()
+      .toLowerCase() === "connected"
   );
 };
 
@@ -38350,7 +38516,17 @@ const IntegrationProviderCard = ({
   category,
 }) => {
   const connection = getConnectionStatus(provider);
+const connectionLocation = (locations || []).find(
+  (location) =>
+    String(location?.id || "") ===
+    String(connection?.location_id || "")
+);
 
+const connectionLocationName =
+  connectionLocation?.location_name ||
+  connectionLocation?.name ||
+  connection?.metadata?.location_name ||
+  (connection?.location_id ? "Assigned Location" : "All Locations");
   const connectionStatus = String(
     connection?.status || ""
   ).toLowerCase();
@@ -38400,21 +38576,46 @@ const IntegrationProviderCard = ({
           >
             {provider}
           </div>
+<div
+  style={{
+    padding: "5px 10px",
+    borderRadius: "999px",
+    background:
+      connectionStatus === "connected"
+        ? "rgba(34,197,94,0.12)"
+        : syncStatus === "sync_pending"
+        ? "rgba(245,158,11,0.12)"
+        : syncStatus === "failed"
+        ? "rgba(239,68,68,0.12)"
+        : connectionStatus === "reauthorization_required"
+        ? "rgba(249,115,22,0.12)"
+        : "rgba(148,163,184,0.08)",
 
-          <div
-            style={{
-              color: isConnected
-                ? "#86efac"
-                : "#64748b",
-              fontSize: "11px",
-              fontWeight: "800",
-              marginTop: "4px",
-            }}
-          >
-            {isConnected
-              ? "Connected to Serven"
-              : "Not connected"}
-          </div>
+    color:
+      connectionStatus === "connected"
+        ? "#86efac"
+        : syncStatus === "sync_pending"
+        ? "#fbbf24"
+        : syncStatus === "failed"
+        ? "#f87171"
+        : connectionStatus === "reauthorization_required"
+        ? "#fb923c"
+        : "#94a3b8",
+
+    fontSize: "10px",
+    fontWeight: "900",
+  }}
+>
+  {connectionStatus === "connected"
+    ? "Connected ✓"
+    : syncStatus === "sync_pending"
+    ? "Sync Pending"
+    : syncStatus === "failed"
+    ? "Sync Failed"
+    : connectionStatus === "reauthorization_required"
+    ? "Reconnect"
+    : "Disconnected"}
+</div>
         </div>
 
         <div
@@ -38436,30 +38637,53 @@ const IntegrationProviderCard = ({
             : "Disconnected"}
         </div>
       </div>
+{/* CONNECTION DETAILS */}
+{isConnected && (
+  <div
+    style={{
+      padding: "10px 12px",
+      borderRadius: "12px",
+      background: "rgba(255,255,255,0.025)",
+      border:
+        "1px solid rgba(255,255,255,0.05)",
+    }}
+  >
+    <div
+      style={{
+        color: "#64748b",
+        fontSize: "10px",
+        fontWeight: "900",
+        textTransform: "uppercase",
+        letterSpacing: "0.06em",
+        marginBottom: "4px",
+      }}
+    >
+      Location
+    </div>
 
-      {/* CONNECTION DETAILS */}
-      {isConnected && (
-        <div
-          style={{
-            padding: "10px 12px",
-            borderRadius: "12px",
-            background: "rgba(255,255,255,0.025)",
-            border:
-              "1px solid rgba(255,255,255,0.05)",
-          }}
-        >
-          <div
-            style={{
-              color: "#64748b",
-              fontSize: "10px",
-              fontWeight: "900",
-              textTransform: "uppercase",
-              letterSpacing: "0.06em",
-              marginBottom: "4px",
-            }}
-          >
-            Last Sync
-          </div>
+    <div
+      style={{
+        color: "#e2e8f0",
+        fontSize: "12px",
+        fontWeight: "900",
+        marginBottom: "10px",
+      }}
+    >
+      {connectionLocationName}
+    </div>
+
+    <div
+      style={{
+        color: "#64748b",
+        fontSize: "10px",
+        fontWeight: "900",
+        textTransform: "uppercase",
+        letterSpacing: "0.06em",
+        marginBottom: "4px",
+      }}
+    >
+      Last Sync
+    </div>
 
           <div
             style={{
@@ -38631,6 +38855,42 @@ useEffect(() => {
     subscription?.unsubscribe();
   };
 }, []);
+
+const aiLastUpdated = new Date().toLocaleTimeString([], {
+  hour: "numeric",
+  minute: "2-digit",
+});
+
+const latestConnectionSync = (restaurantConnections || [])
+  .map((connection) => connection?.last_sync_at)
+  .filter(Boolean)
+  .sort((a, b) => new Date(b) - new Date(a))[0];
+
+const latestConnectionSyncText = latestConnectionSync
+  ? new Date(latestConnectionSync).toLocaleString()
+  : "No successful sync yet";
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 console.log("ACCESS DEBUG:", {
@@ -39113,8 +39373,98 @@ return (
         Connect your POS, labor, distributors, inventory systems, or continue
         using manual uploads.
       </p>
+      <div
+  style={{
+    marginTop: "12px",
+    color: "#64748b",
+    fontSize: "11px",
+    fontWeight: "800",
+  }}
+>
+  Last successful sync: {latestConnectionSyncText}
+</div>
     </div>
+{/* CONNECTION SUMMARY */}
 
+<div
+  style={{
+    display: "grid",
+    gridTemplateColumns: isMobile ? "repeat(2,1fr)" : "repeat(4,1fr)",
+    gap: "14px",
+    marginBottom: "24px",
+  }}
+>
+  {[
+    {
+      label: "Connected Systems",
+      value: (restaurantConnections || []).filter(
+        (c) => String(c.status).toLowerCase() === "connected"
+      ).length,
+      color: "#4ade80",
+    },
+    {
+      label: "Connected Locations",
+      value: new Set(
+        (restaurantConnections || [])
+          .map((c) => c.location_id)
+          .filter(Boolean)
+      ).size,
+      color: "#60a5fa",
+    },
+    {
+      label: "Pending Syncs",
+      value: (restaurantConnections || []).filter(
+        (c) =>
+          String(c.last_sync_status).toLowerCase() ===
+          "sync_pending"
+      ).length,
+      color: "#fbbf24",
+    },
+    {
+      label: "Healthy Connections",
+      value: (restaurantConnections || []).filter(
+        (c) =>
+          String(c.status).toLowerCase() === "connected" &&
+          String(c.last_sync_status).toLowerCase() !==
+            "failed"
+      ).length,
+      color: "#a78bfa",
+    },
+  ].map((card) => (
+    <div
+      key={card.label}
+      style={{
+        padding: "18px",
+        borderRadius: "18px",
+        background: "rgba(15,23,42,0.92)",
+        border: "1px solid rgba(255,255,255,0.08)",
+      }}
+    >
+      <div
+        style={{
+          color: "#94a3b8",
+          fontSize: "11px",
+          fontWeight: "800",
+          textTransform: "uppercase",
+          letterSpacing: "0.06em",
+        }}
+      >
+        {card.label}
+      </div>
+
+      <div
+        style={{
+          marginTop: "8px",
+          fontSize: "32px",
+          fontWeight: "950",
+          color: card.color,
+        }}
+      >
+        {card.value}
+      </div>
+    </div>
+  ))}
+</div>
     {/* CONNECTION CATEGORIES */}
     <div
       style={{
@@ -60542,6 +60892,218 @@ Recovered profit is based on saved AI action impact.
   </div>
 )}
 {/* =========================
+   AI KPI STRIP
+========================= */}
+
+<div
+  style={{
+    display: "grid",
+    gridTemplateColumns: isMobile
+      ? "1fr 1fr"
+      : "repeat(4, minmax(0, 1fr))",
+    gap: "12px",
+    marginBottom: "6px",
+  }}
+>
+  {/* AI ACTIONS TODAY */}
+  <div
+    style={{
+      padding: "16px",
+      borderRadius: "18px",
+      background: "rgba(255,255,255,0.04)",
+      border: "1px solid rgba(148,163,184,0.12)",
+      minWidth: 0,
+    }}
+  >
+    <div
+      style={{
+        color: "#94a3b8",
+        fontSize: "10px",
+        fontWeight: "900",
+        textTransform: "uppercase",
+        letterSpacing: "0.08em",
+        marginBottom: "7px",
+      }}
+    >
+      AI Actions Today
+    </div>
+
+    <div
+      style={{
+        color: "white",
+        fontSize: "26px",
+        fontWeight: "950",
+      }}
+    >
+      {Number(realAppliedActions?.length || 0).toLocaleString()}
+    </div>
+
+    <div
+      style={{
+        color: "#64748b",
+        fontSize: "11px",
+        marginTop: "5px",
+      }}
+    >
+      Applied AI recovery actions
+    </div>
+  </div>
+
+  {/* CRITICAL ALERTS */}
+  <div
+    style={{
+      padding: "16px",
+      borderRadius: "18px",
+      background: STATUS_COLORS.critical.bg,
+      border: `1px solid ${STATUS_COLORS.critical.border}`,
+      minWidth: 0,
+    }}
+  >
+    <div
+      style={{
+        color: STATUS_COLORS.critical.text,
+        fontSize: "10px",
+        fontWeight: "900",
+        textTransform: "uppercase",
+        letterSpacing: "0.08em",
+        marginBottom: "7px",
+      }}
+    >
+      Critical Alerts
+    </div>
+
+    <div
+      style={{
+        color: "white",
+        fontSize: "26px",
+        fontWeight: "950",
+      }}
+    >
+      {Number(
+        (filteredAiAlerts || []).filter((alert) =>
+          ["critical", "high"].includes(
+            String(
+              alert?.severity ||
+                alert?.priority ||
+                alert?.status ||
+                ""
+            ).toLowerCase()
+          )
+        ).length
+      ).toLocaleString()}
+    </div>
+
+    <div
+      style={{
+        color: "#fca5a5",
+        fontSize: "11px",
+        marginTop: "5px",
+      }}
+    >
+      Require attention
+    </div>
+  </div>
+
+  {/* PROFIT RECOVERY */}
+  <div
+    style={{
+      padding: "16px",
+      borderRadius: "18px",
+      background: STATUS_COLORS.healthy.bg,
+      border: `1px solid ${STATUS_COLORS.healthy.border}`,
+      minWidth: 0,
+    }}
+  >
+    <div
+      style={{
+        color: STATUS_COLORS.healthy.text,
+        fontSize: "10px",
+        fontWeight: "900",
+        textTransform: "uppercase",
+        letterSpacing: "0.08em",
+        marginBottom: "7px",
+      }}
+    >
+      Profit Recovery
+    </div>
+
+    <div
+      style={{
+        color: "white",
+        fontSize: "26px",
+        fontWeight: "950",
+        overflowWrap: "anywhere",
+      }}
+    >
+      $
+      {Number(
+        profitRecoverySummary?.monthlyRecoverable ||
+          totalAIRecoveryOpportunity ||
+          0
+      ).toLocaleString()}
+    </div>
+
+    <div
+      style={{
+        color: "#86efac",
+        fontSize: "11px",
+        marginTop: "5px",
+      }}
+    >
+      Monthly opportunity identified
+    </div>
+  </div>
+
+  {/* AI HEALTH */}
+  <div
+    style={{
+      padding: "16px",
+      borderRadius: "18px",
+      background: STATUS_COLORS.info.bg,
+      border: `1px solid ${STATUS_COLORS.info.border}`,
+      minWidth: 0,
+    }}
+  >
+    <div
+      style={{
+        color: STATUS_COLORS.info.text,
+        fontSize: "10px",
+        fontWeight: "900",
+        textTransform: "uppercase",
+        letterSpacing: "0.08em",
+        marginBottom: "7px",
+      }}
+    >
+      AI Health
+    </div>
+
+    <div
+      style={{
+        color: "white",
+        fontSize: "26px",
+        fontWeight: "950",
+      }}
+    >
+      {Number(
+        aiHealthEngine?.overallScore ||
+          restaurantHealthScore ||
+          0
+      ).toLocaleString()}
+      /100
+    </div>
+
+    <div
+      style={{
+        color: "#93c5fd",
+        fontSize: "11px",
+        marginTop: "5px",
+      }}
+    >
+      Restaurant intelligence health
+    </div>
+  </div>
+</div>
+{/* =========================
    EXECUTIVE DAILY BRIEFING
 ========================= */}
 
@@ -60560,9 +61122,36 @@ Recovered profit is based on saved AI action impact.
       overflow: "hidden",
     }}
   >
-    <div style={{ color: "#c7d2fe", fontSize: "12px", fontWeight: "900" }}>
-      EXECUTIVE DAILY BRIEFING
-    </div>
+    <div
+  style={{
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: "12px",
+    flexWrap: "wrap",
+  }}
+>
+  <div
+    style={{
+      color: "#c7d2fe",
+      fontSize: "12px",
+      fontWeight: "900",
+    }}
+  >
+    EXECUTIVE DAILY BRIEFING
+  </div>
+
+  <div
+    style={{
+      color: "#94a3b8",
+      fontSize: "11px",
+      fontWeight: "700",
+      whiteSpace: "nowrap",
+    }}
+  >
+    Updated {aiLastUpdated}
+  </div>
+</div>
 
     <h3
       style={{
@@ -60712,16 +61301,42 @@ Recovered profit is based on saved AI action impact.
       AI SMART NOTIFICATION CENTER
     </div>
 
-    <h3
-      style={{
-        color: "white",
-        fontSize: "26px",
-        fontWeight: "950",
-        marginTop: "8px",
-      }}
-    >
-      Live Operational Notifications
-    </h3>
+    <div
+  style={{
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: "12px",
+    flexWrap: "wrap",
+  }}
+>
+  <h3
+    style={{
+      color: "white",
+      fontSize: "28px",
+      fontWeight: "950",
+      marginTop: "8px",
+      marginBottom: 0,
+    }}
+  >
+    Live Operational Notifications
+  </h3>
+
+  <div
+    style={{
+      padding: "4px 10px",
+      borderRadius: "999px",
+      background: "rgba(34,197,94,0.15)",
+      border: "1px solid rgba(34,197,94,0.25)",
+      color: "#4ade80",
+      fontSize: "11px",
+      fontWeight: "900",
+      letterSpacing: "0.05em",
+    }}
+  >
+    ● LIVE
+  </div>
+</div>
 
     <div
       style={{
@@ -64301,17 +64916,38 @@ Recovered profit is based on saved AI action impact.
     >
       AI FINANCIAL COMMAND
     </div>
+<div
+  style={{
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: "12px",
+    flexWrap: "wrap",
+  }}
+>
+  <h3
+    style={{
+      color: "white",
+      fontSize: "28px",
+      fontWeight: "950",
+      marginTop: "8px",
+      marginBottom: 0,
+    }}
+  >
+    Financial Operating Intelligence
+  </h3>
 
-    <h3
-      style={{
-        color: "white",
-        fontSize: "26px",
-        fontWeight: "950",
-        marginTop: "8px",
-      }}
-    >
-      Financial Operating Intelligence
-    </h3>
+  <div
+    style={{
+      color: "#94a3b8",
+      fontSize: "11px",
+      fontWeight: "700",
+      whiteSpace: "nowrap",
+    }}
+  >
+    Updated {aiLastUpdated}
+  </div>
+</div>
 
     <p
       style={{
@@ -64980,16 +65616,42 @@ Recovered profit is based on saved AI action impact.
   >
     <div style={{ minWidth: 0 }}>
       <div
-        style={{
-          color: "#86efac",
-          fontSize: "11px",
-          fontWeight: "900",
-          textTransform: "uppercase",
-          letterSpacing: "0.07em",
-        }}
-      >
-        SerVen AI Action Plan
-      </div>
+  style={{
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: "12px",
+    flexWrap: "wrap",
+  }}
+>
+  <div
+    style={{
+      color: "#86efac",
+      fontSize: "11px",
+      fontWeight: "900",
+      textTransform: "uppercase",
+      letterSpacing: "0.07em",
+    }}
+  >
+    SerVen AI Action Plan
+  </div>
+
+  <div
+    style={{
+      padding: "4px 10px",
+      borderRadius: "999px",
+      background: STATUS_COLORS.info.bg,
+      border: `1px solid ${STATUS_COLORS.info.border}`,
+      color: STATUS_COLORS.info.text,
+      fontSize: "10px",
+      fontWeight: "900",
+      letterSpacing: "0.05em",
+      whiteSpace: "nowrap",
+    }}
+  >
+    AI GENERATED
+  </div>
+</div>
 
       <h3
         style={{
@@ -101581,6 +102243,37 @@ const setupGoldButton = {
   width: "100%",
 textAlign: "center",
 justifyContent: "center",
+};
+const STATUS_COLORS = {
+  critical: {
+    bg: "rgba(239,68,68,0.14)",
+    border: "rgba(239,68,68,0.25)",
+    text: "#f87171",
+  },
+
+  high: {
+    bg: "rgba(249,115,22,0.14)",
+    border: "rgba(249,115,22,0.25)",
+    text: "#fb923c",
+  },
+
+  warning: {
+    bg: "rgba(250,204,21,0.14)",
+    border: "rgba(250,204,21,0.25)",
+    text: "#facc15",
+  },
+
+  healthy: {
+    bg: "rgba(34,197,94,0.14)",
+    border: "rgba(34,197,94,0.25)",
+    text: "#4ade80",
+  },
+
+  info: {
+    bg: "rgba(59,130,246,0.14)",
+    border: "rgba(59,130,246,0.25)",
+    text: "#60a5fa",
+  },
 };
 const adminMiniBox = {
   padding: "12px",
