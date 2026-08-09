@@ -40150,6 +40150,10 @@ need to add historical restaurant data.
 >
   Upload Beverage Data
 </button>
+    </div>
+  </div>
+</div>
+</div>
 
     {/* CLIENT RECENT IMPORTS */}
 
@@ -40419,10 +40423,7 @@ console.log("DELETE BUTTON ID:", item?.id);
     </div>
   )}
 </div>
-     </div>
-  </div>
-</div>
-</div>
+     
  {/* UPLOAD SUMMARY + CONFIRM */}
 {pendingUploadSummary && !usesDedicatedUploadCard && (
   <div
