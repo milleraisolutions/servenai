@@ -819,8 +819,13 @@ const [completedRoleActions, setCompletedRoleActions] = useState([]);
 const [openConnectionSection, setOpenConnectionSection] = useState("pos");
 const [restaurantConnections, setRestaurantConnections] = useState([]);
 const [connectionsLoading, setConnectionsLoading] = useState(false);
-
-
+const [collapsedSections, setCollapsedSections] = useState({});
+const toggleSection = (key) => {
+  setCollapsedSections((prev) => ({
+    ...prev,
+    [key]: !prev[key],
+  }));
+};
 
 
 
@@ -42388,6 +42393,47 @@ foodCostPercentage={
 ========================= */}
 
 {hasProAccess && (
+  <div>
+  <button
+    type="button"
+    onClick={() => toggleSection("ai_business_health")}
+    style={{
+      width: "100%",
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      background: "transparent",
+      border: "none",
+      padding: "0 0 16px",
+      cursor: "pointer",
+      textAlign: "left",
+    }}
+  >
+    <h2
+      style={{
+        color: "white",
+        fontSize: "30px",
+        fontWeight: "950",
+        margin: 0,
+      }}
+    >
+      AI Business Operational Health
+    </h2>
+
+    <span
+      style={{
+        color: "#cbd5e1",
+        fontSize: "22px",
+        fontWeight: "900",
+        transform: collapsedSections.ai_business_health
+          ? "rotate(-90deg)"
+          : "rotate(0deg)",
+        transition: "transform 0.2s ease",
+      }}
+    >
+      ▾
+    </span>
+  </button>
   <div
     style={{
       marginTop: "18px",
@@ -42415,7 +42461,9 @@ foodCostPercentage={
 
     <div
       style={{
-        display: "grid",
+       display: collapsedSections.ai_business_health
+  ? "none"
+  : "grid",
         gridTemplateColumns: isMobile ? "1fr" : "220px 1fr",
         gap: "24px",
         alignItems: "center",
@@ -42468,17 +42516,8 @@ foodCostPercentage={
         </div>
       </div>
 
-      <div>
-        <h2
-          style={{
-            color: "white",
-            fontSize: "30px",
-            fontWeight: "950",
-            marginBottom: "10px",
-          }}
-        >
-          AI business operational health
-        </h2>
+     <div>
+
 
         <p
           style={{
@@ -42582,6 +42621,7 @@ borderRadius: "14px",
         </div>
       </div>
     </div>
+  </div>
   </div>
 )}
 
