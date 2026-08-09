@@ -40534,29 +40534,7 @@ selectedHandler();
 </button>
   </div>
 )}
-    </div>
-)}
 
-              </div>
-            )}
-          </div>
-        );
-      })}
-    </div>
-   
-
-  </div>
-)}
-{/* ================================ */}
-{/* FIRST-TIME CLIENT SETUP CARD */}
-{/* ================================ */}
-{activeTab === "overview" && (
-  <>
-  {(isOwnerRole || isExecutiveRole || canSeeManagerDashboard) && (
-  <>
-
-false && (
-  <>
 {/* ✅ AI ONBOARDING CENTER */}
 <div
   style={{
@@ -40722,8 +40700,29 @@ false && (
     </div>
   </div>
 </div>
- </>
-)
+ 
+    </div>
+)}
+
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+   
+
+  </div>
+)}
+{/* ================================ */}
+{/* FIRST-TIME CLIENT SETUP CARD */}
+{/* ================================ */}
+{activeTab === "overview" && (
+  <>
+  {(isOwnerRole || isExecutiveRole || canSeeManagerDashboard) && (
+  <>
+
+
 {hasFullRecoveryData&& (
   <>{/* =========================
    SERVEN PROFIT RECOVERY SUMMARY
