@@ -39363,52 +39363,7 @@ return (
 )}
 
 {section.key === "uploads" && (
-  <div
-    style={{
-      padding: "16px",
-      borderRadius: "16px",
-      background: "rgba(255,255,255,0.035)",
-      border: "1px solid rgba(255,255,255,0.07)",
-    }}
-  >
-    <div
-      style={{
-        color: "white",
-        fontWeight: "900",
-        marginBottom: "6px",
-      }}
-    >
-      Manual Uploads
-    </div>
 
-    <div
-      style={{
-        color: "#94a3b8",
-        fontSize: "13px",
-        lineHeight: 1.6,
-      }}
-    >
-      Continue using your existing POS, labor, inventory, invoice,
-      beverage, recipe, location, and other manual import tools.
-    </div>
-  </div>
-)}
-              </div>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  </div>
-)}
-{/* ================================ */}
-{/* FIRST-TIME CLIENT SETUP CARD */}
-{/* ================================ */}
-{activeTab === "overview" && (
-  <>
-  {(isOwnerRole || isExecutiveRole || canSeeManagerDashboard) && (
-  <>
-    {/* WELCOME / UPLOAD SECTION HERE */}
      <div
       style={{
   marginBottom: "24px",
@@ -39431,7 +39386,7 @@ return (
           marginBottom: "10px",
         }}
       >
-        Welcome to SerVen
+        Manual Data Imports
       </div>
       <input
   id="posUpload"
@@ -39556,7 +39511,7 @@ return (
           margin: "0 0 10px",
         }}
       >
-        Connect your restaurant data to unlock your first AI insights
+        Upload restaurant data directly into Serven
       </h2>
 
       <p
@@ -39568,9 +39523,8 @@ return (
           margin: "0 0 22px",
         }}
       >
-        Upload your POS sales data, menu items, or ingredients to generate
-        revenue trends, profit leaks, food cost alerts, and AI-powered
-        recommendations.
+       Use manual uploads when a direct integration is unavailable or when you
+need to add historical restaurant data.
       </p>
 
       <div
@@ -40196,11 +40150,7 @@ return (
 >
   Upload Beverage Data
 </button>
-    </div>
-  </div>
-</div>
-</div>
-    </div>
+
     {/* CLIENT RECENT IMPORTS */}
 
 <div
@@ -40464,12 +40414,16 @@ console.log("DELETE BUTTON ID:", item?.id);
   </div>
 )}
           </div>
+          
         ))}
     </div>
   )}
 </div>
-
-{/* UPLOAD SUMMARY + CONFIRM */}
+     </div>
+  </div>
+</div>
+</div>
+ {/* UPLOAD SUMMARY + CONFIRM */}
 {pendingUploadSummary && !usesDedicatedUploadCard && (
   <div
     style={{
@@ -40580,6 +40534,27 @@ selectedHandler();
 </button>
   </div>
 )}
+    </div>
+)}
+
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+   
+
+  </div>
+)}
+{/* ================================ */}
+{/* FIRST-TIME CLIENT SETUP CARD */}
+{/* ================================ */}
+{activeTab === "overview" && (
+  <>
+  {(isOwnerRole || isExecutiveRole || canSeeManagerDashboard) && (
+  <>
+
 
 {/* ✅ AI ONBOARDING CENTER */}
 <div
