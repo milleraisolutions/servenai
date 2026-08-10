@@ -34859,7 +34859,7 @@ useEffect(() => {
        setLocations(data || []);
   };
 
-  if (!dataOwnerId) return;
+
 
   loadLocations();
 
