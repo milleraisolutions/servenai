@@ -34839,32 +34839,88 @@ let importCommitted = false;
 
 useEffect(() => {
   const loadLocations = async () => {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    try {
+      const {
+        data: { user: authUser },
+        error: authError,
+      } = await supabase.auth.getUser();
 
-    if (!user?.id) return;
+      if (authError) {
+        console.error(
+          "LOCATIONS AUTH ERROR:",
+          authError
+        );
+        return;
+      }
 
-    const { data, error } = await supabase
-      .from("locations")
-      .select("*")
-     .eq("user_id", dataOwnerId || user.id)
-      .order("created_at", { ascending: false });
+      const resolvedOwnerId =
+        dataOwnerId ||
+        authenticatedUserId ||
+        authUser?.id ||
+        null;
 
-    if (error) {
-      console.error("Locations load error:", error);
-      return;
+      console.log(
+        "LOCATIONS RESOLVED OWNER ID:",
+        resolvedOwnerId
+      );
+
+      if (!resolvedOwnerId) {
+        console.log(
+          "LOCATIONS WAITING FOR AUTH"
+        );
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("locations")
+        .select("*")
+        .eq("user_id", resolvedOwnerId)
+        .order("created_at", {
+          ascending: false,
+        });
+
+      console.log(
+        "LOCATIONS QUERY RESULT:",
+        data
+      );
+
+      console.log(
+        "LOCATIONS QUERY ERROR:",
+        error
+      );
+
+      console.log(
+        "LOCATIONS QUERY COUNT:",
+        data?.length || 0
+      );
+
+      if (error) {
+        console.error(
+          "Locations load error:",
+          error
+        );
+        return;
+      }
+
+      setLocations(data || []);
+    } catch (error) {
+      console.error(
+        "LOCATIONS LOAD CRASH:",
+        error
+      );
     }
-
-       setLocations(data || []);
   };
 
-
+  if (!authReady) {
+    return;
+  }
 
   loadLocations();
-
-
-}, [dataOwnerId, activeLocation]);
+}, [
+  authReady,
+  authenticatedUserId,
+  dataOwnerId,
+]);
 const handleLocationUpload = async (event) => {
   let uploadRow = null;
 
