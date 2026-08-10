@@ -38618,101 +38618,144 @@ const connectionLocationName =
 </div>
         </div>
 
-        <div
-          style={{
-            padding: "5px 9px",
-            borderRadius: "999px",
-            background: isConnected
-              ? "rgba(34,197,94,0.12)"
-              : "rgba(148,163,184,0.08)",
-            color: isConnected
-              ? "#86efac"
-              : "#94a3b8",
-            fontSize: "10px",
-            fontWeight: "900",
-          }}
-        >
-          {isConnected
-            ? "Connected ✓"
-            : "Disconnected"}
-        </div>
-      </div>
-{/* CONNECTION DETAILS */}
+       
+      </div>{/* CONNECTION DETAILS */}
 {isConnected && (
   <div
     style={{
       padding: "10px 12px",
       borderRadius: "12px",
       background: "rgba(255,255,255,0.025)",
-      border:
-        "1px solid rgba(255,255,255,0.05)",
+      border: "1px solid rgba(255,255,255,0.05)",
     }}
   >
     <div
       style={{
-        color: "#64748b",
-        fontSize: "10px",
-        fontWeight: "900",
-        textTransform: "uppercase",
-        letterSpacing: "0.06em",
-        marginBottom: "4px",
+        display: "grid",
+        gridTemplateColumns: isMobile
+          ? "1fr"
+          : "repeat(2, minmax(0, 1fr))",
+        gap: "12px",
       }}
     >
-      Location
-    </div>
-
-    <div
-      style={{
-        color: "#e2e8f0",
-        fontSize: "12px",
-        fontWeight: "900",
-        marginBottom: "10px",
-      }}
-    >
-      {connectionLocationName}
-    </div>
-
-    <div
-      style={{
-        color: "#64748b",
-        fontSize: "10px",
-        fontWeight: "900",
-        textTransform: "uppercase",
-        letterSpacing: "0.06em",
-        marginBottom: "4px",
-      }}
-    >
-      Last Sync
-    </div>
-
-          <div
-            style={{
-              color: "#cbd5e1",
-              fontSize: "12px",
-              fontWeight: "800",
-            }}
-          >
-            {connection?.last_sync_at
-              ? new Date(
-                  connection.last_sync_at
-                ).toLocaleString()
-              : "No successful sync yet"}
-          </div>
-
-          {isSyncPending && (
-            <div
-              style={{
-                color: "#fbbf24",
-                fontSize: "10px",
-                fontWeight: "800",
-                marginTop: "5px",
-              }}
-            >
-              Sync pending provider API connection
-            </div>
-          )}
+      <div>
+        <div
+          style={{
+            color: "#64748b",
+            fontSize: "10px",
+            fontWeight: "900",
+            textTransform: "uppercase",
+            letterSpacing: "0.06em",
+            marginBottom: "4px",
+          }}
+        >
+          Provider
         </div>
-      )}
+
+        <div
+          style={{
+            color: "#e2e8f0",
+            fontSize: "12px",
+            fontWeight: "900",
+          }}
+        >
+          {provider}
+        </div>
+      </div>
+
+      <div>
+        <div
+          style={{
+            color: "#64748b",
+            fontSize: "10px",
+            fontWeight: "900",
+            textTransform: "uppercase",
+            letterSpacing: "0.06em",
+            marginBottom: "4px",
+          }}
+        >
+          Connection Type
+        </div>
+
+        <div
+          style={{
+            color: "#e2e8f0",
+            fontSize: "12px",
+            fontWeight: "900",
+            textTransform: "capitalize",
+          }}
+        >
+          {connection?.connection_type || "manual"}
+        </div>
+      </div>
+
+      <div>
+        <div
+          style={{
+            color: "#64748b",
+            fontSize: "10px",
+            fontWeight: "900",
+            textTransform: "uppercase",
+            letterSpacing: "0.06em",
+            marginBottom: "4px",
+          }}
+        >
+          Location
+        </div>
+
+        <div
+          style={{
+            color: "#e2e8f0",
+            fontSize: "12px",
+            fontWeight: "900",
+          }}
+        >
+          {connectionLocationName}
+        </div>
+      </div>
+
+      <div>
+        <div
+          style={{
+            color: "#64748b",
+            fontSize: "10px",
+            fontWeight: "900",
+            textTransform: "uppercase",
+            letterSpacing: "0.06em",
+            marginBottom: "4px",
+          }}
+        >
+          Last Sync
+        </div>
+
+        <div
+          style={{
+            color: "#cbd5e1",
+            fontSize: "12px",
+            fontWeight: "800",
+          }}
+        >
+          {connection?.last_sync_at
+            ? new Date(connection.last_sync_at).toLocaleString()
+            : "No successful sync yet"}
+        </div>
+      </div>
+    </div>
+
+    {isSyncPending && (
+      <div
+        style={{
+          marginTop: "12px",
+          color: "#fbbf24",
+          fontSize: "10px",
+          fontWeight: "800",
+        }}
+      >
+        Sync pending provider API connection
+      </div>
+    )}
+  </div>
+)}
 
       {/* ACTIONS */}
       <div
