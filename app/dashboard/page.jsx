@@ -12078,35 +12078,133 @@ useEffect(() => {
       console.log("LABOR AUTH USER:", authenticatedUserId);
       console.log("LABOR DATA OWNER:", dataOwnerId);
 
-      const { data, error } = await supabase
-        .from("labor_uploads")
-        .select("*")
-        .in("user_id", uniqueUserIds)
-        .order("created_at", {
-          ascending: false,
-        })
-        .limit(5000);
+    // ========================================
+// CANONICAL LABOR READ
+// employee_shifts is now the primary source.
+// labor_uploads remains a legacy fallback.
+// ========================================
 
-      console.log("LABOR RAW DATA:", data);
-      console.log("LABOR RAW LENGTH:", data?.length);
-      console.log("LABOR ERROR:", error);
+let data = [];
+let error = null;
+let laborSource = "employee_shifts";
 
-      if (data?.length) {
-        console.log("FIRST LABOR ROW:", data[0]);
-      }
+const {
+  data: canonicalShiftRows,
+  error: canonicalShiftError,
+} = await supabase
+  .from("employee_shifts")
+  .select("*")
+  .in("user_id", uniqueUserIds)
+  .order("shift_date", {
+    ascending: false,
+  })
+  .limit(5000);
 
-      console.log("LABOR DATABASE RESULT:", data);
-      console.log("LABOR DATABASE ERROR:", error);
-      console.log("LABOR DATABASE COUNT:", data?.length || 0);
+console.log(
+  "CANONICAL EMPLOYEE SHIFTS RESULT:",
+  canonicalShiftRows
+);
 
-      console.log(
-        "LABOR DATABASE USER IDS:",
-        (data || []).map((row) => row.user_id)
-      );
+console.log(
+  "CANONICAL EMPLOYEE SHIFTS ERROR:",
+  canonicalShiftError
+);
 
-      if (error) {
-        throw error;
-      }
+console.log(
+  "CANONICAL EMPLOYEE SHIFTS COUNT:",
+  canonicalShiftRows?.length || 0
+);
+
+if (
+  !canonicalShiftError &&
+  Array.isArray(canonicalShiftRows) &&
+  canonicalShiftRows.length > 0
+) {
+  data = canonicalShiftRows;
+} else {
+  // ----------------------------------------
+  // LEGACY FALLBACK
+  // Keeps older pre-migration labor visible.
+  // ----------------------------------------
+
+  laborSource = "labor_uploads";
+
+  const {
+    data: legacyLaborRows,
+    error: legacyLaborError,
+  } = await supabase
+    .from("labor_uploads")
+    .select("*")
+    .in("user_id", uniqueUserIds)
+    .order("created_at", {
+      ascending: false,
+    })
+    .limit(5000);
+
+  data = legacyLaborRows || [];
+  error = legacyLaborError || canonicalShiftError;
+
+  console.log(
+    "LEGACY LABOR FALLBACK RESULT:",
+    legacyLaborRows
+  );
+
+  console.log(
+    "LEGACY LABOR FALLBACK ERROR:",
+    legacyLaborError
+  );
+}
+
+console.log(
+  "LABOR PRIMARY SOURCE:",
+  laborSource
+);
+
+console.log(
+  "LABOR RAW DATA:",
+  data
+);
+
+console.log(
+  "LABOR RAW LENGTH:",
+  data?.length || 0
+);
+
+console.log(
+  "LABOR ERROR:",
+  error
+);
+
+if (data?.length) {
+  console.log(
+    "FIRST LABOR ROW:",
+    data[0]
+  );
+}
+
+console.log(
+  "LABOR DATABASE RESULT:",
+  data
+);
+
+console.log(
+  "LABOR DATABASE ERROR:",
+  error
+);
+
+console.log(
+  "LABOR DATABASE COUNT:",
+  data?.length || 0
+);
+
+console.log(
+  "LABOR DATABASE USER IDS:",
+  (data || []).map((row) => row.user_id)
+);
+
+if (error && (!data || data.length === 0)) {
+  throw error;
+}
 
       if (cancelled) return;
 
