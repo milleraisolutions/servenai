@@ -15908,9 +15908,116 @@ console.log("✅ FINISHED labor_uploads INSERT", {
     }
 
     console.log("DATABASE INSERTION SUCCESS:", insertedLaborRows);
+// ========================================
+// CANONICAL LABOR → EMPLOYEE SHIFTS
+// ========================================
 
+const employeeShiftRowsFromLabor = rowsToInsert.map((row) => {
+  const getTimeOnly = (value) => {
+    if (!value) return null;
+
+    const stringValue = String(value).trim();
+
+    // Timestamp such as 2026-08-10T09:00:00
+    if (stringValue.includes("T")) {
+      return stringValue.split("T")[1]?.slice(0, 8) || null;
+    }
+
+    // Already a time such as 09:00 or 09:00:00
+    if (/^\d{1,2}:\d{2}/.test(stringValue)) {
+      const parts = stringValue.split(":");
+
+      const hours = String(parts[0] || "00").padStart(2, "0");
+      const minutes = String(parts[1] || "00").padStart(2, "0");
+      const seconds = String(parts[2] || "00").padStart(2, "0");
+
+      return `${hours}:${minutes}:${seconds}`;
+    }
+
+    return null;
+  };
+
+  return {
+    user_id: ownerId,
+
+    employee_id: null,
+
+    upload_id: uploadedFileRow.id,
+
+    file_name: laborFileName,
+
+    employee_name:
+      row.employee_name ||
+      row.employee ||
+      "Unknown Employee",
+
+    role:
+      row.role ||
+      row.position ||
+      "Staff",
+
+    shift_date:
+      row.work_date ||
+      null,
+
+    shift_start: getTimeOnly(row.clock_in),
+
+    shift_end: getTimeOnly(row.clock_out),
+
+    hours_worked: Number(row.hours_worked || 0),
+
+    hourly_rate: Number(row.hourly_rate || 0),
+
+    labor_cost: Number(row.labor_cost || 0),
+
+    revenue_during_shift: Number(
+      row.sales_generated || 0
+    ),
+
+    location_name:
+      row.location_name ||
+      row.location ||
+      null,
+
+    connection_id: null,
+  };
+});
+
+console.log(
+  "LABOR → EMPLOYEE SHIFTS ROWS:",
+  employeeShiftRowsFromLabor
+);
+
+const {
+  data: insertedEmployeeShiftRows,
+  error: employeeShiftInsertError,
+} = await supabase
+  .from("employee_shifts")
+  .insert(employeeShiftRowsFromLabor)
+  .select();
+
+console.log("LABOR → EMPLOYEE SHIFTS RESULT:", {
+  insertedEmployeeShiftRows,
+  employeeShiftInsertError,
+});
+
+if (employeeShiftInsertError) {
+  console.error(
+    "LABOR → EMPLOYEE SHIFTS INSERT ERROR:",
+    employeeShiftInsertError
+  );
+
+  setMessage(
+    `Labor was saved, but employee shift normalization failed: ${
+      employeeShiftInsertError.message || "Unknown error"
+    }`
+  );
+
+  return;
+}
     // 5. Structure State Manifest Update
     // 5. Reload the permanent labor records from Supabase
+    
 let refreshedLaborRows = [];
 let refreshError = null;
 
@@ -33194,13 +33301,20 @@ shift_end:
   row.End ||
   null,
 
-              hours_worked: hoursWorked,
+             hours_worked: hoursWorked,
 
-              labor_cost:
-                Number(row.labor_cost || row["Labor Cost"] || row.cost || row.Cost || 0) ||
-                hoursWorked * hourlyRate,
+hourly_rate: hourlyRate,
 
-              revenue_during_shift: Number(
+labor_cost:
+  Number(
+    row.labor_cost ||
+      row["Labor Cost"] ||
+      row.cost ||
+      row.Cost ||
+      0
+  ) || hoursWorked * hourlyRate,
+
+revenue_during_shift: Number(
                 row.revenue_during_shift ||
                   row["Revenue During Shift"] ||
                   row.revenue ||
