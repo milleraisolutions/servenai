@@ -797,6 +797,7 @@ const [inviteName, setInviteName] = useState("");
 const [inviteEmail, setInviteEmail] = useState("");
 const [inviteRole, setInviteRole] = useState("gm");
 const [inviteLocation, setInviteLocation] = useState("");
+const [inviteLocationIds, setInviteLocationIds] = useState([]);
 const [teamInvites, setTeamInvites] = useState([]);
 const [cookTimeLogs, setCookTimeLogs] = useState([]);
 const [batchPrepData, setBatchPrepData] = useState([]);
@@ -36214,17 +36215,61 @@ const inviteToken = crypto.randomUUID();
     return;
   }
 console.log("INVITE EMAIL:", inviteEmail);
- const { error } = await supabase.from("team_invites").insert([
-  {
-    owner_user_id: user.id,
-    name: inviteName.trim(),
-    email: inviteEmail.trim().toLowerCase(),
-    role: inviteRole,
-    location_name: inviteLocation.trim() || null,
-    status: "pending",
-    invite_token: inviteToken,
-  },
-]);
+const isRegionalDirector =
+  inviteRole === "regional_director";
+
+if (
+  isRegionalDirector &&
+  inviteLocationIds.length === 0
+) {
+  alert(
+    "Please assign at least one location to the Regional Director."
+  );
+  setSendingInvite(false);
+  return;
+}
+
+if (
+  (inviteRole === "gm" ||
+    inviteRole === "kitchen_manager") &&
+  !inviteLocation.trim()
+) {
+  alert(
+    "Please select an assigned location."
+  );
+  setSendingInvite(false);
+  return;
+}
+
+const { error } = await supabase
+  .from("team_invites")
+  .insert([
+    {
+      owner_user_id: user.id,
+
+      name: inviteName.trim(),
+
+      email: inviteEmail
+        .trim()
+        .toLowerCase(),
+
+      role: inviteRole,
+
+      location_name:
+        isRegionalDirector
+          ? null
+          : inviteLocation.trim() || null,
+
+      location_ids:
+        isRegionalDirector
+          ? inviteLocationIds
+          : [],
+
+      status: "pending",
+
+      invite_token: inviteToken,
+    },
+  ]);
 
   if (error) {
     console.error("Team invite failed:", error);
@@ -36260,12 +36305,12 @@ await logAuditEvent({
 await loadTeamInvites();
 
 alert("Invite sent successfully.");
-
-  setInviteName("");
-  setInviteEmail("");
-  setInviteRole("gm");
-  setInviteLocation("");
-  setSendingInvite(false);
+setInviteName("");
+setInviteEmail("");
+setInviteRole("gm");
+setInviteLocation("");
+setInviteLocationIds([]);
+setSendingInvite(false);
 };
 
 useEffect(() => {
@@ -69726,11 +69771,17 @@ profit recovery opportunities, AI recommendations, and forecasted trends.
       onChange={(e) => setInviteEmail(e.target.value)}
     />
 
-   <select
+  <select
   value={inviteRole}
-  onChange={(e) => setInviteRole(e.target.value)}
+  onChange={(e) => {
+    const nextRole = e.target.value;
+
+    setInviteRole(nextRole);
+    setInviteLocation("");
+    setInviteLocationIds([]);
+  }}
 >
- <option value="restaurant_owner">Restaurant Owner</option>
+  <option value="restaurant_owner">Restaurant Owner</option>
   <option value="corporate_admin">Corporate Admin</option>
   <option value="regional_director">Regional Director</option>
   <option value="gm">General Manager</option>
@@ -69738,11 +69789,152 @@ profit recovery opportunities, AI recommendations, and forecasted trends.
   <option value="finance">Finance</option>
 </select>
 
-    <input
-      placeholder="Assigned Location"
-      value={inviteLocation}
-      onChange={(e) => setInviteLocation(e.target.value)}
-    />
+{inviteRole === "regional_director" ? (
+  <div
+    style={{
+      gridColumn: isMobile ? "auto" : "1 / -1",
+      display: "grid",
+      gap: "8px",
+    }}
+  >
+    <div
+      style={{
+        color: "#94a3b8",
+        fontSize: "11px",
+        fontWeight: "900",
+        textTransform: "uppercase",
+        letterSpacing: "0.06em",
+      }}
+    >
+      Assigned Locations
+    </div>
+
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: isMobile
+          ? "1fr"
+          : "repeat(2, minmax(0, 1fr))",
+        gap: "8px",
+        padding: "12px",
+        borderRadius: "14px",
+        background: "rgba(15,23,42,0.72)",
+        border: "1px solid rgba(148,163,184,0.14)",
+      }}
+    >
+      {(locations || []).length > 0 ? (
+        (locations || []).map((location) => {
+          const locationId = String(location.id);
+
+          const locationName =
+            location.location_name ||
+            location.name ||
+            "Unnamed Location";
+
+          const checked =
+            inviteLocationIds.includes(locationId);
+
+          return (
+            <label
+              key={locationId}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                color: "#e2e8f0",
+                fontSize: "12px",
+                fontWeight: "800",
+                cursor: "pointer",
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={checked}
+                onChange={(e) => {
+                  if (e.target.checked) {
+                    setInviteLocationIds((previous) => [
+                      ...new Set([
+                        ...(previous || []),
+                        locationId,
+                      ]),
+                    ]);
+                  } else {
+                    setInviteLocationIds((previous) =>
+                      (previous || []).filter(
+                        (id) => id !== locationId
+                      )
+                    );
+                  }
+                }}
+              />
+
+              {locationName}
+            </label>
+          );
+        })
+      ) : (
+        <div
+          style={{
+            color: "#64748b",
+            fontSize: "12px",
+          }}
+        >
+          No restaurant locations have been added yet.
+        </div>
+      )}
+    </div>
+
+    <div
+      style={{
+        color: "#64748b",
+        fontSize: "11px",
+        fontWeight: "700",
+      }}
+    >
+      {inviteLocationIds.length} location
+      {inviteLocationIds.length === 1 ? "" : "s"} selected
+    </div>
+  </div>
+) : inviteRole === "gm" ||
+  inviteRole === "kitchen_manager" ? (
+  <select
+    value={inviteLocation}
+    onChange={(e) =>
+      setInviteLocation(e.target.value)
+    }
+  >
+    <option value="">
+      Select assigned location
+    </option>
+
+    {(locations || []).map((location) => {
+      const locationName =
+        location.location_name ||
+        location.name ||
+        "";
+
+      return (
+        <option
+          key={location.id}
+          value={locationName}
+        >
+          {locationName}
+        </option>
+      );
+    })}
+  </select>
+) : (
+  <div
+    style={{
+      color: "#64748b",
+      fontSize: "12px",
+      display: "flex",
+      alignItems: "center",
+    }}
+  >
+    Company-wide access
+  </div>
+)}
   </div>
 
 <button
