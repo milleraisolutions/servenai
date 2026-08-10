@@ -15921,82 +15921,275 @@ console.log(
 // CANONICAL LABOR → EMPLOYEE SHIFTS
 // ========================================
 
-const employeeShiftRowsFromLabor = rowsToInsert.map((row) => {
-  const getTimeOnly = (value) => {
-    if (!value) return null;
+// 1. Collect unique employees from this labor upload
+const laborEmployeeMap = new Map();
 
-    const stringValue = String(value).trim();
-
-    // Timestamp such as 2026-08-10T09:00:00
-    if (stringValue.includes("T")) {
-      return stringValue.split("T")[1]?.slice(0, 8) || null;
-    }
-
-    // Already a time such as 09:00 or 09:00:00
-    if (/^\d{1,2}:\d{2}/.test(stringValue)) {
-      const parts = stringValue.split(":");
-
-      const hours = String(parts[0] || "00").padStart(2, "0");
-      const minutes = String(parts[1] || "00").padStart(2, "0");
-      const seconds = String(parts[2] || "00").padStart(2, "0");
-
-      return `${hours}:${minutes}:${seconds}`;
-    }
-
-    return null;
-  };
-
-  return {
-    user_id: ownerId,
-
-    employee_id: null,
-
-    upload_id: uploadedFileRow.id,
-
-    file_name: laborFileName,
-
-    employee_name:
-      row.employee_name ||
+rowsToInsert.forEach((row) => {
+  const employeeName = String(
+    row.employee_name ||
       row.employee ||
-      "Unknown Employee",
+      "Unknown Employee"
+  ).trim();
 
-    role:
-      row.role ||
-      row.position ||
-      "Staff",
+  if (!employeeName) return;
 
-    shift_date:
-      row.work_date ||
-      null,
+  if (!laborEmployeeMap.has(employeeName)) {
+    laborEmployeeMap.set(employeeName, {
+      user_id: ownerId,
+      employee_name: employeeName,
 
-    shift_start: getTimeOnly(row.clock_in),
+      role:
+        row.role ||
+        row.position ||
+        "Staff",
 
-    shift_end: getTimeOnly(row.clock_out),
+      department: "Labor",
 
-    hours_worked: Number(row.hours_worked || 0),
+      hourly_rate: Number(
+        row.hourly_rate ||
+          row.rate ||
+          0
+      ),
 
-    hourly_rate: Number(row.hourly_rate || 0),
-
-    labor_cost: Number(row.labor_cost || 0),
-
-    revenue_during_shift: Number(
-      row.sales_generated || 0
-    ),
-
-    location_name:
-      row.location_name ||
-      row.location ||
-      null,
-
-    connection_id: null,
-  };
+      status: "active",
+    });
+  }
 });
+
+const laborEmployeesToResolve = Array.from(
+  laborEmployeeMap.values()
+);
+
+console.log(
+  "LABOR → EMPLOYEES TO RESOLVE:",
+  laborEmployeesToResolve
+);
+
+
+// 2. Load existing employees for this restaurant
+const {
+  data: existingLaborEmployees,
+  error: existingLaborEmployeesError,
+} = await supabase
+  .from("employees")
+  .select("id, employee_name")
+  .eq("user_id", ownerId);
+
+console.log(
+  "LABOR → EXISTING EMPLOYEES:",
+  existingLaborEmployees
+);
+
+console.log(
+  "LABOR → EXISTING EMPLOYEE ERROR:",
+  existingLaborEmployeesError
+);
+
+if (existingLaborEmployeesError) {
+  throw existingLaborEmployeesError;
+}
+
+
+// 3. Determine which employees are new
+const existingLaborEmployeeByName = new Map(
+  (existingLaborEmployees || []).map((employee) => [
+    String(employee.employee_name || "")
+      .trim()
+      .toLowerCase(),
+    employee,
+  ])
+);
+
+const newLaborEmployees = laborEmployeesToResolve.filter(
+  (employee) =>
+    !existingLaborEmployeeByName.has(
+      String(employee.employee_name || "")
+        .trim()
+        .toLowerCase()
+    )
+);
+
+console.log(
+  "LABOR → NEW EMPLOYEES:",
+  newLaborEmployees
+);
+
+
+// 4. Insert only employees that do not already exist
+let insertedLaborEmployees = [];
+
+if (newLaborEmployees.length > 0) {
+  const {
+    data: newEmployeeRows,
+    error: newEmployeeError,
+  } = await supabase
+    .from("employees")
+    .insert(newLaborEmployees)
+    .select("id, employee_name");
+
+  console.log(
+    "LABOR → INSERTED EMPLOYEES:",
+    newEmployeeRows
+  );
+
+  console.log(
+    "LABOR → EMPLOYEE INSERT ERROR:",
+    newEmployeeError
+  );
+
+  if (newEmployeeError) {
+    throw newEmployeeError;
+  }
+
+  insertedLaborEmployees = newEmployeeRows || [];
+}
+
+
+// 5. Build final employee UUID lookup
+const allResolvedLaborEmployees = [
+  ...(existingLaborEmployees || []),
+  ...insertedLaborEmployees,
+];
+
+const laborEmployeeIdLookup = new Map(
+  allResolvedLaborEmployees.map((employee) => [
+    String(employee.employee_name || "")
+      .trim()
+      .toLowerCase(),
+    employee.id,
+  ])
+);
+
+
+// 6. Convert timestamp values into employee_shifts time values
+const getLaborShiftTime = (value) => {
+  if (!value) return null;
+
+  const stringValue = String(value).trim();
+
+  if (!stringValue) return null;
+
+  if (stringValue.includes("T")) {
+    return stringValue.split("T")[1]?.slice(0, 8) || null;
+  }
+
+  if (/^\d{1,2}:\d{2}/.test(stringValue)) {
+    const parts = stringValue.split(":");
+
+    const hours = String(parts[0] || "00").padStart(2, "0");
+    const minutes = String(parts[1] || "00").padStart(2, "0");
+    const seconds = String(parts[2] || "00").padStart(2, "0");
+
+    return `${hours}:${minutes}:${seconds}`;
+  }
+
+  return null;
+};
+
+
+// 7. Build canonical employee shift rows
+const employeeShiftRowsFromLabor = rowsToInsert.map(
+  (row) => {
+    const employeeName = String(
+      row.employee_name ||
+        row.employee ||
+        "Unknown Employee"
+    ).trim();
+
+    const employeeLookupKey =
+      employeeName.toLowerCase();
+
+    return {
+      user_id: ownerId,
+
+      employee_id:
+        laborEmployeeIdLookup.get(employeeLookupKey) ||
+        null,
+
+      upload_id: uploadedFileRow.id,
+
+      file_name: laborFileName,
+
+      employee_name: employeeName,
+
+      role:
+        row.role ||
+        row.position ||
+        "Staff",
+
+      shift_date:
+        row.work_date ||
+        row.shift_date ||
+        null,
+
+      shift_start: getLaborShiftTime(
+        row.clock_in ||
+          row.shift_start
+      ),
+
+      shift_end: getLaborShiftTime(
+        row.clock_out ||
+          row.shift_end
+      ),
+
+      hours_worked: Number(
+        row.hours_worked ||
+          row.hours ||
+          0
+      ),
+
+      hourly_rate: Number(
+        row.hourly_rate ||
+          row.rate ||
+          0
+      ),
+
+      labor_cost: Number(
+        row.labor_cost ||
+          0
+      ),
+
+      revenue_during_shift: Number(
+        row.sales_generated ||
+          row.revenue_during_shift ||
+          0
+      ),
+
+      location_name:
+        row.location_name ||
+        row.location ||
+        null,
+
+      connection_id: null,
+    };
+  }
+);
 
 console.log(
   "LABOR → EMPLOYEE SHIFTS ROWS:",
   employeeShiftRowsFromLabor
 );
 
+
+// 8. Safety check — every labor employee should have a UUID
+const unresolvedLaborEmployees =
+  employeeShiftRowsFromLabor.filter(
+    (row) => !row.employee_id
+  );
+
+if (unresolvedLaborEmployees.length > 0) {
+  console.error(
+    "LABOR → UNRESOLVED EMPLOYEE IDS:",
+    unresolvedLaborEmployees
+  );
+
+  throw new Error(
+    `${unresolvedLaborEmployees.length} labor employee(s) could not be linked to an employee record.`
+  );
+}
+
+
+// 9. Write canonical shifts
 const {
   data: insertedEmployeeShiftRows,
   error: employeeShiftInsertError,
@@ -16005,10 +16198,13 @@ const {
   .insert(employeeShiftRowsFromLabor)
   .select();
 
-console.log("LABOR → EMPLOYEE SHIFTS RESULT:", {
-  insertedEmployeeShiftRows,
-  employeeShiftInsertError,
-});
+console.log(
+  "LABOR → EMPLOYEE SHIFTS RESULT:",
+  {
+    insertedEmployeeShiftRows,
+    employeeShiftInsertError,
+  }
+);
 
 if (employeeShiftInsertError) {
   console.error(
@@ -16016,14 +16212,36 @@ if (employeeShiftInsertError) {
     employeeShiftInsertError
   );
 
-  setMessage(
-    `Labor was saved, but employee shift normalization failed: ${
-      employeeShiftInsertError.message || "Unknown error"
-    }`
-  );
-
-  return;
+  throw employeeShiftInsertError;
 }
+
+
+// 10. Update frontend employee-shift state immediately
+setEmployeeShifts((previous) => {
+  const existing = Array.isArray(previous)
+    ? previous
+    : [];
+
+  const incoming =
+    insertedEmployeeShiftRows || [];
+
+  const merged = [...incoming, ...existing];
+
+  return merged.filter(
+    (row, index, array) =>
+      index ===
+      array.findIndex(
+        (candidate) =>
+          String(candidate.id || "") ===
+          String(row.id || "")
+      )
+  );
+});
+
+console.log(
+  "✅ LABOR CANONICAL EMPLOYEE SHIFT WRITE COMPLETE:",
+  insertedEmployeeShiftRows?.length || 0
+);
     // 5. Structure State Manifest Update
     // 5. Reload the permanent labor records from Supabase
     
