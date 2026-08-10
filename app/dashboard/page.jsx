@@ -37911,9 +37911,9 @@ const formatChartDate = (value) => {
 const filteredRecentUploads = [
   ...new Map(
     (clientImports || []).map((item) => [
-      item.source_name === "labor_upload"
-        ? `labor-${item.file_name || "Labor Upload"}`
-        : item.id,
+      item.id ||
+        item.upload_id ||
+        `${item.upload_type || "upload"}-${item.file_name || "unknown"}-${item.created_at || ""}`,
       item,
     ])
   ).values(),
@@ -40738,15 +40738,15 @@ need to add historical restaurant data.
 >
   {filteredRecentUploads.length} Showing /{" "}
   {[
-    ...new Map(
-      (clientImports || []).map((item) => [
-        item.source_name === "labor_upload"
-          ? `labor-${item.file_name || "Labor Upload"}`
-          : item.id,
-        item,
-      ])
-    ).values(),
-  ].length} Total Imports
+  ...new Map(
+    (clientImports || []).map((item) => [
+      item.id ||
+        item.upload_id ||
+        `${item.upload_type || "upload"}-${item.file_name || "unknown"}-${item.created_at || ""}`,
+      item,
+    ])
+  ).values(),
+].length} Total Imports
 </div>
   </div>
 
