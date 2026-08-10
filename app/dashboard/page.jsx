@@ -16348,10 +16348,10 @@ let refreshError = null;
 
 for (let attempt = 1; attempt <= 5; attempt += 1) {
   let laborQuery = supabase
-    .from("labor_uploads")
+    .from("employee_shifts")
     .select("*")
     .eq("user_id", ownerId)
-    .order("created_at", { ascending: false });
+    .order("shift_date", { ascending: false });
 
   if (shouldFilterByLocation && assignedLocation) {
     laborQuery = laborQuery.eq(
