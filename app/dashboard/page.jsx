@@ -37521,11 +37521,50 @@ if (finalIsLaborUpload) {
       normalizedLookupId
   ).trim();
 
-  console.log("PERMANENT LABOR DELETE START:", {
-    normalizedUploadId,
-    ownerId,
-    uploadRow,
-  });
+console.log("PERMANENT LABOR DELETE START:", {
+  normalizedUploadId,
+  ownerId,
+  uploadRow,
+});
+
+// ========================================
+// DELETE CANONICAL EMPLOYEE SHIFTS FIRST
+// ========================================
+
+const {
+  data: deletedCanonicalLaborShifts,
+  error: canonicalLaborShiftDeleteError,
+} = await supabase
+  .from("employee_shifts")
+  .delete()
+  .eq("user_id", ownerId)
+  .eq("upload_id", normalizedUploadId)
+  .select("id, upload_id, employee_name");
+
+console.log(
+  "LABOR CANONICAL SHIFT DELETE RESULT:",
+  deletedCanonicalLaborShifts
+);
+
+console.log(
+  "LABOR CANONICAL SHIFT DELETE ERROR:",
+  canonicalLaborShiftDeleteError
+);
+
+if (canonicalLaborShiftDeleteError) {
+  throw canonicalLaborShiftDeleteError;
+}
+
+setEmployeeShifts((previous) =>
+  (previous || []).filter(
+    (row) =>
+      String(row.upload_id || "") !== normalizedUploadId
+  )
+);
+
+// ========================================
+// FIND LEGACY LABOR ROWS
+// ========================================
 
 const {
   data: matchingLaborRows,
@@ -37538,20 +37577,31 @@ const {
     `id.eq.${laborRowId},upload_id.eq.${normalizedUploadId}`
   );
 
-  console.log("LABOR ROWS MATCHING DELETE:", matchingLaborRows);
-  console.log("LABOR LOOKUP ERROR:", laborLookupError);
+console.log(
+  "LABOR ROWS MATCHING DELETE:",
+  matchingLaborRows
+);
 
-  if (laborLookupError) {
-    throw laborLookupError;
-  }
+console.log(
+  "LABOR LOOKUP ERROR:",
+  laborLookupError
+);
 
-  if (!matchingLaborRows?.length) {
-    throw new Error(
-      "No labor rows matched this upload."
-    );
-  }
+if (laborLookupError) {
+  throw laborLookupError;
+}
 
-  const {
+if (!matchingLaborRows?.length) {
+  throw new Error(
+    "No labor rows matched this upload."
+  );
+}
+
+// ========================================
+// DELETE LEGACY LABOR ROWS
+// ========================================
+
+const {
   data: deletedLaborRows,
   error: laborDeleteError,
 } = await supabase
@@ -37563,29 +37613,30 @@ const {
   )
   .select("id, upload_id, file_name");
 
-  console.log(
-    "PERMANENT LABOR ROW DELETE RESULT:",
-    deletedLaborRows
-  );
-  console.log(
-    "PERMANENT LABOR ROW DELETE ERROR:",
-    laborDeleteError
-  );
+console.log(
+  "PERMANENT LABOR ROW DELETE RESULT:",
+  deletedLaborRows
+);
 
-  if (laborDeleteError) {
-    throw laborDeleteError;
-  }
+console.log(
+  "PERMANENT LABOR ROW DELETE ERROR:",
+  laborDeleteError
+);
 
-  if (
-    !deletedLaborRows ||
-    deletedLaborRows.length !== matchingLaborRows.length
-  ) {
-    throw new Error(
-      `Expected to delete ${matchingLaborRows.length} labor rows, but deleted ${
-        deletedLaborRows?.length || 0
-      }.`
-    );
-  }
+if (laborDeleteError) {
+  throw laborDeleteError;
+}
+
+if (
+  !deletedLaborRows ||
+  deletedLaborRows.length !== matchingLaborRows.length
+) {
+  throw new Error(
+    `Expected to delete ${matchingLaborRows.length} labor rows, but deleted ${
+      deletedLaborRows?.length || 0
+    }.`
+  );
+}
 
   let deletedUploadRows = [];
 let laborUploadDeleteError = null;
