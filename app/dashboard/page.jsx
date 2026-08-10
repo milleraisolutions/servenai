@@ -15897,10 +15897,19 @@ location_name: resolvedLaborLocation,
       .from("labor_uploads")
       .insert(rowsToInsert)
       .select();
-console.log("✅ FINISHED labor_uploads INSERT", {
-  insertedCount: insertedLaborRows?.length || 0,
-  dbError,
-});
+console.log(
+  "LABOR INSERT COUNT:",
+  insertedLaborRows?.length || 0
+);
+
+console.log(
+  "LABOR INSERT ERROR EXACT:",
+  dbError
+);
+console.log(
+  "LABOR INSERT ERROR MESSAGE:",
+  dbError?.message || "NO DB ERROR"
+);
     if (dbError) {
       console.error("Supabase Database Insertion Error:", dbError);
       setMessage(`Import failed: ${dbError.message || "Check Row Level Security (RLS) policies."}`);
