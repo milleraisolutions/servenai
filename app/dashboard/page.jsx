@@ -800,6 +800,8 @@ const [inviteLocation, setInviteLocation] = useState("");
 const [inviteLocationIds, setInviteLocationIds] = useState([]);
 const [locationSearch, setLocationSearch] = useState("");
 const [teamInvites, setTeamInvites] = useState([]);
+const [selectedTeamMember, setSelectedTeamMember] = useState(null);
+const [showManageAccessModal, setShowManageAccessModal] = useState(false);
 const [cookTimeLogs, setCookTimeLogs] = useState([]);
 const [batchPrepData, setBatchPrepData] = useState([]);
 const importLockRef = useRef(false);
@@ -70485,10 +70487,9 @@ profit recovery opportunities, AI recommendations, and forecasted trends.
             <button
               type="button"
               onClick={() => {
-                alert(
-                  "Manage Access is the next feature."
-                );
-              }}
+  setSelectedTeamMember(member);
+  setShowManageAccessModal(true);
+}}
               style={{
                 padding: "10px 12px",
                 borderRadius: "12px",
@@ -70505,6 +70506,164 @@ profit recovery opportunities, AI recommendations, and forecasted trends.
         </div>
       </div>
     ))}
+  </div>
+)}
+
+
+
+{showManageAccessModal && selectedTeamMember && (
+  <div
+    style={{
+      position: "fixed",
+      inset: 0,
+      background: "rgba(0,0,0,0.65)",
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      zIndex: 99999,
+    }}
+  >
+    <div
+      style={{
+        width: "100%",
+        maxWidth: "720px",
+        background: "#0f172a",
+        borderRadius: "24px",
+        padding: "28px",
+        border: "1px solid rgba(148,163,184,0.16)",
+        boxShadow: "0 25px 80px rgba(0,0,0,.45)",
+      }}
+    >
+      <div
+        style={{
+          color: "#fff",
+          fontSize: "24px",
+          fontWeight: "900",
+          marginBottom: "8px",
+        }}
+      >
+        Manage Team Member
+      </div>
+
+      <div
+        style={{
+          color: "#94a3b8",
+          marginBottom: "24px",
+        }}
+      >
+        {selectedTeamMember.email}
+      </div>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
+          gap: "18px",
+        }}
+      >
+        <div>
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "12px",
+              marginBottom: "8px",
+            }}
+          >
+            Role
+          </div>
+
+          <select
+            value={selectedTeamMember.role}
+            onChange={(e) =>
+              setSelectedTeamMember({
+                ...selectedTeamMember,
+                role: e.target.value,
+              })
+            }
+            style={inputStyle}
+          >
+            <option value="restaurant_owner">Restaurant Owner</option>
+            <option value="corporate_admin">Corporate Admin</option>
+            <option value="regional_director">Regional Director</option>
+            <option value="gm">General Manager</option>
+            <option value="kitchen_manager">Kitchen Manager</option>
+            <option value="finance">Finance</option>
+          </select>
+        </div>
+
+        <div>
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "12px",
+              marginBottom: "8px",
+            }}
+          >
+            Assigned Location
+          </div>
+
+          <select
+            value={selectedTeamMember.location_name || ""}
+            onChange={(e) =>
+              setSelectedTeamMember({
+                ...selectedTeamMember,
+                location_name: e.target.value,
+              })
+            }
+            style={inputStyle}
+          >
+            {(locations || []).map((location) => (
+              <option
+                key={location.id}
+                value={location.location_name}
+              >
+                {location.location_name}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          gap: "12px",
+          justifyContent: "flex-end",
+          marginTop: "34px",
+          flexWrap: "wrap",
+        }}
+      >
+        <button
+          onClick={() => {
+            setShowManageAccessModal(false);
+            setSelectedTeamMember(null);
+          }}
+          style={setupSecondaryButton}
+        >
+          Close
+        </button>
+
+        <button
+          style={{
+            ...setupSecondaryButton,
+            background: "#dc2626",
+            color: "white",
+          }}
+        >
+          Suspend Access
+        </button>
+
+        <button
+          style={{
+            ...setupSecondaryButton,
+            background: "#4f46e5",
+            color: "white",
+          }}
+        >
+          Save Changes
+        </button>
+      </div>
+    </div>
   </div>
 )}
 {/* ROLE ACCESS CONTROL */}
