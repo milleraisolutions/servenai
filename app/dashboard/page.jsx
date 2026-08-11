@@ -36512,7 +36512,15 @@ const loadTeamInvites = async () => {
     console.error("Failed loading team invites:", error);
     return;
   }
-
+console.log(
+  "TEAM INVITES LOADED:",
+  (data || []).map((invite) => ({
+    id: invite.id,
+    owner_user_id: invite.owner_user_id,
+    email: invite.email,
+    status: invite.status,
+  }))
+);
   setTeamInvites(data || []);
 };
 
