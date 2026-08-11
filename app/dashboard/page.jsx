@@ -36531,16 +36531,22 @@ const handleUpdateTeamInviteStatus = async (inviteId, newStatus) => {
   await loadTeamInvites();
 };
 const handleDeleteTeamInvite = async (inviteId) => {
+  console.log("DELETE TEAM INVITE:", inviteId);
+
   const confirmed = window.confirm(
     "Permanently delete this team invite?"
   );
 
   if (!confirmed) return;
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("team_invites")
     .delete()
-    .eq("id", inviteId);
+    .eq("id", inviteId)
+    .select();
+
+  console.log("TEAM INVITE DELETE RESULT:", data);
+  console.log("TEAM INVITE DELETE ERROR:", error);
 
   if (error) {
     console.error("Team invite delete failed:", error);
@@ -70362,7 +70368,7 @@ profit recovery opportunities, AI recommendations, and forecasted trends.
       >
         Revoke
       </button>
-      
+
       <button
   type="button"
   onClick={() => handleDeleteTeamInvite(member.id)}
