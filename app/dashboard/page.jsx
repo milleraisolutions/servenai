@@ -36530,7 +36530,26 @@ const handleUpdateTeamInviteStatus = async (inviteId, newStatus) => {
 
   await loadTeamInvites();
 };
+const handleDeleteTeamInvite = async (inviteId) => {
+  const confirmed = window.confirm(
+    "Permanently delete this team invite?"
+  );
 
+  if (!confirmed) return;
+
+  const { error } = await supabase
+    .from("team_invites")
+    .delete()
+    .eq("id", inviteId);
+
+  if (error) {
+    console.error("Team invite delete failed:", error);
+    alert(error.message);
+    return;
+  }
+
+  await loadTeamInvites();
+};
 const cookTimeData = (cookTimeLogs || []).map((item) => ({
   ...item,
   cookMinutes:
@@ -70343,6 +70362,22 @@ profit recovery opportunities, AI recommendations, and forecasted trends.
       >
         Revoke
       </button>
+      
+      <button
+  type="button"
+  onClick={() => handleDeleteTeamInvite(member.id)}
+  style={{
+    padding: "10px 12px",
+    borderRadius: "12px",
+    border: "1px solid rgba(239,68,68,0.35)",
+    background: "rgba(239,68,68,0.18)",
+    color: "#fecaca",
+    fontWeight: "800",
+    cursor: "pointer",
+  }}
+>
+  Delete
+</button>
     </div>
   </div>
 ))}
