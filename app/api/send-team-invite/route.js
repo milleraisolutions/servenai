@@ -14,47 +14,67 @@ export async function POST(req) {
   inviteToken,
 } = body;
 
-    await resend.emails.send({
-      from: "Serven AI <support@servenai.com>",
-      to: inviteEmail,
+  const { data, error } = await resend.emails.send({
+  from: "Serven AI <support@servenai.com>",
+  to: inviteEmail,
 
-      subject: "You've Been Invited To Serven",
+  subject: "You've Been Invited To Serven",
 
-      html: `
-        <div style="font-family:Arial;padding:24px;">
-          <h1>You've Been Invited To Serven</h1>
+  html: `
+    <div style="font-family:Arial;padding:24px;">
+      <h1>You've Been Invited To Serven</h1>
 
-          <p>Hello ${inviteName || "Team Member"},</p>
+      <p>Hello ${inviteName || "Team Member"},</p>
 
-          <p>
-            You were invited as a
-            <strong>${inviteRole}</strong>
-            for ${inviteLocation || "a restaurant location"}.
-          </p>
+      <p>
+        You were invited as a
+        <strong>${inviteRole}</strong>
+        for ${inviteLocation || "your assigned restaurant location(s)"}.
+      </p>
 
-          <p>
-            Access your management dashboard and begin collaborating
-            with your restaurant team.
-          </p>
+      <p>
+        Access your management dashboard and begin collaborating
+        with your restaurant team.
+      </p>
 
-          <a
-            href="https://servenai.com/accept-invite?token=${inviteToken}"
-            style="
-              display:inline-block;
-              padding:14px 20px;
-              background:#4f46e5;
-              color:white;
-              text-decoration:none;
-              border-radius:12px;
-              font-weight:bold;
-              margin-top:20px;
-            "
-          >
-            Open Serven
-          </a>
-        </div>
-      `,
-    });
+      <a
+        href="https://servenai.com/accept-invite?token=${inviteToken}"
+        style="
+          display:inline-block;
+          padding:14px 20px;
+          background:#4f46e5;
+          color:white;
+          text-decoration:none;
+          border-radius:12px;
+          font-weight:bold;
+          margin-top:20px;
+        "
+      >
+        Open Serven
+      </a>
+    </div>
+  `,
+});
+
+console.log("RESEND TEAM INVITE RESULT:", data);
+console.log("RESEND TEAM INVITE ERROR:", error);
+
+if (error) {
+  return Response.json(
+    {
+      success: false,
+      error:
+        error?.message ||
+        "Resend could not send the team invitation.",
+    },
+    { status: 400 }
+  );
+}
+
+return Response.json({
+  success: true,
+  emailId: data?.id || null,
+});
 
     return Response.json({ success: true });
   } catch (error) {

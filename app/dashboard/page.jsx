@@ -36426,7 +36426,7 @@ const { error } = await supabase
     return;
   }
 
-await fetch("/api/send-team-invite", {
+const inviteEmailResponse = await fetch("/api/send-team-invite", {
   method: "POST",
   headers: {
     "Content-Type": "application/json",
@@ -36440,6 +36440,31 @@ await fetch("/api/send-team-invite", {
     inviteToken,
   }),
 });
+
+const inviteEmailResult = await inviteEmailResponse.json();
+
+console.log(
+  "TEAM INVITE EMAIL RESPONSE:",
+  inviteEmailResult
+);
+
+if (
+  !inviteEmailResponse.ok ||
+  !inviteEmailResult?.success
+) {
+  console.error(
+    "TEAM INVITE EMAIL FAILED:",
+    inviteEmailResult
+  );
+
+  alert(
+    inviteEmailResult?.error ||
+      "The invite was saved, but the email could not be sent."
+  );
+
+  setSendingInvite(false);
+  return;
+}
 
 await logAuditEvent({
   action: "created_team_invite",
