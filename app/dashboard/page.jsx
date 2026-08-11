@@ -36564,6 +36564,51 @@ const handleDeleteTeamInvite = async (inviteId) => {
 
   await loadTeamInvites();
 };
+
+const handleResendTeamInvite = async (member) => {
+  try {
+    if (!member?.email || !member?.invite_token) {
+      alert("This invite is missing its email or invite token.");
+      return;
+    }
+
+    const response = await fetch("/api/send-team-invite", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+
+      body: JSON.stringify({
+        inviteEmail: member.email,
+        inviteName: member.name || "",
+        inviteRole: member.role || "",
+        inviteLocation: member.location_name || "",
+        inviteToken: member.invite_token,
+      }),
+    });
+
+    const result = await response.json();
+
+    console.log("TEAM INVITE RESEND RESULT:", result);
+
+    if (!response.ok || !result?.success) {
+      alert(
+        result?.error ||
+          "The invitation email could not be resent."
+      );
+      return;
+    }
+
+    alert("Invitation resent successfully.");
+  } catch (error) {
+    console.error("TEAM INVITE RESEND FAILED:", error);
+
+    alert(
+      error?.message ||
+        "The invitation email could not be resent."
+    );
+  }
+};
 const cookTimeData = (cookTimeLogs || []).map((item) => ({
   ...item,
   cookMinutes:
@@ -70267,137 +70312,201 @@ profit recovery opportunities, AI recommendations, and forecasted trends.
 </button>
 </div>
 {/* INVITED TEAM MEMBERS */}
-<div
-  style={{
-    padding: "24px",
-    borderRadius: "24px",
-    background:
-      "linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.94))",
-    border: "1px solid rgba(148,163,184,0.14)",
-  }}
->
-  <div
-    style={{
-      color: "#93c5fd",
-      fontSize: "12px",
-      fontWeight: "900",
-      marginBottom: "14px",
-    }}
-  >
-    Invited Team Members
-  </div>
 
-  {teamInvites.length === 0 ? (
-    <p style={{ color: "#94a3b8", fontSize: "14px" }}>
-      No team invites sent yet.
-    </p>
-  ) : (
-    <div style={{ display: "grid", gap: "12px" }}>
-      {teamInvites.map((member) => (
-  <div
-    key={member.id}
-    style={{
-      padding: "16px",
-      borderRadius: "18px",
-      background: "rgba(15,23,42,0.72)",
-      border: "1px solid rgba(148,163,184,0.12)",
-    }}
-  >
-    <div style={{ color: "white", fontWeight: "900" }}>
-      {member.name}
-    </div>
-
-    <div style={{ color: "#94a3b8", fontSize: "13px" }}>
-      {member.email}
-    </div>
-
-    <div
-      style={{
-        marginTop: "8px",
-        color: "#c4b5fd",
-        fontSize: "12px",
-        fontWeight: "800",
-      }}
-    >
-      {member.role === "restaurant_owner"
-  ? "Restaurant Owner"
-  : member.role === "corporate_admin"
-  ? "Corporate Admin"
-  : member.role === "regional_director"
-  ? "Regional Director"
-  : member.role === "gm"
-  ? "General Manager"
-  : member.role === "finance"
-  ? "Finance"
-  : "Kitchen Manager"}{" "}
-      • {member.location_name} • {member.status}
-    </div>
-
-    <div
-      style={{
-        display: "flex",
-        gap: "10px",
-        marginTop: "12px",
-        flexWrap: "wrap",
-      }}
-    >
-      <button
-        type="button"
-        onClick={() =>
-          handleUpdateTeamInviteStatus(member.id, "accepted")
-        }
+{teamInvites.length === 0 ? (
+  <p style={{ color: "#94a3b8", fontSize: "14px" }}>
+    No team invites sent yet.
+  </p>
+) : (
+  <div style={{ display: "grid", gap: "12px" }}>
+    {teamInvites.map((member) => (
+      <div
+        key={member.id}
         style={{
-          padding: "10px 12px",
-          borderRadius: "12px",
-          border: "1px solid rgba(34,197,94,0.25)",
-          background: "rgba(34,197,94,0.12)",
-          color: "#86efac",
-          fontWeight: "800",
-          cursor: "pointer",
+          padding: "16px",
+          borderRadius: "16px",
+          background: "rgba(15,23,42,0.72)",
+          border: "1px solid rgba(148,163,184,0.12)",
         }}
       >
-        Mark Accepted
-      </button>
+        <div
+          style={{
+            color: "#94a3b8",
+            fontSize: "13px",
+          }}
+        >
+          {member.email}
+        </div>
 
-      <button
-        type="button"
-        onClick={() =>
-          handleUpdateTeamInviteStatus(member.id, "revoked")
-        }
-        style={{
-          padding: "10px 12px",
-          borderRadius: "12px",
-          border: "1px solid rgba(248,113,113,0.25)",
-          background: "rgba(248,113,113,0.12)",
-          color: "#fca5a5",
-          fontWeight: "800",
-          cursor: "pointer",
-        }}
-      >
-        Revoke
-      </button>
+        <div
+          style={{
+            marginTop: "8px",
+            color: "#c4b5fd",
+            fontSize: "12px",
+            fontWeight: "800",
+          }}
+        >
+          {member.role === "restaurant_owner"
+            ? "Restaurant Owner"
+            : member.role === "corporate_admin"
+            ? "Corporate Admin"
+            : member.role === "regional_director"
+            ? "Regional Director"
+            : member.role === "gm"
+            ? "General Manager"
+            : member.role === "finance"
+            ? "Finance"
+            : "Kitchen Manager"}
+          {" • "}
+          {member.location_name || "Company-wide"}
+          {" • "}
+          <span
+            style={{
+              color:
+                member.status === "accepted"
+                  ? "#86efac"
+                  : member.status === "revoked"
+                  ? "#fca5a5"
+                  : "#fde68a",
+            }}
+          >
+            {member.status}
+          </span>
+        </div>
 
-      <button
-  type="button"
-  onClick={() => handleDeleteTeamInvite(member.id)}
-  style={{
-    padding: "10px 12px",
-    borderRadius: "12px",
-    border: "1px solid rgba(239,68,68,0.35)",
-    background: "rgba(239,68,68,0.18)",
-    color: "#fecaca",
-    fontWeight: "800",
-    cursor: "pointer",
-  }}
->
-  Delete
-</button>
-    </div>
+        <div
+          style={{
+            display: "flex",
+            gap: "10px",
+            marginTop: "12px",
+            flexWrap: "wrap",
+          }}
+        >
+          {member.status === "pending" && (
+            <>
+              <button
+                type="button"
+                onClick={() => handleResendTeamInvite(member)}
+                style={{
+                  padding: "10px 12px",
+                  borderRadius: "12px",
+                  border: "1px solid rgba(129,140,248,0.28)",
+                  background: "rgba(79,70,229,0.14)",
+                  color: "#c7d2fe",
+                  fontWeight: "800",
+                  cursor: "pointer",
+                }}
+              >
+                Resend
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  handleUpdateTeamInviteStatus(
+                    member.id,
+                    "revoked"
+                  )
+                }
+                style={{
+                  padding: "10px 12px",
+                  borderRadius: "12px",
+                  border: "1px solid rgba(248,113,113,0.25)",
+                  background: "rgba(248,113,113,0.12)",
+                  color: "#fca5a5",
+                  fontWeight: "800",
+                  cursor: "pointer",
+                }}
+              >
+                Revoke
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  handleDeleteTeamInvite(member.id)
+                }
+                style={{
+                  padding: "10px 12px",
+                  borderRadius: "12px",
+                  border: "1px solid rgba(239,68,68,0.35)",
+                  background: "rgba(239,68,68,0.18)",
+                  color: "#fecaca",
+                  fontWeight: "800",
+                  cursor: "pointer",
+                }}
+              >
+                Delete
+              </button>
+            </>
+          )}
+
+          {member.status === "revoked" && (
+            <>
+              <button
+                type="button"
+                onClick={() =>
+                  handleResendTeamInvite(member)
+                }
+                style={{
+                  padding: "10px 12px",
+                  borderRadius: "12px",
+                  border: "1px solid rgba(129,140,248,0.28)",
+                  background: "rgba(79,70,229,0.14)",
+                  color: "#c7d2fe",
+                  fontWeight: "800",
+                  cursor: "pointer",
+                }}
+              >
+                Resend
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  handleDeleteTeamInvite(member.id)
+                }
+                style={{
+                  padding: "10px 12px",
+                  borderRadius: "12px",
+                  border: "1px solid rgba(239,68,68,0.35)",
+                  background: "rgba(239,68,68,0.18)",
+                  color: "#fecaca",
+                  fontWeight: "800",
+                  cursor: "pointer",
+                }}
+              >
+                Delete
+              </button>
+            </>
+          )}
+
+          {member.status === "accepted" && (
+            <button
+              type="button"
+              onClick={() => {
+                alert(
+                  "Manage Access is the next feature."
+                );
+              }}
+              style={{
+                padding: "10px 12px",
+                borderRadius: "12px",
+                border: "1px solid rgba(34,197,94,0.25)",
+                background: "rgba(34,197,94,0.12)",
+                color: "#86efac",
+                fontWeight: "800",
+                cursor: "pointer",
+              }}
+            >
+              Manage Access
+            </button>
+          )}
+        </div>
+      </div>
+    ))}
   </div>
-))}
-    </div>
-  )}
-</div>
+)}
 {/* ROLE ACCESS CONTROL */}
 <div
   style={{
