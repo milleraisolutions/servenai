@@ -28,6 +28,12 @@ export default function AdminPage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [customPlanLeads, setCustomPlanLeads] = useState([]);
   const [apolloLeads, setApolloLeads] = useState([]);
+  const [crmSearch, setCrmSearch] = useState("");
+const [crmStageFilter, setCrmStageFilter] = useState("all");
+const [crmSourceFilter, setCrmSourceFilter] = useState("all");
+const [selectedCRMLead, setSelectedCRMLead] = useState(null);
+const [selectedCRMActivities, setSelectedCRMActivities] = useState([]);
+const [crmActivitiesLoading, setCrmActivitiesLoading] = useState(false);
   const [adminView, setAdminView] = useState("executive");
   // New State for your real Supabase demo_leads table
   const [demoLeads, setDemoLeads] = useState([]);
@@ -712,7 +718,18 @@ const getCRMStageGroup = (status) => {
           : lead
       )
     );
+setSelectedCRMLead((prev) =>
+  prev?.id === leadId
+    ? {
+        ...prev,
+        ...leadUpdates,
+      }
+    : prev
+);
 
+if (selectedCRMLead?.id === leadId) {
+  await loadCRMLeadActivities(leadId);
+}
     console.log("CRM STAGE UPDATED:", {
       leadId,
       previousStatus,
@@ -731,7 +748,375 @@ const getCRMStageGroup = (status) => {
     );
   }
 };
+const loadCRMLeadActivities = async (leadId) => {
+  if (!leadId) {
+    setSelectedCRMActivities([]);
+    return;
+  }
 
+  try {
+    setCrmActivitiesLoading(true);
+
+    const { data, error } = await supabase
+      .from("lead_activities")
+      .select("*")
+      .eq("lead_id", leadId)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      throw error;
+    }
+
+    setSelectedCRMActivities(data || []);
+  } catch (error) {
+    console.error(
+      "CRM ACTIVITY LOAD FAILED:",
+      error
+    );
+
+    setSelectedCRMActivities([]);
+  } finally {
+    setCrmActivitiesLoading(false);
+  }
+};
+
+const openCRMLead = async (lead) => {
+  if (!lead?.id) return;
+
+  setSelectedCRMLead(lead);
+  await loadCRMLeadActivities(lead.id);
+};
+
+const closeCRMLead = () => {
+  setSelectedCRMLead(null);
+  setSelectedCRMActivities([]);
+};
+/* =========================
+   CRM DAILY ACTIVITY HELPERS
+========================= */
+
+const createCRMActivity = async ({
+  leadId,
+  activityType,
+  title,
+  notes = "",
+  contactMethod = null,
+  scheduledFor = null,
+  completedAt = null,
+}) => {
+  if (!leadId) {
+    throw new Error("Missing CRM lead ID.");
+  }
+
+  const {
+    data: { user: authenticatedUser },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError) {
+    throw authError;
+  }
+
+  const { data, error } = await supabase
+    .from("lead_activities")
+    .insert({
+      lead_id: leadId,
+      activity_type: activityType,
+      title,
+      notes: notes || null,
+      contact_method: contactMethod,
+      scheduled_for: scheduledFor,
+      completed_at:
+        completedAt || new Date().toISOString(),
+      created_by: authenticatedUser?.id || null,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+};
+
+
+/* =========================
+   LOG EMAIL / CALL / LINKEDIN
+========================= */
+
+const logCRMContact = async (
+  lead,
+  contactMethod,
+  notes = ""
+) => {
+  if (!lead?.id) return;
+
+  try {
+    const now = new Date().toISOString();
+
+    const cleanMethod = String(
+      contactMethod || ""
+    )
+      .trim()
+      .toLowerCase();
+
+    const methodLabels = {
+      email: "Email",
+      call: "Phone Call",
+      linkedin: "LinkedIn",
+    };
+
+    const methodLabel =
+      methodLabels[cleanMethod] ||
+      "Contact";
+
+    const { error: leadError } = await supabase
+      .from("leads")
+      .update({
+        last_contacted_at: now,
+        first_contacted_at:
+          lead.first_contacted_at || now,
+        updated_at: now,
+      })
+      .eq("id", lead.id);
+
+    if (leadError) {
+      throw leadError;
+    }
+
+    await createCRMActivity({
+      leadId: lead.id,
+      activityType: "contact",
+      title: `${methodLabel} logged`,
+      notes,
+      contactMethod: cleanMethod,
+      completedAt: now,
+    });
+
+    const leadUpdates = {
+      last_contacted_at: now,
+      first_contacted_at:
+        lead.first_contacted_at || now,
+      updated_at: now,
+    };
+
+    setApolloLeads((prev) =>
+      (prev || []).map((item) =>
+        item.id === lead.id
+          ? {
+              ...item,
+              ...leadUpdates,
+            }
+          : item
+      )
+    );
+
+    setSelectedCRMLead((prev) =>
+      prev?.id === lead.id
+        ? {
+            ...prev,
+            ...leadUpdates,
+          }
+        : prev
+    );
+
+    await loadCRMLeadActivities(lead.id);
+  } catch (error) {
+    console.error(
+      "CRM CONTACT LOG FAILED:",
+      error
+    );
+
+    alert(
+      error?.message ||
+        "Could not log CRM contact."
+    );
+  }
+};
+
+
+/* =========================
+   SAVE CRM NOTE
+========================= */
+
+const saveCRMNote = async (lead, noteText) => {
+  if (!lead?.id) return;
+
+  const cleanNote = String(noteText || "").trim();
+
+  if (!cleanNote) {
+    alert("Enter a note first.");
+    return;
+  }
+
+  try {
+    const now = new Date().toISOString();
+
+    const existingNotes = String(
+      lead.notes || ""
+    ).trim();
+
+    const updatedNotes = existingNotes
+      ? `${existingNotes}\n\n${cleanNote}`
+      : cleanNote;
+
+    const { error: leadError } = await supabase
+      .from("leads")
+      .update({
+        notes: updatedNotes,
+        updated_at: now,
+      })
+      .eq("id", lead.id);
+
+    if (leadError) {
+      throw leadError;
+    }
+
+    await createCRMActivity({
+      leadId: lead.id,
+      activityType: "note",
+      title: "CRM note added",
+      notes: cleanNote,
+      completedAt: now,
+    });
+
+    const leadUpdates = {
+      notes: updatedNotes,
+      updated_at: now,
+    };
+
+    setApolloLeads((prev) =>
+      (prev || []).map((item) =>
+        item.id === lead.id
+          ? {
+              ...item,
+              ...leadUpdates,
+            }
+          : item
+      )
+    );
+
+    setSelectedCRMLead((prev) =>
+      prev?.id === lead.id
+        ? {
+            ...prev,
+            ...leadUpdates,
+          }
+        : prev
+    );
+
+    await loadCRMLeadActivities(lead.id);
+  } catch (error) {
+    console.error(
+      "CRM NOTE SAVE FAILED:",
+      error
+    );
+
+    alert(
+      error?.message ||
+        "Could not save CRM note."
+    );
+  }
+};
+
+
+/* =========================
+   SCHEDULE NEXT FOLLOW-UP
+========================= */
+
+const scheduleCRMFollowUp = async (
+  lead,
+  followUpDateTime,
+  notes = ""
+) => {
+  if (!lead?.id) return;
+
+  if (!followUpDateTime) {
+    alert("Choose a follow-up date and time.");
+    return;
+  }
+
+  try {
+    const followUpDate = new Date(
+      followUpDateTime
+    );
+
+    if (
+      Number.isNaN(followUpDate.getTime())
+    ) {
+      alert("Choose a valid follow-up date.");
+      return;
+    }
+
+    const followUpISO =
+      followUpDate.toISOString();
+
+    const now = new Date().toISOString();
+
+    const { error: leadError } = await supabase
+      .from("leads")
+      .update({
+        next_follow_up_at: followUpISO,
+        next_action: "Follow up",
+        updated_at: now,
+      })
+      .eq("id", lead.id);
+
+    if (leadError) {
+      throw leadError;
+    }
+
+    await createCRMActivity({
+      leadId: lead.id,
+      activityType: "follow_up_scheduled",
+      title: "Follow-up scheduled",
+      notes:
+        notes ||
+        `Follow-up scheduled for ${followUpDate.toLocaleString()}.`,
+      scheduledFor: followUpISO,
+      completedAt: now,
+    });
+
+    const leadUpdates = {
+      next_follow_up_at: followUpISO,
+      next_action: "Follow up",
+      updated_at: now,
+    };
+
+    setApolloLeads((prev) =>
+      (prev || []).map((item) =>
+        item.id === lead.id
+          ? {
+              ...item,
+              ...leadUpdates,
+            }
+          : item
+      )
+    );
+
+    setSelectedCRMLead((prev) =>
+      prev?.id === lead.id
+        ? {
+            ...prev,
+            ...leadUpdates,
+          }
+        : prev
+    );
+
+    await loadCRMLeadActivities(lead.id);
+  } catch (error) {
+    console.error(
+      "CRM FOLLOW-UP SCHEDULE FAILED:",
+      error
+    );
+
+    alert(
+      error?.message ||
+        "Could not schedule CRM follow-up."
+    );
+  }
+};
   // Delete function for Apollo Leads pipeline cards
   const deleteLead = async (leadId) => {
     const confirmed = window.confirm("Are you sure you want to delete this lead permanently?");
@@ -948,6 +1333,113 @@ const deleteCustomer = async (customerId) => {
     alert("Unsupported file type.");
   };
 
+/* =========================
+   SERVEN SALES CRM METRICS
+========================= */
+
+const salesCRMStats = useMemo(() => {
+  const prospects = Array.isArray(apolloLeads)
+    ? apolloLeads
+    : [];
+
+  const now = Date.now();
+
+  const normalizeStatus = (lead) =>
+    String(lead?.status || "new")
+      .trim()
+      .toLowerCase();
+
+  const closedStatuses = [
+    "won",
+    "lost",
+    "no_response",
+    "closed_won",
+    "closed_lost",
+  ];
+
+  const activeProspects = prospects.filter(
+    (lead) =>
+      !closedStatuses.includes(
+        normalizeStatus(lead)
+      )
+  );
+
+  const needFollowUp = activeProspects.filter(
+    (lead) => {
+      if (!lead.next_follow_up_at) return false;
+
+      const followUpTime = new Date(
+        lead.next_follow_up_at
+      ).getTime();
+
+      return (
+        Number.isFinite(followUpTime) &&
+        followUpTime <= now
+      );
+    }
+  );
+
+  const interested = prospects.filter(
+    (lead) =>
+      normalizeStatus(lead) === "interested"
+  );
+
+  const demos = prospects.filter(
+    (lead) =>
+      normalizeStatus(lead) ===
+      "demo_scheduled"
+  );
+
+  const activePilots = prospects.filter(
+    (lead) =>
+      ["pilot_started", "pilot_active"].includes(
+        normalizeStatus(lead)
+      )
+  );
+
+  const proposalsOut = prospects.filter(
+    (lead) =>
+      ["proposal_sent", "negotiating"].includes(
+        normalizeStatus(lead)
+      )
+  );
+
+  const wonClients = prospects.filter(
+    (lead) =>
+      ["won", "closed_won"].includes(
+        normalizeStatus(lead)
+      )
+  );
+
+  const lostProspects = prospects.filter(
+    (lead) =>
+      ["lost", "closed_lost"].includes(
+        normalizeStatus(lead)
+      )
+  );
+
+  const pipelineMRR = activeProspects.reduce(
+    (sum, lead) =>
+      sum +
+      Number(
+        lead.estimated_monthly_value || 0
+      ),
+    0
+  );
+
+  return {
+    totalProspects: prospects.length,
+    activeProspects: activeProspects.length,
+    needFollowUp: needFollowUp.length,
+    interested: interested.length,
+    demos: demos.length,
+    activePilots: activePilots.length,
+    proposalsOut: proposalsOut.length,
+    wonClients: wonClients.length,
+    lostProspects: lostProspects.length,
+    pipelineMRR,
+  };
+}, [apolloLeads]);
   const filteredCustomers = useMemo(() => {
     return customers.filter((customer) => {
       const search = searchTerm.toLowerCase();
@@ -999,6 +1491,67 @@ const deleteCustomer = async (customerId) => {
   const overageRiskClients = useMemo(() => {
     return customers.filter((c) => Number(c.emailUsagePercent || 0) >= 80 || Number(c.smsUsagePercent || 0) >= 80);
   }, [customers]);
+
+const filteredCRMLeads = useMemo(() => {
+  const prospects = Array.isArray(apolloLeads)
+    ? apolloLeads
+    : [];
+
+  const search = String(crmSearch || "")
+    .trim()
+    .toLowerCase();
+
+  return prospects.filter((lead) => {
+    const status = String(
+      lead.status || "new"
+    )
+      .trim()
+      .toLowerCase();
+
+    const source = String(
+      lead.source || lead.lead_source || "unknown"
+    )
+      .trim()
+      .toLowerCase();
+
+    const searchableText = [
+      lead.business_name,
+      lead.restaurant_name,
+      lead.owner_name,
+      lead.full_name,
+      lead.email,
+      lead.phone,
+      lead.city,
+      lead.state,
+      lead.website,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+    const matchesSearch =
+      !search || searchableText.includes(search);
+
+    const matchesStage =
+      crmStageFilter === "all" ||
+      status === crmStageFilter;
+
+    const matchesSource =
+      crmSourceFilter === "all" ||
+      source === crmSourceFilter;
+
+    return (
+      matchesSearch &&
+      matchesStage &&
+      matchesSource
+    );
+  });
+}, [
+  apolloLeads,
+  crmSearch,
+  crmStageFilter,
+  crmSourceFilter,
+]);
 
 /* =========================
    SERVEN OWNER SUMMARY
@@ -3465,6 +4018,1080 @@ const clientsRequiringAttention = useMemo(() => {
           </div>
         )}
       </div>
+{/* =========================
+   SERVEN SALES CRM COMMAND CENTER
+========================= */}
+
+<div
+  style={{
+    marginBottom: "20px",
+    padding: "24px",
+    borderRadius: "26px",
+    background:
+      "radial-gradient(circle at top right, rgba(99,102,241,0.18), transparent 34%), linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.96))",
+    border: "1px solid rgba(129,140,248,0.22)",
+    boxShadow: "0 24px 70px rgba(2,6,23,0.28)",
+  }}
+>
+  <div
+    style={{
+      color: "#a5b4fc",
+      fontSize: "11px",
+      fontWeight: "900",
+      letterSpacing: "0.1em",
+      textTransform: "uppercase",
+      marginBottom: "8px",
+    }}
+  >
+    Serven Sales CRM
+  </div>
+
+  <h2
+    style={{
+      margin: 0,
+      color: "white",
+      fontSize: "28px",
+      fontWeight: "950",
+      letterSpacing: "-0.03em",
+    }}
+  >
+    Sales Pipeline Command Center
+  </h2>
+
+  <p
+    style={{
+      color: "#94a3b8",
+      fontSize: "13px",
+      lineHeight: 1.6,
+      marginTop: "8px",
+      marginBottom: "20px",
+    }}
+  >
+    Track every prospect from first contact through demo, pilot,
+    proposal, and conversion into a Serven client.
+  </p>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns:
+        "repeat(auto-fit, minmax(150px, 1fr))",
+      gap: "12px",
+    }}
+  >
+    {[
+      {
+        label: "Total Prospects",
+        value: salesCRMStats.totalProspects,
+      },
+      {
+        label: "Active Pipeline",
+        value: salesCRMStats.activeProspects,
+      },
+      {
+        label: "Follow-Ups Due",
+        value: salesCRMStats.needFollowUp,
+      },
+      {
+        label: "Interested",
+        value: salesCRMStats.interested,
+      },
+      {
+        label: "Demos Scheduled",
+        value: salesCRMStats.demos,
+      },
+      {
+        label: "Active Pilots",
+        value: salesCRMStats.activePilots,
+      },
+      {
+        label: "Proposals Out",
+        value: salesCRMStats.proposalsOut,
+      },
+      {
+        label: "Won Clients",
+        value: salesCRMStats.wonClients,
+      },
+      {
+        label: "Lost",
+        value: salesCRMStats.lostProspects,
+      },
+      {
+        label: "Pipeline MRR",
+        value: `$${Number(
+          salesCRMStats.pipelineMRR || 0
+        ).toLocaleString()}`,
+      },
+    ].map((metric) => (
+      <div
+        key={metric.label}
+        style={{
+          padding: "16px",
+          borderRadius: "18px",
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(255,255,255,0.07)",
+        }}
+      >
+        <div
+          style={{
+            color: "#94a3b8",
+            fontSize: "10px",
+            fontWeight: "900",
+            textTransform: "uppercase",
+            letterSpacing: "0.07em",
+            marginBottom: "6px",
+          }}
+        >
+          {metric.label}
+        </div>
+
+        <div
+          style={{
+            color: "white",
+            fontSize: "24px",
+            fontWeight: "950",
+          }}
+        >
+          {metric.value}
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+{/* =========================
+   SALES CRM SEARCH + FILTERS
+========================= */}
+
+<div
+  style={{
+    marginBottom: "18px",
+    padding: "18px",
+    borderRadius: "20px",
+    background: "rgba(15,23,42,0.82)",
+    border: "1px solid rgba(148,163,184,0.14)",
+  }}
+>
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns:
+        "minmax(220px, 2fr) minmax(170px, 1fr) minmax(150px, 1fr)",
+      gap: "12px",
+    }}
+  >
+    <input
+      type="text"
+      value={crmSearch}
+      onChange={(e) => setCrmSearch(e.target.value)}
+      placeholder="Search restaurant, contact, email, phone, city..."
+      style={{
+        ...inputStyle,
+        width: "100%",
+        boxSizing: "border-box",
+      }}
+    />
+
+    <select
+      value={crmStageFilter}
+      onChange={(e) => setCrmStageFilter(e.target.value)}
+      style={selectStyle}
+    >
+      <option value="all">All Stages</option>
+
+      {CRM_PIPELINE_STAGES.map((stage) => (
+        <option
+          key={stage.value}
+          value={stage.value}
+        >
+          {stage.label}
+        </option>
+      ))}
+
+      <option value="new">Legacy: New</option>
+      <option value="contacted">Legacy: Contacted</option>
+      <option value="closed_won">Legacy: Closed Won</option>
+      <option value="closed_lost">Legacy: Closed Lost</option>
+    </select>
+
+    <select
+      value={crmSourceFilter}
+      onChange={(e) => setCrmSourceFilter(e.target.value)}
+      style={selectStyle}
+    >
+      <option value="all">All Sources</option>
+      <option value="apollo">Apollo</option>
+      <option value="website">Website</option>
+      <option value="referral">Referral</option>
+      <option value="walk_in">Walk-In</option>
+      <option value="linkedin">LinkedIn</option>
+      <option value="manual">Manual</option>
+      <option value="unknown">Unknown</option>
+    </select>
+  </div>
+
+  <div
+    style={{
+      marginTop: "10px",
+      color: "#64748b",
+      fontSize: "12px",
+      fontWeight: "700",
+    }}
+  >
+    Showing {filteredCRMLeads.length} of {apolloLeads.length} prospects
+  </div>
+</div>
+
+{/* =========================
+   SALES CRM PROSPECT TABLE
+========================= */}
+
+<div
+  style={{
+    marginBottom: "20px",
+    borderRadius: "22px",
+    overflow: "hidden",
+    border: "1px solid rgba(148,163,184,0.14)",
+    background: "rgba(15,23,42,0.86)",
+  }}
+>
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns:
+        "minmax(190px,1.4fr) minmax(180px,1.3fr) minmax(130px,0.8fr) minmax(140px,0.9fr) minmax(130px,0.8fr) minmax(150px,0.9fr)",
+      gap: "12px",
+      padding: "12px 16px",
+      background: "rgba(255,255,255,0.035)",
+      color: "#94a3b8",
+      fontSize: "10px",
+      fontWeight: "900",
+      textTransform: "uppercase",
+      letterSpacing: "0.07em",
+    }}
+  >
+    <div>Restaurant</div>
+    <div>Contact</div>
+    <div>Stage</div>
+    <div>Last Contact</div>
+    <div>Next Follow-Up</div>
+    <div>Source</div>
+  </div>
+
+  {filteredCRMLeads.length === 0 ? (
+    <div
+      style={{
+        padding: "24px",
+        color: "#94a3b8",
+        fontSize: "13px",
+      }}
+    >
+      No prospects match the current CRM filters.
+    </div>
+  ) : (
+    filteredCRMLeads.map((lead) => (
+      <div
+        key={lead.id}
+        style={{
+          display: "grid",
+          gridTemplateColumns:
+            "minmax(190px,1.4fr) minmax(180px,1.3fr) minmax(130px,0.8fr) minmax(140px,0.9fr) minmax(130px,0.8fr) minmax(150px,0.9fr)",
+          gap: "12px",
+          alignItems: "center",
+          padding: "14px 16px",
+          borderTop: "1px solid rgba(148,163,184,0.08)",
+        }}
+      >
+        <div style={{ minWidth: 0 }}>
+          <button
+  type="button"
+  onClick={() => openCRMLead(lead)}
+  style={{
+    padding: 0,
+    border: "none",
+    background: "transparent",
+    color: "white",
+    fontSize: "13px",
+    fontWeight: "900",
+    overflowWrap: "anywhere",
+    cursor: "pointer",
+    textAlign: "left",
+    textDecoration: "underline",
+    textDecorationColor: "rgba(129,140,248,0.45)",
+    textUnderlineOffset: "3px",
+  }}
+>
+  {lead.business_name ||
+    lead.restaurant_name ||
+    "Restaurant"}
+</button>
+
+          <div
+            style={{
+              color: "#64748b",
+              fontSize: "11px",
+              marginTop: "3px",
+            }}
+          >
+            {[lead.city, lead.state]
+              .filter(Boolean)
+              .join(", ") || "Location unknown"}
+          </div>
+        </div>
+
+        <div style={{ minWidth: 0 }}>
+          <div
+            style={{
+              color: "#cbd5e1",
+              fontSize: "12px",
+              fontWeight: "800",
+            }}
+          >
+            {lead.owner_name ||
+              lead.full_name ||
+              "Unknown"}
+          </div>
+
+          <div
+            style={{
+              color: "#64748b",
+              fontSize: "11px",
+              marginTop: "3px",
+              overflowWrap: "anywhere",
+            }}
+          >
+            {lead.email || "No email"}
+          </div>
+        </div>
+
+       <div>
+  <select
+    value={String(lead.status || "new").toLowerCase()}
+    onChange={(e) =>
+      updateLeadStatus(lead.id, e.target.value)
+    }
+    style={{
+      width: "100%",
+      minWidth: "135px",
+      padding: "8px 10px",
+      borderRadius: "10px",
+      border: "1px solid rgba(99,102,241,0.24)",
+      background: "rgba(30,41,59,0.96)",
+      color: "#c7d2fe",
+      fontSize: "11px",
+      fontWeight: "850",
+      outline: "none",
+      cursor: "pointer",
+    }}
+  >
+    {/* Keep existing legacy status selectable during migration */}
+    {["new", "contacted", "closed_won", "closed_lost"].includes(
+      String(lead.status || "").toLowerCase()
+    ) && (
+      <option
+        value={String(lead.status || "").toLowerCase()}
+      >
+        {getCRMStageLabel(lead.status)}
+      </option>
+    )}
+
+    {CRM_PIPELINE_STAGES.map((stage) => (
+      <option
+        key={stage.value}
+        value={stage.value}
+      >
+        {stage.label}
+      </option>
+    ))}
+  </select>
+</div>
+
+        <div
+          style={{
+            color: "#cbd5e1",
+            fontSize: "12px",
+          }}
+        >
+          {lead.last_contacted_at
+            ? new Date(
+                lead.last_contacted_at
+              ).toLocaleDateString()
+            : "Never"}
+        </div>
+
+        <div
+          style={{
+            color: lead.next_follow_up_at
+              ? new Date(
+                  lead.next_follow_up_at
+                ).getTime() <= Date.now()
+                ? "#fca5a5"
+                : "#cbd5e1"
+              : "#64748b",
+            fontSize: "12px",
+            fontWeight: lead.next_follow_up_at
+              ? "800"
+              : "600",
+          }}
+        >
+          {lead.next_follow_up_at
+            ? new Date(
+                lead.next_follow_up_at
+              ).toLocaleDateString()
+            : "Not scheduled"}
+        </div>
+
+        <div
+          style={{
+            color: "#94a3b8",
+            fontSize: "12px",
+            textTransform: "capitalize",
+          }}
+        >
+          {String(
+            lead.source ||
+              lead.lead_source ||
+              "unknown"
+          ).replaceAll("_", " ")}
+        </div>
+      </div>
+    ))
+  )}
+</div>
+
+{/* =========================
+   CRM PROSPECT 360
+========================= */}
+
+{selectedCRMLead && (
+  <div
+    style={{
+      marginBottom: "22px",
+      padding: "24px",
+      borderRadius: "26px",
+      background:
+        "radial-gradient(circle at top right, rgba(139,92,246,0.16), transparent 32%), linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.96))",
+      border: "1px solid rgba(139,92,246,0.22)",
+      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
+    }}
+  >
+    {/* HEADER */}
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        gap: "16px",
+        alignItems: "flex-start",
+        marginBottom: "22px",
+      }}
+    >
+      <div>
+        <div
+          style={{
+            color: "#c4b5fd",
+            fontSize: "11px",
+            fontWeight: "900",
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            marginBottom: "6px",
+          }}
+        >
+          Prospect 360
+        </div>
+
+        <h2
+          style={{
+            margin: 0,
+            color: "white",
+            fontSize: "26px",
+            fontWeight: "950",
+          }}
+        >
+          {selectedCRMLead.business_name ||
+            selectedCRMLead.restaurant_name ||
+            "Restaurant"}
+        </h2>
+
+        <div
+          style={{
+            color: "#94a3b8",
+            fontSize: "12px",
+            marginTop: "5px",
+          }}
+        >
+          {[selectedCRMLead.city, selectedCRMLead.state]
+            .filter(Boolean)
+            .join(", ") || "Location unknown"}
+        </div>
+      </div>
+
+      <button
+        type="button"
+        onClick={closeCRMLead}
+        style={{
+          width: "34px",
+          height: "34px",
+          borderRadius: "10px",
+          border: "1px solid rgba(148,163,184,0.18)",
+          background: "rgba(255,255,255,0.05)",
+          color: "#cbd5e1",
+          cursor: "pointer",
+          fontSize: "16px",
+          fontWeight: "900",
+        }}
+      >
+        ✕
+      </button>
+    </div>
+
+    {/* CONTACT + PIPELINE */}
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns:
+          "repeat(auto-fit, minmax(220px, 1fr))",
+        gap: "14px",
+        marginBottom: "18px",
+      }}
+    >
+      {/* CONTACT */}
+      <div
+        style={{
+          padding: "18px",
+          borderRadius: "18px",
+          background: "rgba(255,255,255,0.035)",
+          border: "1px solid rgba(255,255,255,0.07)",
+        }}
+      >
+        <div style={crm360LabelStyle}>
+          Contact
+        </div>
+
+        <div style={crm360ValueStyle}>
+          {selectedCRMLead.owner_name ||
+            selectedCRMLead.full_name ||
+            "Unknown"}
+        </div>
+
+        <div style={crm360SubValueStyle}>
+          {selectedCRMLead.contact_title ||
+            "Title not entered"}
+        </div>
+
+        <div
+          style={{
+            ...crm360SubValueStyle,
+            marginTop: "10px",
+          }}
+        >
+          {selectedCRMLead.email || "No email"}
+        </div>
+
+        <div style={crm360SubValueStyle}>
+          {selectedCRMLead.phone || "No phone"}
+        </div>
+      </div>
+
+      {/* CURRENT STAGE */}
+      <div
+        style={{
+          padding: "18px",
+          borderRadius: "18px",
+          background: "rgba(255,255,255,0.035)",
+          border: "1px solid rgba(255,255,255,0.07)",
+        }}
+      >
+        <div style={crm360LabelStyle}>
+          Current Pipeline Stage
+        </div>
+
+        <select
+          value={String(
+            selectedCRMLead.status || "new"
+          ).toLowerCase()}
+          onChange={(e) =>
+            updateLeadStatus(
+              selectedCRMLead.id,
+              e.target.value
+            )
+          }
+          style={{
+            ...selectStyle,
+            marginTop: "8px",
+          }}
+        >
+          {[
+            "new",
+            "contacted",
+            "closed_won",
+            "closed_lost",
+          ].includes(
+            String(
+              selectedCRMLead.status || ""
+            ).toLowerCase()
+          ) && (
+            <option
+              value={String(
+                selectedCRMLead.status || ""
+              ).toLowerCase()}
+            >
+              {getCRMStageLabel(
+                selectedCRMLead.status
+              )}
+            </option>
+          )}
+
+          {CRM_PIPELINE_STAGES.map((stage) => (
+            <option
+              key={stage.value}
+              value={stage.value}
+            >
+              {stage.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* DEAL VALUE */}
+      <div
+        style={{
+          padding: "18px",
+          borderRadius: "18px",
+          background: "rgba(255,255,255,0.035)",
+          border: "1px solid rgba(255,255,255,0.07)",
+        }}
+      >
+        <div style={crm360LabelStyle}>
+          Estimated Deal
+        </div>
+
+        <div style={crm360ValueStyle}>
+          $
+          {Number(
+            selectedCRMLead.estimated_monthly_value ||
+              0
+          ).toLocaleString()}
+          /mo
+        </div>
+
+        <div style={crm360SubValueStyle}>
+          {selectedCRMLead.recommended_plan
+            ? `${selectedCRMLead.recommended_plan} plan`
+            : "Plan not selected"}
+        </div>
+      </div>
+    </div>
+
+    {/* SALES DATES */}
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns:
+          "repeat(auto-fit, minmax(180px, 1fr))",
+        gap: "12px",
+        marginBottom: "18px",
+      }}
+    >
+      {[
+        {
+          label: "Last Contact",
+          value: selectedCRMLead.last_contacted_at
+            ? new Date(
+                selectedCRMLead.last_contacted_at
+              ).toLocaleString()
+            : "Never",
+        },
+        {
+          label: "Next Follow-Up",
+          value: selectedCRMLead.next_follow_up_at
+            ? new Date(
+                selectedCRMLead.next_follow_up_at
+              ).toLocaleString()
+            : "Not scheduled",
+        },
+        {
+          label: "Demo",
+          value: selectedCRMLead.demo_scheduled_at
+            ? new Date(
+                selectedCRMLead.demo_scheduled_at
+              ).toLocaleString()
+            : "Not scheduled",
+        },
+        {
+          label: "Pilot Start",
+          value:
+            selectedCRMLead.pilot_start_date ||
+            "Not started",
+        },
+        {
+          label: "Pilot End",
+          value:
+            selectedCRMLead.pilot_end_date ||
+            "Not scheduled",
+        },
+        {
+          label: "Proposal Sent",
+          value:
+            selectedCRMLead.proposal_sent_at
+              ? new Date(
+                  selectedCRMLead.proposal_sent_at
+                ).toLocaleDateString()
+              : "Not sent",
+        },
+      ].map((item) => (
+        <div
+          key={item.label}
+          style={{
+            padding: "14px",
+            borderRadius: "16px",
+            background: "rgba(2,6,23,0.28)",
+            border:
+              "1px solid rgba(148,163,184,0.08)",
+          }}
+        >
+          <div style={crm360LabelStyle}>
+            {item.label}
+          </div>
+
+          <div
+            style={{
+              color: "#e2e8f0",
+              fontSize: "12px",
+              fontWeight: "800",
+              marginTop: "5px",
+            }}
+          >
+            {item.value}
+          </div>
+        </div>
+      ))}
+    </div>
+{/* =========================
+   CRM QUICK ACTIONS
+========================= */}
+
+<div
+  style={{
+    padding: "18px",
+    borderRadius: "18px",
+    background: "rgba(255,255,255,0.035)",
+    border: "1px solid rgba(255,255,255,0.07)",
+    marginBottom: "18px",
+  }}
+>
+  <div style={crm360LabelStyle}>
+    Sales Actions
+  </div>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns:
+        "repeat(auto-fit, minmax(150px, 1fr))",
+      gap: "10px",
+      marginTop: "12px",
+    }}
+  >
+    <button
+      type="button"
+      onClick={async () => {
+        const notes = window.prompt(
+          "Optional email notes:"
+        );
+
+        if (notes === null) return;
+
+        await logCRMContact(
+          selectedCRMLead,
+          "email",
+          notes
+        );
+      }}
+      style={{
+        ...smallActionButton,
+        background:
+          "linear-gradient(135deg,#3b82f6,#2563eb)",
+      }}
+    >
+      Log Email
+    </button>
+
+    <button
+      type="button"
+      onClick={async () => {
+        const notes = window.prompt(
+          "Optional call notes:"
+        );
+
+        if (notes === null) return;
+
+        await logCRMContact(
+          selectedCRMLead,
+          "call",
+          notes
+        );
+      }}
+      style={{
+        ...smallActionButton,
+        background:
+          "linear-gradient(135deg,#22c55e,#16a34a)",
+      }}
+    >
+      Log Call
+    </button>
+
+    <button
+      type="button"
+      onClick={async () => {
+        const notes = window.prompt(
+          "Optional LinkedIn notes:"
+        );
+
+        if (notes === null) return;
+
+        await logCRMContact(
+          selectedCRMLead,
+          "linkedin",
+          notes
+        );
+      }}
+      style={{
+        ...smallActionButton,
+        background:
+          "linear-gradient(135deg,#0ea5e9,#0284c7)",
+      }}
+    >
+      Log LinkedIn
+    </button>
+
+    <button
+      type="button"
+      onClick={async () => {
+        const note = window.prompt(
+          "Add CRM note:"
+        );
+
+        if (note === null) return;
+
+        await saveCRMNote(
+          selectedCRMLead,
+          note
+        );
+      }}
+      style={{
+        ...smallActionButton,
+        background: "#475569",
+      }}
+    >
+      Add Note
+    </button>
+
+    <button
+      type="button"
+      onClick={async () => {
+        const followUpDate =
+          window.prompt(
+            "Enter follow-up date and time.\nExample: 2026-08-15 10:30"
+          );
+
+        if (followUpDate === null) return;
+
+        const notes =
+          window.prompt(
+            "Optional follow-up notes:"
+          );
+
+        if (notes === null) return;
+
+        await scheduleCRMFollowUp(
+          selectedCRMLead,
+          followUpDate,
+          notes
+        );
+      }}
+      style={{
+        ...smallActionButton,
+        background:
+          "linear-gradient(135deg,#8b5cf6,#7c3aed)",
+      }}
+    >
+      Schedule Follow-Up
+    </button>
+  </div>
+</div>
+    {/* NOTES */}
+    <div
+      style={{
+        padding: "18px",
+        borderRadius: "18px",
+        background: "rgba(255,255,255,0.03)",
+        border: "1px solid rgba(255,255,255,0.07)",
+        marginBottom: "18px",
+      }}
+    >
+      <div style={crm360LabelStyle}>
+        CRM Notes
+      </div>
+
+      <div
+        style={{
+          color: selectedCRMLead.notes
+            ? "#cbd5e1"
+            : "#64748b",
+          fontSize: "13px",
+          lineHeight: 1.7,
+          marginTop: "7px",
+          whiteSpace: "pre-wrap",
+        }}
+      >
+        {selectedCRMLead.notes ||
+          "No CRM notes recorded yet."}
+      </div>
+    </div>
+
+    {/* ACTIVITY TIMELINE */}
+    <div>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: "12px",
+          marginBottom: "12px",
+        }}
+      >
+        <div>
+          <div style={crm360LabelStyle}>
+            Permanent Activity History
+          </div>
+
+          <div
+            style={{
+              color: "#64748b",
+              fontSize: "11px",
+              marginTop: "3px",
+            }}
+          >
+            Every recorded CRM action for this prospect.
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() =>
+            loadCRMLeadActivities(
+              selectedCRMLead.id
+            )
+          }
+          style={{
+            ...smallActionButton,
+            background: "#334155",
+          }}
+        >
+          Refresh
+        </button>
+      </div>
+
+      {crmActivitiesLoading ? (
+        <div
+          style={{
+            padding: "18px",
+            color: "#94a3b8",
+            fontSize: "12px",
+          }}
+        >
+          Loading activity history...
+        </div>
+      ) : selectedCRMActivities.length === 0 ? (
+        <div
+          style={{
+            padding: "18px",
+            borderRadius: "16px",
+            background: "rgba(2,6,23,0.28)",
+            color: "#64748b",
+            fontSize: "12px",
+          }}
+        >
+          No CRM activity has been recorded for this
+          prospect yet.
+        </div>
+      ) : (
+        <div
+          style={{
+            display: "grid",
+            gap: "10px",
+          }}
+        >
+          {selectedCRMActivities.map(
+            (activity) => (
+              <div
+                key={activity.id}
+                style={{
+                  padding: "14px 16px",
+                  borderRadius: "16px",
+                  background:
+                    "rgba(2,6,23,0.34)",
+                  border:
+                    "1px solid rgba(148,163,184,0.09)",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent:
+                      "space-between",
+                    gap: "12px",
+                    alignItems: "flex-start",
+                  }}
+                >
+                  <div>
+                    <div
+                      style={{
+                        color: "white",
+                        fontSize: "12px",
+                        fontWeight: "900",
+                      }}
+                    >
+                      {activity.title ||
+                        activity.activity_type ||
+                        "CRM Activity"}
+                    </div>
+
+                    {activity.notes && (
+                      <div
+                        style={{
+                          color: "#94a3b8",
+                          fontSize: "11px",
+                          lineHeight: 1.6,
+                          marginTop: "4px",
+                        }}
+                      >
+                        {activity.notes}
+                      </div>
+                    )}
+                  </div>
+
+                  <div
+                    style={{
+                      color: "#64748b",
+                      fontSize: "10px",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {activity.created_at
+                      ? new Date(
+                          activity.created_at
+                        ).toLocaleString()
+                      : ""}
+                  </div>
+                </div>
+              </div>
+            )
+          )}
+        </div>
+      )}
+    </div>
+  </div>
+)}
 
       {/* APOLLO FILE UPLOAD */}
       <div style={panelCard("#3b82f6")}>
@@ -3628,6 +5255,28 @@ const invoiceValueStyle = {
   color: "white",
   fontSize: "18px",
   fontWeight: "950",
+};
+
+const crm360LabelStyle = {
+  color: "#94a3b8",
+  fontSize: "10px",
+  fontWeight: "900",
+  textTransform: "uppercase",
+  letterSpacing: "0.07em",
+};
+
+const crm360ValueStyle = {
+  color: "white",
+  fontSize: "18px",
+  fontWeight: "950",
+  marginTop: "6px",
+};
+
+const crm360SubValueStyle = {
+  color: "#94a3b8",
+  fontSize: "12px",
+  marginTop: "3px",
+  overflowWrap: "anywhere",
 };
 const chartTitle = { color: "white", fontSize: "16px", fontWeight: "800", margin: "0" };
 const chartSub = { color: "#64748b", fontSize: "12px", margin: "2px 0 12px 0" };
