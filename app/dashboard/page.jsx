@@ -798,6 +798,7 @@ const [inviteEmail, setInviteEmail] = useState("");
 const [inviteRole, setInviteRole] = useState("gm");
 const [inviteLocation, setInviteLocation] = useState("");
 const [inviteLocationIds, setInviteLocationIds] = useState([]);
+const [locationSearch, setLocationSearch] = useState("");
 const [teamInvites, setTeamInvites] = useState([]);
 const [cookTimeLogs, setCookTimeLogs] = useState([]);
 const [batchPrepData, setBatchPrepData] = useState([]);
@@ -36457,6 +36458,7 @@ setInviteEmail("");
 setInviteRole("gm");
 setInviteLocation("");
 setInviteLocationIds([]);
+setLocationSearch("");
 setSendingInvite(false);
 };
 
@@ -69955,22 +69957,109 @@ profit recovery opportunities, AI recommendations, and forecasted trends.
     >
       Assigned Locations
     </div>
+<div
+  style={{
+    display: "grid",
+    gap: "10px",
+  }}
+>
+  <input
+    type="text"
+    placeholder="Search locations..."
+    value={locationSearch}
+    onChange={(e) => setLocationSearch(e.target.value)}
+    style={{
+      width: "100%",
+      padding: "11px 12px",
+      borderRadius: "12px",
+      border: "1px solid rgba(148,163,184,0.18)",
+      background: "rgba(15,23,42,0.72)",
+      color: "white",
+      outline: "none",
+    }}
+  />
 
-    <div
+  <div
+    style={{
+      display: "flex",
+      gap: "8px",
+      flexWrap: "wrap",
+    }}
+  >
+    <button
+      type="button"
+      onClick={() =>
+        setInviteLocationIds(
+          (locations || []).map((location) =>
+            String(location.id)
+          )
+        )
+      }
       style={{
-        display: "grid",
-        gridTemplateColumns: isMobile
-          ? "1fr"
-          : "repeat(2, minmax(0, 1fr))",
-        gap: "8px",
-        padding: "12px",
-        borderRadius: "14px",
-        background: "rgba(15,23,42,0.72)",
-        border: "1px solid rgba(148,163,184,0.14)",
+        padding: "8px 12px",
+        borderRadius: "10px",
+        border: "1px solid rgba(129,140,248,0.28)",
+        background: "rgba(79,70,229,0.14)",
+        color: "#c7d2fe",
+        fontSize: "11px",
+        fontWeight: "900",
+        cursor: "pointer",
       }}
     >
-      {(locations || []).length > 0 ? (
-        (locations || []).map((location) => {
+      Select All
+    </button>
+
+    <button
+      type="button"
+      onClick={() => setInviteLocationIds([])}
+      style={{
+        padding: "8px 12px",
+        borderRadius: "10px",
+        border: "1px solid rgba(148,163,184,0.18)",
+        background: "rgba(255,255,255,0.04)",
+        color: "#cbd5e1",
+        fontSize: "11px",
+        fontWeight: "900",
+        cursor: "pointer",
+      }}
+    >
+      Clear All
+    </button>
+  </div>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: isMobile
+        ? "1fr"
+        : "repeat(2, minmax(0, 1fr))",
+      gap: "8px",
+      padding: "12px",
+      maxHeight: "260px",
+      overflowY: "auto",
+      borderRadius: "14px",
+      background: "rgba(15,23,42,0.72)",
+      border: "1px solid rgba(148,163,184,0.14)",
+    }}
+  >
+    {(locations || []).length > 0 ? (
+      (locations || [])
+        .filter((location) => {
+          const locationName = String(
+            location.location_name ||
+              location.name ||
+              ""
+          )
+            .trim()
+            .toLowerCase();
+
+          return locationName.includes(
+            String(locationSearch || "")
+              .trim()
+              .toLowerCase()
+          );
+        })
+        .map((location) => {
           const locationId = String(location.id);
 
           const locationName =
@@ -69988,6 +70077,11 @@ profit recovery opportunities, AI recommendations, and forecasted trends.
                 display: "flex",
                 alignItems: "center",
                 gap: "8px",
+                padding: "9px 10px",
+                borderRadius: "10px",
+                background: checked
+                  ? "rgba(79,70,229,0.12)"
+                  : "transparent",
                 color: "#e2e8f0",
                 fontSize: "12px",
                 fontWeight: "800",
@@ -70019,17 +70113,19 @@ profit recovery opportunities, AI recommendations, and forecasted trends.
             </label>
           );
         })
-      ) : (
-        <div
-          style={{
-            color: "#64748b",
-            fontSize: "12px",
-          }}
-        >
-          No restaurant locations have been added yet.
-        </div>
-      )}
-    </div>
+    ) : (
+      <div
+        style={{
+          color: "#64748b",
+          fontSize: "12px",
+        }}
+      >
+        No restaurant locations have been added yet.
+      </div>
+    )}
+  </div>
+</div>
+   
 
     <div
       style={{
