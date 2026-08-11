@@ -344,29 +344,393 @@ verifiedAiActionsCount: verifiedCustomerActions.length,
     fetchCustomers();
   };
 
-  const updateLeadStatus = async (leadId, newStatus) => {
-    const { error } = await supabase
-      .from("leads")
-      .update({
-        status: newStatus,
-        last_contacted_at: new Date().toISOString(),
-      })
-      .eq("id", leadId);
 
-    if (error) {
-      console.error("Lead status update failed:", error);
-      alert("Could not update lead");
+  /* =========================
+   SERVEN SALES CRM PIPELINE
+========================= */
+
+const CRM_PIPELINE_STAGES = [
+  {
+    value: "not_contacted",
+    label: "Not Contacted",
+    group: "prospecting",
+  },
+  {
+    value: "email_sent",
+    label: "Email Sent",
+    group: "outreach",
+  },
+  {
+    value: "linkedin_sent",
+    label: "LinkedIn Sent",
+    group: "outreach",
+  },
+  {
+    value: "called",
+    label: "Called",
+    group: "outreach",
+  },
+  {
+    value: "follow_up_1",
+    label: "Follow-Up 1",
+    group: "follow_up",
+  },
+  {
+    value: "follow_up_2",
+    label: "Follow-Up 2",
+    group: "follow_up",
+  },
+  {
+    value: "interested",
+    label: "Interested",
+    group: "qualified",
+  },
+  {
+    value: "demo_scheduled",
+    label: "Demo Scheduled",
+    group: "demo",
+  },
+  {
+    value: "pilot_offered",
+    label: "Pilot Offered",
+    group: "pilot",
+  },
+  {
+    value: "pilot_started",
+    label: "Pilot Started",
+    group: "pilot",
+  },
+  {
+    value: "pilot_active",
+    label: "Pilot Active",
+    group: "pilot",
+  },
+  {
+    value: "pilot_completed",
+    label: "Pilot Completed",
+    group: "pilot",
+  },
+  {
+    value: "proposal_sent",
+    label: "Proposal Sent",
+    group: "closing",
+  },
+  {
+    value: "negotiating",
+    label: "Negotiating",
+    group: "closing",
+  },
+  {
+    value: "won",
+    label: "Client Won",
+    group: "closed",
+  },
+  {
+    value: "no_response",
+    label: "No Response",
+    group: "closed",
+  },
+  {
+    value: "lost",
+    label: "Not Interested / Lost",
+    group: "closed",
+  },
+];
+
+const CRM_LEGACY_STATUS_LABELS = {
+  new: "New Lead",
+  contacted: "Contacted",
+  closed: "Closed — Needs Classification",
+  closed_won: "Client Won",
+  closed_lost: "Lost",
+};
+
+const getCRMStageLabel = (status) => {
+  const normalizedStatus = String(status || "")
+    .trim()
+    .toLowerCase();
+
+  const stage = CRM_PIPELINE_STAGES.find(
+    (item) => item.value === normalizedStatus
+  );
+
+  if (stage) {
+    return stage.label;
+  }
+
+  if (CRM_LEGACY_STATUS_LABELS[normalizedStatus]) {
+    return CRM_LEGACY_STATUS_LABELS[normalizedStatus];
+  }
+
+  return "Not Contacted";
+};
+
+const getCRMStageGroup = (status) => {
+  const normalizedStatus = String(status || "")
+    .trim()
+    .toLowerCase();
+
+  const stage = CRM_PIPELINE_STAGES.find(
+    (item) => item.value === normalizedStatus
+  );
+
+  if (stage) {
+    return stage.group;
+  }
+
+  if (normalizedStatus === "closed_won") {
+    return "closed";
+  }
+
+  if (normalizedStatus === "closed_lost") {
+    return "closed";
+  }
+
+  return "prospecting";
+};
+ const updateLeadStatus = async (leadId, newStatus) => {
+  try {
+    const currentLead = (apolloLeads || []).find(
+      (lead) => lead.id === leadId
+    );
+
+    if (!currentLead) {
+      alert("Lead could not be found.");
       return;
     }
 
+    const previousStatus = String(
+      currentLead.status || "new"
+    )
+      .trim()
+      .toLowerCase();
+
+    const normalizedNewStatus = String(newStatus || "")
+      .trim()
+      .toLowerCase();
+
+    if (!normalizedNewStatus) {
+      alert("Select a valid CRM stage.");
+      return;
+    }
+
+    if (previousStatus === normalizedNewStatus) {
+      return;
+    }
+
+    const now = new Date().toISOString();
+
+    /* =========================
+       BUILD LEAD UPDATE
+    ========================= */
+
+    const leadUpdates = {
+      status: normalizedNewStatus,
+      updated_at: now,
+    };
+
+    const contactStages = [
+      "email_sent",
+      "linkedin_sent",
+      "called",
+      "follow_up_1",
+      "follow_up_2",
+      "interested",
+      "demo_scheduled",
+      "pilot_offered",
+      "pilot_started",
+      "pilot_completed",
+      "proposal_sent",
+      "negotiating",
+      "won",
+      "lost",
+    ];
+
+    if (contactStages.includes(normalizedNewStatus)) {
+      leadUpdates.last_contacted_at = now;
+
+      if (!currentLead.first_contacted_at) {
+        leadUpdates.first_contacted_at = now;
+      }
+    }
+
+    /* =========================
+       FOLLOW-UP TRACKING
+    ========================= */
+
+    if (normalizedNewStatus === "follow_up_1") {
+      leadUpdates.follow_up_count = Math.max(
+        Number(currentLead.follow_up_count || 0),
+        1
+      );
+    }
+
+    if (normalizedNewStatus === "follow_up_2") {
+      leadUpdates.follow_up_count = Math.max(
+        Number(currentLead.follow_up_count || 0),
+        2
+      );
+    }
+
+    /* =========================
+       DEMO TRACKING
+    ========================= */
+
+    if (normalizedNewStatus === "demo_scheduled") {
+      leadUpdates.demo_scheduled_at =
+        currentLead.demo_scheduled_at || now;
+    }
+
+    if (normalizedNewStatus === "pilot_offered") {
+      leadUpdates.pilot_offered_at =
+        currentLead.pilot_offered_at || now;
+    }
+
+    /* =========================
+       PILOT TRACKING
+    ========================= */
+
+    if (normalizedNewStatus === "pilot_started") {
+      leadUpdates.pilot_status = "started";
+
+      if (!currentLead.pilot_start_date) {
+        leadUpdates.pilot_start_date =
+          new Date().toISOString().split("T")[0];
+      }
+    }
+
+    if (normalizedNewStatus === "pilot_active") {
+      leadUpdates.pilot_status = "active";
+    }
+
+    if (normalizedNewStatus === "pilot_completed") {
+      leadUpdates.pilot_status = "completed";
+
+      if (!currentLead.pilot_end_date) {
+        leadUpdates.pilot_end_date =
+          new Date().toISOString().split("T")[0];
+      }
+    }
+
+    /* =========================
+       PROPOSAL / CLOSE TRACKING
+    ========================= */
+
+    if (normalizedNewStatus === "proposal_sent") {
+      leadUpdates.proposal_sent_at =
+        currentLead.proposal_sent_at || now;
+    }
+
+    if (normalizedNewStatus === "won") {
+      leadUpdates.won_at = currentLead.won_at || now;
+
+      leadUpdates.lost_at = null;
+      leadUpdates.lost_reason = null;
+    }
+
+    if (normalizedNewStatus === "lost") {
+      leadUpdates.lost_at = currentLead.lost_at || now;
+      leadUpdates.won_at = null;
+    }
+
+    /* =========================
+       UPDATE LEAD
+    ========================= */
+
+    const { error: leadError } = await supabase
+      .from("leads")
+      .update(leadUpdates)
+      .eq("id", leadId);
+
+    if (leadError) {
+      throw leadError;
+    }
+
+    /* =========================
+       GET CURRENT SERVEN USER
+    ========================= */
+
+    const {
+      data: { user: authenticatedUser },
+    } = await supabase.auth.getUser();
+
+    /* =========================
+       PERMANENT CRM HISTORY
+    ========================= */
+
+    const previousLabel =
+      getCRMStageLabel(previousStatus);
+
+    const newLabel =
+      getCRMStageLabel(normalizedNewStatus);
+
+    const { error: activityError } = await supabase
+      .from("lead_activities")
+      .insert({
+        lead_id: leadId,
+
+        activity_type: "status_change",
+
+        title: `Moved from ${previousLabel} to ${newLabel}`,
+
+        notes: `${currentLead.business_name ||
+          currentLead.restaurant_name ||
+          currentLead.email ||
+          "Lead"} moved from ${previousLabel} to ${newLabel}.`,
+
+        previous_status: previousStatus,
+        new_status: normalizedNewStatus,
+
+        completed_at: now,
+
+        created_by:
+          authenticatedUser?.id || null,
+      });
+
+    if (activityError) {
+      console.error(
+        "CRM ACTIVITY HISTORY FAILED:",
+        activityError
+      );
+
+      alert(
+        "Lead stage was updated, but the CRM activity history could not be saved."
+      );
+    }
+
+    /* =========================
+       UPDATE ADMIN UI
+    ========================= */
+
     setApolloLeads((prev) =>
-      prev.map((lead) =>
+      (prev || []).map((lead) =>
         lead.id === leadId
-          ? { ...lead, status: newStatus, last_contacted_at: new Date().toISOString() }
+          ? {
+              ...lead,
+              ...leadUpdates,
+            }
           : lead
       )
     );
-  };
+
+    console.log("CRM STAGE UPDATED:", {
+      leadId,
+      previousStatus,
+      newStatus: normalizedNewStatus,
+      leadUpdates,
+    });
+  } catch (error) {
+    console.error(
+      "CRM LEAD STATUS UPDATE FAILED:",
+      error
+    );
+
+    alert(
+      error?.message ||
+        "Could not update the CRM stage."
+    );
+  }
+};
 
   // Delete function for Apollo Leads pipeline cards
   const deleteLead = async (leadId) => {
