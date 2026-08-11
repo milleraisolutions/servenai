@@ -806,6 +806,8 @@ const [cookTimeLogs, setCookTimeLogs] = useState([]);
 const [batchPrepData, setBatchPrepData] = useState([]);
 const importLockRef = useRef(false);
 const [importingPOS, setImportingPOS] = useState(false);
+const [showRemoveTeamMemberConfirm, setShowRemoveTeamMemberConfirm] =
+  useState(false);
 const [auditLogs, setAuditLogs] = useState([]);
 const [auditLogsLoading, setAuditLogsLoading] = useState(false);
 const [enterpriseView, setEnterpriseView] = useState("overview");
@@ -36676,6 +36678,210 @@ const handleResendTeamInvite = async (member) => {
     );
   }
 };
+
+const handleSaveTeamMemberAccess = async () => {
+  try {
+    if (!selectedTeamMember?.accepted_user_id) {
+      alert("This team member is missing an accepted user ID.");
+      return;
+    }
+
+    const userId = selectedTeamMember.accepted_user_id;
+    const nextRole = selectedTeamMember.role;
+
+    const isRegionalDirector =
+      nextRole === "regional_director";
+
+    const isSingleLocationRole =
+      nextRole === "gm" ||
+      nextRole === "kitchen_manager";
+
+    const nextLocationName = isSingleLocationRole
+      ? selectedTeamMember.location_name || null
+      : null;
+
+    const nextLocationIds = isRegionalDirector
+      ? Array.isArray(selectedTeamMember.location_ids)
+        ? selectedTeamMember.location_ids.filter(Boolean)
+        : []
+      : [];
+
+    if (
+      isRegionalDirector &&
+      nextLocationIds.length === 0
+    ) {
+      alert(
+        "Please assign at least one location to the Regional Director."
+      );
+      return;
+    }
+
+    if (
+      isSingleLocationRole &&
+      !nextLocationName
+    ) {
+      alert(
+        "Please select an assigned location."
+      );
+      return;
+    }
+
+    // ========================================
+    // UPDATE USER PROFILE
+    // ========================================
+
+    const { error: userUpdateError } = await supabase
+      .from("users")
+      .update({
+  role: nextRole,
+  location_name: nextLocationName,
+  status: selectedTeamMember.status || "active",
+  dashboard_access:
+    selectedTeamMember.dashboard_access || "standard",
+})
+      .eq("id", userId);
+
+    if (userUpdateError) {
+      throw userUpdateError;
+    }
+
+    // ========================================
+    // UPDATE ORIGINAL INVITE RECORD
+    // ========================================
+
+    const { error: inviteUpdateError } = await supabase
+      .from("team_invites")
+      .update({
+        role: nextRole,
+        location_name: nextLocationName,
+        location_ids: nextLocationIds,
+      })
+      .eq("id", selectedTeamMember.id);
+
+    if (inviteUpdateError) {
+      throw inviteUpdateError;
+    }
+
+    // ========================================
+    // CLEAR OLD MULTI-LOCATION ASSIGNMENTS
+    // ========================================
+
+    const {
+      error: assignmentDeleteError,
+    } = await supabase
+      .from("user_location_assignments")
+      .delete()
+      .eq("user_id", userId);
+
+    if (assignmentDeleteError) {
+      throw assignmentDeleteError;
+    }
+
+    // ========================================
+    // INSERT REGIONAL DIRECTOR LOCATIONS
+    // ========================================
+
+    if (isRegionalDirector) {
+      const assignmentRows = nextLocationIds.map(
+        (locationId) => ({
+          user_id: userId,
+          owner_user_id:
+            selectedTeamMember.owner_user_id,
+          location_id: locationId,
+          role: nextRole,
+        })
+      );
+
+      const {
+        error: assignmentInsertError,
+      } = await supabase
+        .from("user_location_assignments")
+        .insert(assignmentRows);
+
+      if (assignmentInsertError) {
+        throw assignmentInsertError;
+      }
+    }
+
+    await loadTeamInvites();
+
+    setShowManageAccessModal(false);
+    setSelectedTeamMember(null);
+
+    alert("Team member access updated.");
+  } catch (error) {
+    console.error(
+      "SAVE TEAM MEMBER ACCESS FAILED:",
+      error
+    );
+
+    alert(
+      error?.message ||
+        "Team member access could not be updated."
+    );
+  }
+};
+const handleRemoveTeamMember = async () => {
+  try {
+    if (!selectedTeamMember?.accepted_user_id) {
+      alert("This team member is missing an accepted user ID.");
+      return;
+    }
+
+    const userId = selectedTeamMember.accepted_user_id;
+
+    const { error: assignmentDeleteError } = await supabase
+      .from("user_location_assignments")
+      .delete()
+      .eq("user_id", userId);
+
+    if (assignmentDeleteError) {
+      throw assignmentDeleteError;
+    }
+
+    const { error: userUpdateError } = await supabase
+      .from("users")
+      .update({
+        owner_user_id: null,
+        location_name: null,
+        assigned_location_id: null,
+        dashboard_access: null,
+        location_access: null,
+        status: "inactive",
+      })
+      .eq("id", userId);
+
+    if (userUpdateError) {
+      throw userUpdateError;
+    }
+
+    const { error: inviteUpdateError } = await supabase
+      .from("team_invites")
+      .update({
+        status: "removed",
+      })
+      .eq("id", selectedTeamMember.id);
+
+    if (inviteUpdateError) {
+      throw inviteUpdateError;
+    }
+
+    await loadTeamInvites();
+
+    setShowRemoveTeamMemberConfirm(false);
+    setShowManageAccessModal(false);
+    setSelectedTeamMember(null);
+
+    alert("Team member removed successfully.");
+  } catch (error) {
+    console.error("REMOVE TEAM MEMBER FAILED:", error);
+
+    alert(
+      error?.message ||
+        "The team member could not be removed."
+    );
+  }
+};
 const cookTimeData = (cookTimeLogs || []).map((item) => ({
   ...item,
   cookMinutes:
@@ -39784,6 +39990,105 @@ const latestConnectionSyncText = latestConnectionSync
 
 
 
+const isSuspendedUser =
+  String(userProfile?.status || "")
+    .trim()
+    .toLowerCase() === "suspended";
+
+if (isSuspendedUser) {
+  return (
+    <ErrorBoundary>
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background:
+            "radial-gradient(circle at top left, rgba(239,68,68,0.12), transparent 38%), linear-gradient(180deg, #020617 0%, #0f172a 100%)",
+          color: "white",
+          padding: "24px",
+          textAlign: "center",
+        }}
+      >
+        <div
+          style={{
+            width: "100%",
+            maxWidth: "520px",
+            padding: "34px",
+            borderRadius: "24px",
+            background:
+              "linear-gradient(135deg, rgba(15,23,42,0.95), rgba(30,41,59,0.88))",
+            border: "1px solid rgba(248,113,113,0.22)",
+            boxShadow: "0 24px 70px rgba(2,6,23,0.45)",
+          }}
+        >
+          <div
+            style={{
+              display: "inline-flex",
+              padding: "7px 12px",
+              borderRadius: "999px",
+              background: "rgba(239,68,68,0.12)",
+              border: "1px solid rgba(239,68,68,0.24)",
+              color: "#fca5a5",
+              fontSize: "11px",
+              fontWeight: "900",
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+              marginBottom: "16px",
+            }}
+          >
+            Access Suspended
+          </div>
+
+          <h2
+            style={{
+              margin: 0,
+              color: "white",
+              fontSize: "24px",
+              fontWeight: "900",
+            }}
+          >
+            Your Serven access has been suspended
+          </h2>
+
+          <p
+            style={{
+              marginTop: "14px",
+              color: "#94a3b8",
+              fontSize: "14px",
+              lineHeight: 1.7,
+            }}
+          >
+            Contact your restaurant administrator if you believe this was a mistake.
+          </p>
+
+          <button
+            type="button"
+            onClick={async () => {
+              await supabase.auth.signOut();
+              window.location.href = "/login";
+            }}
+            style={{
+              marginTop: "20px",
+              padding: "12px 18px",
+              borderRadius: "12px",
+              border: "none",
+              background: "#dc2626",
+              color: "white",
+              fontWeight: "900",
+              cursor: "pointer",
+            }}
+          >
+            Sign Out
+          </button>
+        </div>
+      </div>
+    </ErrorBoundary>
+  );
+}
+
+
 
 
 
@@ -39797,8 +40102,6 @@ console.log("ACCESS DEBUG:", {
   normalizedPlan,
   hasPaidAccess,
 });
-
-
 if (!hasPaidAccess) {
   return ( <ErrorBoundary>
     <div
@@ -70655,38 +70958,217 @@ profit recovery opportunities, AI recommendations, and forecasted trends.
             <option value="finance">Finance</option>
           </select>
         </div>
-
         <div>
-          <div
+  <div
+    style={{
+      color: "#94a3b8",
+      fontSize: "12px",
+      marginBottom: "8px",
+    }}
+  >
+    Account Status
+  </div>
+
+  <select
+    value={selectedTeamMember.status || "active"}
+    onChange={(e) =>
+      setSelectedTeamMember({
+        ...selectedTeamMember,
+        status: e.target.value,
+      })
+    }
+    style={inputStyle}
+  >
+    <option value="active">Active</option>
+    <option value="suspended">Suspended</option>
+  </select>
+</div>
+
+<div>
+  <div
+    style={{
+      color: "#94a3b8",
+      fontSize: "12px",
+      marginBottom: "8px",
+    }}
+  >
+    Dashboard Access
+  </div>
+
+  <select
+    value={selectedTeamMember.dashboard_access || "standard"}
+    onChange={(e) =>
+      setSelectedTeamMember({
+        ...selectedTeamMember,
+        dashboard_access: e.target.value,
+      })
+    }
+    style={inputStyle}
+  >
+    <option value="standard">Standard Access</option>
+    <option value="full">Full Dashboard</option>
+    <option value="operations">Operations Only</option>
+    <option value="financial">Financial Only</option>
+  </select>
+</div>
+<div>
+  <div
+    style={{
+      color: "#94a3b8",
+      fontSize: "12px",
+      marginBottom: "8px",
+    }}
+  >
+    {selectedTeamMember.role === "regional_director"
+      ? "Assigned Locations"
+      : "Assigned Location"}
+  </div>
+
+  {selectedTeamMember.role === "regional_director" ? (
+    <div
+      style={{
+        display: "grid",
+        gap: "8px",
+        padding: "12px",
+        maxHeight: "220px",
+        overflowY: "auto",
+        borderRadius: "12px",
+        background: "rgba(15,23,42,0.72)",
+        border: "1px solid rgba(148,163,184,0.16)",
+      }}
+    >
+      {(locations || []).map((location) => {
+        const locationId = String(location.id);
+
+        const locationName =
+          location.location_name ||
+          location.name ||
+          "Unnamed Location";
+
+        const currentLocationIds = Array.isArray(
+          selectedTeamMember.location_ids
+        )
+          ? selectedTeamMember.location_ids.map(String)
+          : [];
+
+        const checked =
+          currentLocationIds.includes(locationId);
+
+        return (
+          <label
+            key={locationId}
             style={{
-              color: "#94a3b8",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              color: "#e2e8f0",
               fontSize: "12px",
-              marginBottom: "8px",
+              fontWeight: "800",
+              cursor: "pointer",
             }}
           >
-            Assigned Location
-          </div>
+            <input
+              type="checkbox"
+              checked={checked}
+              onChange={(e) => {
+                const existingIds = Array.isArray(
+                  selectedTeamMember.location_ids
+                )
+                  ? selectedTeamMember.location_ids.map(String)
+                  : [];
 
-          <select
-            value={selectedTeamMember.location_name || ""}
-            onChange={(e) =>
-              setSelectedTeamMember({
-                ...selectedTeamMember,
-                location_name: e.target.value,
-              })
-            }
-            style={inputStyle}
+                const nextIds = e.target.checked
+                  ? [
+                      ...new Set([
+                        ...existingIds,
+                        locationId,
+                      ]),
+                    ]
+                  : existingIds.filter(
+                      (id) => id !== locationId
+                    );
+
+                setSelectedTeamMember({
+                  ...selectedTeamMember,
+                  location_ids: nextIds,
+                  location_name: null,
+                });
+              }}
+            />
+
+            {locationName}
+          </label>
+        );
+      })}
+
+      <div
+        style={{
+          marginTop: "6px",
+          color: "#64748b",
+          fontSize: "11px",
+          fontWeight: "700",
+        }}
+      >
+        {Array.isArray(selectedTeamMember.location_ids)
+          ? selectedTeamMember.location_ids.length
+          : 0}{" "}
+        location
+        {Array.isArray(selectedTeamMember.location_ids) &&
+        selectedTeamMember.location_ids.length === 1
+          ? ""
+          : "s"}{" "}
+        selected
+      </div>
+    </div>
+  ) : selectedTeamMember.role === "gm" ||
+    selectedTeamMember.role === "kitchen_manager" ? (
+    <select
+      value={selectedTeamMember.location_name || ""}
+      onChange={(e) =>
+        setSelectedTeamMember({
+          ...selectedTeamMember,
+          location_name: e.target.value,
+          location_ids: [],
+        })
+      }
+      style={inputStyle}
+    >
+      <option value="">
+        Select assigned location
+      </option>
+
+      {(locations || []).map((location) => {
+        const locationName =
+          location.location_name ||
+          location.name ||
+          "";
+
+        return (
+          <option
+            key={location.id}
+            value={locationName}
           >
-            {(locations || []).map((location) => (
-              <option
-                key={location.id}
-                value={location.location_name}
-              >
-                {location.location_name}
-              </option>
-            ))}
-          </select>
-        </div>
+            {locationName}
+          </option>
+        );
+      })}
+    </select>
+  ) : (
+    <div
+      style={{
+        padding: "12px",
+        borderRadius: "12px",
+        background: "rgba(15,23,42,0.72)",
+        border: "1px solid rgba(148,163,184,0.16)",
+        color: "#94a3b8",
+        fontSize: "12px",
+        fontWeight: "700",
+      }}
+    >
+      Company-wide access
+    </div>
+  )}
+</div>
       </div>
 
       <div
@@ -70708,25 +71190,97 @@ profit recovery opportunities, AI recommendations, and forecasted trends.
           Close
         </button>
 
-        <button
-          style={{
-            ...setupSecondaryButton,
-            background: "#dc2626",
-            color: "white",
-          }}
-        >
-          Suspend Access
-        </button>
+   <button
+  type="button"
+  onClick={async () => {
+    try {
+      if (!selectedTeamMember?.accepted_user_id) {
+        alert("This team member is missing an accepted user ID.");
+        return;
+      }
 
+      const nextStatus =
+        String(selectedTeamMember.status || "active")
+          .toLowerCase() === "suspended"
+          ? "active"
+          : "suspended";
+
+      const { error } = await supabase
+        .from("users")
+        .update({
+          status: nextStatus,
+        })
+        .eq(
+          "id",
+          selectedTeamMember.accepted_user_id
+        );
+
+      if (error) {
+        throw error;
+      }
+
+      setSelectedTeamMember({
+        ...selectedTeamMember,
+        status: nextStatus,
+      });
+
+      alert(
+        nextStatus === "suspended"
+          ? "Team member access suspended."
+          : "Team member access restored."
+      );
+    } catch (error) {
+      console.error(
+        "TEAM MEMBER STATUS UPDATE FAILED:",
+        error
+      );
+
+      alert(
+        error?.message ||
+          "Team member status could not be updated."
+      );
+    }
+  }}
+  style={{
+    ...setupSecondaryButton,
+    background:
+      String(selectedTeamMember.status || "active")
+        .toLowerCase() === "suspended"
+        ? "#16a34a"
+        : "#dc2626",
+    color: "white",
+  }}
+>
+  {String(selectedTeamMember.status || "active")
+    .toLowerCase() === "suspended"
+    ? "Reactivate Access"
+    : "Suspend Access"}
+</button>
+<button
+  type="button"
+  onClick={() => {
+    setShowRemoveTeamMemberConfirm(true);
+  }}
+  style={{
+    ...setupSecondaryButton,
+    background: "rgba(127,29,29,0.92)",
+    color: "#fecaca",
+    border: "1px solid rgba(248,113,113,0.28)",
+  }}
+>
+  Remove Team Member
+</button>
         <button
-          style={{
-            ...setupSecondaryButton,
-            background: "#4f46e5",
-            color: "white",
-          }}
-        >
-          Save Changes
-        </button>
+  type="button"
+  onClick={handleSaveTeamMemberAccess}
+  style={{
+    ...setupSecondaryButton,
+    background: "#4f46e5",
+    color: "white",
+  }}
+>
+  Save Changes
+</button>
       </div>
     </div>
   </div>
