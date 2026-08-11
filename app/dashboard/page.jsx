@@ -34951,202 +34951,293 @@ const handleLocationUpload = async (event) => {
       return;
     }
 
+   const extension = String(file.name || "")
+  .split(".")
+  .pop()
+  .toLowerCase();
+
+let parsedLocationRows = [];
+
+if (extension === "csv") {
+  parsedLocationRows = await new Promise((resolve, reject) => {
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
       worker: false,
-
-      complete: async (results) => {
-        try {
-          console.log("LOCATION PARSE RESULTS:", results);
-
-          const rawRows = results.data || [];
-
-          const rows = rawRows.filter((row) => {
-            const name =
-              row.location_name ||
-              row["Location Name"] ||
-              row.name ||
-              row.Name ||
-              row.restaurant ||
-              row.Restaurant;
-
-            return String(name || "").trim();
-          });
-
-          console.log("LOCATION CLEAN ROW COUNT:", rows.length);
-          console.log("LOCATION FIRST CLEAN ROW:", rows[0]);
-
-          if (!rows.length) {
-            setMessage("No valid location rows found in file.");
-            alert("No valid location rows found in file.");
-            return;
-          }
-
-          const fileName = file.name || "Location Upload";
-
-          const optimisticUpload = startOptimisticImport({
-            fileName,
-            sourceName: "location_upload",
-            rowCount: rows.length,
-          });
-
-          const { data: createdUploadRow, error: uploadError } = await supabase
-            .from("uploads")
-            .insert([
-              {
-                user_id: currentUser.id,
-                file_name: fileName,
-                source_name: "location_upload",
-                row_count: rows.length,
-                upload_type: "locations",
-                status: "completed",
-                archived: false,
-                location_id: null,
-              },
-            ])
-            .select()
-            .single();
-
-          uploadRow = createdUploadRow;
-
-          console.log("LOCATION UPLOAD ROW:", uploadRow);
-          console.log("LOCATION UPLOAD ERROR:", uploadError);
-
-          if (uploadError) throw uploadError;
-
-          const locationsToInsert = rows.map((row) => ({
-            user_id: currentUser.id,
-            upload_id: uploadRow.id,
-            file_name: fileName,
-
-            location_name:
-              row.location_name ||
-              row["Location Name"] ||
-              row.name ||
-              row.Name ||
-              row.restaurant ||
-              row.Restaurant ||
-              "Location",
-
-            city: row.city || row.City || null,
-            state: row.state || row.State || null,
-            status: row.status || row.Status || "active",
-
-            monthly_revenue: Number(
-              row.monthly_revenue ||
-                row["Monthly Revenue"] ||
-                row.revenue ||
-                row.Revenue ||
-                0
-            ),
-
-            food_cost_percent: Number(
-              row.food_cost_percent ||
-                row["Food Cost Percent"] ||
-                row.food_cost ||
-                row["Food Cost"] ||
-                0
-            ),
-
-            labor_cost_percent: Number(
-              row.labor_cost_percent ||
-                row["Labor Cost Percent"] ||
-                row.labor_cost ||
-                row["Labor Cost"] ||
-                0
-            ),
-
-            prime_cost_percent: Number(
-              row.prime_cost_percent ||
-                row["Prime Cost Percent"] ||
-                row.prime_cost ||
-                row["Prime Cost"] ||
-                0
-            ),
-
-            health_score: Number(
-              row.health_score ||
-                row["Health Score"] ||
-                row.score ||
-                row.Score ||
-                0
-            ),
-          }));
-
-          console.log("LOCATION ROWS TO INSERT:", locationsToInsert.slice(0, 5));
-
-          const { data: insertedLocations, error: locationInsertError } =
-            await supabase.from("locations").insert(locationsToInsert).select();
-
-          console.log("LOCATION INSERTED ROWS:", insertedLocations);
-          console.log("LOCATION INSERT ERROR:", locationInsertError);
-
-          if (locationInsertError) {
-            await supabase.from("uploads").delete().eq("id", uploadRow.id);
-            throw locationInsertError;
-          }
-
-          const cleanUploadRow = {
-            ...uploadRow,
-            status: "completed",
-            upload_type: "locations",
-            source_name: "location_upload",
-            row_count: insertedLocations?.length || locationsToInsert.length || 0,
-          };
-
-          setLocations((prev) => [
-            ...(insertedLocations || locationsToInsert),
-            ...(prev || []),
-          ]);
-
-          setClientImports((prev) => [
-            cleanUploadRow,
-            ...(prev || []).filter((item) => item.id !== optimisticUpload.id),
-          ]);
-
-          setRecentUploads((prev) => [
-            cleanUploadRow,
-            ...(prev || []).filter((item) => item.id !== optimisticUpload.id),
-          ]);
-
-          setPendingUploadSummary(null);
-          setPendingUploadRows([]);
-          pendingUploadRowsRef.current = [];
-
-          setMessage(`Imported ${insertedLocations?.length || locationsToInsert.length} location(s).`);
-
-          event.target.value = "";
-
-          logAuditEvent({
-            action: "uploaded_locations",
-            entityType: "locations",
-            entityId: uploadRow?.id || null,
-            details: `Uploaded locations with ${
-              insertedLocations?.length || locationsToInsert.length
-            } row(s).`,
-          }).catch((auditError) => {
-            console.warn("Locations audit log failed:", auditError);
-          });
-        } catch (innerError) {
-          console.error("Location upload inner error:", innerError);
-
-          if (uploadRow?.id) {
-            await supabase.from("locations").delete().eq("upload_id", uploadRow.id);
-            await supabase.from("uploads").delete().eq("id", uploadRow.id);
-          }
-
-          setMessage(innerError?.message || "Location upload failed.");
-          alert(innerError?.message || "Location upload failed.");
-        }
+      complete: (results) => {
+        resolve(results.data || []);
       },
-
-      error: (parseError) => {
-        console.error("Location CSV parse failed:", parseError);
-        alert(`Location CSV parse failed: ${parseError.message}`);
-        setMessage("Location CSV parse failed.");
+      error: (error) => {
+        reject(error);
       },
     });
+  });
+} else if (["xlsx", "xls"].includes(extension)) {
+  const buffer = await file.arrayBuffer();
+
+  const workbook = XLSX.read(buffer, {
+    type: "array",
+  });
+
+  let bestRows = [];
+
+  workbook.SheetNames.forEach((sheetName) => {
+    const worksheet = workbook.Sheets[sheetName];
+
+    const sheetRows = XLSX.utils.sheet_to_json(
+      worksheet,
+      {
+        defval: "",
+        blankrows: false,
+        raw: false,
+      }
+    );
+
+    if (sheetRows.length > bestRows.length) {
+      bestRows = sheetRows;
+    }
+  });
+
+  parsedLocationRows = bestRows;
+} else {
+  throw new Error(
+    "Location files must be CSV, XLSX, or XLS."
+  );
+}
+
+console.log(
+  "LOCATION PARSE RESULTS:",
+  parsedLocationRows
+);
+
+const rawRows = parsedLocationRows || [];
+
+const rows = rawRows.filter((row) => {
+  const name =
+    row.location_name ||
+    row["Location Name"] ||
+    row.location ||
+    row.Location ||
+    row.store_name ||
+    row["Store Name"] ||
+    row.store ||
+    row.Store ||
+    row.name ||
+    row.Name ||
+    row.restaurant ||
+    row.Restaurant ||
+    row.branch ||
+    row.Branch ||
+    row.site ||
+    row.Site ||
+    row.venue ||
+    row.Venue;
+
+  return String(name || "").trim();
+});
+
+console.log("LOCATION CLEAN ROW COUNT:", rows.length);
+console.log("LOCATION FIRST CLEAN ROW:", rows[0]);
+
+if (!rows.length) {
+  throw new Error(
+    "No valid location rows were found. Serven looks for columns such as Location Name, Location, Store, Restaurant, Branch, Site, or Venue."
+  );
+}
+
+const fileName = file.name || "Location Upload";
+
+const optimisticUpload = startOptimisticImport({
+  fileName,
+  sourceName: "location_upload",
+  rowCount: rows.length,
+});
+
+const { data: createdUploadRow, error: uploadError } =
+  await supabase
+    .from("uploads")
+    .insert([
+      {
+        user_id: currentUser.id,
+        file_name: fileName,
+        source_name: "location_upload",
+        row_count: rows.length,
+        upload_type: "locations",
+        status: "completed",
+        archived: false,
+        location_id: null,
+      },
+    ])
+    .select()
+    .single();
+
+uploadRow = createdUploadRow;
+
+console.log("LOCATION UPLOAD ROW:", uploadRow);
+console.log("LOCATION UPLOAD ERROR:", uploadError);
+
+if (uploadError) throw uploadError;
+
+const locationsToInsert = rows.map((row) => ({
+  user_id: currentUser.id,
+  upload_id: uploadRow.id,
+  file_name: fileName,
+
+  location_name:
+    row.location_name ||
+    row["Location Name"] ||
+    row.location ||
+    row.Location ||
+    row.store_name ||
+    row["Store Name"] ||
+    row.store ||
+    row.Store ||
+    row.name ||
+    row.Name ||
+    row.restaurant ||
+    row.Restaurant ||
+    row.branch ||
+    row.Branch ||
+    row.site ||
+    row.Site ||
+    row.venue ||
+    row.Venue ||
+    "Location",
+
+  city: row.city || row.City || null,
+  state: row.state || row.State || null,
+  status: row.status || row.Status || "active",
+
+  monthly_revenue: Number(
+    row.monthly_revenue ||
+      row["Monthly Revenue"] ||
+      row.revenue ||
+      row.Revenue ||
+      0
+  ),
+
+  food_cost_percent: Number(
+    row.food_cost_percent ||
+      row["Food Cost Percent"] ||
+      row.food_cost ||
+      row["Food Cost"] ||
+      0
+  ),
+
+  labor_cost_percent: Number(
+    row.labor_cost_percent ||
+      row["Labor Cost Percent"] ||
+      row.labor_cost ||
+      row["Labor Cost"] ||
+      0
+  ),
+
+  prime_cost_percent: Number(
+    row.prime_cost_percent ||
+      row["Prime Cost Percent"] ||
+      row.prime_cost ||
+      row["Prime Cost"] ||
+      0
+  ),
+
+  health_score: Number(
+    row.health_score ||
+      row["Health Score"] ||
+      row.score ||
+      row.Score ||
+      0
+  ),
+}));
+
+console.log(
+  "LOCATION ROWS TO INSERT:",
+  locationsToInsert.slice(0, 5)
+);
+
+const {
+  data: insertedLocations,
+  error: locationInsertError,
+} = await supabase
+  .from("locations")
+  .insert(locationsToInsert)
+  .select();
+
+console.log(
+  "LOCATION INSERTED ROWS:",
+  insertedLocations
+);
+
+console.log(
+  "LOCATION INSERT ERROR:",
+  locationInsertError
+);
+
+if (locationInsertError) {
+  await supabase
+    .from("uploads")
+    .delete()
+    .eq("id", uploadRow.id);
+
+  throw locationInsertError;
+}
+
+const cleanUploadRow = {
+  ...uploadRow,
+  status: "completed",
+  upload_type: "locations",
+  source_name: "location_upload",
+  row_count:
+    insertedLocations?.length ||
+    locationsToInsert.length ||
+    0,
+};
+
+setLocations((prev) => [
+  ...(insertedLocations || locationsToInsert),
+  ...(prev || []),
+]);
+
+setClientImports((prev) => [
+  cleanUploadRow,
+  ...(prev || []).filter(
+    (item) => item.id !== optimisticUpload.id
+  ),
+]);
+
+setRecentUploads((prev) => [
+  cleanUploadRow,
+  ...(prev || []).filter(
+    (item) => item.id !== optimisticUpload.id
+  ),
+]);
+
+setPendingUploadSummary(null);
+setPendingUploadRows([]);
+pendingUploadRowsRef.current = [];
+
+setMessage(
+  `Imported ${
+    insertedLocations?.length ||
+    locationsToInsert.length
+  } location(s).`
+);
+
+event.target.value = "";
+
+logAuditEvent({
+  action: "uploaded_locations",
+  entityType: "locations",
+  entityId: uploadRow?.id || null,
+  details: `Uploaded locations with ${
+    insertedLocations?.length ||
+    locationsToInsert.length
+  } row(s).`,
+}).catch((auditError) => {
+  console.warn(
+    "Locations audit log failed:",
+    auditError
+  );
+});
   } catch (error) {
     console.error("Location upload crashed:", error);
     alert(`Location upload crashed: ${error.message}`);
