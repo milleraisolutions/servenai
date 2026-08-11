@@ -36569,41 +36569,106 @@ const handleDeleteTeamInvite = async (inviteId) => {
 
 const handleResendTeamInvite = async (member) => {
   try {
-    if (!member?.email || !member?.invite_token) {
-      alert("This invite is missing its email or invite token.");
+    if (!member?.id || !member?.email) {
+      alert("This invite is missing required information.");
       return;
     }
 
-    const response = await fetch("/api/send-team-invite", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+    const newInviteToken = crypto.randomUUID();
 
-      body: JSON.stringify({
-        inviteEmail: member.email,
-        inviteName: member.name || "",
-        inviteRole: member.role || "",
-        inviteLocation: member.location_name || "",
-        inviteToken: member.invite_token,
-      }),
-    });
+    const {
+      data: updatedInvite,
+      error: updateInviteError,
+    } = await supabase
+      .from("team_invites")
+      .update({
+        invite_token: newInviteToken,
+        status: "pending",
+      })
+      .eq("id", member.id)
+      .select()
+      .single();
 
-    const result = await response.json();
+    console.log(
+      "TEAM INVITE RESEND UPDATE RESULT:",
+      updatedInvite
+    );
 
-    console.log("TEAM INVITE RESEND RESULT:", result);
+    console.log(
+      "TEAM INVITE RESEND UPDATE ERROR:",
+      updateInviteError
+    );
 
-    if (!response.ok || !result?.success) {
+    if (updateInviteError) {
       alert(
-        result?.error ||
-          "The invitation email could not be resent."
+        updateInviteError.message ||
+          "The invite could not be reset for resending."
       );
       return;
     }
 
-    alert("Invitation resent successfully.");
+    const response = await fetch(
+      "/api/send-team-invite",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+
+        body: JSON.stringify({
+          inviteEmail: updatedInvite.email,
+          inviteName: updatedInvite.name || "",
+          inviteRole: updatedInvite.role || "",
+          inviteLocation:
+            updatedInvite.location_name || "",
+          inviteToken: newInviteToken,
+        }),
+      }
+    );
+
+    const result = await response.json();
+
+    console.log(
+      "TEAM INVITE RESEND RESULT:",
+      result
+    );
+
+    if (!response.ok || !result?.success) {
+      console.error(
+        "TEAM INVITE RESEND EMAIL FAILED:",
+        result
+      );
+
+      // Put it back into revoked state if this
+      // was originally revoked and the email send failed.
+      if (member.status === "revoked") {
+        await supabase
+          .from("team_invites")
+          .update({
+            status: "revoked",
+          })
+          .eq("id", member.id);
+      }
+
+      alert(
+        result?.error ||
+          "The invitation email could not be resent."
+      );
+
+      await loadTeamInvites();
+      return;
+    }
+
+    await loadTeamInvites();
+
+    alert(
+      "Invitation resent successfully. A new invite link was created."
+    );
   } catch (error) {
-    console.error("TEAM INVITE RESEND FAILED:", error);
+    console.error(
+      "TEAM INVITE RESEND FAILED:",
+      error
+    );
 
     alert(
       error?.message ||
