@@ -4852,9 +4852,7 @@ const clientsRequiringAttention = useMemo(() => {
     overflowWrap: "anywhere",
     cursor: "pointer",
     textAlign: "left",
-    textDecoration: "underline",
-    textDecorationColor: "rgba(129,140,248,0.45)",
-    textUnderlineOffset: "3px",
+   
   }}
 >
   {lead.business_name ||
@@ -5000,15 +4998,33 @@ const clientsRequiringAttention = useMemo(() => {
 ========================= */}
 
 {selectedCRMLead && (
+
+ <div
+  onClick={closeCRMLead}
+  style={{
+    position: "fixed",
+    inset: 0,
+    zIndex: 99999,
+    background: "rgba(2,6,23,0.82)",
+    backdropFilter: "blur(8px)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "24px",
+  }}
+>
   <div
+    onClick={(e) => e.stopPropagation()}
     style={{
-      marginBottom: "22px",
+      width: "min(1100px, 96vw)",
+      maxHeight: "90vh",
+      overflowY: "auto",
       padding: "24px",
       borderRadius: "26px",
       background:
-        "radial-gradient(circle at top right, rgba(139,92,246,0.16), transparent 32%), linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.96))",
-      border: "1px solid rgba(139,92,246,0.22)",
-      boxShadow: "0 24px 70px rgba(2,6,23,0.30)",
+        "radial-gradient(circle at top right, rgba(139,92,246,0.16), transparent 32%), linear-gradient(135deg, rgba(15,23,42,0.99), rgba(30,41,59,0.99))",
+      border: "1px solid rgba(139,92,246,0.28)",
+      boxShadow: "0 40px 120px rgba(0,0,0,0.55)",
     }}
   >
     {/* HEADER */}
@@ -5627,6 +5643,7 @@ const clientsRequiringAttention = useMemo(() => {
         </div>
       )}
     </div>
+  </div>
   </div>
 )}
 
