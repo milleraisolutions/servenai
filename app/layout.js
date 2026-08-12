@@ -3,9 +3,12 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 import { supabase } from "./lib/supabaseClient";
 
 export default function RootLayout({ children }) {
+    const pathname = usePathname();
+  const isAdminRoute = pathname?.startsWith("/admin");
   const [user, setUser] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -148,7 +151,8 @@ export default function RootLayout({ children }) {
             'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
         }}
       >
-        <header style={navWrap}>
+       {!isAdminRoute && (
+  <header style={navWrap}>
           <div
             style={{
               ...containerStyle,
@@ -253,12 +257,15 @@ export default function RootLayout({ children }) {
               )}
             </nav>
           </div>
-        </header>
+         </header>
+)}
 
         <main
           style={{
             width: "100%",
-            minHeight: "calc(100vh - 74px)",
+            minHeight: isAdminRoute
+  ? "100vh"
+  : "calc(100vh - 74px)",
             overflowX: "hidden",
             overflowY: "visible",
           }}
