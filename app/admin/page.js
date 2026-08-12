@@ -2231,6 +2231,64 @@ const clientsRequiringAttention = useMemo(() => {
   </button>
 </div>
       </div>
+      {/* =========================
+   ADMIN NAVIGATION
+========================= */}
+
+<div
+  style={{
+    display: "flex",
+    gap: "8px",
+    flexWrap: "wrap",
+    marginBottom: "24px",
+    padding: "10px",
+    borderRadius: "16px",
+    background: "rgba(15,23,42,0.88)",
+    border: "1px solid rgba(148,163,184,0.12)",
+    position: "sticky",
+    top: "10px",
+    zIndex: 100,
+    backdropFilter: "blur(12px)",
+  }}
+>
+  {[
+    { value: "executive", label: "Overview" },
+    { value: "clients", label: "Clients" },
+    { value: "revenue", label: "Revenue" },
+    { value: "billing", label: "Billing" },
+    { value: "sales_crm", label: "Sales CRM" },
+    { value: "growth", label: "Growth" },
+    { value: "risk", label: "Risk" },
+  ].map((item) => {
+    const active = adminView === item.value;
+
+    return (
+      <button
+        key={item.value}
+        type="button"
+        onClick={() => setAdminView(item.value)}
+        style={{
+          padding: "9px 14px",
+          borderRadius: "10px",
+          border: active
+            ? "1px solid rgba(129,140,248,0.55)"
+            : "1px solid rgba(148,163,184,0.12)",
+          background: active
+            ? "rgba(99,102,241,0.20)"
+            : "rgba(255,255,255,0.035)",
+          color: active ? "#c7d2fe" : "#94a3b8",
+          fontSize: "12px",
+          fontWeight: "900",
+          cursor: "pointer",
+        }}
+      >
+        {item.label}
+      </button>
+    );
+  })}
+</div>
+{adminView === "executive" && (
+  <> 
 {/* =========================
    SERVEN OWNER PERFORMANCE
 ========================= */}
@@ -2341,7 +2399,10 @@ const clientsRequiringAttention = useMemo(() => {
     />
   </div>
 </div>
-
+  </>
+)}
+{adminView === "clients" && (
+  <>
 {/* =========================
    TOP RECOVERING CLIENTS
 ========================= */}
@@ -2552,7 +2613,10 @@ const clientsRequiringAttention = useMemo(() => {
     </div>
   )}
 </div>
-
+  </>
+)}
+{adminView === "revenue" && (
+  <>
 {/* =========================
    SERVEN REVENUE FORECAST
 ========================= */}
@@ -2818,7 +2882,8 @@ const clientsRequiringAttention = useMemo(() => {
     })}
   </div>
 </div>
-
+{adminView === "risk" && (
+  <>
 {/* =========================
    CLIENTS REQUIRING ATTENTION
 ========================= */}
@@ -3064,7 +3129,13 @@ const clientsRequiringAttention = useMemo(() => {
     </div>
   )}
 </div>
+  </>
+)}
+  </>
+)}
 
+{adminView === "clients" && (
+  <>
       {/* EMAIL CENTER */}
       <div style={panelCard("#0ea5e9")}>
         <div style={{ color: "#7dd3fc", fontSize: "12px", fontWeight: "900" }}>OWNER EMAIL CENTER</div>
@@ -3088,7 +3159,11 @@ const clientsRequiringAttention = useMemo(() => {
       </div>
 
       {errorMessage && <div style={errorBox}>{errorMessage}</div>}
+  </>
+)}
 
+{adminView === "executive" && (
+  <>
       {/* STATS ANALYTICS */}
       <div style={{ marginTop: "20px" }}>
         <div style={eyebrow}>PLATFORM SNAPSHOT</div>
@@ -3217,6 +3292,11 @@ const clientsRequiringAttention = useMemo(() => {
 
   </div>
 </div>
+  </>
+)}
+
+{adminView === "risk" && (
+  <>
 {/* AT-RISK CLIENTS */}
 <div style={panelCard("#ef4444")}>
   <div style={eyebrow}>CLIENT RETENTION RISK</div>
@@ -3351,6 +3431,11 @@ const clientsRequiringAttention = useMemo(() => {
     />
   </div>
 </div>
+  </>
+)}
+
+{adminView === "billing" && (
+  <>
 {/* PAST DUE BILLING */}
 <div style={panelCard("#ef4444")}>
   <div style={eyebrow}>BILLING RISK</div>
@@ -3439,6 +3524,10 @@ const clientsRequiringAttention = useMemo(() => {
     </div>
   )}
 </div>
+  </>
+)}
+{adminView === "growth" && (
+  <>
 {/* RECENT SIGNUPS */}
 <div style={panelCard("#3b82f6")}>
   <div style={eyebrow}>NEW ACCOUNT ACTIVITY</div>
@@ -3501,6 +3590,11 @@ const clientsRequiringAttention = useMemo(() => {
     </div>
   )}
 </div>
+ </>
+)}
+
+{adminView === "risk" && (
+  <>
 {/* CHURN WATCH LIST */}
 <div style={panelCard("#f59e0b")}>
   <div style={eyebrow}>EARLY RETENTION WARNINGS</div>
@@ -3559,6 +3653,11 @@ const clientsRequiringAttention = useMemo(() => {
     </div>
   )}
 </div>
+  </>
+)}
+
+{adminView === "clients" && (
+  <>
 {/* TOP CLIENTS BY REVENUE */}
 <div style={panelCard("#22c55e")}>
   <div style={eyebrow}>CLIENT REVENUE LEADERBOARD</div>
@@ -3778,6 +3877,12 @@ const clientsRequiringAttention = useMemo(() => {
     </div>
   )}
 </div>
+  </>
+)}
+
+
+{adminView === "growth" && (
+  <>
 {/* CUSTOMER GROWTH RATE */}
 <div style={panelCard("#38bdf8")}>
   <div style={eyebrow}>ACCOUNT GROWTH</div>
@@ -3828,6 +3933,11 @@ const clientsRequiringAttention = useMemo(() => {
     );
   })()}
 </div>
+  </>
+)}
+
+{adminView === "clients" && (
+  <>
 {/* CONTRACT TRACKER */}
 <div style={panelCard("#8b5cf6")}>
   <div style={eyebrow}>CONTRACT READINESS</div>
@@ -3858,6 +3968,11 @@ const clientsRequiringAttention = useMemo(() => {
     />
   </div>
 </div>
+  </>
+)}
+
+{adminView === "executive" && (
+  <>
 {/* HIGHEST AI PROFIT GENERATED */}
 <div style={panelCard("#a855f7")}>
   <div style={eyebrow}>AI VALUE LEADERBOARD</div>
@@ -3927,6 +4042,11 @@ const clientsRequiringAttention = useMemo(() => {
     </div>
   )}
 </div>
+  </>
+)}
+
+{adminView === "clients" && (
+  <>
 {/* CLIENTS NEEDING ONBOARDING */}
 <div style={panelCard("#f97316")}>
   <div style={eyebrow}>ONBOARDING PIPELINE</div>
@@ -4005,6 +4125,12 @@ const clientsRequiringAttention = useMemo(() => {
     </div>
   )}
 </div>
+
+  </>
+)}
+
+{adminView === "growth" && (
+  <>
 {/* NEW CLIENTS THIS MONTH */}
 <div style={panelCard("#0ea5e9")}>
   <div style={eyebrow}>MONTHLY GROWTH</div>
@@ -4085,6 +4211,11 @@ const clientsRequiringAttention = useMemo(() => {
     </div>
   )}
 </div>
+  </>
+)}
+
+{adminView === "clients" && (
+  <>
       {/* CURRENT CLIENTS DIRECTORY */}
       <div style={panelCard("#6366f1")}>
         <div style={eyebrow}>CLIENT OPERATIONS</div>
@@ -4221,7 +4352,11 @@ const clientsRequiringAttention = useMemo(() => {
           </div>
         )}
       </div>
+  </>
+)}
 
+{adminView === "sales_crm" && (
+  <>
       {/* NEW: INBOUND WEBSITE DEMO LEADS PANEL */}
       <div style={panelCard("#a855f7")}>
         <div style={eyebrow}>INBOUND WEBSITE DEMO BOOKINGS</div>
@@ -4277,6 +4412,10 @@ const clientsRequiringAttention = useMemo(() => {
           </div>
         )}
       </div>
+        </>
+)}
+      {adminView === "sales_crm" && (
+        <>
 {/* =========================
    SERVEN SALES CRM COMMAND CENTER
 ========================= */}
@@ -4417,6 +4556,7 @@ const clientsRequiringAttention = useMemo(() => {
     ))}
   </div>
 </div>
+ 
 {/* =========================
    ADD PROSPECT / LOG OUTREACH
 ========================= */}
@@ -5944,7 +6084,12 @@ const clientsRequiringAttention = useMemo(() => {
   </div>
   </div>
 )}
+ </>
+)}
 
+
+{adminView === "sales_crm" && (
+  <>
       {/* APOLLO FILE UPLOAD */}
       <div style={panelCard("#3b82f6")}>
         <div style={{ color: "#93c5fd", fontSize: "12px", fontWeight: "900" }}>IMPORT APOLLO LEADS</div>
@@ -5952,8 +6097,10 @@ const clientsRequiringAttention = useMemo(() => {
         <input type="file" accept=".csv, .xlsx, .xls" onChange={handleLeadUpload} style={fileInputStyle} />
       </div>
 
-    
-
+      </>
+)}
+{adminView === "risk" && (
+  <>
       {/* OVERAGE RISK PANEL */}
       <div style={panelCard("#f59e0b")}>
         <div style={eyebrow}>RESOURCE ALERT RISK</div>
@@ -5976,6 +6123,8 @@ const clientsRequiringAttention = useMemo(() => {
           </div>
         )}
       </div>
+         </>
+    )}
     </div>
   );
 }
