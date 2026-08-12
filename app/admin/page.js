@@ -134,7 +134,15 @@ const [newProspect, setNewProspect] = useState({
     const { data: salesData } = await supabase
       .from("sales")
       .select("user_id, revenue, created_at");
+const { data: uploadsData, error: uploadsError } = await supabase
+  .from("uploads")
+  .select("user_id, created_at, upload_type")
+  .or("archived.is.false,archived.is.null")
+  .order("created_at", { ascending: false });
 
+if (uploadsError) {
+  console.warn("ADMIN UPLOADS FETCH ERROR:", uploadsError.message);
+}
     const currentMonth = new Date().toISOString().slice(0, 7);
 
     const { data: marketingUsageData } = await supabase
@@ -190,6 +198,9 @@ const [newProspect, setNewProspect] = useState({
 
     const customersWithMetrics = (usersData || []).map((customer) => {
       const customerSales = (salesData || []).filter((sale) => sale.user_id === customer.id);
+      const customerUploads = (uploadsData || []).filter(
+  (upload) => upload.user_id === customer.id
+);
       const customerAlerts = (alertData || []).filter((alert) => alert.user_id === customer.id);
       const customerAiActions = (aiActionData || []).filter((action) => action.user_id === customer.id);
       const customerUsage = (marketingUsageData || []).filter((usage) => usage.user_id === customer.id);
@@ -255,14 +266,13 @@ const aiProfitGenerated = verifiedCustomerActions.reduce(
   0
 );
       const openAlerts = customerAlerts.filter((alert) => String(alert.status || "open").toLowerCase() !== "closed").length;
-
-      const lastUpload = customerSales.length
-        ? customerSales
-            .map((sale) => sale.created_at)
-            .filter(Boolean)
-            .sort()
-            .reverse()[0]
-        : null;
+const lastUpload = customerUploads.length
+  ? customerUploads
+      .map((upload) => upload.created_at)
+      .filter(Boolean)
+      .sort()
+      .reverse()[0]
+  : null;
 
       const billingStatus = String(
         customer.subscription_status || customer.billing_status || customer.stripe_status || "unknown"
