@@ -1704,10 +1704,22 @@ const salesCRMStats = useMemo(() => {
       totalAiActions: aiActions.length, avgHealthScore, atRiskClients
     };
   }, [customers, aiActions]);
+const riskEligibleClients = useMemo(() => {
+  return customers.filter((client) => {
+    const status = String(client.customer_status || "")
+      .trim()
+      .toLowerCase();
 
+    return ["active", "pilot"].includes(status);
+  });
+}, [customers]);
   const overageRiskClients = useMemo(() => {
-    return customers.filter((c) => Number(c.emailUsagePercent || 0) >= 80 || Number(c.smsUsagePercent || 0) >= 80);
-  }, [customers]);
+  return riskEligibleClients.filter(
+    (c) =>
+      Number(c.emailUsagePercent || 0) >= 80 ||
+      Number(c.smsUsagePercent || 0) >= 80
+  );
+}, [riskEligibleClients]);
 
 const filteredCRMLeads = useMemo(() => {
   const prospects = Array.isArray(apolloLeads)
@@ -3174,8 +3186,8 @@ const clientsRequiringAttention = useMemo(() => {
           <StatCard label="Active Clients" value={stats.active} />
           <StatCard label="Open Alerts" value={stats.openAlerts} />
           <StatCard
-  label="Onboarding Needed"
-  value={customers.filter((c) => !c.lastUpload).length}
+label="Onboarding Needed"
+value={riskEligibleClients.filter((c) => !c.lastUpload).length}
 />
           <StatCard label="Client Revenue" value={`$${stats.totalClientRevenue.toLocaleString()}`} />
           <StatCard label="AI Profit Generated" value={`$${stats.totalAIProfitGenerated.toLocaleString()}`} />
@@ -3304,7 +3316,7 @@ const clientsRequiringAttention = useMemo(() => {
     At-Risk Clients
   </h2>
 
-  {customers.filter((client) =>
+{riskEligibleClients.filter((client) =>
     Number(client.healthScore || 0) <= 55 ||
     ["past_due", "unpaid"].includes(String(client.billingStatus || "").toLowerCase())
   ).length === 0 ? (
@@ -3313,7 +3325,7 @@ const clientsRequiringAttention = useMemo(() => {
     </div>
   ) : (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(320px,1fr))", gap: "16px" }}>
-      {customers
+      {riskEligibleClients
         .filter((client) =>
           Number(client.healthScore || 0) <= 55 ||
           ["past_due", "unpaid"].includes(String(client.billingStatus || "").toLowerCase())
@@ -3390,43 +3402,47 @@ const clientsRequiringAttention = useMemo(() => {
     <StatCard
       label="Healthy Clients"
       value={
-        customers.filter((c) => Number(c.healthScore || 0) > 80).length
+        riskEligibleClients.filter(
+  (c) => Number(c.healthScore || 0) > 80
+).length
       }
     />
 
     <StatCard
       label="Watch List"
       value={
-        customers.filter(
-          (c) =>
-            Number(c.healthScore || 0) <= 80 &&
-            Number(c.healthScore || 0) > 55
-        ).length
+        riskEligibleClients.filter(
+  (c) =>
+    Number(c.healthScore || 0) <= 80 &&
+    Number(c.healthScore || 0) > 55
+).length
       }
     />
 
     <StatCard
       label="At Risk"
       value={
-        customers.filter((c) => Number(c.healthScore || 0) <= 55).length
+       riskEligibleClients.filter(
+  (c) => Number(c.healthScore || 0) <= 55
+).length
       }
     />
 
     <StatCard
       label="Past Due"
       value={
-        customers.filter((c) =>
-          ["past_due", "unpaid"].includes(
-            String(c.billingStatus || "").toLowerCase()
-          )
-        ).length
+        riskEligibleClients.filter((c) =>
+  ["past_due", "unpaid"].includes(
+    String(c.billingStatus || "").toLowerCase()
+  )
+).length
       }
     />
 
     <StatCard
       label="No Uploads"
       value={
-        customers.filter((c) => !c.lastUpload).length
+        riskEligibleClients.filter((c) => !c.lastUpload).length
       }
     />
   </div>
@@ -3603,14 +3619,14 @@ const clientsRequiringAttention = useMemo(() => {
     Churn Watch List
   </h2>
 
-  {customers.filter((client) =>
+ {riskEligibleClients.filter((client) =>
     Number(client.healthScore || 0) > 55 &&
     Number(client.healthScore || 0) <= 80
   ).length === 0 ? (
     <div style={{ color: "#94a3b8" }}>No clients on churn watch right now.</div>
   ) : (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(320px,1fr))", gap: "16px" }}>
-      {customers
+     {riskEligibleClients
         .filter((client) =>
           Number(client.healthScore || 0) > 55 &&
           Number(client.healthScore || 0) <= 80
@@ -4055,13 +4071,13 @@ const clientsRequiringAttention = useMemo(() => {
     Clients Needing Onboarding
   </h2>
 
-  {customers.filter((client) => !client.lastUpload).length === 0 ? (
+  {riskEligibleClients.filter((client) => !client.lastUpload).length === 0 ? (
     <div style={{ color: "#94a3b8" }}>
       No onboarding issues right now.
     </div>
   ) : (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(320px,1fr))", gap: "16px" }}>
-      {customers
+     {riskEligibleClients
         .filter((client) => !client.lastUpload)
         .slice()
         .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
