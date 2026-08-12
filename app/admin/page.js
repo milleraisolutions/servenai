@@ -34,6 +34,25 @@ const [crmSourceFilter, setCrmSourceFilter] = useState("all");
 const [selectedCRMLead, setSelectedCRMLead] = useState(null);
 const [selectedCRMActivities, setSelectedCRMActivities] = useState([]);
 const [crmActivitiesLoading, setCrmActivitiesLoading] = useState(false);
+const [showAddProspectForm, setShowAddProspectForm] = useState(false);
+
+const [newProspect, setNewProspect] = useState({
+  business_name: "",
+  owner_name: "",
+  contact_title: "",
+  email: "",
+  phone: "",
+  city: "",
+  state: "",
+  source: "manual",
+  contact_method: "in_person",
+  status: "not_contacted",
+  notes: "",
+  next_action: "",
+  next_follow_up_at: "",
+  estimated_monthly_value: "",
+  recommended_plan: "",
+});
   const [adminView, setAdminView] = useState("executive");
   // New State for your real Supabase demo_leads table
   const [demoLeads, setDemoLeads] = useState([]);
@@ -1114,6 +1133,198 @@ const scheduleCRMFollowUp = async (
     alert(
       error?.message ||
         "Could not schedule CRM follow-up."
+    );
+  }
+};
+const saveManualCRMProspect = async () => {
+  try {
+    const businessName = String(
+      newProspect.business_name || ""
+    ).trim();
+
+    const contactName = String(
+      newProspect.owner_name || ""
+    ).trim();
+
+    if (!businessName) {
+      alert("Enter the restaurant or company name.");
+      return;
+    }
+
+    if (!contactName) {
+      alert("Enter the contact name.");
+      return;
+    }
+
+    const now = new Date().toISOString();
+
+    const cleanEmail = String(
+      newProspect.email || ""
+    ).trim();
+
+    const followUpISO = newProspect.next_follow_up_at
+      ? new Date(
+          newProspect.next_follow_up_at
+        ).toISOString()
+      : null;
+
+    const estimatedMonthlyValue = Number(
+      newProspect.estimated_monthly_value || 0
+    );
+
+    const leadPayload = {
+      business_name: businessName,
+      restaurant_name: businessName,
+
+      owner_name: contactName,
+      full_name: contactName,
+
+      contact_title:
+        String(newProspect.contact_title || "").trim() ||
+        null,
+
+      email: cleanEmail || null,
+
+      phone:
+        String(newProspect.phone || "").trim() ||
+        null,
+
+      city:
+        String(newProspect.city || "").trim() ||
+        null,
+
+      state:
+        String(newProspect.state || "").trim() ||
+        null,
+
+      source:
+        String(newProspect.source || "manual")
+          .trim()
+          .toLowerCase(),
+
+      lead_source:
+        String(newProspect.source || "manual")
+          .trim()
+          .toLowerCase(),
+
+      status:
+        String(
+          newProspect.status || "not_contacted"
+        )
+          .trim()
+          .toLowerCase(),
+
+      notes:
+        String(newProspect.notes || "").trim() ||
+        null,
+
+      next_action:
+        String(newProspect.next_action || "").trim() ||
+        null,
+
+      next_follow_up_at: followUpISO,
+
+      estimated_monthly_value:
+        Number.isFinite(estimatedMonthlyValue)
+          ? estimatedMonthlyValue
+          : 0,
+
+      recommended_plan:
+        String(
+          newProspect.recommended_plan || ""
+        ).trim() || null,
+
+      updated_at: now,
+    };
+
+    const contactedMethods = [
+      "in_person",
+      "email",
+      "phone",
+      "linkedin",
+      "text",
+      "video_call",
+    ];
+
+    const hasInitialContact =
+      contactedMethods.includes(
+        String(newProspect.contact_method || "")
+          .trim()
+          .toLowerCase()
+      );
+
+    if (hasInitialContact) {
+      leadPayload.first_contacted_at = now;
+      leadPayload.last_contacted_at = now;
+    }
+
+    const { data: createdLead, error: leadError } =
+      await supabase
+        .from("leads")
+        .insert(leadPayload)
+        .select()
+        .single();
+
+    if (leadError) {
+      throw leadError;
+    }
+
+    await createCRMActivity({
+      leadId: createdLead.id,
+      activityType: "prospect_created",
+      title: `Prospect added: ${businessName}`,
+      notes:
+        String(newProspect.notes || "").trim() ||
+        `${contactName} added to the Serven Sales CRM.`,
+      contactMethod:
+        String(
+          newProspect.contact_method || ""
+        )
+          .trim()
+          .toLowerCase() || null,
+      scheduledFor: followUpISO,
+      completedAt: now,
+    });
+
+    setApolloLeads((prev) => [
+      createdLead,
+      ...(prev || []),
+    ]);
+
+    setSelectedCRMLead(createdLead);
+
+    await loadCRMLeadActivities(createdLead.id);
+
+    setNewProspect({
+      business_name: "",
+      owner_name: "",
+      contact_title: "",
+      email: "",
+      phone: "",
+      city: "",
+      state: "",
+      source: "manual",
+      contact_method: "in_person",
+      status: "not_contacted",
+      notes: "",
+      next_action: "",
+      next_follow_up_at: "",
+      estimated_monthly_value: "",
+      recommended_plan: "",
+    });
+
+    setShowAddProspectForm(false);
+
+    alert("Prospect added to Serven Sales CRM.");
+  } catch (error) {
+    console.error(
+      "MANUAL CRM PROSPECT SAVE FAILED:",
+      error
+    );
+
+    alert(
+      error?.message ||
+        "Could not add prospect."
     );
   }
 };
@@ -4159,6 +4370,332 @@ const clientsRequiringAttention = useMemo(() => {
   </div>
 </div>
 {/* =========================
+   ADD PROSPECT / LOG OUTREACH
+========================= */}
+
+<div
+  style={{
+    marginBottom: "18px",
+    padding: "18px",
+    borderRadius: "20px",
+    background: "rgba(15,23,42,0.86)",
+    border: "1px solid rgba(99,102,241,0.18)",
+  }}
+>
+  <div
+    style={{
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      gap: "12px",
+      flexWrap: "wrap",
+    }}
+  >
+    <div>
+      <div style={eyebrow}>NEW SALES ACTIVITY</div>
+      <h3
+        style={{
+          margin: "4px 0 0",
+          color: "white",
+          fontSize: "20px",
+          fontWeight: "900",
+        }}
+      >
+        Add Prospect / Log Outreach
+      </h3>
+    </div>
+
+    <button
+      type="button"
+      onClick={() =>
+        setShowAddProspectForm((prev) => !prev)
+      }
+      style={{
+        ...smallActionButton,
+        background:
+          "linear-gradient(135deg,#6366f1,#7c3aed)",
+      }}
+    >
+      {showAddProspectForm
+        ? "Close Form"
+        : "+ Add Prospect"}
+    </button>
+  </div>
+
+  {showAddProspectForm && (
+    <div
+      style={{
+        marginTop: "18px",
+        display: "grid",
+        gap: "14px",
+      }}
+    >
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns:
+            "repeat(auto-fit,minmax(220px,1fr))",
+          gap: "12px",
+        }}
+      >
+        <input
+          value={newProspect.business_name}
+          onChange={(e) =>
+            setNewProspect((prev) => ({
+              ...prev,
+              business_name: e.target.value,
+            }))
+          }
+          placeholder="Restaurant / Company *"
+          style={inputStyle}
+        />
+
+        <input
+          value={newProspect.owner_name}
+          onChange={(e) =>
+            setNewProspect((prev) => ({
+              ...prev,
+              owner_name: e.target.value,
+            }))
+          }
+          placeholder="Contact Name *"
+          style={inputStyle}
+        />
+
+        <input
+          value={newProspect.contact_title}
+          onChange={(e) =>
+            setNewProspect((prev) => ({
+              ...prev,
+              contact_title: e.target.value,
+            }))
+          }
+          placeholder="Title / Role"
+          style={inputStyle}
+        />
+
+        <input
+          value={newProspect.email}
+          onChange={(e) =>
+            setNewProspect((prev) => ({
+              ...prev,
+              email: e.target.value,
+            }))
+          }
+          placeholder="Email"
+          style={inputStyle}
+        />
+
+        <input
+          value={newProspect.phone}
+          onChange={(e) =>
+            setNewProspect((prev) => ({
+              ...prev,
+              phone: e.target.value,
+            }))
+          }
+          placeholder="Phone"
+          style={inputStyle}
+        />
+
+        <input
+          value={newProspect.city}
+          onChange={(e) =>
+            setNewProspect((prev) => ({
+              ...prev,
+              city: e.target.value,
+            }))
+          }
+          placeholder="City"
+          style={inputStyle}
+        />
+
+        <input
+          value={newProspect.state}
+          onChange={(e) =>
+            setNewProspect((prev) => ({
+              ...prev,
+              state: e.target.value,
+            }))
+          }
+          placeholder="State"
+          style={inputStyle}
+        />
+
+        <select
+          value={newProspect.source}
+          onChange={(e) =>
+            setNewProspect((prev) => ({
+              ...prev,
+              source: e.target.value,
+            }))
+          }
+          style={selectStyle}
+        >
+          <option value="manual">Manual</option>
+          <option value="walk_in">Walk-In</option>
+          <option value="apollo">Apollo</option>
+          <option value="referral">Referral</option>
+          <option value="website">Website</option>
+          <option value="linkedin">LinkedIn</option>
+          <option value="cold_research">Cold Research</option>
+          <option value="inbound_demo">Inbound Demo</option>
+          <option value="other">Other</option>
+        </select>
+
+        <select
+          value={newProspect.contact_method}
+          onChange={(e) =>
+            setNewProspect((prev) => ({
+              ...prev,
+              contact_method: e.target.value,
+            }))
+          }
+          style={selectStyle}
+        >
+          <option value="in_person">In Person</option>
+          <option value="email">Email</option>
+          <option value="phone">Phone</option>
+          <option value="linkedin">LinkedIn</option>
+          <option value="text">Text</option>
+          <option value="video_call">Video Call</option>
+          <option value="none">No Contact Yet</option>
+        </select>
+
+        <select
+          value={newProspect.status}
+          onChange={(e) =>
+            setNewProspect((prev) => ({
+              ...prev,
+              status: e.target.value,
+            }))
+          }
+          style={selectStyle}
+        >
+          {CRM_PIPELINE_STAGES.map((stage) => (
+            <option
+              key={stage.value}
+              value={stage.value}
+            >
+              {stage.label}
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={newProspect.recommended_plan}
+          onChange={(e) =>
+            setNewProspect((prev) => ({
+              ...prev,
+              recommended_plan: e.target.value,
+            }))
+          }
+          style={selectStyle}
+        >
+          <option value="">Recommended Plan</option>
+          <option value="starter">Starter</option>
+          <option value="growth">Growth</option>
+          <option value="pro">Pro AI</option>
+          <option value="enterprise">Enterprise</option>
+        </select>
+
+        <input
+          type="number"
+          min="0"
+          value={newProspect.estimated_monthly_value}
+          onChange={(e) =>
+            setNewProspect((prev) => ({
+              ...prev,
+              estimated_monthly_value:
+                e.target.value,
+            }))
+          }
+          placeholder="Estimated Monthly Deal $"
+          style={inputStyle}
+        />
+
+        <input
+          value={newProspect.next_action}
+          onChange={(e) =>
+            setNewProspect((prev) => ({
+              ...prev,
+              next_action: e.target.value,
+            }))
+          }
+          placeholder="Next Action"
+          style={inputStyle}
+        />
+
+        <input
+          type="datetime-local"
+          value={newProspect.next_follow_up_at}
+          onChange={(e) =>
+            setNewProspect((prev) => ({
+              ...prev,
+              next_follow_up_at:
+                e.target.value,
+            }))
+          }
+          style={inputStyle}
+        />
+      </div>
+
+      <textarea
+        value={newProspect.notes}
+        onChange={(e) =>
+          setNewProspect((prev) => ({
+            ...prev,
+            notes: e.target.value,
+          }))
+        }
+        placeholder="What happened? What did they say? What should you remember?"
+        rows={5}
+        style={{
+          ...inputStyle,
+          width: "100%",
+          resize: "vertical",
+          boxSizing: "border-box",
+          lineHeight: 1.6,
+        }}
+      />
+
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "flex-end",
+          gap: "10px",
+          flexWrap: "wrap",
+        }}
+      >
+        <button
+          type="button"
+          onClick={() =>
+            setShowAddProspectForm(false)
+          }
+          style={{
+            ...smallActionButton,
+            background: "#334155",
+          }}
+        >
+          Cancel
+        </button>
+
+        <button
+          type="button"
+          onClick={saveManualCRMProspect}
+          style={{
+            ...smallActionButton,
+            background:
+              "linear-gradient(135deg,#22c55e,#16a34a)",
+          }}
+        >
+          Save Prospect
+        </button>
+      </div>
+    </div>
+  )}
+</div>
+{/* =========================
    SALES CRM SEARCH + FILTERS
 ========================= */}
 
@@ -5100,66 +5637,7 @@ const clientsRequiringAttention = useMemo(() => {
         <input type="file" accept=".csv, .xlsx, .xls" onChange={handleLeadUpload} style={fileInputStyle} />
       </div>
 
-      {/* PROSPECT PIPELINE WITH INTEGRATED DELETE BUTTON */}
-      <div style={panelCard("#1e293b")}>
-        <div style={eyebrow}>APOLLO SALES PIPELINE</div>
-        <h2 style={{ color: "white", fontSize: "26px", fontWeight: "900", marginBottom: "18px" }}>Prospect Pipeline</h2>
-        {!apolloLeads.length ? (
-          <div style={{ color: "#94a3b8" }}>No Apollo leads uploaded yet.</div>
-        ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(320px,1fr))", gap: "16px" }}>
-            {apolloLeads.map((lead) => (
-              <div key={lead.id} style={{ ...leadCardStyle, position: "relative" }}>
-                
-                {/* Permanent Delete "X" Button */}
-                <button 
-                  onClick={() => deleteLead(lead.id)}
-                  style={{
-                    position: "absolute",
-                    top: "14px",
-                    right: "14px",
-                    background: "rgba(239, 68, 68, 0.15)",
-                    color: "#ef4444",
-                    border: "1px solid rgba(239, 68, 68, 0.3)",
-                    borderRadius: "8px",
-                    width: "26px",
-                    height: "26px",
-                    cursor: "pointer",
-                    fontWeight: "bold",
-                    fontSize: "12px",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    zIndex: 10
-                  }}
-                  title="Delete Lead"
-                >
-                  ✕
-                </button>
-
-                <div style={{ color: "white", fontWeight: "900", fontSize: "18px", paddingRight: "30px" }}>
-                  {lead.business_name || "Restaurant"}
-                </div>
-                <div style={{ color: "#94a3b8", fontSize: "13px" }}>{lead.email}</div>
-                <div style={leadMetaText}>
-                  <div>Owner: {lead.owner_name || "Unknown"}</div>
-                  <div>Phone: {lead.phone || "Unknown"}</div>
-                  <div>City: {lead.city || "Unknown"}</div>
-                </div>
-                <div style={statusBadge}>{lead.status || "new"}</div>
-                <div style={pipelineActionGrid}>
-                  <button onClick={() => updateLeadStatus(lead.id, "contacted")} style={smallActionButton}>Contacted</button>
-                  <button onClick={() => updateLeadStatus(lead.id, "follow_up")} style={smallActionButton}>Follow Up</button>
-                  <button onClick={() => updateLeadStatus(lead.id, "interested")} style={smallActionButton}>Interested</button>
-                  <button onClick={() => updateLeadStatus(lead.id, "demo_scheduled")} style={smallActionButton}>Demo</button>
-                  <button onClick={() => updateLeadStatus(lead.id, "closed_won")} style={{ ...smallActionButton, background: "linear-gradient(135deg,#22c55e,#16a34a)" }}>Closed Won</button>
-                  <button onClick={() => updateLeadStatus(lead.id, "closed_lost")} style={{ ...smallActionButton, background: "linear-gradient(135deg,#ef4444,#dc2626)" }}>Closed Lost</button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+    
 
       {/* OVERAGE RISK PANEL */}
       <div style={panelCard("#f59e0b")}>
