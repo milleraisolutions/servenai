@@ -5043,142 +5043,53 @@ const clientsRequiringAttention = useMemo(() => {
 </div>
 
         <div
-  style={{
-    minWidth: 0,
-  }}
->
-  <div
-    style={{
-      color: lead.next_action
-        ? "#e2e8f0"
-        : "#64748b",
-      fontSize: "12px",
-      fontWeight: lead.next_action
-        ? "800"
-        : "600",
-      lineHeight: 1.45,
-      overflowWrap: "anywhere",
-    }}
-  >
-    {lead.next_action || "No next action"}
-  </div>
-
-  {lead.last_contacted_at && (
-    <div
-      style={{
-        color: "#64748b",
-        fontSize: "10px",
-        marginTop: "4px",
-      }}
-    >
-      Last contact{" "}
-      {new Date(
-        lead.last_contacted_at
-      ).toLocaleDateString()}
-    </div>
-  )}
-</div>
-
-        <div>
-  {lead.next_follow_up_at ? (
-    (() => {
-      const followUpTime = new Date(
-        lead.next_follow_up_at
-      ).getTime();
-
-      const isOverdue =
-        Number.isFinite(followUpTime) &&
-        followUpTime < Date.now();
-
-      return (
-        <div>
-          <div
-            style={{
-              display: "inline-flex",
-              padding: "6px 8px",
-              borderRadius: "9px",
-              background: isOverdue
-                ? "rgba(239,68,68,0.12)"
-                : "rgba(34,197,94,0.10)",
-              border: isOverdue
-                ? "1px solid rgba(239,68,68,0.22)"
-                : "1px solid rgba(34,197,94,0.18)",
-              color: isOverdue
-                ? "#fca5a5"
-                : "#86efac",
-              fontSize: "11px",
-              fontWeight: "900",
-            }}
-          >
-            {new Date(
-              lead.next_follow_up_at
-            ).toLocaleDateString()}
-          </div>
-
-          {isOverdue && (
-            <div
-              style={{
-                color: "#ef4444",
-                fontSize: "9px",
-                fontWeight: "900",
-                textTransform: "uppercase",
-                letterSpacing: "0.06em",
-                marginTop: "4px",
-              }}
-            >
-              Follow-Up Due
-            </div>
-          )}
+          style={{
+            color: "#cbd5e1",
+            fontSize: "12px",
+          }}
+        >
+          {lead.last_contacted_at
+            ? new Date(
+                lead.last_contacted_at
+              ).toLocaleDateString()
+            : "Never"}
         </div>
-      );
-    })()
-  ) : (
-    <span
-      style={{
-        color: "#64748b",
-        fontSize: "11px",
-      }}
-    >
-      Not scheduled
-    </span>
-  )}
-</div>
 
         <div
-  style={{
-    color:
-      Number(
-        lead.estimated_monthly_value || 0
-      ) > 0
-        ? "#86efac"
-        : "#64748b",
-    fontSize: "12px",
-    fontWeight: "900",
-    whiteSpace: "nowrap",
-  }}
->
-  {Number(
-    lead.estimated_monthly_value || 0
-  ) > 0
-    ? `$${Number(
-        lead.estimated_monthly_value
-      ).toLocaleString()}/mo`
-    : "—"}
-</div>
+          style={{
+            color: lead.next_follow_up_at
+              ? new Date(
+                  lead.next_follow_up_at
+                ).getTime() <= Date.now()
+                ? "#fca5a5"
+                : "#cbd5e1"
+              : "#64748b",
+            fontSize: "12px",
+            fontWeight: lead.next_follow_up_at
+              ? "800"
+              : "600",
+          }}
+        >
+          {lead.next_follow_up_at
+            ? new Date(
+                lead.next_follow_up_at
+              ).toLocaleDateString()
+            : "Not scheduled"}
+        </div>
 
-<div
-  style={{
-    color: "#94a3b8",
-    fontSize: "12px",
-    textTransform: "capitalize",
-  }}
->
-  {String(
-    lead.source ||
-      lead.lead_source ||
-      "unknown"
-  ).replaceAll("_", " ")}
-</div>
+        <div
+          style={{
+            color: "#94a3b8",
+            fontSize: "12px",
+            textTransform: "capitalize",
+          }}
+        >
+          {String(
+            lead.source ||
+              lead.lead_source ||
+              "unknown"
+          ).replaceAll("_", " ")}
+        </div>
       </div>
     ))
   )}
@@ -6079,8 +5990,3 @@ const barFill = { height: "100%", borderRadius: "999px", transition: "width 0.4s
 const legendGrid = { display: "grid", gridTemplateColumns: "1fr", gap: "6px", marginTop: "4px" };
 const legendItem = { display: "flex", alignItems: "center", gap: "6px", color: "#94a3b8", fontSize: "11px", fontWeight: "bold" };
 const dot = { width: "8px", height: "8px", borderRadius: "50%", display: "inline-block" };
-
-
-
-
-
