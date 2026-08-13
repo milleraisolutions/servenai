@@ -3628,20 +3628,70 @@ value={riskEligibleClients.filter((c) => !c.lastUpload).length}
   <h2 style={{ color: "white", fontSize: "26px", fontWeight: "900", marginBottom: "18px" }}>
     Churn Watch List
   </h2>
+{riskEligibleClients.filter((client) => {
+  const healthScore = Number(client.healthScore || 0);
 
- {riskEligibleClients.filter((client) =>
-    Number(client.healthScore || 0) > 55 &&
-    Number(client.healthScore || 0) <= 80
-  ).length === 0 ? (
+  const billingRisk = ["past_due", "unpaid"].includes(
+    String(client.billingStatus || "").toLowerCase()
+  );
+
+  const lastUploadDate = client.lastUpload
+    ? new Date(client.lastUpload)
+    : null;
+
+  const daysSinceUpload =
+    lastUploadDate && !Number.isNaN(lastUploadDate.getTime())
+      ? Math.floor(
+          (Date.now() - lastUploadDate.getTime()) /
+            (1000 * 60 * 60 * 24)
+        )
+      : null;
+
+  const inactivityRisk =
+    !client.lastUpload ||
+    (daysSinceUpload !== null && daysSinceUpload >= 14);
+
+  return (
+    healthScore > 55 &&
+    healthScore <= 80 &&
+    (inactivityRisk || billingRisk || Number(client.openAlerts || 0) > 0)
+  );
+}).length === 0 ? (
     <div style={{ color: "#94a3b8" }}>No clients on churn watch right now.</div>
   ) : (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(320px,1fr))", gap: "16px" }}>
-     {riskEligibleClients
-        .filter((client) =>
-          Number(client.healthScore || 0) > 55 &&
-          Number(client.healthScore || 0) <= 80
-        )
-        .map((client) => (
+    {riskEligibleClients
+  .filter((client) => {
+    const healthScore = Number(client.healthScore || 0);
+
+    const billingRisk = ["past_due", "unpaid"].includes(
+      String(client.billingStatus || "").toLowerCase()
+    );
+
+    const lastUploadDate = client.lastUpload
+      ? new Date(client.lastUpload)
+      : null;
+
+    const daysSinceUpload =
+      lastUploadDate && !Number.isNaN(lastUploadDate.getTime())
+        ? Math.floor(
+            (Date.now() - lastUploadDate.getTime()) /
+              (1000 * 60 * 60 * 24)
+          )
+        : null;
+
+    const inactivityRisk =
+      !client.lastUpload ||
+      (daysSinceUpload !== null && daysSinceUpload >= 14);
+
+    return (
+      healthScore > 55 &&
+      healthScore <= 80 &&
+      (inactivityRisk || billingRisk || Number(client.openAlerts || 0) > 0)
+    );
+  })
+  .map((client) => (
+       
           <div key={client.id} style={leadCardStyle}>
             <div style={{ color: "white", fontWeight: "900", fontSize: "18px" }}>
               {client.restaurant_name || "Unnamed Business"}
