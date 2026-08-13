@@ -3260,36 +3260,130 @@ value={riskEligibleClients.filter((c) => !c.lastUpload).length}
 
     {/* CHART 2: SUBSCRIPTION MRR DISTRIBUTION */}
     <div style={internalChartCard}>
-      <h3 style={chartTitle}>Revenue Tier Allocation</h3>
-      <p style={chartSub}>Monthly Recurring Revenue breakdown by product tiers</p>
+      <h3 style={chartTitle}>Contracted Monthly Value by Plan</h3>
+<p style={chartSub}>
+  Monthly client value based on each account's assigned contract price
+</p>
       
-      {(() => {
-        const starterMRR = stats.starter * 149;
-        const growthMRR = stats.growth * 299;
-        const proMRR = stats.pro * 499;
-        const totalMRR = starterMRR + growthMRR + proMRR || 1;
+ {(() => {
+  const getClientMonthlyValue = (client) =>
+    Number(
+      client.monthly_price ||
+        client.platform_fee ||
+        client.base_fee ||
+        0
+    );
 
-        const starterPct = Math.round((starterMRR / totalMRR) * 100);
-        const growthPct = Math.round((growthMRR / totalMRR) * 100);
-        const proPct = Math.round((proMRR / totalMRR) * 100);
+  const starterMRR = riskEligibleClients
+    .filter(
+      (client) =>
+        String(client.plan || "").toLowerCase() === "starter"
+    )
+    .reduce(
+      (sum, client) => sum + getClientMonthlyValue(client),
+      0
+    );
 
-        return (
-          <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "16px" }}>
-            <div>
-              <div style={chartRowLabel}><span>Starter ($149/mo)</span> <span>${starterMRR.toLocaleString()}</span></div>
-              <div style={barBg}><div style={{ ...barFill, width: `${starterPct}%`, backgroundColor: "#6366f1" }} /></div>
-            </div>
-            <div>
-              <div style={chartRowLabel}><span>Growth ($299/mo)</span> <span>${growthMRR.toLocaleString()}</span></div>
-              <div style={barBg}><div style={{ ...barFill, width: `${growthPct}%`, backgroundColor: "#f59e0b" }} /></div>
-            </div>
-            <div>
-              <div style={chartRowLabel}><span>Pro ($499/mo)</span> <span>${proMRR.toLocaleString()}</span></div>
-              <div style={barBg}><div style={{ ...barFill, width: `${proPct}%`, backgroundColor: "#a855f7" }} /></div>
-            </div>
-          </div>
-        );
-      })()}
+  const growthMRR = riskEligibleClients
+    .filter(
+      (client) =>
+        String(client.plan || "").toLowerCase() === "growth"
+    )
+    .reduce(
+      (sum, client) => sum + getClientMonthlyValue(client),
+      0
+    );
+
+  const proMRR = riskEligibleClients
+    .filter(
+      (client) =>
+        String(client.plan || "").toLowerCase() === "pro"
+    )
+    .reduce(
+      (sum, client) => sum + getClientMonthlyValue(client),
+      0
+    );
+
+  const totalMRR =
+    starterMRR + growthMRR + proMRR;
+
+  const starterPct =
+    totalMRR > 0
+      ? Math.round((starterMRR / totalMRR) * 100)
+      : 0;
+
+  const growthPct =
+    totalMRR > 0
+      ? Math.round((growthMRR / totalMRR) * 100)
+      : 0;
+
+  const proPct =
+    totalMRR > 0
+      ? Math.round((proMRR / totalMRR) * 100)
+      : 0;
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: "10px",
+        marginTop: "16px",
+      }}
+    >
+      <div>
+        <div style={chartRowLabel}>
+          <span>Starter</span>
+          <span>${starterMRR.toLocaleString()}</span>
+        </div>
+
+        <div style={barBg}>
+          <div
+            style={{
+              ...barFill,
+              width: `${starterPct}%`,
+              backgroundColor: "#6366f1",
+            }}
+          />
+        </div>
+      </div>
+
+      <div>
+        <div style={chartRowLabel}>
+          <span>Growth</span>
+          <span>${growthMRR.toLocaleString()}</span>
+        </div>
+
+        <div style={barBg}>
+          <div
+            style={{
+              ...barFill,
+              width: `${growthPct}%`,
+              backgroundColor: "#f59e0b",
+            }}
+          />
+        </div>
+      </div>
+
+      <div>
+        <div style={chartRowLabel}>
+          <span>Pro</span>
+          <span>${proMRR.toLocaleString()}</span>
+        </div>
+
+        <div style={barBg}>
+          <div
+            style={{
+              ...barFill,
+              width: `${proPct}%`,
+              backgroundColor: "#a855f7",
+            }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+})()}
     </div>
 
     {/* CHART 3: INBOUND SIGNUP MARGINS */}
