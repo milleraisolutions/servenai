@@ -1686,7 +1686,15 @@ const salesCRMStats = useMemo(() => {
       return matchesSearch && matchesPlan && matchesStatus && matchesBilling;
     });
   }, [customers, searchTerm, planFilter, statusFilter, billingFilter]);
+const riskEligibleClients = useMemo(() => {
+  return customers.filter((client) => {
+    const status = String(client.customer_status || "")
+      .trim()
+      .toLowerCase();
 
+    return ["active", "pilot"].includes(status);
+  });
+}, [customers]);
   const stats = useMemo(() => {
     const starter = customers.filter((c) => String(c.plan || "starter").toLowerCase() === "starter").length;
     const growth = customers.filter((c) => String(c.plan || "").toLowerCase() === "growth").length;
@@ -1700,29 +1708,31 @@ const salesCRMStats = useMemo(() => {
     const pastDueBilling = customers.filter((c) => ["past_due", "unpaid"].includes(String(c.billingStatus || ""))).length;
     const totalMRR = starter * 149 + growth * 299 + pro * 499;
 
-    const avgHealthScore = customers.length > 0 
-      ? Math.round(customers.reduce((sum, c) => sum + Number(c.healthScore || 0), 0) / customers.length) 
-      : 0;
+ const avgHealthScore =
+  riskEligibleClients.length > 0
+    ? Math.round(
+        riskEligibleClients.reduce(
+          (sum, c) => sum + Number(c.healthScore || 0),
+          0
+        ) / riskEligibleClients.length
+      )
+    : 0;
 
-    const atRiskClients = customers.filter((c) => 
-      Number(c.healthScore || 0) <= 55 || ["past_due", "unpaid"].includes(String(c.billingStatus || "").toLowerCase())
-    ).length;
+const atRiskClients = riskEligibleClients.filter(
+  (c) =>
+    Number(c.healthScore || 0) <= 55 ||
+    ["past_due", "unpaid"].includes(
+      String(c.billingStatus || "").toLowerCase()
+    )
+).length;
 
     return {
       total: customers.length, starter, growth, pro, leads, active, openAlerts,
       totalMRR, totalClientRevenue, totalAIProfitGenerated, activeBilling, pastDueBilling,
       totalAiActions: aiActions.length, avgHealthScore, atRiskClients
     };
-  }, [customers, aiActions]);
-const riskEligibleClients = useMemo(() => {
-  return customers.filter((client) => {
-    const status = String(client.customer_status || "")
-      .trim()
-      .toLowerCase();
+ }, [customers, aiActions, riskEligibleClients]);
 
-    return ["active", "pilot"].includes(status);
-  });
-}, [customers]);
   const overageRiskClients = useMemo(() => {
   return riskEligibleClients.filter(
     (c) =>
