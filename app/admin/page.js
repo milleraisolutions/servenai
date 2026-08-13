@@ -3959,12 +3959,12 @@ value={riskEligibleClients.filter((c) => !c.lastUpload).length}
 
 {adminView === "growth" && (
   <>
-{/* CUSTOMER GROWTH RATE */}
+{/* ACCOUNT GROWTH RATE */}
 <div style={panelCard("#38bdf8")}>
   <div style={eyebrow}>ACCOUNT GROWTH</div>
 
   <h2 style={{ color: "white", fontSize: "26px", fontWeight: "900", marginBottom: "18px" }}>
-    Customer Growth Rate
+  Account Growth Rate
   </h2>
 
   {(() => {
@@ -4215,7 +4215,7 @@ value={riskEligibleClients.filter((c) => !c.lastUpload).length}
     New Clients This Month
   </h2>
 
-  {customers.filter((client) => {
+ {riskEligibleClients.filter((client) => {
     if (!client.created_at) return false;
 
     const createdDate = new Date(client.created_at);
@@ -4231,7 +4231,7 @@ value={riskEligibleClients.filter((c) => !c.lastUpload).length}
     </div>
   ) : (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(320px,1fr))", gap: "16px" }}>
-      {customers
+    {riskEligibleClients
         .filter((client) => {
           if (!client.created_at) return false;
 
