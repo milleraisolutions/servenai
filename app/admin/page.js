@@ -1963,18 +1963,36 @@ const servenRevenueForecast = useMemo(() => {
   const currentPerformanceFees = Number(
     servenOwnerSummary?.totalPerformanceFees || 0
   );
+const currentPlatformRevenue = (customers || []).reduce(
+  (sum, client) => {
+    const status = String(
+      client.customer_status || ""
+    )
+      .trim()
+      .toLowerCase();
 
-  const currentPlatformRevenue = (customers || []).reduce(
-    (sum, client) =>
-      sum +
-      Number(
-        client.monthly_price ||
+    const isActiveClient = status === "active";
+
+    if (!isActiveClient) {
+      return sum;
+    }
+
+    const monthlyPrice = Number(
+      client.monthly_price ||
         client.platform_fee ||
         client.base_fee ||
         0
-      ),
-    0
-  );
+    );
+
+    return (
+      sum +
+      (Number.isFinite(monthlyPrice)
+        ? monthlyPrice
+        : 0)
+    );
+  },
+  0
+);
 
   const currentMonthlyRevenue =
     currentPerformanceFees + currentPlatformRevenue;
