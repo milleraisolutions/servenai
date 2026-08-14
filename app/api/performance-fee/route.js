@@ -23,9 +23,49 @@ const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
+/*
+  ==========================================
+  AUTHENTICATE SERVEN OWNER
+  ==========================================
+*/
+async function getAuthenticatedOwner(req) {
+  const authorization =
+    req.headers.get("authorization") || "";
 
+  const accessToken = authorization.startsWith("Bearer ")
+    ? authorization.slice(7).trim()
+    : "";
+
+  if (!accessToken) {
+    throw new Error("Missing authentication token.");
+  }
+
+  const {
+    data: { user },
+    error,
+  } = await supabaseAdmin.auth.getUser(accessToken);
+
+  if (error || !user?.id) {
+    throw new Error(
+      "Your login session is invalid or expired."
+    );
+  }
+
+  const SERVEN_OWNER_USER_ID =
+    "908d0bc7-6792-425b-abdb-476cd4612a71";
+
+  if (user.id !== SERVEN_OWNER_USER_ID) {
+    throw new Error(
+      "You are not authorized to create performance fee requests."
+    );
+  }
+
+  return user;
+}
 export async function POST(req) {
   try {
+    await getAuthenticatedOwner(req);
+
     const body = await req.json();
 
     const {

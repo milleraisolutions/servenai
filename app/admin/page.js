@@ -24,6 +24,9 @@ export default function AdminPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [billingFilter, setBillingFilter] = useState("all");
   const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [selectedPerformanceFee, setSelectedPerformanceFee] = useState(null);
+const [performanceFeeSubmitting, setPerformanceFeeSubmitting] = useState(false);
+const [performanceFeeMessage, setPerformanceFeeMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [customPlanLeads, setCustomPlanLeads] = useState([]);
@@ -228,39 +231,27 @@ if (uploadsError) {
       const expectedCampaignRevenue = customerCampaigns.reduce((sum, campaign) => sum + Number(campaign.expected_revenue || 0), 0);
       const campaignCount = customerCampaigns.length;
       const totalRevenue = customerSales.reduce((sum, sale) => sum + Number(sale.revenue || 0), 0);
-      const verifiedCustomerActions = customerAiActions.filter((action) => {
-  const status = String(
-    action.status ||
-    action.recovery_status ||
-    ""
-  ).toLowerCase();
+   const verifiedCustomerActions = customerAiActions.filter((action) => {
+  const verificationStatus = String(
+    action.verification_status || ""
+  )
+    .trim()
+    .toLowerCase();
 
-  return (
-    status === "verified" ||
-    status === "completed" ||
-    action.verified === true ||
-    action.is_verified === true
-  );
+  return verificationStatus === "verified";
 });
 
 const aiProfitGenerated = verifiedCustomerActions.reduce(
   (sum, action) => {
     const recoveredValue = Number(
-      action.actual_recovery ||
-      action.actualRecovery ||
-      action.recovered_profit ||
-      action.recoveredProfit ||
-      action.verified_recovered ||
-      action.recovered ||
-      action.impact_value ||
-      action.impactValue ||
-      0
+      action.verified_recovery || 0
     );
 
-    return sum + (
-      Number.isFinite(recoveredValue)
+    return (
+      sum +
+      (Number.isFinite(recoveredValue)
         ? recoveredValue
-        : 0
+        : 0)
     );
   },
   0
@@ -3584,6 +3575,190 @@ value={riskEligibleClients.filter((c) => !c.lastUpload).length}
 
 {adminView === "billing" && (
   <>
+  {/* PERFORMANCE FEE BILLING */}
+<div style={panelCard("#8b5cf6")}>
+  <div style={eyebrow}>VERIFIED PROFIT RECOVERY</div>
+
+  <h2
+    style={{
+      color: "white",
+      fontSize: "26px",
+      fontWeight: "900",
+      marginBottom: "8px",
+    }}
+  >
+    Performance Fee Billing
+  </h2>
+
+  <p
+    style={{
+      color: "#94a3b8",
+      fontSize: "14px",
+      lineHeight: 1.6,
+      marginBottom: "20px",
+    }}
+  >
+    Review verified client profit recovery and the corresponding 15% SerVen
+    performance fee before creating a payment request.
+  </p>
+
+  {riskEligibleClients.length === 0 ? (
+    <div style={{ color: "#94a3b8" }}>
+      No active clients available for performance fee billing.
+    </div>
+  ) : (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit,minmax(320px,1fr))",
+        gap: "16px",
+      }}
+    >
+     {riskEligibleClients.map((client) => {
+  const verifiedRecovery = Number(
+    client.aiProfitGenerated || 0
+  );
+
+  const performanceFee =
+    Math.round(verifiedRecovery * 0.15 * 100) / 100;
+
+        return (
+          <div
+            key={`performance-fee-${client.id}`}
+            style={leadCardStyle}
+          >
+            <div
+              style={{
+                color: "white",
+                fontWeight: "900",
+                fontSize: "18px",
+              }}
+            >
+              {client.restaurant_name || "Unnamed Business"}
+            </div>
+
+            <div
+              style={{
+                color: "#94a3b8",
+                fontSize: "13px",
+                marginTop: "4px",
+              }}
+            >
+              {client.email}
+            </div>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "12px",
+                marginTop: "18px",
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    color: "#64748b",
+                    fontSize: "11px",
+                    fontWeight: "800",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Verified Recovery
+                </div>
+
+                <div
+                  style={{
+                    color: "#22c55e",
+                    fontSize: "22px",
+                    fontWeight: "900",
+                    marginTop: "4px",
+                  }}
+                >
+                  ${verifiedRecovery.toLocaleString()}
+                </div>
+              </div>
+
+              <div>
+                <div
+                  style={{
+                    color: "#64748b",
+                    fontSize: "11px",
+                    fontWeight: "800",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  SerVen Fee — 15%
+                </div>
+
+                <div
+                  style={{
+                    color: "#c4b5fd",
+                    fontSize: "22px",
+                    fontWeight: "900",
+                    marginTop: "4px",
+                  }}
+                >
+                  ${performanceFee.toLocaleString()}
+                </div>
+              </div>
+            </div>
+
+            <div
+              style={{
+                marginTop: "16px",
+                padding: "10px 12px",
+                borderRadius: "10px",
+                background: "rgba(139,92,246,0.08)",
+                border: "1px solid rgba(139,92,246,0.18)",
+                color: "#cbd5e1",
+                fontSize: "12px",
+              }}
+            >
+              Performance fees are billed separately from the client's
+              recurring monthly platform subscription.
+            </div>
+
+            <button
+            onClick={() => {
+  setPerformanceFeeMessage("");
+
+  setSelectedPerformanceFee({
+    userId: client.id,
+    clientEmail: client.email,
+    restaurantName:
+      client.restaurant_name ||
+      client.business_name ||
+      "Unnamed Business",
+    verifiedRecovery,
+    feePercentage: 15,
+    feeAmount: performanceFee,
+  });
+}}
+              disabled={verifiedRecovery <= 0}
+              style={{
+                ...smallActionButton,
+                width: "100%",
+                marginTop: "14px",
+                background:
+                  verifiedRecovery > 0
+                    ? "linear-gradient(135deg,#8b5cf6,#6d28d9)"
+                    : "#334155",
+                opacity: verifiedRecovery > 0 ? 1 : 0.55,
+                cursor:
+                  verifiedRecovery > 0 ? "pointer" : "not-allowed",
+              }}
+            >
+              {verifiedRecovery > 0
+                ? "Review Performance Fee"
+                : "No Verified Recovery"}
+            </button>
+          </div>
+        );
+      })}
+    </div>
+  )}
+</div>
 {/* PAST DUE BILLING */}
 <div style={panelCard("#ef4444")}>
   <div style={eyebrow}>BILLING RISK</div>
@@ -6285,7 +6460,261 @@ value={riskEligibleClients.filter((c) => !c.lastUpload).length}
  </>
 )}
 
+{/* =========================
+   PERFORMANCE FEE REVIEW MODAL
+========================= */}
 
+{selectedPerformanceFee && (
+  <div
+    onClick={() => {
+      if (!performanceFeeSubmitting) {
+        setSelectedPerformanceFee(null);
+        setPerformanceFeeMessage("");
+      }
+    }}
+    style={{
+      position: "fixed",
+      inset: 0,
+      zIndex: 100000,
+      background: "rgba(2,6,23,0.84)",
+      backdropFilter: "blur(8px)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: "20px",
+    }}
+  >
+    <div
+      onClick={(event) => event.stopPropagation()}
+      style={{
+        width: "100%",
+        maxWidth: "560px",
+        borderRadius: "24px",
+        padding: "26px",
+        background:
+          "linear-gradient(145deg, rgba(15,23,42,0.99), rgba(30,41,59,0.98))",
+        border: "1px solid rgba(139,92,246,0.28)",
+        boxShadow: "0 30px 90px rgba(0,0,0,0.55)",
+      }}
+    >
+      <div
+        style={{
+          color: "#a78bfa",
+          fontSize: "11px",
+          fontWeight: "900",
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          marginBottom: "8px",
+        }}
+      >
+        Performance Fee Review
+      </div>
+
+      <h2
+        style={{
+          color: "white",
+          fontSize: "26px",
+          fontWeight: "900",
+          margin: 0,
+        }}
+      >
+        Confirm Performance Fee
+      </h2>
+
+      <p
+        style={{
+          color: "#94a3b8",
+          fontSize: "13px",
+          lineHeight: 1.6,
+          marginTop: "8px",
+          marginBottom: "22px",
+        }}
+      >
+        Review the verified recovery and SerVen performance fee before
+        creating a payment request.
+      </p>
+
+      <div
+        style={{
+          padding: "16px",
+          borderRadius: "16px",
+          background: "rgba(2,6,23,0.36)",
+          border: "1px solid rgba(148,163,184,0.10)",
+          marginBottom: "14px",
+        }}
+      >
+        <div
+          style={{
+            color: "white",
+            fontSize: "18px",
+            fontWeight: "900",
+          }}
+        >
+          {selectedPerformanceFee.restaurantName}
+        </div>
+
+        <div
+          style={{
+            color: "#94a3b8",
+            fontSize: "12px",
+            marginTop: "4px",
+          }}
+        >
+          {selectedPerformanceFee.clientEmail}
+        </div>
+      </div>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: "12px",
+          marginBottom: "14px",
+        }}
+      >
+        <div
+          style={{
+            padding: "16px",
+            borderRadius: "16px",
+            background: "rgba(34,197,94,0.07)",
+            border: "1px solid rgba(34,197,94,0.16)",
+          }}
+        >
+          <div
+            style={{
+              color: "#64748b",
+              fontSize: "10px",
+              fontWeight: "900",
+              textTransform: "uppercase",
+            }}
+          >
+            Verified Recovery
+          </div>
+
+          <div
+            style={{
+              color: "#86efac",
+              fontSize: "24px",
+              fontWeight: "900",
+              marginTop: "5px",
+            }}
+          >
+            $
+            {Number(
+              selectedPerformanceFee.verifiedRecovery || 0
+            ).toLocaleString()}
+          </div>
+        </div>
+
+        <div
+          style={{
+            padding: "16px",
+            borderRadius: "16px",
+            background: "rgba(139,92,246,0.08)",
+            border: "1px solid rgba(139,92,246,0.18)",
+          }}
+        >
+          <div
+            style={{
+              color: "#64748b",
+              fontSize: "10px",
+              fontWeight: "900",
+              textTransform: "uppercase",
+            }}
+          >
+            SerVen Fee — 15%
+          </div>
+
+          <div
+            style={{
+              color: "#c4b5fd",
+              fontSize: "24px",
+              fontWeight: "900",
+              marginTop: "5px",
+            }}
+          >
+            $
+            {Number(
+              selectedPerformanceFee.feeAmount || 0
+            ).toLocaleString()}
+          </div>
+        </div>
+      </div>
+
+      <div
+        style={{
+          padding: "13px 15px",
+          borderRadius: "14px",
+          background: "rgba(59,130,246,0.07)",
+          border: "1px solid rgba(59,130,246,0.15)",
+          color: "#cbd5e1",
+          fontSize: "12px",
+          lineHeight: 1.6,
+        }}
+      >
+        This performance fee is separate from the client's recurring
+        monthly platform subscription.
+      </div>
+
+      {performanceFeeMessage && (
+        <div
+          style={{
+            marginTop: "14px",
+            color: "#fbbf24",
+            fontSize: "12px",
+            fontWeight: "700",
+          }}
+        >
+          {performanceFeeMessage}
+        </div>
+      )}
+
+      <div
+        style={{
+          display: "flex",
+          gap: "10px",
+          marginTop: "22px",
+        }}
+      >
+        <button
+          type="button"
+          disabled={performanceFeeSubmitting}
+          onClick={() => {
+            setSelectedPerformanceFee(null);
+            setPerformanceFeeMessage("");
+          }}
+          style={{
+            ...smallActionButton,
+            flex: 1,
+            background: "#334155",
+            opacity: performanceFeeSubmitting ? 0.6 : 1,
+          }}
+        >
+          Cancel
+        </button>
+
+        <button
+          type="button"
+          disabled={performanceFeeSubmitting}
+          onClick={() => {
+            setPerformanceFeeMessage(
+              "Payment creation will be connected next."
+            );
+          }}
+          style={{
+            ...smallActionButton,
+            flex: 1,
+            background:
+              "linear-gradient(135deg,#8b5cf6,#6d28d9)",
+            opacity: performanceFeeSubmitting ? 0.6 : 1,
+          }}
+        >
+          Create Payment Request
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 {adminView === "sales_crm" && (
   <>
       {/* APOLLO FILE UPLOAD */}

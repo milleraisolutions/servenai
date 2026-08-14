@@ -4573,12 +4573,12 @@ setTopAiActions(
 );
 
     if (
-      autopilotEnabled &&
-      hasProAccess &&
-     Array.isArray(result?.recommendations),
-      result.actions.length
-    ) {
-      const topAction = result.actions[0];
+  autopilotEnabled &&
+  hasProAccess &&
+  Array.isArray(result?.recommendations) &&
+  result.recommendations.length > 0
+) {
+  const topAction = result.recommendations[0];
       const actionKey =
         topAction?.title || topAction?.name || "AI action";
 
@@ -4591,12 +4591,21 @@ setTopAiActions(
    
         setAppliedFixes((prev) => [...prev, actionKey]);
 
-        const savedAction = await saveAppliedAIAction({
-          actionName: actionKey,
-          actionDescription: topAction?.description || "",
-          impactValue: value,
-          appliedBy: "autopilot",
-        });
+       const savedAction = await saveAppliedAIAction({
+  actionName: actionKey,
+  actionDescription:
+    topAction?.description ||
+    topAction?.recommendation ||
+    topAction?.action ||
+    "",
+  impactValue: value,
+  appliedBy: "autopilot",
+  recoveryCategory: normalizeRecoveryCategory(
+    topAction?.category ||
+    topAction?.department ||
+    topAction?.type
+  ),
+});
 
         addToAiHistory(savedAction);
 
@@ -5991,6 +6000,7 @@ const saveAppliedAIAction = async ({
   actionDescription = "",
   impactValue = 0,
   appliedBy = "autopilot",
+  recoveryCategory = null,
 }) => {
   try {
     const {
@@ -6006,18 +6016,27 @@ const saveAppliedAIAction = async ({
     const user = session?.user;
 
     if (!user?.id) return null;
-
+const actionLocation = getActiveConnectionLocation();
     const { data, error } = await supabase
       .from("ai_applied_actions")
       .insert([
-        {
-          user_id: user.id,
-          action_name: actionName,
-          action_description: actionDescription,
-          impact_value: Number(impactValue || 0),
-          applied_by: appliedBy,
-          status: "applied",
-        },
+       {
+  user_id: user.id,
+  action_name: actionName,
+  action_description: actionDescription,
+  impact_value: Number(impactValue || 0),
+  applied_by: appliedBy,
+  status: "applied",
+
+  location_id: actionLocation?.id || null,
+  location_name: actionLocation?.name || null,
+
+  recovery_category: recoveryCategory || null,
+
+  verification_status: "not_started",
+  verified_recovery: null,
+  verified_at: null,
+},
       ])
       .select()
       .single();
@@ -8430,6 +8449,7 @@ const saveRealAppliedFix = async ({
   impactValue,
   source = "real_profit_engine",
   appliedBy = "manual",
+  recoveryCategory = null,
 }) => {
   const {
     data: { user },
@@ -8439,18 +8459,28 @@ const saveRealAppliedFix = async ({
     setMessage("You must be logged in to apply fixes.");
     return null;
   }
-
+const actionLocation = getActiveConnectionLocation();
   const { data, error } = await supabase
     .from("ai_applied_actions")
     .insert([
-      {
-        user_id: user.id,
-        action_name: actionName,
-        action_description: actionDescription,
-        impact_value: Number(impactValue || 0),
-        source,
-        applied_by: appliedBy,
-      },
+     {
+  user_id: user.id,
+  action_name: actionName,
+  action_description: actionDescription,
+  impact_value: Number(impactValue || 0),
+  source,
+  applied_by: appliedBy,
+  status: "applied",
+
+  location_id: actionLocation?.id || null,
+  location_name: actionLocation?.name || null,
+
+  recovery_category: recoveryCategory || null,
+
+  verification_status: "not_started",
+  verified_recovery: null,
+  verified_at: null,
+},
     ])
     .select()
     .single();
@@ -17069,7 +17099,266 @@ const dailyLaborEfficiency = useMemo(() => {
     };
   });
 }, [dbSalesRows, locationSalesData, pendingUploadRows, laborData]);
+const calculateLaborRecoveryVerification = ({
+  appliedAt,
+  salesRows = [],
+  laborRows = [],
+  minimumMeasurementDays = 7,
+}) => {
+  if (!appliedAt) {
+    return {
+      verificationStatus: "not_started",
+      calculatedRecovery: 0,
+      verifiedRecovery: null,
+      baselineMetrics: {},
+      measuredMetrics: {},
+    };
+  }
 
+  const actionDate = new Date(appliedAt);
+
+  if (Number.isNaN(actionDate.getTime())) {
+    return {
+      verificationStatus: "not_started",
+      calculatedRecovery: 0,
+      verifiedRecovery: null,
+      baselineMetrics: {},
+      measuredMetrics: {},
+    };
+  }
+
+  actionDate.setHours(0, 0, 0, 0);
+
+  const today = new Date();
+  today.setHours(23, 59, 59, 999);
+
+  const millisecondsPerDay = 24 * 60 * 60 * 1000;
+
+  const elapsedDays = Math.max(
+    0,
+    Math.floor(
+      (today.getTime() - actionDate.getTime()) /
+        millisecondsPerDay
+    ) + 1
+  );
+
+  const measurementDays = Math.min(
+    Math.max(elapsedDays, 0),
+    14
+  );
+
+  if (measurementDays < minimumMeasurementDays) {
+    return {
+      verificationStatus: "measuring",
+      calculatedRecovery: 0,
+      verifiedRecovery: null,
+      baselineMetrics: {
+        requiredMeasurementDays: minimumMeasurementDays,
+      },
+      measuredMetrics: {
+        measurementDays,
+      },
+    };
+  }
+
+  const measurementStart = new Date(actionDate);
+
+  const measurementEnd = new Date(actionDate);
+  measurementEnd.setDate(
+    measurementEnd.getDate() + measurementDays - 1
+  );
+  measurementEnd.setHours(23, 59, 59, 999);
+
+  if (measurementEnd > today) {
+    measurementEnd.setTime(today.getTime());
+  }
+
+  const baselineEnd = new Date(actionDate);
+  baselineEnd.setDate(baselineEnd.getDate() - 1);
+  baselineEnd.setHours(23, 59, 59, 999);
+
+  const baselineStart = new Date(baselineEnd);
+  baselineStart.setDate(
+    baselineStart.getDate() - measurementDays + 1
+  );
+  baselineStart.setHours(0, 0, 0, 0);
+
+  const getLaborRowDate = (row = {}) => {
+    const rawDate =
+      row.work_date ||
+      row.date ||
+      row.shift_date ||
+      row["Work Date"] ||
+      row["Date"];
+
+    const parsedDate = rawDate
+      ? new Date(rawDate)
+      : null;
+
+    return parsedDate &&
+      !Number.isNaN(parsedDate.getTime())
+      ? parsedDate
+      : null;
+  };
+
+  const getLaborRowCost = (row = {}) => {
+    const directCost = Number(
+      row.labor_cost ||
+        row["Labor Cost"] ||
+        row.laborCost ||
+        0
+    );
+
+    if (directCost > 0) {
+      return directCost;
+    }
+
+    const hours = Number(
+      row.hours ||
+        row.Hours ||
+        row.total_hours ||
+        row["Total Hours"] ||
+        0
+    );
+
+    const rate = Number(
+      row.hourly_rate ||
+        row.hourlyRate ||
+        row.rate ||
+        row.Rate ||
+        row["Hourly Rate"] ||
+        0
+    );
+
+    return hours * rate;
+  };
+
+  const summarizePeriod = ({
+    start,
+    end,
+  }) => {
+    const periodSales = (salesRows || []).filter(
+      (sale) => {
+        const saleDate = getSaleDate(sale);
+
+        return (
+          saleDate &&
+          saleDate >= start &&
+          saleDate <= end
+        );
+      }
+    );
+
+    const periodLabor = (laborRows || []).filter(
+      (row) => {
+        const laborDate = getLaborRowDate(row);
+
+        return (
+          laborDate &&
+          laborDate >= start &&
+          laborDate <= end
+        );
+      }
+    );
+
+    const revenue = periodSales.reduce(
+      (sum, sale) =>
+        sum + Number(getSaleRevenue(sale) || 0),
+      0
+    );
+
+    const laborCost = periodLabor.reduce(
+      (sum, row) =>
+        sum + Number(getLaborRowCost(row) || 0),
+      0
+    );
+
+    const laborPercent =
+      revenue > 0
+        ? (laborCost / revenue) * 100
+        : 0;
+
+    return {
+      revenue,
+      laborCost,
+      laborPercent,
+      salesRows: periodSales.length,
+      laborRows: periodLabor.length,
+    };
+  };
+
+  const baselineMetrics = summarizePeriod({
+    start: baselineStart,
+    end: baselineEnd,
+  });
+
+  const measuredMetrics = summarizePeriod({
+    start: measurementStart,
+    end: measurementEnd,
+  });
+
+  const hasBaselineEvidence =
+    baselineMetrics.revenue > 0 &&
+    baselineMetrics.laborCost > 0;
+
+  const hasMeasurementEvidence =
+    measuredMetrics.revenue > 0 &&
+    measuredMetrics.laborCost > 0;
+
+  if (
+    !hasBaselineEvidence ||
+    !hasMeasurementEvidence
+  ) {
+    return {
+      verificationStatus: "measuring",
+      calculatedRecovery: 0,
+      verifiedRecovery: null,
+      baselineStart,
+      baselineEnd,
+      measurementStart,
+      measurementEnd,
+      baselineMetrics,
+      measuredMetrics,
+    };
+  }
+
+  const baselineLaborRate =
+    baselineMetrics.laborCost /
+    baselineMetrics.revenue;
+
+  const expectedLaborAtBaselineRate =
+    measuredMetrics.revenue *
+    baselineLaborRate;
+
+  const calculatedRecovery = Math.max(
+    0,
+    expectedLaborAtBaselineRate -
+      measuredMetrics.laborCost
+  );
+
+  return {
+    verificationStatus: "ready_for_verification",
+    calculatedRecovery:
+      Math.round(calculatedRecovery * 100) / 100,
+
+    verifiedRecovery: null,
+
+    baselineStart,
+    baselineEnd,
+    measurementStart,
+    measurementEnd,
+
+    baselineMetrics: {
+      ...baselineMetrics,
+      laborRate: baselineLaborRate,
+    },
+
+    measuredMetrics: {
+      ...measuredMetrics,
+      expectedLaborAtBaselineRate,
+    },
+  };
+};
 const shiftLaborIntelligence = useMemo(() => {
   const salesRows =
     dbSalesRows?.length
@@ -33586,16 +33875,25 @@ let importCommitted = false;
                 0
             );
 
-            return {
-              user_id: currentUser.id,
-              upload_id: uploadRow.id,
-              file_name: fileName,
+         const resolvedShiftLocation =
+  getActiveConnectionLocation();
 
-              employee_id: employeeLookup.get(employeeName) || null,
-              employee_name: employeeName,
+return {
+  user_id: currentUser.id,
+  upload_id: uploadRow.id,
+  file_name: fileName,
 
-              location_name:
-                activeLocation !== "all" ? activeLocation : assignedLocation || null,
+  employee_id: employeeLookup.get(employeeName) || null,
+  employee_name: employeeName,
+
+  location_id:
+    resolvedShiftLocation?.id || null,
+
+  location_name:
+    resolvedShiftLocation?.name ||
+    (activeLocation !== "all"
+      ? activeLocation
+      : assignedLocation || null),
 
               role:
                 row.role ||
@@ -39123,37 +39421,52 @@ const saveCompletedRoleAction = async (action) => {
     }
 
     const now = new Date().toISOString();
-
+const actionLocation = getActiveConnectionLocation();
     const payload = {
-      user_id: dataOwnerId || currentUser.id,
+  user_id: dataOwnerId || currentUser.id,
 
-      action_name:
-        action.title ||
-        "Serven AI Action",
+  action_name:
+    action.title ||
+    "Serven AI Action",
 
-      action_description:
-        action.action ||
-        "AI recommended restaurant action.",
+  action_description:
+    action.action ||
+    "AI recommended restaurant action.",
 
-      impact_value: Number(
-        action.estimatedImpact || 0
-      ),
+  impact_value: Number(
+    action.estimatedImpact || 0
+  ),
 
-      applied_by:
-        activeDigitalTwinRoleLabel ||
-        "Restaurant Team",
+  applied_by:
+    activeDigitalTwinRoleLabel ||
+    "Restaurant Team",
 
-      status: "completed",
+  // This means the operational action was completed.
+  // It does NOT mean financial recovery has been verified.
+  status: "completed",
 
-      applied_at: now,
+  applied_at: now,
 
-      source: String(
-        action.department ||
-        "Role Action Plan"
-      )
-        .trim()
-        .toLowerCase(),
-    };
+  source: String(
+    action.department ||
+    "Role Action Plan"
+  )
+    .trim()
+    .toLowerCase(),
+
+  location_id: actionLocation?.id || null,
+  location_name: actionLocation?.name || null,
+
+  recovery_category: String(
+    action.department || ""
+  )
+    .trim()
+    .toLowerCase() || null,
+
+  verification_status: "not_started",
+  verified_recovery: null,
+  verified_at: null,
+};
 
     console.log(
       "SAVING ROLE ACTION:",
@@ -39200,7 +39513,53 @@ const saveCompletedRoleAction = async (action) => {
     return false;
   }
 };
+const normalizeRecoveryCategory = (value) => {
+  const category = String(value || "")
+    .trim()
+    .toLowerCase();
 
+  if (!category) return null;
+
+  if (
+    category.includes("labor") ||
+    category.includes("staff") ||
+    category.includes("scheduling") ||
+    category.includes("payroll")
+  ) {
+    return "labor";
+  }
+
+  if (
+    category.includes("menu") ||
+    category.includes("food cost") ||
+    category.includes("pricing") ||
+    category.includes("margin") ||
+    category.includes("recipe")
+  ) {
+    return "menu_pricing";
+  }
+
+  if (
+    category.includes("inventory") ||
+    category.includes("waste") ||
+    category.includes("consumable") ||
+    category.includes("beverage") ||
+    category.includes("pour")
+  ) {
+    return "inventory_waste";
+  }
+
+  if (
+    category.includes("vendor") ||
+    category.includes("supplier") ||
+    category.includes("purchasing") ||
+    category.includes("invoice")
+  ) {
+    return "vendor_purchasing";
+  }
+
+  return null;
+};
 
 const getActiveConnectionLocation = () => {
   // 1. Explicitly selected location ID wins.
