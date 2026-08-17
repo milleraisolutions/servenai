@@ -19,7 +19,11 @@ export default function AdminPage() {
   const [customers, setCustomers] = useState([]);
   const [alerts, setAlerts] = useState([]);
   const [aiActions, setAiActions] = useState([]);
-  const [searchTerm, setSearchTerm] = useState("");
+
+const [monthlyRecoveryLedgers, setMonthlyRecoveryLedgers] = useState([]);
+const [performanceFeeInvoices, setPerformanceFeeInvoices] = useState([]);
+
+const [searchTerm, setSearchTerm] = useState("");
   const [planFilter, setPlanFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [billingFilter, setBillingFilter] = useState("all");
@@ -170,7 +174,43 @@ if (uploadsError) {
     if (aiActionError) {
       console.warn("AI actions table not loaded:", aiActionError.message);
     }
+// ==============================
+// PERFORMANCE FEE BILLING DATA
+// ==============================
 
+const {
+  data: monthlyRecoveryLedgerData,
+  error: monthlyRecoveryLedgerError,
+} = await supabase
+  .from("monthly_recovery_ledger")
+  .select("*")
+  .order("billing_year", { ascending: false })
+  .order("billing_month", { ascending: false });
+
+if (monthlyRecoveryLedgerError) {
+  console.warn(
+    "MONTHLY RECOVERY LEDGER FETCH ERROR:",
+    monthlyRecoveryLedgerError.message
+  );
+}
+
+const {
+  data: performanceFeeInvoiceData,
+  error: performanceFeeInvoiceError,
+} = await supabase
+  .from("performance_fee_invoices")
+  .select("*")
+  .order("created_at", { ascending: false });
+
+if (performanceFeeInvoiceError) {
+  console.warn(
+    "PERFORMANCE FEE INVOICES FETCH ERROR:",
+    performanceFeeInvoiceError.message
+  );
+}
+
+setMonthlyRecoveryLedgers(monthlyRecoveryLedgerData || []);
+setPerformanceFeeInvoices(performanceFeeInvoiceData || []);
     const { data: leadsData, error: leadsError } = await supabase
       .from("leads")
       .select("*")
@@ -1393,6 +1433,206 @@ const deleteCustomer = async (customerId) => {
   setCustomers((prev) =>
     prev.filter((customer) => customer.id !== customerId)
   );
+};
+
+
+const createPerformanceFeePaymentRequest = async () => {
+  if (!selectedPerformanceFee?.ledgerId) {
+    setPerformanceFeeMessage("Missing recovery ledger ID.");
+    return;
+  }
+
+  if (selectedPerformanceFee.invoiceStatus === "paid") {
+    setPerformanceFeeMessage("This performance fee has already been paid.");
+    return;
+  }
+
+  setPerformanceFeeSubmitting(true);
+  setPerformanceFeeMessage("");
+
+  try {
+    const {
+      data: { session },
+      error: sessionError,
+    } = await supabase.auth.getSession();
+
+    if (sessionError) {
+      throw sessionError;
+    }
+
+    const accessToken = session?.access_token;
+
+    if (!accessToken) {
+      throw new Error(
+        "Your admin session could not be verified. Please sign in again."
+      );
+    }
+
+    const response = await fetch("/api/performance-fee", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        ledgerId: selectedPerformanceFee.ledgerId,
+      }),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        result?.error ||
+          result?.message ||
+          "Could not create the performance fee payment request."
+      );
+    }
+
+    let invoiceStatus = String(
+      result?.status || "ready"
+    ).toLowerCase();
+
+    if (invoiceStatus === "already_paid") {
+      invoiceStatus = "paid";
+    } else if (invoiceStatus === "already_ready") {
+      invoiceStatus = "ready";
+    }
+
+    const checkoutUrl =
+      result?.checkoutUrl ||
+      selectedPerformanceFee.checkoutUrl ||
+      null;
+
+    const updatedInvoice = {
+      id:
+        result?.invoiceId ||
+        selectedPerformanceFee.invoiceId ||
+        null,
+
+      user_id:
+        result?.userId ||
+        selectedPerformanceFee.userId ||
+        null,
+
+      monthly_recovery_ledger_id:
+        result?.ledgerId ||
+        selectedPerformanceFee.ledgerId,
+
+      location_id:
+        result?.locationId ||
+        selectedPerformanceFee.locationId ||
+        null,
+
+      location_name:
+        result?.locationName ||
+        selectedPerformanceFee.locationName ||
+        null,
+
+      billing_period:
+        result?.billingPeriod ||
+        selectedPerformanceFee.billingPeriod ||
+        null,
+
+      verified_recovery:
+        Number(
+          result?.billableRecoveryTotal ??
+            selectedPerformanceFee.billableRecovery ??
+            0
+        ),
+
+      fee_percentage:
+        Number(
+          result?.feePercentage ??
+            selectedPerformanceFee.feePercentage ??
+            15
+        ),
+
+      fee_amount:
+        Number(
+          result?.feeAmount ??
+            selectedPerformanceFee.feeAmount ??
+            0
+        ),
+
+      status: invoiceStatus,
+
+      stripe_checkout_url: checkoutUrl,
+
+      sent_at:
+        selectedPerformanceFee.sentAt ||
+        null,
+
+      paid_at:
+        result?.paidAt ||
+        selectedPerformanceFee.paidAt ||
+        null,
+    };
+
+    setSelectedPerformanceFee((previous) => {
+      if (!previous) return previous;
+
+      return {
+        ...previous,
+        invoiceId: updatedInvoice.id,
+        invoiceStatus,
+        checkoutUrl,
+        paidAt: updatedInvoice.paid_at,
+      };
+    });
+
+    setPerformanceFeeInvoices((previous) => {
+      const currentInvoices = previous || [];
+
+      const existingIndex = currentInvoices.findIndex(
+        (invoice) =>
+          invoice.id === updatedInvoice.id ||
+          invoice.monthly_recovery_ledger_id ===
+            selectedPerformanceFee.ledgerId
+      );
+
+      if (existingIndex === -1) {
+        return [updatedInvoice, ...currentInvoices];
+      }
+
+      return currentInvoices.map((invoice, index) =>
+        index === existingIndex
+          ? {
+              ...invoice,
+              ...updatedInvoice,
+            }
+          : invoice
+      );
+    });
+
+    if (invoiceStatus === "paid") {
+      setPerformanceFeeMessage(
+        "This performance fee has already been paid."
+      );
+    } else if (result?.status === "already_ready") {
+      setPerformanceFeeMessage(
+        "A payment request already exists for this recovery period."
+      );
+    } else if (checkoutUrl) {
+      setPerformanceFeeMessage(
+        "Payment request created successfully. It is ready to be sent to the client."
+      );
+    } else {
+      setPerformanceFeeMessage(
+        result?.message ||
+          "Payment request created successfully."
+      );
+    }
+  } catch (error) {
+    console.error("PERFORMANCE FEE PAYMENT REQUEST ERROR:", error);
+
+    setPerformanceFeeMessage(
+      error?.message ||
+        "Could not create the performance fee payment request."
+    );
+  } finally {
+    setPerformanceFeeSubmitting(false);
+  }
 };
   const sendClientEmail = async (customer, type = "intro", selectedPlan = "starter") => {
     try {
@@ -3575,7 +3815,7 @@ value={riskEligibleClients.filter((c) => !c.lastUpload).length}
 
 {adminView === "billing" && (
   <>
-  {/* PERFORMANCE FEE BILLING */}
+ {/* PERFORMANCE FEE BILLING */}
 <div style={panelCard("#8b5cf6")}>
   <div style={eyebrow}>VERIFIED PROFIT RECOVERY</div>
 
@@ -3598,164 +3838,475 @@ value={riskEligibleClients.filter((c) => !c.lastUpload).length}
       marginBottom: "20px",
     }}
   >
-    Review verified client profit recovery and the corresponding 15% SerVen
-    performance fee before creating a payment request.
+    Review locked monthly recovery ledgers and their frozen 15% SerVen
+    performance fees before creating a payment request.
   </p>
 
-  {riskEligibleClients.length === 0 ? (
-    <div style={{ color: "#94a3b8" }}>
-      No active clients available for performance fee billing.
+  {monthlyRecoveryLedgers.filter(
+    (ledger) =>
+      String(ledger.status || "").toLowerCase() === "locked"
+  ).length === 0 ? (
+    <div
+      style={{
+        padding: "18px",
+        borderRadius: "14px",
+        background: "rgba(15,23,42,0.55)",
+        border: "1px solid rgba(148,163,184,0.12)",
+        color: "#94a3b8",
+        fontSize: "14px",
+      }}
+    >
+      No locked recovery periods are ready for performance fee billing.
     </div>
   ) : (
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: "repeat(auto-fit,minmax(320px,1fr))",
+        gridTemplateColumns: "repeat(auto-fit,minmax(340px,1fr))",
         gap: "16px",
       }}
     >
-     {riskEligibleClients.map((client) => {
-  const verifiedRecovery = Number(
-    client.aiProfitGenerated || 0
-  );
+      {monthlyRecoveryLedgers
+        .filter(
+          (ledger) =>
+            String(ledger.status || "").toLowerCase() === "locked"
+        )
+        .map((ledger) => {
+          const client = customers.find(
+            (customer) => customer.id === ledger.user_id
+          );
 
-  const performanceFee =
-    Math.round(verifiedRecovery * 0.15 * 100) / 100;
+          const invoice = performanceFeeInvoices.find(
+            (item) =>
+              item.monthly_recovery_ledger_id === ledger.id
+          );
 
-        return (
-          <div
-            key={`performance-fee-${client.id}`}
-            style={leadCardStyle}
-          >
+          const currentPeriodRecovery = Number(
+            ledger.total_verified_recovery || 0
+          );
+
+          const priorPeriodAdjustments = Number(
+            ledger.prior_period_adjustment_recovery || 0
+          );
+
+          const billableRecovery = Number(
+            ledger.billable_recovery_total || 0
+          );
+
+          const feePercentage = Number(
+            ledger.performance_fee_percentage || 15
+          );
+
+          const performanceFee = Number(
+            ledger.performance_fee_amount || 0
+          );
+
+          const invoiceStatus = String(
+            invoice?.status || "not_created"
+          ).toLowerCase();
+
+          const monthName = new Date(
+            Number(ledger.billing_year),
+            Number(ledger.billing_month) - 1,
+            1
+          ).toLocaleString("en-US", {
+            month: "long",
+          });
+
+          const billingPeriodLabel =
+            monthName && ledger.billing_year
+              ? `${monthName} ${ledger.billing_year}`
+              : "Recovery Period";
+
+          const formatDate = (value) => {
+            if (!value) return "—";
+
+            const date = new Date(`${value}T00:00:00`);
+
+            if (Number.isNaN(date.getTime())) {
+              const fallbackDate = new Date(value);
+
+              if (Number.isNaN(fallbackDate.getTime())) {
+                return "—";
+              }
+
+              return fallbackDate.toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              });
+            }
+
+            return date.toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            });
+          };
+
+          const formatTimestamp = (value) => {
+            if (!value) return "—";
+
+            const date = new Date(value);
+
+            if (Number.isNaN(date.getTime())) return "—";
+
+            return date.toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            });
+          };
+
+          const invoiceStatusLabel =
+            invoiceStatus === "not_created"
+              ? "NOT CREATED"
+              : invoiceStatus.replaceAll("_", " ").toUpperCase();
+
+          const invoiceStatusColor =
+            invoiceStatus === "paid"
+              ? "#22c55e"
+              : ["ready", "sent"].includes(invoiceStatus)
+              ? "#f59e0b"
+              : invoiceStatus === "not_created"
+              ? "#94a3b8"
+              : "#ef4444";
+
+          return (
             <div
-              style={{
-                color: "white",
-                fontWeight: "900",
-                fontSize: "18px",
-              }}
+              key={`performance-fee-ledger-${ledger.id}`}
+              style={leadCardStyle}
             >
-              {client.restaurant_name || "Unnamed Business"}
-            </div>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "flex-start",
+                  gap: "12px",
+                }}
+              >
+                <div>
+                  <div
+                    style={{
+                      color: "white",
+                      fontWeight: "900",
+                      fontSize: "18px",
+                    }}
+                  >
+                    {client?.restaurant_name ||
+                      client?.business_name ||
+                      ledger.location_name ||
+                      "Unnamed Business"}
+                  </div>
 
-            <div
-              style={{
-                color: "#94a3b8",
-                fontSize: "13px",
-                marginTop: "4px",
-              }}
-            >
-              {client.email}
-            </div>
+                  <div
+                    style={{
+                      color: "#94a3b8",
+                      fontSize: "13px",
+                      marginTop: "4px",
+                    }}
+                  >
+                    {ledger.location_name || "Restaurant Location"}
+                  </div>
 
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: "12px",
-                marginTop: "18px",
-              }}
-            >
-              <div>
-                <div
-                  style={{
-                    color: "#64748b",
-                    fontSize: "11px",
-                    fontWeight: "800",
-                    textTransform: "uppercase",
-                  }}
-                >
-                  Verified Recovery
+                  {client?.email && (
+                    <div
+                      style={{
+                        color: "#64748b",
+                        fontSize: "12px",
+                        marginTop: "3px",
+                      }}
+                    >
+                      {client.email}
+                    </div>
+                  )}
                 </div>
 
                 <div
                   style={{
-                    color: "#22c55e",
-                    fontSize: "22px",
+                    padding: "6px 9px",
+                    borderRadius: "999px",
+                    background: "rgba(34,197,94,0.10)",
+                    border: "1px solid rgba(34,197,94,0.22)",
+                    color: "#86efac",
+                    fontSize: "10px",
                     fontWeight: "900",
-                    marginTop: "4px",
+                    letterSpacing: "0.06em",
                   }}
                 >
-                  ${verifiedRecovery.toLocaleString()}
+                  LOCKED
                 </div>
               </div>
 
-              <div>
-                <div
-                  style={{
-                    color: "#64748b",
-                    fontSize: "11px",
-                    fontWeight: "800",
-                    textTransform: "uppercase",
-                  }}
-                >
-                  SerVen Fee — 15%
-                </div>
-
+              <div
+                style={{
+                  marginTop: "16px",
+                  padding: "12px",
+                  borderRadius: "12px",
+                  background: "rgba(15,23,42,0.62)",
+                  border: "1px solid rgba(148,163,184,0.10)",
+                }}
+              >
                 <div
                   style={{
                     color: "#c4b5fd",
-                    fontSize: "22px",
+                    fontSize: "15px",
                     fontWeight: "900",
-                    marginTop: "4px",
                   }}
                 >
-                  ${performanceFee.toLocaleString()}
+                  Performance Fee — {billingPeriodLabel}
+                </div>
+
+                <div
+                  style={{
+                    color: "#64748b",
+                    fontSize: "12px",
+                    marginTop: "5px",
+                  }}
+                >
+                  Recovery Period: {formatDate(ledger.period_start)} –{" "}
+                  {formatDate(ledger.period_end)}
+                </div>
+
+                <div
+                  style={{
+                    color: "#64748b",
+                    fontSize: "12px",
+                    marginTop: "3px",
+                  }}
+                >
+                  Locked: {formatTimestamp(ledger.locked_at)}
                 </div>
               </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: "12px",
+                  marginTop: "16px",
+                }}
+              >
+                <div>
+                  <div
+                    style={{
+                      color: "#64748b",
+                      fontSize: "10px",
+                      fontWeight: "800",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    Current Period Recovery
+                  </div>
+
+                  <div
+                    style={{
+                      color: "#22c55e",
+                      fontSize: "20px",
+                      fontWeight: "900",
+                      marginTop: "4px",
+                    }}
+                  >
+                    ${currentPeriodRecovery.toLocaleString()}
+                  </div>
+                </div>
+
+                <div>
+                  <div
+                    style={{
+                      color: "#64748b",
+                      fontSize: "10px",
+                      fontWeight: "800",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    Prior-Period Adjustments
+                  </div>
+
+                  <div
+                    style={{
+                      color: "#fbbf24",
+                      fontSize: "20px",
+                      fontWeight: "900",
+                      marginTop: "4px",
+                    }}
+                  >
+                    ${priorPeriodAdjustments.toLocaleString()}
+                  </div>
+                </div>
+
+                <div>
+                  <div
+                    style={{
+                      color: "#64748b",
+                      fontSize: "10px",
+                      fontWeight: "800",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    Billable Recovery
+                  </div>
+
+                  <div
+                    style={{
+                      color: "white",
+                      fontSize: "20px",
+                      fontWeight: "900",
+                      marginTop: "4px",
+                    }}
+                  >
+                    ${billableRecovery.toLocaleString()}
+                  </div>
+                </div>
+
+                <div>
+                  <div
+                    style={{
+                      color: "#64748b",
+                      fontSize: "10px",
+                      fontWeight: "800",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    SerVen Fee — {feePercentage}%
+                  </div>
+
+                  <div
+                    style={{
+                      color: "#c4b5fd",
+                      fontSize: "20px",
+                      fontWeight: "900",
+                      marginTop: "4px",
+                    }}
+                  >
+                    ${performanceFee.toLocaleString()}
+                  </div>
+                </div>
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: "12px",
+                  marginTop: "16px",
+                  padding: "10px 12px",
+                  borderRadius: "10px",
+                  background: "rgba(139,92,246,0.08)",
+                  border: "1px solid rgba(139,92,246,0.18)",
+                }}
+              >
+                <span
+                  style={{
+                    color: "#94a3b8",
+                    fontSize: "12px",
+                    fontWeight: "700",
+                  }}
+                >
+                  Invoice Status
+                </span>
+
+                <span
+                  style={{
+                    color: invoiceStatusColor,
+                    fontSize: "12px",
+                    fontWeight: "900",
+                  }}
+                >
+                  {invoiceStatusLabel}
+                </span>
+              </div>
+
+              {invoice?.sent_at && (
+                <div
+                  style={{
+                    color: "#64748b",
+                    fontSize: "11px",
+                    marginTop: "8px",
+                  }}
+                >
+                  Sent: {formatTimestamp(invoice.sent_at)}
+                </div>
+              )}
+
+              {invoice?.paid_at && (
+                <div
+                  style={{
+                    color: "#22c55e",
+                    fontSize: "11px",
+                    marginTop: "4px",
+                    fontWeight: "800",
+                  }}
+                >
+                  Paid: {formatTimestamp(invoice.paid_at)}
+                </div>
+              )}
+
+              <button
+                onClick={() => {
+                  setPerformanceFeeMessage("");
+
+                  setSelectedPerformanceFee({
+                    ledgerId: ledger.id,
+                    userId: ledger.user_id,
+                    clientEmail: client?.email || "",
+                    restaurantName:
+                      client?.restaurant_name ||
+                      client?.business_name ||
+                      ledger.location_name ||
+                      "Unnamed Business",
+                    locationId: ledger.location_id,
+                    locationName:
+                      ledger.location_name || "Restaurant Location",
+                    billingPeriod: billingPeriodLabel,
+                    periodStart: ledger.period_start,
+                    periodEnd: ledger.period_end,
+                    currentPeriodRecovery,
+                    priorPeriodAdjustments,
+                    verifiedRecovery: billableRecovery,
+                    billableRecovery,
+                    feePercentage,
+                    feeAmount: performanceFee,
+                    ledgerStatus: ledger.status,
+                    invoiceStatus,
+                    invoiceId: invoice?.id || null,
+                    checkoutUrl:
+                      invoice?.stripe_checkout_url || null,
+                    sentAt: invoice?.sent_at || null,
+                    paidAt: invoice?.paid_at || null,
+                  });
+                }}
+                disabled={
+                  billableRecovery <= 0 ||
+                  performanceFee <= 0
+                }
+                style={{
+                  ...smallActionButton,
+                  width: "100%",
+                  marginTop: "14px",
+                  background:
+                    billableRecovery > 0 && performanceFee > 0
+                      ? "linear-gradient(135deg,#8b5cf6,#6d28d9)"
+                      : "#334155",
+                  opacity:
+                    billableRecovery > 0 && performanceFee > 0
+                      ? 1
+                      : 0.55,
+                  cursor:
+                    billableRecovery > 0 && performanceFee > 0
+                      ? "pointer"
+                      : "not-allowed",
+                }}
+              >
+                {invoiceStatus === "paid"
+                  ? "Review Paid Performance Fee"
+                  : invoiceStatus === "not_created"
+                  ? "Review Performance Fee"
+                  : "Review Payment Request"}
+              </button>
             </div>
-
-            <div
-              style={{
-                marginTop: "16px",
-                padding: "10px 12px",
-                borderRadius: "10px",
-                background: "rgba(139,92,246,0.08)",
-                border: "1px solid rgba(139,92,246,0.18)",
-                color: "#cbd5e1",
-                fontSize: "12px",
-              }}
-            >
-              Performance fees are billed separately from the client's
-              recurring monthly platform subscription.
-            </div>
-
-            <button
-            onClick={() => {
-  setPerformanceFeeMessage("");
-
-  setSelectedPerformanceFee({
-    userId: client.id,
-    clientEmail: client.email,
-    restaurantName:
-      client.restaurant_name ||
-      client.business_name ||
-      "Unnamed Business",
-    verifiedRecovery,
-    feePercentage: 15,
-    feeAmount: performanceFee,
-  });
-}}
-              disabled={verifiedRecovery <= 0}
-              style={{
-                ...smallActionButton,
-                width: "100%",
-                marginTop: "14px",
-                background:
-                  verifiedRecovery > 0
-                    ? "linear-gradient(135deg,#8b5cf6,#6d28d9)"
-                    : "#334155",
-                opacity: verifiedRecovery > 0 ? 1 : 0.55,
-                cursor:
-                  verifiedRecovery > 0 ? "pointer" : "not-allowed",
-              }}
-            >
-              {verifiedRecovery > 0
-                ? "Review Performance Fee"
-                : "No Verified Recovery"}
-            </button>
-          </div>
-        );
-      })}
+          );
+        })}
     </div>
   )}
 </div>
@@ -3848,6 +4399,532 @@ value={riskEligibleClients.filter((c) => !c.lastUpload).length}
   )}
 </div>
   </>
+)}
+{/* =========================
+   PERFORMANCE FEE REVIEW MODAL
+========================= */}
+
+{selectedPerformanceFee && (
+  <div
+    onClick={() => {
+      if (!performanceFeeSubmitting) {
+        setSelectedPerformanceFee(null);
+        setPerformanceFeeMessage("");
+      }
+    }}
+    style={{
+      position: "fixed",
+      inset: 0,
+      zIndex: 100000,
+      background: "rgba(2,6,23,0.84)",
+      backdropFilter: "blur(8px)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: "20px",
+      overflowY: "auto",
+    }}
+  >
+    <div
+      onClick={(event) => event.stopPropagation()}
+      style={{
+        width: "100%",
+        maxWidth: "620px",
+        maxHeight: "92vh",
+        overflowY: "auto",
+        borderRadius: "24px",
+        padding: "26px",
+        background:
+          "linear-gradient(145deg, rgba(15,23,42,0.99), rgba(30,41,59,0.98))",
+        border: "1px solid rgba(139,92,246,0.28)",
+        boxShadow: "0 30px 90px rgba(0,0,0,0.55)",
+      }}
+    >
+      <div
+        style={{
+          color: "#a78bfa",
+          fontSize: "11px",
+          fontWeight: "900",
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          marginBottom: "8px",
+        }}
+      >
+        Performance Fee Review
+      </div>
+
+      <h2
+        style={{
+          color: "white",
+          fontSize: "26px",
+          fontWeight: "900",
+          margin: 0,
+        }}
+      >
+        {selectedPerformanceFee.billingPeriod || "Performance Fee"}
+      </h2>
+
+      <p
+        style={{
+          color: "#94a3b8",
+          fontSize: "13px",
+          lineHeight: 1.6,
+          marginTop: "8px",
+          marginBottom: "22px",
+        }}
+      >
+        Review the locked recovery period and frozen SerVen performance fee
+        before creating a separate payment request.
+      </p>
+
+      {/* CLIENT + LOCATION */}
+      <div
+        style={{
+          padding: "16px",
+          borderRadius: "16px",
+          background: "rgba(2,6,23,0.36)",
+          border: "1px solid rgba(148,163,184,0.10)",
+          marginBottom: "14px",
+        }}
+      >
+        <div
+          style={{
+            color: "white",
+            fontSize: "18px",
+            fontWeight: "900",
+          }}
+        >
+          {selectedPerformanceFee.restaurantName}
+        </div>
+
+        <div
+          style={{
+            color: "#c4b5fd",
+            fontSize: "12px",
+            fontWeight: "800",
+            marginTop: "5px",
+          }}
+        >
+          {selectedPerformanceFee.locationName || "Restaurant Location"}
+        </div>
+
+        {selectedPerformanceFee.clientEmail && (
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "12px",
+              marginTop: "4px",
+            }}
+          >
+            {selectedPerformanceFee.clientEmail}
+          </div>
+        )}
+
+        <div
+          style={{
+            color: "#64748b",
+            fontSize: "11px",
+            marginTop: "10px",
+          }}
+        >
+          Recovery Period:{" "}
+          {selectedPerformanceFee.periodStart || "—"} –{" "}
+          {selectedPerformanceFee.periodEnd || "—"}
+        </div>
+      </div>
+
+      {/* RECOVERY BREAKDOWN */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: "12px",
+          marginBottom: "14px",
+        }}
+      >
+        <div
+          style={{
+            padding: "16px",
+            borderRadius: "16px",
+            background: "rgba(34,197,94,0.07)",
+            border: "1px solid rgba(34,197,94,0.16)",
+          }}
+        >
+          <div
+            style={{
+              color: "#64748b",
+              fontSize: "10px",
+              fontWeight: "900",
+              textTransform: "uppercase",
+            }}
+          >
+            Current Period Recovery
+          </div>
+
+          <div
+            style={{
+              color: "#86efac",
+              fontSize: "22px",
+              fontWeight: "900",
+              marginTop: "5px",
+            }}
+          >
+            $
+            {Number(
+              selectedPerformanceFee.currentPeriodRecovery || 0
+            ).toLocaleString()}
+          </div>
+        </div>
+
+        <div
+          style={{
+            padding: "16px",
+            borderRadius: "16px",
+            background: "rgba(245,158,11,0.07)",
+            border: "1px solid rgba(245,158,11,0.16)",
+          }}
+        >
+          <div
+            style={{
+              color: "#64748b",
+              fontSize: "10px",
+              fontWeight: "900",
+              textTransform: "uppercase",
+            }}
+          >
+            Prior-Period Adjustments
+          </div>
+
+          <div
+            style={{
+              color: "#fbbf24",
+              fontSize: "22px",
+              fontWeight: "900",
+              marginTop: "5px",
+            }}
+          >
+            $
+            {Number(
+              selectedPerformanceFee.priorPeriodAdjustments || 0
+            ).toLocaleString()}
+          </div>
+        </div>
+      </div>
+
+      {/* BILLABLE RECOVERY */}
+      <div
+        style={{
+          padding: "17px",
+          borderRadius: "16px",
+          background: "rgba(255,255,255,0.035)",
+          border: "1px solid rgba(148,163,184,0.12)",
+          marginBottom: "14px",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: "16px",
+        }}
+      >
+        <div>
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "11px",
+              fontWeight: "900",
+              textTransform: "uppercase",
+            }}
+          >
+            Billable Recovery
+          </div>
+
+          <div
+            style={{
+              color: "#64748b",
+              fontSize: "11px",
+              marginTop: "4px",
+            }}
+          >
+            Current recovery + approved prior-period adjustments
+          </div>
+        </div>
+
+        <div
+          style={{
+            color: "white",
+            fontSize: "26px",
+            fontWeight: "900",
+            whiteSpace: "nowrap",
+          }}
+        >
+          $
+          {Number(
+            selectedPerformanceFee.billableRecovery || 0
+          ).toLocaleString()}
+        </div>
+      </div>
+
+      {/* FROZEN PERFORMANCE FEE */}
+      <div
+        style={{
+          padding: "18px",
+          borderRadius: "16px",
+          background: "rgba(139,92,246,0.08)",
+          border: "1px solid rgba(139,92,246,0.20)",
+          marginBottom: "14px",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-end",
+            gap: "14px",
+          }}
+        >
+          <div>
+            <div
+              style={{
+                color: "#a78bfa",
+                fontSize: "10px",
+                fontWeight: "900",
+                textTransform: "uppercase",
+              }}
+            >
+              Frozen Performance Fee
+            </div>
+
+            <div
+              style={{
+                color: "#94a3b8",
+                fontSize: "12px",
+                marginTop: "5px",
+              }}
+            >
+              {Number(
+                selectedPerformanceFee.feePercentage || 15
+              )}% of billable recovery
+            </div>
+          </div>
+
+          <div
+            style={{
+              color: "#c4b5fd",
+              fontSize: "28px",
+              fontWeight: "900",
+            }}
+          >
+            $
+            {Number(
+              selectedPerformanceFee.feeAmount || 0
+            ).toLocaleString()}
+          </div>
+        </div>
+      </div>
+
+      {/* STATUS */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: "12px",
+          marginBottom: "14px",
+        }}
+      >
+        <div
+          style={{
+            padding: "13px 15px",
+            borderRadius: "14px",
+            background: "rgba(34,197,94,0.07)",
+            border: "1px solid rgba(34,197,94,0.15)",
+          }}
+        >
+          <div
+            style={{
+              color: "#64748b",
+              fontSize: "10px",
+              fontWeight: "900",
+              textTransform: "uppercase",
+            }}
+          >
+            Recovery Status
+          </div>
+
+          <div
+            style={{
+              color: "#86efac",
+              fontSize: "13px",
+              fontWeight: "900",
+              marginTop: "5px",
+            }}
+          >
+            {String(
+              selectedPerformanceFee.ledgerStatus || "locked"
+            ).toUpperCase()}
+          </div>
+        </div>
+
+        <div
+          style={{
+            padding: "13px 15px",
+            borderRadius: "14px",
+            background: "rgba(59,130,246,0.07)",
+            border: "1px solid rgba(59,130,246,0.15)",
+          }}
+        >
+          <div
+            style={{
+              color: "#64748b",
+              fontSize: "10px",
+              fontWeight: "900",
+              textTransform: "uppercase",
+            }}
+          >
+            Invoice Status
+          </div>
+
+          <div
+            style={{
+              color:
+                selectedPerformanceFee.invoiceStatus === "paid"
+                  ? "#86efac"
+                  : selectedPerformanceFee.invoiceStatus === "not_created"
+                  ? "#94a3b8"
+                  : "#fbbf24",
+              fontSize: "13px",
+              fontWeight: "900",
+              marginTop: "5px",
+            }}
+          >
+            {selectedPerformanceFee.invoiceStatus === "not_created"
+              ? "NOT CREATED"
+              : String(
+                  selectedPerformanceFee.invoiceStatus || "not_created"
+                )
+                  .replaceAll("_", " ")
+                  .toUpperCase()}
+          </div>
+        </div>
+      </div>
+
+      {selectedPerformanceFee.sentAt && (
+        <div
+          style={{
+            color: "#94a3b8",
+            fontSize: "11px",
+            marginBottom: "5px",
+          }}
+        >
+          Payment request sent:{" "}
+          {new Date(
+            selectedPerformanceFee.sentAt
+          ).toLocaleDateString()}
+        </div>
+      )}
+
+      {selectedPerformanceFee.paidAt && (
+        <div
+          style={{
+            color: "#86efac",
+            fontSize: "11px",
+            fontWeight: "800",
+            marginBottom: "10px",
+          }}
+        >
+          Paid:{" "}
+          {new Date(
+            selectedPerformanceFee.paidAt
+          ).toLocaleDateString()}
+        </div>
+      )}
+
+      <div
+        style={{
+          padding: "13px 15px",
+          borderRadius: "14px",
+          background: "rgba(59,130,246,0.07)",
+          border: "1px solid rgba(59,130,246,0.15)",
+          color: "#cbd5e1",
+          fontSize: "12px",
+          lineHeight: 1.6,
+        }}
+      >
+        This performance fee is billed separately from the client's recurring
+        monthly platform subscription. The locked recovery ledger remains
+        unchanged after payment.
+      </div>
+
+      {performanceFeeMessage && (
+        <div
+          style={{
+            marginTop: "14px",
+            color: "#fbbf24",
+            fontSize: "12px",
+            fontWeight: "700",
+          }}
+        >
+          {performanceFeeMessage}
+        </div>
+      )}
+
+      <div
+        style={{
+          display: "flex",
+          gap: "10px",
+          marginTop: "22px",
+        }}
+      >
+        <button
+          type="button"
+          disabled={performanceFeeSubmitting}
+          onClick={() => {
+            setSelectedPerformanceFee(null);
+            setPerformanceFeeMessage("");
+          }}
+          style={{
+            ...smallActionButton,
+            flex: 1,
+            background: "#334155",
+            opacity: performanceFeeSubmitting ? 0.6 : 1,
+          }}
+        >
+          Close
+        </button>
+
+        <button
+          type="button"
+          disabled={
+            performanceFeeSubmitting ||
+            selectedPerformanceFee.invoiceStatus === "paid"
+          }
+        onClick={createPerformanceFeePaymentRequest}
+          style={{
+            ...smallActionButton,
+            flex: 1,
+            background:
+              selectedPerformanceFee.invoiceStatus === "paid"
+                ? "#334155"
+                : "linear-gradient(135deg,#8b5cf6,#6d28d9)",
+            opacity:
+              performanceFeeSubmitting ||
+              selectedPerformanceFee.invoiceStatus === "paid"
+                ? 0.55
+                : 1,
+            cursor:
+              performanceFeeSubmitting ||
+              selectedPerformanceFee.invoiceStatus === "paid"
+                ? "not-allowed"
+                : "pointer",
+          }}
+        >
+          {selectedPerformanceFee.invoiceStatus === "paid"
+            ? "Performance Fee Paid"
+            : selectedPerformanceFee.invoiceStatus === "not_created"
+            ? "Create Payment Request"
+            : "Payment Request Created"}
+        </button>
+      </div>
+    </div>
+  </div>
 )}
 {adminView === "growth" && (
   <>
