@@ -19,6 +19,12 @@ export default function AdminPage() {
   const [customers, setCustomers] = useState([]);
   const [alerts, setAlerts] = useState([]);
   const [aiActions, setAiActions] = useState([]);
+const [aiActionVerifications, setAiActionVerifications] = useState([]);
+const [selectedRecoveryAction, setSelectedRecoveryAction] = useState(null);
+const [recoveryVerificationSubmitting, setRecoveryVerificationSubmitting] =
+  useState(false);
+const [recoveryVerificationMessage, setRecoveryVerificationMessage] =
+  useState("");
 
 const [monthlyRecoveryLedgers, setMonthlyRecoveryLedgers] = useState([]);
 const [performanceFeeInvoices, setPerformanceFeeInvoices] = useState([]);
@@ -174,6 +180,20 @@ if (uploadsError) {
     if (aiActionError) {
       console.warn("AI actions table not loaded:", aiActionError.message);
     }
+    const {
+  data: aiVerificationData,
+  error: aiVerificationError,
+} = await supabase
+  .from("ai_action_verifications")
+  .select("*")
+  .order("created_at", { ascending: false });
+
+if (aiVerificationError) {
+  console.warn(
+    "ADMIN AI ACTION VERIFICATIONS LOAD ERROR:",
+    aiVerificationError
+  );
+}
 // ==============================
 // PERFORMANCE FEE BILLING DATA
 // ==============================
@@ -238,7 +258,7 @@ setPerformanceFeeInvoices(performanceFeeInvoiceData || []);
 
     setAlerts(alertData || []);
     setAiActions(aiActionData || []);
-
+setAiActionVerifications(aiVerificationData || []);
     const customersWithMetrics = (usersData || []).map((customer) => {
       const customerSales = (salesData || []).filter((sale) => sale.user_id === customer.id);
       const customerUploads = (uploadsData || []).filter(
@@ -1435,7 +1455,541 @@ const deleteCustomer = async (customerId) => {
   );
 };
 
+const startLaborRecoveryMeasurement = async (action) => {
+  if (!action?.id) {
+    setRecoveryVerificationMessage(
+      "This recovery action is missing an action ID."
+    );
+    return;
+  }
 
+  if (!action?.user_id) {
+    setRecoveryVerificationMessage(
+      "This recovery action is missing a client ID."
+    );
+    return;
+  }
+
+  if (!action?.location_id) {
+    setRecoveryVerificationMessage(
+      "This recovery action is missing a location."
+    );
+    return;
+  }
+
+  const recoveryCategory = String(
+    action.recovery_category || ""
+  )
+    .trim()
+    .toLowerCase();
+
+  if (recoveryCategory !== "labor") {
+    setRecoveryVerificationMessage(
+      "Labor measurement can only be started for labor recovery actions."
+    );
+    return;
+  }
+
+  const actionTimestamp =
+    action.applied_at ||
+    action.created_at ||
+    null;
+
+  if (!actionTimestamp) {
+    setRecoveryVerificationMessage(
+      "This recovery action is missing its application date."
+    );
+    return;
+  }
+
+  setSelectedRecoveryAction(action);
+  setRecoveryVerificationSubmitting(true);
+  setRecoveryVerificationMessage(
+    "Measuring labor recovery..."
+  );
+
+  try {
+    const actionDate = new Date(actionTimestamp);
+
+    if (Number.isNaN(actionDate.getTime())) {
+      throw new Error(
+        "The recovery action has an invalid application date."
+      );
+    }
+
+    // Use the calendar date on which the action was applied.
+    // The labor recovery API builds the matching baseline
+    // period automatically.
+    const periodStart =
+      String(actionTimestamp).split("T")[0];
+
+    // Measure up to 14 calendar days beginning with
+    // the action date. Never send a future periodEnd.
+    const fullMeasurementEnd = new Date(
+      `${periodStart}T00:00:00.000Z`
+    );
+
+    fullMeasurementEnd.setUTCDate(
+      fullMeasurementEnd.getUTCDate() + 13
+    );
+
+    const today = new Date();
+
+    const todayDate = new Date(
+      Date.UTC(
+        today.getUTCFullYear(),
+        today.getUTCMonth(),
+        today.getUTCDate()
+      )
+    );
+
+    const resolvedMeasurementEnd =
+      fullMeasurementEnd < todayDate
+        ? fullMeasurementEnd
+        : todayDate;
+
+    const periodEnd =
+      resolvedMeasurementEnd
+        .toISOString()
+        .split("T")[0];
+
+    const {
+      data: { session },
+      error: sessionError,
+    } = await supabase.auth.getSession();
+
+    if (sessionError) {
+      throw sessionError;
+    }
+
+    const accessToken =
+      session?.access_token;
+
+    if (!accessToken) {
+      throw new Error(
+        "Your admin session has expired. Please sign in again."
+      );
+    }
+
+    const response = await fetch(
+      "/api/recovery/labor",
+      {
+        method: "POST",
+
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+
+        body: JSON.stringify({
+          actionId: action.id,
+          userId: action.user_id,
+          locationId: action.location_id,
+          periodStart,
+          periodEnd,
+        }),
+
+        cache: "no-store",
+      }
+    );
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        result?.message ||
+          "Labor recovery measurement failed."
+      );
+    }
+
+    if (result?.status === "insufficient_data") {
+      setRecoveryVerificationMessage(
+        result?.message ||
+          "There is not enough labor and POS evidence to measure this recovery yet."
+      );
+
+      return;
+    }
+
+    if (result?.status === "already_verified") {
+      setRecoveryVerificationMessage(
+        "This recovery period has already been financially verified."
+      );
+
+      setAiActions((previous) =>
+        (previous || []).map((existingAction) =>
+          existingAction.id === action.id
+            ? {
+                ...existingAction,
+                verification_status: "verified",
+              }
+            : existingAction
+        )
+      );
+
+      return;
+    }
+
+    if (!result?.success) {
+      throw new Error(
+        result?.message ||
+          "Labor recovery measurement could not be completed."
+      );
+    }
+
+    setSelectedRecoveryAction((previous) => ({
+      ...(previous || action),
+
+      verificationId:
+        result?.verificationId || null,
+
+      verification_status:
+        result?.status || "measuring",
+
+      calculatedRecovery: Number(
+        result?.calculatedRecovery || 0
+      ),
+
+      baseline:
+        result?.baseline || null,
+
+      measurement:
+        result?.measurement || null,
+
+      periodStart,
+      periodEnd,
+    }));
+
+    setAiActions((previous) =>
+      (previous || []).map((existingAction) =>
+        existingAction.id === action.id
+          ? {
+              ...existingAction,
+              verification_status:
+                result?.status || "measuring",
+            }
+          : existingAction
+      )
+    );
+if (result?.verificationId) {
+  const localVerification = {
+    id: result.verificationId,
+    action_id: action.id,
+    user_id: action.user_id,
+    location_id: action.location_id,
+    verification_status:
+      result?.status || "measuring",
+    calculated_recovery: Number(
+      result?.calculatedRecovery || 0
+    ),
+    baseline_metrics:
+      result?.baseline || null,
+    measured_metrics:
+      result?.measurement || null,
+    measurement_start: periodStart,
+    measurement_end: periodEnd,
+  };
+
+  setAiActionVerifications((previous) => {
+    const current =
+      previous || [];
+
+    const alreadyExists =
+      current.some(
+        (verification) =>
+          verification.id ===
+          result.verificationId
+      );
+
+    if (alreadyExists) {
+      return current.map(
+        (verification) =>
+          verification.id ===
+          result.verificationId
+            ? {
+                ...verification,
+                ...localVerification,
+              }
+            : verification
+      );
+    }
+
+    return [
+      localVerification,
+      ...current,
+    ];
+  });
+}
+    const calculatedRecovery = Number(
+      result?.calculatedRecovery || 0
+    );
+
+    setRecoveryVerificationMessage(
+      calculatedRecovery > 0
+        ? `Measurement complete. Serven calculated $${calculatedRecovery.toLocaleString(
+            undefined,
+            {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            }
+          )} in potential verified labor recovery. Financial verification is still required.`
+        : result?.message ||
+            "Measurement completed. No positive labor recovery was calculated for this period."
+    );
+  } catch (error) {
+    console.error(
+      "LABOR RECOVERY MEASUREMENT ERROR:",
+      error
+    );
+
+    setRecoveryVerificationMessage(
+      error?.message ||
+        "Labor recovery measurement failed."
+    );
+  } finally {
+    setRecoveryVerificationSubmitting(false);
+  }
+};
+
+const verifyLaborRecovery = async (
+  verificationIdOverride = null,
+  actionOverride = null
+) => {
+  const verificationId =
+    verificationIdOverride ||
+    selectedRecoveryAction?.verificationId;
+
+  const recoveryAction =
+    actionOverride ||
+    selectedRecoveryAction;
+
+  if (!verificationId) {
+    setRecoveryVerificationMessage(
+      "Start the labor recovery measurement before attempting financial verification."
+    );
+    return;
+  }
+
+  setRecoveryVerificationSubmitting(true);
+  setRecoveryVerificationMessage(
+    "Verifying labor recovery against stored evidence..."
+  );
+
+  try {
+    const {
+      data: { session },
+      error: sessionError,
+    } = await supabase.auth.getSession();
+
+    if (sessionError) {
+      throw sessionError;
+    }
+
+    const accessToken =
+      session?.access_token;
+
+    if (!accessToken) {
+      throw new Error(
+        "Your admin session has expired. Please sign in again."
+      );
+    }
+
+    const response = await fetch(
+      "/api/recovery/labor/verify",
+      {
+        method: "POST",
+
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+
+        // IMPORTANT:
+        // The browser never supplies an approved
+        // recovery amount. The server and database
+        // determine the financially allowed amount.
+        body: JSON.stringify({
+          verificationId,
+        }),
+
+        cache: "no-store",
+      }
+    );
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      setRecoveryVerificationMessage(
+        result?.message ||
+          "Labor recovery could not be financially verified."
+      );
+
+      return;
+    }
+
+    if (
+      result?.status === "month_in_progress" ||
+      result?.status === "measurement_in_progress" ||
+      result?.status === "insufficient_data" ||
+      result?.status === "insufficient_monthly_data" ||
+      result?.status === "insufficient_monthly_coverage" ||
+      result?.status === "invalid_monthly_financials"
+    ) {
+      setRecoveryVerificationMessage(
+        result?.message ||
+          "This recovery is not ready for financial verification."
+      );
+
+      return;
+    }
+
+    if (
+      result?.status === "no_recovery" ||
+      result?.status === "no_monthly_recovery"
+    ) {
+      setRecoveryVerificationMessage(
+        result?.message ||
+          "No positive verified labor recovery is available for this period."
+      );
+
+      return;
+    }
+
+    if (
+      result?.status === "verified" ||
+      result?.status === "already_verified"
+    ) {
+      const verifiedRecovery = Number(
+        result?.verifiedRecovery || 0
+      );
+
+     const actionId =
+  result?.actionId ||
+  recoveryAction?.id;
+
+      setAiActions((previous) =>
+        (previous || []).map((action) =>
+          action.id === actionId
+            ? {
+                ...action,
+
+                verification_status:
+                  "verified",
+
+                verified_recovery:
+                  verifiedRecovery,
+
+                verified_at:
+                  new Date().toISOString(),
+              }
+            : action
+        )
+      );
+
+      setAiActionVerifications((previous) =>
+  (previous || []).map((verification) =>
+    verification.id === verificationId
+      ? {
+          ...verification,
+          verification_status: "verified",
+          verified_recovery: verifiedRecovery,
+          verified_at: new Date().toISOString(),
+        }
+      : verification
+  )
+);
+      setSelectedRecoveryAction(
+        (previous) => ({
+          ...(previous || {}),
+
+          verification_status:
+            "verified",
+
+          verifiedRecovery,
+
+          verified_recovery:
+            verifiedRecovery,
+
+          billingYear:
+            result?.billingYear || null,
+
+          billingMonth:
+            result?.billingMonth || null,
+
+          ledgerSync:
+            result?.ledgerSync || null,
+        })
+      );
+
+      // Refresh the ledger so Billing immediately
+      // reflects the newly verified recovery.
+      if (
+        result?.ledgerSync?.ledger
+      ) {
+        const syncedLedger =
+          result.ledgerSync.ledger;
+
+        setMonthlyRecoveryLedgers(
+          (previous) => {
+            const existing =
+              (previous || []).some(
+                (ledger) =>
+                  ledger.id ===
+                  syncedLedger.id
+              );
+
+            if (existing) {
+              return (previous || []).map(
+                (ledger) =>
+                  ledger.id ===
+                  syncedLedger.id
+                    ? syncedLedger
+                    : ledger
+              );
+            }
+
+            return [
+              syncedLedger,
+              ...(previous || []),
+            ];
+          }
+        );
+      }
+
+      setRecoveryVerificationMessage(
+        verifiedRecovery > 0
+          ? `Labor recovery verified: $${verifiedRecovery.toLocaleString(
+              undefined,
+              {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              }
+            )}. The monthly recovery ledger has been synchronized.`
+          : result?.message ||
+              "Labor recovery verification completed."
+      );
+
+      return;
+    }
+
+    setRecoveryVerificationMessage(
+      result?.message ||
+        "Labor recovery verification completed without a billable recovery."
+    );
+  } catch (error) {
+    console.error(
+      "LABOR FINANCIAL VERIFICATION ERROR:",
+      error
+    );
+
+    setRecoveryVerificationMessage(
+      error?.message ||
+        "Labor recovery financial verification failed."
+    );
+  } finally {
+    setRecoveryVerificationSubmitting(false);
+  }
+};
 const createPerformanceFeePaymentRequest = async () => {
   if (!selectedPerformanceFee?.ledgerId) {
     setPerformanceFeeMessage("Missing recovery ledger ID.");
@@ -3815,6 +4369,479 @@ value={riskEligibleClients.filter((c) => !c.lastUpload).length}
 
 {adminView === "billing" && (
   <>
+  {/* =========================================
+    RECOVERY VERIFICATION QUEUE
+========================================= */}
+<div style={panelCard("#22c55e")}>
+  <div style={eyebrow}>RECOVERY VERIFICATION</div>
+
+  <h2
+    style={{
+      color: "white",
+      fontSize: "26px",
+      fontWeight: "900",
+      marginBottom: "8px",
+    }}
+  >
+    Recovery Verification Queue
+  </h2>
+
+  <p
+    style={{
+      color: "#94a3b8",
+      fontSize: "14px",
+      lineHeight: 1.7,
+      marginBottom: "22px",
+      maxWidth: "850px",
+    }}
+  >
+    Review applied AI recovery actions and measure actual
+    post-action performance before any recovery becomes
+    financially verified or billable.
+  </p>
+
+  {recoveryVerificationMessage && (
+    <div
+      style={{
+        marginBottom: "18px",
+        padding: "12px 14px",
+        borderRadius: "12px",
+        background: "rgba(34,197,94,0.08)",
+        border: "1px solid rgba(34,197,94,0.18)",
+        color: "#bbf7d0",
+        fontSize: "13px",
+        lineHeight: 1.6,
+      }}
+    >
+      {recoveryVerificationMessage}
+    </div>
+  )}
+
+  {(() => {
+    const recoveryQueue = (aiActions || [])
+      .filter((action) => {
+        const category = String(
+          action.recovery_category || ""
+        )
+          .trim()
+          .toLowerCase();
+
+        const actionStatus = String(
+          action.status || ""
+        )
+          .trim()
+          .toLowerCase();
+
+        const verificationStatus = String(
+          action.verification_status || "not_started"
+        )
+          .trim()
+          .toLowerCase();
+
+        return (
+          category === "labor" &&
+          actionStatus === "applied" &&
+          action.location_id &&
+          verificationStatus !== "verified"
+        );
+      })
+      .sort((a, b) => {
+        return (
+          new Date(b.created_at || 0).getTime() -
+          new Date(a.created_at || 0).getTime()
+        );
+      });
+
+    if (!recoveryQueue.length) {
+      return (
+        <div
+          style={{
+            padding: "22px",
+            borderRadius: "16px",
+            background: "rgba(15,23,42,0.65)",
+            border: "1px solid rgba(148,163,184,0.12)",
+            color: "#94a3b8",
+            fontSize: "14px",
+          }}
+        >
+          No labor recovery actions are currently waiting
+          for measurement.
+        </div>
+      );
+    }
+
+    return (
+      <div
+        style={{
+          display: "grid",
+          gap: "14px",
+        }}
+      >
+        {recoveryQueue.slice(0, 20).map((action) => {
+          const client =
+  (customers || []).find(
+    (customer) =>
+      customer.id === action.user_id
+  ) || null;
+
+// Find the newest persisted verification
+// belonging to this exact action/location.
+const persistedVerification =
+  (aiActionVerifications || []).find(
+    (verification) =>
+      verification.action_id === action.id &&
+      verification.user_id === action.user_id &&
+      verification.location_id ===
+        action.location_id
+  ) || null;
+
+const verificationStatus = String(
+  persistedVerification?.verification_status ||
+    action.verification_status ||
+    "not_started"
+)
+  .trim()
+  .toLowerCase();
+
+const verificationId =
+  persistedVerification?.id || null;
+
+const calculatedRecovery = Number(
+  persistedVerification?.calculated_recovery ||
+    0
+);
+
+const actionDate =
+  action.applied_at ||
+  action.created_at ||
+  null;
+
+          const isCurrentSubmission =
+            recoveryVerificationSubmitting &&
+            selectedRecoveryAction?.id ===
+              action.id;
+
+          const estimatedImpact = Number(
+            action.impact_value || 0
+          );
+
+          return (
+            <div
+              key={action.id}
+              style={{
+                padding: "18px",
+                borderRadius: "18px",
+                background: "rgba(15,23,42,0.72)",
+                border:
+                  "1px solid rgba(148,163,184,0.12)",
+                display: "grid",
+                gap: "16px",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "flex-start",
+                  gap: "18px",
+                  flexWrap: "wrap",
+                }}
+              >
+                <div
+                  style={{
+                    minWidth: 0,
+                    flex: "1 1 420px",
+                  }}
+                >
+                  <div
+                    style={{
+                      color: "#ffffff",
+                      fontSize: "17px",
+                      fontWeight: "800",
+                      marginBottom: "6px",
+                    }}
+                  >
+                    {action.action_name ||
+                      "Labor Recovery Action"}
+                  </div>
+
+                  <div
+                    style={{
+                      color: "#94a3b8",
+                      fontSize: "13px",
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    {action.action_description ||
+                      "No action description available."}
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    padding: "7px 10px",
+                    borderRadius: "999px",
+                    background:
+                      verificationStatus === "measuring"
+                        ? "rgba(234,179,8,0.12)"
+                        : "rgba(59,130,246,0.12)",
+                    border:
+                      verificationStatus === "measuring"
+                        ? "1px solid rgba(234,179,8,0.25)"
+                        : "1px solid rgba(59,130,246,0.25)",
+                    color:
+                      verificationStatus === "measuring"
+                        ? "#fde68a"
+                        : "#bfdbfe",
+                    fontSize: "11px",
+                    fontWeight: "800",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.06em",
+                  }}
+                >
+                  {verificationStatus === "measuring"
+                    ? "Measuring"
+                    : "Not Started"}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns:
+                    "repeat(auto-fit, minmax(150px, 1fr))",
+                  gap: "12px",
+                }}
+              >
+                <div>
+                  <div
+                    style={{
+                      color: "#64748b",
+                      fontSize: "11px",
+                      fontWeight: "800",
+                      textTransform: "uppercase",
+                      marginBottom: "4px",
+                    }}
+                  >
+                    Client
+                  </div>
+
+                  <div
+                    style={{
+                      color: "#e2e8f0",
+                      fontSize: "13px",
+                      fontWeight: "700",
+                    }}
+                  >
+                    {client?.restaurant_name ||
+                      client?.business_name ||
+                      client?.email ||
+                      "Client"}
+                  </div>
+                </div>
+
+                <div>
+                  <div
+                    style={{
+                      color: "#64748b",
+                      fontSize: "11px",
+                      fontWeight: "800",
+                      textTransform: "uppercase",
+                      marginBottom: "4px",
+                    }}
+                  >
+                    Location
+                  </div>
+
+                  <div
+                    style={{
+                      color: "#e2e8f0",
+                      fontSize: "13px",
+                      fontWeight: "700",
+                    }}
+                  >
+                    {action.location_name ||
+                      "Restaurant Location"}
+                  </div>
+                </div>
+
+                <div>
+                  <div
+                    style={{
+                      color: "#64748b",
+                      fontSize: "11px",
+                      fontWeight: "800",
+                      textTransform: "uppercase",
+                      marginBottom: "4px",
+                    }}
+                  >
+                    Applied
+                  </div>
+
+                  <div
+                    style={{
+                      color: "#e2e8f0",
+                      fontSize: "13px",
+                      fontWeight: "700",
+                    }}
+                  >
+                    {actionDate
+                      ? new Date(
+                          actionDate
+                        ).toLocaleDateString()
+                      : "Unknown"}
+                  </div>
+                </div>
+
+                <div>
+                  <div
+                    style={{
+                      color: "#64748b",
+                      fontSize: "11px",
+                      fontWeight: "800",
+                      textTransform: "uppercase",
+                      marginBottom: "4px",
+                    }}
+                  >
+                    Estimated Opportunity
+                  </div>
+
+                  <div
+                    style={{
+                      color: "#fbbf24",
+                      fontSize: "13px",
+                      fontWeight: "800",
+                    }}
+                  >
+                    $
+                    {estimatedImpact.toLocaleString(
+                      undefined,
+                      {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      }
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: "14px",
+                  flexWrap: "wrap",
+                }}
+              >
+                <div
+                  style={{
+                    color: "#64748b",
+                    fontSize: "12px",
+                    lineHeight: 1.5,
+                  }}
+                >
+                  Estimated opportunity is not billable.
+                  Serven must measure and financially verify
+                  actual recovery first.
+                </div>
+<div
+  style={{
+    display: "flex",
+    gap: "10px",
+    alignItems: "center",
+    flexWrap: "wrap",
+  }}
+>
+  <button
+    type="button"
+    disabled={
+      recoveryVerificationSubmitting
+    }
+    onClick={() =>
+      startLaborRecoveryMeasurement(
+        action
+      )
+    }
+    style={{
+      border: "none",
+      borderRadius: "12px",
+      padding: "10px 16px",
+      background:
+        recoveryVerificationSubmitting
+          ? "#334155"
+          : "#16a34a",
+      color: "#ffffff",
+      fontSize: "12px",
+      fontWeight: "800",
+      cursor:
+        recoveryVerificationSubmitting
+          ? "not-allowed"
+          : "pointer",
+      opacity:
+        recoveryVerificationSubmitting &&
+        !isCurrentSubmission
+          ? 0.55
+          : 1,
+    }}
+  >
+    {isCurrentSubmission
+      ? "Measuring..."
+      : verificationStatus ===
+          "measuring"
+      ? "Refresh Measurement"
+      : "Start Measurement"}
+  </button>
+
+ {verificationStatus === "measuring" &&
+  (verificationId ||
+    (selectedRecoveryAction?.id === action.id &&
+      selectedRecoveryAction?.verificationId)) && (
+      <button
+        type="button"
+        disabled={
+          recoveryVerificationSubmitting
+        }
+     onClick={() =>
+  verifyLaborRecovery(
+    verificationId ||
+      selectedRecoveryAction?.verificationId,
+    action
+  )
+}
+        style={{
+          border: "1px solid rgba(168,85,247,0.35)",
+          borderRadius: "12px",
+          padding: "10px 16px",
+          background:
+            recoveryVerificationSubmitting
+              ? "#334155"
+              : "rgba(126,34,206,0.95)",
+          color: "#ffffff",
+          fontSize: "12px",
+          fontWeight: "800",
+          cursor:
+            recoveryVerificationSubmitting
+              ? "not-allowed"
+              : "pointer",
+        }}
+      >
+        {recoveryVerificationSubmitting
+          ? "Verifying..."
+          : "Verify Recovery"}
+      </button>
+    )}
+</div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  })()}
+</div>
+
+
  {/* PERFORMANCE FEE BILLING */}
 <div style={panelCard("#8b5cf6")}>
   <div style={eyebrow}>VERIFIED PROFIT RECOVERY</div>
