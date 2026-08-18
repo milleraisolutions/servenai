@@ -15806,14 +15806,63 @@ console.log(
 );
     // --- Helper Sanitization Functions ---
     const cleanDate = (value) => {
-      if (!value || String(value).trim() === "") {
-        return new Date().toISOString().slice(0, 10);
+  if (
+    value === null ||
+    value === undefined ||
+    String(value).trim() === ""
+  ) {
+    return null;
+  }
+
+  const stringValue = String(value).trim();
+
+  // Excel serial date.
+  if (/^\d+(\.\d+)?$/.test(stringValue)) {
+    const numericValue = Number(stringValue);
+
+    if (
+      Number.isFinite(numericValue) &&
+      numericValue > 1000 &&
+      numericValue < 100000
+    ) {
+      const excelEpoch = Date.UTC(1899, 11, 30);
+
+      const parsedDate = new Date(
+        excelEpoch + numericValue * 86400000
+      );
+
+      if (!Number.isNaN(parsedDate.getTime())) {
+        return parsedDate.toISOString().slice(0, 10);
       }
-      const date = new Date(value);
-      return Number.isNaN(date.getTime()) 
-        ? new Date().toISOString().slice(0, 10) 
-        : date.toISOString().slice(0, 10);
-    };
+    }
+  }
+
+  // Already canonical YYYY-MM-DD.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(stringValue)) {
+    return stringValue;
+  }
+
+  // ISO timestamp.
+  if (/^\d{4}-\d{2}-\d{2}T/.test(stringValue)) {
+    return stringValue.slice(0, 10);
+  }
+
+  // Common U.S. spreadsheet date.
+  const usDateMatch = stringValue.match(
+    /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/
+  );
+
+  if (usDateMatch) {
+    const [, month, day, year] = usDateMatch;
+
+    return `${year}-${String(month).padStart(
+      2,
+      "0"
+    )}-${String(day).padStart(2, "0")}`;
+  }
+
+  return null;
+};
 
     const formatTimestamp = (dateStr, timeStr) => {
       if (!timeStr) return null;
@@ -16222,7 +16271,66 @@ const getLaborShiftTime = (value) => {
   return null;
 };
 
+// Convert labor dates into canonical YYYY-MM-DD values.
+const getLaborShiftDate = (value) => {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
 
+  // Excel serial date, for example 46205.
+  if (
+    typeof value === "number" ||
+    /^\d+(\.\d+)?$/.test(String(value).trim())
+  ) {
+    const numericValue = Number(value);
+
+    if (
+      Number.isFinite(numericValue) &&
+      numericValue > 1000 &&
+      numericValue < 100000
+    ) {
+      const excelEpoch = Date.UTC(1899, 11, 30);
+
+      const parsedDate = new Date(
+        excelEpoch + numericValue * 86400000
+      );
+
+      if (!Number.isNaN(parsedDate.getTime())) {
+        return parsedDate.toISOString().slice(0, 10);
+      }
+    }
+  }
+
+  const stringValue = String(value).trim();
+
+  if (!stringValue) return null;
+
+  // Already canonical.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(stringValue)) {
+    return stringValue;
+  }
+
+  // ISO timestamp.
+  if (/^\d{4}-\d{2}-\d{2}T/.test(stringValue)) {
+    return stringValue.slice(0, 10);
+  }
+
+  // Common U.S. spreadsheet date: M/D/YYYY or MM/DD/YYYY.
+  const usDateMatch = stringValue.match(
+    /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/
+  );
+
+  if (usDateMatch) {
+    const [, month, day, year] = usDateMatch;
+
+    return `${year}-${String(month).padStart(
+      2,
+      "0"
+    )}-${String(day).padStart(2, "0")}`;
+  }
+
+  return null;
+};
 // 7. Build canonical employee shift rows
 const employeeShiftRowsFromLabor = rowsToInsert.map(
   (row) => {
@@ -16253,10 +16361,10 @@ const employeeShiftRowsFromLabor = rowsToInsert.map(
         row.position ||
         "Staff",
 
-      shift_date:
-        row.work_date ||
-        row.shift_date ||
-        null,
+      shift_date: getLaborShiftDate(
+  row.work_date ||
+    row.shift_date
+),
 
       shift_start: getLaborShiftTime(
         row.clock_in ||
