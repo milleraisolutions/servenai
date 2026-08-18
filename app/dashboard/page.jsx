@@ -39640,7 +39640,43 @@ const getActiveConnectionLocation = () => {
       };
     }
   }
-  // 4. Safe single-location fallback.
+
+  // 4. Canonical data-location fallback.
+  // When no location is explicitly selected, use the location only if
+  // the currently loaded canonical POS and labor data resolve to exactly
+  // one real location UUID. Never guess when multiple locations appear.
+  const canonicalLocationIds = [
+    ...(dbSalesRows || []).map((row) => row?.location_id),
+    ...(employeeShifts || []).map((row) => row?.location_id),
+  ]
+    .filter(Boolean)
+    .map((locationId) => String(locationId).trim())
+    .filter(Boolean);
+
+  const uniqueCanonicalLocationIds = [
+    ...new Set(canonicalLocationIds),
+  ];
+
+  if (uniqueCanonicalLocationIds.length === 1) {
+    const canonicalLocationId = uniqueCanonicalLocationIds[0];
+
+    const canonicalLocation = (locations || []).find(
+      (location) =>
+        String(location?.id || "").trim() === canonicalLocationId
+    );
+
+    if (canonicalLocation) {
+      return {
+        id: canonicalLocation.id,
+        name:
+          canonicalLocation.location_name ||
+          canonicalLocation.name ||
+          null,
+      };
+    }
+  }
+
+ // 5. Safe single-location fallback.
   // If this account has exactly one real location, use it automatically.
   // Never guess when multiple locations exist.
   const availableLocations = (locations || []).filter(
