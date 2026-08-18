@@ -14437,14 +14437,16 @@ const estimatedFoodRecovery =
       )
     : 0;
 
+const laborRecoveryTargetPercent = 28;
+
 const estimatedLaborRecovery =
-  effectiveLaborCostPercent >
-  activeBenchmarks?.laborCost?.high
-    ? Math.round(
-        ((effectiveLaborCostPercent -
-          activeBenchmarks.laborCost.high) /
-          100) *
-          liveTotalRevenue
+  effectiveLaborCostPercent > laborRecoveryTargetPercent
+    ? Math.max(
+        0,
+        (Number(effectiveLaborCostPercent || 0) -
+          laborRecoveryTargetPercent) /
+          100 *
+          Number(liveTotalRevenue || 0)
       )
     : 0;
 
@@ -77427,26 +77429,62 @@ const nextAction =
           </div>
 
           <button
-            type="button"
-            onClick={() => {
-              if (alreadyApplied) return;
+            type="button"onClick={async () => {
+  if (alreadyApplied) return;
 
-            
+  const savedAction = await saveAppliedAIAction({
+    actionName:
+      item.title ||
+      item.id ||
+      "AI Recovery Action",
 
-              setAppliedFixes((prev) => [...prev, item.id]);
+    actionDescription:
+      item.description ||
+      nextAction ||
+      "",
 
-              setAiLog((prev) =>
-                [
-                  {
-                    id: Date.now(),
-                    text: `Applied fix: ${item.title} → +$${Number(
-                      item.impact || 0
-                    ).toLocaleString()}/mo`,
-                  },
-                  ...prev,
-                ].slice(0, 6)
-              );
-            }}
+    impactValue: expectedRecovery,
+
+    appliedBy: "manual",
+
+    recoveryCategory:
+      normalizeRecoveryCategory(
+        item.category
+      ),
+  });
+
+  if (!savedAction?.id) {
+    setMessage(
+      "The recovery action could not be saved."
+    );
+    return;
+  }
+
+  setAppliedFixes((prev) =>
+    prev.includes(item.id)
+      ? prev
+      : [...prev, item.id]
+  );
+
+  setAiLog((prev) =>
+    [
+      {
+        id: Date.now(),
+        text: `Applied fix: ${
+          item.title ||
+          "AI Recovery Action"
+        } → +$${Number(
+          expectedRecovery || 0
+        ).toLocaleString()}/mo`,
+      },
+      ...prev,
+    ].slice(0, 6)
+  );
+
+  setMessage(
+    "Recovery action applied. Serven will track results before any recovery is verified."
+  );
+}}
             style={{
               padding: "10px 14px",
               borderRadius: "12px",
