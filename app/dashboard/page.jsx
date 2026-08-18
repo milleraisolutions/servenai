@@ -91938,13 +91938,17 @@ maxWidth: "100%",
       ).toFixed(1)}% of revenue. Review schedules against actual sales volume.`,
     },
 
-    Number(safeEffectiveLaborCostPercent || 0) > 28 &&
-      Number(safeEffectiveLaborCostPercent || 0) <= 35 && {
-        title: "Watch labor scheduling",
-        detail: `Labor is currently ${Number(
-          safeEffectiveLaborCostPercent || 0
-        ).toFixed(1)}% of revenue. Tighten staffing around slower dayparts.`,
-      },
+   Number(safeEffectiveLaborCostPercent || 0) > 28 &&
+  Number(safeEffectiveLaborCostPercent || 0) <= 35 && {
+    title: "Watch labor scheduling",
+    detail: `Labor is currently ${Number(
+      safeEffectiveLaborCostPercent || 0
+    ).toFixed(1)}% of revenue. Tighten staffing around slower dayparts.`,
+    canApply: true,
+    recoveryCategory: "labor",
+    estimatedImpact: Number(safeEstimatedLaborRecovery || 0),
+  },
+
 
     Number(safeTotalLaborHours || 0) > 0 && {
       title: "Review scheduled labor hours",
@@ -92026,6 +92030,38 @@ maxWidth: "100%",
               >
                 {action.detail}
               </div>
+              {action.canApply && (
+  <button
+    onClick={async () => {
+      const savedAction = await saveAppliedAIAction({
+  actionName: action.title,
+  actionDescription: action.detail,
+  impactValue: Number(action.estimatedImpact || 0),
+  appliedBy: "manual",
+  recoveryCategory: action.recoveryCategory || "labor",
+});
+
+      if (savedAction) {
+        alert(
+          "Labor recovery action applied. Serven will measure the result before any recovery is verified."
+        );
+      }
+    }}
+    style={{
+      marginTop: "12px",
+      padding: "9px 14px",
+      borderRadius: "10px",
+      border: "1px solid rgba(96,165,250,0.28)",
+      background: "rgba(59,130,246,0.16)",
+      color: "#bfdbfe",
+      fontSize: "12px",
+      fontWeight: "800",
+      cursor: "pointer",
+    }}
+  >
+    Apply Fix
+  </button>
+)}
             </div>
           ))
         ) : (
