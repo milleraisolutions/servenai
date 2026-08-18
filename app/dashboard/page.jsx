@@ -39640,7 +39640,24 @@ const getActiveConnectionLocation = () => {
       };
     }
   }
+  // 4. Safe single-location fallback.
+  // If this account has exactly one real location, use it automatically.
+  // Never guess when multiple locations exist.
+  const availableLocations = (locations || []).filter(
+    (location) => location?.id
+  );
 
+  if (availableLocations.length === 1) {
+    const onlyLocation = availableLocations[0];
+
+    return {
+      id: onlyLocation.id,
+      name:
+        onlyLocation.location_name ||
+        onlyLocation.name ||
+        "Main Location",
+    };
+  }
   return {
     id: null,
     name: null,
