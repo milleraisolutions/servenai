@@ -1161,16 +1161,86 @@ export async function POST(req) {
         throw actionUpdateError;
       }
     }
+// ========================================
+// SYNCHRONIZE MONTHLY RECOVERY LEDGER
+//
+// Only run after Supabase has financially
+// verified a positive amount.
+//
+// The ledger sync route remains the single
+// source of truth for:
+// - monthly recovery totals
+// - prior-period adjustments
+// - locked-ledger protection
+// - category preservation
+// ========================================
 
-    // ========================================
-    // FINAL RESPONSE
-    //
-    // Still NO:
-    // - monthly ledger write
-    // - 15% calculation
-    // - payment request
-    // - Stripe
-    // ========================================
+let ledgerSyncResult = null;
+
+if (
+  resultStatus === "verified" &&
+  approvedRecovery > 0
+) {
+  const authorization =
+    req.headers.get("authorization") || "";
+
+  const ledgerSyncUrl = new URL(
+    "/api/recovery/ledger/sync",
+    req.url
+  );
+
+  const ledgerSyncResponse = await fetch(
+    ledgerSyncUrl,
+    {
+      method: "POST",
+
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: authorization,
+      },
+
+      body: JSON.stringify({
+        userId,
+        locationId,
+        billingYear,
+        billingMonth,
+      }),
+
+      cache: "no-store",
+    }
+  );
+
+  ledgerSyncResult =
+    await ledgerSyncResponse.json();
+
+  if (
+    !ledgerSyncResponse.ok ||
+    !ledgerSyncResult?.success
+  ) {
+    console.error(
+      "LABOR VERIFICATION LEDGER SYNC FAILED:",
+      ledgerSyncResult
+    );
+
+    throw new Error(
+      ledgerSyncResult?.message ||
+        "Labor recovery was verified, but the monthly recovery ledger could not be synchronized."
+    );
+  }
+}
+  // ========================================
+// FINAL RESPONSE
+//
+// Verified recovery has now been
+// synchronized to the monthly ledger.
+//
+// Still NO:
+// - 15% fee calculation
+// - payment request
+// - Stripe
+//
+// Those remain downstream of ledger lock.
+// ========================================
 
     return NextResponse.json({
       success: true,
@@ -1188,10 +1258,12 @@ export async function POST(req) {
       userId,
       locationId,
 
-      billingYear,
-      billingMonth,
+     billingYear,
+billingMonth,
 
-      period: {
+ledgerSync: ledgerSyncResult,
+
+period: {
         monthStart,
         monthEnd,
 
