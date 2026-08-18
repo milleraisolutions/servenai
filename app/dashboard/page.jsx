@@ -15762,8 +15762,18 @@ const laborRows =
     }
 const ownerId = dataOwnerId || user.id;
 
+const selectedLaborLocation = (locations || []).find(
+  (location) =>
+    String(location?.id || "") ===
+    String(selectedUploadLocationId || "")
+);
+
 const uploadLocationName =
-  activeLocation !== "all" ? activeLocation : assignedLocation || null;
+  selectedLaborLocation?.location_name ||
+  selectedLaborLocation?.name ||
+  (activeLocation !== "all" ? activeLocation : null) ||
+  assignedLocation ||
+  null;
   const laborFileName =
   pendingUploadSummary?.fileName ||
   selectedLaborFile?.name ||
@@ -15891,13 +15901,19 @@ console.log(
 };
 
 const resolvedLaborLocation =
+  (isRealLocation(uploadLocationName)
+    ? uploadLocationName
+    : null) ||
   row.location_name ||
   row["Location Name"] ||
   row.location ||
   row.Location ||
-  (isRealLocation(uploadLocationName) ? uploadLocationName : null) ||
-  (isRealLocation(assignedLocation) ? assignedLocation : null) ||
-  (isRealLocation(activeLocation) ? activeLocation : null) ||
+  (isRealLocation(assignedLocation)
+    ? assignedLocation
+    : null) ||
+  (isRealLocation(activeLocation)
+    ? activeLocation
+    : null) ||
   "Main Location";
       // Extract shift markers
       const rawShift = row.shift || row.Shift || row.shift_name || row["Shift Name"] || 
@@ -15938,11 +15954,11 @@ const resolvedLaborLocation =
       const rawClockIn = row.clock_in || row.clockIn || row["Clock In"] || row.start_time || row["Start Time"] || row.in_time || row["In Time"];
       const rawClockOut = row.clock_out || row.clockOut || row["Clock Out"] || row.end_time || row["End Time"] || row.out_time || row["Out Time"];
 
-      const rawLocationId =
+   const rawLocationId =
+  selectedUploadLocationId ||
   row.location_id ||
   row.locationId ||
   row["Location ID"] ||
-  selectedUploadLocationId ||
   null;
 
 const validLocationId =
@@ -16399,12 +16415,16 @@ const employeeShiftRowsFromLabor = rowsToInsert.map(
           0
       ),
 
-      location_name:
-        row.location_name ||
-        row.location ||
-        null,
+     location_id:
+  row.location_id ||
+  null,
 
-      connection_id: null,
+location_name:
+  row.location_name ||
+  row.location ||
+  null,
+
+connection_id: null,
     };
   }
 );
