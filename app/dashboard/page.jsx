@@ -16017,9 +16017,10 @@ const validLocationId =
 
   work_date: targetDate,
 
-  hours_worked: hours,
-  hourly_rate: rate,
-  labor_cost: calculatedCost,
+hours: hours,
+hours_worked: hours,
+hourly_rate: rate,
+labor_cost: calculatedCost,
 
   sales_generated: Number(
     row.sales_generated ||
