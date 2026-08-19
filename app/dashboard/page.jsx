@@ -20148,24 +20148,54 @@ const vendorCostInsights = useMemo(() => {
 
 const staffingRecommendations = useMemo(() => {
   return (shiftOperationalData || []).map((shift) => {
+    const schedulingShift =
+      (employeeSchedulingByShiftArray || []).find(
+        (item) =>
+          String(item.shift || "").trim().toLowerCase() ===
+          String(shift.shift || "").trim().toLowerCase()
+      ) || null;
+
+    const roles = schedulingShift?.roles || [];
+
+    const primaryRole =
+      roles.length > 0
+        ? roles.reduce((largest, role) =>
+            Number(role.hours || 0) >
+            Number(largest?.hours || 0)
+              ? role
+              : largest
+          )
+        : null;
+
+    const namedEmployees = roles
+      .flatMap((role) =>
+        (role.employees || []).map((employee) => ({
+          ...employee,
+          role: role.role,
+        }))
+      )
+      .filter((employee) => employee.employeeName);
+
     let recommendation =
       "Shift staffing levels are operating efficiently.";
 
     let priority = "Stable";
 
     if (shift.laborPercent > 35) {
-      recommendation =
-        "Reduce staffing levels or shorten low-efficiency labor hours during this shift.";
+      recommendation = primaryRole
+        ? `${primaryRole.role} represents the largest share of recorded labor hours during this shift. Review coverage and demand before adjusting scheduled hours.`
+        : "Review staffing coverage and demand before adjusting scheduled labor hours.";
 
       priority = "Critical";
     } else if (shift.laborPercent > 28) {
-      recommendation =
-        "Monitor scheduling closely and optimize labor allocation.";
+      recommendation = primaryRole
+        ? `${primaryRole.role} is the largest recorded labor allocation during this shift. Review role coverage for possible hour redistribution against demand.`
+        : "Monitor scheduling closely and optimize labor allocation against demand.";
 
       priority = "Watch";
     } else if (shift.avgOrderValue > 45) {
       recommendation =
-        "High-value shift detected. Consider prioritizing strongest staff during this window.";
+        "High-value shift detected. Protect appropriate service coverage while monitoring labor efficiency.";
 
       priority = "Opportunity";
     }
@@ -20177,9 +20207,36 @@ const staffingRecommendations = useMemo(() => {
       avgOrderValue: shift.avgOrderValue,
       recommendation,
       priority,
+
+      totalScheduledHours: Number(
+        schedulingShift?.totalHours || 0
+      ),
+
+      totalScheduledLaborCost: Number(
+        schedulingShift?.totalLaborCost || 0
+      ),
+
+      roles,
+
+      primaryRole: primaryRole
+        ? {
+            role: primaryRole.role,
+            hours: Number(primaryRole.hours || 0),
+            laborCost: Number(
+              primaryRole.laborCost || 0
+            ),
+          }
+        : null,
+
+      employees: namedEmployees,
+
+      employeeCount: namedEmployees.length,
     };
   });
-}, [shiftOperationalData]);
+}, [
+  shiftOperationalData,
+  employeeSchedulingByShiftArray,
+]);
 
 const operationalAlerts = useMemo(() => {
   const alerts = [];
@@ -94321,6 +94378,260 @@ maxWidth: "100%",
                   {item.recommendation ||
                     "Review staffing efficiency and shift productivity."}
                 </div>
+                {/* ROLE + EMPLOYEE SCHEDULING CONTEXT */}
+{Number(item.totalScheduledHours || 0) > 0 && (
+  <div
+    style={{
+      marginTop: "14px",
+      paddingTop: "14px",
+      borderTop: "1px solid rgba(255,255,255,0.08)",
+    }}
+  >
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: isMobile
+          ? "1fr"
+          : "repeat(3,minmax(0,1fr))",
+        gap: "10px",
+      }}
+    >
+      <div
+        style={{
+          padding: "10px 12px",
+          borderRadius: "12px",
+          background: "rgba(255,255,255,0.035)",
+        }}
+      >
+        <div
+          style={{
+            color: "#64748b",
+            fontSize: "11px",
+            fontWeight: "800",
+            textTransform: "uppercase",
+            letterSpacing: "0.05em",
+          }}
+        >
+          Recorded Hours
+        </div>
+
+        <div
+          style={{
+            color: "white",
+            fontSize: "17px",
+            fontWeight: "900",
+            marginTop: "4px",
+          }}
+        >
+          {Number(item.totalScheduledHours || 0).toFixed(1)}
+        </div>
+      </div>
+
+      <div
+        style={{
+          padding: "10px 12px",
+          borderRadius: "12px",
+          background: "rgba(255,255,255,0.035)",
+        }}
+      >
+        <div
+          style={{
+            color: "#64748b",
+            fontSize: "11px",
+            fontWeight: "800",
+            textTransform: "uppercase",
+            letterSpacing: "0.05em",
+          }}
+        >
+          Recorded Labor Cost
+        </div>
+
+        <div
+          style={{
+            color: "white",
+            fontSize: "17px",
+            fontWeight: "900",
+            marginTop: "4px",
+          }}
+        >
+          $
+          {Number(
+            item.totalScheduledLaborCost || 0
+          ).toLocaleString(undefined, {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 2,
+          })}
+        </div>
+      </div>
+
+      <div
+        style={{
+          padding: "10px 12px",
+          borderRadius: "12px",
+          background: "rgba(255,255,255,0.035)",
+        }}
+      >
+        <div
+          style={{
+            color: "#64748b",
+            fontSize: "11px",
+            fontWeight: "800",
+            textTransform: "uppercase",
+            letterSpacing: "0.05em",
+          }}
+        >
+          Named Employees
+        </div>
+
+        <div
+          style={{
+            color: "white",
+            fontSize: "17px",
+            fontWeight: "900",
+            marginTop: "4px",
+          }}
+        >
+          {Number(item.employeeCount || 0)}
+        </div>
+      </div>
+    </div>
+
+    {item.primaryRole && (
+      <div
+        style={{
+          marginTop: "12px",
+          padding: "12px",
+          borderRadius: "14px",
+          background: "rgba(168,85,247,0.08)",
+          border: "1px solid rgba(168,85,247,0.14)",
+        }}
+      >
+        <div
+          style={{
+            color: "#c4b5fd",
+            fontSize: "11px",
+            fontWeight: "900",
+            textTransform: "uppercase",
+            letterSpacing: "0.06em",
+          }}
+        >
+          Largest Labor Allocation
+        </div>
+
+        <div
+          style={{
+            color: "white",
+            fontSize: "14px",
+            fontWeight: "800",
+            marginTop: "5px",
+          }}
+        >
+          {item.primaryRole.role} ·{" "}
+          {Number(item.primaryRole.hours || 0).toFixed(1)} hrs · $
+          {Number(
+            item.primaryRole.laborCost || 0
+          ).toLocaleString(undefined, {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 2,
+          })}
+        </div>
+      </div>
+    )}
+
+    {(item.roles || []).length > 0 && (
+      <div
+        style={{
+          display: "grid",
+          gap: "8px",
+          marginTop: "12px",
+        }}
+      >
+        {(item.roles || []).map((role) => (
+          <div
+            key={`${item.shift}-${role.role}`}
+            style={{
+              padding: "12px",
+              borderRadius: "14px",
+              background: "rgba(255,255,255,0.025)",
+              border: "1px solid rgba(255,255,255,0.06)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: "10px",
+                flexWrap: "wrap",
+              }}
+            >
+              <div
+                style={{
+                  color: "#e2e8f0",
+                  fontWeight: "900",
+                  fontSize: "13px",
+                }}
+              >
+                {role.role || "Staff"}
+              </div>
+
+              <div
+                style={{
+                  color: "#94a3b8",
+                  fontSize: "12px",
+                  fontWeight: "700",
+                }}
+              >
+                {Number(role.hours || 0).toFixed(1)} hrs · $
+                {Number(role.laborCost || 0).toLocaleString(
+                  undefined,
+                  {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 2,
+                  }
+                )}
+              </div>
+            </div>
+
+            {(role.employees || []).length > 0 && (
+              <div
+                style={{
+                  marginTop: "8px",
+                  display: "flex",
+                  gap: "6px",
+                  flexWrap: "wrap",
+                }}
+              >
+                {(role.employees || []).map(
+                  (employee, employeeIndex) => (
+                    <span
+                      key={
+                        employee.employeeId ||
+                        `${employee.employeeName}-${employeeIndex}`
+                      }
+                      style={{
+                        padding: "5px 8px",
+                        borderRadius: "999px",
+                        background: "rgba(15,23,42,0.8)",
+                        border:
+                          "1px solid rgba(148,163,184,0.14)",
+                        color: "#cbd5e1",
+                        fontSize: "11px",
+                        fontWeight: "700",
+                      }}
+                    >
+                      {employee.employeeName} ·{" "}
+                      {Number(employee.hours || 0).toFixed(1)} hrs
+                    </span>
+                  )
+                )}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+)}
               </div>
             ))
           ) : (
