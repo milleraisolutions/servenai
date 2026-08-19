@@ -41704,11 +41704,12 @@ need to add historical restaurant data.
 >
   <button
     type="button"
-    onClick={() => {
-      selectedUploadTypeRef.current = "labor";
-      setUploadType("labor");
+   onClick={() => {
+  selectedUploadTypeRef.current = "labor";
+  setUploadType("labor");
+  setSelectedUploadLocationId(null);
 
-      if (laborUploadInputRef.current) {
+  if (laborUploadInputRef.current) {
         laborUploadInputRef.current.value = "";
         laborUploadInputRef.current.click();
       }
@@ -41766,7 +41767,54 @@ need to add historical restaurant data.
           ({(selectedLaborFile.size / 1024).toFixed(1)} KB)
         </span>
       </div>
+      {(locations || []).length > 0 && (
+        <div>
+          <label
+            style={{
+              display: "block",
+              marginBottom: "6px",
+              color: "#cbd5e1",
+              fontSize: "12px",
+              fontWeight: "700",
+            }}
+          >
+            Labor Location
+          </label>
 
+          <select
+            value={selectedUploadLocationId || ""}
+            onChange={(event) =>
+              setSelectedUploadLocationId(
+                event.target.value || null
+              )
+            }
+            style={{
+              width: "100%",
+              padding: "10px 12px",
+              borderRadius: "10px",
+              background: "#0f172a",
+              color: "#fff",
+              border: "1px solid rgba(148,163,184,0.28)",
+              outline: "none",
+            }}
+          >
+            <option value="">
+              Select location...
+            </option>
+
+            {(locations || []).map((location) => (
+              <option
+                key={location.id}
+                value={location.id}
+              >
+                {location.location_name ||
+                  location.name ||
+                  "Unnamed Location"}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
       <button
         type="button"
         onClick={() =>
@@ -41774,20 +41822,30 @@ need to add historical restaurant data.
             pendingUploadSummary?.rows || []
           )
         }
-        disabled={laborUploadLoading}
+        disabled={
+  laborUploadLoading ||
+  ((locations || []).length > 0 &&
+    !selectedUploadLocationId)
+}
         style={{
           width: "100%",
           padding: "10px 12px",
           borderRadius: "10px",
-          background: laborUploadLoading
-            ? "#475569"
-            : "linear-gradient(135deg, #4f46e5, #7c3aed)",
+         background:
+  laborUploadLoading ||
+  ((locations || []).length > 0 &&
+    !selectedUploadLocationId)
+    ? "#475569"
+    : "linear-gradient(135deg, #4f46e5, #7c3aed)",
           color: "#fff",
           border: "none",
           fontWeight: "700",
-          cursor: laborUploadLoading
-            ? "not-allowed"
-            : "pointer",
+        cursor:
+  laborUploadLoading ||
+  ((locations || []).length > 0 &&
+    !selectedUploadLocationId)
+    ? "not-allowed"
+    : "pointer",
         }}
       >
         {laborUploadLoading
