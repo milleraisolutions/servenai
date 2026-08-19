@@ -16122,20 +16122,27 @@ console.log(
 // CANONICAL LABOR → EMPLOYEE SHIFTS
 // ========================================
 
-// 1. Collect unique employees from this labor upload
+// 1. Collect unique NAMED employees from this labor upload.
+// Anonymous labor rows remain usable for labor analysis,
+// but Serven does not invent an employee identity.
 const laborEmployeeMap = new Map();
 
 rowsToInsert.forEach((row) => {
   const employeeName = String(
     row.employee_name ||
       row.employee ||
-      "Unknown Employee"
+      ""
   ).trim();
 
   if (!employeeName) return;
 
-  if (!laborEmployeeMap.has(employeeName)) {
-    laborEmployeeMap.set(employeeName, {
+  const employeeLookupKey =
+    employeeName.toLowerCase();
+
+  if (!laborEmployeeMap.has(employeeLookupKey)) {
+    const nowIso = new Date().toISOString();
+
+    laborEmployeeMap.set(employeeLookupKey, {
       user_id: ownerId,
       employee_name: employeeName,
 
@@ -16153,6 +16160,17 @@ rowsToInsert.forEach((row) => {
       ),
 
       status: "active",
+
+      location_id:
+        row.location_id ||
+        null,
+
+      connection_id:
+        row.connection_id ||
+        null,
+
+      first_seen_at: nowIso,
+      last_seen_at: nowIso,
     });
   }
 });
@@ -16214,7 +16232,38 @@ console.log(
   "LABOR → NEW EMPLOYEES:",
   newLaborEmployees
 );
+// Refresh last_seen_at for existing named employees
+const existingLaborEmployeeIdsSeen =
+  laborEmployeesToResolve
+    .map((employee) => {
+      const employeeLookupKey = String(
+        employee.employee_name || ""
+      )
+        .trim()
+        .toLowerCase();
 
+      return existingLaborEmployeeByName.get(
+        employeeLookupKey
+      )?.id;
+    })
+    .filter(Boolean);
+
+if (existingLaborEmployeeIdsSeen.length > 0) {
+  const {
+    error: existingEmployeeSeenError,
+  } = await supabase
+    .from("employees")
+    .update({
+      last_seen_at: new Date().toISOString(),
+      status: "active",
+    })
+    .in("id", existingLaborEmployeeIdsSeen)
+    .eq("user_id", ownerId);
+
+  if (existingEmployeeSeenError) {
+    throw existingEmployeeSeenError;
+  }
+}
 
 // 4. Insert only employees that do not already exist
 let insertedLaborEmployees = [];
@@ -16351,10 +16400,10 @@ const getLaborShiftDate = (value) => {
 const employeeShiftRowsFromLabor = rowsToInsert.map(
   (row) => {
     const employeeName = String(
-      row.employee_name ||
-        row.employee ||
-        "Unknown Employee"
-    ).trim();
+  row.employee_name ||
+    row.employee ||
+    ""
+).trim();
 
     const employeeLookupKey =
       employeeName.toLowerCase();
@@ -16370,7 +16419,9 @@ const employeeShiftRowsFromLabor = rowsToInsert.map(
 
       file_name: laborFileName,
 
-      employee_name: employeeName,
+      employee_name:
+  employeeName ||
+  null,
 
       role:
         row.role ||
@@ -16438,7 +16489,9 @@ console.log(
 // 8. Safety check — every labor employee should have a UUID
 const unresolvedLaborEmployees =
   employeeShiftRowsFromLabor.filter(
-    (row) => !row.employee_id
+    (row) =>
+      row.employee_name &&
+      !row.employee_id
   );
 
 if (unresolvedLaborEmployees.length > 0) {
