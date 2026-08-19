@@ -13688,6 +13688,146 @@ Object.values(shiftPerformanceData).forEach((shift) => {
   }
 });
 
+
+// ========================================
+// EMPLOYEE + ROLE SCHEDULING INTELLIGENCE
+// ========================================
+
+const employeeSchedulingByShift = shiftLaborRows.reduce(
+  (acc, row) => {
+    const shiftLabel =
+      row.shift ||
+      row.Shift ||
+      row.daypart ||
+      row.Daypart ||
+      "Unknown Shift";
+
+    const role =
+      row.role ||
+      row.position ||
+      row.Role ||
+      row.Position ||
+      "Staff";
+
+    const employeeName = String(
+      row.employee_name ||
+        row.employee ||
+        ""
+    ).trim();
+
+    const employeeId =
+      row.employee_id ||
+      null;
+
+    const hours = Number(
+      row.hours_worked ||
+        row.hours ||
+        row.Hours ||
+        row["Hours Worked"] ||
+        0
+    );
+
+    const laborCost = Number(
+      row.labor_cost ||
+        row.laborCost ||
+        row.cost ||
+        row.Cost ||
+        row["Labor Cost"] ||
+        0
+    );
+
+    if (!acc[shiftLabel]) {
+      acc[shiftLabel] = {
+        shift: shiftLabel,
+        totalHours: 0,
+        totalLaborCost: 0,
+        roles: {},
+      };
+    }
+
+    if (!acc[shiftLabel].roles[role]) {
+      acc[shiftLabel].roles[role] = {
+        role,
+        hours: 0,
+        laborCost: 0,
+        employees: {},
+      };
+    }
+
+    acc[shiftLabel].totalHours += hours;
+    acc[shiftLabel].totalLaborCost += laborCost;
+
+    acc[shiftLabel].roles[role].hours += hours;
+    acc[shiftLabel].roles[role].laborCost += laborCost;
+
+    // Only create employee-level detail when
+    // the source actually provided an employee identity.
+    if (employeeName) {
+      const employeeKey =
+        employeeId ||
+        employeeName.toLowerCase();
+
+      if (
+        !acc[shiftLabel].roles[role].employees[
+          employeeKey
+        ]
+      ) {
+        acc[shiftLabel].roles[role].employees[
+          employeeKey
+        ] = {
+          employeeId,
+          employeeName,
+          hours: 0,
+          laborCost: 0,
+          shiftCount: 0,
+        };
+      }
+
+      const employee =
+        acc[shiftLabel].roles[role].employees[
+          employeeKey
+        ];
+
+      employee.hours += hours;
+      employee.laborCost += laborCost;
+      employee.shiftCount += 1;
+    }
+
+    return acc;
+  },
+  {}
+);
+
+const employeeSchedulingByShiftArray = Object.values(
+  employeeSchedulingByShift
+).map((shift) => ({
+  ...shift,
+
+  roles: Object.values(shift.roles)
+    .map((role) => ({
+      ...role,
+
+      employees: Object.values(
+        role.employees
+      ).sort(
+        (a, b) =>
+          Number(b.hours || 0) -
+          Number(a.hours || 0)
+      ),
+    }))
+    .sort(
+      (a, b) =>
+        Number(b.hours || 0) -
+        Number(a.hours || 0)
+    ),
+}));
+
+console.log(
+  "EMPLOYEE SCHEDULING BY SHIFT:",
+  employeeSchedulingByShiftArray
+);
+
+
 const shiftPerformanceArray = Object.values(shiftPerformanceData);
 
 const topShift =
