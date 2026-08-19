@@ -1602,14 +1602,24 @@ const startLaborRecoveryMeasurement = async (action) => {
       );
     }
 
-    if (result?.status === "insufficient_data") {
-      setRecoveryVerificationMessage(
-        result?.message ||
-          "There is not enough labor and POS evidence to measure this recovery yet."
-      );
+   if (result?.status === "insufficient_data") {
+  const periodDetails =
+    result?.measurementStart &&
+    result?.measurementEnd &&
+    result?.baselineStart &&
+    result?.baselineEnd
+      ? ` Measurement: ${result.measurementStart} → ${result.measurementEnd}. Baseline: ${result.baselineStart} → ${result.baselineEnd}.`
+      : "";
 
-      return;
-    }
+  setRecoveryVerificationMessage(
+    `${
+      result?.message ||
+      "There is not enough labor and POS evidence to measure this recovery yet."
+    }${periodDetails}`
+  );
+
+  return;
+}
 
     if (result?.status === "already_verified") {
       setRecoveryVerificationMessage(

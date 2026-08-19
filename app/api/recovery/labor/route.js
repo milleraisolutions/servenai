@@ -460,7 +460,12 @@ export async function POST(req) {
         category: "labor",
 
         message:
-          "No canonical employee shift data is available for this location and period.",
+          "Waiting for post-action labor data for this location and measurement period.",
+
+        baselineStart,
+        baselineEnd,
+        measurementStart,
+        measurementEnd,
 
         calculatedRecovery: 0,
         verifiedRecovery: 0,
