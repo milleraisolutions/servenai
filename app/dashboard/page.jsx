@@ -846,6 +846,15 @@ const laborUploadInputRef = useRef(null);
 const [selectedEmployeeShiftFile, setSelectedEmployeeShiftFile] = useState(null);
 const [employeeShiftUploadLoading, setEmployeeShiftUploadLoading] = useState(false);
 const employeeShiftUploadInputRef = useRef(null);
+const [selectedEmployeeScheduleFile, setSelectedEmployeeScheduleFile] =
+  useState(null);
+
+const [employeeScheduleUploadLoading, setEmployeeScheduleUploadLoading] =
+  useState(false);
+
+const employeeScheduleUploadInputRef = useRef(null);
+
+const [employeeSchedules, setEmployeeSchedules] = useState([]);
 const loadAdminData = async () => {
   const { data: usersData, error: usersError } = await supabase
     .from("users")
@@ -34017,7 +34026,600 @@ const handleEmployeeShiftFileChange = async (event) => {
     `${file.name} selected. Click Confirm & Process Employee Shifts.`
   );
 };
+const handleEmployeeScheduleFileChange = (event) => {
+  const file = event.target.files?.[0];
 
+  if (!file) {
+    setSelectedEmployeeScheduleFile(null);
+    return;
+  }
+
+  const fileError = validateUploadFile(file, 25);
+
+  if (fileError) {
+    alert(fileError);
+    setMessage(fileError);
+    setSelectedEmployeeScheduleFile(null);
+    return;
+  }
+
+  setSelectedEmployeeScheduleFile(file);
+
+  setMessage(
+    `${file.name} selected. Click Confirm & Process Employee Schedule.`
+  );
+};
+const handleEmployeeScheduleUpload = async (event) => {
+  console.log("EMPLOYEE SCHEDULE UPLOAD FIRED");
+
+  setEmployeeScheduleUploadLoading(true);
+
+  let uploadRow = null;
+  let importCommitted = false;
+
+  try {
+    const file = event.target.files?.[0];
+
+    console.log("EMPLOYEE SCHEDULE FILE:", file);
+
+    const fileError = validateUploadFile(file, 25);
+
+    if (fileError) {
+      alert(fileError);
+      setMessage(fileError);
+      return;
+    }
+
+    if (!file) {
+      setMessage("No employee schedule file selected.");
+      return;
+    }
+
+    const currentUser = user;
+
+    if (!currentUser?.id) {
+      setMessage("You must be logged in to upload employee schedules.");
+      alert("You must be logged in to upload employee schedules.");
+      return;
+    }
+
+    setMessage("Importing employee schedule...");
+
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      worker: false,
+
+      complete: async (results) => {
+        try {
+          console.log(
+            "EMPLOYEE SCHEDULE PARSE RESULTS:",
+            results
+          );
+
+          const rawRows = results.data || [];
+
+          const rows = rawRows.filter((row) => {
+            const employeeName =
+              row.employee_name ||
+              row["Employee Name"] ||
+              row.name ||
+              row.Name ||
+              row.employee ||
+              row.Employee ||
+              row.staff ||
+              row.Staff;
+
+            const scheduleDate =
+              row.schedule_date ||
+              row["Schedule Date"] ||
+              row.date ||
+              row.Date ||
+              row.shift_date ||
+              row["Shift Date"];
+
+            return (
+              String(employeeName || "").trim() &&
+              String(scheduleDate || "").trim()
+            );
+          });
+
+          console.log(
+            "EMPLOYEE SCHEDULE CLEAN ROWS:",
+            rows
+          );
+
+          if (!rows.length) {
+            setMessage(
+              "No valid employee schedule rows found."
+            );
+            alert(
+              "No valid employee schedule rows found."
+            );
+            return;
+          }
+
+          const fileName =
+            file.name || "Employee Schedule Upload";
+
+          const optimisticUpload =
+            startOptimisticImport({
+              fileName,
+              sourceName: "employee_schedule_upload",
+              rowCount: rows.length,
+            });
+
+          const resolvedScheduleLocation =
+            getActiveConnectionLocation();
+
+          const { data: createdUploadRow, error: uploadError } =
+            await supabase
+              .from("uploads")
+              .insert([
+                {
+                  user_id: currentUser.id,
+                  file_name: fileName,
+                  source_name:
+                    "employee_schedule_upload",
+                  row_count: rows.length,
+                  upload_type:
+                    "employee_schedules",
+                  status: "completed",
+                  archived: false,
+                  location_id:
+                    resolvedScheduleLocation?.id ||
+                    selectedUploadLocationId ||
+                    null,
+                  location_name:
+                    resolvedScheduleLocation?.name ||
+                    (activeLocation !== "all"
+                      ? activeLocation
+                      : assignedLocation || null),
+                },
+              ])
+              .select()
+              .single();
+
+          uploadRow = createdUploadRow;
+
+          console.log(
+            "EMPLOYEE SCHEDULE uploadRow:",
+            uploadRow
+          );
+
+          console.log(
+            "EMPLOYEE SCHEDULE uploadError:",
+            uploadError
+          );
+
+          if (uploadError) throw uploadError;
+
+          // ----------------------------------------
+          // RESOLVE EXISTING EMPLOYEES
+          // ----------------------------------------
+
+          const {
+            data: existingEmployees,
+            error: existingEmployeesError,
+          } = await supabase
+            .from("employees")
+            .select("id,employee_name")
+            .eq("user_id", currentUser.id);
+
+          if (existingEmployeesError) {
+            throw existingEmployeesError;
+          }
+
+          const existingEmployeeByName = new Map(
+            (existingEmployees || []).map(
+              (employee) => [
+                String(
+                  employee.employee_name || ""
+                )
+                  .trim()
+                  .toLowerCase(),
+                employee,
+              ]
+            )
+          );
+
+          // ----------------------------------------
+          // CREATE ANY NEW NAMED EMPLOYEES
+          // ----------------------------------------
+
+          const employeeMap = new Map();
+
+          rows.forEach((row) => {
+            const employeeName = String(
+              row.employee_name ||
+                row["Employee Name"] ||
+                row.name ||
+                row.Name ||
+                row.employee ||
+                row.Employee ||
+                row.staff ||
+                row.Staff ||
+                ""
+            ).trim();
+
+            if (!employeeName) return;
+
+            const employeeKey =
+              employeeName.toLowerCase();
+
+            if (
+              existingEmployeeByName.has(employeeKey) ||
+              employeeMap.has(employeeKey)
+            ) {
+              return;
+            }
+
+            employeeMap.set(employeeKey, {
+              user_id: currentUser.id,
+              employee_name: employeeName,
+
+              role:
+                row.role ||
+                row.Role ||
+                row.position ||
+                row.Position ||
+                null,
+
+              department:
+                row.department ||
+                row.Department ||
+                "Labor",
+
+              hourly_rate: Number(
+                row.hourly_rate ||
+                  row["Hourly Rate"] ||
+                  row.rate ||
+                  row.Rate ||
+                  row.pay_rate ||
+                  row["Pay Rate"] ||
+                  0
+              ),
+
+              status: "active",
+              first_seen_at:
+                new Date().toISOString(),
+              last_seen_at:
+                new Date().toISOString(),
+            });
+          });
+
+          const newEmployeesToInsert =
+            Array.from(employeeMap.values());
+
+          let insertedEmployees = [];
+
+          if (newEmployeesToInsert.length) {
+            const {
+              data: employeeRows,
+              error: employeesError,
+            } = await supabase
+              .from("employees")
+              .insert(newEmployeesToInsert)
+              .select();
+
+            if (employeesError) {
+              throw employeesError;
+            }
+
+            insertedEmployees =
+              employeeRows || [];
+          }
+
+          const allEmployees = [
+            ...(existingEmployees || []),
+            ...insertedEmployees,
+          ];
+
+          const employeeLookup = new Map(
+            allEmployees.map((employee) => [
+              String(
+                employee.employee_name || ""
+              )
+                .trim()
+                .toLowerCase(),
+              employee.id,
+            ])
+          );
+
+          // ----------------------------------------
+          // MAP SCHEDULE ROWS
+          // ----------------------------------------
+
+          const schedulesToInsert = rows.map(
+            (row) => {
+              const employeeName = String(
+                row.employee_name ||
+                  row["Employee Name"] ||
+                  row.name ||
+                  row.Name ||
+                  row.employee ||
+                  row.Employee ||
+                  row.staff ||
+                  row.Staff ||
+                  ""
+              ).trim();
+
+              const employeeKey =
+                employeeName.toLowerCase();
+
+              const scheduledHours = Number(
+                row.scheduled_hours ||
+                  row["Scheduled Hours"] ||
+                  row.hours ||
+                  row.Hours ||
+                  row.shift_hours ||
+                  row["Shift Hours"] ||
+                  0
+              );
+
+              const hourlyRate = Number(
+                row.hourly_rate ||
+                  row["Hourly Rate"] ||
+                  row.rate ||
+                  row.Rate ||
+                  row.pay_rate ||
+                  row["Pay Rate"] ||
+                  0
+              );
+
+              return {
+                user_id: currentUser.id,
+
+                employee_id:
+                  employeeLookup.get(employeeKey) ||
+                  null,
+
+                employee_name: employeeName,
+
+                role:
+                  row.role ||
+                  row.Role ||
+                  row.position ||
+                  row.Position ||
+                  null,
+
+                schedule_date:
+                  row.schedule_date ||
+                  row["Schedule Date"] ||
+                  row.date ||
+                  row.Date ||
+                  row.shift_date ||
+                  row["Shift Date"] ||
+                  null,
+
+                scheduled_start:
+                  row.scheduled_start ||
+                  row["Scheduled Start"] ||
+                  row.shift_start ||
+                  row["Shift Start"] ||
+                  row.start ||
+                  row.Start ||
+                  null,
+
+                scheduled_end:
+                  row.scheduled_end ||
+                  row["Scheduled End"] ||
+                  row.shift_end ||
+                  row["Shift End"] ||
+                  row.end ||
+                  row.End ||
+                  null,
+
+                scheduled_hours: scheduledHours,
+
+                hourly_rate: hourlyRate,
+
+                projected_labor_cost:
+                  Number(
+                    row.projected_labor_cost ||
+                      row["Projected Labor Cost"] ||
+                      row.labor_cost ||
+                      row["Labor Cost"] ||
+                      0
+                  ) ||
+                  scheduledHours * hourlyRate,
+
+                shift:
+                  row.shift ||
+                  row.Shift ||
+                  row.daypart ||
+                  row.Daypart ||
+                  row.period ||
+                  row.Period ||
+                  null,
+
+                location_id:
+                  resolvedScheduleLocation?.id ||
+                  selectedUploadLocationId ||
+                  null,
+
+                location_name:
+                  resolvedScheduleLocation?.name ||
+                  row.location_name ||
+                  row["Location Name"] ||
+                  row.location ||
+                  row.Location ||
+                  (activeLocation !== "all"
+                    ? activeLocation
+                    : assignedLocation || null),
+
+                upload_id: uploadRow.id,
+                file_name: fileName,
+                connection_id: null,
+                status: "scheduled",
+              };
+            }
+          );
+
+          console.log(
+            "EMPLOYEE SCHEDULE MAPPED ROWS:",
+            schedulesToInsert
+          );
+
+          const {
+            data: insertedSchedules,
+            error: schedulesError,
+          } = await supabase
+            .from("employee_schedules")
+            .insert(schedulesToInsert)
+            .select();
+
+          console.log(
+            "EMPLOYEE SCHEDULE DATABASE RESULT:",
+            insertedSchedules
+          );
+
+          console.log(
+            "EMPLOYEE SCHEDULE DATABASE ERROR:",
+            schedulesError
+          );
+
+          if (schedulesError) {
+            throw schedulesError;
+          }
+
+          // Schedule rows are safely stored.
+          importCommitted = true;
+
+          const cleanUploadRow = {
+            ...uploadRow,
+            status: "completed",
+            upload_type: "employee_schedules",
+            source_name:
+              "employee_schedule_upload",
+            row_count:
+              insertedSchedules?.length ||
+              schedulesToInsert.length ||
+              0,
+          };
+
+          setEmployees((prev) => [
+            ...insertedEmployees,
+            ...(prev || []),
+          ]);
+
+          setEmployeeSchedules((prev) => [
+            ...(insertedSchedules ||
+              schedulesToInsert),
+            ...(prev || []),
+          ]);
+
+          setClientImports((prev) => [
+            cleanUploadRow,
+            ...(prev || []).filter(
+              (item) =>
+                item.id !== optimisticUpload.id
+            ),
+          ]);
+
+          setRecentUploads((prev) => [
+            cleanUploadRow,
+            ...(prev || []).filter(
+              (item) =>
+                item.id !== optimisticUpload.id
+            ),
+          ]);
+
+          setMessage(
+            `Imported ${
+              insertedSchedules?.length ||
+              schedulesToInsert.length
+            } employee schedule rows.`
+          );
+
+          logAuditEvent({
+            action: "uploaded_employee_schedules",
+            entityType: "employee_schedules",
+            entityId: uploadRow?.id || null,
+            details: `Uploaded employee schedule with ${
+              insertedSchedules?.length ||
+              schedulesToInsert.length
+            } row(s).`,
+          }).catch((auditError) => {
+            console.warn(
+              "Employee schedule audit log failed:",
+              auditError
+            );
+          });
+        } catch (innerError) {
+          console.error(
+            "Employee schedule upload inner error:",
+            innerError
+          );
+
+          if (uploadRow?.id && !importCommitted) {
+            await supabase
+              .from("employee_schedules")
+              .delete()
+              .eq("upload_id", uploadRow.id);
+
+            await supabase
+              .from("uploads")
+              .delete()
+              .eq("id", uploadRow.id);
+          }
+
+          setMessage(
+            innerError?.message ||
+              "Employee schedule upload failed."
+          );
+
+          alert(
+            innerError?.message ||
+              "Employee schedule upload failed."
+          );
+        } finally {
+          setEmployeeScheduleUploadLoading(false);
+          setSelectedEmployeeScheduleFile(null);
+
+          if (
+            employeeScheduleUploadInputRef.current
+          ) {
+            employeeScheduleUploadInputRef.current.value =
+              "";
+          }
+        }
+      },
+
+      error: (parseError) => {
+        console.error(
+          "Employee schedule parse error:",
+          parseError
+        );
+
+        setEmployeeScheduleUploadLoading(false);
+
+        setMessage(
+          parseError?.message ||
+            "Could not parse employee schedule file."
+        );
+      },
+    });
+  } catch (error) {
+    console.error(
+      "Employee schedule upload crashed:",
+      error
+    );
+
+    setEmployeeScheduleUploadLoading(false);
+    setSelectedEmployeeScheduleFile(null);
+
+    setMessage(
+      error?.message ||
+        "Employee schedule upload failed."
+    );
+
+    alert(
+      error?.message ||
+        "Employee schedule upload failed."
+    );
+  }
+};
 const handleEmployeeShiftUpload = async (event) => {
   console.log("EMPLOYEE SHIFT UPLOAD FIRED");
  setEmployeeShiftUploadLoading(true);
@@ -34480,7 +35082,7 @@ useEffect(() => {
     try {
       console.log("EMPLOYEE SHIFT LOAD USER ID:", resolvedUserId);
 
-      const [employeesResult, shiftsResult] = await Promise.all([
+      const [employeesResult, shiftsResult, schedulesResult] = await Promise.all([
         supabase
           .from("employees")
           .select("*")
@@ -34496,6 +35098,13 @@ useEffect(() => {
           .order("shift_date", {
             ascending: false,
           }),
+          supabase
+  .from("employee_schedules")
+  .select("*")
+  .eq("user_id", resolvedUserId)
+  .order("schedule_date", {
+    ascending: false,
+  }),
       ]);
 
       if (cancelled) return;
@@ -34529,6 +35138,24 @@ useEffect(() => {
 
         setEmployeeShifts(shiftsResult.data || []);
       }
+      if (schedulesResult.error) {
+  console.error(
+    "EMPLOYEE SCHEDULES LOAD ERROR:",
+    schedulesResult.error
+  );
+} else {
+  console.log(
+    "EMPLOYEE SCHEDULES LOAD DATA:",
+    schedulesResult.data
+  );
+
+  console.log(
+    "EMPLOYEE SCHEDULES LOAD COUNT:",
+    schedulesResult.data?.length || 0
+  );
+
+  setEmployeeSchedules(schedulesResult.data || []);
+}
     } catch (loadError) {
       console.error(
         "EMPLOYEE SHIFT LOADER CRASHED:",
@@ -41835,7 +42462,14 @@ return (
   onChange={handleEmployeeShiftFileChange}
   style={{ display: "none" }}
 />
-
+<input
+  id="employeeScheduleUpload"
+  ref={employeeScheduleUploadInputRef}
+  type="file"
+  accept=".csv,.xlsx,.xls"
+  onChange={handleEmployeeScheduleFileChange}
+  style={{ display: "none" }}
+/>
 <input
   id="beverageUpload"
   type="file"
@@ -42464,7 +43098,22 @@ need to add historical restaurant data.
   >
     Upload Employee Shifts
   </button>
+<button
+  onClick={() => {
+    setSelectedEmployeeScheduleFile(null);
 
+    if (employeeScheduleUploadInputRef.current) {
+      employeeScheduleUploadInputRef.current.value = "";
+      employeeScheduleUploadInputRef.current.click();
+    }
+  }}
+  disabled={employeeScheduleUploadLoading}
+  style={setupSecondaryButton}
+>
+  {employeeScheduleUploadLoading
+    ? "Processing Employee Schedule..."
+    : "Upload Employee Schedule"}
+</button>
   {selectedEmployeeShiftFile && (
     <div
       style={{
@@ -42538,6 +43187,65 @@ need to add historical restaurant data.
       </button>
     </div>
   )}
+  {selectedEmployeeScheduleFile && (
+  <div
+    style={{
+      marginTop: "12px",
+      padding: "14px",
+      borderRadius: "14px",
+      background: "rgba(15,23,42,0.72)",
+      border: "1px solid rgba(148,163,184,0.18)",
+    }}
+  >
+    <div
+      style={{
+        color: "#ffffff",
+        fontSize: "13px",
+        fontWeight: "800",
+        marginBottom: "6px",
+      }}
+    >
+      Employee Schedule Ready
+    </div>
+
+    <div
+      style={{
+        color: "#94a3b8",
+        fontSize: "12px",
+        marginBottom: "12px",
+        wordBreak: "break-word",
+      }}
+    >
+      {selectedEmployeeScheduleFile.name}
+    </div>
+
+    <button
+      onClick={() => {
+        if (!selectedEmployeeScheduleFile) return;
+
+        handleEmployeeScheduleUpload({
+          target: {
+            files: [selectedEmployeeScheduleFile],
+            value: "",
+          },
+        });
+      }}
+      disabled={employeeScheduleUploadLoading}
+      style={{
+        ...setupSecondaryButton,
+        width: "100%",
+        opacity: employeeScheduleUploadLoading ? 0.65 : 1,
+        cursor: employeeScheduleUploadLoading
+          ? "not-allowed"
+          : "pointer",
+      }}
+    >
+      {employeeScheduleUploadLoading
+        ? "Processing Employee Schedule..."
+        : "Confirm & Process Employee Schedule"}
+    </button>
+  </div>
+)}
 </div>
 
 <button
