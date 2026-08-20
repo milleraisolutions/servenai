@@ -16568,7 +16568,15 @@ const employeeShiftRowsFromLabor = rowsToInsert.map(
         row.role ||
         row.position ||
         "Staff",
-
+shift:
+  row.shift ||
+  row.shift_name ||
+  row.daypart ||
+  row.period ||
+  row.service ||
+  row.Shift ||
+  row.Daypart ||
+  null,
       shift_date: getLaborShiftDate(
   row.work_date ||
     row.shift_date
