@@ -34082,22 +34082,64 @@ const handleEmployeeScheduleUpload = async (event) => {
       alert("You must be logged in to upload employee schedules.");
       return;
     }
+setMessage("Importing employee schedule...");
 
-    setMessage("Importing employee schedule...");
+const extension = String(file.name || "")
+  .split(".")
+  .pop()
+  .toLowerCase();
 
+let rawRows = [];
+
+if (extension === "csv") {
+  rawRows = await new Promise((resolve, reject) => {
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
       worker: false,
+      complete: (results) => {
+        resolve(results.data || []);
+      },
+      error: (parseError) => {
+        reject(parseError);
+      },
+    });
+  });
+} else if (["xlsx", "xls"].includes(extension)) {
+  const buffer = await file.arrayBuffer();
 
-      complete: async (results) => {
-        try {
-          console.log(
-            "EMPLOYEE SCHEDULE PARSE RESULTS:",
-            results
-          );
+  const workbook = XLSX.read(buffer, {
+    type: "array",
+  });
 
-          const rawRows = results.data || [];
+  const firstSheetName = workbook.SheetNames?.[0];
+
+  if (!firstSheetName) {
+    throw new Error(
+      "No worksheet was found in the employee schedule file."
+    );
+  }
+
+  rawRows = XLSX.utils.sheet_to_json(
+    workbook.Sheets[firstSheetName],
+    {
+      defval: "",
+      blankrows: false,
+      raw: false,
+    }
+  );
+} else {
+  throw new Error(
+    "Employee schedule files must be CSV, XLSX, or XLS."
+  );
+}
+
+console.log(
+  "EMPLOYEE SCHEDULE PARSE RESULTS:",
+  rawRows
+);
+
+try {
 
           const rows = rawRows.filter((row) => {
             const employeeName =
@@ -34573,7 +34615,7 @@ const handleEmployeeScheduleUpload = async (event) => {
             innerError?.message ||
               "Employee schedule upload failed."
           );
-        } finally {
+               } finally {
           setEmployeeScheduleUploadLoading(false);
           setSelectedEmployeeScheduleFile(null);
 
@@ -34584,22 +34626,6 @@ const handleEmployeeScheduleUpload = async (event) => {
               "";
           }
         }
-      },
-
-      error: (parseError) => {
-        console.error(
-          "Employee schedule parse error:",
-          parseError
-        );
-
-        setEmployeeScheduleUploadLoading(false);
-
-        setMessage(
-          parseError?.message ||
-            "Could not parse employee schedule file."
-        );
-      },
-    });
   } catch (error) {
     console.error(
       "Employee schedule upload crashed:",
