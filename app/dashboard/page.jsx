@@ -34027,6 +34027,11 @@ const handleEmployeeShiftFileChange = async (event) => {
   );
 };
 const handleEmployeeScheduleFileChange = (event) => {
+  console.log(
+    "SCHEDULE FILE CHANGE FIRED:",
+    event.target.files?.[0]?.name
+  );
+
   const file = event.target.files?.[0];
 
   if (!file) {
