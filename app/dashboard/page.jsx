@@ -39507,8 +39507,9 @@ if (laborLookupError) {
 }
 
 if (!matchingLaborRows?.length) {
-  throw new Error(
-    "No labor rows matched this upload."
+  console.warn(
+    "No legacy labor_uploads rows matched this upload. Continuing cleanup.",
+    normalizedUploadId
   );
 }
 
@@ -39557,7 +39558,11 @@ if (
 let laborUploadDeleteError = null;
 
 const realParentUploadId =
-  matchingLaborRows?.[0]?.upload_id || null;
+  matchingLaborRows?.[0]?.upload_id ||
+  uploadRow?.upload_id ||
+  uploadRow?.id ||
+  normalizedUploadId ||
+  null;
 
 if (realParentUploadId) {
   const result = await supabase
@@ -39652,8 +39657,12 @@ setLaborUploads((previous) =>
 
   setMessage("Labor import permanently deleted.");
 
-  console.log("PERMANENT LABOR DELETE COMPLETE:", {
-  deletedLaborRowCount: deletedLaborRows.length,
+ console.log("PERMANENT LABOR DELETE COMPLETE:", {
+  deletedLaborRowCount: deletedLaborRows?.length || 0,
+  deletedCanonicalShiftCount:
+    deletedCanonicalLaborShifts?.length || 0,
+  deletedParentUploadCount:
+    deletedUploadRows?.length || 0,
 });
 
 await loadClientImports();
