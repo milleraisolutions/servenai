@@ -43099,14 +43099,22 @@ need to add historical restaurant data.
     Upload Employee Shifts
   </button>
 <button
-  onClick={() => {
-    setSelectedEmployeeScheduleFile(null);
+ onClick={() => {
+  selectedUploadTypeRef.current = "employee_schedules";
+  setUploadType("employee_schedules");
 
-    if (employeeScheduleUploadInputRef.current) {
-      employeeScheduleUploadInputRef.current.value = "";
-      employeeScheduleUploadInputRef.current.click();
-    }
-  }}
+  setSelectedEmployeeScheduleFile(null);
+
+  console.log(
+    "EMPLOYEE SCHEDULE PICKER OPENED:",
+    selectedUploadTypeRef.current
+  );
+
+  if (employeeScheduleUploadInputRef.current) {
+    employeeScheduleUploadInputRef.current.value = "";
+    employeeScheduleUploadInputRef.current.click();
+  }
+}}
   disabled={employeeScheduleUploadLoading}
   style={setupSecondaryButton}
 >
