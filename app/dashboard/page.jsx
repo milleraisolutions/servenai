@@ -39004,6 +39004,119 @@ console.log("DELETE OWNER ID:", ownerId);
     setMessage("Employee shift row deleted.");
     return;
   }
+  /*
+   * ==========================================
+   * EMPLOYEE SCHEDULE FILE DELETE
+   * ==========================================
+   */
+  const scheduleImportMatch = allImports.find(
+    (item) => String(item.id) === String(uploadId)
+  );
+
+  const scheduleImportType = String(
+    scheduleImportMatch?.upload_type || ""
+  )
+    .trim()
+    .toLowerCase();
+
+  const scheduleSourceName = String(
+    scheduleImportMatch?.source_name || ""
+  )
+    .trim()
+    .toLowerCase();
+
+  if (
+    scheduleImportType === "employee_schedules" ||
+    scheduleSourceName === "employee_schedule_upload"
+  ) {
+    console.log("EMPLOYEE SCHEDULE FILE DELETE:", uploadId);
+
+    const realScheduleUploadId =
+      scheduleImportMatch?.upload_id ||
+      scheduleImportMatch?.id ||
+      uploadId;
+
+    const {
+      data: deletedScheduleRows,
+      error: scheduleDeleteError,
+    } = await supabase
+      .from("employee_schedules")
+      .delete()
+      .eq("upload_id", realScheduleUploadId)
+      .eq("user_id", ownerId)
+      .select("id, upload_id, file_name");
+
+    console.log(
+      "DELETED EMPLOYEE SCHEDULE ROWS:",
+      deletedScheduleRows
+    );
+    console.log(
+      "EMPLOYEE SCHEDULE DELETE ERROR:",
+      scheduleDeleteError
+    );
+
+    if (scheduleDeleteError) {
+      throw scheduleDeleteError;
+    }
+
+    const {
+      data: deletedScheduleUploadRows,
+      error: scheduleUploadDeleteError,
+    } = await supabase
+      .from("uploads")
+      .delete()
+      .eq("id", realScheduleUploadId)
+      .eq("user_id", ownerId)
+      .select("id, file_name, upload_type");
+
+    console.log(
+      "DELETED EMPLOYEE SCHEDULE UPLOAD RECORDS:",
+      deletedScheduleUploadRows
+    );
+    console.log(
+      "EMPLOYEE SCHEDULE UPLOAD DELETE ERROR:",
+      scheduleUploadDeleteError
+    );
+
+    if (scheduleUploadDeleteError) {
+      throw scheduleUploadDeleteError;
+    }
+
+    setEmployeeSchedules((previous) =>
+      (previous || []).filter(
+        (row) =>
+          String(row.upload_id || "") !==
+          String(realScheduleUploadId)
+      )
+    );
+
+    setClientImports((previous) =>
+      (previous || []).filter(
+        (item) =>
+          String(item.id || "") !==
+          String(realScheduleUploadId)
+      )
+    );
+
+    setRecentUploads((previous) =>
+      (previous || []).filter(
+        (item) =>
+          String(item.id || "") !==
+          String(realScheduleUploadId)
+      )
+    );
+
+    console.log("EMPLOYEE SCHEDULE DELETE COMPLETE:", {
+      uploadId: realScheduleUploadId,
+      deletedScheduleRowCount:
+        deletedScheduleRows?.length || 0,
+      deletedParentUploadCount:
+        deletedScheduleUploadRows?.length || 0,
+    });
+
+    setMessage("Employee schedule import deleted.");
+    return;
+  }
 
   /*
    * ==========================================
