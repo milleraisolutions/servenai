@@ -43139,7 +43139,8 @@ need to add historical restaurant data.
     Upload Employee Shifts
   </button>
 <button
- onClick={() => {
+  type="button"
+  onClick={() => {
   selectedUploadTypeRef.current = "employee_schedules";
   setUploadType("employee_schedules");
 
@@ -43267,9 +43268,10 @@ need to add historical restaurant data.
       {selectedEmployeeScheduleFile.name}
     </div>
 
-    <button
-      onClick={() => {
-        if (!selectedEmployeeScheduleFile) return;
+   <button
+  type="button"
+  onClick={() => {
+    if (!selectedEmployeeScheduleFile) return;
 
         handleEmployeeScheduleUpload({
           target: {
