@@ -43111,7 +43111,7 @@ need to add historical restaurant data.
 >
   Upload Batch Prep
 </button>
-
+{/* EMPLOYEE SHIFTS */}
 <div
   style={{
     display: "flex",
@@ -43138,34 +43138,7 @@ need to add historical restaurant data.
   >
     Upload Employee Shifts
   </button>
-<button
-  type="button"
-  onClick={() => {
-  selectedUploadTypeRef.current = "employee_schedules";
-  setUploadType("employee_schedules");
 
-  setSelectedEmployeeScheduleFile(null);
-
-  console.log(
-    "EMPLOYEE SCHEDULE PICKER OPENED:",
-    selectedUploadTypeRef.current
-  );
-console.log(
-  "EMPLOYEE SCHEDULE INPUT REF:",
-  employeeScheduleUploadInputRef.current
-);
-  if (employeeScheduleUploadInputRef.current) {
-    employeeScheduleUploadInputRef.current.value = "";
-    employeeScheduleUploadInputRef.current.click();
-  }
-}}
-  disabled={employeeScheduleUploadLoading}
-  style={setupSecondaryButton}
->
-  {employeeScheduleUploadLoading
-    ? "Processing Employee Schedule..."
-    : "Upload Employee Schedule"}
-</button>
   {selectedEmployeeShiftFile && (
     <div
       style={{
@@ -43199,11 +43172,7 @@ console.log(
           {selectedEmployeeShiftFile.name}
         </strong>
 
-        <span
-          style={{
-            color: "#94a3b8",
-          }}
-        >
+        <span style={{ color: "#94a3b8" }}>
           ({(selectedEmployeeShiftFile.size / 1024).toFixed(1)} KB)
         </span>
       </div>
@@ -43239,68 +43208,110 @@ console.log(
       </button>
     </div>
   )}
-  {selectedEmployeeScheduleFile && (
-  <div
-    style={{
-      marginTop: "12px",
-      padding: "14px",
-      borderRadius: "14px",
-      background: "rgba(15,23,42,0.72)",
-      border: "1px solid rgba(148,163,184,0.18)",
-    }}
-  >
-    <div
-      style={{
-        color: "#ffffff",
-        fontSize: "13px",
-        fontWeight: "800",
-        marginBottom: "6px",
-      }}
-    >
-      Employee Schedule Ready
-    </div>
-
-    <div
-      style={{
-        color: "#94a3b8",
-        fontSize: "12px",
-        marginBottom: "12px",
-        wordBreak: "break-word",
-      }}
-    >
-      {selectedEmployeeScheduleFile.name}
-    </div>
-
-   <button
-  type="button"
-  onClick={() => {
-    if (!selectedEmployeeScheduleFile) return;
-
-        handleEmployeeScheduleUpload({
-          target: {
-            files: [selectedEmployeeScheduleFile],
-            value: "",
-          },
-        });
-      }}
-      disabled={employeeScheduleUploadLoading}
-      style={{
-        ...setupSecondaryButton,
-        width: "100%",
-        opacity: employeeScheduleUploadLoading ? 0.65 : 1,
-        cursor: employeeScheduleUploadLoading
-          ? "not-allowed"
-          : "pointer",
-      }}
-    >
-      {employeeScheduleUploadLoading
-        ? "Processing Employee Schedule..."
-        : "Confirm & Process Employee Schedule"}
-    </button>
-  </div>
-)}
 </div>
 
+{/* EMPLOYEE SCHEDULE */}
+<div
+  style={{
+    display: "flex",
+    flexDirection: "column",
+    gap: "10px",
+    minWidth: 0,
+  }}
+>
+  <button
+    type="button"
+    onClick={() => {
+      selectedUploadTypeRef.current = "employee_schedules";
+      setUploadType("employee_schedules");
+      setSelectedEmployeeScheduleFile(null);
+
+      console.log(
+        "EMPLOYEE SCHEDULE PICKER OPENED:",
+        selectedUploadTypeRef.current
+      );
+
+      console.log(
+        "EMPLOYEE SCHEDULE INPUT REF:",
+        employeeScheduleUploadInputRef.current
+      );
+
+      if (employeeScheduleUploadInputRef.current) {
+        employeeScheduleUploadInputRef.current.value = "";
+        employeeScheduleUploadInputRef.current.click();
+      }
+    }}
+    disabled={employeeScheduleUploadLoading}
+    style={{
+      ...setupSecondaryButton,
+      width: "100%",
+    }}
+  >
+    {employeeScheduleUploadLoading
+      ? "Processing Employee Schedule..."
+      : "Upload Employee Schedule"}
+  </button>
+
+  {selectedEmployeeScheduleFile && (
+    <div
+      style={{
+        padding: "14px",
+        borderRadius: "14px",
+        background: "rgba(15,23,42,0.72)",
+        border: "1px solid rgba(148,163,184,0.18)",
+      }}
+    >
+      <div
+        style={{
+          color: "#ffffff",
+          fontSize: "13px",
+          fontWeight: "800",
+          marginBottom: "6px",
+        }}
+      >
+        Employee Schedule Ready
+      </div>
+
+      <div
+        style={{
+          color: "#94a3b8",
+          fontSize: "12px",
+          marginBottom: "12px",
+          wordBreak: "break-word",
+        }}
+      >
+        {selectedEmployeeScheduleFile.name}
+      </div>
+
+      <button
+        type="button"
+        onClick={() => {
+          if (!selectedEmployeeScheduleFile) return;
+
+          handleEmployeeScheduleUpload({
+            target: {
+              files: [selectedEmployeeScheduleFile],
+              value: "",
+            },
+          });
+        }}
+        disabled={employeeScheduleUploadLoading}
+        style={{
+          ...setupSecondaryButton,
+          width: "100%",
+          opacity: employeeScheduleUploadLoading ? 0.65 : 1,
+          cursor: employeeScheduleUploadLoading
+            ? "not-allowed"
+            : "pointer",
+        }}
+      >
+        {employeeScheduleUploadLoading
+          ? "Processing Employee Schedule..."
+          : "Confirm & Process Employee Schedule"}
+      </button>
+    </div>
+  )}
+</div>
 <button
   type="button"
   onClick={() => {
