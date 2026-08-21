@@ -43150,7 +43150,10 @@ need to add historical restaurant data.
     "EMPLOYEE SCHEDULE PICKER OPENED:",
     selectedUploadTypeRef.current
   );
-
+console.log(
+  "EMPLOYEE SCHEDULE INPUT REF:",
+  employeeScheduleUploadInputRef.current
+);
   if (employeeScheduleUploadInputRef.current) {
     employeeScheduleUploadInputRef.current.value = "";
     employeeScheduleUploadInputRef.current.click();
