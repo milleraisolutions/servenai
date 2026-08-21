@@ -3530,10 +3530,7 @@ const liveScore =
 
   return sum + (cost > 0 ? cost : hours * rate);
 }, 0);
-const laborRevenueBase =
-  Number(revenueTracker?.weekRevenue || 0) ||
-  Number(revenueTrend?.currentWeekRevenue || 0) ||
-  Number(liveTotalRevenue || 0);
+const laborRevenueBase = Number(liveTotalRevenue || 0);
 
 const laborPercent =
   laborRevenueBase > 0 && totalLaborCost > 0
@@ -13836,7 +13833,232 @@ console.log(
   employeeSchedulingByShiftArray
 );
 
+// ========================================
+// TODAY'S LABOR PLAN — SCHEDULED LABOR
+// ========================================
 
+const safeEmployeeSchedules = Array.isArray(employeeSchedules)
+  ? employeeSchedules
+  : [];
+
+const todayScheduleDate = new Date().toLocaleDateString("en-CA");
+
+const todaysEmployeeSchedules = safeEmployeeSchedules
+  .filter((row) => {
+    const scheduleDate = String(
+      row.schedule_date ||
+        row.date ||
+        ""
+    ).slice(0, 10);
+
+    if (scheduleDate !== todayScheduleDate) {
+      return false;
+    }
+
+    if (
+      activeLocation &&
+      activeLocation !== "All Locations"
+    ) {
+      const rowLocationId = String(
+        row.location_id || ""
+      );
+
+      const rowLocationName = String(
+        row.location_name ||
+          row.location ||
+          ""
+      )
+        .trim()
+        .toLowerCase();
+
+      const selectedLocationId = String(
+        activeLocation || ""
+      );
+
+      const selectedLocationName = String(
+        locations?.find(
+          (location) =>
+            String(location.id) ===
+            String(activeLocation)
+        )?.location_name ||
+          locations?.find(
+            (location) =>
+              String(location.id) ===
+              String(activeLocation)
+          )?.name ||
+          activeLocation ||
+          ""
+      )
+        .trim()
+        .toLowerCase();
+
+      const matchesLocation =
+        rowLocationId === selectedLocationId ||
+        rowLocationName === selectedLocationName;
+
+      if (!matchesLocation) {
+        return false;
+      }
+    }
+
+    return true;
+  })
+  .sort((a, b) =>
+    String(a.scheduled_start || "").localeCompare(
+      String(b.scheduled_start || "")
+    )
+  );
+
+const todaysScheduledEmployeeCount =
+  new Set(
+    todaysEmployeeSchedules.map(
+      (row) =>
+        row.employee_id ||
+        row.employee_name ||
+        row.id
+    )
+  ).size;
+
+const todaysScheduledHours =
+  todaysEmployeeSchedules.reduce(
+    (sum, row) =>
+      sum + Number(row.scheduled_hours || 0),
+    0
+  );
+
+const todaysProjectedLaborCost =
+  todaysEmployeeSchedules.reduce(
+    (sum, row) =>
+      sum +
+      Number(
+        row.projected_labor_cost ||
+          (
+            Number(row.scheduled_hours || 0) *
+            Number(row.hourly_rate || 0)
+          ) ||
+          0
+      ),
+    0
+  );
+
+const todaysScheduledRoleMap =
+  todaysEmployeeSchedules.reduce(
+    (acc, row) => {
+      const role = String(
+        row.role || "Staff"
+      ).trim();
+
+      if (!acc[role]) {
+        acc[role] = {
+          role,
+          employees: new Set(),
+          hours: 0,
+          laborCost: 0,
+        };
+      }
+
+      acc[role].employees.add(
+        row.employee_id ||
+          row.employee_name ||
+          row.id
+      );
+
+      acc[role].hours += Number(
+        row.scheduled_hours || 0
+      );
+
+      acc[role].laborCost += Number(
+        row.projected_labor_cost ||
+          (
+            Number(row.scheduled_hours || 0) *
+            Number(row.hourly_rate || 0)
+          ) ||
+          0
+      );
+
+      return acc;
+    },
+    {}
+  );
+
+const todaysScheduledRoles =
+  Object.values(todaysScheduledRoleMap)
+    .map((role) => ({
+      ...role,
+      employeeCount: role.employees.size,
+    }))
+    .sort(
+      (a, b) =>
+        Number(b.hours || 0) -
+        Number(a.hours || 0)
+    );
+
+console.log("TODAY'S EMPLOYEE SCHEDULES:", todaysEmployeeSchedules);
+console.log("TODAY'S SCHEDULED HOURS:", todaysScheduledHours);
+console.log(
+  "TODAY'S PROJECTED LABOR COST:",
+  todaysProjectedLaborCost
+);
+const mostRecentScheduleDate =
+  safeEmployeeSchedules
+    .map((row) =>
+      String(row.schedule_date || "").slice(0, 10)
+    )
+    .filter(Boolean)
+    .sort((a, b) => b.localeCompare(a))[0] || null;
+
+const displayedScheduleDate =
+  todaysEmployeeSchedules.length > 0
+    ? todayScheduleDate
+    : mostRecentScheduleDate;
+
+const displayedEmployeeSchedules =
+  todaysEmployeeSchedules.length > 0
+    ? todaysEmployeeSchedules
+    : safeEmployeeSchedules
+        .filter(
+          (row) =>
+            String(row.schedule_date || "").slice(0, 10) ===
+            displayedScheduleDate
+        )
+        .sort((a, b) =>
+          String(a.scheduled_start || "").localeCompare(
+            String(b.scheduled_start || "")
+          )
+        );
+
+const displayedScheduledEmployeeCount =
+  new Set(
+    displayedEmployeeSchedules.map(
+      (row) =>
+        row.employee_id ||
+        row.employee_name ||
+        row.id
+    )
+  ).size;
+
+const displayedScheduledHours =
+  displayedEmployeeSchedules.reduce(
+    (sum, row) =>
+      sum + Number(row.scheduled_hours || 0),
+    0
+  );
+
+const displayedProjectedLaborCost =
+  displayedEmployeeSchedules.reduce(
+    (sum, row) =>
+      sum +
+      Number(
+        row.projected_labor_cost ||
+          Number(row.scheduled_hours || 0) *
+            Number(row.hourly_rate || 0) ||
+          0
+      ),
+    0
+  );
+
+const displayingTodaysSchedule =
+  displayedScheduleDate === todayScheduleDate;
 const shiftPerformanceArray = Object.values(shiftPerformanceData);
 
 const topShift =
@@ -18260,15 +18482,15 @@ const vendorPriceSpikeData = useMemo(() => {
       null;
 
     const date = dateRaw ? new Date(dateRaw) : new Date();
-
-    const unitCost = Number(
-      invoice.unit_cost ||
-        invoice.cost_per_unit ||
-        invoice.price_per_unit ||
-        invoice.price ||
-        invoice.cost ||
-        0
-    );
+const unitCost = Number(
+  invoice.unit_price ||
+    invoice.unit_cost ||
+    invoice.cost_per_unit ||
+    invoice.price_per_unit ||
+    invoice.price ||
+    invoice.cost ||
+    0
+);
 
     const key = `${vendor}-${itemName}`;
 
