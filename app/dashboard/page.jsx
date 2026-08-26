@@ -740,6 +740,7 @@ const [mapping, setMapping] = useState({
   cost: "",
   labor: "",
 });
+const [menuActionSelections, setMenuActionSelections] = useState({});
 const [message, setMessage] = useState("");
 const [uploadedFileName, setUploadedFileName] = useState("");
 const [uploadType, setUploadType] = useState("pos");
@@ -6014,6 +6015,13 @@ const saveAppliedAIAction = async ({
   recoveryCategory = null,
   entityType = null,
   entityId = null,
+
+  // Action attribution
+  actionType = null,
+  decisionStatus = "accepted",
+  implementationStatus = "awaiting_verification",
+  baselineData = null,
+  targetData = null,
 }) => {
   try {
     const {
@@ -6044,12 +6052,28 @@ const actionLocation = getActiveConnectionLocation();
   location_id: actionLocation?.id || null,
   location_name: actionLocation?.name || null,
 
-  recovery_category: recoveryCategory || null,
-entity_type: entityType,
-entity_id: entityId,
-  verification_status: "not_started",
-  verified_recovery: null,
-  verified_at: null,
+ recovery_category: recoveryCategory || null,
+
+entity_type: entityType || null,
+entity_id: entityId || null,
+
+// Operator attribution
+action_type: actionType || null,
+decision_status: decisionStatus || "accepted",
+decided_at: new Date().toISOString(),
+
+implementation_status:
+  implementationStatus || "awaiting_verification",
+implemented_at: null,
+
+// Snapshot used later for before/after verification
+baseline_data: baselineData || null,
+target_data: targetData || null,
+
+// Financial verification happens later from real data
+verification_status: "not_started",
+verified_recovery: null,
+verified_at: null,
 },
       ])
       .select()
@@ -79498,96 +79522,144 @@ const nextAction =
 
             </div>
           </div>
+<button
+  type="button"
+  onClick={async () => {
+    if (alreadyApplied) return;
 
-          <button
-            type="button"onClick={async () => {
-  if (alreadyApplied) return;
+    const normalizedCategory =
+      normalizeRecoveryCategory(item.category);
 
-const savedAction = await saveAppliedAIAction({
-  actionName:
-    item.title ||
-    item.id ||
-    "AI Recovery Action",
+    const isMenuAction =
+      normalizedCategory === "menu";
 
-  actionDescription:
-    item.description ||
-    nextAction ||
-    "",
+    const savedAction = await saveAppliedAIAction({
+      actionName:
+        item.title ||
+        item.id ||
+        "AI Recovery Action",
 
-  impactValue: expectedRecovery,
+      actionDescription:
+        item.description ||
+        nextAction ||
+        "",
 
-  appliedBy: "manual",
+      impactValue: expectedRecovery,
 
-  recoveryCategory:
-    normalizeRecoveryCategory(
-      item.category
-    ),
+      appliedBy: "manual",
 
-  entityType:
-    normalizeRecoveryCategory(item.category) === "menu"
-      ? "menu_item"
-      : null,
+      recoveryCategory:
+        normalizedCategory,
 
-  entityId:
-    normalizeRecoveryCategory(item.category) === "menu"
-      ? String(
-          item.menu_item_id ||
-          item.menuItemId ||
-          item.entity_id ||
-          item.entityId ||
-          item.id ||
-          ""
-        ) || null
-      : null,
-});
+      entityType:
+        isMenuAction
+          ? "menu_item"
+          : null,
 
-  if (!savedAction?.id) {
-    setMessage(
-      "The recovery action could not be saved."
+      entityId:
+        isMenuAction
+          ? String(
+              item.menu_item_id ||
+                item.menuItemId ||
+                item.entity_id ||
+                item.entityId ||
+                item.id ||
+                ""
+            ) || null
+          : null,
+
+      actionType:
+        isMenuAction
+          ? "menu_recommendation_review"
+          : `${
+              normalizedCategory || "recovery"
+            }_recommendation_review`,
+
+      decisionStatus: "accepted",
+
+      implementationStatus:
+        "awaiting_verification",
+
+      baselineData:
+        isMenuAction
+          ? {
+              price: Number(
+                item.price ||
+                  item.current_price ||
+                  0
+              ),
+              cost: Number(
+                item.cost ||
+                  item.current_cost ||
+                  0
+              ),
+              margin: Number(
+                item.margin ||
+                  item.current_margin ||
+                  0
+              ),
+              quantity_sold: Number(
+                item.quantity_sold ||
+                  item.quantitySold ||
+                  0
+              ),
+            }
+          : null,
+
+      targetData: null,
+    });
+
+    if (!savedAction?.id) {
+      setMessage(
+        "The recovery action could not be recorded."
+      );
+      return;
+    }
+
+    setAppliedFixes((prev) =>
+      prev.includes(item.id)
+        ? prev
+        : [...prev, item.id]
     );
-    return;
-  }
 
-  setAppliedFixes((prev) =>
-    prev.includes(item.id)
-      ? prev
-      : [...prev, item.id]
-  );
+    setAiLog((prev) =>
+      [
+        {
+          id: Date.now(),
+          text: `Recommendation accepted: ${
+            item.title ||
+            "AI Recovery Action"
+          } • potential +$${Number(
+            expectedRecovery || 0
+          ).toLocaleString()}/mo`,
+        },
+        ...prev,
+      ].slice(0, 6)
+    );
 
-  setAiLog((prev) =>
-    [
-      {
-        id: Date.now(),
-        text: `Applied fix: ${
-          item.title ||
-          "AI Recovery Action"
-        } → +$${Number(
-          expectedRecovery || 0
-        ).toLocaleString()}/mo`,
-      },
-      ...prev,
-    ].slice(0, 6)
-  );
-
-  setMessage(
-    "Recovery action applied. Serven will track results before any recovery is verified."
-  );
-}}
-            style={{
-              padding: "10px 14px",
-              borderRadius: "12px",
-              border: "none",
-              background: alreadyApplied
-                ? "rgba(34,197,94,0.16)"
-                : "linear-gradient(135deg, #4f46e5, #6D3DF5)",
-              color: "white",
-              fontWeight: "900",
-              cursor: alreadyApplied ? "default" : "pointer",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {alreadyApplied ? "Applied ✓" : "Apply Fix"}
-          </button>
+    setMessage(
+      "Recommendation recorded. Serven will monitor connected data for implementation and verified recovery."
+    );
+  }}
+  style={{
+    padding: "10px 14px",
+    borderRadius: "12px",
+    border: "none",
+    background: alreadyApplied
+      ? "rgba(34,197,94,0.16)"
+      : "linear-gradient(135deg, #4f46e5, #6D3DF5)",
+    color: "white",
+    fontWeight: "900",
+    cursor: alreadyApplied
+      ? "default"
+      : "pointer",
+    whiteSpace: "nowrap",
+  }}
+>
+  {alreadyApplied
+    ? "Recommendation Recorded ✓"
+    : "Record Recommendation"}
+</button>
         </div>
       );
     })}
@@ -94032,16 +94104,38 @@ maxWidth: "100%",
       ).toFixed(1)}% of revenue. Review schedules against actual sales volume.`,
     },
 
-   Number(safeEffectiveLaborCostPercent || 0) > 28 &&
-  Number(safeEffectiveLaborCostPercent || 0) <= 35 && {
-    title: "Watch labor scheduling",
-    detail: `Labor is currently ${Number(
+  Number(safeEffectiveLaborCostPercent || 0) > 28 &&
+Number(safeEffectiveLaborCostPercent || 0) <= 35 && {
+  title: "Watch labor scheduling",
+
+  detail: `Labor is currently ${Number(
+    safeEffectiveLaborCostPercent || 0
+  ).toFixed(1)}% of revenue. Tighten staffing around slower dayparts.`,
+
+  canApply: true,
+
+  recoveryCategory: "labor",
+
+  actionType: "schedule_adjustment",
+
+  actionLabel: "Record Schedule Adjustment",
+
+  estimatedImpact: Number(
+    safeEstimatedLaborRecovery || 0
+  ),
+
+  baselineData: {
+    labor_cost_percent: Number(
       safeEffectiveLaborCostPercent || 0
-    ).toFixed(1)}% of revenue. Tighten staffing around slower dayparts.`,
-    canApply: true,
-    recoveryCategory: "labor",
-    estimatedImpact: Number(safeEstimatedLaborRecovery || 0),
+    ),
+    total_labor_hours: Number(
+      safeTotalLaborHours || 0
+    ),
+    sales_per_labor_hour: Number(
+      safeSalesPerLaborHour || 0
+    ),
   },
+},
 
 
     Number(safeTotalLaborHours || 0) > 0 && {
@@ -94124,22 +94218,51 @@ maxWidth: "100%",
               >
                 {action.detail}
               </div>
-              {action.canApply && (
+  {action.canApply && (
   <button
     onClick={async () => {
       const savedAction = await saveAppliedAIAction({
-  actionName: action.title,
-  actionDescription: action.detail,
-  impactValue: Number(action.estimatedImpact || 0),
-  appliedBy: "manual",
-  recoveryCategory: action.recoveryCategory || "labor",
-});
+        actionName: action.title,
+        actionDescription: action.detail,
 
-      if (savedAction) {
-        alert(
-          "Labor recovery action applied. Serven will measure the result before any recovery is verified."
+        impactValue: Number(
+          action.estimatedImpact || 0
+        ),
+
+        appliedBy: "manual",
+
+        recoveryCategory:
+          action.recoveryCategory || "labor",
+
+        entityType: "labor",
+
+        entityId: null,
+
+        actionType:
+          action.actionType ||
+          "labor_recommendation",
+
+        decisionStatus: "accepted",
+
+        implementationStatus:
+          "awaiting_verification",
+
+        baselineData:
+          action.baselineData || null,
+
+        targetData: null,
+      });
+
+      if (!savedAction?.id) {
+        setMessage(
+          "The labor recommendation could not be recorded."
         );
+        return;
       }
+
+      setMessage(
+        "Labor recommendation recorded. Serven will monitor labor and sales data for implementation and verified recovery."
+      );
     }}
     style={{
       marginTop: "12px",
@@ -94153,7 +94276,7 @@ maxWidth: "100%",
       cursor: "pointer",
     }}
   >
-    Apply Fix
+    {action.actionLabel || "Record Labor Action"}
   </button>
 )}
             </div>
@@ -97019,6 +97142,241 @@ maxWidth: "100%",
                 </div>
               </div>
             ))}
+            <div
+  style={{
+    marginTop: "16px",
+    display: "flex",
+    gap: "10px",
+    flexWrap: "wrap",
+  }}
+>
+  <button
+    type="button"
+    onClick={async () => {
+      const savedAction = await saveAppliedAIAction({
+        actionName: `Price adjustment for ${item.name}`,
+        actionDescription:
+          `Operator accepted Serven's pricing recommendation for ${item.name}.`,
+
+        impactValue: Number(
+          item.estimatedMonthlyImpact || 0
+        ),
+
+        appliedBy: "manual",
+
+        recoveryCategory: "menu",
+
+        entityType: "menu_item",
+
+        entityId:
+          item.id
+            ? String(item.id)
+            : null,
+
+        actionType: "price_adjustment",
+
+        decisionStatus: "accepted",
+
+        implementationStatus:
+          "awaiting_verification",
+
+        baselineData: {
+          price: Number(item.price || 0),
+          cost: Number(item.cost || 0),
+          margin: Number(
+            item.marginPercent || 0
+          ),
+          quantity_sold: Number(
+            item.quantitySold || 0
+          ),
+        },
+
+        targetData: null,
+      });
+
+      if (!savedAction?.id) {
+        setMessage(
+          "The menu price recommendation could not be recorded."
+        );
+        return;
+      }
+
+      setMenuActionSelections((prev) => ({
+        ...prev,
+        [item.id || item.name]:
+          "price_adjustment",
+      }));
+
+      setMessage(
+        `${item.name}: price adjustment recorded. Serven will monitor future menu and transaction data for implementation and verified recovery.`
+      );
+    }}
+    style={{
+      padding: "10px 14px",
+      borderRadius: "12px",
+      border: "1px solid rgba(129,140,248,0.28)",
+      background: "rgba(79,70,229,0.16)",
+      color: "#c7d2fe",
+      fontSize: "12px",
+      fontWeight: "900",
+      cursor: "pointer",
+    }}
+  >
+    Record Price Adjustment
+  </button>
+
+  <button
+    type="button"
+    onClick={async () => {
+      const savedAction = await saveAppliedAIAction({
+        actionName:
+          `Cost / portion adjustment for ${item.name}`,
+
+        actionDescription:
+          `Operator accepted Serven's cost or portion recommendation for ${item.name}.`,
+
+        impactValue: Number(
+          item.estimatedMonthlyImpact || 0
+        ),
+
+        appliedBy: "manual",
+
+        recoveryCategory: "menu",
+
+        entityType: "menu_item",
+
+        entityId:
+          item.id
+            ? String(item.id)
+            : null,
+
+        actionType: "cost_portion_adjustment",
+
+        decisionStatus: "accepted",
+
+        implementationStatus:
+          "awaiting_verification",
+
+        baselineData: {
+          price: Number(item.price || 0),
+          cost: Number(item.cost || 0),
+          margin: Number(
+            item.marginPercent || 0
+          ),
+          quantity_sold: Number(
+            item.quantitySold || 0
+          ),
+        },
+
+        targetData: null,
+      });
+
+      if (!savedAction?.id) {
+        setMessage(
+          "The menu cost recommendation could not be recorded."
+        );
+        return;
+      }
+
+      setMenuActionSelections((prev) => ({
+        ...prev,
+        [item.id || item.name]:
+          "cost_portion_adjustment",
+      }));
+
+      setMessage(
+        `${item.name}: cost / portion adjustment recorded. Serven will monitor future menu, recipe, invoice, and transaction data for verification.`
+      );
+    }}
+    style={{
+      padding: "10px 14px",
+      borderRadius: "12px",
+      border: "1px solid rgba(34,197,94,0.26)",
+      background: "rgba(34,197,94,0.12)",
+      color: "#bbf7d0",
+      fontSize: "12px",
+      fontWeight: "900",
+      cursor: "pointer",
+    }}
+  >
+    Record Cost / Portion Adjustment
+  </button>
+
+  <button
+    type="button"
+    onClick={async () => {
+      const savedAction = await saveAppliedAIAction({
+        actionName:
+          `Dismissed menu opportunity for ${item.name}`,
+
+        actionDescription:
+          `Operator reviewed and dismissed Serven's recommendation for ${item.name}.`,
+
+        impactValue: 0,
+
+        appliedBy: "manual",
+
+        recoveryCategory: "menu",
+
+        entityType: "menu_item",
+
+        entityId:
+          item.id
+            ? String(item.id)
+            : null,
+
+        actionType: "opportunity_dismissed",
+
+        decisionStatus: "dismissed",
+
+        implementationStatus:
+          "not_applicable",
+
+        baselineData: {
+          price: Number(item.price || 0),
+          cost: Number(item.cost || 0),
+          margin: Number(
+            item.marginPercent || 0
+          ),
+          quantity_sold: Number(
+            item.quantitySold || 0
+          ),
+        },
+
+        targetData: null,
+      });
+
+      if (!savedAction?.id) {
+        setMessage(
+          "The menu decision could not be recorded."
+        );
+        return;
+      }
+
+      setMenuActionSelections((prev) => ({
+        ...prev,
+        [item.id || item.name]:
+          "dismissed",
+      }));
+
+      setMessage(
+        `${item.name}: opportunity dismissed and decision recorded.`
+      );
+    }}
+    style={{
+      padding: "10px 14px",
+      borderRadius: "12px",
+      border: "1px solid rgba(148,163,184,0.22)",
+      background: "rgba(148,163,184,0.08)",
+      color: "#cbd5e1",
+      fontSize: "12px",
+      fontWeight: "900",
+      cursor: "pointer",
+    }}
+  >
+    Dismiss Opportunity
+  </button>
+</div>
           </div>
         </div>
             ))
@@ -104651,12 +105009,80 @@ subtext: "Profit recovered from applied AI actions",
 
               <button
                 type="button"
-                onClick={() => {
-                  if (applied) return;
+               onClick={async () => {
+  if (applied) return;
 
-                  
-                  setAppliedFixes((prev) => [...prev, itemId]);
-                }}
+  const normalizedCategory =
+    normalizeRecoveryCategory(item.category);
+
+  const savedAction = await saveAppliedAIAction({
+    actionName:
+      item.title ||
+      `AI Opportunity ${index + 1}`,
+
+    actionDescription:
+      item.description ||
+      "AI identified a profit improvement opportunity.",
+
+    impactValue: Number(
+      item.impact || 0
+    ),
+
+    appliedBy: "manual",
+
+    recoveryCategory:
+      normalizedCategory,
+
+    entityType:
+      item.entity_type ||
+      item.entityType ||
+      null,
+
+    entityId:
+      item.entity_id ||
+      item.entityId ||
+      item.menu_item_id ||
+      item.menuItemId ||
+      null,
+
+    actionType:
+      `${
+        normalizedCategory || "profit"
+      }_recommendation_review`,
+
+    decisionStatus: "accepted",
+
+    implementationStatus:
+      "awaiting_verification",
+
+    baselineData:
+      item.baselineData ||
+      item.baseline_data ||
+      null,
+
+    targetData:
+      item.targetData ||
+      item.target_data ||
+      null,
+  });
+
+  if (!savedAction?.id) {
+    setMessage(
+      "The AI recommendation could not be recorded."
+    );
+    return;
+  }
+
+  setAppliedFixes((prev) =>
+    prev.includes(itemId)
+      ? prev
+      : [...prev, itemId]
+  );
+
+  setMessage(
+    "Recommendation recorded. Serven will monitor connected data for implementation and verified recovery."
+  );
+}}
                 style={{
                   marginTop: "10px",
                   padding: "9px 13px",
@@ -104670,7 +105096,9 @@ subtext: "Profit recovered from applied AI actions",
                   cursor: applied ? "default" : "pointer",
                 }}
               >
-                {applied ? "Applied" : "Apply Fix"}
+                {applied
+  ? "Recommendation Recorded ✓"
+  : "Record Recommendation"}
               </button>
             </div>
           </div>
