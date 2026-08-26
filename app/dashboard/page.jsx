@@ -2753,8 +2753,13 @@ const aiProfitOpportunities = useMemo(() => {
         difficulty = "Hard";
       }
 
-      return {
+    return {
   id: item.id || index + 1,
+
+  menu_item_id:
+    item.menu_item_id ||
+    item.menuItemId ||
+    null,
 
   title:
     item.title ||
@@ -6007,6 +6012,8 @@ const saveAppliedAIAction = async ({
   impactValue = 0,
   appliedBy = "autopilot",
   recoveryCategory = null,
+  entityType = null,
+  entityId = null,
 }) => {
   try {
     const {
@@ -6038,7 +6045,8 @@ const actionLocation = getActiveConnectionLocation();
   location_name: actionLocation?.name || null,
 
   recovery_category: recoveryCategory || null,
-
+entity_type: entityType,
+entity_id: entityId,
   verification_status: "not_started",
   verified_recovery: null,
   verified_at: null,
@@ -7710,24 +7718,32 @@ const handleImportMenuItems = async (rowsOverride = null) => {
       );
 
       if (existing) {
-        const { error } = await supabase
-          .from("menu_items")
-          .update({
-            upload_id: uploadRow?.id || null,
-            category: menuItem.category,
-            price: menuItem.price,
-            cost: menuItem.cost,
-            quantity_sold: menuItem.quantity_sold,
-            revenue: menuItem.revenue,
-            margin: menuItem.margin,
-            is_active: true,
-            last_seen_at: now,
-          })
-          .eq("id", existing.id)
-          .eq("user_id", ownerId);
+  const { error } = await supabase
+    .from("menu_items")
+    .update({
+      upload_id: uploadRow?.id || null,
+      category: menuItem.category,
 
-        if (error) throw error;
-      } else {
+      // Preserve the CURRENT values before replacing them
+      previous_price: Number(existing.price || 0),
+      previous_cost: Number(existing.cost || 0),
+      previous_margin: Number(existing.margin || 0),
+previous_quantity_sold: Number(existing.quantity_sold || 0),
+      // Save the NEW uploaded values
+      price: menuItem.price,
+      cost: menuItem.cost,
+      quantity_sold: menuItem.quantity_sold,
+      revenue: menuItem.revenue,
+      margin: menuItem.margin,
+
+      is_active: true,
+      last_seen_at: now,
+    })
+    .eq("id", existing.id)
+    .eq("user_id", ownerId);
+
+  if (error) throw error;
+}else {
         const { error } = await supabase.from("menu_items").insert([
           {
             ...menuItem,
@@ -8456,6 +8472,8 @@ const saveRealAppliedFix = async ({
   source = "real_profit_engine",
   appliedBy = "manual",
   recoveryCategory = null,
+  entityType = null,
+  entityId = null,
 }) => {
   const {
     data: { user },
@@ -8482,6 +8500,9 @@ const actionLocation = getActiveConnectionLocation();
   location_name: actionLocation?.name || null,
 
   recovery_category: recoveryCategory || null,
+
+  entity_type: entityType,
+  entity_id: entityId,
 
   verification_status: "not_started",
   verified_recovery: null,
@@ -11892,19 +11913,246 @@ const getMenuRecoveryImpact = (item) => {
       0
   );
 
-  if (price <= 0 || quantitySold <= 0) return 0;
+ if (price <= 0 || cost <= 0 || quantitySold <= 0) return 0;
 
-  const targetMargin = 0.65;
-  const currentProfitPerUnit = Math.max(0, price - cost);
-  const targetProfitPerUnit = price * targetMargin;
-  const recoverablePerUnit = Math.max(
-    0,
-    targetProfitPerUnit - currentProfitPerUnit
+const targetMargin = 0.65;
+
+const currentMargin =
+  price > 0
+    ? (price - cost) / price
+    : 0;
+
+if (currentMargin >= targetMargin) return 0;
+
+const targetPrice =
+  cost / Math.max(0.01, 1 - targetMargin);
+
+const pricingGapPerUnit = Math.max(
+  0,
+  targetPrice - price
+);
+
+return pricingGapPerUnit * quantitySold;
+};
+const getVerifiedMenuRecovery = (item) => {
+  const currentPrice = Number(
+    item?.price ||
+      item?.menu_price ||
+      0
   );
 
-  return recoverablePerUnit * quantitySold;
-};
+  const previousPrice = Number(
+    item?.previous_price ||
+      item?.previousPrice ||
+      0
+  );
 
+  const currentCost = Number(
+    item?.cost ||
+      item?.recipeCost ||
+      item?.recipe_cost ||
+      item?.food_cost ||
+      0
+  );
+
+  const previousCost = Number(
+    item?.previous_cost ||
+      item?.previousCost ||
+      0
+  );
+
+  const currentQuantitySold = Number(
+  item?.quantitySold ||
+    item?.quantity_sold ||
+    item?.qtySold ||
+    item?.unitsSold ||
+    item?.sold ||
+    0
+);
+
+const previousQuantitySold = Number(
+  item?.previous_quantity_sold ||
+    item?.previousQuantitySold ||
+    0
+);
+
+const postChangeQuantitySold = Math.max(
+  0,
+  currentQuantitySold - previousQuantitySold
+);
+
+  // A verified before/after comparison requires both baselines.
+  if (
+    currentPrice <= 0 ||
+    previousPrice <= 0 ||
+    currentCost < 0 ||
+    previousCost < 0 ||
+    postChangeQuantitySold <= 0
+  ) {
+    return {
+      verified: false,
+      recovered: 0,
+      improvementPerUnit: 0,
+    };
+  }
+
+  const previousProfitPerUnit =
+    previousPrice - previousCost;
+
+  const currentProfitPerUnit =
+    currentPrice - currentCost;
+
+  const improvementPerUnit =
+    currentProfitPerUnit - previousProfitPerUnit;
+
+  const recovered =
+    improvementPerUnit > 0
+      ? improvementPerUnit * postChangeQuantitySold
+      : 0;
+
+  return {
+    verified: recovered > 0,
+    recovered,
+    improvementPerUnit,
+    previousProfitPerUnit,
+    currentProfitPerUnit,
+    previousPrice,
+    currentPrice,
+    previousCost,
+    currentCost,
+   currentQuantitySold,
+previousQuantitySold,
+postChangeQuantitySold,
+  };
+};
+const verifiedMenuRecoverySummary = useMemo(() => {
+  const items = menuItemsData || [];
+
+  const verifiedItems = items
+    .map((item) => {
+      const verification = getVerifiedMenuRecovery(item);
+
+      return {
+        ...item,
+        ...verification,
+      };
+    })
+    .filter((item) => item.verified && item.recovered > 0);
+
+  const totalRecovered = verifiedItems.reduce(
+    (sum, item) => sum + Number(item.recovered || 0),
+    0
+  );
+
+  return {
+    verifiedItems,
+    verifiedItemCount: verifiedItems.length,
+    totalRecovered,
+  };
+}, [menuItemsData]);
+useEffect(() => {
+  const verifyAppliedMenuRecoveries = async () => {
+    if (!authReady) return;
+
+    if (
+      !Array.isArray(realAppliedActions) ||
+      !realAppliedActions.length ||
+      !Array.isArray(menuItemsData) ||
+      !menuItemsData.length
+    ) {
+      return;
+    }
+
+    const pendingMenuActions = realAppliedActions.filter((action) => {
+      const category = String(
+        action.recovery_category || ""
+      ).toLowerCase();
+
+      const entityType = String(
+        action.entity_type || ""
+      ).toLowerCase();
+
+      const verificationStatus = String(
+        action.verification_status || ""
+      ).toLowerCase();
+
+      return (
+        category === "menu" &&
+        entityType === "menu_item" &&
+        action.entity_id &&
+        verificationStatus !== "verified"
+      );
+    });
+
+    if (!pendingMenuActions.length) return;
+
+    let verificationChanged = false;
+
+    for (const action of pendingMenuActions) {
+      const matchingMenuItem = menuItemsData.find(
+        (menuItem) =>
+          String(menuItem.id || "") ===
+          String(action.entity_id || "")
+      );
+
+      if (!matchingMenuItem) continue;
+
+      const verification =
+        getVerifiedMenuRecovery(matchingMenuItem);
+
+      if (
+        !verification?.verified ||
+        Number(verification.recovered || 0) <= 0
+      ) {
+        continue;
+      }
+
+      const verifiedRecovery = Number(
+        verification.recovered || 0
+      );
+
+      const { error } = await supabase
+        .from("ai_applied_actions")
+        .update({
+          verification_status: "verified",
+          verified_recovery: verifiedRecovery,
+          verified_at: new Date().toISOString(),
+          status: "verified",
+        })
+        .eq("id", action.id);
+
+      if (error) {
+        console.error(
+          "MENU RECOVERY VERIFICATION ERROR:",
+          error
+        );
+        continue;
+      }
+
+      verificationChanged = true;
+
+      console.log("MENU RECOVERY VERIFIED:", {
+        actionId: action.id,
+        menuItemId: matchingMenuItem.id,
+        menuItemName:
+          matchingMenuItem.name ||
+          matchingMenuItem.item_name ||
+          "Menu Item",
+        verifiedRecovery,
+      });
+    }
+
+    if (verificationChanged) {
+      await loadRealAppliedActions();
+    }
+  };
+
+  verifyAppliedMenuRecoveries();
+}, [
+  authReady,
+  realAppliedActions,
+  menuItemsData,
+]);
 const shiftWasteImpact = Number(shiftWasteAlerts?.[0]?.riskAmount || 0);
 
 const ingredientUsageImpact = Number(
@@ -11937,15 +12185,21 @@ const topAIRecommendedAction =
         impact: formatMonthlyImpact(ingredientUsageImpact),
         action: "Open Ingredient Audit",
       }
-    : suspiciousMenuItems.length > 0
-    ? {
-        title: `Optimize ${suspiciousMenuItems[0].name}`,
-        description:
-          "Menu intelligence detected possible pricing, portioning, or margin inefficiencies.",
-        priority: "Medium",
-        impact: formatMonthlyImpact(suspiciousMenuImpact),
-        action: "Open Menu Review",
-      }
+   : suspiciousMenuItems.length > 0
+? {
+    title: `Optimize ${suspiciousMenuItems[0].name}`,
+    description:
+      "Menu intelligence detected possible pricing, portioning, or margin inefficiencies.",
+    priority: "Medium",
+    impact: formatMonthlyImpact(suspiciousMenuImpact),
+    action: "Open Menu Review",
+
+    category: "menu",
+    menu_item_id:
+      suspiciousMenuItems[0].menu_item_id ||
+      suspiciousMenuItems[0].id ||
+      null,
+  }
     : usageVariancePercent >= 7
     ? {
         title: "Reduce Food Cost Variance",
@@ -13420,12 +13674,12 @@ const totalLaborCost = (locationLaborData || []).reduce(
         0
     ),
   0
-);const effectiveFoodCostPercent =
+);
+const effectiveFoodCostPercent =
+  Number(liveOverviewMetrics?.foodCostPercentage || 0) ||
   Number(foodCostPercentage || 0);
 
 const laborRevenueBase =
-  Number(revenueTracker?.weekRevenue || 0) ||
-  Number(revenueTrend?.currentWeekRevenue || 0) ||
   Number(liveTotalRevenue || 0);
 
 const effectiveLaborCostPercent =
@@ -13489,10 +13743,12 @@ const primeCostInsight =
     ? "Prime cost is slightly elevated. Monitor labor and food cost trends."
     : "Critical prime cost pressure detected. Food or labor costs need immediate attention.";
 
-const estimatedRecoverableProfit =
+const primeCostAboveTargetDollars =
   livePrimeCost > 60 && liveTotalRevenue > 0
     ? Math.round(((livePrimeCost - 60) / 100) * liveTotalRevenue)
     : 0;
+
+const estimatedRecoverableProfit = primeCostAboveTargetDollars;
 
     console.log("PRIME COST DEBUG:", {
   laborCostPercent,
@@ -14849,7 +15105,13 @@ const executiveInvoiceRecoveryOpportunity = (invoicesData || []).reduce(
         0
     );
 
-    const quantity = Number(row.quantity || row.qty || row.units || 1);
+   const quantity = Number(
+  row.quantity ||
+    row.qty ||
+    row.units ||
+    row.quantity_purchased ||
+    0
+);
 
     const variancePercent = Number(
       row.variancePercent ||
@@ -14891,8 +15153,8 @@ const totalAIRecoveryOpportunity =
   Number(shelfLifeLoss || 0) +
   Number(executiveInvoiceRecoveryOpportunity || 0);
   
-  const annualRecoverableProfit =
-  Number(totalAIRecoveryOpportunity || 0) * 12;
+  const loadedPeriodOpportunity =
+  Number(totalAIRecoveryOpportunity || 0);
 const verifiedRecoveryActions = (aiHistory || []).filter((action) => {
   const status = String(action.status || action.recovery_status || "").toLowerCase();
 
@@ -14983,8 +15245,7 @@ const profitRecoverySummary = useMemo(() => {
   };
 
  return {
-  monthlyRecoverable: estimatedRecoverable,
-  annualRecoverable: Number(annualRecoverableProfit || 0),
+ loadedPeriodRecoverable: estimatedRecoverable,
   verifiedRecovered,
   remaining,
   recoveryProgress,
@@ -15037,7 +15298,6 @@ const profitRecoverySummary = useMemo(() => {
 };
 }, [
   totalAIRecoveryOpportunity,
-  annualRecoverableProfit,
   verifiedRecoveredProfit,
   verifiedRecoveryActions,
   estimatedLaborRecovery,
@@ -15064,15 +15324,18 @@ const recoveryVelocity = useMemo(() => {
           0
       );
 
-      const completedDate = new Date(
-        action.completed_at ||
-          action.completedAt ||
-          action.updated_at ||
-          action.updatedAt ||
-          action.created_at ||
-          action.createdAt ||
-          Date.now()
-      );
+     const completedDateRaw =
+  action.completed_at ||
+  action.completedAt ||
+  action.updated_at ||
+  action.updatedAt ||
+  action.created_at ||
+  action.createdAt ||
+  null;
+
+const completedDate = completedDateRaw
+  ? new Date(completedDateRaw)
+  : null;
 
       return {
         recoveredValue: Number.isFinite(recoveredValue) ? recoveredValue : 0,
@@ -15117,6 +15380,100 @@ const recoveryVelocity = useMemo(() => {
     hasVelocity: datedActions.length > 0 && weeklyPace > 0,
   };
 }, [verifiedRecoveryActions]);
+
+
+const verifiedRecoveryPeriods = useMemo(() => {
+  const actions = (verifiedRecoveryActions || [])
+    .map((action) => {
+      const recoveredValue = Number(
+        action.actual_recovery ||
+          action.actualRecovery ||
+          action.recovered_profit ||
+          action.recoveredProfit ||
+          action.impact_value ||
+          action.impactValue ||
+          action.verified_recovered ||
+          action.recovered ||
+          action.impact ||
+          action.value ||
+          0
+      );
+
+      const completedDateRaw =
+        action.completed_at ||
+        action.completedAt ||
+        action.updated_at ||
+        action.updatedAt ||
+        action.created_at ||
+        action.createdAt ||
+        null;
+
+      const completedDate = completedDateRaw
+        ? new Date(completedDateRaw)
+        : null;
+
+      return {
+        recoveredValue:
+          Number.isFinite(recoveredValue) && recoveredValue > 0
+            ? recoveredValue
+            : 0,
+        completedDate,
+      };
+    })
+    .filter(
+      (action) =>
+        action.recoveredValue > 0 &&
+        action.completedDate instanceof Date &&
+        !Number.isNaN(action.completedDate.getTime())
+    );
+
+  const now = new Date();
+
+  const startOfToday = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate()
+  );
+
+  const startOfWeek = new Date(startOfToday);
+  const dayOfWeek = startOfWeek.getDay();
+  const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+  startOfWeek.setDate(startOfWeek.getDate() - daysSinceMonday);
+
+  const startOfMonth = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    1
+  );
+
+  const startOfYear = new Date(
+    now.getFullYear(),
+    0,
+    1
+  );
+
+  const sumSince = (startDate) =>
+    actions.reduce(
+      (sum, action) =>
+        action.completedDate >= startDate
+          ? sum + action.recoveredValue
+          : sum,
+      0
+    );
+
+  const allTime = actions.reduce(
+    (sum, action) => sum + action.recoveredValue,
+    0
+  );
+
+  return {
+    today: sumSince(startOfToday),
+    week: sumSince(startOfWeek),
+    month: sumSince(startOfMonth),
+    year: sumSince(startOfYear),
+    allTime,
+  };
+}, [verifiedRecoveryActions]);
 const estimatedRecoveryDays = useMemo(() => {
   if (profitRecoverySummary.remaining <= 0) return 0;
 
@@ -15127,18 +15484,9 @@ const estimatedRecoveryDays = useMemo(() => {
     );
   }
 
-  if (profitRecoverySummary.monthlyRecoverable <= 0) return 0;
-
-  return Math.max(
-    7,
-    Math.ceil(
-      profitRecoverySummary.remaining /
-        Math.max(1, profitRecoverySummary.monthlyRecoverable / 30)
-    )
-  );
+  return 0;
 }, [
   profitRecoverySummary.remaining,
-  profitRecoverySummary.monthlyRecoverable,
   recoveryVelocity.hasVelocity,
   recoveryVelocity.dailyPace,
 ]);
@@ -15170,11 +15518,11 @@ const executiveRecoveryInsight = useMemo(() => {
       0
     );
 
-  const weeklyPace = recoveryVelocity.hasVelocity
-    ? recoveryVelocity.weeklyPace
-    : profitRecoverySummary.monthlyRecoverable / 4;
+ const weeklyPace = recoveryVelocity.hasVelocity
+  ? recoveryVelocity.weeklyPace
+  : 0;
 
-  if (!topCategory || profitRecoverySummary.monthlyRecoverable <= 0) {
+  if (!topCategory || profitRecoverySummary.loadedPeriodRecoverable <= 0) {
    return {
   headline: "Upload operational data to generate executive recovery insight.",
 
@@ -15197,7 +15545,7 @@ const executiveRecoveryInsight = useMemo(() => {
     "Top recovery priorities will appear after Serven analyzes your operational data.",
 
   confidence: `${
-    profitRecoverySummary.monthlyRecoverable > 0
+    profitRecoverySummary.loadedPeriodRecoverable > 0
       ? recoveryVelocity.hasVelocity
         ? 96
         : 82
@@ -15246,7 +15594,7 @@ keyRisk:
         ? `Completing the top three recovery priorities could address approximately $${topThreeOpportunity.toLocaleString()} in remaining opportunity.`
         : "Top recovery priorities will appear as more operational data becomes available.",
 
-    confidence: `${profitRecoverySummary.monthlyRecoverable > 0 ? recoveryVelocity.hasVelocity ? 96 : 82 : 0}%`,
+    confidence: `${profitRecoverySummary.loadedPeriodRecoverable > 0 ? recoveryVelocity.hasVelocity ? 96 : 82 : 0}%`,
   };
 }, [
   profitRecoverySummary,
@@ -15275,7 +15623,7 @@ const executiveRecoveryScore = useMemo(() => {
       : 0;
 
   const score =
-    profitRecoverySummary.monthlyRecoverable > 0
+    profitRecoverySummary.loadedPeriodRecoverable> 0
       ? Math.min(
           100,
           Math.round(progressScore + velocityScore + actionScore + completionScore)
@@ -15294,10 +15642,8 @@ const executiveRecoveryScore = useMemo(() => {
       : "Awaiting Data";
 
   const velocityLabel = recoveryVelocity.hasVelocity
-    ? "Verified Pace Active"
-    : profitRecoverySummary.monthlyRecoverable > 0
-    ? "Projected Pace"
-    : "Awaiting Data";
+  ? "Verified Pace Active"
+  : "Awaiting Verified Recovery";
 
   return {
     score,
@@ -15685,7 +16031,7 @@ const highestROILaborActions = useMemo(() => {
 const servenPerformanceRate = 0.15;
 
 const potentialRecovery = Number(
-  profitRecoverySummary?.monthlyRecoverable || 0
+  profitRecoverySummary?.loadedPeriodRecoverable || 0
 );
 
 const verifiedRecovery = Number(
@@ -15814,10 +16160,10 @@ const wowInsight = (() => {
     };
   }
 
- return {
-  title: "Monthly Recoverable Profit",
-  value: `$${Number(totalAIRecoveryOpportunity || 0).toLocaleString()}/month`,
-  message: "Serven-estimated monthly profit recovery opportunity",
+return {
+  title: "Loaded Period Opportunity",
+  value: `$${Number(totalAIRecoveryOpportunity || 0).toLocaleString()}`,
+  message: "Serven-estimated opportunity for the loaded data period",
 };
 })();
 console.log("AI RECOVERY DEBUG:", {
@@ -18474,14 +18820,18 @@ const vendorPriceSpikeData = useMemo(() => {
       invoice.supplier_name ||
       "Unknown Vendor";
 
-    const dateRaw =
-      invoice.invoice_date ||
-      invoice.date ||
-      invoice.created_at ||
-      invoice.purchase_date ||
-      null;
+   const dateRaw =
+  invoice.invoice_date ||
+  invoice.purchase_date ||
+  invoice.date ||
+  null;
 
-    const date = dateRaw ? new Date(dateRaw) : new Date();
+    const parsedDate = dateRaw ? new Date(dateRaw) : null;
+
+const date =
+  parsedDate && !Number.isNaN(parsedDate.getTime())
+    ? parsedDate
+    : null;
 const unitCost = Number(
   invoice.unit_price ||
     invoice.unit_cost ||
@@ -18498,20 +18848,38 @@ const unitCost = Number(
       grouped[key] = [];
     }
 
-    grouped[key].push({
-      itemName,
-      vendor,
-      date,
-      unitCost,
-    });
+    const quantity = Number(
+  invoice.quantity ||
+    invoice.qty ||
+    invoice.units ||
+    invoice.quantity_purchased ||
+    0
+);
+
+grouped[key].push({
+  itemName,
+  vendor,
+  date,
+  unitCost,
+  quantity,
+});
   });
 
   return Object.values(grouped)
     .map((rows) => {
-      const sorted = rows.sort((a, b) => a.date - b.date);
+ const sorted = rows
+  .filter(
+    (row) =>
+      row.date &&
+      typeof row.date.getTime === "function" &&
+      !Number.isNaN(row.date.getTime())
+  )
+  .sort((a, b) => a.date.getTime() - b.date.getTime());
 
-      const previous = sorted[sorted.length - 2];
-      const latest = sorted[sorted.length - 1];
+const previous = sorted[sorted.length - 2];
+const latest = sorted[sorted.length - 1];
+
+
 
       const priceChange =
         previous?.unitCost > 0
@@ -18533,14 +18901,15 @@ const unitCost = Number(
       }
 
       return {
-        itemName: latest?.itemName || "Unknown Item",
-        vendor: latest?.vendor || "Unknown Vendor",
-        previousCost: previous?.unitCost || 0,
-        latestCost: latest?.unitCost || 0,
-        priceChange,
-        status,
-        recommendation,
-      };
+  itemName: latest?.itemName || "Unknown Item",
+  vendor: latest?.vendor || "Unknown Vendor",
+  previousCost: previous?.unitCost || 0,
+  latestCost: latest?.unitCost || 0,
+ quantity: Number(latest?.quantity || 0),
+  priceChange,
+  status,
+  recommendation,
+};
     })
     .filter((item) => item.latestCost > 0)
     .sort((a, b) => b.priceChange - a.priceChange);
@@ -18550,21 +18919,26 @@ const invoiceRecoveryOpportunity = (vendorPriceSpikeData || []).reduce(
     const previousCost = Number(item.previousCost || 0);
     const latestCost = Number(item.latestCost || 0);
 
-    const unitIncrease = Math.max(0, latestCost - previousCost);
+   const unitIncrease =
+  previousCost > 0 && latestCost > previousCost
+    ? latestCost - previousCost
+    : 0;
 
-   const monthlyQuantity =
-  Number(item.quantity || 0) ||
-  Number(item.totalQuantity || 0) ||
+  const observedQuantity =
   Number(item.monthlyQuantity || 0) ||
+  Number(item.totalQuantity || 0) ||
+  Number(item.quantity || 0) ||
   0;
+
+return sum + unitIncrease * observedQuantity;
 
     return sum + unitIncrease * monthlyQuantity;
   },
   0
 );
 
-const annualInvoiceRecoveryOpportunity =
-  Number(invoiceRecoveryOpportunity || 0) * 12;
+const vendorInflationImpact =
+  Number(invoiceRecoveryOpportunity || 0);
 const recipeCostingData = useMemo(() => {
   const rules = recipeUsageRules || [];
 
@@ -24138,6 +24512,7 @@ const financialHealthScoreData = useMemo(() => {
   const primeCost = Number(livePrimeCost || 0);
   const foodCost = Number(effectiveFoodCostPercent || 0);
   const laborCost = Number(effectiveLaborCostPercent || 0);
+
   const invoiceMismatchCount = Number(invoiceMismatchItems?.length || 0);
   const reviewCount = Number(invoiceReviewItems?.length || 0);
   const recoverableProfit = Number(estimatedRecoverableProfit || 0);
@@ -24185,9 +24560,7 @@ const financialHealthScoreData = useMemo(() => {
   else if (laborCost > 32) score -= 8;
   else if (laborCost > 28) score -= 4;
 
-  if (recoverableProfit > 10000) score -= 16;
-  else if (recoverableProfit > 5000) score -= 10;
-  else if (recoverableProfit > 2500) score -= 5;
+
 
   const criticalVendorSpikes = (vendorCostInsights || []).filter(
     (item) => item.status === "Critical Increase"
@@ -24261,7 +24634,13 @@ const financialAlertsFeed = useMemo(() => {
   const primeCost = Number(livePrimeCost || 0);
   const foodCost = Number(effectiveFoodCostPercent || 0);
   const laborCost = Number(effectiveLaborCostPercent || 0);
-
+const hasFinancialAlertData =
+  primeCost > 0 ||
+  foodCost > 0 ||
+  laborCost > 0 ||
+  (invoiceMismatchItems || []).length > 0 ||
+  (vendorCostInsights || []).length > 0 ||
+  Number(estimatedRecoverableProfit || 0) > 0;
   if (primeCost > 60) {
     alerts.push({
       title: "Prime cost pressure detected",
@@ -24320,24 +24699,36 @@ const financialAlertsFeed = useMemo(() => {
       });
     });
 
-  if (Number(estimatedRecoverableProfit || 0) > 2500) {
-    alerts.push({
-      title: "Recoverable profit opportunity",
-      detail: `SerVen estimates $${Number(
-        estimatedRecoverableProfit || 0
-      ).toLocaleString()} in monthly recoverable profit from controllable cost improvements.`,
-      priority: Number(estimatedRecoverableProfit || 0) > 7500 ? "Critical" : "High",
-    });
-  }
+if (Number(livePrimeCost || 0) > 60) {
+  alerts.push({
+    title: "Prime cost above target",
+    detail: `SerVen identified $${Number(
+      estimatedRecoverableProfit || 0
+    ).toLocaleString()} in prime cost above the 60% target for the loaded data period.`,
+    priority:
+      Number(livePrimeCost || 0) > 70
+        ? "Critical"
+        : "High",
+  });
+}
 
-  if (!alerts.length) {
-    alerts.push({
-      title: "Financial operations stable",
-      detail:
-        "No major financial risks detected. SerVen is monitoring prime cost, vendor variance, invoice mismatches, and recoverable profit.",
-      priority: "Normal",
-    });
-  }
+if (!alerts.length) {
+  alerts.push(
+    hasFinancialAlertData
+      ? {
+          title: "Financial operations stable",
+          detail:
+            "No major financial risks detected in the available financial data. SerVen is monitoring prime cost, vendor variance, invoice mismatches, and controllable cost signals.",
+          priority: "Normal",
+        }
+      : {
+          title: "Financial data needed",
+          detail:
+            "Upload or connect POS, labor, invoice, or cost data to activate financial risk monitoring.",
+          priority: "Waiting",
+        }
+  );
+}
 
   return alerts.slice(0, 6);
 }, [
@@ -24362,39 +24753,56 @@ const profitRiskForecastData = useMemo(() => {
   ).length;
 
   const invoiceRiskCount = (invoiceMismatchItems || []).length;
-
- const currentPrimeCostPressure =
-    primeCost > 0
-      ? primeCost + vendorSpikeCount * 0.8 + invoiceRiskCount * 0.4
-      : foodCost + laborCost;
+const hasProfitRiskData =
+  primeCost > 0 ||
+  foodCost > 0 ||
+  laborCost > 0 ||
+  vendorSpikeCount > 0 ||
+  invoiceRiskCount > 0 ||
+  recoverableProfit > 0;
+const currentPrimeCostPressure =
+  primeCost > 0
+    ? primeCost
+    : foodCost > 0 || laborCost > 0
+    ? foodCost + laborCost
+    : 0;
 
 const marginPressureStatus =
-  currentPrimeCostPressure > 70
+  !hasProfitRiskData
+    ? "Waiting for data"
+    : currentPrimeCostPressure > 70
     ? "Critical"
     : currentPrimeCostPressure > 65
     ? "High"
     : currentPrimeCostPressure > 60
     ? "Watch"
     : "Stable";
+const categoryRecoverySignals = Math.max(
+  Number(invoiceRecoveryOpportunity || 0),
+  Number(estimatedInventoryRecovery || 0),
+  Number(liveLaborIntelligence?.laborRecoveryOpportunity || 0)
+);
 
-const currentProfitLeak = Math.round(
-  Number(recoverableProfit || 0) +
-    Number(invoiceRecoveryOpportunity || 0) +
-    Number(estimatedInventoryRecovery || 0) +
-    Number(liveLaborIntelligence?.laborRecoveryOpportunity || 0)
+const costOpportunitySignal = Math.round(
+  Math.max(
+    Number(recoverableProfit || 0),
+    categoryRecoverySignals
+  )
 );
 const forecastInsight =
-  marginPressureStatus === "Critical"
+  marginPressureStatus === "Waiting for data"
+    ? "Upload or connect POS, labor, invoice, or cost data to activate the profit risk forecast."
+    : marginPressureStatus === "Critical"
     ? "Prime cost is under heavy pressure. Review vendor increases, invoice mismatches, food cost, and labor cost immediately."
     : marginPressureStatus === "High"
     ? "Profit pressure is elevated. Vendor cost increases and controllable costs should be reviewed."
     : marginPressureStatus === "Watch"
     ? "Profit pressure is moderate. Continue monitoring prime cost, food cost, labor, and vendor variance trends."
-    : "Profit conditions are currently stable based on prime cost, vendor variance, and recoverable profit signals.";
+   : "Profit conditions are currently stable based on prime cost, vendor variance, and controllable cost signals.";
   return {
     currentPrimeCostPressure,
    marginPressureStatus,
-   currentProfitLeak,
+   costOpportunitySignal,
     vendorSpikeCount,
     invoiceRiskCount,
     forecastInsight,
@@ -24423,7 +24831,17 @@ const financialExecutiveSummary = useMemo(() => {
   const vendorRiskCount =
     Number(financialHealthScoreData?.criticalVendorSpikes || 0) +
     Number(financialHealthScoreData?.risingVendorCosts || 0);
+const hasFinancialSummaryData =
+  primeCost > 0 ||
+  recoverableProfit > 0 ||
+  mismatchCount > 0 ||
+  vendorRiskCount > 0 ||
+  Number(financialHealthScoreData?.foodCost || 0) > 0 ||
+  Number(financialHealthScoreData?.laborCost || 0) > 0;
 
+if (!hasFinancialSummaryData) {
+  return "Upload or connect POS, labor, invoice, or cost data to activate the Financial Executive Summary.";
+}
   const forecastStatus =
    profitRiskForecastData?.marginPressureStatus || "Stable";
 
@@ -24434,17 +24852,15 @@ const financialExecutiveSummary = useMemo(() => {
   else if (healthScore < 88) tone = "operating with manageable cost pressure";
 
   return `
-SerVen AI has evaluated prime cost, food cost, labor cost, invoice variance, vendor inflation, and recoverable profit opportunities.
+SerVen AI has evaluated prime cost, food cost, labor cost, invoice variance, vendor inflation, and recoverable profit opportunities.SerVen AI has evaluated prime cost, food cost, labor cost, invoice variance, vendor inflation, and controllable cost opportunities.
 
-Current financial operations are ${tone} with a Financial Health Score of ${healthScore}/100.
-
-Prime cost is currently ${primeCost.toFixed(1)}%, with an estimated $${recoverableProfit.toLocaleString()} in monthly recoverable profit opportunity.
+Current financial operations are ${tone} with a Financial Health Score of ${healthScore}/100.Prime cost is currently ${primeCost.toFixed(1)}%, with $${recoverableProfit.toLocaleString()} in prime cost above the 60% target for the loaded data period.
 
 SerVen detected ${mismatchCount} invoice mismatch signals and ${vendorRiskCount} vendor cost pressure signals.
 
 Profit risk forecast status is currently ${forecastStatus}.
 
-Recommended focus areas include reducing prime cost pressure, reviewing vendor invoice variance, controlling food and labor cost drift, and prioritizing the highest recoverable profit opportunities.
+Recommended focus areas include reducing prime cost pressure, reviewing vendor invoice variance, controlling food and labor cost drift, and prioritizing the highest recoverable profit opportunities.Recommended focus areas include reducing prime cost pressure, reviewing vendor invoice variance, controlling food and labor cost drift, and prioritizing the largest controllable cost opportunities.
   `.trim();
 }, [
   financialHealthScoreData,
@@ -24894,7 +25310,7 @@ const aiStrategicRecommendations = useMemo(() => {
       category: "Financial",
       priority: financialHealthScoreData.score < 60 ? "Critical" : "High",
       recommendation:
-        "Review prime cost, vendor invoice variance, and recoverable profit opportunities before margin compression worsens.",
+"Review prime cost, vendor invoice variance, and controllable cost opportunities before margin compression worsens.",
       impact: financialHealthScoreData?.recoverableProfit || estimatedRecoverableProfit || 0,
     });
   }
@@ -45204,13 +45620,13 @@ selectedHandler();
 />
 
 <GlassCard
-  title="Annual Impact"
+  title="Loaded Period Opportunity"
   value={
     hasFullRecoveryData
-      ? `$${Number(annualRecoverableProfit || 0).toLocaleString()}`
+    ? `$${Number(loadedPeriodOpportunity || 0).toLocaleString()}`
       : "Upload Revenue"
   }
-  subtext="Projected annual opportunity"
+  subtext="Estimated opportunity for the loaded data period"
 />
 
 <GlassCard
@@ -45267,9 +45683,8 @@ selectedHandler();
       letterSpacing: "-0.03em",
     }}
   >
-    {profitRecoverySummary.monthlyRecoverable > 0
-  ? `You're losing $${profitRecoverySummary.monthlyRecoverable.toLocaleString()}/mo`
-  : "Upload operational data to reveal profit leakage"}
+    {profitRecoverySummary.loadedPeriodRecoverable > 0
+? `$${profitRecoverySummary.loadedPeriodRecoverable.toLocaleString()} in controllable cost opportunity for the loaded data period`  : "Upload operational data to reveal profit leakage"}
   </h3>
 
   <p
@@ -45282,7 +45697,7 @@ selectedHandler();
       maxWidth: "760px",
     }}
   >
-  {profitRecoverySummary.monthlyRecoverable > 0
+  {profitRecoverySummary.loadedPeriodRecoverable > 0
   ? "Serven detected recoverable profit leakage across labor, inventory, menu, beverage, and operational performance. Open the Recovery Center to see exactly where profit is being lost, which actions will recover it first, and how long recovery is expected to take."
   : "Upload POS, labor, inventory, menu, beverage, and invoice data to reveal monthly profit leakage and recovery opportunities."}
   </p>
@@ -45297,40 +45712,40 @@ selectedHandler();
   >
     {[
       {
-        label: "Monthly",
-        value:
-          profitRecoverySummary.monthlyRecoverable > 0
-            ? `$${profitRecoverySummary.monthlyRecoverable.toLocaleString()}`
-            : "Awaiting Data",
-        subtext: "Recoverable",
-      },
+  label: "Recoverable Opportunity",
+  value:
+    profitRecoverySummary.loadedPeriodRecoverable > 0
+      ? `$${profitRecoverySummary.loadedPeriodRecoverable.toLocaleString()}`
+      : "Awaiting Data",
+  subtext: "Potential opportunity identified",
+},
       {
-        label: "Verified",
-        value: `$${profitRecoverySummary.verifiedRecovered.toLocaleString()}`,
-        subtext: "Recovered",
-      },
-      {
-        label: "Remaining",
-        value:
-          profitRecoverySummary.monthlyRecoverable > 0
-            ? `$${profitRecoverySummary.remaining.toLocaleString()}`
-            : "Awaiting Data",
-        subtext: "Opportunity",
-      },
+  label: "Verified Recovered",
+  value: `$${profitRecoverySummary.verifiedRecovered.toLocaleString()}`,
+  subtext: "Actually recovered",
+},
+{
+  label: "Remaining Opportunity",
+  value:
+    profitRecoverySummary.loadedPeriodRecoverable > 0
+      ? `$${profitRecoverySummary.remaining.toLocaleString()}`
+      : "Awaiting Data",
+  subtext: "Still available to recover",
+},
       {
   label: "Top Category",
   value: profitRecoverySummary.categories?.[0]?.label || "Awaiting Data",
   subtext: "Click to investigate",
   route: profitRecoverySummary.categories?.[0]?.route,
 },
-      {
-        label: "Progress",
-        value:
-          profitRecoverySummary.monthlyRecoverable > 0
-            ? `${profitRecoverySummary.recoveryProgress}%`
-            : "0%",
-        subtext: "Recovered",
-      },
+     {
+  label: "Recovery Progress",
+  value:
+    profitRecoverySummary.loadedPeriodRecoverable > 0
+      ? `${profitRecoverySummary.recoveryProgress}%`
+      : "0%",
+  subtext: "Verified recovery captured",
+},
     ].map((item) => (
      <div
   key={item.label}
@@ -45421,6 +45836,73 @@ selectedHandler();
   >
     Open Recovery Center →
   </button>
+</div>
+<div
+  style={{
+    display: "grid",
+    gridTemplateColumns: isMobile
+      ? "1fr"
+      : "repeat(5, minmax(0, 1fr))",
+    gap: "12px",
+    marginTop: "14px",
+    marginBottom: "18px",
+  }}
+>
+  {[
+    {
+      label: "Recovered Today",
+      value: verifiedRecoveryPeriods.today,
+    },
+    {
+      label: "Recovered This Week",
+      value: verifiedRecoveryPeriods.week,
+    },
+    {
+      label: "Recovered This Month",
+      value: verifiedRecoveryPeriods.month,
+    },
+    {
+      label: "Recovered This Year",
+      value: verifiedRecoveryPeriods.year,
+    },
+    {
+      label: "All-Time Recovered",
+      value: verifiedRecoveryPeriods.allTime,
+    },
+  ].map((item) => (
+    <div
+      key={item.label}
+      style={{
+        padding: "14px",
+        borderRadius: "18px",
+        background: "rgba(34,197,94,0.07)",
+        border: "1px solid rgba(34,197,94,0.16)",
+      }}
+    >
+      <div
+        style={{
+          color: "#94a3b8",
+          fontSize: "11px",
+          fontWeight: "900",
+          textTransform: "uppercase",
+          letterSpacing: "0.05em",
+          marginBottom: "7px",
+        }}
+      >
+        {item.label}
+      </div>
+
+      <div
+        style={{
+          color: "#86efac",
+          fontSize: "22px",
+          fontWeight: "950",
+        }}
+      >
+        ${Number(item.value || 0).toLocaleString()}
+      </div>
+    </div>
+  ))}
 </div>
 {/* =========================
    AI EXECUTIVE SUMMARY CLOSEOUT
@@ -45730,18 +46212,17 @@ increase margin efficiency, and reduce operational leakage.
       marginBottom: "8px",
     }}
   >
-    ${Number(totalAIRecoveryOpportunity || 0).toLocaleString()}/mo
+   ${Number(totalAIRecoveryOpportunity || 0).toLocaleString()}
   </div>
 
-  <div
-    style={{
-      color: "#94a3b8",
-      fontSize: "13px",
-    }}
-  >
-    Annual impact: $
-    {Number(annualRecoverableProfit || 0).toLocaleString()}
-  </div>
+ <div
+  style={{
+    fontSize: "13px",
+  }}
+>
+  Loaded period opportunity: $
+ {Number(loadedPeriodOpportunity || 0).toLocaleString()}
+</div>
 </div>
   </>
 )}
@@ -64203,7 +64684,7 @@ Recovered profit is based on saved AI action impact.
     >
       $
       {Number(
-        profitRecoverySummary?.monthlyRecoverable ||
+        profitRecoverySummary?.loadedPeriodRecoverable ||
           totalAIRecoveryOpportunity ||
           0
       ).toLocaleString()}
@@ -70933,8 +71414,8 @@ profit recovery opportunities, AI recommendations, and forecasted trends.
   value: `$${Number(totalAIRecoveryOpportunity || 0).toLocaleString()}`,
 },
 {
-  label: "Monthly Recoverable Profit",
-  value: `$${Number(totalAIRecoveryOpportunity || 0).toLocaleString()}`,
+label: "Loaded Period Opportunity",
+value: `$${Number(totalAIRecoveryOpportunity || 0).toLocaleString()}`,
 },
       ].map((metric) => (
         <div
@@ -70987,12 +71468,10 @@ profit recovery opportunities, AI recommendations, and forecasted trends.
         overflowWrap: "anywhere",
       }}
     >
-      {Number(totalAIRecoveryOpportunity || 0) > 0
+ {Number(totalAIRecoveryOpportunity || 0) > 0
   ? `Serven identified $${Number(
       totalAIRecoveryOpportunity || 0
-    ).toLocaleString()}/month in recoverable profit opportunities. Annual impact is $${Number(
-      annualRecoverableProfit || 0
-    ).toLocaleString()}.`
+    ).toLocaleString()} in controllable cost opportunities for the loaded data period.`
   : weeklyExecutiveSummary?.summary ||
     "Weekly executive summary is monitoring operational performance."}
     </div>
@@ -76800,22 +77279,15 @@ role: "Executive visibility & AI intelligence",
         }}
       >
         {[
-          {
-            label: "Monthly Recoverable",
-            value:
-              profitRecoverySummary.monthlyRecoverable > 0
-                ? `$${profitRecoverySummary.monthlyRecoverable.toLocaleString()}`
-                : "Awaiting Data",
-            subtext: "Profit recovery found",
-          },
-          {
-            label: "Annual Recoverable",
-            value:
-              profitRecoverySummary.annualRecoverable > 0
-                ? `$${profitRecoverySummary.annualRecoverable.toLocaleString()}`
-                : "Awaiting Data",
-            subtext: "Annualized opportunity",
-          },
+         {
+  label: "Recoverable Opportunity",
+  value:
+    profitRecoverySummary.loadedPeriodRecoverable > 0
+      ? `$${profitRecoverySummary.loadedPeriodRecoverable.toLocaleString()}`
+      : "Awaiting Data",
+  subtext: "Potential opportunity identified",
+},
+         
           {
             label: "Verified Recovered",
             value: `$${profitRecoverySummary.verifiedRecovered.toLocaleString()}`,
@@ -76826,7 +77298,7 @@ role: "Executive visibility & AI intelligence",
           {
             label: "Remaining",
             value:
-              profitRecoverySummary.monthlyRecoverable > 0
+              profitRecoverySummary.loadedPeriodRecoverable > 0
                 ? `$${profitRecoverySummary.remaining.toLocaleString()}`
                 : "Awaiting Data",
             subtext: "Uncaptured opportunity",
@@ -78189,7 +78661,7 @@ role: "Executive visibility & AI intelligence",
   </div>
 )}
 {/* RECOVERY FUNNEL */}
-{profitRecoverySummary.monthlyRecoverable > 0 && (
+{profitRecoverySummary.loadedPeriodRecoverable > 0 && (
   <div
     style={{
       marginTop: "20px",
@@ -78221,27 +78693,27 @@ role: "Executive visibility & AI intelligence",
     >
       {[
         {
-          label: "Detected",
-          value: profitRecoverySummary.monthlyRecoverable,
-          subtext: "Total opportunity found",
-        },
-        {
-          label: "Verified",
-          value: profitRecoverySummary.monthlyRecoverable,
-          subtext: "Backed by uploaded data",
-        },
-        {
-          label: "Actions Started",
-          value: profitRecoverySummary.verifiedRecovered,
-          subtext: `${profitRecoverySummary.verifiedActionCount} verified action${
-            profitRecoverySummary.verifiedActionCount === 1 ? "" : "s"
-          }`,
-        },
-        {
-          label: "Recovered",
-          value: profitRecoverySummary.verifiedRecovered,
-          subtext: "Confirmed recovered value",
-        },
+  label: "Detected Opportunity",
+  value: profitRecoverySummary.loadedPeriodRecoverable,
+  subtext: "Total controllable cost opportunity identified",
+},
+{
+  label: "Verified Actions",
+  displayValue: `${profitRecoverySummary.verifiedActionCount}`,
+  subtext: `${profitRecoverySummary.verifiedActionCount} completed or verified action${
+    profitRecoverySummary.verifiedActionCount === 1 ? "" : "s"
+  }`,
+},
+{
+  label: "Verified Recovered",
+  value: profitRecoverySummary.verifiedRecovered,
+  subtext: "Actually recovered and verified",
+},
+{
+  label: "Remaining Opportunity",
+  value: profitRecoverySummary.remaining,
+  subtext: "Opportunity still available to recover",
+},
       ].map((stage) => (
         <div
           key={stage.label}
@@ -78272,7 +78744,8 @@ role: "Executive visibility & AI intelligence",
               marginTop: "8px",
             }}
           >
-            ${Number(stage.value || 0).toLocaleString()}
+            {stage.displayValue ??
+  `$${Number(stage.value || 0).toLocaleString()}`}
           </div>
 
           <div
@@ -78349,34 +78822,27 @@ role: "Executive visibility & AI intelligence",
     }}
   >
    {[
-  {
-    label: "This Week",
-    value:
-      profitRecoverySummary.monthlyRecoverable > 0
-        ? `$${Math.round(
-           recoveryVelocity.hasVelocity
-  ? recoveryVelocity.weeklyPace
-  : profitRecoverySummary.monthlyRecoverable / 4
-          ).toLocaleString()}`
-        : "Awaiting Data",
-    subtext: "Projected near-term recovery",
-  },
-  {
-    label: "This Month",
-    value:
-      profitRecoverySummary.monthlyRecoverable > 0
-        ? `$${profitRecoverySummary.monthlyRecoverable.toLocaleString()}`
-        : "Awaiting Data",
-    subtext: "Current recovery opportunity",
-  },
-  {
-    label: "Annual Projection",
-    value:
-      profitRecoverySummary.annualRecoverable > 0
-        ? `$${profitRecoverySummary.annualRecoverable.toLocaleString()}`
-        : "Awaiting Data",
-    subtext: "Projected yearly impact",
-  },
+{
+  label: "Recovered This Week",
+  value: `$${Number(
+    verifiedRecoveryPeriods.week || 0
+  ).toLocaleString()}`,
+  subtext: "Verified recovery this week",
+},
+{
+  label: "Recovered This Month",
+  value: `$${Number(
+    verifiedRecoveryPeriods.month || 0
+  ).toLocaleString()}`,
+  subtext: "Verified recovery this month",
+},
+{
+  label: "All-Time Recovered",
+  value: `$${Number(
+    verifiedRecoveryPeriods.allTime || 0
+  ).toLocaleString()}`,
+  subtext: "Total verified recovery",
+},
 ].map((item) => (
   <div
     key={item.label}
@@ -78513,11 +78979,11 @@ role: "Executive visibility & AI intelligence",
       letterSpacing: "-0.04em",
     }}
   >
-    {profitRecoverySummary.monthlyRecoverable > 0
+    {profitRecoverySummary.loadedPeriodRecoverable > 0
       ? `$${Math.round(
          recoveryVelocity.hasVelocity
   ? recoveryVelocity.weeklyPace
-  : profitRecoverySummary.monthlyRecoverable / 4
+: profitRecoverySummary.loadedPeriodRecoverable
         ).toLocaleString()} / week`
       : "Awaiting Data"}
   </div>
@@ -78734,8 +79200,8 @@ role: "Executive visibility & AI intelligence",
         margin: "0 0 10px",
       }}
     >
-      {profitRecoverySummary.monthlyRecoverable > 0
-        ? `$${profitRecoverySummary.monthlyRecoverable.toLocaleString()}/mo in recoverable profit identified`
+   {profitRecoverySummary.loadedPeriodRecoverable > 0
+  ? `$${profitRecoverySummary.loadedPeriodRecoverable.toLocaleString()} in controllable cost opportunity identified for the loaded data period`
         : "Upload operational data to reveal recoverable profit"}
     </h3>
 
@@ -79037,26 +79503,43 @@ const nextAction =
             type="button"onClick={async () => {
   if (alreadyApplied) return;
 
-  const savedAction = await saveAppliedAIAction({
-    actionName:
-      item.title ||
-      item.id ||
-      "AI Recovery Action",
+const savedAction = await saveAppliedAIAction({
+  actionName:
+    item.title ||
+    item.id ||
+    "AI Recovery Action",
 
-    actionDescription:
-      item.description ||
-      nextAction ||
-      "",
+  actionDescription:
+    item.description ||
+    nextAction ||
+    "",
 
-    impactValue: expectedRecovery,
+  impactValue: expectedRecovery,
 
-    appliedBy: "manual",
+  appliedBy: "manual",
 
-    recoveryCategory:
-      normalizeRecoveryCategory(
-        item.category
-      ),
-  });
+  recoveryCategory:
+    normalizeRecoveryCategory(
+      item.category
+    ),
+
+  entityType:
+    normalizeRecoveryCategory(item.category) === "menu"
+      ? "menu_item"
+      : null,
+
+  entityId:
+    normalizeRecoveryCategory(item.category) === "menu"
+      ? String(
+          item.menu_item_id ||
+          item.menuItemId ||
+          item.entity_id ||
+          item.entityId ||
+          item.id ||
+          ""
+        ) || null
+      : null,
+});
 
   if (!savedAction?.id) {
     setMessage(
@@ -79868,8 +80351,8 @@ const nextAction =
 `${Number(profitRiskForecastData.currentPrimeCostPressure || 0).toFixed(1)}%`,
         ],
         [
-         "Current Profit Leak",
-`$${Number(profitRiskForecastData.currentProfitLeak || 0).toLocaleString()}`,
+        "Cost Opportunity Signal",
+`$${Number(profitRiskForecastData.costOpportunitySignal || 0).toLocaleString()}`,
         ],
         [
           "Forecast Status",
@@ -79982,25 +80465,31 @@ const nextAction =
       subtext="Labor cost as a percentage of revenue"
     />
 
-    <GlassCard
-      title="Controllable Cost"
-      value={
-        livePrimeCost > 0
-          ? `${Number(livePrimeCost).toFixed(1)}%`
-          : "Waiting for data"
-      }
-      subtext="Food cost plus labor cost"
-    />
+   <GlassCard
+  title="Prime Cost"
+  value={
+    livePrimeCost > 0
+      ? `${Number(livePrimeCost).toFixed(1)}%`
+      : "Waiting for data"
+  }
+  subtext="Food cost plus labor cost"
+/>
 
     <GlassCard
-      title="AI Recovery Opportunity"
-      value={`$${Number(estimatedRecoverableProfit || 0).toLocaleString()}`}
-      subtext={
-        estimatedRecoverableProfit > 0
-          ? "Estimated monthly recovery opportunity"
-          : "No recovery opportunity detected yet"
-      }
-    />
+ title="Prime Cost Above Target"
+  value={
+    livePrimeCost > 0
+      ? `$${Number(estimatedRecoverableProfit || 0).toLocaleString()}`
+      : "Waiting for data"
+  }
+  subtext={
+    livePrimeCost <= 0
+     ? "Financial data needed to calculate prime cost opportunity"
+      : estimatedRecoverableProfit > 0
+     ? "Prime cost dollars above a 60% target for the loaded data period"
+      : "Prime cost is at or below the 60% target"
+  }
+/>
   </div>
 </div>
 
@@ -80112,15 +80601,15 @@ const nextAction =
   }}
 >
   <GlassCard
-    title="Monthly Vendor Inflation Impact"
+   title="Vendor Cost Pressure"
     value={`$${Number(invoiceRecoveryOpportunity || 0).toLocaleString()}`}
-    subtext="Estimated monthly supplier cost pressure"
+    subtext="Supplier cost pressure for the loaded data period"
   />
 
   <GlassCard
-    title="Annual Vendor Inflation Impact"
-    value={`$${Number(annualInvoiceRecoveryOpportunity || 0).toLocaleString()}`}
-    subtext="Projected annual margin impact"
+    title="Vendor Inflation Impact"
+    value={`$${Number(vendorInflationImpact || 0).toLocaleString()}`}
+    subtext="Supplier cost pressure for the loaded data period"
   />
 </div>
 {(!vendorCostInsights || vendorCostInsights.length === 0) && (
