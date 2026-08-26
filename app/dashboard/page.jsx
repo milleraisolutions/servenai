@@ -15280,7 +15280,7 @@ const profitRecoverySummary = useMemo(() => {
     buildCategory({
       icon: "🍽",
       label: "Menu",
-      route: "menu",
+   route: "recipes",
       action: "Review low-margin items, pricing gaps, and menu mix drag.",
       opportunity: estimatedFoodRecovery,
     }),
@@ -15680,7 +15680,7 @@ const highestROIActions = useMemo(() => {
     {
       title: "Improve Menu Pricing",
       category: "Menu",
-      route: "menu",
+     route: "recipes",
       opportunity: Number(estimatedFoodRecovery || 0),
       effort: "Low",
       timeframe: "Immediate",
