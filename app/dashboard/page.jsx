@@ -97386,24 +97386,31 @@ disabled={
     borderRadius: "12px",
     border: "1px solid rgba(34,197,94,0.26)",
 
-    background:
-      menuActionSelections[
-        item.id || item.name
-      ] === "cost_portion_adjustment"
-        ? "rgba(34,197,94,0.18)"
-        : "rgba(34,197,94,0.12)",
+   background:
+  menuActionSelections[
+    item.id || item.name
+  ]
+    ? "rgba(71,85,105,0.35)"
+    : "rgba(34,197,94,0.12)",
 
-    color:
-      menuActionSelections[
-        item.id || item.name
-      ] === "cost_portion_adjustment"
-        ? "#86efac"
-        : "#bbf7d0",
+color:
+  menuActionSelections[
+    item.id || item.name
+  ]
+    ? "#64748b"
+    : "#bbf7d0",
 
-    fontSize: "12px",
-    fontWeight: "900",
+fontSize: "12px",
+fontWeight: "900",
 
-   cursor:
+opacity:
+  menuActionSelections[
+    item.id || item.name
+  ]
+    ? 0.55
+    : 1,
+
+cursor:
   menuActionSelections[
     item.id || item.name
   ]
@@ -97496,25 +97503,31 @@ disabled={
     padding: "10px 14px",
     borderRadius: "12px",
     border: "1px solid rgba(148,163,184,0.22)",
+background:
+  menuActionSelections[
+    item.id || item.name
+  ]
+    ? "rgba(71,85,105,0.35)"
+    : "rgba(148,163,184,0.08)",
 
-    background:
-      menuActionSelections[
-        item.id || item.name
-      ] === "dismissed"
-        ? "rgba(148,163,184,0.14)"
-        : "rgba(148,163,184,0.08)",
+color:
+  menuActionSelections[
+    item.id || item.name
+  ]
+    ? "#64748b"
+    : "#cbd5e1",
 
-    color:
-      menuActionSelections[
-        item.id || item.name
-      ] === "dismissed"
-        ? "#94a3b8"
-        : "#cbd5e1",
+fontSize: "12px",
+fontWeight: "900",
 
-    fontSize: "12px",
-    fontWeight: "900",
+opacity:
+  menuActionSelections[
+    item.id || item.name
+  ]
+    ? 0.55
+    : 1,
 
-   cursor:
+cursor:
   menuActionSelections[
     item.id || item.name
   ]
