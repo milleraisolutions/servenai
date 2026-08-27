@@ -6861,39 +6861,31 @@ setTimeout(() => {
       };
     })
     .filter((item) => item.name);
+console.log("MENU SAFE ROWS RAW:", safeRows);
+console.log("MENU ROWS TO IMPORT:", menuRows);
 
-  console.log("MENU SAFE ROWS RAW:", safeRows);
-  console.log("MENU ROWS TO IMPORT:", menuRows);
+if (!menuRows.length) {
+  setMessage(
+    "Menu file loaded, but no valid menu item names were found."
+  );
+  return;
+}
 
-  setMenuItemsData(menuRows);
-
-  setPendingUploadSummary({
-    fileName: file.name,
-    rowCount: menuRows.length,
-    uploadType: "menu_items",
-    uploadedAt: Date.now(),
-    rows: menuRows,
-  });
-setShowSourcePicker(false);
-setMessage(`Importing ${menuRows.length} menu items...`);
-  if (!menuRows.length) {
-    setMessage("Menu file loaded, but no valid menu item names were found.");
-    return;
-  }
-setMessage(
-  `${menuRows.length} menu items loaded. Review the file and click Confirm Import.`
-);
+setMenuItemsData(menuRows);
 
 setPendingUploadSummary({
   fileName: file.name,
   rowCount: menuRows.length,
   uploadType: "menu_items",
-  rows: menuRows,
   uploadedAt: Date.now(),
+  rows: menuRows,
 });
 
-setPendingUploadRows(menuRows);
-pendingUploadRowsRef.current = menuRows;
+setShowSourcePicker(false);
+
+setMessage(
+  `${menuRows.length} menu items loaded. Review the file and click Confirm Import.`
+);
 } else if (activeUploadType === "ingredients") {
   const cleanedIngredientRows = safeRows.map((row) => ({
     ...row,
