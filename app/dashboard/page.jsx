@@ -7741,8 +7741,18 @@ const handleImportMenuItems = async (rowsOverride = null) => {
           menuItem.name.trim().toLowerCase()
       );
 
-      if (existing) {
-  const { error } = await supabase
+     if (existing) {
+  console.log("MENU EXISTING ITEM FOUND:", {
+    id: existing.id,
+    name: existing.name,
+    currentPrice: existing.price,
+    incomingPrice: menuItem.price,
+    currentQuantitySold: existing.quantity_sold,
+    incomingQuantitySold: menuItem.quantity_sold,
+    ownerId,
+  });
+
+  const { data: updatedRows, error } = await supabase
     .from("menu_items")
     .update({
       upload_id: uploadRow?.id || null,
@@ -7764,9 +7774,21 @@ previous_quantity_sold: Number(existing.quantity_sold || 0),
       last_seen_at: now,
     })
     .eq("id", existing.id)
-    .eq("user_id", ownerId);
+.eq("user_id", ownerId)
+.select();
 
-  if (error) throw error;
+if (error) {
+  console.error("MENU ITEM UPDATE ERROR:", error);
+  throw error;
+}
+
+console.log("MENU ITEM UPDATED ROWS:", updatedRows);
+
+if (!updatedRows?.length) {
+  throw new Error(
+    `Menu item update matched zero rows for "${menuItem.name}".`
+  );
+}
 }else {
         const { error } = await supabase.from("menu_items").insert([
           {
