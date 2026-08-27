@@ -12162,28 +12162,92 @@ useEffect(() => {
       if (!matchingMenuItem) continue;
 
       const verification =
-        getVerifiedMenuRecovery(matchingMenuItem);
+  getVerifiedMenuRecovery(matchingMenuItem);
 
-      if (
-        !verification?.verified ||
-        Number(verification.recovered || 0) <= 0
-      ) {
-        continue;
-      }
+const actionType = String(
+  action.action_type || ""
+).toLowerCase();
 
-      const verifiedRecovery = Number(
-        verification.recovered || 0
-      );
+const decisionStatus = String(
+  action.decision_status || ""
+).toLowerCase();
 
-      const { error } = await supabase
-        .from("ai_applied_actions")
-        .update({
-          verification_status: "verified",
-          verified_recovery: verifiedRecovery,
-          verified_at: new Date().toISOString(),
-          status: "verified",
-        })
-        .eq("id", action.id);
+// Only accepted operator decisions can become verified recovery.
+if (decisionStatus !== "accepted") {
+  continue;
+}
+
+// Dismissed opportunities never create recovery.
+if (actionType === "opportunity_dismissed") {
+  continue;
+}
+
+const previousPrice = Number(
+  verification?.previousPrice || 0
+);
+
+const currentPrice = Number(
+  verification?.currentPrice || 0
+);
+
+const previousCost = Number(
+  verification?.previousCost || 0
+);
+
+const currentCost = Number(
+  verification?.currentCost || 0
+);
+
+let implementationConfirmed = false;
+
+// PRICE ACTION:
+// Serven must actually detect a higher price.
+if (actionType === "price_adjustment") {
+  implementationConfirmed =
+    previousPrice > 0 &&
+    currentPrice > previousPrice;
+}
+
+// COST / PORTION ACTION:
+// Serven must actually detect lower item cost.
+if (actionType === "cost_portion_adjustment") {
+  implementationConfirmed =
+    previousCost > 0 &&
+    currentCost < previousCost;
+}
+
+// Do not automatically verify generic or unknown menu actions.
+if (!implementationConfirmed) {
+  continue;
+}
+
+if (
+  !verification?.verified ||
+  Number(verification.recovered || 0) <= 0
+) {
+  continue;
+}
+
+const verifiedRecovery = Number(
+  verification.recovered || 0
+);
+
+   const verificationTimestamp =
+  new Date().toISOString();
+
+const { error } = await supabase
+  .from("ai_applied_actions")
+  .update({
+    implementation_status: "confirmed",
+    implemented_at: verificationTimestamp,
+
+    verification_status: "verified",
+    verified_recovery: verifiedRecovery,
+    verified_at: verificationTimestamp,
+
+    status: "verified",
+  })
+  .eq("id", action.id);
 
       if (error) {
         console.error(
