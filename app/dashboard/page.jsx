@@ -6880,12 +6880,20 @@ setMessage(`Importing ${menuRows.length} menu items...`);
     setMessage("Menu file loaded, but no valid menu item names were found.");
     return;
   }
+setMessage(
+  `${menuRows.length} menu items loaded. Review the file and click Confirm Import.`
+);
 
-  setMessage(`Importing ${menuRows.length} menu items...`);
+setPendingUploadSummary({
+  fileName: file.name,
+  rowCount: menuRows.length,
+  uploadType: "menu_items",
+  rows: menuRows,
+  uploadedAt: Date.now(),
+});
 
-setTimeout(() => {
-  handleImportMenuItems(menuRows);
-}, 0);
+setPendingUploadRows(menuRows);
+pendingUploadRowsRef.current = menuRows;
 } else if (activeUploadType === "ingredients") {
   const cleanedIngredientRows = safeRows.map((row) => ({
     ...row,
