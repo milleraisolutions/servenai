@@ -8587,6 +8587,46 @@ useEffect(() => {
   user?.id,
   userProfile?.owner_user_id,
 ]);
+
+
+
+useEffect(() => {
+  if (!Array.isArray(realAppliedActions)) return;
+
+  const selections = {};
+
+  realAppliedActions.forEach((action) => {
+    if (
+      String(action.recovery_category || "").toLowerCase() !== "menu"
+    ) {
+      return;
+    }
+
+    if (
+      String(action.entity_type || "").toLowerCase() !== "menu_item"
+    ) {
+      return;
+    }
+
+    const entityId = String(action.entity_id || "").trim();
+
+    if (!entityId) return;
+
+    const actionType = String(
+      action.action_type || ""
+    ).toLowerCase();
+
+    if (
+      actionType === "price_adjustment" ||
+      actionType === "cost_portion_adjustment" ||
+      actionType === "opportunity_dismissed"
+    ) {
+      selections[entityId] = actionType;
+    }
+  });
+
+  setMenuActionSelections(selections);
+}, [realAppliedActions]);
 const realTotalAiProfit = realAppliedActions.reduce(
   (sum, action) => sum + Number(action.impact_value || 0),
   0
@@ -97150,232 +97190,344 @@ Number(safeEffectiveLaborCostPercent || 0) <= 35 && {
     flexWrap: "wrap",
   }}
 >
-  <button
-    type="button"
-    onClick={async () => {
-      const savedAction = await saveAppliedAIAction({
-        actionName: `Price adjustment for ${item.name}`,
-        actionDescription:
-          `Operator accepted Serven's pricing recommendation for ${item.name}.`,
+<button
+  type="button"
+  disabled={
+    menuActionSelections[item.id || item.name] ===
+    "price_adjustment"
+  }
+  onClick={async () => {
+    const selectionKey =
+      item.id || item.name;
 
-        impactValue: Number(
-          item.estimatedMonthlyImpact || 0
+    if (
+      menuActionSelections[selectionKey] ===
+      "price_adjustment"
+    ) {
+      return;
+    }
+
+    const savedAction = await saveAppliedAIAction({
+      actionName: `Price adjustment for ${item.name}`,
+
+      actionDescription:
+        `Operator accepted Serven's pricing recommendation for ${item.name}.`,
+
+      impactValue: Number(
+        item.estimatedMonthlyImpact || 0
+      ),
+
+      appliedBy: "manual",
+
+      recoveryCategory: "menu",
+
+      entityType: "menu_item",
+
+      entityId:
+        item.id
+          ? String(item.id)
+          : null,
+
+      actionType: "price_adjustment",
+
+      decisionStatus: "accepted",
+
+      implementationStatus:
+        "awaiting_verification",
+
+      baselineData: {
+        price: Number(item.price || 0),
+        cost: Number(item.cost || 0),
+        margin: Number(
+          item.marginPercent || 0
         ),
-
-        appliedBy: "manual",
-
-        recoveryCategory: "menu",
-
-        entityType: "menu_item",
-
-        entityId:
-          item.id
-            ? String(item.id)
-            : null,
-
-        actionType: "price_adjustment",
-
-        decisionStatus: "accepted",
-
-        implementationStatus:
-          "awaiting_verification",
-
-        baselineData: {
-          price: Number(item.price || 0),
-          cost: Number(item.cost || 0),
-          margin: Number(
-            item.marginPercent || 0
-          ),
-          quantity_sold: Number(
-            item.quantitySold || 0
-          ),
-        },
-
-        targetData: null,
-      });
-
-      if (!savedAction?.id) {
-        setMessage(
-          "The menu price recommendation could not be recorded."
-        );
-        return;
-      }
-
-      setMenuActionSelections((prev) => ({
-        ...prev,
-        [item.id || item.name]:
-          "price_adjustment",
-      }));
-
-      setMessage(
-        `${item.name}: price adjustment recorded. Serven will monitor future menu and transaction data for implementation and verified recovery.`
-      );
-    }}
-    style={{
-      padding: "10px 14px",
-      borderRadius: "12px",
-      border: "1px solid rgba(129,140,248,0.28)",
-      background: "rgba(79,70,229,0.16)",
-      color: "#c7d2fe",
-      fontSize: "12px",
-      fontWeight: "900",
-      cursor: "pointer",
-    }}
-  >
-    Record Price Adjustment
-  </button>
-
-  <button
-    type="button"
-    onClick={async () => {
-      const savedAction = await saveAppliedAIAction({
-        actionName:
-          `Cost / portion adjustment for ${item.name}`,
-
-        actionDescription:
-          `Operator accepted Serven's cost or portion recommendation for ${item.name}.`,
-
-        impactValue: Number(
-          item.estimatedMonthlyImpact || 0
+        quantity_sold: Number(
+          item.quantitySold || 0
         ),
+      },
 
-        appliedBy: "manual",
+      targetData: null,
+    });
 
-        recoveryCategory: "menu",
-
-        entityType: "menu_item",
-
-        entityId:
-          item.id
-            ? String(item.id)
-            : null,
-
-        actionType: "cost_portion_adjustment",
-
-        decisionStatus: "accepted",
-
-        implementationStatus:
-          "awaiting_verification",
-
-        baselineData: {
-          price: Number(item.price || 0),
-          cost: Number(item.cost || 0),
-          margin: Number(
-            item.marginPercent || 0
-          ),
-          quantity_sold: Number(
-            item.quantitySold || 0
-          ),
-        },
-
-        targetData: null,
-      });
-
-      if (!savedAction?.id) {
-        setMessage(
-          "The menu cost recommendation could not be recorded."
-        );
-        return;
-      }
-
-      setMenuActionSelections((prev) => ({
-        ...prev,
-        [item.id || item.name]:
-          "cost_portion_adjustment",
-      }));
-
+    if (!savedAction?.id) {
       setMessage(
-        `${item.name}: cost / portion adjustment recorded. Serven will monitor future menu, recipe, invoice, and transaction data for verification.`
+        "The menu price recommendation could not be recorded."
       );
-    }}
-    style={{
-      padding: "10px 14px",
-      borderRadius: "12px",
-      border: "1px solid rgba(34,197,94,0.26)",
-      background: "rgba(34,197,94,0.12)",
-      color: "#bbf7d0",
-      fontSize: "12px",
-      fontWeight: "900",
-      cursor: "pointer",
-    }}
-  >
-    Record Cost / Portion Adjustment
-  </button>
+      return;
+    }
 
-  <button
-    type="button"
-    onClick={async () => {
-      const savedAction = await saveAppliedAIAction({
-        actionName:
-          `Dismissed menu opportunity for ${item.name}`,
+    setMenuActionSelections((prev) => ({
+      ...prev,
+      [selectionKey]:
+        "price_adjustment",
+    }));
 
-        actionDescription:
-          `Operator reviewed and dismissed Serven's recommendation for ${item.name}.`,
+    setMessage(
+      `${item.name}: price adjustment recorded. Serven will monitor future menu and transaction data for implementation and verified recovery.`
+    );
+  }}
+  style={{
+    padding: "10px 14px",
+    borderRadius: "12px",
+    border: "1px solid rgba(129,140,248,0.28)",
 
-        impactValue: 0,
+    background:
+      menuActionSelections[
+        item.id || item.name
+      ] === "price_adjustment"
+        ? "rgba(34,197,94,0.14)"
+        : "rgba(79,70,229,0.16)",
 
-        appliedBy: "manual",
+    color:
+      menuActionSelections[
+        item.id || item.name
+      ] === "price_adjustment"
+        ? "#86efac"
+        : "#c7d2fe",
 
-        recoveryCategory: "menu",
+    fontSize: "12px",
+    fontWeight: "900",
 
-        entityType: "menu_item",
+    cursor:
+      menuActionSelections[
+        item.id || item.name
+      ] === "price_adjustment"
+        ? "default"
+        : "pointer",
+  }}
+>
+  {menuActionSelections[
+    item.id || item.name
+  ] === "price_adjustment"
+    ? "Price Adjustment Recorded ✓"
+    : "Record Price Adjustment"}
+</button>
 
-        entityId:
-          item.id
-            ? String(item.id)
-            : null,
+<button
+  type="button"
+  disabled={
+    menuActionSelections[item.id || item.name] ===
+    "cost_portion_adjustment"
+  }
+  onClick={async () => {
+    const selectionKey =
+      item.id || item.name;
 
-        actionType: "opportunity_dismissed",
+    if (
+      menuActionSelections[selectionKey] ===
+      "cost_portion_adjustment"
+    ) {
+      return;
+    }
 
-        decisionStatus: "dismissed",
+    const savedAction = await saveAppliedAIAction({
+      actionName:
+        `Cost / portion adjustment for ${item.name}`,
 
-        implementationStatus:
-          "not_applicable",
+      actionDescription:
+        `Operator accepted Serven's cost or portion recommendation for ${item.name}.`,
 
-        baselineData: {
-          price: Number(item.price || 0),
-          cost: Number(item.cost || 0),
-          margin: Number(
-            item.marginPercent || 0
-          ),
-          quantity_sold: Number(
-            item.quantitySold || 0
-          ),
-        },
+      impactValue: Number(
+        item.estimatedMonthlyImpact || 0
+      ),
 
-        targetData: null,
-      });
+      appliedBy: "manual",
 
-      if (!savedAction?.id) {
-        setMessage(
-          "The menu decision could not be recorded."
-        );
-        return;
-      }
+      recoveryCategory: "menu",
 
-      setMenuActionSelections((prev) => ({
-        ...prev,
-        [item.id || item.name]:
-          "dismissed",
-      }));
+      entityType: "menu_item",
 
+      entityId:
+        item.id
+          ? String(item.id)
+          : null,
+
+      actionType:
+        "cost_portion_adjustment",
+
+      decisionStatus: "accepted",
+
+      implementationStatus:
+        "awaiting_verification",
+
+      baselineData: {
+        price: Number(item.price || 0),
+        cost: Number(item.cost || 0),
+        margin: Number(
+          item.marginPercent || 0
+        ),
+        quantity_sold: Number(
+          item.quantitySold || 0
+        ),
+      },
+
+      targetData: null,
+    });
+
+    if (!savedAction?.id) {
       setMessage(
-        `${item.name}: opportunity dismissed and decision recorded.`
+        "The menu cost recommendation could not be recorded."
       );
-    }}
-    style={{
-      padding: "10px 14px",
-      borderRadius: "12px",
-      border: "1px solid rgba(148,163,184,0.22)",
-      background: "rgba(148,163,184,0.08)",
-      color: "#cbd5e1",
-      fontSize: "12px",
-      fontWeight: "900",
-      cursor: "pointer",
-    }}
-  >
-    Dismiss Opportunity
-  </button>
+      return;
+    }
+
+    setMenuActionSelections((prev) => ({
+      ...prev,
+      [selectionKey]:
+        "cost_portion_adjustment",
+    }));
+
+    setMessage(
+      `${item.name}: cost / portion adjustment recorded. Serven will monitor future menu, recipe, invoice, and transaction data for verification.`
+    );
+  }}
+  style={{
+    padding: "10px 14px",
+    borderRadius: "12px",
+    border: "1px solid rgba(34,197,94,0.26)",
+
+    background:
+      menuActionSelections[
+        item.id || item.name
+      ] === "cost_portion_adjustment"
+        ? "rgba(34,197,94,0.18)"
+        : "rgba(34,197,94,0.12)",
+
+    color:
+      menuActionSelections[
+        item.id || item.name
+      ] === "cost_portion_adjustment"
+        ? "#86efac"
+        : "#bbf7d0",
+
+    fontSize: "12px",
+    fontWeight: "900",
+
+    cursor:
+      menuActionSelections[
+        item.id || item.name
+      ] === "cost_portion_adjustment"
+        ? "default"
+        : "pointer",
+  }}
+>
+  {menuActionSelections[
+    item.id || item.name
+  ] === "cost_portion_adjustment"
+    ? "Cost / Portion Adjustment Recorded ✓"
+    : "Record Cost / Portion Adjustment"}
+</button>
+<button
+  type="button"
+  disabled={
+    menuActionSelections[item.id || item.name] ===
+    "dismissed"
+  }
+  onClick={async () => {
+    const selectionKey =
+      item.id || item.name;
+
+    if (
+      menuActionSelections[selectionKey] ===
+      "dismissed"
+    ) {
+      return;
+    }
+
+    const savedAction = await saveAppliedAIAction({
+      actionName:
+        `Dismissed menu opportunity for ${item.name}`,
+
+      actionDescription:
+        `Operator reviewed and dismissed Serven's recommendation for ${item.name}.`,
+
+      impactValue: 0,
+
+      appliedBy: "manual",
+
+      recoveryCategory: "menu",
+
+      entityType: "menu_item",
+
+      entityId:
+        item.id
+          ? String(item.id)
+          : null,
+
+      actionType:
+        "opportunity_dismissed",
+
+      decisionStatus: "dismissed",
+
+      implementationStatus:
+        "not_applicable",
+
+      baselineData: {
+        price: Number(item.price || 0),
+        cost: Number(item.cost || 0),
+        margin: Number(
+          item.marginPercent || 0
+        ),
+        quantity_sold: Number(
+          item.quantitySold || 0
+        ),
+      },
+
+      targetData: null,
+    });
+
+    if (!savedAction?.id) {
+      setMessage(
+        "The menu decision could not be recorded."
+      );
+      return;
+    }
+
+    setMenuActionSelections((prev) => ({
+      ...prev,
+      [selectionKey]: "dismissed",
+    }));
+
+    setMessage(
+      `${item.name}: opportunity dismissed and decision recorded.`
+    );
+  }}
+  style={{
+    padding: "10px 14px",
+    borderRadius: "12px",
+    border: "1px solid rgba(148,163,184,0.22)",
+
+    background:
+      menuActionSelections[
+        item.id || item.name
+      ] === "dismissed"
+        ? "rgba(148,163,184,0.14)"
+        : "rgba(148,163,184,0.08)",
+
+    color:
+      menuActionSelections[
+        item.id || item.name
+      ] === "dismissed"
+        ? "#94a3b8"
+        : "#cbd5e1",
+
+    fontSize: "12px",
+    fontWeight: "900",
+
+    cursor:
+      menuActionSelections[
+        item.id || item.name
+      ] === "dismissed"
+        ? "default"
+        : "pointer",
+  }}
+>
+  {menuActionSelections[
+    item.id || item.name
+  ] === "dismissed"
+    ? "Opportunity Dismissed ✓"
+    : "Dismiss Opportunity"}
+</button>
 </div>
           </div>
         </div>
