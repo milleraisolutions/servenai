@@ -97192,20 +97192,20 @@ Number(safeEffectiveLaborCostPercent || 0) <= 35 && {
 >
 <button
   type="button"
-  disabled={
-    menuActionSelections[item.id || item.name] ===
-    "price_adjustment"
-  }
+disabled={
+  Boolean(
+    menuActionSelections[item.id || item.name]
+  )
+}
   onClick={async () => {
     const selectionKey =
       item.id || item.name;
 
-    if (
-      menuActionSelections[selectionKey] ===
-      "price_adjustment"
-    ) {
-      return;
-    }
+  if (
+  menuActionSelections[selectionKey]
+) {
+  return;
+}
 
     const savedAction = await saveAppliedAIAction({
       actionName: `Price adjustment for ${item.name}`,
@@ -97288,12 +97288,12 @@ Number(safeEffectiveLaborCostPercent || 0) <= 35 && {
     fontSize: "12px",
     fontWeight: "900",
 
-    cursor:
-      menuActionSelections[
-        item.id || item.name
-      ] === "price_adjustment"
-        ? "default"
-        : "pointer",
+  cursor:
+  menuActionSelections[
+    item.id || item.name
+  ]
+    ? "default"
+    : "pointer",
   }}
 >
   {menuActionSelections[
@@ -97305,20 +97305,20 @@ Number(safeEffectiveLaborCostPercent || 0) <= 35 && {
 
 <button
   type="button"
-  disabled={
-    menuActionSelections[item.id || item.name] ===
-    "cost_portion_adjustment"
-  }
+ disabled={
+  Boolean(
+    menuActionSelections[item.id || item.name]
+  )
+}
   onClick={async () => {
     const selectionKey =
       item.id || item.name;
 
-    if (
-      menuActionSelections[selectionKey] ===
-      "cost_portion_adjustment"
-    ) {
-      return;
-    }
+   if (
+  menuActionSelections[selectionKey]
+) {
+  return;
+}
 
     const savedAction = await saveAppliedAIAction({
       actionName:
@@ -97403,12 +97403,12 @@ Number(safeEffectiveLaborCostPercent || 0) <= 35 && {
     fontSize: "12px",
     fontWeight: "900",
 
-    cursor:
-      menuActionSelections[
-        item.id || item.name
-      ] === "cost_portion_adjustment"
-        ? "default"
-        : "pointer",
+   cursor:
+  menuActionSelections[
+    item.id || item.name
+  ]
+    ? "default"
+    : "pointer",
   }}
 >
   {menuActionSelections[
@@ -97420,19 +97420,19 @@ Number(safeEffectiveLaborCostPercent || 0) <= 35 && {
 <button
   type="button"
   disabled={
-    menuActionSelections[item.id || item.name] ===
-    "dismissed"
-  }
+  Boolean(
+    menuActionSelections[item.id || item.name]
+  )
+}
   onClick={async () => {
     const selectionKey =
       item.id || item.name;
 
-    if (
-      menuActionSelections[selectionKey] ===
-      "dismissed"
-    ) {
-      return;
-    }
+   if (
+  menuActionSelections[selectionKey]
+) {
+  return;
+}
 
     const savedAction = await saveAppliedAIAction({
       actionName:
@@ -97514,12 +97514,12 @@ Number(safeEffectiveLaborCostPercent || 0) <= 35 && {
     fontSize: "12px",
     fontWeight: "900",
 
-    cursor:
-      menuActionSelections[
-        item.id || item.name
-      ] === "dismissed"
-        ? "default"
-        : "pointer",
+   cursor:
+  menuActionSelections[
+    item.id || item.name
+  ]
+    ? "default"
+    : "pointer",
   }}
 >
   {menuActionSelections[
