@@ -7749,30 +7749,30 @@ const handleImportMenuItems = async (rowsOverride = null) => {
     ownerId,
   });
 
-  const { data: updatedRows, error } = await supabase
-    .from("menu_items")
-    .update({
-      upload_id: uploadRow?.id || null,
-      category: menuItem.category,
+const { data: updatedRows, error } = await supabase
+  .from("menu_items")
+  .update({
+    upload_id: uploadRow?.id || null,
+    category: menuItem.category,
 
-      // Preserve the CURRENT values before replacing them
-      previous_price: Number(existing.price || 0),
-      previous_cost: Number(existing.cost || 0),
-      previous_margin: Number(existing.margin || 0),
-previous_quantity_sold: Number(existing.quantity_sold || 0),
-      // Save the NEW uploaded values
-      price: menuItem.price,
-      cost: menuItem.cost,
-      quantity_sold: menuItem.quantity_sold,
-      revenue: menuItem.revenue,
-      margin: menuItem.margin,
+    // Preserve CURRENT values as the verification baseline
+    previous_price: Number(existing.price || 0),
+    previous_cost: Number(existing.cost || 0),
+    previous_margin: Number(existing.margin || 0),
+    previous_quantity_sold: Number(existing.quantity_sold || 0),
 
-      is_active: true,
-      last_seen_at: now,
-    })
-    .eq("id", existing.id)
-.eq("user_id", ownerId)
-.select();
+    // Save NEW uploaded values
+    price: menuItem.price,
+    cost: menuItem.cost,
+    quantity_sold: menuItem.quantity_sold,
+    revenue: menuItem.revenue,
+    margin: menuItem.margin,
+
+    is_active: true,
+    last_seen_at: now,
+  })
+  .eq("id", existing.id)
+  .select();
 
 if (error) {
   console.error("MENU ITEM UPDATE ERROR:", error);
