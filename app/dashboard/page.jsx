@@ -6754,15 +6754,12 @@ setTimeout(() => {
 }, 0);
 
 } else if (activeUploadType === "menu_items") {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user?.id) {
-    alert("No logged-in user found.");
-    setMessage("Please log in before uploading menu items.");
-    return;
-  }
+  console.log("MENU ITEMS FILE BRANCH HIT:", {
+    fileName: file?.name || "",
+    safeRowCount: safeRows?.length || 0,
+    selectedUploadType: selectedUploadTypeRef.current,
+    uploadType,
+  });
 
   const toNumber = (value) => {
     const cleaned = String(value ?? "")
@@ -6848,7 +6845,7 @@ setTimeout(() => {
         price > 0 ? ((price - cost) / price) * 100 : 0;
 
       return {
-        user_id: user.id,
+       user_id: dataOwnerId || null,
         name: String(name || "").trim(),
         category: String(category || "Uncategorized").trim(),
         price,
