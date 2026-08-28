@@ -41150,7 +41150,6 @@ const dedicatedUploadTypes = [
   "pos",
   "labor",
   "inventory",
-  "menu_items",
   "ingredients",
   "employee_shifts",
   "batch_prep",
