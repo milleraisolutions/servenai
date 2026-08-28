@@ -41147,6 +41147,7 @@ const dedicatedUploadTypes = [
   "pos",
   "labor",
   "inventory",
+    "menu_items",
   "ingredients",
   "employee_shifts",
   "batch_prep",
@@ -43874,19 +43875,121 @@ need to add historical restaurant data.
     </div>
   )}
 </div>
-<button
-  onClick={() => {
-    selectedUploadTypeRef.current = "menu_items";
-    setUploadType("menu_items");
-
-    const input = document.getElementById("menuItemsUpload");
-    if (input) input.value = "";
-    input?.click();
+<div
+  style={{
+    display: "flex",
+    flexDirection: "column",
+    gap: "10px",
+    minWidth: 0,
   }}
-  style={setupSecondaryButton}
 >
-  Upload Menu Items
-</button>
+  <button
+    type="button"
+    onClick={() => {
+      selectedUploadTypeRef.current = "menu_items";
+      setUploadType("menu_items");
+
+      const input =
+        document.getElementById("menuItemsUpload");
+
+      if (!input) {
+        console.error(
+          "menuItemsUpload input not found"
+        );
+        setMessage(
+          "Menu Items upload input was not found."
+        );
+        return;
+      }
+
+      input.value = "";
+      input.click();
+    }}
+    style={{
+      ...setupSecondaryButton,
+      width: "100%",
+    }}
+  >
+    Upload Menu Items
+  </button>
+
+  {pendingUploadSummary?.uploadType ===
+    "menu_items" && (
+    <div
+      style={{
+        padding: "12px",
+        borderRadius: "12px",
+        background: "rgba(15,23,42,0.96)",
+        border:
+          "1px solid rgba(148,163,184,0.22)",
+        display: "flex",
+        flexDirection: "column",
+        gap: "10px",
+        minWidth: 0,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+          color: "#e2e8f0",
+          minWidth: 0,
+        }}
+      >
+        <span>📄</span>
+
+        <strong
+          style={{
+            flex: 1,
+            minWidth: 0,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {pendingUploadSummary.fileName ||
+            "Menu Items file"}
+        </strong>
+
+        <span
+          style={{
+            color: "#94a3b8",
+            flexShrink: 0,
+            fontSize: "12px",
+          }}
+        >
+          {Number(
+            pendingUploadSummary.rowCount || 0
+          ).toLocaleString()}{" "}
+          rows
+        </span>
+      </div>
+
+      <button
+        type="button"
+        onClick={() =>
+          handleImportMenuItems(
+            pendingUploadSummary?.rows || []
+          )
+        }
+        style={{
+          width: "100%",
+          padding: "10px 12px",
+          borderRadius: "10px",
+          background:
+            "linear-gradient(135deg, #4f46e5, #7c3aed)",
+          color: "#fff",
+          border: "none",
+          fontWeight: "800",
+          cursor: "pointer",
+        }}
+      >
+        Confirm & Process Menu Items
+      </button>
+    </div>
+  )}
+</div>
 
 <button
   onClick={() => {
