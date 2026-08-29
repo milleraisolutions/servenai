@@ -69,7 +69,7 @@ const buildLineItemId = ({
 
   if (providedId) return providedId;
 
-  return crypto
+   return crypto
     .createHash("sha256")
     .update(
       [
@@ -81,6 +81,150 @@ const buildLineItemId = ({
     )
     .digest("hex");
 };
+
+
+// =========================================================
+// INTEGRATED MENU ITEM HISTORY SYNC
+// =========================================================
+
+async function syncIntegratedMenuItemHistory({
+  supabaseAdmin,
+  userId,
+  connectionId,
+  locationId,
+  incomingItems = [],
+}) {
+  if (!userId || !incomingItems.length) return [];
+
+  const now = new Date().toISOString();
+
+  const { data: existingRows, error: existingError } =
+    await supabaseAdmin
+      .from("menu_items")
+      .select("*")
+      .eq("user_id", userId);
+
+  if (existingError) {
+    throw existingError;
+  }
+
+  const syncedRows = [];
+
+  for (const incomingItem of incomingItems) {
+    const name = String(
+      incomingItem.item_name ||
+        incomingItem.name ||
+        ""
+    ).trim();
+
+    if (!name) continue;
+
+    const existing = (existingRows || []).find(
+      (item) =>
+        String(item.name || "")
+          .trim()
+          .toLowerCase() ===
+        name.toLowerCase()
+    );
+
+    const price = Number(
+      incomingItem.unit_price || 0
+    );
+
+    const quantitySold = Number(
+      incomingItem.quantity || 0
+    );
+
+    const revenue = Number(
+      incomingItem.net_sales ||
+        incomingItem.gross_sales ||
+        price * quantitySold ||
+        0
+    );
+
+    if (existing) {
+      const { data: updatedRows, error } =
+        await supabaseAdmin
+          .from("menu_items")
+          .update({
+            previous_price: Number(existing.price || 0),
+            previous_cost: Number(existing.cost || 0),
+            previous_margin: Number(existing.margin || 0),
+            previous_quantity_sold: Number(
+              existing.quantity_sold || 0
+            ),
+
+            price:
+              price > 0
+                ? price
+                : Number(existing.price || 0),
+
+            quantity_sold:
+              Number(existing.quantity_sold || 0) +
+              quantitySold,
+
+            revenue:
+              Number(existing.revenue || 0) +
+              revenue,
+
+            connection_id: connectionId || null,
+            location_id: locationId || null,
+
+            is_active: true,
+            last_seen_at: now,
+          })
+          .eq("id", existing.id)
+          .select();
+
+      if (error) throw error;
+
+      if (updatedRows?.[0]) {
+        syncedRows.push(updatedRows[0]);
+      }
+    } else {
+      const { data: insertedRows, error } =
+        await supabaseAdmin
+          .from("menu_items")
+          .insert([
+            {
+              user_id: userId,
+              name,
+              category: "Uncategorized",
+
+              price,
+              cost: 0,
+
+              quantity_sold: quantitySold,
+              revenue,
+
+              margin: 0,
+
+              previous_price: 0,
+              previous_cost: 0,
+              previous_margin: 0,
+              previous_quantity_sold: 0,
+
+              connection_id: connectionId || null,
+              location_id: locationId || null,
+
+              is_active: true,
+              created_at: now,
+              last_seen_at: now,
+            },
+          ])
+          .select();
+
+      if (error) throw error;
+
+      if (insertedRows?.[0]) {
+        syncedRows.push(insertedRows[0]);
+      }
+    }
+  }
+
+  return syncedRows;
+}
+
 
 export async function POST(request) {
   let webhookEventRowId = null;
@@ -505,7 +649,13 @@ export async function POST(request) {
       savedItemCount =
         savedItems?.length || 0;
     }
-
+await syncIntegratedMenuItemHistory({
+  supabaseAdmin,
+  userId: connection.user_id,
+  connectionId: connection.id,
+  locationId: connection.location_id || null,
+  incomingItems: normalizedItems,
+});
     const {
       error: processedEventError,
     } = await supabaseAdmin

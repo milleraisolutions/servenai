@@ -7442,6 +7442,184 @@ setPendingUploadRows([]);
   setImportingPOS(false);
 }
 };
+const syncMenuItemsWithHistory = async ({
+  ownerId,
+  incomingItems = [],
+  uploadId = null,
+  connectionId = null,
+  locationId = null,
+  source = "manual",
+}) => {
+  if (!ownerId) {
+    throw new Error("Menu sync requires an owner ID.");
+  }
+
+  if (!Array.isArray(incomingItems) || !incomingItems.length) {
+    return [];
+  }
+
+  const now = new Date().toISOString();
+
+  const { data: existingRows, error: existingError } =
+    await supabase
+      .from("menu_items")
+      .select("*")
+      .eq("user_id", ownerId);
+
+  if (existingError) {
+    throw existingError;
+  }
+
+  const syncedRows = [];
+
+  for (const incomingItem of incomingItems) {
+    const incomingName = String(
+      incomingItem.name ||
+        incomingItem.item_name ||
+        ""
+    )
+      .trim()
+      .toLowerCase();
+
+    if (!incomingName) continue;
+
+    const existing = (existingRows || []).find(
+      (item) =>
+        String(item.name || "")
+          .trim()
+          .toLowerCase() === incomingName
+    );
+
+    const price = Number(incomingItem.price || 0);
+    const cost = Number(incomingItem.cost || 0);
+    const quantitySold = Number(
+      incomingItem.quantity_sold || 0
+    );
+
+    const revenue = Number(
+      incomingItem.revenue ||
+        price * quantitySold ||
+        0
+    );
+
+    const margin =
+      Number(incomingItem.margin || 0) > 0
+        ? Number(incomingItem.margin)
+        : price > 0
+        ? ((price - cost) / price) * 100
+        : 0;
+
+    if (existing) {
+      const { data: updatedRows, error } =
+        await supabase
+          .from("menu_items")
+          .update({
+            previous_price: Number(
+              existing.price || 0
+            ),
+            previous_cost: Number(
+              existing.cost || 0
+            ),
+            previous_margin: Number(
+              existing.margin || 0
+            ),
+            previous_quantity_sold: Number(
+              existing.quantity_sold || 0
+            ),
+
+            price,
+            cost,
+            quantity_sold: quantitySold,
+            revenue,
+            margin,
+
+            category:
+              incomingItem.category ||
+              existing.category ||
+              "Uncategorized",
+
+            upload_id:
+              uploadId ||
+              existing.upload_id ||
+              null,
+
+            connection_id:
+              connectionId ||
+              existing.connection_id ||
+              null,
+
+            location_id:
+              locationId ||
+              existing.location_id ||
+              null,
+
+            is_active: true,
+            last_seen_at: now,
+          })
+          .eq("id", existing.id)
+          .select();
+
+      if (error) throw error;
+
+      if (!updatedRows?.length) {
+        throw new Error(
+          `Menu sync matched zero rows for "${incomingItem.name}".`
+        );
+      }
+
+      syncedRows.push(updatedRows[0]);
+    } else {
+      const { data: insertedRows, error } =
+        await supabase
+          .from("menu_items")
+          .insert([
+            {
+              user_id: ownerId,
+              name: incomingItem.name,
+              category:
+                incomingItem.category ||
+                "Uncategorized",
+
+              price,
+              cost,
+              quantity_sold: quantitySold,
+              revenue,
+              margin,
+
+              previous_price: 0,
+              previous_cost: 0,
+              previous_margin: 0,
+              previous_quantity_sold: 0,
+
+              upload_id: uploadId,
+              connection_id: connectionId,
+              location_id: locationId,
+
+              is_active: true,
+              created_at: now,
+              last_seen_at: now,
+            },
+          ])
+          .select();
+
+      if (error) throw error;
+
+      if (insertedRows?.[0]) {
+        syncedRows.push(insertedRows[0]);
+      }
+    }
+  }
+
+  console.log("MENU HISTORY SYNC COMPLETE:", {
+    source,
+    incomingCount: incomingItems.length,
+    syncedCount: syncedRows.length,
+    connectionId,
+    uploadId,
+  });
+
+  return syncedRows;
+};
 console.log("TRACE AFTER IMPORT MAPPED SALES");
 console.log("TRACE BEFORE IMPORT MENU ITEMS");
 const handleImportMenuItems = async (rowsOverride = null) => {
@@ -7731,72 +7909,19 @@ const handleImportMenuItems = async (rowsOverride = null) => {
       item.name.trim().toLowerCase()
     );
 
-    for (const menuItem of cleanedRows) {
-      const existing = (existingRows || []).find(
-        (item) =>
-          String(item.name || "").trim().toLowerCase() ===
-          menuItem.name.trim().toLowerCase()
-      );
+const syncedMenuRows = await syncMenuItemsWithHistory({
+  ownerId,
+  incomingItems: cleanedRows,
+  uploadId: uploadRow?.id || null,
+  connectionId: null,
+  locationId: selectedUploadLocationId || null,
+  source: "manual_menu_upload",
+});
 
-     if (existing) {
-  console.log("MENU EXISTING ITEM FOUND:", {
-    id: existing.id,
-    name: existing.name,
-    currentPrice: existing.price,
-    incomingPrice: menuItem.price,
-    currentQuantitySold: existing.quantity_sold,
-    incomingQuantitySold: menuItem.quantity_sold,
-    ownerId,
-  });
-
-const { data: updatedRows, error } = await supabase
-  .from("menu_items")
-  .update({
-    upload_id: uploadRow?.id || null,
-    category: menuItem.category,
-
-    // Preserve CURRENT values as the verification baseline
-    previous_price: Number(existing.price || 0),
-    previous_cost: Number(existing.cost || 0),
-    previous_margin: Number(existing.margin || 0),
-    previous_quantity_sold: Number(existing.quantity_sold || 0),
-
-    // Save NEW uploaded values
-    price: menuItem.price,
-    cost: menuItem.cost,
-    quantity_sold: menuItem.quantity_sold,
-    revenue: menuItem.revenue,
-    margin: menuItem.margin,
-
-    is_active: true,
-    last_seen_at: now,
-  })
-  .eq("id", existing.id)
-  .select();
-
-if (error) {
-  console.error("MENU ITEM UPDATE ERROR:", error);
-  throw error;
-}
-
-console.log("MENU ITEM UPDATED ROWS:", updatedRows);
-
-if (!updatedRows?.length) {
-  throw new Error(
-    `Menu item update matched zero rows for "${menuItem.name}".`
-  );
-}
-}else {
-        const { error } = await supabase.from("menu_items").insert([
-          {
-            ...menuItem,
-            upload_id: uploadRow?.id || null,
-          },
-        ]);
-
-        if (error) throw error;
-      }
-    }
+console.log(
+  "MANUAL MENU HISTORY SYNC COMPLETE:",
+  syncedMenuRows
+);
 
     const isFullMenuSync = cleanedRows.length >= 20;
 
@@ -41844,7 +41969,137 @@ const handleDisconnectRestaurantSystem = async (provider) => {
     setMessage(`Could not disconnect ${provider}.`);
   }
 };
+const processIntegratedMenuItems = async ({
+  provider,
+  connection,
+  items = [],
+}) => {
+  const ownerId = dataOwnerId || user?.id;
 
+  if (!ownerId) {
+    throw new Error(
+      "Integrated menu sync requires an owner ID."
+    );
+  }
+
+  if (!connection?.id) {
+    throw new Error(
+      "Integrated menu sync requires a connection."
+    );
+  }
+
+  if (!Array.isArray(items) || !items.length) {
+    console.log(
+      "INTEGRATED MENU SYNC: NO MENU ITEMS",
+      provider
+    );
+
+    return [];
+  }
+
+  const normalizedItems = items
+    .map((item) => {
+      const name = String(
+        item.name ||
+          item.item_name ||
+          item.itemName ||
+          item.product_name ||
+          item.productName ||
+          ""
+      ).trim();
+
+      if (!name) return null;
+
+      const price = Number(
+        item.price ??
+          item.selling_price ??
+          item.menu_price ??
+          0
+      );
+
+      const cost = Number(
+        item.cost ??
+          item.food_cost ??
+          item.unit_cost ??
+          0
+      );
+
+      const quantitySold = Number(
+        item.quantity_sold ??
+          item.quantitySold ??
+          item.units_sold ??
+          item.unitsSold ??
+          item.quantity ??
+          0
+      );
+
+      const revenue = Number(
+        item.revenue ??
+          item.sales ??
+          price * quantitySold ??
+          0
+      );
+
+      const margin =
+        Number(item.margin ?? item.margin_percent ?? 0) ||
+        (price > 0
+          ? ((price - cost) / price) * 100
+          : 0);
+
+      return {
+        name,
+        category:
+          item.category ||
+          item.item_category ||
+          "Uncategorized",
+
+        price,
+        cost,
+        quantity_sold: quantitySold,
+        revenue,
+        margin,
+      };
+    })
+    .filter(Boolean);
+
+  if (!normalizedItems.length) {
+    return [];
+  }
+
+  console.log("INTEGRATED MENU ITEMS NORMALIZED:", {
+    provider,
+    connectionId: connection.id,
+    itemCount: normalizedItems.length,
+    firstItem: normalizedItems[0],
+  });
+
+  const syncedRows =
+    await syncMenuItemsWithHistory({
+      ownerId,
+      incomingItems: normalizedItems,
+
+      // Integration data is not a manual upload.
+      uploadId: null,
+
+      connectionId: connection.id,
+
+      locationId:
+        connection.location_id || null,
+
+      source: `${String(provider || "")
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, "_")}_integration`,
+    });
+
+  console.log("INTEGRATED MENU HISTORY SYNC COMPLETE:", {
+    provider,
+    connectionId: connection.id,
+    syncedCount: syncedRows.length,
+  });
+
+  return syncedRows;
+};
 const handleSyncRestaurantSystem = async (provider) => {
   try {
     const connection = getConnectionStatus(provider);
