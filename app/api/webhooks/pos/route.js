@@ -648,14 +648,15 @@ export async function POST(request) {
 
       savedItemCount =
         savedItems?.length || 0;
-    }
-await syncIntegratedMenuItemHistory({
+        await syncIntegratedMenuItemHistory({
   supabaseAdmin,
   userId: connection.user_id,
   connectionId: connection.id,
   locationId: connection.location_id || null,
   incomingItems: normalizedItems,
 });
+    }
+
     const {
       error: processedEventError,
     } = await supabaseAdmin
