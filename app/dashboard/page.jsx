@@ -15433,30 +15433,43 @@ const totalAIRecoveryOpportunity =
   
   const loadedPeriodOpportunity =
   Number(totalAIRecoveryOpportunity || 0);
-const verifiedRecoveryActions = (aiHistory || []).filter((action) => {
-  const status = String(action.status || action.recovery_status || "").toLowerCase();
+const verifiedRecoveryActions = (realAppliedActions || []).filter(
+  (action) => {
+    const verificationStatus = String(
+      action.verification_status ||
+        action.status ||
+        action.recovery_status ||
+        ""
+    )
+      .trim()
+      .toLowerCase();
 
-  return (
-    status === "verified" ||
-    status === "completed" ||
-    action.verified === true ||
-    action.is_verified === true
-  );
-});
+    return (
+      verificationStatus === "verified" ||
+      verificationStatus === "completed" ||
+      action.verified === true ||
+      action.is_verified === true
+    );
+  }
+);
 
-const verifiedRecoveredProfit = verifiedRecoveryActions.reduce((sum, action) => {
-  const value = Number(
-    action.actual_recovery ||
-      action.actualRecovery ||
-      action.recovered_profit ||
-      action.recoveredProfit ||
-      action.impact_value ||
-      action.impactValue ||
-      0
-  );
+const verifiedRecoveredProfit = verifiedRecoveryActions.reduce(
+  (sum, action) => {
+    const value = Number(
+      action.verified_recovery ??
+        action.actual_recovery ??
+        action.actualRecovery ??
+        action.recovered_profit ??
+        action.recoveredProfit ??
+        action.verified_recovered ??
+        action.recovered ??
+        0
+    );
 
-  return sum + (Number.isFinite(value) ? value : 0);
-}, 0);
+    return sum + (Number.isFinite(value) ? value : 0);
+  },
+  0
+);
 
 const profitRecoverySummary = useMemo(() => {
   const estimatedRecoverable = Number(totalAIRecoveryOpportunity || 0);
@@ -15472,33 +15485,36 @@ const profitRecoverySummary = useMemo(() => {
         )
       : 0;
 
-  const getCategoryRecovered = (categoryLabel) => {
-    return (verifiedRecoveryActions || []).reduce((sum, action) => {
-      const actionCategory = String(action.category || "")
-        .trim()
-        .toLowerCase();
+const getCategoryRecovered = (categoryLabel) => {
+  return (verifiedRecoveryActions || []).reduce((sum, action) => {
+    const actionCategory = String(
+      action.recovery_category ||
+        action.category ||
+        ""
+    )
+      .trim()
+      .toLowerCase();
 
-      const targetCategory = String(categoryLabel || "")
-        .trim()
-        .toLowerCase();
+    const targetCategory = String(categoryLabel || "")
+      .trim()
+      .toLowerCase();
 
-      const recoveredValue = Number(
-  action.actual_recovery ||
-    action.actualRecovery ||
-    action.recovered_profit ||
-    action.recoveredProfit ||
-    action.impact_value ||
-    action.impactValue ||
-    action.verified_recovered ||
-    action.recovered ||
-    action.impact ||
-    action.value ||
-    0
-);
+    const recoveredValue = Number(
+      action.verified_recovery ??
+        action.actual_recovery ??
+        action.actualRecovery ??
+        action.recovered_profit ??
+        action.recoveredProfit ??
+        action.verified_recovered ??
+        action.recovered ??
+        0
+    );
 
-      return actionCategory === targetCategory ? sum + recoveredValue : sum;
-    }, 0);
-  };
+    return actionCategory === targetCategory
+      ? sum + recoveredValue
+      : sum;
+  }, 0);
+};
 
   const buildCategory = ({ icon, label, route, action, opportunity }) => {
     const safeOpportunity = Number(opportunity || 0);
