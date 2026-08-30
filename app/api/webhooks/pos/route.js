@@ -143,35 +143,69 @@ async function syncIntegratedMenuItemHistory({
     );
 
     if (existing) {
+      const existingPrice = Number(existing.price || 0);
+const existingCost = Number(existing.cost || 0);
+const existingMargin = Number(existing.margin || 0);
+const existingQuantitySold = Number(
+  existing.quantity_sold || 0
+);
+const existingRevenue = Number(existing.revenue || 0);
+
+const nextPrice =
+  price > 0 ? price : existingPrice;
+
+const priceChanged =
+  existingPrice > 0 &&
+  nextPrice > 0 &&
+  Math.abs(nextPrice - existingPrice) > 0.01;
+
+const nextQuantitySold =
+  existingQuantitySold + quantitySold;
+
+const nextRevenue =
+  existingRevenue + revenue;
+
+const nextMargin =
+  nextPrice > 0
+    ? ((nextPrice - existingCost) / nextPrice) * 100
+    : existingMargin;
       const { data: updatedRows, error } =
         await supabaseAdmin
           .from("menu_items")
           .update({
-            previous_price: Number(existing.price || 0),
-            previous_cost: Number(existing.cost || 0),
-            previous_margin: Number(existing.margin || 0),
-            previous_quantity_sold: Number(
-              existing.quantity_sold || 0
-            ),
+           // Only create a new verification baseline when
+// the integrated menu price actually changes.
+previous_price: priceChanged
+  ? existingPrice
+  : Number(existing.previous_price || 0),
 
-            price:
-              price > 0
-                ? price
-                : Number(existing.price || 0),
+previous_cost: priceChanged
+  ? existingCost
+  : Number(existing.previous_cost || 0),
 
-            quantity_sold:
-              Number(existing.quantity_sold || 0) +
-              quantitySold,
+previous_margin: priceChanged
+  ? existingMargin
+  : Number(existing.previous_margin || 0),
 
-            revenue:
-              Number(existing.revenue || 0) +
-              revenue,
+previous_quantity_sold: priceChanged
+  ? existingQuantitySold
+  : Number(existing.previous_quantity_sold || 0),
 
-            integration_connection_id: connectionId || null,
-            location_id: locationId || null,
+// Current live values
+price: nextPrice,
+cost: existingCost,
+quantity_sold: nextQuantitySold,
+revenue: nextRevenue,
+margin: nextMargin,
 
-            is_active: true,
-            last_seen_at: now,
+integration_connection_id:
+  connectionId || null,
+
+location_id:
+  locationId || null,
+
+is_active: true,
+last_seen_at: now,
           })
           .eq("id", existing.id)
           .select();
