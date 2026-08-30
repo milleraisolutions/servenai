@@ -46131,18 +46131,13 @@ selectedHandler();
 
 <GlassCard
   title="Recovery Progress"
-  value={
-    hasFullRecoveryData
-      ? `${Math.min(
-          100,
-          Math.round(
-           (Number(totalAiProfit || 0) /
-              Number(totalAIRecoveryOpportunity || 1)) *
-              100
-          )
-        )}%`
-      : "Awaiting Analysis"
-  }
+ value={
+  hasFullRecoveryData
+    ? `${Number(
+        profitRecoverySummary?.recoveryProgress || 0
+      )}%`
+    : "Awaiting Analysis"
+}
   subtext="Applied recovery progress"
 />
 
