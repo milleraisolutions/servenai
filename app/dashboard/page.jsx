@@ -97748,7 +97748,91 @@ disabled={
     ? "Price Adjustment Recorded ✓"
     : "Record Price Adjustment"}
 </button>
+{(() => {
+  const verifiedAction = (realAppliedActions || []).find((action) => {
+    const actionEntityId = String(
+      action.entity_id || ""
+    ).trim();
 
+    const itemId = String(
+      item.id || ""
+    ).trim();
+
+    const verificationStatus = String(
+      action.verification_status || ""
+    )
+      .trim()
+      .toLowerCase();
+
+    const actionType = String(
+      action.action_type || ""
+    )
+      .trim()
+      .toLowerCase();
+
+    return (
+      actionEntityId === itemId &&
+      verificationStatus === "verified" &&
+      actionType === "price_adjustment"
+    );
+  });
+
+  if (!verifiedAction) return null;
+
+  const verifiedRecovery = Number(
+    verifiedAction.verified_recovery || 0
+  );
+
+  return (
+    <div
+      style={{
+        marginTop: "10px",
+        padding: "12px 14px",
+        borderRadius: "14px",
+        background: "rgba(34,197,94,0.10)",
+        border: "1px solid rgba(34,197,94,0.24)",
+        minWidth: "220px",
+      }}
+    >
+      <div
+        style={{
+          color: "#86efac",
+          fontSize: "11px",
+          fontWeight: "900",
+          textTransform: "uppercase",
+          letterSpacing: "0.05em",
+          marginBottom: "5px",
+        }}
+      >
+        Verified Recovery
+      </div>
+
+      <div
+        style={{
+          color: "#ffffff",
+          fontSize: "20px",
+          fontWeight: "900",
+        }}
+      >
+        ${verifiedRecovery.toLocaleString(undefined, {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })}
+      </div>
+
+      <div
+        style={{
+          color: "#86efac",
+          fontSize: "11px",
+          fontWeight: "800",
+          marginTop: "4px",
+        }}
+      >
+        ✓ Confirmed from live data
+      </div>
+    </div>
+  );
+})()}
 <button
   type="button"
  disabled={
