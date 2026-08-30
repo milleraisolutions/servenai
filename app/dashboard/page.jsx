@@ -12142,18 +12142,19 @@ const pricingGapPerUnit = Math.max(
 
 return pricingGapPerUnit * quantitySold;
 };
-const getVerifiedMenuRecovery = (item) => {
+const getVerifiedMenuRecovery = (item, baselineData = null) => {
   const currentPrice = Number(
     item?.price ||
       item?.menu_price ||
       0
   );
 
-  const previousPrice = Number(
-    item?.previous_price ||
-      item?.previousPrice ||
-      0
-  );
+const previousPrice = Number(
+  baselineData?.price ??
+    item?.previous_price ??
+    item?.previousPrice ??
+    0
+);
 
   const currentCost = Number(
     item?.cost ||
@@ -12163,11 +12164,12 @@ const getVerifiedMenuRecovery = (item) => {
       0
   );
 
-  const previousCost = Number(
-    item?.previous_cost ||
-      item?.previousCost ||
-      0
-  );
+ const previousCost = Number(
+  baselineData?.cost ??
+    item?.previous_cost ??
+    item?.previousCost ??
+    0
+);
 
   const currentQuantitySold = Number(
   item?.quantitySold ||
@@ -12179,8 +12181,10 @@ const getVerifiedMenuRecovery = (item) => {
 );
 
 const previousQuantitySold = Number(
-  item?.previous_quantity_sold ||
-    item?.previousQuantitySold ||
+  baselineData?.quantity_sold ??
+    baselineData?.quantitySold ??
+    item?.previous_quantity_sold ??
+    item?.previousQuantitySold ??
     0
 );
 
@@ -12304,9 +12308,11 @@ useEffect(() => {
       );
 
       if (!matchingMenuItem) continue;
-
-      const verification =
-  getVerifiedMenuRecovery(matchingMenuItem);
+const verification =
+  getVerifiedMenuRecovery(
+    matchingMenuItem,
+    action.baseline_data || null
+  );
 
 const actionType = String(
   action.action_type || ""
