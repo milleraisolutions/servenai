@@ -167,7 +167,7 @@ async function syncIntegratedMenuItemHistory({
               Number(existing.revenue || 0) +
               revenue,
 
-            connection_id: connectionId || null,
+            integration_connection_id: connectionId || null,
             location_id: locationId || null,
 
             is_active: true,
@@ -203,8 +203,7 @@ async function syncIntegratedMenuItemHistory({
               previous_cost: 0,
               previous_margin: 0,
               previous_quantity_sold: 0,
-
-              connection_id: connectionId || null,
+integration_connection_id: connectionId || null,
               location_id: locationId || null,
 
               is_active: true,
