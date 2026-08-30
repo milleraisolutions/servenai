@@ -15452,7 +15452,30 @@ const verifiedRecoveryActions = (realAppliedActions || []).filter(
     );
   }
 );
+// ========================================
+// VERIFIED MENU RECOVERIES
+// ========================================
+const verifiedMenuRecoveryActions = (realAppliedActions || []).filter(
+  (action) => {
+    const verificationStatus = String(
+      action.verification_status || ""
+    )
+      .trim()
+      .toLowerCase();
 
+    const recoveryCategory = String(
+      action.recovery_category || ""
+    )
+      .trim()
+      .toLowerCase();
+
+    return (
+      verificationStatus === "verified" &&
+      recoveryCategory === "menu" &&
+      Number(action.verified_recovery || 0) > 0
+    );
+  }
+);
 const verifiedRecoveredProfit = verifiedRecoveryActions.reduce(
   (sum, action) => {
     const value = Number(
@@ -97504,7 +97527,132 @@ Number(safeEffectiveLaborCostPercent || 0) <= 35 && {
     >
       Menu Pricing Intelligence
     </div>
+{verifiedMenuRecoveryActions.length > 0 && (
+  <div
+    style={{
+      marginBottom: "22px",
+      padding: "18px",
+      borderRadius: "20px",
+      background:
+        "linear-gradient(135deg, rgba(34,197,94,0.12), rgba(15,23,42,0.94))",
+      border: "1px solid rgba(34,197,94,0.20)",
+    }}
+  >
+    <div
+      style={{
+        color: "#86efac",
+        fontSize: "12px",
+        fontWeight: "900",
+        textTransform: "uppercase",
+        letterSpacing: "0.08em",
+        marginBottom: "12px",
+      }}
+    >
+      Verified Recoveries
+    </div>
 
+    <div style={{ display: "grid", gap: "12px" }}>
+      {verifiedMenuRecoveryActions.map((action) => {
+        const baselinePrice = Number(
+          action?.baseline_data?.price || 0
+        );
+
+        const matchingItem = (menuItemsData || []).find(
+          (menuItem) =>
+            String(menuItem?.id || "") ===
+            String(action?.entity_id || "")
+        );
+
+        const currentPrice = Number(
+          matchingItem?.price || 0
+        );
+
+        const verifiedRecovery = Number(
+          action?.verified_recovery || 0
+        );
+
+        const itemName =
+          matchingItem?.name ||
+          action?.action_name?.replace(
+            "Price adjustment for ",
+            ""
+          ) ||
+          "Menu Item";
+
+        return (
+          <div
+            key={action.id}
+            style={{
+              padding: "16px",
+              borderRadius: "16px",
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(34,197,94,0.16)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: "12px",
+                flexWrap: "wrap",
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    color: "white",
+                    fontSize: "16px",
+                    fontWeight: "900",
+                  }}
+                >
+                  {itemName}
+                </div>
+
+                <div
+                  style={{
+                    color: "#94a3b8",
+                    fontSize: "12px",
+                    marginTop: "4px",
+                  }}
+                >
+                  {baselinePrice > 0 && currentPrice > 0
+                    ? `$${baselinePrice.toFixed(2)} → $${currentPrice.toFixed(2)}`
+                    : "Verified menu improvement"}
+                </div>
+              </div>
+
+              <div style={{ textAlign: "right" }}>
+                <div
+                  style={{
+                    color: "#86efac",
+                    fontSize: "20px",
+                    fontWeight: "950",
+                  }}
+                >
+                  ${verifiedRecovery.toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+                </div>
+
+                <div
+                  style={{
+                    color: "#86efac",
+                    fontSize: "11px",
+                    fontWeight: "800",
+                    marginTop: "4px",
+                  }}
+                >
+                  ✓ Confirmed from live data
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  </div>
+)}
     <h3
       style={{
         color: "white",
