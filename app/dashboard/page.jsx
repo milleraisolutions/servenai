@@ -78128,6 +78128,202 @@ role: "Executive visibility & AI intelligence",
         </div>
       </div>
     </div>
+
+    {/* VERIFIED RECOVERY ACTIVITY */}
+{verifiedRecoveryActions.length > 0 && (
+  <div
+    style={{
+      marginTop: "18px",
+      padding: isMobile ? "20px" : "24px",
+      borderRadius: "26px",
+      background:
+        "linear-gradient(135deg, rgba(16,185,129,0.14), rgba(15,23,42,0.96))",
+      border: "1px solid rgba(52,211,153,0.22)",
+      boxShadow: "0 20px 55px rgba(0,0,0,0.22)",
+    }}
+  >
+    <div
+      style={{
+        color: "#6ee7b7",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+      }}
+    >
+      Verified Recovery Activity
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        fontSize: isMobile ? "22px" : "26px",
+        fontWeight: "950",
+        margin: "8px 0 6px",
+      }}
+    >
+      Confirmed profit recovered
+    </h3>
+
+    <div
+      style={{
+        color: "#94a3b8",
+        fontSize: "13px",
+        lineHeight: 1.7,
+        marginBottom: "16px",
+      }}
+    >
+      Every recovery listed here has been verified from connected operational data.
+    </div>
+
+    <div style={{ display: "grid", gap: "12px" }}>
+      {verifiedRecoveryActions.map((action) => {
+        const verifiedRecovery = Number(
+          action.verified_recovery || 0
+        );
+
+        const matchingMenuItem = (menuItemsData || []).find(
+          (menuItem) =>
+            String(menuItem?.id || "") ===
+            String(action?.entity_id || "")
+        );
+
+        const baselinePrice = Number(
+          action?.baseline_data?.price || 0
+        );
+
+        const currentPrice = Number(
+          matchingMenuItem?.price || 0
+        );
+
+        const itemName =
+          matchingMenuItem?.name ||
+          action?.action_name ||
+          "Verified Recovery";
+
+        const verifiedDateRaw =
+          action?.verified_at ||
+          action?.implemented_at ||
+          action?.updated_at ||
+          action?.created_at ||
+          null;
+
+        const verifiedDate = verifiedDateRaw
+          ? new Date(verifiedDateRaw)
+          : null;
+
+        const verifiedDateLabel =
+          verifiedDate &&
+          !Number.isNaN(verifiedDate.getTime())
+            ? verifiedDate.toLocaleDateString(undefined, {
+                year: "numeric",
+                month: "short",
+                day: "numeric",
+              })
+            : "Verified";
+
+        const actionTypeLabel =
+          String(action?.action_type || "")
+            .replaceAll("_", " ")
+            .replace(/\b\w/g, (char) =>
+              char.toUpperCase()
+            ) || "Recovery Action";
+
+        return (
+          <div
+            key={action.id}
+            style={{
+              padding: "16px",
+              borderRadius: "18px",
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(52,211,153,0.16)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: "14px",
+                flexWrap: "wrap",
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    color: "white",
+                    fontSize: "16px",
+                    fontWeight: "900",
+                  }}
+                >
+                  {itemName}
+                </div>
+
+                <div
+                  style={{
+                    color: "#a7f3d0",
+                    fontSize: "11px",
+                    fontWeight: "900",
+                    marginTop: "4px",
+                  }}
+                >
+                  {actionTypeLabel}
+                </div>
+
+                {baselinePrice > 0 && currentPrice > 0 && (
+                  <div
+                    style={{
+                      color: "#94a3b8",
+                      fontSize: "12px",
+                      marginTop: "6px",
+                    }}
+                  >
+                    ${baselinePrice.toFixed(2)} → ${currentPrice.toFixed(2)}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ textAlign: "right" }}>
+                <div
+                  style={{
+                    color: "#6ee7b7",
+                    fontSize: "22px",
+                    fontWeight: "950",
+                  }}
+                >
+                  +${verifiedRecovery.toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+                </div>
+
+                <div
+                  style={{
+                    color: "#6ee7b7",
+                    fontSize: "11px",
+                    fontWeight: "800",
+                    marginTop: "4px",
+                  }}
+                >
+                  ✓ Verified from live data
+                </div>
+
+                <div
+                  style={{
+                    color: "#64748b",
+                    fontSize: "11px",
+                    marginTop: "5px",
+                  }}
+                >
+                  {verifiedDateLabel}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  </div>
+)}
     {/* EXECUTIVE RECOVERY SCORE */}
 <div
   style={{
