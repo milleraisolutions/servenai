@@ -7322,13 +7322,24 @@ if (!posRows.length) {
   row.guests ||
   row.Guests ||
   0;
-
-        const rawLabor =
-          row.labor ||
-          row.labor_cost ||
-          row.Labor ||
-          row["Labor Cost"] ||
-          0;
+const rawLabor =
+  row.labor ??
+  row.labor_cost ??
+  row.Labor ??
+  row["Labor Cost"] ??
+  row.total_labor ??
+  row.total_labor_cost ??
+  row["Total Labor"] ??
+  row["Total Labor Cost"] ??
+  row.payroll ??
+  row.Payroll ??
+  row.wages ??
+  row.Wages ??
+  row.total_pay ??
+  row["Total Pay"] ??
+  row.gross_pay ??
+  row["Gross Pay"] ??
+  0;
 const rawShift =
   row.shift ||
   row.Shift ||
