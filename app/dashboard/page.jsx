@@ -3236,13 +3236,38 @@ const liveOverviewMetrics = useMemo(() => {
       ? menuItemsData
       : [];
 
-  const laborRows =
-    Array.isArray(locationLaborData) &&
-    locationLaborData.length
-      ? locationLaborData
-      : Array.isArray(laborData)
-      ? laborData
-      : [];
+const dedicatedLaborRows =
+  Array.isArray(locationLaborData) && locationLaborData.length
+    ? locationLaborData
+    : Array.isArray(laborData) && laborData.length
+    ? laborData
+    : [];
+
+const posLaborRows = (salesRows || []).filter((row) => {
+  const laborCost = Number(
+    String(
+      row.labor ??
+        row.labor_cost ??
+        row.total_labor ??
+        row.total_labor_cost ??
+        row.payroll ??
+        row.wages ??
+        row.total_pay ??
+        row.gross_pay ??
+        0
+    )
+      .replaceAll("$", "")
+      .replaceAll(",", "")
+      .trim()
+  );
+
+  return Number.isFinite(laborCost) && laborCost > 0;
+});
+
+const laborRows =
+  dedicatedLaborRows.length > 0
+    ? dedicatedLaborRows
+    : posLaborRows;
 
   const totalRevenue = salesRows.reduce((sum, row) => {
     return sum + Number(getSaleRevenue(row) || 0);
@@ -3506,16 +3531,68 @@ const liveFoodCostPercentage =
 
 const liveScore =
   score || 0;
-  const liveLaborIntelligence = useMemo(() => {
- const totalLaborCost = (locationLaborData || []).reduce((sum, row) => {
+const liveLaborIntelligence = useMemo(() => {
+  const dedicatedLaborRows =
+    Array.isArray(locationLaborData) && locationLaborData.length
+      ? locationLaborData
+      : Array.isArray(laborData) && laborData.length
+      ? laborData
+      : [];
+
+  const salesRows =
+    Array.isArray(locationSalesData) && locationSalesData.length
+      ? locationSalesData
+      : Array.isArray(dbSalesRows)
+      ? dbSalesRows
+      : [];
+
+  const posLaborRows = (salesRows || []).filter((row) => {
+    const laborCost = Number(
+      String(
+        row.labor ??
+          row.labor_cost ??
+          row.total_labor ??
+          row.total_labor_cost ??
+          row.payroll ??
+          row.wages ??
+          row.total_pay ??
+          row.gross_pay ??
+          0
+      )
+        .replaceAll("$", "")
+        .replaceAll(",", "")
+        .trim()
+    );
+
+    return Number.isFinite(laborCost) && laborCost > 0;
+  });
+
+  const resolvedLaborRows =
+    dedicatedLaborRows.length > 0
+      ? dedicatedLaborRows
+      : posLaborRows;
+
+  const totalLaborCost = resolvedLaborRows.reduce((sum, row) => {
   const cost = Number(
-    row.labor_cost ||
-      row["Labor Cost"] ||
-      row.laborCost ||
-      row.cost ||
-      row.Cost ||
+  String(
+    row.labor ??
+      row.labor_cost ??
+      row["Labor Cost"] ??
+      row.laborCost ??
+      row.total_labor ??
+      row.total_labor_cost ??
+      row.payroll ??
+      row.wages ??
+      row.total_pay ??
+      row.gross_pay ??
+      row.cost ??
+      row.Cost ??
       0
-  );
+  )
+    .replaceAll("$", "")
+    .replaceAll(",", "")
+    .trim()
+);
 
   const hours = Number(
     row.hours ||
@@ -3554,9 +3631,15 @@ const laborRecoveryOpportunity =
   totalLaborCost,
   laborPercent,
   laborRecoveryOpportunity,
-  rows: laborData || [],
+  rows: resolvedLaborRows,
 };
-}, [locationLaborData, laborData, liveTotalRevenue]);
+}, [
+  locationLaborData,
+  laborData,
+  locationSalesData,
+  dbSalesRows,
+  liveTotalRevenue,
+]);
 
 const revenueInsight = useMemo(() => {
   const growth = Number(revenueTrend?.growthPercent || 0);
