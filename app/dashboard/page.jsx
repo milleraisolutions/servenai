@@ -25041,7 +25041,24 @@ const laborAlertsFeed = useMemo(() => {
     });
   }
 
-  if (!alerts.length) {
+ if (!alerts.length) {
+  if (laborDataCoverage?.confidence === "Low") {
+    alerts.push({
+      title: "Labor data coverage limited",
+      detail:
+        laborDataCoverage.message ||
+        "More labor data is needed before SerVen can confidently assess staffing risk and workforce performance.",
+      priority: "Limited Data",
+    });
+  } else if (laborDataCoverage?.confidence === "Medium") {
+    alerts.push({
+      title: "Labor monitoring with partial coverage",
+      detail:
+        laborDataCoverage.message ||
+        "SerVen is monitoring available labor data, but additional coverage will improve workforce risk detection.",
+      priority: "Partial Data",
+    });
+  } else {
     alerts.push({
       title: "Labor operations stable",
       detail:
@@ -25049,6 +25066,7 @@ const laborAlertsFeed = useMemo(() => {
       priority: "Normal",
     });
   }
+}
 
   return alerts.slice(0, 6);
 }, [
@@ -25056,6 +25074,7 @@ const laborAlertsFeed = useMemo(() => {
   salesPerLaborHour,
   shiftOperationalData,
   totalLaborHours,
+  laborDataCoverage,
 ]);
 
 const overtimeRiskData = useMemo(() => {
