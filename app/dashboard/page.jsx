@@ -3860,7 +3860,111 @@ const liveLaborIntelligence = useMemo(() => {
   locationSalesData,
   dbSalesRows,
 ]);
+const laborDataCoverage = useMemo(() => {
+  const salesRows =
+    Array.isArray(locationSalesData) && locationSalesData.length
+      ? locationSalesData
+      : Array.isArray(dbSalesRows)
+      ? dbSalesRows
+      : [];
 
+  const getDateKey = (row) => {
+    const rawDate =
+      row.sale_date ??
+      row.work_date ??
+      row.shift_date ??
+      row.schedule_date ??
+      row.date ??
+      row.order_date ??
+      row.business_date ??
+      null;
+
+    if (!rawDate) return null;
+
+    const date = new Date(rawDate);
+
+    if (Number.isNaN(date.getTime())) {
+      return null;
+    }
+
+    return date.toISOString().slice(0, 10);
+  };
+
+  const salesDates = new Set(
+    salesRows
+      .map(getDateKey)
+      .filter(Boolean)
+  );
+
+  const laborDates = new Set(
+    (liveLaborIntelligence?.rows || [])
+      .map(getDateKey)
+      .filter(Boolean)
+  );
+
+  const totalSalesDays = salesDates.size;
+  const totalLaborDays = laborDates.size;
+
+  const coveredSalesDays = [...laborDates].filter((date) =>
+    salesDates.has(date)
+  ).length;
+
+  const coveragePercent =
+    totalSalesDays > 0
+      ? Math.min(
+          100,
+          (coveredSalesDays / totalSalesDays) * 100
+        )
+      : totalLaborDays > 0
+      ? 100
+      : 0;
+
+  let status = "No Labor Data";
+  let confidence = "None";
+  let scoreCap = 0;
+  let isComplete = false;
+
+  if (coveragePercent >= 80) {
+    status = "Strong Coverage";
+    confidence = "High";
+    scoreCap = 100;
+    isComplete = true;
+  } else if (coveragePercent >= 50) {
+    status = "Partial Coverage";
+    confidence = "Medium";
+    scoreCap = 80;
+  } else if (coveragePercent > 0) {
+    status = "Limited Coverage";
+    confidence = "Low";
+    scoreCap = 60;
+  }
+
+  return {
+    totalSalesDays,
+    totalLaborDays,
+    coveredSalesDays,
+
+    coveragePercent,
+    status,
+    confidence,
+    scoreCap,
+    isComplete,
+
+    hasLaborData:
+      Number(liveLaborIntelligence?.totalLaborCost || 0) > 0,
+
+    message:
+      coveragePercent >= 80
+        ? `Labor data covers ${coveredSalesDays} of ${totalSalesDays} tracked sales days.`
+        : coveragePercent > 0
+        ? `Labor data covers only ${coveredSalesDays} of ${totalSalesDays} tracked sales days. Executive labor scoring is confidence-adjusted until more labor data is available.`
+        : "Labor coverage cannot be evaluated until labor data is available.",
+  };
+}, [
+  locationSalesData,
+  dbSalesRows,
+  liveLaborIntelligence,
+]);
 const revenueInsight = useMemo(() => {
   const growth = Number(revenueTrend?.growthPercent || 0);
   const bestDay = revenueTracker?.bestDay?.day || "N/A";
@@ -16625,28 +16729,39 @@ const executiveLaborScore = useMemo(() => {
       ? 5
       : 0;
 
-  const score = Math.max(
-    0,
-    Math.min(
-      100,
-      Math.round(
-        laborPercentScore +
-          efficiencyContribution +
-          salesPerHourScore +
-          15 -
-          recoveryRiskPenalty
-      )
+  const rawScore = Math.max(
+  0,
+  Math.min(
+    100,
+    Math.round(
+      laborPercentScore +
+        efficiencyContribution +
+        salesPerHourScore +
+        15 -
+        recoveryRiskPenalty
     )
-  );
+  )
+);
 
-  const status =
-    score >= 85
-      ? "Excellent"
-      : score >= 70
-      ? "Strong"
-      : score >= 50
-      ? "Watch Closely"
-      : "Needs Attention";
+const coverageScoreCap =
+  Number(laborDataCoverage?.scoreCap || 0);
+
+const score =
+  coverageScoreCap > 0
+    ? Math.min(rawScore, coverageScoreCap)
+    : rawScore;
+const status =
+  laborDataCoverage?.confidence === "Low"
+    ? "Limited Data"
+    : laborDataCoverage?.confidence === "Medium"
+    ? "Partial Data"
+    : score >= 85
+    ? "Excellent"
+    : score >= 70
+    ? "Strong"
+    : score >= 50
+    ? "Watch Closely"
+    : "Needs Attention";
 
   const color =
     score >= 85
@@ -16666,14 +16781,18 @@ const executiveLaborScore = useMemo(() => {
       ? "Labor Recovery Opportunity"
       : "Labor Stable";
 
-  const recommendation =
-    laborPercent > 35
-      ? "Review schedules against sales volume and reduce low-revenue labor coverage."
-      : laborPercent > 28
-      ? "Tighten staffing around slower dayparts and monitor labor cost percentage."
-      : recoveryOpportunity > 0
-      ? "Prioritize labor recovery opportunities with the highest remaining impact."
-      : "Continue monitoring labor efficiency and shift productivity.";
+ const recommendation =
+  laborDataCoverage?.confidence === "Low"
+    ? laborDataCoverage.message
+    : laborDataCoverage?.confidence === "Medium"
+    ? laborDataCoverage.message
+    : laborPercent > 35
+    ? "Review schedules against sales volume and reduce low-revenue labor coverage."
+    : laborPercent > 28
+    ? "Tighten staffing around slower dayparts and monitor labor cost percentage."
+    : recoveryOpportunity > 0
+    ? "Prioritize labor recovery opportunities with the highest remaining impact."
+    : "Continue monitoring labor efficiency and shift productivity.";
 
   return {
     score,
@@ -16681,6 +16800,8 @@ const executiveLaborScore = useMemo(() => {
     color,
     primaryRisk,
     recommendation,
+    coverage: laborDataCoverage,
+rawScore,
   };
 }, [
   effectiveLaborCostPercent,
@@ -16688,6 +16809,7 @@ const executiveLaborScore = useMemo(() => {
   salesPerLaborHour,
   estimatedLaborRecovery,
   totalLaborHours,
+    laborDataCoverage,
 ]);
 const shiftRecoveryIntelligence = useMemo(() => {
   const shifts = shiftOperationalData || [];
