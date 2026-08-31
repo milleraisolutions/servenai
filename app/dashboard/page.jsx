@@ -95120,7 +95120,10 @@ maxWidth: "100%",
   const safeEmployeeShifts =
     typeof employeeShifts !== "undefined" ? employeeShifts || [] : [];
 
-  const hasLaborData = safeLaborData.length > 0 || safeEmployeeShifts.length > 0;
+const hasLaborData =
+  safeLaborData.length > 0 ||
+  safeEmployeeShifts.length > 0 ||
+  Number(liveLaborIntelligence?.totalLaborCost || 0) > 0;
 
   return (
     <>
@@ -95276,12 +95279,20 @@ maxWidth: "100%",
     {/* LABOR RECOVERY ACTIONS */}
 {(() => {
   const safeEstimatedLaborRecovery =
-    typeof estimatedLaborRecovery !== "undefined" ? estimatedLaborRecovery : 0;
+  Number(liveLaborIntelligence?.laborRecoveryOpportunity || 0) ||
+  Number(
+    typeof estimatedLaborRecovery !== "undefined"
+      ? estimatedLaborRecovery
+      : 0
+  );
 
-  const safeEffectiveLaborCostPercent =
+const safeEffectiveLaborCostPercent =
+  Number(liveLaborIntelligence?.laborPercent || 0) ||
+  Number(
     typeof effectiveLaborCostPercent !== "undefined"
       ? effectiveLaborCostPercent
-      : 0;
+      : 0
+  );
 
   const safeTotalLaborHours =
     typeof totalLaborHours !== "undefined" ? totalLaborHours : 0;
