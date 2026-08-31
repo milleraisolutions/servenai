@@ -12431,6 +12431,8 @@ const { error } = await supabase
   realAppliedActions,
   menuItemsData,
 ]);
+
+
 const shiftWasteImpact = Number(shiftWasteAlerts?.[0]?.riskAmount || 0);
 
 const ingredientUsageImpact = Number(
@@ -15354,7 +15356,200 @@ const estimatedLaborRecovery =
           Number(liveTotalRevenue || 0)
       )
     : 0;
+// =========================================================
+// VERIFIED LABOR RECOVERY
+// Confirms accepted schedule adjustments from newer labor data
+// =========================================================
 
+useEffect(() => {
+  const verifyAppliedLaborRecoveries = async () => {
+    if (!authReady) return;
+
+    if (
+      !Array.isArray(realAppliedActions) ||
+      !realAppliedActions.length ||
+      !Array.isArray(laborData) ||
+      !laborData.length
+    ) {
+      return;
+    }
+
+    const pendingLaborActions = realAppliedActions.filter((action) => {
+      const category = String(
+        action.recovery_category || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      const actionType = String(
+        action.action_type || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      const decisionStatus = String(
+        action.decision_status || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      const verificationStatus = String(
+        action.verification_status || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      return (
+        category === "labor" &&
+        actionType === "schedule_adjustment" &&
+        decisionStatus === "accepted" &&
+        verificationStatus !== "verified"
+      );
+    });
+
+    if (!pendingLaborActions.length) return;
+
+    const currentLaborPercent = Number(
+      effectiveLaborCostPercent || 0
+    );
+
+    const currentLaborHours = Number(
+      totalLaborHours || 0
+    );
+
+    const currentSalesPerLaborHour = Number(
+      salesPerLaborHour || 0
+    );
+
+    const currentRevenue = Number(
+      liveTotalRevenue || 0
+    );
+
+    if (
+      currentLaborPercent <= 0 ||
+      currentRevenue <= 0
+    ) {
+      return;
+    }
+
+    let verificationChanged = false;
+
+    for (const action of pendingLaborActions) {
+      const baselineLaborPercent = Number(
+        action?.baseline_data?.labor_cost_percent || 0
+      );
+
+      const baselineLaborHours = Number(
+        action?.baseline_data?.total_labor_hours || 0
+      );
+
+      const baselineSalesPerLaborHour = Number(
+        action?.baseline_data?.sales_per_labor_hour || 0
+      );
+
+      if (baselineLaborPercent <= 0) {
+        continue;
+      }
+
+      // Primary proof:
+      // labor cost percentage must actually improve.
+      const laborPercentImproved =
+        currentLaborPercent < baselineLaborPercent;
+
+      // Supporting operational evidence.
+      const laborHoursImproved =
+        baselineLaborHours > 0 &&
+        currentLaborHours > 0 &&
+        currentLaborHours < baselineLaborHours;
+
+      const productivityImproved =
+        baselineSalesPerLaborHour > 0 &&
+        currentSalesPerLaborHour > 0 &&
+        currentSalesPerLaborHour >
+          baselineSalesPerLaborHour;
+
+      if (!laborPercentImproved) {
+        continue;
+      }
+
+      const improvementPercent =
+        baselineLaborPercent -
+        currentLaborPercent;
+
+      const verifiedRecovery =
+        (improvementPercent / 100) *
+        currentRevenue;
+
+      if (
+        !Number.isFinite(verifiedRecovery) ||
+        verifiedRecovery <= 0
+      ) {
+        continue;
+      }
+
+      const verificationTimestamp =
+        new Date().toISOString();
+
+      const { error } = await supabase
+        .from("ai_applied_actions")
+        .update({
+          implementation_status: "confirmed",
+          implemented_at: verificationTimestamp,
+
+          verification_status: "verified",
+          verified_recovery: Number(
+            verifiedRecovery.toFixed(2)
+          ),
+          verified_at: verificationTimestamp,
+
+          status: "verified",
+        })
+        .eq("id", action.id);
+
+      if (error) {
+        console.error(
+          "LABOR RECOVERY VERIFICATION ERROR:",
+          error
+        );
+        continue;
+      }
+
+      verificationChanged = true;
+
+      console.log("LABOR RECOVERY VERIFIED:", {
+        actionId: action.id,
+
+        baselineLaborPercent,
+        currentLaborPercent,
+
+        baselineLaborHours,
+        currentLaborHours,
+
+        baselineSalesPerLaborHour,
+        currentSalesPerLaborHour,
+
+        laborHoursImproved,
+        productivityImproved,
+
+        verifiedRecovery,
+      });
+    }
+
+    if (verificationChanged) {
+      await loadRealAppliedActions();
+    }
+  };
+
+  verifyAppliedLaborRecoveries();
+}, [
+  authReady,
+  realAppliedActions,
+  laborData,
+  effectiveLaborCostPercent,
+  totalLaborHours,
+  salesPerLaborHour,
+  liveTotalRevenue,
+]);
 const operationalEstimatedWasteRecovery =
   operationalUsageVariancePercent > 5
     ? Math.round(
