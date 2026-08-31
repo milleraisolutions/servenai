@@ -24922,47 +24922,69 @@ if (!hasLaborData) {
   if (totalHours > 450) score -= 8;
   else if (totalHours > 350) score -= 4;
 
-  const finalScore = Math.max(0, Math.min(100, Math.round(score)));
+  const rawHealthScore = Math.max(
+  0,
+  Math.min(100, Math.round(score))
+);
+
+const coverageScoreCap =
+  Number(laborDataCoverage?.scoreCap || 0);
+
+const finalScore =
+  coverageScoreCap > 0
+    ? Math.min(rawHealthScore, coverageScoreCap)
+    : rawHealthScore;
 
   let status = "Excellent";
-  let color = "#22c55e";
-  let insight =
-    "Labor operations are currently healthy. Labor percentage, productivity, and shift efficiency are within a strong operating range.";
+let color = "#22c55e";
+let insight =
+  "Labor operations are currently healthy. Labor percentage, productivity, and shift efficiency are within a strong operating range.";
 
-  if (finalScore < 60) {
-    status = "Critical";
-    color = "#f87171";
-    insight =
-      "Labor operations need immediate attention. Review overstaffed shifts, labor percentage, and low sales-per-labor-hour performance.";
-  } else if (finalScore < 75) {
-    status = "Watch";
-    color = "#fbbf24";
-    insight =
-      "Labor operations show pressure. Monitor labor percentage, staffing levels, and shift efficiency before costs rise further.";
-  } else if (finalScore < 88) {
-    status = "Healthy";
-    color = "#38bdf8";
-    insight =
-      "Labor operations are stable with a few areas to monitor, including staffing balance and sales-per-labor-hour performance.";
-  }
+if (laborDataCoverage?.confidence === "Low") {
+  status = "Limited Data";
+  color = "#fbbf24";
+  insight = laborDataCoverage.message;
+} else if (laborDataCoverage?.confidence === "Medium") {
+  status = "Partial Data";
+  color = "#fbbf24";
+  insight = laborDataCoverage.message;
+} else if (finalScore < 60) {
+  status = "Critical";
+  color = "#f87171";
+  insight =
+    "Labor operations need immediate attention. Review overstaffed shifts, labor percentage, and low sales-per-labor-hour performance.";
+} else if (finalScore < 75) {
+  status = "Watch";
+  color = "#fbbf24";
+  insight =
+    "Labor operations show pressure. Monitor labor percentage, staffing levels, and shift efficiency before costs rise further.";
+} else if (finalScore < 88) {
+  status = "Healthy";
+  color = "#38bdf8";
+  insight =
+    "Labor operations are stable with a few areas to monitor, including staffing balance and sales-per-labor-hour performance.";
+}
 
   return {
-    score: finalScore,
-    status,
-    color,
-    insight,
-    overstaffedShifts,
-    watchShifts,
-    laborPercent,
-    efficiencyScore,
-    salesPerHour,
-  };
+  score: finalScore,
+  rawScore: rawHealthScore,
+  status,
+  color,
+  insight,
+  overstaffedShifts,
+  watchShifts,
+  laborPercent,
+  efficiencyScore,
+  salesPerHour,
+  coverage: laborDataCoverage,
+};
 }, [
   effectiveLaborCostPercent,
   laborEfficiencyScore,
   salesPerLaborHour,
   shiftOperationalData,
   totalLaborHours,
+  laborDataCoverage,
 ]);
 
 const laborAlertsFeed = useMemo(() => {
