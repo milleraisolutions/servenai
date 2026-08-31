@@ -3546,99 +3546,319 @@ const liveLaborIntelligence = useMemo(() => {
       ? dbSalesRows
       : [];
 
+  const cleanNumber = (value) => {
+    const numberValue = Number(
+      String(value ?? 0)
+        .replaceAll("$", "")
+        .replaceAll(",", "")
+        .trim()
+    );
+
+    return Number.isFinite(numberValue) ? numberValue : 0;
+  };
+
+  const getLaborDateKey = (row) => {
+    const rawDate =
+      row.work_date ??
+      row.shift_date ??
+      row.schedule_date ??
+      row.date ??
+      row["Work Date"] ??
+      row["Shift Date"] ??
+      row["Date"] ??
+      null;
+
+    if (!rawDate) return null;
+
+    const date = new Date(rawDate);
+
+    if (Number.isNaN(date.getTime())) {
+      return null;
+    }
+
+    return date.toISOString().slice(0, 10);
+  };
+
+  const getSalesDateKey = (row) => {
+    const rawDate =
+      row.sale_date ??
+      row.date ??
+      row.order_date ??
+      row.business_date ??
+      row["Sale Date"] ??
+      row["Business Date"] ??
+      null;
+
+    if (!rawDate) return null;
+
+    const date = new Date(rawDate);
+
+    if (Number.isNaN(date.getTime())) {
+      return null;
+    }
+
+    return date.toISOString().slice(0, 10);
+  };
+
+  /*
+    ==========================================
+    POS LABOR FALLBACK
+    ==========================================
+  */
   const posLaborRows = (salesRows || []).filter((row) => {
-    const laborCost = Number(
-      String(
+    const laborCost = cleanNumber(
+      row.labor ??
+        row.labor_cost ??
+        row.total_labor ??
+        row.total_labor_cost ??
+        row.payroll ??
+        row.wages ??
+        row.total_pay ??
+        row.gross_pay ??
+        0
+    );
+
+    return laborCost > 0;
+  });
+
+  /*
+    ==========================================
+    RESOLVE AUTHORITATIVE LABOR SOURCE
+    ==========================================
+  */
+  const usingDedicatedLabor =
+    dedicatedLaborRows.length > 0;
+
+  const resolvedLaborRows =
+    usingDedicatedLabor
+      ? dedicatedLaborRows
+      : posLaborRows;
+
+  /*
+    ==========================================
+    TOTAL LABOR COST
+    ==========================================
+  */
+  const totalLaborCost = resolvedLaborRows.reduce(
+    (sum, row) => {
+      const uploadedCost = cleanNumber(
         row.labor ??
           row.labor_cost ??
+          row["Labor Cost"] ??
+          row.laborCost ??
           row.total_labor ??
           row.total_labor_cost ??
           row.payroll ??
           row.wages ??
           row.total_pay ??
           row.gross_pay ??
+          row.cost ??
+          row.Cost ??
           0
-      )
-        .replaceAll("$", "")
-        .replaceAll(",", "")
-        .trim()
+      );
+
+      const hours = cleanNumber(
+        row.hours ??
+          row.hours_worked ??
+          row.Hours ??
+          row.total_hours ??
+          row["Total Hours"] ??
+          0
+      );
+
+      const rate = cleanNumber(
+        row.hourly_rate ??
+          row.hourlyRate ??
+          row.rate ??
+          row.Rate ??
+          row["Hourly Rate"] ??
+          0
+      );
+
+      const calculatedCost =
+        uploadedCost > 0
+          ? uploadedCost
+          : hours > 0 && rate > 0
+          ? hours * rate
+          : 0;
+
+      return sum + calculatedCost;
+    },
+    0
+  );
+
+  /*
+    ==========================================
+    TOTAL LABOR HOURS
+    ==========================================
+  */
+  const totalLaborHours = resolvedLaborRows.reduce(
+    (sum, row) => {
+      const hours = cleanNumber(
+        row.hours ??
+          row.hours_worked ??
+          row.Hours ??
+          row.total_hours ??
+          row["Total Hours"] ??
+          0
+      );
+
+      return sum + hours;
+    },
+    0
+  );
+
+  /*
+    ==========================================
+    MATCH SALES PERIOD TO LABOR PERIOD
+    ==========================================
+  */
+  let matchedSalesRows = [];
+
+  if (usingDedicatedLabor) {
+    const laborDateKeys = new Set(
+      resolvedLaborRows
+        .map(getLaborDateKey)
+        .filter(Boolean)
     );
 
-    return Number.isFinite(laborCost) && laborCost > 0;
-  });
+    matchedSalesRows = (salesRows || []).filter(
+      (row) => {
+        const saleDateKey = getSalesDateKey(row);
 
-  const resolvedLaborRows =
-    dedicatedLaborRows.length > 0
-      ? dedicatedLaborRows
-      : posLaborRows;
+        return (
+          saleDateKey &&
+          laborDateKeys.has(saleDateKey)
+        );
+      }
+    );
+  } else {
+    /*
+      If POS itself is providing labor,
+      each POS row already represents the
+      correctly aligned revenue/labor period.
+    */
+    matchedSalesRows = posLaborRows;
+  }
 
-  const totalLaborCost = resolvedLaborRows.reduce((sum, row) => {
-  const cost = Number(
-  String(
-    row.labor ??
-      row.labor_cost ??
-      row["Labor Cost"] ??
-      row.laborCost ??
-      row.total_labor ??
-      row.total_labor_cost ??
-      row.payroll ??
-      row.wages ??
-      row.total_pay ??
-      row.gross_pay ??
-      row.cost ??
-      row.Cost ??
-      0
-  )
-    .replaceAll("$", "")
-    .replaceAll(",", "")
-    .trim()
-);
+  /*
+    ==========================================
+    MATCHED REVENUE BASE
+    ==========================================
+  */
+  const laborRevenueBase = matchedSalesRows.reduce(
+    (sum, row) => {
+      const revenue = cleanNumber(
+        row.revenue ??
+          row.sales ??
+          row.total_sales ??
+          row.net_sales ??
+          row.gross_sales ??
+          row.amount ??
+          row.total ??
+          0
+      );
 
-  const hours = Number(
-    row.hours ||
-      row.Hours ||
-      row.total_hours ||
-      row["Total Hours"] ||
-      0
+      return sum + revenue;
+    },
+    0
   );
 
-  const rate = Number(
-    row.hourly_rate ||
-      row.hourlyRate ||
-      row.rate ||
-      row.Rate ||
-      row["Hourly Rate"] ||
-      0
-  );
+  /*
+    ==========================================
+    LABOR %
+    ==========================================
+  */
+  const laborPercent =
+    laborRevenueBase > 0 &&
+    totalLaborCost > 0
+      ? (totalLaborCost /
+          laborRevenueBase) *
+        100
+      : 0;
 
-  return sum + (cost > 0 ? cost : hours * rate);
-}, 0);
-const laborRevenueBase = Number(liveTotalRevenue || 0);
+  /*
+    ==========================================
+    SALES PER LABOR HOUR
+    ==========================================
+  */
+  const salesPerLaborHour =
+    laborRevenueBase > 0 &&
+    totalLaborHours > 0
+      ? laborRevenueBase /
+        totalLaborHours
+      : 0;
 
-const laborPercent =
-  laborRevenueBase > 0 && totalLaborCost > 0
-    ? (totalLaborCost / laborRevenueBase) * 100
-    : 0;
+  /*
+    ==========================================
+    RECOVERY OPPORTUNITY
+    ==========================================
+  */
+  const laborRecoveryOpportunity =
+    laborRevenueBase > 0 &&
+    totalLaborCost > 0
+      ? Math.max(
+          0,
+          totalLaborCost -
+            laborRevenueBase * 0.28
+        )
+      : 0;
 
-const laborRecoveryOpportunity =
-  Math.max(
-    0,
-    Number(totalLaborCost || 0) -
-      Number(laborRevenueBase || 0) * 0.28
-  ) || 0;
+  /*
+    ==========================================
+    MATCHED DATE INFORMATION
+    ==========================================
+  */
+  const matchedLaborDates = [
+    ...new Set(
+      resolvedLaborRows
+        .map((row) =>
+          usingDedicatedLabor
+            ? getLaborDateKey(row)
+            : getSalesDateKey(row)
+        )
+        .filter(Boolean)
+    ),
+  ].sort();
 
   return {
-  totalLaborCost,
-  laborPercent,
-  laborRecoveryOpportunity,
-  rows: resolvedLaborRows,
-};
+    totalLaborCost,
+    totalLaborHours,
+
+    laborRevenueBase,
+    laborPercent,
+    salesPerLaborHour,
+
+    laborRecoveryOpportunity,
+
+    rows: resolvedLaborRows,
+    matchedSalesRows,
+    matchedLaborDates,
+
+    source: usingDedicatedLabor
+      ? "dedicated_labor"
+      : posLaborRows.length > 0
+      ? "pos_labor"
+      : "none",
+
+    hasLaborData:
+      resolvedLaborRows.length > 0 &&
+      totalLaborCost > 0,
+
+    hasMatchedRevenue:
+      laborRevenueBase > 0,
+
+    matchedLaborRowCount:
+      resolvedLaborRows.length,
+
+    matchedSalesRowCount:
+      matchedSalesRows.length,
+  };
 }, [
   locationLaborData,
   laborData,
   locationSalesData,
   dbSalesRows,
-  liveTotalRevenue,
 ]);
 
 const revenueInsight = useMemo(() => {
@@ -14054,12 +14274,10 @@ const effectiveFoodCostPercent =
   Number(foodCostPercentage || 0);
 
 const laborRevenueBase =
-  Number(liveTotalRevenue || 0);
+  Number(liveLaborIntelligence?.laborRevenueBase || 0);
 
 const effectiveLaborCostPercent =
-  Number(laborRevenueBase || 0) > 0
-    ? (Number(totalLaborCost || 0) / Number(laborRevenueBase || 0)) * 100
-    : 0;
+  Number(liveLaborIntelligence?.laborPercent || 0);
 console.log("LABOR COST % DEBUG", {
   totalLaborCost,
   liveTotalRevenue,
@@ -14140,26 +14358,13 @@ const estimatedRecoverableProfit = primeCostAboveTargetDollars;
 ========================= */
 
 // TOTAL LABOR HOURS
-const totalLaborHours = (locationLaborData || []).reduce(
-  (sum, row) =>
-    sum +
-    Number(
-      row.hours ||
-      row.total_hours ||
-      row.labor_hours ||
-      row.hours_worked ||
-      0
-    ),
-  0
-);
-
+// Uses the same resolved labor source as the matched-period labor engine.
+const totalLaborHours =
+  Number(liveLaborIntelligence?.totalLaborHours || 0);
 // SALES PER LABOR HOUR
+// Uses revenue matched to the same dates as the active labor dataset.
 const salesPerLaborHour =
-  totalLaborHours > 0
-    ? Number(
-        (liveTotalRevenue / totalLaborHours).toFixed(2)
-      )
-    : 0;
+  Number(liveLaborIntelligence?.salesPerLaborHour || 0);
 
 // LABOR EFFICIENCY SCORE
 const laborEfficiencyScore =
