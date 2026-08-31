@@ -95451,12 +95451,17 @@ maxWidth: "100%",
                 fontSize: "14px",
                 lineHeight: 1.8,
               }}
-            >
-              {safeLaborPercent >= 35
-                ? "Labor costs are elevated relative to revenue. SerVen recommends optimizing staffing levels, reducing overtime, and improving shift productivity."
-                : safeLaborPercent >= 28
-                ? "Labor performance is within an acceptable range but additional optimization opportunities remain."
-                : "Labor performance is operating efficiently based on current workforce utilization and revenue generation."}
+            >{laborDataCoverage?.isLimited
+  ? `Labor performance cannot yet be fully assessed because labor data covers only ${
+      laborDataCoverage?.matchedDays || 0
+    } of ${
+      laborDataCoverage?.salesDays || 0
+    } tracked sales days. SerVen will provide a higher-confidence workforce assessment as additional labor data becomes available.`
+  : safeLaborPercent >= 35
+  ? "Labor costs are elevated relative to revenue. SerVen recommends optimizing staffing levels, reducing overtime, and improving shift productivity."
+  : safeLaborPercent >= 28
+  ? "Labor performance is within an acceptable range but additional optimization opportunities remain."
+  : "Labor performance is operating efficiently based on current workforce utilization and revenue generation."}
             </div>
           </div>
         </>
