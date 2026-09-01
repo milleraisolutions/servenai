@@ -15845,118 +15845,123 @@ useEffect(() => {
 
     if (
       !Array.isArray(realAppliedActions) ||
-      !realAppliedActions.length ||
-      !Array.isArray(laborData) ||
-      !laborData.length
+      !realAppliedActions.length
     ) {
       return;
     }
 
-    const pendingLaborActions = realAppliedActions.filter((action) => {
-      const category = String(
-        action.recovery_category || ""
-      )
-        .trim()
-        .toLowerCase();
+    const salesRows =
+      Array.isArray(dbSalesRows) && dbSalesRows.length
+        ? dbSalesRows
+        : Array.isArray(locationSalesData) &&
+          locationSalesData.length
+        ? locationSalesData
+        : [];
 
-      const actionType = String(
-        action.action_type || ""
-      )
-        .trim()
-        .toLowerCase();
+    const laborRows =
+      Array.isArray(locationLaborData) &&
+      locationLaborData.length
+        ? locationLaborData
+        : Array.isArray(laborData)
+        ? laborData
+        : [];
 
-      const decisionStatus = String(
-        action.decision_status || ""
-      )
-        .trim()
-        .toLowerCase();
+    if (!salesRows.length || !laborRows.length) {
+      return;
+    }
 
-      const verificationStatus = String(
-        action.verification_status || ""
-      )
-        .trim()
-        .toLowerCase();
+    const pendingLaborActions =
+      realAppliedActions.filter((action) => {
+        const category = String(
+          action.recovery_category || ""
+        )
+          .trim()
+          .toLowerCase();
 
-      return (
-        category === "labor" &&
-        actionType === "schedule_adjustment" &&
-        decisionStatus === "accepted" &&
-        verificationStatus !== "verified"
-      );
-    });
+        const actionType = String(
+          action.action_type || ""
+        )
+          .trim()
+          .toLowerCase();
 
-    if (!pendingLaborActions.length) return;
+        const decisionStatus = String(
+          action.decision_status || ""
+        )
+          .trim()
+          .toLowerCase();
 
-    const currentLaborPercent = Number(
-      effectiveLaborCostPercent || 0
-    );
+        const verificationStatus = String(
+          action.verification_status || ""
+        )
+          .trim()
+          .toLowerCase();
 
-    const currentLaborHours = Number(
-      totalLaborHours || 0
-    );
+        return (
+          category === "labor" &&
+          actionType === "schedule_adjustment" &&
+          decisionStatus === "accepted" &&
+          verificationStatus !== "verified"
+        );
+      });
 
-    const currentSalesPerLaborHour = Number(
-      salesPerLaborHour || 0
-    );
-
-    const currentRevenue = Number(
-      liveTotalRevenue || 0
-    );
-
-    if (
-      currentLaborPercent <= 0 ||
-      currentRevenue <= 0
-    ) {
+    if (!pendingLaborActions.length) {
       return;
     }
 
     let verificationChanged = false;
 
     for (const action of pendingLaborActions) {
-      const baselineLaborPercent = Number(
-        action?.baseline_data?.labor_cost_percent || 0
-      );
+      const appliedAt =
+        action.decided_at ||
+        action.applied_at ||
+        action.created_at ||
+        null;
 
-      const baselineLaborHours = Number(
-        action?.baseline_data?.total_labor_hours || 0
-      );
-
-      const baselineSalesPerLaborHour = Number(
-        action?.baseline_data?.sales_per_labor_hour || 0
-      );
-
-      if (baselineLaborPercent <= 0) {
+      if (!appliedAt) {
         continue;
       }
 
-      // Primary proof:
-      // labor cost percentage must actually improve.
-      const laborPercentImproved =
-        currentLaborPercent < baselineLaborPercent;
+      const verification =
+        calculateLaborRecoveryVerification({
+          appliedAt,
+          salesRows,
+          laborRows,
+          minimumMeasurementDays: 7,
+        });
 
-      // Supporting operational evidence.
-      const laborHoursImproved =
-        baselineLaborHours > 0 &&
-        currentLaborHours > 0 &&
-        currentLaborHours < baselineLaborHours;
+      console.log(
+        "LABOR RECOVERY MEASUREMENT:",
+        {
+          actionId: action.id,
+          appliedAt,
+          verificationStatus:
+            verification?.verificationStatus,
+          calculatedRecovery:
+            verification?.calculatedRecovery,
+          baselineMetrics:
+            verification?.baselineMetrics,
+          measuredMetrics:
+            verification?.measuredMetrics,
+        }
+      );
 
-      const productivityImproved =
-        baselineSalesPerLaborHour > 0 &&
-        currentSalesPerLaborHour > 0 &&
-        currentSalesPerLaborHour >
-          baselineSalesPerLaborHour;
-
-      if (!laborPercentImproved) {
+      /*
+        Do not financially verify until:
+        1. minimum measurement window is satisfied
+        2. baseline evidence exists
+        3. post-action evidence exists
+        4. measured recovery is positive
+      */
+      if (
+        verification?.verificationStatus !==
+        "ready_for_verification"
+      ) {
         continue;
       }
 
-      const improvementPercent =
-        baselineLaborPercent -
-        currentLaborPercent;
-
-      const verifiedRecovery =
-        (improvementPercent / 100) *
-        currentRevenue;
+      const verifiedRecovery = Number(
+        verification?.calculatedRecovery || 0
+      );
 
       if (
         !Number.isFinite(verifiedRecovery) ||
@@ -15975,10 +15980,60 @@ useEffect(() => {
           implemented_at: verificationTimestamp,
 
           verification_status: "verified",
+
           verified_recovery: Number(
             verifiedRecovery.toFixed(2)
           ),
+
           verified_at: verificationTimestamp,
+
+          /*
+            Preserve the measured result so we have
+            evidence supporting the verified dollars.
+          */
+          target_data: {
+            verification_method:
+              "labor_before_after_measurement",
+
+            minimum_measurement_days: 7,
+
+            baseline_start:
+              verification?.baselineStart
+                ? new Date(
+                    verification.baselineStart
+                  ).toISOString()
+                : null,
+
+            baseline_end:
+              verification?.baselineEnd
+                ? new Date(
+                    verification.baselineEnd
+                  ).toISOString()
+                : null,
+
+            measurement_start:
+              verification?.measurementStart
+                ? new Date(
+                    verification.measurementStart
+                  ).toISOString()
+                : null,
+
+            measurement_end:
+              verification?.measurementEnd
+                ? new Date(
+                    verification.measurementEnd
+                  ).toISOString()
+                : null,
+
+            baseline_metrics:
+              verification?.baselineMetrics || {},
+
+            measured_metrics:
+              verification?.measuredMetrics || {},
+
+            calculated_recovery:
+              verifiedRecovery,
+          },
 
           status: "verified",
         })
@@ -15994,23 +16049,17 @@ useEffect(() => {
 
       verificationChanged = true;
 
-      console.log("LABOR RECOVERY VERIFIED:", {
-        actionId: action.id,
-
-        baselineLaborPercent,
-        currentLaborPercent,
-
-        baselineLaborHours,
-        currentLaborHours,
-
-        baselineSalesPerLaborHour,
-        currentSalesPerLaborHour,
-
-        laborHoursImproved,
-        productivityImproved,
-
-        verifiedRecovery,
-      });
+      console.log(
+        "LABOR RECOVERY VERIFIED:",
+        {
+          actionId: action.id,
+          verifiedRecovery,
+          baselineMetrics:
+            verification?.baselineMetrics,
+          measuredMetrics:
+            verification?.measuredMetrics,
+        }
+      );
     }
 
     if (verificationChanged) {
@@ -16022,11 +16071,10 @@ useEffect(() => {
 }, [
   authReady,
   realAppliedActions,
+  dbSalesRows,
+  locationSalesData,
+  locationLaborData,
   laborData,
-  effectiveLaborCostPercent,
-  totalLaborHours,
-  salesPerLaborHour,
-  liveTotalRevenue,
 ]);
 const operationalEstimatedWasteRecovery =
   operationalUsageVariancePercent > 5
