@@ -96521,69 +96521,137 @@ Number(safeEffectiveLaborCostPercent || 0) <= 35 && {
                 }}
               >
                 {action.detail}
-              </div>
-  {action.canApply && (
- <button
-  type="button"
-  onClick={async () => {
-      const savedAction = await saveAppliedAIAction({
-        actionName: action.title,
-        actionDescription: action.detail,
+              </div>{action.canApply && (() => {
+  const existingLaborAction = (realAppliedActions || []).find((saved) => {
+    const savedCategory = String(
+      saved.recovery_category || ""
+    )
+      .trim()
+      .toLowerCase();
 
-        impactValue: Number(
-          action.estimatedImpact || 0
-        ),
+    const savedActionType = String(
+      saved.action_type || ""
+    )
+      .trim()
+      .toLowerCase();
 
-        appliedBy: "manual",
+    const savedDecisionStatus = String(
+      saved.decision_status || ""
+    )
+      .trim()
+      .toLowerCase();
 
-        recoveryCategory:
-          action.recoveryCategory || "labor",
-
-        entityType: "labor",
-
-        entityId: null,
-
-        actionType:
+    return (
+      savedCategory ===
+        String(
+          action.recoveryCategory || "labor"
+        )
+          .trim()
+          .toLowerCase() &&
+      savedActionType ===
+        String(
           action.actionType ||
-          "labor_recommendation",
+            "labor_recommendation"
+        )
+          .trim()
+          .toLowerCase() &&
+      savedDecisionStatus === "accepted"
+    );
+  });
 
-        decisionStatus: "accepted",
+  const alreadyRecorded =
+    Boolean(existingLaborAction?.id);
 
-        implementationStatus:
-          "awaiting_verification",
+  return (
+    <button
+      type="button"
+      disabled={alreadyRecorded}
+      onClick={async () => {
+        if (alreadyRecorded) return;
 
-        baselineData:
-          action.baselineData || null,
+        const savedAction =
+          await saveAppliedAIAction({
+            actionName: action.title,
+            actionDescription: action.detail,
 
-        targetData: null,
-      });
+            impactValue: Number(
+              action.estimatedImpact || 0
+            ),
 
-      if (!savedAction?.id) {
+            appliedBy: "manual",
+
+            recoveryCategory:
+              action.recoveryCategory ||
+              "labor",
+
+            entityType: "labor",
+
+            entityId: null,
+
+            actionType:
+              action.actionType ||
+              "labor_recommendation",
+
+            decisionStatus: "accepted",
+
+            implementationStatus:
+              "awaiting_verification",
+
+            baselineData:
+              action.baselineData || null,
+
+            targetData: null,
+          });
+
+        if (!savedAction?.id) {
+          setMessage(
+            "The labor recommendation could not be recorded."
+          );
+          return;
+        }
+
+        await loadRealAppliedActions();
+
         setMessage(
-          "The labor recommendation could not be recorded."
+          "Labor recommendation recorded. Serven will monitor labor and sales data for implementation and verified recovery."
         );
-        return;
-      }
+      }}
+      style={{
+        marginTop: "12px",
+        padding: "9px 14px",
+        borderRadius: "10px",
 
-      setMessage(
-        "Labor recommendation recorded. Serven will monitor labor and sales data for implementation and verified recovery."
-      );
-    }}
-    style={{
-      marginTop: "12px",
-      padding: "9px 14px",
-      borderRadius: "10px",
-      border: "1px solid rgba(96,165,250,0.28)",
-      background: "rgba(59,130,246,0.16)",
-      color: "#bfdbfe",
-      fontSize: "12px",
-      fontWeight: "800",
-      cursor: "pointer",
-    }}
-  >
-    {action.actionLabel || "Record Labor Action"}
-  </button>
-)}
+        border: alreadyRecorded
+          ? "1px solid rgba(34,197,94,0.32)"
+          : "1px solid rgba(96,165,250,0.28)",
+
+        background: alreadyRecorded
+          ? "rgba(34,197,94,0.14)"
+          : "rgba(59,130,246,0.16)",
+
+        color: alreadyRecorded
+          ? "#86efac"
+          : "#bfdbfe",
+
+        fontSize: "12px",
+        fontWeight: "800",
+
+        cursor: alreadyRecorded
+          ? "default"
+          : "pointer",
+
+        opacity: alreadyRecorded
+          ? 0.95
+          : 1,
+      }}
+    >
+      {alreadyRecorded
+        ? "Schedule Adjustment Recorded ✓"
+        : action.actionLabel ||
+          "Record Labor Action"}
+    </button>
+  );
+})()}
             </div>
           ))
         ) : (
