@@ -691,6 +691,7 @@ const [clientAlertFilter, setClientAlertFilter] = useState("all");
 const [lastScanTime, setLastScanTime] = useState(null);
 const [selectedAlertAction, setSelectedAlertAction] = useState(null);
 const selectedAiFixRef = useRef(null);
+const applyingAIActionKeysRef = useRef(new Set());
 const [aiHistory, setAiHistory] = useState([]);
 const [totalAiProfit, setTotalAiProfit] = useState(0);
 const [displayTotalAiProfit, setDisplayTotalAiProfit] = useState(0);
@@ -6445,6 +6446,101 @@ const saveAppliedAIAction = async ({
 
     if (!user?.id) return null;
 const actionLocation = getActiveConnectionLocation();
+const actionKey = [
+  user.id,
+  String(actionName || "").trim().toLowerCase(),
+  String(recoveryCategory || "").trim().toLowerCase(),
+  String(entityType || "").trim().toLowerCase(),
+  String(entityId || "").trim().toLowerCase(),
+  String(actionType || "").trim().toLowerCase(),
+  String(actionLocation?.id || "").trim().toLowerCase(),
+].join("|");
+
+if (applyingAIActionKeysRef.current.has(actionKey)) {
+  console.log("AI action click blocked while save is in flight:", actionKey);
+
+  setMessage(
+    `"${actionName}" is already being applied.`
+  );
+
+  return null;
+}
+
+applyingAIActionKeysRef.current.add(actionKey);
+let duplicateQuery = supabase
+  .from("ai_applied_actions")
+  .select(
+    "id, action_name, recovery_category, entity_type, entity_id, action_type, status, implementation_status, verification_status, location_id"
+  )
+  .eq("user_id", user.id)
+  .eq("action_name", String(actionName || "").trim())
+  .or("verification_status.neq.verified,verification_status.is.null");
+
+if (recoveryCategory) {
+  duplicateQuery = duplicateQuery.eq(
+    "recovery_category",
+    recoveryCategory
+  );
+}
+
+if (entityType) {
+  duplicateQuery = duplicateQuery.eq(
+    "entity_type",
+    entityType
+  );
+}
+
+if (entityId) {
+  duplicateQuery = duplicateQuery.eq(
+    "entity_id",
+    entityId
+  );
+}
+
+if (actionType) {
+  duplicateQuery = duplicateQuery.eq(
+    "action_type",
+    actionType
+  );
+}
+
+if (actionLocation?.id) {
+  duplicateQuery = duplicateQuery.eq(
+    "location_id",
+    actionLocation.id
+  );
+} else {
+  duplicateQuery = duplicateQuery.is(
+    "location_id",
+    null
+  );
+}
+
+const {
+  data: existingActions,
+  error: duplicateCheckError,
+} = await duplicateQuery.limit(1);
+
+if (duplicateCheckError) {
+  console.error(
+    "Duplicate AI action check failed:",
+    duplicateCheckError
+  );
+  return null;
+}
+
+if (existingActions?.length) {
+  console.log(
+    "Duplicate AI action blocked:",
+    existingActions[0]
+  );
+
+  setMessage(
+    `"${actionName}" has already been applied and is awaiting or completing verification.`
+  );
+
+  return existingActions[0];
+}
     const { data, error } = await supabase
       .from("ai_applied_actions")
       .insert([
@@ -6491,10 +6587,14 @@ verified_at: null,
       return null;
     }
 
-    return data;
+        return data;
   } catch (error) {
     console.error("Error saving AI action:", error);
     return null;
+  } finally {
+    if (actionKey) {
+      applyingAIActionKeysRef.current.delete(actionKey);
+    }
   }
 };
 const addToAiHistory = (newItem) => {
@@ -9061,50 +9161,25 @@ const saveRealAppliedFix = async ({
   entityType = null,
   entityId = null,
 }) => {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const savedAction = await saveAppliedAIAction({
+    actionName,
+    actionDescription,
+    impactValue,
+    appliedBy,
+    recoveryCategory,
+    entityType,
+    entityId,
 
-  if (!user?.id) {
-    setMessage("You must be logged in to apply fixes.");
-    return null;
-  }
-const actionLocation = getActiveConnectionLocation();
-  const { data, error } = await supabase
-    .from("ai_applied_actions")
-    .insert([
-     {
-  user_id: user.id,
-  action_name: actionName,
-  action_description: actionDescription,
-  impact_value: Number(impactValue || 0),
-  source,
-  applied_by: appliedBy,
-  status: "applied",
+    actionType: source,
+    decisionStatus: "accepted",
+    implementationStatus: "awaiting_verification",
+  });
 
-  location_id: actionLocation?.id || null,
-  location_name: actionLocation?.name || null,
-
-  recovery_category: recoveryCategory || null,
-
-  entity_type: entityType,
-  entity_id: entityId,
-
-  verification_status: "not_started",
-  verified_recovery: null,
-  verified_at: null,
-},
-    ])
-    .select()
-    .single();
-
-  if (error) {
-    console.error("Save applied fix failed:", JSON.stringify(error, null, 2));
-    setMessage(error.message || "Failed to save applied fix.");
+  if (!savedAction) {
     return null;
   }
 
-  return data;
+  return savedAction;
 };
 const loadRealAppliedActions = async () => {
   if (!authReady) {
@@ -42183,7 +42258,6 @@ const handleAssignRoleAction = (action) => {
 
 
 
-
 const saveCompletedRoleAction = async (action) => {
   try {
     if (!action?.id) return false;
@@ -42202,81 +42276,79 @@ const saveCompletedRoleAction = async (action) => {
       return false;
     }
 
-    const now = new Date().toISOString();
-const actionLocation = getActiveConnectionLocation();
-    const payload = {
-  user_id: dataOwnerId || currentUser.id,
+    const actionName =
+      action.title ||
+      "Serven AI Action";
 
-  action_name:
-    action.title ||
-    "Serven AI Action",
+    const actionDescription =
+      action.action ||
+      "AI recommended restaurant action.";
 
-  action_description:
-    action.action ||
-    "AI recommended restaurant action.",
+    const recoveryCategory =
+      String(action.department || "")
+        .trim()
+        .toLowerCase() || null;
 
-  impact_value: Number(
-    action.estimatedImpact || 0
-  ),
+    /*
+      Route role-action completion through the shared
+      persistence layer so duplicate actions are blocked.
+    */
+    const savedAction = await saveAppliedAIAction({
+      actionName,
+      actionDescription,
 
-  applied_by:
-    activeDigitalTwinRoleLabel ||
-    "Restaurant Team",
+      impactValue: Number(
+        action.estimatedImpact || 0
+      ),
 
-  // This means the operational action was completed.
-  // It does NOT mean financial recovery has been verified.
-  status: "completed",
+      appliedBy:
+        activeDigitalTwinRoleLabel ||
+        "Restaurant Team",
 
-  applied_at: now,
+      recoveryCategory,
 
-  source: String(
-    action.department ||
-    "Role Action Plan"
-  )
-    .trim()
-    .toLowerCase(),
+      /*
+        The role-action ID gives this recommendation a
+        stable entity identity for duplicate protection.
+      */
+      entityType: "role_action",
+      entityId: String(action.id),
 
-  location_id: actionLocation?.id || null,
-  location_name: actionLocation?.name || null,
+      actionType:
+        String(
+          action.department ||
+          "role_action_plan"
+        )
+          .trim()
+          .toLowerCase() ||
+        "role_action_plan",
 
-  recovery_category: String(
-    action.department || ""
-  )
-    .trim()
-    .toLowerCase() || null,
+      decisionStatus: "accepted",
 
-  verification_status: "not_started",
-  verified_recovery: null,
-  verified_at: null,
-};
+      /*
+        The operator completed the operational action,
+        but financial recovery still needs verification.
+      */
+      implementationStatus: "implemented",
+    });
 
-    console.log(
-      "SAVING ROLE ACTION:",
-      payload
-    );
-
-    const { data, error } = await supabase
-      .from("ai_applied_actions")
-      .insert(payload)
-      .select()
-      .single();
-
-    if (error) {
-      console.error(
-        "SAVE ROLE ACTION SUPABASE ERROR:",
-        error
+    if (!savedAction) {
+      setMessage(
+        `Could not save completed action: ${
+          actionName
+        }.`
       );
 
-      throw error;
+      return false;
     }
 
     console.log(
-      "ROLE ACTION SAVED:",
-      data
+      "ROLE ACTION SAVED OR EXISTING ACTION REUSED:",
+      savedAction
     );
 
     setMessage(
-      `"${action.title || "AI action"}" marked complete.`
+      `"${actionName}" marked complete.`
     );
 
     return true;
