@@ -12877,7 +12877,6 @@ const verifiedRecovery = Number(
 
    const verificationTimestamp =
   new Date().toISOString();
-
 const { error } = await supabase
   .from("ai_applied_actions")
   .update({
@@ -12885,21 +12884,23 @@ const { error } = await supabase
     implemented_at: verificationTimestamp,
 
     verification_status: "verified",
-    verified_recovery: verifiedRecovery,
+    verified_recovery: Number(
+      verifiedRecovery.toFixed(2)
+    ),
     verified_at: verificationTimestamp,
 
     status: "verified",
   })
   .eq("id", action.id);
 
-      if (error) {
-        console.error(
-          "MENU RECOVERY VERIFICATION ERROR:",
-          error
-        );
-        continue;
-      }
+if (error) {
+  console.error(
+    "MENU RECOVERY VERIFICATION ERROR:",
+    error
+  );
 
+  continue;
+}
       verificationChanged = true;
 
       console.log("MENU RECOVERY VERIFIED:", {
@@ -15972,80 +15973,175 @@ useEffect(() => {
 
       const verificationTimestamp =
         new Date().toISOString();
+const periodStart = verification?.measurementStart
+  ? new Date(verification.measurementStart)
+      .toISOString()
+      .slice(0, 10)
+  : null;
 
-      const { error } = await supabase
-        .from("ai_applied_actions")
-        .update({
-          implementation_status: "confirmed",
-          implemented_at: verificationTimestamp,
+const periodEnd = verification?.measurementEnd
+  ? new Date(verification.measurementEnd)
+      .toISOString()
+      .slice(0, 10)
+  : null;
 
-          verification_status: "verified",
+if (!periodStart || !periodEnd) {
+  console.error(
+    "LABOR RECOVERY LEDGER SKIPPED: missing measurement period",
+    {
+      actionId: action.id,
+      periodStart,
+      periodEnd,
+    }
+  );
 
-          verified_recovery: Number(
-            verifiedRecovery.toFixed(2)
-          ),
+  continue;
+}
 
-          verified_at: verificationTimestamp,
+/*
+  ==========================================
+  WRITE VERIFIED LABOR PERIOD TO LEDGER
+  ==========================================
+*/
+const { error: ledgerError } = await supabase
+  .from("verified_recovery_ledger")
+  .upsert(
+    [
+      {
+        user_id: action.user_id,
 
-          /*
-            Preserve the measured result so we have
-            evidence supporting the verified dollars.
-          */
-          target_data: {
-            verification_method:
-              "labor_before_after_measurement",
+        action_id: action.id,
 
-            minimum_measurement_days: 7,
+        recovery_category: "labor",
 
-            baseline_start:
-              verification?.baselineStart
-                ? new Date(
-                    verification.baselineStart
-                  ).toISOString()
-                : null,
+        entity_type:
+          action.entity_type || "labor",
 
-            baseline_end:
-              verification?.baselineEnd
-                ? new Date(
-                    verification.baselineEnd
-                  ).toISOString()
-                : null,
+        entity_id:
+          action.entity_id
+            ? String(action.entity_id)
+            : null,
 
-            measurement_start:
-              verification?.measurementStart
-                ? new Date(
-                    verification.measurementStart
-                  ).toISOString()
-                : null,
+        location_id:
+          action.location_id || null,
 
-            measurement_end:
-              verification?.measurementEnd
-                ? new Date(
-                    verification.measurementEnd
-                  ).toISOString()
-                : null,
+        location_name:
+          action.location_name || null,
 
-            baseline_metrics:
-              verification?.baselineMetrics || {},
+        period_start: periodStart,
+        period_end: periodEnd,
 
-            measured_metrics:
-              verification?.measuredMetrics || {},
+        recovery_amount: Number(
+          verifiedRecovery.toFixed(2)
+        ),
 
-            calculated_recovery:
-              verifiedRecovery,
-          },
+        verification_method:
+          "labor_before_after_measurement",
 
-          status: "verified",
-        })
-        .eq("id", action.id);
+        baseline_data:
+          verification?.baselineMetrics || {},
 
-      if (error) {
-        console.error(
-          "LABOR RECOVERY VERIFICATION ERROR:",
-          error
-        );
-        continue;
-      }
+        measured_data:
+          verification?.measuredMetrics || {},
+
+        status: "verified",
+
+        verified_at: verificationTimestamp,
+      },
+    ],
+    {
+      onConflict:
+        "action_id,period_start,period_end,verification_method",
+
+      ignoreDuplicates: true,
+    }
+  );
+
+if (ledgerError) {
+  console.error(
+    "LABOR RECOVERY LEDGER ERROR:",
+    ledgerError
+  );
+
+  continue;
+}
+
+/*
+  ==========================================
+  UPDATE MASTER LABOR ACTION
+  ==========================================
+*/
+const { error: actionUpdateError } =
+  await supabase
+    .from("ai_applied_actions")
+    .update({
+      implementation_status: "confirmed",
+      implemented_at: verificationTimestamp,
+
+      verification_status: "verified",
+
+      verified_recovery: Number(
+        verifiedRecovery.toFixed(2)
+      ),
+
+      verified_at: verificationTimestamp,
+
+      target_data: {
+        verification_method:
+          "labor_before_after_measurement",
+
+        minimum_measurement_days: 7,
+
+        baseline_start:
+          verification?.baselineStart
+            ? new Date(
+                verification.baselineStart
+              ).toISOString()
+            : null,
+
+        baseline_end:
+          verification?.baselineEnd
+            ? new Date(
+                verification.baselineEnd
+              ).toISOString()
+            : null,
+
+        measurement_start:
+          verification?.measurementStart
+            ? new Date(
+                verification.measurementStart
+              ).toISOString()
+            : null,
+
+        measurement_end:
+          verification?.measurementEnd
+            ? new Date(
+                verification.measurementEnd
+              ).toISOString()
+            : null,
+
+        baseline_metrics:
+          verification?.baselineMetrics || {},
+
+        measured_metrics:
+          verification?.measuredMetrics || {},
+
+        calculated_recovery:
+          verifiedRecovery,
+      },
+
+      status: "verified",
+    })
+    .eq("id", action.id);
+
+if (actionUpdateError) {
+  console.error(
+    "LABOR RECOVERY VERIFICATION ERROR:",
+    actionUpdateError
+  );
+
+  continue;
+}
 
       verificationChanged = true;
 
@@ -16068,6 +16164,499 @@ useEffect(() => {
   };
 
   verifyAppliedLaborRecoveries();
+}, [
+  authReady,
+  realAppliedActions,
+  dbSalesRows,
+  locationSalesData,
+  locationLaborData,
+  laborData,
+]);
+
+
+
+useEffect(() => {
+  const trackOngoingVerifiedLaborRecovery = async () => {
+    if (!authReady) return;
+
+    const verifiedLaborActions = (realAppliedActions || []).filter(
+      (action) => {
+        const category = String(
+          action.recovery_category || ""
+        )
+          .trim()
+          .toLowerCase();
+
+        const actionType = String(
+          action.action_type || ""
+        )
+          .trim()
+          .toLowerCase();
+
+        const verificationStatus = String(
+          action.verification_status || ""
+        )
+          .trim()
+          .toLowerCase();
+
+        return (
+          category === "labor" &&
+          actionType === "schedule_adjustment" &&
+          verificationStatus === "verified"
+        );
+      }
+    );
+
+    if (!verifiedLaborActions.length) return;
+
+    const salesRows =
+      Array.isArray(dbSalesRows) && dbSalesRows.length
+        ? dbSalesRows
+        : Array.isArray(locationSalesData) &&
+          locationSalesData.length
+        ? locationSalesData
+        : [];
+
+    const laborRows =
+      Array.isArray(locationLaborData) &&
+      locationLaborData.length
+        ? locationLaborData
+        : Array.isArray(laborData)
+        ? laborData
+        : [];
+
+    if (!salesRows.length || !laborRows.length) return;
+
+    const getLaborDate = (row = {}) => {
+      const rawDate =
+        row.work_date ||
+        row.date ||
+        row.shift_date ||
+        row["Work Date"] ||
+        row["Date"];
+
+      const date = rawDate ? new Date(rawDate) : null;
+
+      return date && !Number.isNaN(date.getTime())
+        ? date
+        : null;
+    };
+
+    const getLaborCost = (row = {}) => {
+      const directCost = Number(
+        row.labor_cost ||
+          row["Labor Cost"] ||
+          row.laborCost ||
+          0
+      );
+
+      if (directCost > 0) return directCost;
+
+      const hours = Number(
+        row.hours ||
+          row.hours_worked ||
+          row.Hours ||
+          row.total_hours ||
+          row["Total Hours"] ||
+          0
+      );
+
+      const rate = Number(
+        row.hourly_rate ||
+          row.hourlyRate ||
+          row.rate ||
+          row.Rate ||
+          row["Hourly Rate"] ||
+          0
+      );
+
+      return hours * rate;
+    };
+
+    const validSalesDates = salesRows
+      .map((row) => getSaleDate(row))
+      .filter(Boolean);
+
+    const validLaborDates = laborRows
+      .map((row) => getLaborDate(row))
+      .filter(Boolean);
+
+    if (!validSalesDates.length || !validLaborDates.length) {
+      return;
+    }
+
+    const latestSalesDate = new Date(
+      Math.max(...validSalesDates.map((date) => date.getTime()))
+    );
+
+    const latestLaborDate = new Date(
+      Math.max(...validLaborDates.map((date) => date.getTime()))
+    );
+
+    /*
+      Recovery can only be measured through the latest date
+      where both sales and labor data are available.
+    */
+    const latestSharedDate = new Date(
+      Math.min(
+        latestSalesDate.getTime(),
+        latestLaborDate.getTime()
+      )
+    );
+
+ latestSharedDate.setHours(23, 59, 59, 999);
+
+let anyRecoveryChanged = false;
+
+for (const action of verifiedLaborActions) {
+  let recoveryChanged = false;
+      const baselineLaborRate = Number(
+        action?.target_data?.baseline_metrics?.laborRate ||
+          0
+      );
+
+      const initialMeasurementEndRaw =
+        action?.target_data?.measurement_end || null;
+
+      if (
+        baselineLaborRate <= 0 ||
+        !initialMeasurementEndRaw
+      ) {
+        continue;
+      }
+
+      const initialMeasurementEnd =
+        new Date(initialMeasurementEndRaw);
+
+      if (
+        Number.isNaN(initialMeasurementEnd.getTime())
+      ) {
+        continue;
+      }
+
+      /*
+        First ongoing period starts the day after
+        the initial verified measurement period.
+      */
+      let periodStart = new Date(
+        initialMeasurementEnd
+      );
+
+      periodStart.setDate(
+        periodStart.getDate() + 1
+      );
+
+      periodStart.setHours(0, 0, 0, 0);
+
+      const {
+        data: existingLedgerRows,
+        error: existingLedgerError,
+      } = await supabase
+        .from("verified_recovery_ledger")
+        .select(
+          "period_start, period_end, verification_method"
+        )
+        .eq("action_id", action.id);
+
+      if (existingLedgerError) {
+        console.error(
+          "ONGOING LABOR LEDGER LOAD ERROR:",
+          existingLedgerError
+        );
+        continue;
+      }
+
+      const existingPeriods = new Set(
+        (existingLedgerRows || []).map(
+          (row) =>
+            `${row.period_start}|${row.period_end}|${row.verification_method}`
+        )
+      );
+
+      while (true) {
+        const periodEnd = new Date(periodStart);
+
+        periodEnd.setDate(
+          periodEnd.getDate() + 6
+        );
+
+        periodEnd.setHours(
+          23,
+          59,
+          59,
+          999
+        );
+
+        /*
+          Only verify complete 7-day periods.
+        */
+        if (periodEnd > latestSharedDate) {
+          break;
+        }
+
+        const periodSales = salesRows.filter(
+          (row) => {
+            const date = getSaleDate(row);
+
+            return (
+              date &&
+              date >= periodStart &&
+              date <= periodEnd
+            );
+          }
+        );
+
+        const periodLabor = laborRows.filter(
+          (row) => {
+            const date = getLaborDate(row);
+
+            return (
+              date &&
+              date >= periodStart &&
+              date <= periodEnd
+            );
+          }
+        );
+
+        const periodRevenue =
+          periodSales.reduce(
+            (sum, row) =>
+              sum +
+              Number(
+                getSaleRevenue(row) || 0
+              ),
+            0
+          );
+
+        const actualLaborCost =
+          periodLabor.reduce(
+            (sum, row) =>
+              sum +
+              Number(
+                getLaborCost(row) || 0
+              ),
+            0
+          );
+
+        /*
+          Never create financial recovery without
+          evidence from BOTH sales and labor.
+        */
+        if (
+          periodRevenue > 0 &&
+          actualLaborCost > 0
+        ) {
+          const expectedLaborCost =
+            periodRevenue *
+            baselineLaborRate;
+
+          const periodRecovery =
+            Math.max(
+              0,
+              expectedLaborCost -
+                actualLaborCost
+            );
+
+          const periodStartKey =
+            periodStart
+              .toISOString()
+              .slice(0, 10);
+
+          const periodEndKey =
+            periodEnd
+              .toISOString()
+              .slice(0, 10);
+
+          const verificationMethod =
+            "labor_ongoing_7_day_measurement";
+
+          const periodKey =
+            `${periodStartKey}|${periodEndKey}|${verificationMethod}`;
+
+          if (
+            periodRecovery > 0 &&
+            !existingPeriods.has(periodKey)
+          ) {
+            const {
+              error: ledgerInsertError,
+            } = await supabase
+              .from(
+                "verified_recovery_ledger"
+              )
+              .insert([
+                {
+                  user_id:
+                    action.user_id,
+
+                  action_id:
+                    action.id,
+
+                  recovery_category:
+                    "labor",
+
+                  entity_type:
+                    action.entity_type ||
+                    "labor",
+
+                  entity_id:
+                    action.entity_id
+                      ? String(
+                          action.entity_id
+                        )
+                      : null,
+
+                  location_id:
+                    action.location_id ||
+                    null,
+
+                  location_name:
+                    action.location_name ||
+                    null,
+
+                  period_start:
+                    periodStartKey,
+
+                  period_end:
+                    periodEndKey,
+
+                  recovery_amount:
+                    Number(
+                      periodRecovery.toFixed(
+                        2
+                      )
+                    ),
+
+                  verification_method:
+                    verificationMethod,
+
+                  baseline_data: {
+                    baseline_labor_rate:
+                      baselineLaborRate,
+                  },
+
+                  measured_data: {
+                    revenue:
+                      periodRevenue,
+
+                    actual_labor_cost:
+                      actualLaborCost,
+
+                    expected_labor_cost:
+                      expectedLaborCost,
+
+                    sales_rows:
+                      periodSales.length,
+
+                    labor_rows:
+                      periodLabor.length,
+                  },
+
+                  status: "verified",
+
+                  verified_at:
+                    new Date().toISOString(),
+                },
+              ]);
+
+            if (ledgerInsertError) {
+              console.error(
+                "ONGOING LABOR LEDGER INSERT ERROR:",
+                ledgerInsertError
+              );
+            } else {
+              recoveryChanged = true;
+anyRecoveryChanged = true;
+              existingPeriods.add(
+                periodKey
+              );
+            }
+          }
+        }
+
+        /*
+          Advance exactly 7 days.
+          Month boundaries do NOT reset recovery.
+        */
+        periodStart = new Date(
+          periodStart
+        );
+
+        periodStart.setDate(
+          periodStart.getDate() + 7
+        );
+
+        periodStart.setHours(
+          0,
+          0,
+          0,
+          0
+        );
+      }
+
+      if (recoveryChanged) {
+        const {
+          data: lifetimeRows,
+          error: lifetimeError,
+        } = await supabase
+          .from(
+            "verified_recovery_ledger"
+          )
+          .select("recovery_amount")
+          .eq("action_id", action.id)
+          .eq("status", "verified");
+
+        if (lifetimeError) {
+          console.error(
+            "LABOR LIFETIME RECOVERY LOAD ERROR:",
+            lifetimeError
+          );
+          continue;
+        }
+
+        const lifetimeRecovery =
+          (lifetimeRows || []).reduce(
+            (sum, row) =>
+              sum +
+              Number(
+                row.recovery_amount ||
+                  0
+              ),
+            0
+          );
+
+        const {
+          error: lifetimeUpdateError,
+        } = await supabase
+          .from("ai_applied_actions")
+          .update({
+            verified_recovery:
+              Number(
+                lifetimeRecovery.toFixed(
+                  2
+                )
+              ),
+
+            verified_at:
+              new Date().toISOString(),
+          })
+          .eq("id", action.id);
+
+        if (lifetimeUpdateError) {
+          console.error(
+            "LABOR LIFETIME RECOVERY UPDATE ERROR:",
+            lifetimeUpdateError
+          );
+        }
+      }
+    }
+
+if (anyRecoveryChanged) {
+  await loadRealAppliedActions();
+}
+    
+  };
+
+  trackOngoingVerifiedLaborRecovery();
 }, [
   authReady,
   realAppliedActions,
@@ -95934,8 +96523,9 @@ Number(safeEffectiveLaborCostPercent || 0) <= 35 && {
                 {action.detail}
               </div>
   {action.canApply && (
-  <button
-    onClick={async () => {
+ <button
+  type="button"
+  onClick={async () => {
       const savedAction = await saveAppliedAIAction({
         actionName: action.title,
         actionDescription: action.detail,
