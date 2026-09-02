@@ -66437,7 +66437,7 @@ minWidth: 0,
           color: "#4ade80",
         }}
       >
-        ${Number(totalAiProfit || 0).toLocaleString()} recovered
+       ${Number(totalAiProfit || 0).toLocaleString()} projected
       </div>
     </div>
 
@@ -73356,12 +73356,12 @@ Recovered profit is based on saved AI action impact.
     >
       {[
         {
-          label: "Recovered Profit",
-          value: `$${Number(
-            aiProfitRecoveryData?.recovered || 0
-          ).toLocaleString()}`,
-          sub: "from reviewed AI actions",
-        },
+  label: "Verified Recovered",
+  value: `$${Number(
+    profitRecoverySummary?.verifiedRecovered || 0
+  ).toLocaleString()}`,
+  sub: "confirmed from verified recovery actions",
+},
         {
           label: "Projected Opportunity",
           value: `$${Number(
