@@ -15842,6 +15842,33 @@ const estimatedLaborRecovery =
 
 useEffect(() => {
   const verifyAppliedLaborRecoveries = async () => {
+    console.log("LABOR VERIFIER START:", {
+  authReady,
+  realAppliedActionsCount:
+    Array.isArray(realAppliedActions)
+      ? realAppliedActions.length
+      : 0,
+
+  dbSalesRowsCount:
+    Array.isArray(dbSalesRows)
+      ? dbSalesRows.length
+      : 0,
+
+  locationSalesDataCount:
+    Array.isArray(locationSalesData)
+      ? locationSalesData.length
+      : 0,
+
+  locationLaborDataCount:
+    Array.isArray(locationLaborData)
+      ? locationLaborData.length
+      : 0,
+
+  laborDataCount:
+    Array.isArray(laborData)
+      ? laborData.length
+      : 0,
+});
     if (!authReady) return;
 
     if (
@@ -15904,7 +15931,28 @@ useEffect(() => {
           verificationStatus !== "verified"
         );
       });
+console.log("LABOR VERIFIER PENDING ACTIONS:", {
+  count: pendingLaborActions.length,
 
+  actions: pendingLaborActions.map(
+    (action) => ({
+      id: action.id,
+      actionName: action.action_name,
+      recoveryCategory:
+        action.recovery_category,
+      actionType:
+        action.action_type,
+      decisionStatus:
+        action.decision_status,
+      verificationStatus:
+        action.verification_status,
+      decidedAt:
+        action.decided_at,
+      createdAt:
+        action.created_at,
+    })
+  ),
+});
     if (!pendingLaborActions.length) {
       return;
     }
