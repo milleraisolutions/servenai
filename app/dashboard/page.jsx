@@ -16985,21 +16985,26 @@ const recoveryVelocity = useMemo(() => {
 
   const datedActions = actions
     .map((action) => {
-      const recoveredValue = Number(
-        action.actual_recovery ||
-          action.actualRecovery ||
-          action.recovered_profit ||
-          action.recoveredProfit ||
-          action.impact_value ||
-          action.impactValue ||
-          action.verified_recovered ||
-          action.recovered ||
-          action.impact ||
-          action.value ||
-          0
-      );
+  const recoveredValue = Number(
+  action.verified_recovery ??
+    action.actual_recovery ??
+    action.actualRecovery ??
+    action.recovered_profit ??
+    action.recoveredProfit ??
+    action.impact_value ??
+    action.impactValue ??
+    action.verified_recovered ??
+    action.recovered ??
+    action.impact ??
+    action.value ??
+    0
+);
 
-     const completedDateRaw =
+const completedDateRaw =
+  action.verified_at ||
+  action.verifiedAt ||
+  action.implemented_at ||
+  action.implementedAt ||
   action.completed_at ||
   action.completedAt ||
   action.updated_at ||
