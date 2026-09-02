@@ -81480,7 +81480,10 @@ role: "Executive visibility & AI intelligence",
               fontWeight: "900",
             }}
           >
-            ✓ {action.title || action.action || "Recovery action completed"}
+           ✓ {action.action_name ||
+  action.title ||
+  action.action ||
+  "Recovery action completed"}
           </div>
 
           <div
@@ -81490,10 +81493,23 @@ role: "Executive visibility & AI intelligence",
               marginTop: "6px",
             }}
           >
-            {action.category || "Recovery"} •{" "}
-            {action.completed_at
-              ? new Date(action.completed_at).toLocaleDateString()
-              : "Recently completed"}
+            {action.recovery_category ||
+              action.category ||
+              "Recovery"}{" "}
+            •{" "}
+            {action.verified_at ||
+            action.implemented_at ||
+            action.completed_at ||
+            action.updated_at ||
+            action.created_at
+              ? new Date(
+                  action.verified_at ||
+                    action.implemented_at ||
+                    action.completed_at ||
+                    action.updated_at ||
+                    action.created_at
+                ).toLocaleDateString()
+              : "Recently verified"}
           </div>
         </div>
 
@@ -81504,7 +81520,17 @@ role: "Executive visibility & AI intelligence",
             fontWeight: "950",
           }}
         >
-          +${Number(action.verified_recovered || action.impact || 0).toLocaleString()}
+          +${Number(
+            action.verified_recovery ??
+              action.actual_recovery ??
+              action.recovered_profit ??
+              action.verified_recovered ??
+              action.impact ??
+              0
+          ).toLocaleString(undefined, {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })}
         </div>
       </div>
     ))}
