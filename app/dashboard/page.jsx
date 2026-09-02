@@ -82071,13 +82071,15 @@ const nextAction =
 />
 
 <GlassCard
-  title="Profit Applied"
+  title="Verified Recovered"
   value={
     hasFullRecoveryData
-      ? `$${Number(totalAiProfit || 0).toLocaleString()}`
+      ? `$${Number(
+    profitRecoverySummary?.verifiedRecovered || 0
+  ).toLocaleString()}`
       : "Apply AI Fixes"
   }
-  subtext="Monthly recovery from applied fixes"
+  subtext="Confirmed profit recovered"
 />
 
 <GlassCard
@@ -82088,7 +82090,7 @@ const nextAction =
           Math.max(
             0,
             Number(totalAIRecoveryOpportunity || 0) -
-             Number(totalAiProfit || 0)
+             Number(profitRecoverySummary?.verifiedRecovered || 0)
           )
         ).toLocaleString()}`
       : "Awaiting Analysis"
@@ -82103,7 +82105,7 @@ const nextAction =
       ? `${Math.min(
           100,
           Math.round(
-            (Number(totalAiProfit || 0) /
+            (Number(profitRecoverySummary?.verifiedRecovered || 0) /
               Number(totalAIRecoveryOpportunity || 1)) *
               100
           )
@@ -82139,7 +82141,7 @@ const nextAction =
     ? `${Math.min(
         100,
         Math.round(
-          (Number(totalAiProfit || 0) /
+          (Number(profitRecoverySummary?.verifiedRecovered || 0) /
             Number(totalAIRecoveryOpportunity || 1)) *
             100
         )
@@ -82165,7 +82167,7 @@ const nextAction =
             ? Math.min(
                 100,
                 Math.round(
-                  (Number(totalAiProfit || 0) /
+                  (Number(profitRecoverySummary?.verifiedRecovered || 0) /
                     Number(totalAIRecoveryOpportunity || 1)) *
                     100
                 )
@@ -82191,7 +82193,9 @@ const nextAction =
     }}
   >
     <span>
-    ${Number(totalAiProfit || 0).toLocaleString()} recovered
+    ${Number(
+  profitRecoverySummary?.verifiedRecovered || 0
+).toLocaleString()} recovered
     </span>
 
     <span>
@@ -82199,7 +82203,7 @@ const nextAction =
         Math.max(
           0,
           Number(totalAIRecoveryOpportunity || 0) -
-            Number(totalAiProfit || 0)
+            Number(profitRecoverySummary?.verifiedRecovered || 0)
         )
       ).toLocaleString()} remaining
     </span>
