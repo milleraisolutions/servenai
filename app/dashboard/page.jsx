@@ -23963,21 +23963,17 @@ const categoryScores = {
       scoreLabor * 0.25
   ),
 
- shiftHealth:
+  shiftHealth:
   hasShiftData
-    ? (() => {
-        const shiftLaborPercent = Number(
-          mostLaborHeavyShift?.laborPercent || 0
-        );
-
-        if (shiftLaborPercent > 0) {
-          return clampScore(
-            100 - Math.max(0, shiftLaborPercent - 25) * 4
-          );
-        }
-
-        return 0;
-      })()
+    ? clamp(
+        mostLaborHeavyShift?.laborPercent > 35
+          ? 55
+          : mostLaborHeavyShift?.laborPercent > 28
+          ? 72
+          : topShift?.revenue > 0
+          ? 88
+          : 65
+      )
     : 0,
 };
 const weightedHealthCategories = [
