@@ -52144,7 +52144,7 @@ Restaurant AI Health is currently rated{" "}
   ? `${Number(
       aiHealthEngine?.overallScore ||
         restaurantHealthScore ||
-        overallAIHealthScore ||
+        
         liveScore ||
         0
     )}/100`
@@ -66638,7 +66638,7 @@ Recovered profit is based on saved AI action impact.
   ? `${Number(
       aiHealthEngine?.overallScore ||
         restaurantHealthScore ||
-        overallAIHealthScore ||
+        
         liveScore ||
         0
     )}/100`
@@ -70026,7 +70026,7 @@ Recovered profit is based on saved AI action impact.
   ? `${Number(
       aiHealthEngine?.overallScore ||
         restaurantHealthScore ||
-        overallAIHealthScore ||
+        
         liveScore ||
         0
     )}/100`
