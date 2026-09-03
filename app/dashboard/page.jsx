@@ -1222,6 +1222,7 @@ const latestAiAction = aiHistory?.length ? aiHistory[0] : null;
  
   const [appliedFixes, setAppliedFixes] = useState([]);
   const [activeTab, setActiveTab] = useState("overview");
+  const [activeOverviewTab, setActiveOverviewTab] = useState("executive");
   const [authenticatedUserId, setAuthenticatedUserId] = useState(null);
 const [authReady, setAuthReady] = useState(false);
   const [autopilot, setAutopilot] = useState(false);
@@ -46626,6 +46627,47 @@ selectedHandler();
 {/* ================================ */}
 {activeTab === "overview" && (
   <>
+  <div
+  style={{
+    display: "flex",
+    gap: "10px",
+    flexWrap: "wrap",
+    marginBottom: "22px",
+  }}
+>
+  {[
+    { id: "executive", label: "Executive" },
+    { id: "recovery", label: "Profit Recovery" },
+    { id: "operations", label: "Operations" },
+    { id: "ai", label: "AI Intelligence" },
+  ].map((tab) => {
+    const active = activeOverviewTab === tab.id;
+
+    return (
+      <button
+        key={tab.id}
+        type="button"
+        onClick={() => setActiveOverviewTab(tab.id)}
+        style={{
+          padding: "10px 14px",
+          borderRadius: "999px",
+          border: active
+            ? "1px solid rgba(129,140,248,0.65)"
+            : "1px solid rgba(148,163,184,0.18)",
+          background: active
+            ? "rgba(99,102,241,0.22)"
+            : "rgba(15,23,42,0.72)",
+          color: active ? "#c7d2fe" : "#94a3b8",
+          fontSize: "12px",
+          fontWeight: "900",
+          cursor: "pointer",
+        }}
+      >
+        {tab.label}
+      </button>
+    );
+  })}
+</div>
   {(isOwnerRole || isExecutiveRole || canSeeManagerDashboard) && (
   <>
 
@@ -50197,7 +50239,8 @@ const color = !hasScore
 
   </div>
 )}
-
+{activeOverviewTab === "ai" && (
+  <>
 {/* 🧠 RESTAURANT AI HEALTH ENGINE */}
 <div
   style={{
@@ -50730,7 +50773,10 @@ const color = noData
 </div>
 
 </div>
-
+  </>
+)}
+{activeOverviewTab === "ai" && (
+  <>
 {/* 🧠 AI OPERATIONAL MEMORY ENGINE */}
 <div
   style={{
@@ -50955,6 +51001,12 @@ const color = noData
     )}
   </div>
 </div>
+
+  </>
+)}
+
+{activeOverviewTab === "ai" && (
+  <>
 {/* 🔗 CROSS-SYSTEM INTELLIGENCE */}
 <div
   style={{
@@ -51161,7 +51213,11 @@ const color = noData
     )}
   </div>
 </div>
+  </>
+)}
 
+{activeOverviewTab === "ai" && (
+  <>
 {/* 🔮 AI PREDICTIVE RISK ENGINE */}
 <div
   style={{
@@ -51290,6 +51346,11 @@ const color = noData
     )}
   </div>
 </div>
+  </>
+)}
+
+{activeOverviewTab === "executive" && (
+  <>
 {/* ⚡ AI EXECUTIVE ACTION QUEUE */}
 <div
   style={{
@@ -51432,6 +51493,12 @@ const color = noData
     )}
   </div>
 </div>
+
+  </>
+)}
+
+{activeOverviewTab === "operations" && (
+  <>
 {/* 📊 AI BENCHMARKING SYSTEM */}
 <div
   style={{
@@ -51544,6 +51611,10 @@ const color = noData
     })}
   </div>
 </div>
+  </>
+)}
+{activeOverviewTab === "operations" && (
+  <>
 {/* 🧂 AI CONSUMABLES INTELLIGENCE */}
 <div
   style={{
@@ -51699,7 +51770,11 @@ const color = noData
     )}
   </div>
 </div>
+  </>
+)}
 
+{activeOverviewTab === "operations" && (
+  <>
 {/* 🧠 AI SETUP INTELLIGENCE */}
 {!hasOperationalData && (
   <div
@@ -51783,8 +51858,10 @@ const color = noData
     </div>
   </div>
 )}
-
-
+  </>
+)}
+{activeOverviewTab === "ai" && (
+  <>
 {/* 🚨 AI PRIORITY QUEUE */}
 <div
   style={{
@@ -51872,6 +51949,10 @@ const color = noData
     )}
   </div>
 </div>
+  </>
+)}
+{activeOverviewTab === "executive" && (
+  <>
 {/* 🎯 AI DAILY FOCUS */}
 <div
   style={{
@@ -51932,8 +52013,12 @@ const color = noData
     AI Operational Guidance Active
   </div>
 </div>
+  </>
+)}
 
 
+{activeOverviewTab === "executive" && (
+  <>
 {/* 🧠 EXECUTIVE MODE */}
 <div
   style={{
@@ -52015,7 +52100,10 @@ const color = noData
       : "Enable Executive Mode"}
   </button>
 </div>
-
+  </>
+)}
+{activeOverviewTab === "executive" && (
+  <>
   <div
     style={{
       marginBottom: "22px",
@@ -52125,7 +52213,10 @@ Restaurant AI Health is currently rated{" "}
         ))}
     </div>
   </div>
-
+  </>
+)}
+{activeOverviewTab === "operations" && (
+  <>
 {/* 📊 OPERATIONAL SCORE BREAKDOWN */}
 <div
   style={{
@@ -52187,6 +52278,10 @@ Restaurant AI Health is currently rated{" "}
     subtext="Low margin menu items"
   />
 </div>
+  </>
+)}
+{activeOverviewTab === "executive" && (
+  <>
 {/* 🚨 OPERATIONAL RISK DRIVERS */}
 <div
   style={{
@@ -52231,6 +52326,10 @@ Restaurant AI Health is currently rated{" "}
       ))}
   </div>
 </div>
+  </>
+)}
+{activeOverviewTab === "recovery" && (
+  <>
 {/* ✅ OPERATIONAL OPPORTUNITY DRIVERS */}
 <div
   style={{
@@ -52285,7 +52384,10 @@ Restaurant AI Health is currently rated{" "}
       ))}
   </div>
 </div>
-
+  </>
+)}
+{activeOverviewTab === "operations" && (
+  <>
 {/* 🔥 KPI STRIP */}
 <div
   style={{
@@ -52835,8 +52937,10 @@ Restaurant AI Health is currently rated{" "}
   }
 />
 </div>
-
-
+  </>
+)}
+{activeOverviewTab === "operations" && (
+  <>
 {/* 🧠 BENCHMARK INTELLIGENCE */}
 <div
   style={{
@@ -53099,8 +53203,11 @@ Restaurant AI Health is currently rated{" "}
     ))}
   </div>
 </div>
+  </>
+)}
 
-
+{activeOverviewTab === "ai" && (
+  <>
 {/* ⚡ AI PRIORITIES */}
 <div
   style={{
@@ -53264,13 +53371,12 @@ Restaurant AI Health is currently rated{" "}
   </div>
 </div>
 
+  </>
+)}
 
 
-
-
-
-
-
+{activeOverviewTab === "ai" && (
+  <>
 {/* ✅ RECOMMENDED NEXT ACTION */}
 <div
   style={{
@@ -53396,8 +53502,11 @@ Restaurant AI Health is currently rated{" "}
     View AI Recommendation
   </button>
 </div>
+  </>
+)}
 
-
+{activeOverviewTab === "executive" && (
+  <>
 {/* AI OPERATIONAL SUMMARY ROLLUP */}
 <div
   style={{
@@ -53436,6 +53545,11 @@ Restaurant AI Health is currently rated{" "}
 {kegInsight}
   </div>
 </div>
+  </>
+)}
+
+{activeOverviewTab === "recovery" && (
+  <>
 {/* AI PROFIT RECOVERY INTELLIGENCE */}
 <div
   style={{
@@ -53530,8 +53644,11 @@ Restaurant AI Health is currently rated{" "}
   </div>
 </div>
 
+  </>
+)}
 
-
+{activeOverviewTab === "executive" && (
+  <>
 {/* EXECUTIVE RISK SCORE */}
 <div
   style={{
@@ -53617,6 +53734,8 @@ Restaurant AI Health is currently rated{" "}
 />
   </div>
 </div>
+  </>
+)}
 {/* 📩 EMAIL MODAL */}
 {showRiskEmailModal && (
   <div
