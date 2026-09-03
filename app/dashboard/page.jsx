@@ -47568,7 +47568,8 @@ selectedHandler();
   </div>
 </div>
 
-
+{activeOverviewTab === "executive" && (
+  <>
 {/* EXECUTIVE COMMAND CENTER */}
 <div
   style={{
@@ -47654,6 +47655,7 @@ selectedHandler();
 />
   </div>
 </div>
+
 {/* PROFIT RECOVERY SNAPSHOT */}
 <div
   style={{
@@ -47910,6 +47912,12 @@ selectedHandler();
     </div>
   ))}
 </div>
+  </>
+)}
+ 
+
+{activeOverviewTab === "executive" && (
+  <>
 {/* =========================
    AI EXECUTIVE SUMMARY CLOSEOUT
 ========================= */}
@@ -48083,6 +48091,10 @@ increase margin efficiency, and reduce operational leakage.
     </div>
   </div>
 )}
+  </>
+)}
+{activeOverviewTab === "recovery" && (
+  <>
 {Number(totalAIRecoveryOpportunity || 0) > 0 && (
   <>
 {/* PROFIT RECOVERY OPPORTUNITY */}
@@ -48238,7 +48250,8 @@ increase margin efficiency, and reduce operational leakage.
 )}
 </>
 )}
-
+  </>
+)}
 
 {/* MESSAGE */}
 {message && (
@@ -48308,7 +48321,8 @@ increase margin efficiency, and reduce operational leakage.
 )}
 
 
-
+  {activeOverviewTab === "executive" && (
+    <>
 {liveOverviewMetrics.totalRevenue > 0 ? (
   <WeeklyExecutiveSummary
     weeklyExecutiveSummary={weeklyExecutiveSummary}
@@ -48365,7 +48379,10 @@ foodCostPercentage={
     </div>
   </div>
 )}
-
+    </>
+  )}
+  {activeOverviewTab === "ai" && (
+  <>
 {/* 🚨 AI RISK ALERTS */}
 
 
@@ -48391,6 +48408,11 @@ foodCostPercentage={
   setMessage={setMessage}
   setAppliedFixes={setAppliedFixes}
 />
+  </>
+)}
+
+{activeOverviewTab === "executive" && (
+  <>
 {/* =========================
    🧠 EXECUTIVE COMMAND CENTER
 ========================= */}
@@ -48627,7 +48649,11 @@ borderRadius: "14px",
   </div>
   </div>
 )}
+  </>
+)}
 
+{activeOverviewTab === "ai" && (
+  <>
 {/* =========================
    🤖 AI AUTOPILOT ACTION ENGINE
 ========================= */}
@@ -48729,6 +48755,12 @@ borderRadius: "14px",
 </div>
   </div>
 )}
+  </>
+)}
+
+
+{activeOverviewTab === "recovery" && (
+  <>
 {/* =========================
    ✅ VERIFIED RECOVERY ACTIVITY
 ========================= */}
@@ -48928,6 +48960,11 @@ borderRadius: "14px",
     </div>
   </div>
 )}
+  </>
+)}
+
+{activeOverviewTab === "recovery" && (
+  <>
 {/* =========================
    💰 AI PROFIT RECOVERY LOG
 ========================= */}
@@ -49035,7 +49072,10 @@ borderRadius: "14px",
     </div>
   </div>
 )}
-
+  </>
+)}
+{activeOverviewTab === "ai" && (
+  <>
 {/* =========================
    ⚡ AUTOPILOT CATEGORY ACTIONS
 ========================= */}
@@ -49158,6 +49198,11 @@ const color = !hasScore
     </div>
   </div>
 )}
+  </>
+)}
+
+{activeOverviewTab === "ai" && (
+  <>
 {/* =========================
    🔥 AI STRATEGIC RECOMMENDATIONS
 ========================= */}
@@ -49254,6 +49299,12 @@ const color = !hasScore
     </div>
   </div>
 )}
+
+  </>
+)}
+
+{activeOverviewTab === "executive" && (
+  <>
 {/* =========================
    🧠 AI AUTOPILOT EXECUTIVE SUMMARY
 ========================= */}
@@ -49292,6 +49343,11 @@ const color = !hasScore
     </div>
   </div>
 )}
+  </>
+)}
+
+{activeOverviewTab === "ai" && (
+  <>
 {/* =========================
    🚨 UNIFIED AI ALERTS CENTER
 ========================= */}
@@ -49427,7 +49483,11 @@ const color = !hasScore
     </div>
   </div>
 )}
+  </>
+)}
 
+{activeOverviewTab === "operations" && (
+  <>
 {/* 💰 MAIN REVENUE CARD (REAL DATA) */}
 <div
   style={{
@@ -49464,7 +49524,13 @@ const color = !hasScore
   >
     Based on {dbSalesRows.length} sales records
   </div>
-</div>{/* 🔴 LIVE PROMO */}
+</div>
+  </>
+)}
+
+{activeOverviewTab === "operations" && (
+  <>
+{/* 🔴 LIVE PROMO */}
 {websitePromo && (
   <div
     style={{
@@ -49517,7 +49583,11 @@ const color = !hasScore
     </button>
   </div>
 )}
+  </>
+)}
 
+{activeOverviewTab === "recovery" && (
+  <>
 <div
   style={{
     marginTop: "18px",
@@ -49562,6 +49632,8 @@ const color = !hasScore
     )}
   </div>
 </div>
+  </>
+)}
 {isServenOwner && (
  <RiskPanel
   canSeeOwnerDashboard={canSeeOwnerDashboard}
@@ -49581,6 +49653,8 @@ const color = !hasScore
 />
 )}
 </div>
+{activeOverviewTab === "executive" && (
+  <>
 {hasFullRecoveryData && (
   <div>
 {/* 👑 AI EXECUTIVE SUMMARY HERO */}
@@ -50238,6 +50312,8 @@ const color = !hasScore
 </div>
 
   </div>
+)}
+  </>
 )}
 {activeOverviewTab === "ai" && (
   <>
