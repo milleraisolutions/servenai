@@ -23963,16 +23963,16 @@ const categoryScores = {
       scoreLabor * 0.25
   ),
 
-  shiftHealth:
-  hasShiftData
-    ? clamp(
-        mostLaborHeavyShift?.laborPercent > 35
-          ? 55
-          : mostLaborHeavyShift?.laborPercent > 28
-          ? 72
-          : topShift?.revenue > 0
-          ? 88
-          : 65
+shiftHealth:
+  hasShiftData &&
+  Number(mostLaborHeavyShift?.laborPercent || 0) > 0
+    ? clampScore(
+        100 -
+          Math.max(
+            0,
+            Number(mostLaborHeavyShift?.laborPercent || 0) - 25
+          ) *
+            4
       )
     : 0,
 };
