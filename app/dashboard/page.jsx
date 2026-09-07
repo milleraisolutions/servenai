@@ -1962,7 +1962,22 @@ const handleIngredientsUpload = async (event) => {
                   "Value",
                 ])
               );
-
+const actualUsage = toNumber(
+  isArrayRow
+    ? row[9]
+    : getValue(row, [
+        "actual_usage",
+        "Actual Usage",
+        "quantity_used",
+        "Quantity Used",
+        "used_quantity",
+        "Used Quantity",
+        "current_usage",
+        "Current Usage",
+        "usage",
+        "Usage",
+      ])
+);
               const totalCost =
                 uploadedTotalCost > 0 ? uploadedTotalCost : quantity * costPerUnit;
 
@@ -1975,7 +1990,7 @@ const handleIngredientsUpload = async (event) => {
                 quantity,
                 cost_per_unit: costPerUnit,
                 total_cost: totalCost,
-
+actual_usage: actualUsage,
                 ingredient_type: String(
                   getValue(
                     row,
@@ -7765,6 +7780,29 @@ const rawLabor =
   row.gross_pay ??
   row["Gross Pay"] ??
   0;
+  const rawName =
+  row.name ||
+  row.Name ||
+  row.item ||
+  row.Item ||
+  row.item_name ||
+  row["Item Name"] ||
+  row.menu_item ||
+  row["Menu Item"] ||
+  row.product ||
+  row.Product ||
+  null;
+
+const rawQuantity =
+  row.quantity ??
+  row.Quantity ??
+  row.quantity_sold ??
+  row["Quantity Sold"] ??
+  row.qty_sold ??
+  row["Qty Sold"] ??
+  row.qty ??
+  row.Qty ??
+  0;
 const rawShift =
   row.shift ||
   row.Shift ||
@@ -7810,7 +7848,8 @@ const rawLocation =
           revenue: Number(String(rawRevenue).replace(/[$,]/g, "") || 0),
           orders_count: Number(String(rawOrders).replace(/[,]/g, "") || 0),
           labor: Number(String(rawLabor).replace(/[$,]/g, "") || 0),
-
+name: rawName,
+quantity: Number(String(rawQuantity).replace(/[,]/g, "") || 0),
 shift: rawShift || null,
 order_time: rawTime || null,
 location_name: rawLocation,
@@ -8778,6 +8817,7 @@ console.log("INGREDIENT STEP 6: syncing ingredient rows");
             quantity: ingredient.quantity,
             cost_per_unit: ingredient.cost_per_unit,
             total_cost: ingredient.total_cost,
+            actual_usage: Number(ingredient.actual_usage || 0),
             ingredient_type: ingredient.ingredient_type || "core",
             variance_tolerance: Number(ingredient.variance_tolerance || 5),
             is_active: true,
@@ -9856,7 +9896,7 @@ const handleAutoRestockFromAlert = async (alert) => {
     });
 const { data: ingredientRow, error: ingredientFetchError } = await supabase
   .from("ingredients")
-  .select("id, quantity")
+ .select("id, quantity, upload_id, last_seen_at")
   .eq("user_id", dataOwnerId || user.id)
   .ilike("name", ingredientName)
   .maybeSingle();
@@ -9869,7 +9909,122 @@ if (ingredientFetchError || !ingredientRow) {
 
 const newQuantity =
   Number(ingredientRow.quantity || 0) + Number(suggestedQuantity || 0);
+  const matchingUsageVariance = (usageVarianceData || []).find(
+  (item) =>
+    String(item.ingredientName || "")
+      .trim()
+      .toLowerCase() ===
+    String(ingredientName || "")
+      .trim()
+      .toLowerCase()
+);
 
+const baselineExpectedUsage = Number(
+  matchingUsageVariance?.expectedUsage || 0
+);
+
+const baselineActualUsage = Number(
+  matchingUsageVariance?.actualUsage || 0
+);
+
+const baselineExcessUsage = Number(
+  matchingUsageVariance?.excessUsage || 0
+);
+
+const baselineExcessUsageCost = Number(
+  matchingUsageVariance?.excessUsageCost || 0
+);
+
+const baselineVariancePercent = Number(
+  matchingUsageVariance?.variancePercent || 0
+);
+const savedInventoryAction = await saveAppliedAIAction({
+  actionName: `AI restock for ${ingredientName}`,
+  actionDescription:
+    `Operator accepted Serven's inventory restock recommendation for ${ingredientName}.`,
+
+impactValue: Number(
+  baselineExcessUsageCost ||
+    alert?.estimatedImpact ||
+    alert?.estimatedSavings ||
+    alert?.impact ||
+    alert?.riskAmount ||
+    0
+),
+
+  appliedBy: "manual",
+
+  recoveryCategory: "inventory",
+
+  entityType: "ingredient",
+
+  entityId: ingredientRow?.id
+    ? String(ingredientRow.id)
+    : null,
+
+  actionType: "inventory_restock",
+
+  decisionStatus: "accepted",
+
+  implementationStatus: "awaiting_verification",
+
+  baselineData: {
+  ingredient_name: ingredientName,
+
+  quantity: Number(
+    ingredientRow.quantity || 0
+  ),
+
+  suggested_quantity: Number(
+    suggestedQuantity || 0
+  ),
+
+  unit,
+
+  cost_per_unit: Number(
+    alert?.costPerUnit ||
+      alert?.cost_per_unit ||
+      0
+  ),
+
+  avg_daily_usage: Number(
+    alert?.avgDailyUsage ||
+      alert?.avg_daily_usage ||
+      alert?.daily_usage ||
+      0
+  ),
+
+  days_on_hand: Number(
+    alert?.daysOnHand || 0
+  ),
+
+  inventory_value: Number(
+    alert?.inventoryValue || 0
+  ),
+  expected_usage: baselineExpectedUsage,
+
+actual_usage: baselineActualUsage,
+
+excess_usage: baselineExcessUsage,
+
+excess_usage_cost: baselineExcessUsageCost,
+
+variance_percent: baselineVariancePercent,
+  baseline_upload_id: ingredientRow?.upload_id || null,
+  baseline_last_seen_at: ingredientRow?.last_seen_at || null,
+},
+
+  targetData: {
+    expected_quantity: Number(newQuantity || 0),
+  },
+});
+
+if (!savedInventoryAction?.id) {
+  setInventoryAutopilotStatus(
+    `Could not record inventory action for ${ingredientName}`
+  );
+  return false;
+}
 const { error: ingredientUpdateError } = await supabase
   .from("ingredients")
   .update({
@@ -11674,12 +11829,44 @@ const inventoryAlerts = useMemo(() => {
     Math.max(Number(item.maxQuantity || 0) - Number(item.quantity || 0), 0)
   )} ${item.unit || "units"}`,
 
-  // 👇 ADD THESE
-  ingredientName: item.name,
-  suggestedQuantity: Math.ceil(
-    Math.max(Number(item.maxQuantity || 0) - Number(item.quantity || 0), 0)
-  ),
-  unit: item.unit || "units",
+ingredientName: item.name,
+
+suggestedQuantity: Math.ceil(
+  Math.max(
+    Number(item.maxQuantity || 0) -
+      Number(item.quantity || 0),
+    0
+  )
+),
+
+unit: item.unit || "units",
+
+currentQuantity: Number(item.quantity || 0),
+
+costPerUnit: Number(
+  item.costPerUnit ||
+    item.cost_per_unit ||
+    0
+),
+
+avgDailyUsage: Number(
+  item.avgDailyUsage ||
+    item.avg_daily_usage ||
+    item.daily_usage ||
+    0
+),
+
+daysOnHand: Number(item.daysOnHand || 0),
+
+inventoryValue: Number(
+  item.inventoryValue ||
+    Number(item.quantity || 0) *
+      Number(
+        item.costPerUnit ||
+          item.cost_per_unit ||
+          0
+      )
+),
 });
     }
 
@@ -12864,7 +13051,9 @@ if (actionType === "cost_portion_adjustment") {
 if (!implementationConfirmed) {
   continue;
 }
-
+if (!hasFreshInventoryPeriod) {
+  continue;
+}
 if (
   !verification?.verified ||
   Number(verification.recovered || 0) <= 0
@@ -22197,7 +22386,7 @@ const saveRecipeRule = async () => {
           user_id: user.id,
           menu_item: recipeMenuItem,
           ingredient: recipeIngredient,
-          quantity_used: Number(recipeQuantityUsed || 0),
+          amount_used: Number(recipeQuantityUsed || 0),
           variance_tolerance: Number(recipeTolerance || 5),
         },
       ]);
@@ -22306,9 +22495,12 @@ const usageVarianceData = useMemo(() => {
         .trim()
         .toLowerCase();
 
-      const quantityUsed = Number(
-        rule.quantity_used || rule.amountUsed || 0
-      );
+     const quantityUsed = Number(
+  rule.amount_used ||
+    rule.amountUsed ||
+    rule.quantity_used ||
+    0
+);
 
       const matchingSales = sales.filter((sale) => {
         const saleItem = String(
@@ -22354,7 +22546,23 @@ const usageVarianceData = useMemo(() => {
       expectedUsage > 0
         ? (variance / expectedUsage) * 100
         : 0;
+const costPerUnit = Number(
+  ingredient.cost_per_unit ||
+    ingredient.costPerUnit ||
+    ingredient.unit_cost ||
+    ingredient.cost ||
+    0
+);
 
+const excessUsage = Math.max(
+  Number(variance || 0),
+  0
+);
+
+const excessUsageCost =
+  excessUsage > 0 && costPerUnit > 0
+    ? excessUsage * costPerUnit
+    : 0;
     let status = "Controlled";
 
     if (variancePercent > 15) {
@@ -22365,25 +22573,225 @@ const usageVarianceData = useMemo(() => {
       status = "Minor Variance";
     }
 
-    return {
-      ingredientName:
-        ingredient.name ||
-        ingredient.ingredient_name ||
-        "Unknown Ingredient",
+   return {
+  ingredientName:
+    ingredient.name ||
+    ingredient.ingredient_name ||
+    "Unknown Ingredient",
 
-      expectedUsage,
-      actualUsage,
-      variance,
-      variancePercent,
-      status,
-      linkedRecipeCount: linkedRules.length,
-    };
+  ingredientId: ingredient.id || null,
+
+  expectedUsage,
+  actualUsage,
+  variance,
+  variancePercent,
+
+  costPerUnit,
+  excessUsage,
+  excessUsageCost,
+
+  status,
+  linkedRecipeCount: linkedRules.length,
+};
   });
 }, [
   salesData,
   recipeUsageRules,
   uploadComparison,
   locationIngredientsData,
+]);
+useEffect(() => {
+  const verifyAppliedInventoryRecoveries = async () => {
+    if (!authReady) return;
+
+    if (
+      !Array.isArray(realAppliedActions) ||
+      !realAppliedActions.length ||
+      !Array.isArray(ingredientsData) ||
+      !ingredientsData.length
+    ) {
+      return;
+    }
+
+    const pendingInventoryActions = realAppliedActions.filter((action) => {
+      const category = String(
+        action.recovery_category || ""
+      ).toLowerCase();
+
+      const entityType = String(
+        action.entity_type || ""
+      ).toLowerCase();
+
+      const actionType = String(
+        action.action_type || ""
+      ).toLowerCase();
+
+      const verificationStatus = String(
+        action.verification_status || ""
+      ).toLowerCase();
+
+      return (
+        category === "inventory" &&
+        entityType === "ingredient" &&
+        actionType === "inventory_restock" &&
+        action.entity_id &&
+        verificationStatus !== "verified"
+      );
+    });
+
+    if (!pendingInventoryActions.length) return;
+
+    let verificationChanged = false;
+
+    for (const action of pendingInventoryActions) {
+      const matchingIngredient = ingredientsData.find(
+        (ingredient) =>
+          String(ingredient.id || "") ===
+          String(action.entity_id || "")
+      );
+
+      if (!matchingIngredient) continue;
+
+      const baselineQuantity = Number(
+        action.baseline_data?.quantity || 0
+      );
+
+      const suggestedQuantity = Number(
+        action.baseline_data?.suggested_quantity || 0
+      );
+
+      const expectedQuantity = Number(
+        action.target_data?.expected_quantity ||
+          baselineQuantity + suggestedQuantity
+      );
+
+      const currentQuantity = Number(
+        matchingIngredient.quantity || 0
+      );
+const baselineUploadId = String(
+  action.baseline_data?.baseline_upload_id || ""
+).trim();
+
+const currentUploadId = String(
+  matchingIngredient.upload_id || ""
+).trim();
+
+const hasFreshInventoryPeriod =
+  Boolean(baselineUploadId) &&
+  Boolean(currentUploadId) &&
+  currentUploadId !== baselineUploadId;
+      const decisionStatus = String(
+        action.decision_status || ""
+      ).toLowerCase();
+
+      if (decisionStatus !== "accepted") {
+        continue;
+      }
+
+      const implementationConfirmed =
+        expectedQuantity > baselineQuantity &&
+        currentQuantity >= expectedQuantity;
+
+      if (!implementationConfirmed) {
+        continue;
+      }
+const baselineExcessUsageCost = Number(
+  action.baseline_data?.excess_usage_cost || 0
+);
+
+const matchingUsageVariance = (usageVarianceData || []).find(
+  (item) =>
+    String(item.ingredientId || "") ===
+      String(action.entity_id || "") ||
+    String(item.ingredientName || "")
+      .trim()
+      .toLowerCase() ===
+      String(
+        action.baseline_data?.ingredient_name ||
+          matchingIngredient.name ||
+          ""
+      )
+        .trim()
+        .toLowerCase()
+);
+
+const currentExcessUsageCost = Number(
+  matchingUsageVariance?.excessUsageCost || 0
+);
+
+const verifiedRecovery =
+  baselineExcessUsageCost > 0 &&
+  currentExcessUsageCost >= 0 &&
+  currentExcessUsageCost < baselineExcessUsageCost
+    ? baselineExcessUsageCost - currentExcessUsageCost
+    : 0;
+      const verificationTimestamp =
+        new Date().toISOString();
+
+      const { error } = await supabase
+        .from("ai_applied_actions")
+     .update({
+  implementation_status: "confirmed",
+  implemented_at: verificationTimestamp,
+
+  verification_status:
+    verifiedRecovery > 0
+      ? "verified"
+      : "implementation_confirmed",
+
+  verified_recovery:
+    verifiedRecovery > 0
+      ? Number(verifiedRecovery.toFixed(2))
+      : 0,
+
+  verified_at:
+    verifiedRecovery > 0
+      ? verificationTimestamp
+      : null,
+
+  status:
+    verifiedRecovery > 0
+      ? "verified"
+      : "implemented",
+})
+
+        .eq("id", action.id);
+
+      if (error) {
+        console.error(
+          "INVENTORY IMPLEMENTATION VERIFICATION ERROR:",
+          error
+        );
+        continue;
+      }
+
+      verificationChanged = true;
+
+      console.log("INVENTORY IMPLEMENTATION CONFIRMED:", {
+        actionId: action.id,
+        ingredientId: matchingIngredient.id,
+        ingredientName:
+          matchingIngredient.name || "Ingredient",
+        baselineQuantity,
+        suggestedQuantity,
+        expectedQuantity,
+        currentQuantity,
+       baselineExcessUsageCost,
+currentExcessUsageCost,
+verifiedRecovery,
+      });
+    }
+
+    if (verificationChanged) {
+      await loadRealAppliedActions();
+    }
+  };
+
+  verifyAppliedInventoryRecoveries();
+}, [
+  authReady,
+  realAppliedActions,
+  ingredientsData,
 ]);
 
 const vendorCostInsights = useMemo(() => {
