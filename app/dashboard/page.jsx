@@ -11861,32 +11861,7 @@ const handleSaveRecipeRule = async () => {
 
   console.log("✅ Recipe saved");
 };
-useEffect(() => {
-  const loadRules = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    const user = session?.user;
-    if (!user) return;
 
-    const { data } = await supabase
-      .from("recipe_usage_rules")
-      .select("*")
-     .eq("user_id", dataOwnerId || user.id);
-
-    if (data) {
-      setRecipeUsageRules(
-        data.map((r) => ({
-          id: r.id,
-          menuItem: r.menu_item,
-          ingredient: r.ingredient,
-          amountUsed: r.amount_used,
-          unit: r.unit,
-        }))
-      );
-    }
-  };
-
-  loadRules();
-}, []);
 
 
 
@@ -22391,25 +22366,7 @@ const restoreImport = async (uploadId) => {
 const isServenAdmin =
   userRole === "serven_admin";
 
-const loadRecipeUsageRules = async () => {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
 
-  if (!user?.id) return;
-
-  const { data, error } = await supabase
-    .from("recipe_usage_rules")
-    .select("*")
-    .eq("user_id", dataOwnerId || user.id);
-
-  if (error) {
-    console.error("Recipe rules load failed:", error);
-    return;
-  }
-
-  setRecipeUsageRules(data || []);
-};
 
 useEffect(() => {
   loadRecipeUsageRules();
