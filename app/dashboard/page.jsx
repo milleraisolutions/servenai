@@ -8851,6 +8851,63 @@ console.log("INGREDIENT STEP 6: syncing ingredient rows");
         savedRows.push(...(insertedRows || []));
       }
     }
+
+    const snapshotRows = (savedRows.length ? savedRows : cleanedRows).map(
+  (ingredient) => ({
+    user_id: dataOwnerId || user.id,
+    ingredient_id: ingredient.id || null,
+    upload_id: uploadRow?.id || null,
+    connection_id: ingredient.connection_id || null,
+    location_id:
+      ingredient.location_id ||
+      selectedUploadLocationId ||
+      null,
+
+    ingredient_name: ingredient.name || "Unknown Ingredient",
+    supplier: ingredient.supplier || null,
+    category: ingredient.category || null,
+    ingredient_type: ingredient.ingredient_type || "core",
+
+    unit: ingredient.unit || null,
+    quantity: Number(ingredient.quantity || 0),
+    cost_per_unit: Number(ingredient.cost_per_unit || 0),
+    total_cost: Number(ingredient.total_cost || 0),
+    actual_usage: Number(ingredient.actual_usage || 0),
+
+    purchase_weight: Number(ingredient.purchase_weight || 0),
+    weight_unit: ingredient.weight_unit || null,
+    current_stock: Number(
+      ingredient.current_stock ??
+        ingredient.quantity ??
+        0
+    ),
+
+    source_type: ingredient.connection_id
+      ? "integration"
+      : "manual_upload",
+
+    source_name: ingredient.connection_id
+      ? "integration"
+      : "Manual Upload",
+
+    file_name:
+      pendingUploadSummary?.fileName ||
+      "Ingredients Upload",
+
+    snapshot_at: now,
+  })
+);
+
+if (snapshotRows.length) {
+  const { error: snapshotError } = await supabase
+    .from("inventory_snapshots")
+    .insert(snapshotRows);
+
+  if (snapshotError) {
+    console.error("Inventory snapshot insert failed:", snapshotError);
+    throw snapshotError;
+  }
+}
 console.log("INGREDIENT STEP 7: ingredient rows synced", savedRows.length);
     const ingredientsToDeactivate = (existingRows || []).filter(
       (item) =>
