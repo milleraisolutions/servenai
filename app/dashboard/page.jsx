@@ -1963,7 +1963,7 @@ const handleIngredientsUpload = async (event) => {
                 ])
               );
 const actualUsage = toNumber(
-  isArrayRow
+  Array.isArray(row)
     ? row[9]
     : getValue(row, [
         "actual_usage",
