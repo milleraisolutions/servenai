@@ -2055,7 +2055,7 @@ actual_usage: actualUsage,
 
           if (uploadError) throw uploadError;
 
-        const rowsWithUploadId = cleanedRows.map((row) => ({
+      const rowsWithUploadId = cleanedRows.map((row) => ({
   user_id: currentUser.id,
   upload_id: uploadRow?.id || null,
 
@@ -2065,12 +2065,15 @@ actual_usage: actualUsage,
   unit: row.unit || null,
 
   quantity: Number(row.quantity || 0),
-cost_per_unit: Number(row.cost_per_unit || 0),
-total_cost: Number(row.total_cost || 0),
-actual_usage: Number(row.actual_usage || 0),
+  cost_per_unit: Number(row.cost_per_unit || 0),
+  total_cost: Number(row.total_cost || 0),
+  actual_usage: Number(row.actual_usage || 0),
 
-ingredient_type: row.ingredient_type || "core",
+  ingredient_type: row.ingredient_type || "core",
   variance_tolerance: Number(row.variance_tolerance || 5),
+
+  is_active: row.is_active !== false,
+  last_seen_at: row.last_seen_at || new Date().toISOString(),
 }));
 console.log("INGREDIENT ROWS BEING INSERTED:", rowsWithUploadId);
           const { data: insertedRows, error: insertError } = await supabase
