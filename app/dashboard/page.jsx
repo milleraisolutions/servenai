@@ -2065,10 +2065,11 @@ actual_usage: actualUsage,
   unit: row.unit || null,
 
   quantity: Number(row.quantity || 0),
-  cost_per_unit: Number(row.cost_per_unit || 0),
-  total_cost: Number(row.total_cost || 0),
+cost_per_unit: Number(row.cost_per_unit || 0),
+total_cost: Number(row.total_cost || 0),
+actual_usage: Number(row.actual_usage || 0),
 
-  ingredient_type: row.ingredient_type || "core",
+ingredient_type: row.ingredient_type || "core",
   variance_tolerance: Number(row.variance_tolerance || 5),
 }));
 console.log("INGREDIENT ROWS BEING INSERTED:", rowsWithUploadId);
@@ -2092,6 +2093,65 @@ console.log("INGREDIENT ROWS BEING INSERTED:", rowsWithUploadId);
 
   throw insertError;
 }
+// ==============================
+// INVENTORY SNAPSHOT HISTORY
+// ==============================
+const snapshotRows = (insertedRows || []).map((ingredient) => ({
+  user_id: currentUser.id,
+  ingredient_id: ingredient.id || null,
+  upload_id: uploadRow?.id || null,
+  connection_id: ingredient.connection_id || null,
+  location_id:
+    ingredient.location_id ||
+    selectedUploadLocationId ||
+    null,
+
+  ingredient_name: ingredient.name || "Unknown Ingredient",
+  supplier: ingredient.supplier || null,
+  category: ingredient.category || null,
+  ingredient_type: ingredient.ingredient_type || "core",
+
+  unit: ingredient.unit || null,
+  quantity: Number(ingredient.quantity || 0),
+  cost_per_unit: Number(ingredient.cost_per_unit || 0),
+  total_cost: Number(ingredient.total_cost || 0),
+  actual_usage: Number(ingredient.actual_usage || 0),
+
+  purchase_weight: Number(ingredient.purchase_weight || 0),
+  weight_unit: ingredient.weight_unit || null,
+  current_stock: Number(
+    ingredient.current_stock ??
+      ingredient.quantity ??
+      0
+  ),
+
+  source_type: "manual_upload",
+  source_name: "ingredients_upload",
+  file_name: fileName,
+  snapshot_at: new Date().toISOString(),
+}));
+
+if (snapshotRows.length) {
+  const { error: snapshotError } = await supabase
+    .from("inventory_snapshots")
+    .insert(snapshotRows);
+
+  if (snapshotError) {
+    console.error("INVENTORY SNAPSHOT INSERT ERROR:", {
+      message: snapshotError.message,
+      details: snapshotError.details,
+      hint: snapshotError.hint,
+      code: snapshotError.code,
+    });
+
+    throw snapshotError;
+  }
+}
+
+console.log(
+  "INVENTORY SNAPSHOTS CREATED:",
+  snapshotRows.length
+);
           const cleanUploadRow = {
             ...uploadRow,
             status: "completed",
