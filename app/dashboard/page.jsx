@@ -9898,18 +9898,33 @@ const estimatedTotal = currentWeekRevenue + estimatedRest;
 }, [revenueTrend]);
 
 const ingredientUsageFromSales = useMemo(() => {
-  const safeMenuMixData = Array.isArray(menuMixData) ? menuMixData : [];
+  const safeSalesData = Array.isArray(resolvedSalesData)
+    ? resolvedSalesData
+    : [];
+
   const safeRecipeUsageRules = Array.isArray(recipeUsageRules)
     ? recipeUsageRules
     : [];
 
-  if (!safeMenuMixData.length || !safeRecipeUsageRules.length) return {};
+  if (!safeSalesData.length || !safeRecipeUsageRules.length) return {};
 
   const usageMap = {};
 
-  safeMenuMixData.forEach((item) => {
-    const itemName = item?.name;
-    const quantitySold = Number(item?.value || 0);
+  safeSalesData.forEach((item) => {
+    const itemName =
+      item?.name ||
+      item?.item_name ||
+      item?.menu_item ||
+      item?.["Item Name"] ||
+      "";
+
+    const quantitySold = Number(
+      item?.quantity ||
+        item?.qty ||
+        item?.quantity_sold ||
+        item?.units_sold ||
+        0
+    );
 
     if (!itemName || quantitySold <= 0) return;
 
@@ -9951,7 +9966,7 @@ const ingredientUsageFromSales = useMemo(() => {
   });
 
   return usageMap;
-}, [menuMixData, recipeUsageRules]);
+}, [resolvedSalesData, recipeUsageRules]);
 const inventoryRestockContext = useMemo(() => {
   const ingredients = (uploadComparison?.activeIngredients || []).map((item) => {
   const used = ingredientUsageFromSales[item.name] || 0;
