@@ -9913,12 +9913,29 @@ const ingredientUsageFromSales = useMemo(() => {
 
     if (!itemName || quantitySold <= 0) return;
 
-    const matchingRules = safeRecipeUsageRules.filter(
-      (rule) => rule?.menuItem === itemName
-    );
+   const matchingRules = safeRecipeUsageRules.filter((rule) => {
+  const ruleMenuItem = String(
+    rule?.menu_item ||
+      rule?.menuItem ||
+      ""
+  )
+    .trim()
+    .toLowerCase();
+
+  const salesMenuItem = String(itemName || "")
+    .trim()
+    .toLowerCase();
+
+  return ruleMenuItem === salesMenuItem;
+});
 
     matchingRules.forEach((rule) => {
-      const amountUsed = Number(rule?.amountUsed || 0);
+     const amountUsed = Number(
+  rule?.amount_used ||
+    rule?.amountUsed ||
+    rule?.quantity_used ||
+    0
+);
       const ingredient = rule?.ingredient;
 
       if (!ingredient || amountUsed <= 0) return;
@@ -9954,9 +9971,24 @@ salesUsageNote,
 });
 
   const items = (locationIngredientsData || []).map((item) => {
-    const quantity = Number(item.quantity || 0);
-    const avgDailyUsage = Number(item.avg_daily_usage || item.daily_usage || 0);
-    const costPerUnit = Number(item.cost_per_unit || 0);
+  const quantity = Number(item.quantity || 0);
+
+  const recipeSalesUsage = Number(
+    ingredientUsageFromSales[item.name] || 0
+  );
+
+  const storedDailyUsage = Number(
+    item.avg_daily_usage ||
+      item.daily_usage ||
+      0
+  );
+
+  const avgDailyUsage =
+    storedDailyUsage > 0
+      ? storedDailyUsage
+      : recipeSalesUsage;
+
+  const costPerUnit = Number(item.cost_per_unit || 0);
 
     const daysOnHand =
       avgDailyUsage > 0 ? quantity / avgDailyUsage : quantity > 0 ? 999 : 0;
