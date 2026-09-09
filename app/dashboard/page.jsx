@@ -21952,17 +21952,17 @@ const loadClientImports = async () => {
   setImportsLoading(true);
 
   try {
-    const {
-      data: { user: authenticatedUser },
-      error: authError,
-    } = await supabase.auth.getUser();
+   if (!authReady) {
+  console.log("RECENT IMPORTS WAITING FOR AUTH");
+  return;
+}
 
-    if (authError) {
-      throw authError;
-    }
-
-    const resolvedOwnerId =
-      dataOwnerId || authenticatedUser?.id || null;
+const resolvedOwnerId =
+  dataOwnerId ||
+  authenticatedUserId ||
+  userProfile?.owner_user_id ||
+  user?.id ||
+  null;
 
     if (!resolvedOwnerId) {
       console.log("RECENT IMPORTS WAITING FOR OWNER ID");
