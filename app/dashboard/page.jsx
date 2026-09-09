@@ -22479,7 +22479,7 @@ const saveRecipeRule = async () => {
     setRecipeQuantityUsed("");
     setRecipeTolerance(5);
 
-    await loadRecipeUsageRules();
+   await fetchRecipeUsageRules();
 
     alert("Recipe rule saved");
   } catch (error) {
