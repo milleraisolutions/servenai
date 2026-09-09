@@ -6332,12 +6332,14 @@ const loadUser = async () => {
     const cachedSession =
       cacheAuthSession(session);
 
-    const authUser =
-      cachedSession?.user || null;
+  const authUser =
+  cachedSession?.user || null;
 
-    console.log("AUTH USER:", authUser);
+console.log("AUTH USER:", authUser);
 
-    setUser(authUser);
+setUser(authUser);
+setAuthenticatedUserId(authUser?.id || null);
+setAuthReady(true);
 
     await fetchUserProfile(
       authUser,
@@ -6373,9 +6375,11 @@ const {
     );
 
     setUser(authUser);
+setAuthenticatedUserId(authUser?.id || null);
+setAuthReady(true);
 
-    /*
-     * Run profile loading outside the synchronous
+/*
+ * Run profile loading outside the synchronous
      * auth callback so it does not hold the auth lock.
      */
     setTimeout(() => {
@@ -44475,59 +44479,7 @@ const connectionLocationName =
   );
 };
 
-useEffect(() => {
-  let mounted = true;
 
-  const initializeDashboardAuth = async () => {
-    try {
-      const {
-        data: { session },
-        error,
-      } = await supabase.auth.getSession();
-
-      if (error) {
-        console.error("DASHBOARD AUTH INIT ERROR:", error);
-        return;
-      }
-
-      if (!mounted) return;
-
-      const userId = session?.user?.id || null;
-
-      setAuthenticatedUserId(userId);
-      setAuthReady(true);
-
-      console.log("DASHBOARD AUTH READY:", userId);
-    } catch (error) {
-      console.error("DASHBOARD AUTH INIT FAILED:", error);
-
-      if (mounted) {
-        setAuthReady(true);
-      }
-    }
-  };
-
-  initializeDashboardAuth();
-
-  const {
-    data: { subscription },
-  } = supabase.auth.onAuthStateChange(
-    (_event, session) => {
-      if (!mounted) return;
-
-      setAuthenticatedUserId(
-        session?.user?.id || null
-      );
-
-      setAuthReady(true);
-    }
-  );
-
-  return () => {
-    mounted = false;
-    subscription?.unsubscribe();
-  };
-}, []);
 
 const aiLastUpdated = new Date().toLocaleTimeString([], {
   hour: "numeric",
