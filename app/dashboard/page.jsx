@@ -22561,7 +22561,7 @@ useEffect(() => {
 console.log("RECIPE COSTING DATA:", recipeCostingData);
 
 const usageVarianceData = useMemo(() => {
-  const sales = salesData || [];
+ const sales = resolvedSalesData || [];
   const rules = recipeUsageRules || [];
   const ingredients =
     uploadComparison?.activeIngredients ||
@@ -22694,7 +22694,7 @@ const excessUsageCost =
 };
   });
 }, [
-  salesData,
+  resolvedSalesData,
   recipeUsageRules,
   uploadComparison,
   locationIngredientsData,
