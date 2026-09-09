@@ -9953,15 +9953,19 @@ const ingredientUsageFromSales = useMemo(() => {
 );
       const ingredient = rule?.ingredient;
 
-      if (!ingredient || amountUsed <= 0) return;
+if (!ingredient || amountUsed <= 0) return;
 
-      const totalUsed = quantitySold * amountUsed;
+const ingredientKey = String(ingredient)
+  .trim()
+  .toLowerCase();
 
-      if (!usageMap[ingredient]) {
-        usageMap[ingredient] = 0;
-      }
+const totalUsed = quantitySold * amountUsed;
 
-      usageMap[ingredient] += totalUsed;
+if (!usageMap[ingredientKey]) {
+  usageMap[ingredientKey] = 0;
+}
+
+usageMap[ingredientKey] += totalUsed;
     });
   });
 
@@ -9969,7 +9973,10 @@ const ingredientUsageFromSales = useMemo(() => {
 }, [resolvedSalesData, recipeUsageRules]);
 const inventoryRestockContext = useMemo(() => {
   const ingredients = (uploadComparison?.activeIngredients || []).map((item) => {
-  const used = ingredientUsageFromSales[item.name] || 0;
+ const used =
+  ingredientUsageFromSales[
+    String(item.name || "").trim().toLowerCase()
+  ] || 0;
 const quantity = Number(item.quantity || 0) - used;
 const salesUsageNote =
   used > 0
@@ -9989,7 +9996,9 @@ salesUsageNote,
   const quantity = Number(item.quantity || 0);
 
   const recipeSalesUsage = Number(
-    ingredientUsageFromSales[item.name] || 0
+   ingredientUsageFromSales[
+  String(item.name || "").trim().toLowerCase()
+] || 0
   );
 
   const storedDailyUsage = Number(
