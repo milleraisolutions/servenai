@@ -22510,19 +22510,34 @@ const recentImportActivity = [
 );
 const fetchRecipeUsageRules = async () => {
   try {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    if (!authReady) {
+      console.log("RECIPE RULES WAITING FOR AUTH");
+      return;
+    }
 
-    if (!user?.id) return;
+    const ownerId =
+      dataOwnerId ||
+      authenticatedUserId ||
+      userProfile?.owner_user_id ||
+      user?.id ||
+      null;
+
+    if (!ownerId) {
+      console.log("RECIPE RULES: NO OWNER ID");
+      return;
+    }
 
     const { data, error } = await supabase
       .from("recipe_usage_rules")
       .select("*")
-      .eq("user_id", dataOwnerId || user.id)
+      .eq("user_id", ownerId)
       .order("created_at", { ascending: false });
 
     if (error) throw error;
+
+    console.log("RECIPE RULES LOADED:", data);
+    console.log("RECIPE RULES COUNT:", data?.length || 0);
+    console.log("RECIPE RULE OWNER:", ownerId);
 
     setRecipeUsageRules(data || []);
   } catch (error) {
@@ -22530,12 +22545,17 @@ const fetchRecipeUsageRules = async () => {
   }
 };
 useEffect(() => {
-  if (!dataOwnerId) return;
+  if (!authReady) return;
 
   fetchRecipeUsageRules();
-
- 
-}, [dataOwnerId, activeLocation]);
+}, [
+  authReady,
+  dataOwnerId,
+  authenticatedUserId,
+  user?.id,
+  userProfile?.owner_user_id,
+  activeLocation,
+]);
 
 
 console.log("RECIPE COSTING DATA:", recipeCostingData);
