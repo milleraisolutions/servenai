@@ -22368,9 +22368,7 @@ const isServenAdmin =
 
 
 
-useEffect(() => {
-  loadRecipeUsageRules();
-}, []);
+
 
 const expectedVsActualUsageData = useMemo(() => {
   const rules = recipeUsageRules || [];
