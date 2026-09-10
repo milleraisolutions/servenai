@@ -1319,15 +1319,24 @@ const activeBenchmarks = {
   },
 };
 
-
 const updateCampaignRevenueAutomatically = async () => {
   try {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+    if (!authReady) {
+      console.log("CAMPAIGN REVENUE WAITING FOR AUTH");
+      return;
+    }
 
-    const user = session?.user;
-    if (!user?.id) return;
+    const ownerId =
+      dataOwnerId ||
+      authenticatedUserId ||
+      userProfile?.owner_user_id ||
+      user?.id ||
+      null;
+
+    if (!ownerId) {
+      console.log("CAMPAIGN REVENUE: NO OWNER ID");
+      return;
+    }
 
     const estimatedRevenue = Number(totalRevenue || 0);
     const campaignRevenue = Math.round(estimatedRevenue * 0.08); // 8% attribution estimate
@@ -1337,7 +1346,7 @@ const updateCampaignRevenueAutomatically = async () => {
       .update({
         actual_revenue: campaignRevenue,
       })
-      .eq("user_id", user.id)
+      .eq("user_id", ownerId)
       .eq("active", true)
       .eq("launched_by", "autopilot");
 
@@ -1346,12 +1355,21 @@ const updateCampaignRevenueAutomatically = async () => {
     console.error("Failed to update campaign revenue:", err);
   }
 };
-  useEffect(() => {
+useEffect(() => {
+  if (!authReady) return;
   if (!hasProAccess) return;
   if (!totalRevenue || totalRevenue <= 0) return;
 
   updateCampaignRevenueAutomatically();
-}, [totalRevenue, hasProAccess]);
+}, [
+  authReady,
+  authenticatedUserId,
+  dataOwnerId,
+  user?.id,
+  userProfile?.owner_user_id,
+  totalRevenue,
+  hasProAccess,
+]);
 useEffect(() => {
   if (!hasProAccess) return;
   if (!autoCampaignsEnabled) return;
@@ -4249,44 +4267,41 @@ const handleScheduleCampaign = (campaign) => {
 useEffect(() => {
   const loadWebsitePromo = async () => {
     try {
-      const {
-        data: { session },
-        error: sessionError,
-      } = await supabase.auth.getSession();
+      if (!authReady) {
+        console.log("WEBSITE PROMO WAITING FOR AUTH");
+        return;
+      }
 
-      if (sessionError) {
-        console.error("Session error:", sessionError);
+      const ownerId =
+        dataOwnerId ||
+        authenticatedUserId ||
+        userProfile?.owner_user_id ||
+        user?.id ||
+        null;
+
+      if (!ownerId) {
         setWebsitePromo(null);
         return;
       }
 
-      const currentUser = session?.user;
-
-      if (!currentUser?.id) {
+      if (!isOwner) {
         setWebsitePromo(null);
         return;
       }
 
-      const currentIsOwner = isOwner;
+      let marketingQuery = supabase
+        .from("marketing_campaigns")
+        .select("*")
+        .eq("user_id", ownerId)
+        .eq("active", true)
+        .eq("published_to_website", true);
 
-      if (!currentIsOwner) {
-        setWebsitePromo(null);
-        return;
-      }
+      marketingQuery = applyLocationFilter(marketingQuery);
 
-   let marketingQuery = supabase
-  .from("marketing_campaigns")
-  .select("*")
-  .eq("user_id", dataOwnerId)
-  .eq("active", true)
-  .eq("published_to_website", true);
-
-marketingQuery = applyLocationFilter(marketingQuery);
-
-const { data, error } = await marketingQuery
-  .order("created_at", { ascending: false })
-  .limit(1)
-  .maybeSingle();
+      const { data, error } = await marketingQuery
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
       if (error) {
         console.error("Website promo load error:", error);
@@ -4316,8 +4331,18 @@ const { data, error } = await marketingQuery
     }
   };
 
+  if (!authReady) return;
+
   loadWebsitePromo();
-}, [isOwner]);
+}, [
+  authReady,
+  authenticatedUserId,
+  dataOwnerId,
+  user?.id,
+  userProfile?.owner_user_id,
+  isOwner,
+  activeLocation,
+]);
 
 function generateCampaignCopy(form, promotion, businessType) {
   const {
@@ -5276,53 +5301,57 @@ const loadClientUploads = async () => {
 useEffect(() => {
   const loadAIRevenue = async () => {
     try {
-      const {
-        data: { session },
-        error: sessionError,
-      } = await supabase.auth.getSession();
-
-      if (sessionError) {
-        console.error("Session error loading AI revenue:", sessionError);
+      if (!authReady) {
+        console.log("AI REVENUE WAITING FOR AUTH");
         return;
       }
 
-      const user = session?.user;
+      const ownerId =
+        dataOwnerId ||
+        authenticatedUserId ||
+        userProfile?.owner_user_id ||
+        user?.id ||
+        null;
 
-      if (!user?.id) {
-        console.log("No logged-in user for AI revenue load");
+      if (!ownerId) {
+        console.log("AI REVENUE: NO OWNER ID");
         return;
       }
 
       const { data, error } = await supabase
         .from("users")
         .select("id, ai_revenue_recovered")
-        .eq("id", user.id)
+        .eq("id", ownerId)
         .maybeSingle();
 
       if (error) {
-        console.error("Supabase users read error:", JSON.stringify(error, null, 2));
+        console.error(
+          "Supabase users read error:",
+          JSON.stringify(error, null, 2)
+        );
         return;
       }
 
       console.log("Loaded AI revenue row:", data);
 
-      setTotalAIRevenueRecovered(Number(data?.ai_revenue_recovered || 0));
-    } 
-      
-    catch (error) {
-  const message = String(error?.message || error || "");
-
-  if (message.includes("Lock broken by another request")) {
-    console.warn("AI revenue load skipped because another request finished first.");
-    return;
-  }
-
-  console.error("Unexpected AI revenue load error:", error);
-}
+      setTotalAIRevenueRecovered(
+        Number(data?.ai_revenue_recovered || 0)
+      );
+    } catch (error) {
+      console.error("Unexpected AI revenue load error:", error);
+    }
   };
 
+  if (!authReady) return;
+
   loadAIRevenue();
-}, []);
+}, [
+  authReady,
+  authenticatedUserId,
+  dataOwnerId,
+  user?.id,
+  userProfile?.owner_user_id,
+]);
 useEffect(() => {
   if (!isOwnerRole) return;
   loadClientUploads();
@@ -6993,25 +7022,14 @@ Best,
 Antoine`);
 
   setShowRiskEmailModal(true);
-};useEffect(() => {
-  const checkSession = async () => {
-    try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+};
+useEffect(() => {
+  if (!authReady) return;
 
-      console.log("CURRENT SESSION:", session);
-
-      if (!session) {
-        window.location.replace("/login");
-      }
-    } catch (err) {
-      console.error("Session check failed:", err);
-    }
-  };
-
-  checkSession();
-}, []);
+  if (!user?.id) {
+    window.location.replace("/login");
+  }
+}, [authReady, user?.id]);
 
 console.log("CLIENTUPLOADS STATE VALUE:", clientUploads);
 console.log("TRACE AFTER CLIENTUPLOADS");
@@ -9435,25 +9453,29 @@ const realTotalAiProfit = realAppliedActions.reduce(
 );
 const loadUploadComparison = async () => {
   try {
-    
+    if (!authReady) return;
+
     setUploadComparisonLoading(true);
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const ownerId =
+      dataOwnerId ||
+      authenticatedUserId ||
+      userProfile?.owner_user_id ||
+      user?.id ||
+      null;
 
-    if (!user?.id) return;
+    if (!ownerId) return;
 
     const { data: menuItems } = await supabase
       .from("menu_items")
       .select("*")
-      .eq("user_id", dataOwnerId || user?.id)
+      .eq("user_id", ownerId)
       .order("last_seen_at", { ascending: false });
 
     const { data: ingredients } = await supabase
       .from("ingredients")
       .select("*")
-      .eq("user_id", dataOwnerId || user?.id)
+     .eq("user_id", ownerId)
       .order("last_seen_at", { ascending: false });
 
     const activeMenuItems = (menuItems || []).filter((i) => i.is_active);
@@ -13424,21 +13446,32 @@ const activeUploadCount = (clientUploads || []).filter((upload) => {
 
 useEffect(() => {
   const loadMenuItems = async () => {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    if (!authReady) {
+      console.log("MENU ITEMS WAITING FOR AUTH");
+      return;
+    }
 
-    if (!user?.id) return;
+    const ownerId =
+      dataOwnerId ||
+      authenticatedUserId ||
+      userProfile?.owner_user_id ||
+      user?.id ||
+      null;
 
-  let menuItemsQuery = supabase
-  .from("menu_items")
-  .select("*")
-  .eq("user_id", dataOwnerId || user.id)
-  .eq("is_active", true);
+    if (!ownerId) {
+      console.log("MENU ITEMS: NO OWNER ID");
+      return;
+    }
 
-menuItemsQuery = applyLocationFilter(menuItemsQuery);
+    let menuItemsQuery = supabase
+      .from("menu_items")
+      .select("*")
+      .eq("user_id", ownerId)
+      .eq("is_active", true);
 
-const { data, error } = await menuItemsQuery;
+    menuItemsQuery = applyLocationFilter(menuItemsQuery);
+
+    const { data, error } = await menuItemsQuery;
 
     if (error) {
       console.error("Failed to load menu items:", error);
@@ -13449,12 +13482,18 @@ const { data, error } = await menuItemsQuery;
     setMenuItemsData(data || []);
   };
 
-   if (!dataOwnerId) return;
+  if (!authReady) return;
 
   loadMenuItems();
 
-
-}, [dataOwnerId, activeLocation]);
+}, [
+  authReady,
+  authenticatedUserId,
+  dataOwnerId,
+  user?.id,
+  userProfile?.owner_user_id,
+  activeLocation,
+]);
 useEffect(() => {
   let cancelled = false;
 
@@ -13914,16 +13953,27 @@ useEffect(() => {
 useEffect(() => {
   const loadSavedInventoryData = async () => {
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      if (!authReady) {
+        console.log("INVENTORY WAITING FOR AUTH");
+        return;
+      }
 
-      if (!user?.id) return;
+      const ownerId =
+        dataOwnerId ||
+        authenticatedUserId ||
+        userProfile?.owner_user_id ||
+        user?.id ||
+        null;
+
+      if (!ownerId) {
+        console.log("INVENTORY: NO OWNER ID");
+        return;
+      }
 
       let inventoryQuery = supabase
         .from("inventory_items")
         .select("*")
-        .eq("user_id", dataOwnerId || user.id);
+        .eq("user_id", ownerId);
 
       inventoryQuery = applyLocationFilter(inventoryQuery);
 
@@ -13975,12 +14025,19 @@ useEffect(() => {
     }
   };
 
-   if (!dataOwnerId) return;
+  if (!authReady) return;
 
-  loadSavedInventoryData();
+loadSavedInventoryData();
 
 
-}, [dataOwnerId, activeLocation]);
+}, [
+  authReady,
+  authenticatedUserId,
+  dataOwnerId,
+  user?.id,
+  userProfile?.owner_user_id,
+  activeLocation,
+]);
 const BEVERAGE_CATEGORY_KEYWORDS = [
   "beer",
   "wine",
@@ -36451,16 +36508,27 @@ const handleCreateAIAction = async ({
 
 useEffect(() => {
   const loadAIActions = async () => {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    if (!authReady) {
+      console.log("AI ACTIONS WAITING FOR AUTH");
+      return;
+    }
 
-    if (!user?.id) return;
+    const ownerId =
+      dataOwnerId ||
+      authenticatedUserId ||
+      userProfile?.owner_user_id ||
+      user?.id ||
+      null;
+
+    if (!ownerId) {
+      console.log("AI ACTIONS: NO OWNER ID");
+      return;
+    }
 
     const { data, error } = await supabase
       .from("ai_actions")
       .select("*")
-      .eq("user_id", user.id)
+      .eq("user_id", ownerId)
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -36471,8 +36539,16 @@ useEffect(() => {
     setAiActions(data || []);
   };
 
+  if (!authReady) return;
+
   loadAIActions();
-}, []);
+}, [
+  authReady,
+  authenticatedUserId,
+  dataOwnerId,
+  user?.id,
+  userProfile?.owner_user_id,
+]);
 
 const autoExecutableActions = aiActions.filter(
   (action) =>
@@ -36488,35 +36564,48 @@ const lowValueActions = aiActions.filter(
 
 useEffect(() => {
   const loadRecipes = async () => {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    if (!authReady) {
+      console.log("RECIPES WAITING FOR AUTH");
+      return;
+    }
 
-    if (!user?.id) return;
+    const ownerId =
+      dataOwnerId ||
+      authenticatedUserId ||
+      userProfile?.owner_user_id ||
+      user?.id ||
+      null;
+
+    if (!ownerId) {
+      console.log("RECIPES: NO OWNER ID");
+      return;
+    }
 
     let recipeQuery = supabase
-  .from("recipes")
-  .select("*")
-  .eq("user_id", dataOwnerId || user.id)
+      .from("recipes")
+      .select("*")
+      .eq("user_id", ownerId);
 
-recipeQuery = applyLocationFilter(recipeQuery);
+    recipeQuery = applyLocationFilter(recipeQuery);
 
-const { data: recipeData, error: recipeError } =
-  await recipeQuery.order("created_at", { ascending: false });
+    const { data: recipeData, error: recipeError } =
+      await recipeQuery.order("created_at", { ascending: false });
 
     if (recipeError) {
       console.error("Recipes load error:", recipeError);
       return;
     }
-let ingredientQuery = supabase
-  .from("recipe_ingredients")
-  .select("*")
-  .eq("user_id", dataOwnerId || user.id)
 
-ingredientQuery = applyLocationFilter(ingredientQuery);
+    let ingredientQuery = supabase
+      .from("recipe_ingredients")
+      .select("*")
+      .eq("user_id", ownerId);
 
-const { data: ingredientData, error: ingredientError } =
-  await ingredientQuery.order("created_at", { ascending: false });
+    ingredientQuery = applyLocationFilter(ingredientQuery);
+
+    const { data: ingredientData, error: ingredientError } =
+      await ingredientQuery.order("created_at", { ascending: false });
+
     if (ingredientError) {
       console.error("Recipe ingredients load error:", ingredientError);
       return;
@@ -36525,12 +36614,19 @@ const { data: ingredientData, error: ingredientError } =
     setRecipes(recipeData || []);
     setRecipeIngredients(ingredientData || []);
   };
-  if (!dataOwnerId) return;
+
+  if (!authReady) return;
 
   loadRecipes();
 
- 
-}, [dataOwnerId, activeLocation]);
+}, [
+  authReady,
+  authenticatedUserId,
+  dataOwnerId,
+  user?.id,
+  userProfile?.owner_user_id,
+  activeLocation,
+]);
 const handleRecipeUpload = async (event) => {
   try {
     const file = event.target.files?.[0];
@@ -36869,25 +36965,24 @@ const handleRecipeUpload = async (event) => {
 useEffect(() => {
   const loadEmployees = async () => {
     try {
-      const {
-        data: { user: authenticatedUser },
-        error: userError,
-      } = await supabase.auth.getUser();
-
-      if (userError) {
-        console.error("EMPLOYEE LOAD USER ERROR:", userError);
-        return;
-      }
-
-      if (!authenticatedUser?.id) {
-        console.log("EMPLOYEE LOAD STOPPED: no authenticated user");
+      if (!authReady) {
+        console.log("EMPLOYEE LOAD WAITING FOR AUTH");
         return;
       }
 
       const employeeDataOwnerId =
-        dataOwnerId || authenticatedUser.id;
+        dataOwnerId ||
+        authenticatedUserId ||
+        userProfile?.owner_user_id ||
+        user?.id ||
+        null;
 
-      console.log("EMPLOYEE LOAD AUTH USER:", authenticatedUser.id);
+      if (!employeeDataOwnerId) {
+        console.log("EMPLOYEE LOAD STOPPED: no authenticated user");
+        return;
+      }
+
+      console.log("EMPLOYEE LOAD AUTH USER:", authenticatedUserId);
       console.log("EMPLOYEE LOAD DATA OWNER:", dataOwnerId);
       console.log(
         "EMPLOYEE LOAD RESOLVED OWNER:",
@@ -36916,7 +37011,6 @@ useEffect(() => {
         .eq("user_id", employeeDataOwnerId)
         .order("shift_date", { ascending: false });
 
-
       const {
         data: shiftsData,
         error: shiftsError,
@@ -36943,8 +37037,16 @@ useEffect(() => {
     }
   };
 
+  if (!authReady) return;
+
   loadEmployees();
-}, [dataOwnerId]);
+}, [
+  authReady,
+  authenticatedUserId,
+  dataOwnerId,
+  user?.id,
+  userProfile?.owner_user_id,
+]);
 const handleEmployeeShiftFileChange = async (event) => {
   const file = event.target.files?.[0];
 
@@ -38313,16 +38415,27 @@ const loadAuditLogs = async () => {
   try {
     setAuditLogsLoading(true);
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    if (!authReady) {
+      console.log("AUDIT LOGS WAITING FOR AUTH");
+      return;
+    }
 
-    if (!user?.id) return;
+    const ownerId =
+      dataOwnerId ||
+      authenticatedUserId ||
+      userProfile?.owner_user_id ||
+      user?.id ||
+      null;
+
+    if (!ownerId) {
+      console.log("AUDIT LOGS: NO OWNER ID");
+      return;
+    }
 
     const { data, error } = await supabase
       .from("audit_logs")
       .select("*")
-      .eq("user_id", dataOwnerId || user.id)
+      .eq("user_id", ownerId)
       .order("created_at", { ascending: false })
       .limit(100);
 
@@ -38338,6 +38451,19 @@ const loadAuditLogs = async () => {
     setAuditLogsLoading(false);
   }
 };
+
+useEffect(() => {
+  if (!authReady) return;
+
+  loadAuditLogs();
+
+}, [
+  authReady,
+  authenticatedUserId,
+  dataOwnerId,
+  user?.id,
+  userProfile?.owner_user_id,
+]);
 
 useEffect(() => {
   if (!dataOwnerId) return;
@@ -39132,23 +39258,16 @@ let importCommitted = false;
 useEffect(() => {
   const loadLocations = async () => {
     try {
-      const {
-        data: { user: authUser },
-        error: authError,
-      } = await supabase.auth.getUser();
-
-      if (authError) {
-        console.error(
-          "LOCATIONS AUTH ERROR:",
-          authError
-        );
+      if (!authReady) {
+        console.log("LOCATIONS WAITING FOR AUTH");
         return;
       }
 
       const resolvedOwnerId =
         dataOwnerId ||
         authenticatedUserId ||
-        authUser?.id ||
+        userProfile?.owner_user_id ||
+        user?.id ||
         null;
 
       console.log(
@@ -39157,9 +39276,7 @@ useEffect(() => {
       );
 
       if (!resolvedOwnerId) {
-        console.log(
-          "LOCATIONS WAITING FOR AUTH"
-        );
+        console.log("LOCATIONS: NO OWNER ID");
         return;
       }
 
@@ -39212,6 +39329,8 @@ useEffect(() => {
   authReady,
   authenticatedUserId,
   dataOwnerId,
+  user?.id,
+  userProfile?.owner_user_id,
 ]);
 const handleLocationUpload = async (event) => {
   let uploadRow = null;
@@ -39542,16 +39661,27 @@ useEffect(() => {
     loadingKitchenPrepRef.current = true;
 
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      if (!authReady) {
+        console.log("KITCHEN MANAGER WAITING FOR AUTH");
+        return;
+      }
 
-      if (!user?.id) return;
+      const ownerId =
+        dataOwnerId ||
+        authenticatedUserId ||
+        userProfile?.owner_user_id ||
+        user?.id ||
+        null;
+
+      if (!ownerId) {
+        console.log("KITCHEN MANAGER: NO OWNER ID");
+        return;
+      }
 
       const { data: prepData, error: prepError } = await supabase
         .from("kitchen_prep_tasks")
         .select("*")
-        .eq("user_id", user.id)
+        .eq("user_id", ownerId)
         .order("prep_date", { ascending: false });
 
       if (prepError) {
@@ -39562,7 +39692,7 @@ useEffect(() => {
       const { data: stationData, error: stationError } = await supabase
         .from("kitchen_station_performance")
         .select("*")
-        .eq("user_id", user.id)
+        .eq("user_id", ownerId)
         .order("shift_date", { ascending: false });
 
       if (stationError) {
@@ -39585,8 +39715,16 @@ useEffect(() => {
     }
   };
 
+  if (!authReady) return;
+
   loadKitchenManagerData();
-}, []);
+}, [
+  authReady,
+  authenticatedUserId,
+  dataOwnerId,
+  user?.id,
+  userProfile?.owner_user_id,
+]);
 
 const handleKitchenPrepUpload = async (event) => {
   try {
@@ -40777,41 +40915,58 @@ setInviteLocationIds([]);
 setLocationSearch("");
 setSendingInvite(false);
 };
-
 useEffect(() => {
-  if (!dataOwnerId) return;
+  if (!authReady) return;
 
   loadTeamInvites();
 
-
-}, [dataOwnerId]);
+}, [
+  authReady,
+  authenticatedUserId,
+  dataOwnerId,
+  user?.id,
+  userProfile?.owner_user_id,
+]);
 
 const loadTeamInvites = async () => {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  if (!authReady) {
+    console.log("TEAM INVITES WAITING FOR AUTH");
+    return;
+  }
 
-  if (!user?.id) return;
+  const ownerId =
+    dataOwnerId ||
+    authenticatedUserId ||
+    userProfile?.owner_user_id ||
+    user?.id ||
+    null;
+
+  if (!ownerId) {
+    console.log("TEAM INVITES: NO OWNER ID");
+    return;
+  }
 
   const { data, error } = await supabase
     .from("team_invites")
     .select("*")
-    .eq("owner_user_id", dataOwnerId || user.id)
+    .eq("owner_user_id", ownerId)
     .order("created_at", { ascending: false });
 
   if (error) {
     console.error("Failed loading team invites:", error);
     return;
   }
-console.log(
-  "TEAM INVITES LOADED:",
-  (data || []).map((invite) => ({
-    id: invite.id,
-    owner_user_id: invite.owner_user_id,
-    email: invite.email,
-    status: invite.status,
-  }))
-);
+
+  console.log(
+    "TEAM INVITES LOADED:",
+    (data || []).map((invite) => ({
+      id: invite.id,
+      owner_user_id: invite.owner_user_id,
+      email: invite.email,
+      status: invite.status,
+    }))
+  );
+
   setTeamInvites(data || []);
 };
 
@@ -43808,20 +43963,21 @@ const getActiveConnectionLocation = () => {
 
 const loadRestaurantConnections = async () => {
   try {
+    if (!authReady) return;
+
     setConnectionsLoading(true);
 
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
+    const ownerId =
+      dataOwnerId ||
+      authenticatedUserId ||
+      userProfile?.owner_user_id ||
+      user?.id ||
+      null;
 
-    if (userError || !user?.id) {
-      console.error("CONNECTION USER ERROR:", userError);
+    if (!ownerId) {
       setRestaurantConnections([]);
       return;
     }
-
-    const ownerId = dataOwnerId || user.id;
 
     const { data, error } = await supabase
       .from("restaurant_connections")
@@ -43862,10 +44018,19 @@ const loadRestaurantConnections = async () => {
 };
 
 useEffect(() => {
+  if (!authReady) return;
+
   if (activeTab === "connections") {
     loadRestaurantConnections();
   }
-}, [activeTab, dataOwnerId]);
+}, [
+  activeTab,
+  authReady,
+  authenticatedUserId,
+  dataOwnerId,
+  user?.id,
+  userProfile?.owner_user_id,
+]);
 
 const handleConnectRestaurantSystem = async (
   provider,
