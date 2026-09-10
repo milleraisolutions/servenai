@@ -10078,7 +10078,11 @@ const runOutDate =
       .sort((a, b) => Number(a.daysOnHand || 0) - Number(b.daysOnHand || 0))
       .slice(0, 5),
   };
-}, [uploadComparison, ingredientUsageFromSales]);
+}, [
+  uploadComparison,
+  ingredientUsageFromSales,
+  locationIngredientsData,
+]);
 const handleAutoRestockFromAlert = async (alert) => {
   try {
     const ingredientName = alert?.ingredientName || "Unknown ingredient";
