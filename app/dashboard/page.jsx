@@ -9990,7 +9990,14 @@ if (!usageMap[ingredientKey]) {
 usageMap[ingredientKey] += totalUsed;
     });
   });
+console.log("INVENTORY RECIPE USAGE DEBUG:", {
+  salesCount: safeSalesData.length,
+  recipeRuleCount: safeRecipeUsageRules.length,
+  usageMap,
+  ribeyeUsage: usageMap["usda choice ribeye"],
+});
 
+return usageMap;
   return usageMap;
 }, [resolvedSalesData, recipeUsageRules]);
 const inventoryRestockContext = useMemo(() => {
