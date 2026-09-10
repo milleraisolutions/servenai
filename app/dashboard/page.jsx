@@ -93410,6 +93410,310 @@ const invoiceRows =
               </div>
             )}
           </div>
+          
+{/* 📦 EXPECTED VS ACTUAL USAGE INTELLIGENCE */}
+
+{hasProAccess && (
+  <div
+    style={{
+      marginTop: "18px",
+      padding: "20px",
+      borderRadius: "22px",
+      background:
+        "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.9))",
+      border: "1px solid rgba(34,197,94,0.18)",
+    }}
+  >
+    <div
+      style={{
+        color: "#86efac",
+        fontSize: "12px",
+        fontWeight: "900",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        marginBottom: "8px",
+      }}
+    >
+      Expected vs Actual Usage
+    </div>
+
+    <h3
+      style={{
+        color: "white",
+        margin: "0 0 10px",
+        fontSize: "22px",
+        fontWeight: "900",
+      }}
+    >
+      Waste & Overportioning Intelligence
+    </h3>
+
+    <p
+      style={{
+        color: "#94a3b8",
+        fontSize: "13px",
+        lineHeight: 1.6,
+      }}
+    >
+      Compares expected ingredient usage from recipe rules against actual usage
+      to detect waste, overportioning, inventory leakage, or accounting
+      mismatches.
+    </p>
+
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: isMobile
+  ? "1fr"
+  : "repeat(2, minmax(0, 1fr))",
+        gap: "12px",
+        marginTop: "18px",
+        marginBottom: "18px",
+      }}
+    >
+      {[
+        {
+          label: "Critical Risks",
+          value: usageVarianceData.filter(
+            (item) => item.status === "Critical Waste Risk"
+          ).length,
+          sub: "high variance ingredients",
+        },
+        {
+          label: "Avg Variance",
+          value: `${
+            usageVarianceData.length
+              ? (
+                  usageVarianceData.reduce(
+                    (sum, item) =>
+                      sum + Math.abs(Number(item.variancePercent || 0)),
+                    0
+                  ) / usageVarianceData.length
+                ).toFixed(1)
+              : "0.0"
+          }%`,
+          sub: "across tracked ingredients",
+        },
+        {
+          label: "Controlled Items",
+          value: usageVarianceData.filter(
+            (item) => item.status === "Controlled"
+          ).length,
+          sub: "within expected usage",
+        },
+      ].map((metric) => (
+        <div
+          key={metric.label}
+          style={{
+            padding: "14px",
+            borderRadius: "16px",
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(255,255,255,0.08)",
+          }}
+        >
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "11px",
+              fontWeight: "800",
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+              marginBottom: "6px",
+            }}
+          >
+            {metric.label}
+          </div>
+
+          <div
+            style={{
+              color: "white",
+              fontSize: "24px",
+              fontWeight: "950",
+            }}
+          >
+            {metric.value}
+          </div>
+
+          <div
+            style={{
+              color: "#64748b",
+              fontSize: "12px",
+              marginTop: "4px",
+            }}
+          >
+            {metric.sub}
+          </div>
+        </div>
+      ))}
+    </div>
+
+    <div
+      style={{
+        display: "grid",
+        gap: "12px",
+      }}
+    >
+      {(usageVarianceData || []).slice(0, 8).map((item, index) => (
+        <div
+          key={`${item.ingredientName}-${index}`}
+          style={{
+            padding: "14px",
+            borderRadius: "16px",
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(255,255,255,0.08)",
+            display: "grid",
+           gridTemplateColumns: "1.2fr 0.8fr 0.8fr 0.8fr 1fr 1fr",
+            gap: "12px",
+            alignItems: "center",
+          }}
+        >
+          <div>
+            <div
+              style={{
+                color: "white",
+                fontWeight: "900",
+              }}
+            >
+              {item.ingredientName}
+            </div>
+
+            <div
+              style={{
+                color: "#94a3b8",
+                fontSize: "12px",
+              }}
+            >
+              {item.linkedRecipeCount} recipe links
+            </div>
+          </div>
+
+          <div>
+            <div
+              style={{
+                color: "#94a3b8",
+                fontSize: "11px",
+              }}
+            >
+              Expected
+            </div>
+
+            <div
+              style={{
+                color: "white",
+                fontWeight: "800",
+              }}
+            >
+              {Number(item.expectedUsage || 0).toFixed(1)}
+            </div>
+          </div>
+
+          <div>
+            <div
+              style={{
+                color: "#94a3b8",
+                fontSize: "11px",
+              }}
+            >
+              Actual
+            </div>
+
+            <div
+              style={{
+                color: "white",
+                fontWeight: "800",
+              }}
+            >
+              {Number(item.actualUsage || 0).toFixed(1)}
+            </div>
+          </div>
+
+          <div>
+            <div
+              style={{
+                color: "#94a3b8",
+                fontSize: "11px",
+              }}
+            >
+              Variance
+            </div>
+
+            <div
+              style={{
+                color:
+                  Number(item.variancePercent || 0) > 8
+                    ? "#f87171"
+                    : Number(item.variancePercent || 0) > 5
+                    ? "#facc15"
+                    : "#22c55e",
+                fontWeight: "950",
+              }}
+            >
+              {Number(item.variancePercent || 0).toFixed(1)}%
+            </div>
+          </div>
+
+          <div>
+            <div
+              style={{
+                color: "#94a3b8",
+                fontSize: "11px",
+              }}
+            >
+              Status
+            </div>
+
+            <div
+              style={{
+                color:
+                  item.status === "Critical Waste Risk"
+                    ? "#f87171"
+                    : item.status === "Waste Risk"
+                    ? "#fb923c"
+                    : item.status === "Minor Variance"
+                    ? "#facc15"
+                    : "#22c55e",
+                fontWeight: "900",
+              }}
+            >
+              {item.status}
+            </div>
+          </div>
+                    <div>
+            {Number(item.excessUsageCost || 0) > 0 ? (
+              <button
+                type="button"
+                onClick={() => handleAcceptInventoryWasteAction(item)}
+                style={{
+                  width: "100%",
+                  padding: "9px 12px",
+                  borderRadius: "10px",
+                  border: "1px solid rgba(248,113,113,0.28)",
+                  background: "rgba(239,68,68,0.14)",
+                  color: "#fca5a5",
+                  fontSize: "12px",
+                  fontWeight: "900",
+                  cursor: "pointer",
+                }}
+              >
+                Fix Waste →
+              </button>
+            ) : (
+              <div
+                style={{
+                  color: "#86efac",
+                  fontSize: "12px",
+                  fontWeight: "800",
+                }}
+              >
+                Controlled
+              </div>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
         </>
       );
     })()}
@@ -101158,309 +101462,6 @@ cursor:
   </div>
 )}
 
-{/* 📦 EXPECTED VS ACTUAL USAGE INTELLIGENCE */}
-
-{hasProAccess && (
-  <div
-    style={{
-      marginTop: "18px",
-      padding: "20px",
-      borderRadius: "22px",
-      background:
-        "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.9))",
-      border: "1px solid rgba(34,197,94,0.18)",
-    }}
-  >
-    <div
-      style={{
-        color: "#86efac",
-        fontSize: "12px",
-        fontWeight: "900",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        marginBottom: "8px",
-      }}
-    >
-      Expected vs Actual Usage
-    </div>
-
-    <h3
-      style={{
-        color: "white",
-        margin: "0 0 10px",
-        fontSize: "22px",
-        fontWeight: "900",
-      }}
-    >
-      Waste & Overportioning Intelligence
-    </h3>
-
-    <p
-      style={{
-        color: "#94a3b8",
-        fontSize: "13px",
-        lineHeight: 1.6,
-      }}
-    >
-      Compares expected ingredient usage from recipe rules against actual usage
-      to detect waste, overportioning, inventory leakage, or accounting
-      mismatches.
-    </p>
-
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: isMobile
-  ? "1fr"
-  : "repeat(2, minmax(0, 1fr))",
-        gap: "12px",
-        marginTop: "18px",
-        marginBottom: "18px",
-      }}
-    >
-      {[
-        {
-          label: "Critical Risks",
-          value: usageVarianceData.filter(
-            (item) => item.status === "Critical Waste Risk"
-          ).length,
-          sub: "high variance ingredients",
-        },
-        {
-          label: "Avg Variance",
-          value: `${
-            usageVarianceData.length
-              ? (
-                  usageVarianceData.reduce(
-                    (sum, item) =>
-                      sum + Math.abs(Number(item.variancePercent || 0)),
-                    0
-                  ) / usageVarianceData.length
-                ).toFixed(1)
-              : "0.0"
-          }%`,
-          sub: "across tracked ingredients",
-        },
-        {
-          label: "Controlled Items",
-          value: usageVarianceData.filter(
-            (item) => item.status === "Controlled"
-          ).length,
-          sub: "within expected usage",
-        },
-      ].map((metric) => (
-        <div
-          key={metric.label}
-          style={{
-            padding: "14px",
-            borderRadius: "16px",
-            background: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(255,255,255,0.08)",
-          }}
-        >
-          <div
-            style={{
-              color: "#94a3b8",
-              fontSize: "11px",
-              fontWeight: "800",
-              textTransform: "uppercase",
-              letterSpacing: "0.06em",
-              marginBottom: "6px",
-            }}
-          >
-            {metric.label}
-          </div>
-
-          <div
-            style={{
-              color: "white",
-              fontSize: "24px",
-              fontWeight: "950",
-            }}
-          >
-            {metric.value}
-          </div>
-
-          <div
-            style={{
-              color: "#64748b",
-              fontSize: "12px",
-              marginTop: "4px",
-            }}
-          >
-            {metric.sub}
-          </div>
-        </div>
-      ))}
-    </div>
-
-    <div
-      style={{
-        display: "grid",
-        gap: "12px",
-      }}
-    >
-      {(usageVarianceData || []).slice(0, 8).map((item, index) => (
-        <div
-          key={`${item.ingredientName}-${index}`}
-          style={{
-            padding: "14px",
-            borderRadius: "16px",
-            background: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(255,255,255,0.08)",
-            display: "grid",
-           gridTemplateColumns: "1.2fr 0.8fr 0.8fr 0.8fr 1fr 1fr",
-            gap: "12px",
-            alignItems: "center",
-          }}
-        >
-          <div>
-            <div
-              style={{
-                color: "white",
-                fontWeight: "900",
-              }}
-            >
-              {item.ingredientName}
-            </div>
-
-            <div
-              style={{
-                color: "#94a3b8",
-                fontSize: "12px",
-              }}
-            >
-              {item.linkedRecipeCount} recipe links
-            </div>
-          </div>
-
-          <div>
-            <div
-              style={{
-                color: "#94a3b8",
-                fontSize: "11px",
-              }}
-            >
-              Expected
-            </div>
-
-            <div
-              style={{
-                color: "white",
-                fontWeight: "800",
-              }}
-            >
-              {Number(item.expectedUsage || 0).toFixed(1)}
-            </div>
-          </div>
-
-          <div>
-            <div
-              style={{
-                color: "#94a3b8",
-                fontSize: "11px",
-              }}
-            >
-              Actual
-            </div>
-
-            <div
-              style={{
-                color: "white",
-                fontWeight: "800",
-              }}
-            >
-              {Number(item.actualUsage || 0).toFixed(1)}
-            </div>
-          </div>
-
-          <div>
-            <div
-              style={{
-                color: "#94a3b8",
-                fontSize: "11px",
-              }}
-            >
-              Variance
-            </div>
-
-            <div
-              style={{
-                color:
-                  Number(item.variancePercent || 0) > 8
-                    ? "#f87171"
-                    : Number(item.variancePercent || 0) > 5
-                    ? "#facc15"
-                    : "#22c55e",
-                fontWeight: "950",
-              }}
-            >
-              {Number(item.variancePercent || 0).toFixed(1)}%
-            </div>
-          </div>
-
-          <div>
-            <div
-              style={{
-                color: "#94a3b8",
-                fontSize: "11px",
-              }}
-            >
-              Status
-            </div>
-
-            <div
-              style={{
-                color:
-                  item.status === "Critical Waste Risk"
-                    ? "#f87171"
-                    : item.status === "Waste Risk"
-                    ? "#fb923c"
-                    : item.status === "Minor Variance"
-                    ? "#facc15"
-                    : "#22c55e",
-                fontWeight: "900",
-              }}
-            >
-              {item.status}
-            </div>
-          </div>
-                    <div>
-            {Number(item.excessUsageCost || 0) > 0 ? (
-              <button
-                type="button"
-                onClick={() => handleAcceptInventoryWasteAction(item)}
-                style={{
-                  width: "100%",
-                  padding: "9px 12px",
-                  borderRadius: "10px",
-                  border: "1px solid rgba(248,113,113,0.28)",
-                  background: "rgba(239,68,68,0.14)",
-                  color: "#fca5a5",
-                  fontSize: "12px",
-                  fontWeight: "900",
-                  cursor: "pointer",
-                }}
-              >
-                Fix Waste →
-              </button>
-            ) : (
-              <div
-                style={{
-                  color: "#86efac",
-                  fontSize: "12px",
-                  fontWeight: "800",
-                }}
-              >
-                Controlled
-              </div>
-            )}
-          </div>
-        </div>
-      ))}
-    </div>
-  </div>
-)}
 {/* ========================= */}
 {/* 🍽️ CROSS-SYSTEM MENU INTELLIGENCE */}
 {/* ========================= */}
