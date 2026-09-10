@@ -93411,6 +93411,10 @@ const invoiceRows =
             )}
           </div>
           
+        </>
+      );
+    })()}
+    
 {/* 📦 EXPECTED VS ACTUAL USAGE INTELLIGENCE */}
 
 {hasProAccess && (
@@ -93714,10 +93718,8 @@ const invoiceRows =
     </div>
   </div>
 )}
-        </>
-      );
-    })()}
   </>
+  
 )}
 {inventoryView === "forecast" && (
   <>
