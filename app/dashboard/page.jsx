@@ -22842,6 +22842,101 @@ const excessUsageCost =
   uploadComparison,
   locationIngredientsData,
 ]);
+const handleAcceptInventoryWasteAction = async (item) => {
+  try {
+    const ingredientId = item?.ingredientId || null;
+    const ingredientName = String(
+      item?.ingredientName || "Unknown Ingredient"
+    ).trim();
+
+    const baselineExpectedUsage = Number(item?.expectedUsage || 0);
+    const baselineActualUsage = Number(item?.actualUsage || 0);
+    const baselineExcessUsage = Number(item?.excessUsage || 0);
+    const baselineExcessUsageCost = Number(item?.excessUsageCost || 0);
+    const baselineVariancePercent = Number(item?.variancePercent || 0);
+
+    if (!ingredientId) {
+      setMessage(`Unable to identify ${ingredientName}.`);
+      return;
+    }
+
+    if (baselineExcessUsageCost <= 0) {
+      setMessage(
+        `${ingredientName} does not currently have measurable excess usage cost.`
+      );
+      return;
+    }
+
+    const matchingIngredient = (locationIngredientsData || []).find(
+      (ingredient) =>
+        String(ingredient.id || "") === String(ingredientId)
+    );
+
+    const savedAction = await saveAppliedAIAction({
+      actionName: `Reduce overportioning for ${ingredientName}`,
+
+      actionDescription:
+        `Operator accepted Serven's recommendation to reduce excess usage for ${ingredientName}.`,
+
+      impactValue: baselineExcessUsageCost,
+
+      appliedBy: "manual",
+
+      recoveryCategory: "inventory",
+
+      entityType: "ingredient",
+
+      entityId: String(ingredientId),
+
+      actionType: "inventory_usage_variance",
+
+      decisionStatus: "accepted",
+
+      implementationStatus: "awaiting_verification",
+
+      baselineData: {
+        ingredient_name: ingredientName,
+        expected_usage: baselineExpectedUsage,
+        actual_usage: baselineActualUsage,
+        excess_usage: baselineExcessUsage,
+        excess_usage_cost: baselineExcessUsageCost,
+        variance_percent: baselineVariancePercent,
+        cost_per_unit: Number(item?.costPerUnit || 0),
+
+        baseline_upload_id:
+          matchingIngredient?.upload_id || null,
+
+        baseline_last_seen_at:
+          matchingIngredient?.last_seen_at || null,
+      },
+
+      targetData: {
+        target_excess_usage_cost: 0,
+        target_variance_percent: 0,
+      },
+    });
+
+    if (!savedAction) {
+      setMessage(
+        `Could not save the corrective action for ${ingredientName}.`
+      );
+      return;
+    }
+
+    setMessage(
+      `Corrective action accepted for ${ingredientName}. Awaiting a future inventory period for verification.`
+    );
+  } catch (error) {
+    console.error(
+      "Inventory waste corrective action error:",
+      error
+    );
+
+    setMessage(
+      "Could not save the inventory corrective action."
+    );
+  }
+};
 useEffect(() => {
   const verifyAppliedInventoryRecoveries = async () => {
     if (!authReady) return;
@@ -22873,12 +22968,15 @@ useEffect(() => {
       ).toLowerCase();
 
       return (
-        category === "inventory" &&
-        entityType === "ingredient" &&
-        actionType === "inventory_restock" &&
-        action.entity_id &&
-        verificationStatus !== "verified"
-      );
+  category === "inventory" &&
+  entityType === "ingredient" &&
+  (
+    actionType === "inventory_restock" ||
+    actionType === "inventory_usage_variance"
+  ) &&
+  action.entity_id &&
+  verificationStatus !== "verified"
+);
     });
 
     if (!pendingInventoryActions.length) return;
@@ -22918,10 +23016,26 @@ const currentUploadId = String(
   matchingIngredient.upload_id || ""
 ).trim();
 
-const hasFreshInventoryPeriod =
+const baselineLastSeenAt = action.baseline_data?.baseline_last_seen_at
+  ? new Date(action.baseline_data.baseline_last_seen_at).getTime()
+  : 0;
+
+const currentLastSeenAt = matchingIngredient.last_seen_at
+  ? new Date(matchingIngredient.last_seen_at).getTime()
+  : 0;
+
+const hasNewUploadPeriod =
   Boolean(baselineUploadId) &&
   Boolean(currentUploadId) &&
   currentUploadId !== baselineUploadId;
+
+const hasNewIntegrationPeriod =
+  baselineLastSeenAt > 0 &&
+  currentLastSeenAt > baselineLastSeenAt;
+
+const hasFreshInventoryPeriod =
+  hasNewUploadPeriod ||
+  hasNewIntegrationPeriod;
       const decisionStatus = String(
         action.decision_status || ""
       ).toLowerCase();
@@ -22930,13 +23044,25 @@ const hasFreshInventoryPeriod =
         continue;
       }
 
-      const implementationConfirmed =
-        expectedQuantity > baselineQuantity &&
-        currentQuantity >= expectedQuantity;
+     const currentActionType = String(
+  action.action_type || ""
+).toLowerCase();
 
-      if (!implementationConfirmed) {
-        continue;
-      }
+let implementationConfirmed = false;
+
+if (currentActionType === "inventory_restock") {
+  implementationConfirmed =
+    expectedQuantity > baselineQuantity &&
+    currentQuantity >= expectedQuantity;
+}
+
+if (currentActionType === "inventory_usage_variance") {
+  implementationConfirmed = hasFreshInventoryPeriod;
+}
+
+if (!implementationConfirmed) {
+  continue;
+}
 const baselineExcessUsageCost = Number(
   action.baseline_data?.excess_usage_cost || 0
 );
@@ -101183,7 +101309,7 @@ cursor:
             background: "rgba(255,255,255,0.04)",
             border: "1px solid rgba(255,255,255,0.08)",
             display: "grid",
-            gridTemplateColumns: "1.2fr 0.8fr 0.8fr 0.8fr 1fr",
+           gridTemplateColumns: "1.2fr 0.8fr 0.8fr 0.8fr 1fr 1fr",
             gap: "12px",
             alignItems: "center",
           }}
@@ -101298,6 +101424,37 @@ cursor:
             >
               {item.status}
             </div>
+          </div>
+                    <div>
+            {Number(item.excessUsageCost || 0) > 0 ? (
+              <button
+                type="button"
+                onClick={() => handleAcceptInventoryWasteAction(item)}
+                style={{
+                  width: "100%",
+                  padding: "9px 12px",
+                  borderRadius: "10px",
+                  border: "1px solid rgba(248,113,113,0.28)",
+                  background: "rgba(239,68,68,0.14)",
+                  color: "#fca5a5",
+                  fontSize: "12px",
+                  fontWeight: "900",
+                  cursor: "pointer",
+                }}
+              >
+                Fix Waste →
+              </button>
+            ) : (
+              <div
+                style={{
+                  color: "#86efac",
+                  fontSize: "12px",
+                  fontWeight: "800",
+                }}
+              >
+                Controlled
+              </div>
+            )}
           </div>
         </div>
       ))}
