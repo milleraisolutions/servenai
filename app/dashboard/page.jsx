@@ -15658,13 +15658,32 @@ const inventoryDepletionData = (inventorySourceRows || []).map((item) => {
       0
   );
 
-  const usageRate = Number(
-    item.daily_usage ||
-      item.avg_daily_usage ||
-      item.usage ||
-      item.usageRate ||
-      0
-  );
+ const ingredientName = String(
+  item.name ||
+    item.item_name ||
+    item.ingredient ||
+    item.product ||
+    ""
+)
+  .trim()
+  .toLowerCase();
+
+const recipeSalesUsage = Number(
+  ingredientUsageFromSales[ingredientName] || 0
+);
+
+const storedUsageRate = Number(
+  item.daily_usage ||
+    item.avg_daily_usage ||
+    item.usage ||
+    item.usageRate ||
+    0
+);
+
+const usageRate =
+  storedUsageRate > 0
+    ? storedUsageRate
+    : recipeSalesUsage;
 
   const daysRemaining =
     usageRate > 0
