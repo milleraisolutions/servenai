@@ -22706,10 +22706,13 @@ console.log("RECIPE COSTING DATA:", recipeCostingData);
 const usageVarianceData = useMemo(() => {
  const sales = resolvedSalesData || [];
   const rules = recipeUsageRules || [];
-  const ingredients =
-    uploadComparison?.activeIngredients ||
-    locationIngredientsData ||
-    [];
+  const activeIngredients =
+  uploadComparison?.activeIngredients || [];
+
+const ingredients =
+  activeIngredients.length > 0
+    ? activeIngredients
+    : locationIngredientsData || [];
 
   return ingredients.map((ingredient) => {
     const ingredientName = String(
