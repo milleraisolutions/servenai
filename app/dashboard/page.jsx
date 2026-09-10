@@ -93420,6 +93420,9 @@ const invoiceRows =
 {hasProAccess && (
   <div
     style={{
+      gridColumn: isMobile ? "span 1" : "span 12",
+      width: "100%",
+      minWidth: 0,
       marginTop: "18px",
       padding: "20px",
       borderRadius: "22px",
