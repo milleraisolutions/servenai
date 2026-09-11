@@ -2139,24 +2139,29 @@ for (const ingredientRow of rowsWithUploadId) {
       user_id,
       ...ingredientUpdateData
     } = ingredientRow;
+const {
+  data: updatedIngredientRows,
+  error: updateIngredientError,
+} = await supabase
+  .from("ingredients")
+  .update(ingredientUpdateData)
+  .eq("id", existingIngredient.id)
+  .eq("user_id", currentUser.id)
+  .select();
 
-    const {
-      data: updatedIngredient,
-      error: updateIngredientError,
-    } = await supabase
-      .from("ingredients")
-      .update(ingredientUpdateData)
-      .eq("id", existingIngredient.id)
-      .eq("user_id", currentUser.id)
-      .select()
-      .single();
+const updatedIngredient =
+  updatedIngredientRows?.[0] || null;
 
     if (updateIngredientError) {
       console.error(
         "INGREDIENT SUPABASE UPDATE ERROR:",
         updateIngredientError
       );
-
+      if (!updatedIngredient) {
+  throw new Error(
+    `Ingredient update returned no row for ${ingredientRow.name}`
+  );
+}
       await supabase
         .from("uploads")
         .delete()
