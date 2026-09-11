@@ -8642,7 +8642,11 @@ console.log("INGREDIENT STEP 1: started");
       alert("You must be logged in to import ingredients.");
       return;
     }
-
+const ownerId =
+  dataOwnerId ||
+  authenticatedUserId ||
+  userProfile?.owner_user_id ||
+  user.id;
 const rawRowsToImport =
   rowsOverride?.length
     ? rowsOverride
