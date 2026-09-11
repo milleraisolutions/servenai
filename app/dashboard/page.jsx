@@ -23081,7 +23081,26 @@ console.log("INVENTORY WASTE ACTION PAYLOAD:", {
       );
       return;
     }
+setRealAppliedActions((previous) => {
+  const currentActions = previous || [];
 
+  const alreadyExists = currentActions.some(
+    (action) =>
+      String(action.id || "") ===
+      String(savedAction.id || "")
+  );
+
+  if (alreadyExists) {
+    return currentActions.map((action) =>
+      String(action.id || "") ===
+      String(savedAction.id || "")
+        ? savedAction
+        : action
+    );
+  }
+
+  return [savedAction, ...currentActions];
+});
     setMessage(
       `Corrective action accepted for ${ingredientName}. Awaiting a future inventory period for verification.`
     );
