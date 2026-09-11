@@ -2094,26 +2094,107 @@ actual_usage: actualUsage,
   last_seen_at: row.last_seen_at || new Date().toISOString(),
 }));
 console.log("INGREDIENT ROWS BEING INSERTED:", rowsWithUploadId);
-          const { data: insertedRows, error: insertError } = await supabase
-            .from("ingredients")
-            .insert(rowsWithUploadId)
-            .select();
+        console.log("INGREDIENT ROWS BEING SYNCED:", rowsWithUploadId);
 
-         if (insertError) {
-  console.error("INGREDIENT SUPABASE INSERT ERROR:", {
-    message: insertError.message,
-    details: insertError.details,
-    hint: insertError.hint,
-    code: insertError.code,
-  });
+const {
+  data: existingIngredientRows,
+  error: existingIngredientError,
+} = await supabase
+  .from("ingredients")
+  .select("*")
+  .eq("user_id", currentUser.id);
+
+if (existingIngredientError) {
+  console.error(
+    "INGREDIENT EXISTING ROWS FETCH ERROR:",
+    existingIngredientError
+  );
 
   await supabase
     .from("uploads")
     .delete()
     .eq("id", uploadRow?.id);
 
-  throw insertError;
+  throw existingIngredientError;
 }
+
+const savedIngredientRows = [];
+
+for (const ingredientRow of rowsWithUploadId) {
+  const normalizedIngredientName = String(
+    ingredientRow.name || ""
+  )
+    .trim()
+    .toLowerCase();
+
+  const existingIngredient = (existingIngredientRows || []).find(
+    (existingRow) =>
+      String(existingRow.name || "")
+        .trim()
+        .toLowerCase() === normalizedIngredientName
+  );
+
+  if (existingIngredient) {
+    const {
+      user_id,
+      ...ingredientUpdateData
+    } = ingredientRow;
+
+    const {
+      data: updatedIngredient,
+      error: updateIngredientError,
+    } = await supabase
+      .from("ingredients")
+      .update(ingredientUpdateData)
+      .eq("id", existingIngredient.id)
+      .eq("user_id", currentUser.id)
+      .select()
+      .single();
+
+    if (updateIngredientError) {
+      console.error(
+        "INGREDIENT SUPABASE UPDATE ERROR:",
+        updateIngredientError
+      );
+
+      await supabase
+        .from("uploads")
+        .delete()
+        .eq("id", uploadRow?.id);
+
+      throw updateIngredientError;
+    }
+
+    savedIngredientRows.push(updatedIngredient);
+  } else {
+    const {
+      data: insertedIngredient,
+      error: insertIngredientError,
+    } = await supabase
+      .from("ingredients")
+      .insert([ingredientRow])
+      .select()
+      .single();
+
+    if (insertIngredientError) {
+      console.error(
+        "INGREDIENT SUPABASE INSERT ERROR:",
+        insertIngredientError
+      );
+
+      await supabase
+        .from("uploads")
+        .delete()
+        .eq("id", uploadRow?.id);
+
+      throw insertIngredientError;
+    }
+
+    savedIngredientRows.push(insertedIngredient);
+  }
+}
+
+const insertedRows = savedIngredientRows;
 // ==============================
 // INVENTORY SNAPSHOT HISTORY
 // ==============================
