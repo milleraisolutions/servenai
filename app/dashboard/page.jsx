@@ -22935,6 +22935,7 @@ const excessUsageCost =
   locationIngredientsData,
 ]);
 const handleAcceptInventoryWasteAction = async (item) => {
+  console.log("INVENTORY WASTE ACTION CLICKED:", item);
   try {
     const ingredientId = item?.ingredientId || null;
     const ingredientName = String(
@@ -22963,7 +22964,16 @@ const handleAcceptInventoryWasteAction = async (item) => {
       (ingredient) =>
         String(ingredient.id || "") === String(ingredientId)
     );
-
+console.log("INVENTORY WASTE ACTION PAYLOAD:", {
+  ingredientId,
+  ingredientName,
+  baselineExpectedUsage,
+  baselineActualUsage,
+  baselineExcessUsage,
+  baselineExcessUsageCost,
+  baselineVariancePercent,
+  matchingIngredient,
+});
     const savedAction = await saveAppliedAIAction({
       actionName: `Reduce overportioning for ${ingredientName}`,
 
