@@ -23276,9 +23276,8 @@ const verifiedRecovery =
 
       const { error } = await supabase
         .from("ai_applied_actions")
-     .update({
+    .update({
   implementation_status: "confirmed",
-  implemented_at: verificationTimestamp,
 
   verification_status:
     verifiedRecovery > 0
@@ -23294,6 +23293,25 @@ const verifiedRecovery =
     verifiedRecovery > 0
       ? verificationTimestamp
       : null,
+
+  target_data: {
+    ...(action.target_data || {}),
+
+    verified_upload_id:
+      verifiedRecovery > 0
+        ? matchingIngredient.upload_id || null
+        : null,
+
+    verified_last_seen_at:
+      verifiedRecovery > 0
+        ? matchingIngredient.last_seen_at || null
+        : null,
+
+    verified_excess_usage_cost:
+      verifiedRecovery > 0
+        ? Number(currentExcessUsageCost.toFixed(2))
+        : null,
+  },
 
   status:
     verifiedRecovery > 0
@@ -93896,28 +93914,31 @@ const invoiceRows =
     const fixVerified =
       Boolean(latestInventoryAction) &&
       verificationStatus === "verified";
-const baselineUploadId = String(
-  latestInventoryAction?.baseline_data?.baseline_upload_id || ""
+const verifiedUploadId = String(
+  latestInventoryAction?.target_data?.verified_upload_id || ""
 ).trim();
 
 const currentUploadId = String(
   item.inventoryUploadId || ""
 ).trim();
 
-const verifiedAt = latestInventoryAction?.verified_at
-  ? new Date(latestInventoryAction.verified_at).getTime()
-  : 0;
+const verifiedLastSeenAt =
+  latestInventoryAction?.target_data?.verified_last_seen_at
+    ? new Date(
+        latestInventoryAction.target_data.verified_last_seen_at
+      ).getTime()
+    : 0;
 
 const currentLastSeenAt = item.inventoryLastSeenAt
   ? new Date(item.inventoryLastSeenAt).getTime()
   : 0;
 
 const hasNewInventoryPeriod =
-  (Boolean(baselineUploadId) &&
+  (Boolean(verifiedUploadId) &&
     Boolean(currentUploadId) &&
-    baselineUploadId !== currentUploadId) ||
-  (verifiedAt > 0 &&
-    currentLastSeenAt > verifiedAt);
+    verifiedUploadId !== currentUploadId) ||
+  (verifiedLastSeenAt > 0 &&
+    currentLastSeenAt > verifiedLastSeenAt);
 
 const hasNewUnresolvedIssue =
   fixVerified &&
