@@ -6643,16 +6643,64 @@ if (duplicateCheckError) {
 }
 
 if (existingActions?.length) {
+  const existingAction = existingActions[0];
+
   console.log(
-    "Duplicate AI action blocked:",
-    existingActions[0]
+    "Existing AI action found:",
+    existingAction
   );
+
+  if (
+    implementationStatus === "confirmed" &&
+    String(
+      existingAction.implementation_status || ""
+    ).toLowerCase() !== "confirmed"
+  ) {
+    const confirmationTimestamp = new Date().toISOString();
+
+    const {
+      data: confirmedAction,
+      error: confirmError,
+    } = await supabase
+      .from("ai_applied_actions")
+      .update({
+        decision_status: decisionStatus || "accepted",
+        implementation_status: "confirmed",
+        implemented_at: confirmationTimestamp,
+        verification_status: "awaiting_verification",
+
+        impact_value: Number(impactValue || 0),
+
+        baseline_data: baselineData || null,
+        target_data: targetData || null,
+      })
+      .eq("id", existingAction.id)
+      .eq("user_id", user.id)
+      .select()
+      .single();
+
+    if (confirmError) {
+      console.error(
+        "Failed to confirm existing AI action:",
+        confirmError
+      );
+
+      return null;
+    }
+
+    console.log(
+      "AI action confirmed:",
+      confirmedAction
+    );
+
+    return confirmedAction;
+  }
 
   setMessage(
     `"${actionName}" has already been applied and is awaiting or completing verification.`
   );
 
-  return existingActions[0];
+  return existingAction;
 }
     const { data, error } = await supabase
       .from("ai_applied_actions")
@@ -22922,7 +22970,8 @@ const excessUsageCost =
     "Unknown Ingredient",
 
   ingredientId: ingredient.id || null,
-
+inventoryUploadId: ingredient.upload_id || null,
+inventoryLastSeenAt: ingredient.last_seen_at || null,
   expectedUsage,
   actualUsage,
   variance,
@@ -93828,7 +93877,33 @@ const invoiceRows =
     const fixVerified =
       Boolean(latestInventoryAction) &&
       verificationStatus === "verified";
+const baselineUploadId = String(
+  latestInventoryAction?.baseline_data?.baseline_upload_id || ""
+).trim();
 
+const currentUploadId = String(
+  item.inventoryUploadId || ""
+).trim();
+
+const verifiedAt = latestInventoryAction?.verified_at
+  ? new Date(latestInventoryAction.verified_at).getTime()
+  : 0;
+
+const currentLastSeenAt = item.inventoryLastSeenAt
+  ? new Date(item.inventoryLastSeenAt).getTime()
+  : 0;
+
+const hasNewInventoryPeriod =
+  (Boolean(baselineUploadId) &&
+    Boolean(currentUploadId) &&
+    baselineUploadId !== currentUploadId) ||
+  (verifiedAt > 0 &&
+    currentLastSeenAt > verifiedAt);
+
+const hasNewUnresolvedIssue =
+  fixVerified &&
+  hasNewInventoryPeriod &&
+  Number(item.excessUsageCost || 0) > 0;
     if (fixAwaitingVerification) {
       return (
         <div>
@@ -93855,7 +93930,7 @@ const invoiceRows =
       );
     }
 
-    if (fixVerified) {
+    if (fixVerified && !hasNewUnresolvedIssue) {
       return (
         <div>
           <div
