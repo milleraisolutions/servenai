@@ -2152,25 +2152,27 @@ const {
 const updatedIngredient =
   updatedIngredientRows?.[0] || null;
 
-    if (updateIngredientError) {
-      console.error(
-        "INGREDIENT SUPABASE UPDATE ERROR:",
-        updateIngredientError
-      );
-      if (!updatedIngredient) {
+if (updateIngredientError) {
+  console.error(
+    "INGREDIENT SUPABASE UPDATE ERROR:",
+    updateIngredientError
+  );
+
+  await supabase
+    .from("uploads")
+    .delete()
+    .eq("id", uploadRow?.id);
+
+  throw updateIngredientError;
+}
+
+if (!updatedIngredient) {
   throw new Error(
     `Ingredient update returned no row for ${ingredientRow.name}`
   );
 }
-      await supabase
-        .from("uploads")
-        .delete()
-        .eq("id", uploadRow?.id);
 
-      throw updateIngredientError;
-    }
-
-    savedIngredientRows.push(updatedIngredient);
+savedIngredientRows.push(updatedIngredient);
   } else {
     const {
       data: insertedIngredient,

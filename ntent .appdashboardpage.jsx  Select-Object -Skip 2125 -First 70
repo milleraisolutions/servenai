@@ -1,0 +1,51 @@
+[33mcommit 85d8c4c96209437d6f8cab16bce03eb03ba45d65[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmaster[m[33m, [m[1;31morigin/master[m[33m)[m
+Author: Antoine Miller <milleraisolutions21@gmail.com>
+Date:   Fri Sep 11 15:13:29 2026 -0400
+
+    fix ingredient update result handling
+
+[1mdiff --git a/app/dashboard/page.jsx b/app/dashboard/page.jsx[m
+[1mindex 695dfae9..033433ed 100644[m
+[1m--- a/app/dashboard/page.jsx[m
+[1m+++ b/app/dashboard/page.jsx[m
+[36m@@ -2139,24 +2139,29 @@[m [mfor (const ingredientRow of rowsWithUploadId) {[m
+       user_id,[m
+       ...ingredientUpdateData[m
+     } = ingredientRow;[m
+[32m+[m[32mconst {[m
+[32m+[m[32m  data: updatedIngredientRows,[m
+[32m+[m[32m  error: updateIngredientError,[m
+[32m+[m[32m} = await supabase[m
+[32m+[m[32m  .from("ingredients")[m
+[32m+[m[32m  .update(ingredientUpdateData)[m
+[32m+[m[32m  .eq("id", existingIngredient.id)[m
+[32m+[m[32m  .eq("user_id", currentUser.id)[m
+[32m+[m[32m  .select();[m
+ [m
+[31m-    const {[m
+[31m-      data: updatedIngredient,[m
+[31m-      error: updateIngredientError,[m
+[31m-    } = await supabase[m
+[31m-      .from("ingredients")[m
+[31m-      .update(ingredientUpdateData)[m
+[31m-      .eq("id", existingIngredient.id)[m
+[31m-      .eq("user_id", currentUser.id)[m
+[31m-      .select()[m
+[31m-      .single();[m
+[32m+[m[32mconst updatedIngredient =[m
+[32m+[m[32m  updatedIngredientRows?.[0] || null;[m
+ [m
+     if (updateIngredientError) {[m
+       console.error([m
+         "INGREDIENT SUPABASE UPDATE ERROR:",[m
+         updateIngredientError[m
+       );[m
+[31m-[m
+[32m+[m[32m      if (!updatedIngredient) {[m
+[32m+[m[32m  throw new Error([m
+[32m+[m[32m    `Ingredient update returned no row for ${ingredientRow.name}`[m
+[32m+[m[32m  );[m
+[32m+[m[32m}[m
+       await supabase[m
+         .from("uploads")[m
+         .delete()[m
