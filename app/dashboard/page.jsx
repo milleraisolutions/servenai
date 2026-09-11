@@ -6543,6 +6543,7 @@ const saveAppliedAIAction = async ({
   baselineData = null,
   targetData = null,
 }) => {
+  let actionKey = null;
   try {
     const {
       data: { session },
@@ -6558,7 +6559,7 @@ const saveAppliedAIAction = async ({
 
     if (!user?.id) return null;
 const actionLocation = getActiveConnectionLocation();
-const actionKey = [
+actionKey = [
   user.id,
   String(actionName || "").trim().toLowerCase(),
   String(recoveryCategory || "").trim().toLowerCase(),
@@ -6679,14 +6680,21 @@ decided_at: new Date().toISOString(),
 
 implementation_status:
   implementationStatus || "awaiting_verification",
-implemented_at: null,
+
+implemented_at:
+  implementationStatus === "confirmed"
+    ? new Date().toISOString()
+    : null,
 
 // Snapshot used later for before/after verification
 baseline_data: baselineData || null,
 target_data: targetData || null,
 
 // Financial verification happens later from real data
-verification_status: "not_started",
+verification_status:
+  implementationStatus === "confirmed"
+    ? "awaiting_verification"
+    : "not_started",
 verified_recovery: null,
 verified_at: null,
 },
@@ -22994,7 +23002,7 @@ console.log("INVENTORY WASTE ACTION PAYLOAD:", {
 
       decisionStatus: "accepted",
 
-      implementationStatus: "awaiting_verification",
+      implementationStatus: "confirmed",
 
       baselineData: {
         ingredient_name: ingredientName,
@@ -93786,38 +93794,135 @@ const invoiceRows =
             >
               {item.status}
             </div>
+          </div><div>
+  {(() => {
+    const latestInventoryAction = (realAppliedActions || [])
+      .filter(
+        (action) =>
+          String(action.action_type || "").toLowerCase() ===
+            "inventory_usage_variance" &&
+          String(action.entity_type || "").toLowerCase() ===
+            "ingredient" &&
+          String(action.entity_id || "") ===
+            String(item.ingredientId || "")
+      )
+      .sort(
+        (a, b) =>
+          new Date(b.created_at || 0).getTime() -
+          new Date(a.created_at || 0).getTime()
+      )[0];
+
+    const verificationStatus = String(
+      latestInventoryAction?.verification_status || ""
+    ).toLowerCase();
+
+    const implementationStatus = String(
+      latestInventoryAction?.implementation_status || ""
+    ).toLowerCase();
+
+    const fixAwaitingVerification =
+      Boolean(latestInventoryAction) &&
+      implementationStatus === "confirmed" &&
+      verificationStatus !== "verified";
+
+    const fixVerified =
+      Boolean(latestInventoryAction) &&
+      verificationStatus === "verified";
+
+    if (fixAwaitingVerification) {
+      return (
+        <div>
+          <div
+            style={{
+              color: "#86efac",
+              fontSize: "12px",
+              fontWeight: "900",
+            }}
+          >
+            Fix Confirmed ✓
           </div>
-                    <div>
-            {Number(item.excessUsageCost || 0) > 0 ? (
-              <button
-                type="button"
-                onClick={() => handleAcceptInventoryWasteAction(item)}
-                style={{
-                  width: "100%",
-                  padding: "9px 12px",
-                  borderRadius: "10px",
-                  border: "1px solid rgba(248,113,113,0.28)",
-                  background: "rgba(239,68,68,0.14)",
-                  color: "#fca5a5",
-                  fontSize: "12px",
-                  fontWeight: "900",
-                  cursor: "pointer",
-                }}
-              >
-                Fix Waste →
-              </button>
-            ) : (
-              <div
-                style={{
-                  color: "#86efac",
-                  fontSize: "12px",
-                  fontWeight: "800",
-                }}
-              >
-                Controlled
-              </div>
-            )}
+
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "10px",
+              marginTop: "3px",
+            }}
+          >
+            Awaiting Verification
           </div>
+        </div>
+      );
+    }
+
+    if (fixVerified) {
+      return (
+        <div>
+          <div
+            style={{
+              color: "#86efac",
+              fontSize: "12px",
+              fontWeight: "900",
+            }}
+          >
+            Verified ✓
+          </div>
+
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "10px",
+              marginTop: "3px",
+            }}
+          >
+            $
+            {Number(
+              latestInventoryAction?.verified_recovery || 0
+            ).toLocaleString(undefined, {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}{" "}
+            recovered
+          </div>
+        </div>
+      );
+    }
+
+    if (Number(item.excessUsageCost || 0) > 0) {
+      return (
+        <button
+          type="button"
+          onClick={() => handleAcceptInventoryWasteAction(item)}
+          style={{
+            width: "100%",
+            padding: "9px 12px",
+            borderRadius: "10px",
+            border: "1px solid rgba(248,113,113,0.28)",
+            background: "rgba(239,68,68,0.14)",
+            color: "#fca5a5",
+            fontSize: "12px",
+            fontWeight: "900",
+            cursor: "pointer",
+          }}
+        >
+          Confirm Fix ✓
+        </button>
+      );
+    }
+
+    return (
+      <div
+        style={{
+          color: "#86efac",
+          fontSize: "12px",
+          fontWeight: "800",
+        }}
+      >
+        Controlled
+      </div>
+    );
+  })()}
+</div>
         </div>
       ))}
     </div>
