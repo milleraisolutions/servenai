@@ -7524,7 +7524,7 @@ setMessage(
  setMessage(`Importing ${cleanedIngredientRows.length} ingredients...`);
 
 setTimeout(() => {
-  handleImportIngredients();
+  handleImportIngredients(cleanedIngredientRows);
 }, 0);
 } else if (activeUploadType === "labor") {
   const cleanedLaborRows = safeRows.map((row) => {
@@ -8628,7 +8628,7 @@ console.log(
 };
 console.log("TRACE AFTER IMPORT MENU ITEMS");
 console.log("TRACE BEFORE IMPORT INGREDIENTS");
-const handleImportIngredients = async () => {
+const handleImportIngredients = async (rowsOverride = null) => {
   try {
     console.log("INGREDIENTS CONFIRM CLICKED");
     setMessage("Importing ingredients...");
@@ -8643,7 +8643,10 @@ console.log("INGREDIENT STEP 1: started");
       return;
     }
 
-    const rawRowsToImport = pendingUploadSummary?.rows || [];
+const rawRowsToImport =
+  rowsOverride?.length
+    ? rowsOverride
+    : pendingUploadSummary?.rows || [];
 
     const rowsToImport = rawRowsToImport.filter((row) => {
       if (Array.isArray(row)) {
