@@ -10500,6 +10500,88 @@ const laborIntelligence = useMemo(() => {
 useEffect(() => {
   let cancelled = false;
 
+  const loadIngredientsFromDatabase = async () => {
+    try {
+      if (!authReady) {
+        console.log("INGREDIENT LOAD WAITING FOR AUTH");
+        return;
+      }
+
+      const ownerId =
+        dataOwnerId ||
+        authenticatedUserId ||
+        userProfile?.owner_user_id ||
+        user?.id ||
+        null;
+
+      if (!ownerId) {
+        console.log("INGREDIENT LOAD SKIPPED: no authenticated user");
+        return;
+      }
+
+      const possibleUserIds = [
+        ownerId,
+        dataOwnerId,
+        authenticatedUserId,
+        userProfile?.owner_user_id,
+        user?.id,
+      ].filter(Boolean);
+
+      const uniqueUserIds = [...new Set(possibleUserIds)];
+
+      console.log("INGREDIENT LOAD USER IDS:", uniqueUserIds);
+
+      const { data, error } = await supabase
+        .from("ingredients")
+        .select("*")
+        .in("user_id", uniqueUserIds)
+        .order("last_seen_at", { ascending: false });
+
+      console.log("INGREDIENT DATABASE COUNT:", data?.length || 0);
+      console.log("INGREDIENT DATABASE ERROR:", error);
+
+      if (error) {
+        throw error;
+      }
+
+      if (cancelled) return;
+
+      const activeRows = (data || []).filter(
+        (ingredient) => ingredient.is_active !== false
+      );
+
+      setIngredientsData(activeRows);
+
+      console.log(
+        "INGREDIENT ACTIVE ROWS LOADED:",
+        activeRows.length
+      );
+    } catch (error) {
+      console.error("LOAD INGREDIENTS ERROR:", error);
+
+      if (!cancelled) {
+        setIngredientsData((currentRows) =>
+          Array.isArray(currentRows) ? currentRows : []
+        );
+      }
+    }
+  };
+
+  loadIngredientsFromDatabase();
+
+  return () => {
+    cancelled = true;
+  };
+}, [
+  authReady,
+  authenticatedUserId,
+  dataOwnerId,
+  user?.id,
+  userProfile?.owner_user_id,
+]);
+useEffect(() => {
+  let cancelled = false;
+
   const loadSalesFromDatabase = async () => {
     try {
       if (!authReady) {
