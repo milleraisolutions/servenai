@@ -23333,7 +23333,7 @@ const baselineExcessUsageCost = Number(
   action.baseline_data?.excess_usage_cost || 0
 );
 
-const matchingUsageVariance = (usageVarianceData || []).find(
+const matchingUsageVarianceCandidates = (usageVarianceData || []).filter(
   (item) =>
     String(item.ingredientId || "") ===
       String(action.entity_id || "") ||
@@ -23348,6 +23348,20 @@ const matchingUsageVariance = (usageVarianceData || []).find(
         .trim()
         .toLowerCase()
 );
+
+const matchingUsageVariance =
+  matchingUsageVarianceCandidates.find(
+    (item) =>
+      Boolean(currentUploadId) &&
+      String(item.inventoryUploadId || "").trim() === currentUploadId
+  ) ||
+  matchingUsageVarianceCandidates.find(
+    (item) =>
+      currentLastSeenAt > 0 &&
+      item.inventoryLastSeenAt &&
+      new Date(item.inventoryLastSeenAt).getTime() === currentLastSeenAt
+  ) ||
+  null;
 
 const currentExcessUsageCost = Number(
   matchingUsageVariance?.excessUsageCost || 0
