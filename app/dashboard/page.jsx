@@ -6647,6 +6647,11 @@ const saveAppliedAIAction = async ({
 
     if (!user?.id) return null;
 const actionLocation = getActiveConnectionLocation();
+
+const baselineUploadIdForAction = String(
+  baselineData?.baseline_upload_id || ""
+).trim();
+
 actionKey = [
   user.id,
   String(actionName || "").trim().toLowerCase(),
@@ -6655,6 +6660,7 @@ actionKey = [
   String(entityId || "").trim().toLowerCase(),
   String(actionType || "").trim().toLowerCase(),
   String(actionLocation?.id || "").trim().toLowerCase(),
+  baselineUploadIdForAction,
 ].join("|");
 
 if (applyingAIActionKeysRef.current.has(actionKey)) {
@@ -6704,7 +6710,14 @@ if (actionType) {
     actionType
   );
 }
-
+if (baselineUploadIdForAction) {
+  duplicateQuery = duplicateQuery.contains(
+    "baseline_data",
+    {
+      baseline_upload_id: baselineUploadIdForAction,
+    }
+  );
+}
 if (actionLocation?.id) {
   duplicateQuery = duplicateQuery.eq(
     "location_id",
@@ -23150,11 +23163,15 @@ console.log("INVENTORY WASTE ACTION PAYLOAD:", {
         variance_percent: baselineVariancePercent,
         cost_per_unit: Number(item?.costPerUnit || 0),
 
-        baseline_upload_id:
-          matchingIngredient?.upload_id || null,
+      baseline_upload_id:
+  item?.inventoryUploadId ||
+  matchingIngredient?.upload_id ||
+  null,
 
-        baseline_last_seen_at:
-          matchingIngredient?.last_seen_at || null,
+baseline_last_seen_at:
+  item?.inventoryLastSeenAt ||
+  matchingIngredient?.last_seen_at ||
+  null,
       },
 
       targetData: {
