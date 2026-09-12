@@ -93970,21 +93970,39 @@ const invoiceRows =
             </div>
           </div><div>
   {(() => {
-    const latestInventoryAction = (realAppliedActions || [])
-      .filter(
-        (action) =>
-          String(action.action_type || "").toLowerCase() ===
-            "inventory_usage_variance" &&
-          String(action.entity_type || "").toLowerCase() ===
-            "ingredient" &&
-          String(action.entity_id || "") ===
-            String(item.ingredientId || "")
-      )
-      .sort(
-        (a, b) =>
-          new Date(b.created_at || 0).getTime() -
-          new Date(a.created_at || 0).getTime()
-      )[0];
+const currentUploadId = String(
+  item.inventoryUploadId || ""
+).trim();
+
+const latestInventoryAction = (realAppliedActions || [])
+  .filter((action) => {
+    const isMatchingIngredient =
+      String(action.action_type || "").toLowerCase() ===
+        "inventory_usage_variance" &&
+      String(action.entity_type || "").toLowerCase() ===
+        "ingredient" &&
+      String(action.entity_id || "") ===
+        String(item.ingredientId || "");
+
+    if (!isMatchingIngredient) {
+      return false;
+    }
+
+    const actionBaselineUploadId = String(
+      action?.baseline_data?.baseline_upload_id || ""
+    ).trim();
+
+    if (currentUploadId) {
+      return actionBaselineUploadId === currentUploadId;
+    }
+
+    return !actionBaselineUploadId;
+  })
+  .sort(
+    (a, b) =>
+      new Date(b.created_at || 0).getTime() -
+      new Date(a.created_at || 0).getTime()
+  )[0] || null;
 
     const verificationStatus = String(
       latestInventoryAction?.verification_status || ""
@@ -94006,9 +94024,7 @@ const verifiedUploadId = String(
   latestInventoryAction?.target_data?.verified_upload_id || ""
 ).trim();
 
-const currentUploadId = String(
-  item.inventoryUploadId || ""
-).trim();
+
 
 const verifiedLastSeenAt =
   latestInventoryAction?.target_data?.verified_last_seen_at
