@@ -23250,15 +23250,17 @@ useEffect(() => {
         action.verification_status || ""
       ).toLowerCase();
 
-      return (
+   return (
   category === "inventory" &&
   entityType === "ingredient" &&
-  (
-    actionType === "inventory_restock" ||
-    actionType === "inventory_usage_variance"
-  ) &&
   action.entity_id &&
-  verificationStatus !== "verified"
+  (
+    (
+      actionType === "inventory_restock" &&
+      verificationStatus !== "verified"
+    ) ||
+    actionType === "inventory_usage_variance"
+  )
 );
     });
 
@@ -23295,6 +23297,10 @@ const baselineUploadId = String(
   action.baseline_data?.baseline_upload_id || ""
 ).trim();
 
+const verifiedUploadId = String(
+  action.target_data?.verified_upload_id || ""
+).trim();
+
 const currentUploadId = String(
   matchingIngredient.upload_id || ""
 ).trim();
@@ -23303,18 +23309,28 @@ const baselineLastSeenAt = action.baseline_data?.baseline_last_seen_at
   ? new Date(action.baseline_data.baseline_last_seen_at).getTime()
   : 0;
 
+const verifiedLastSeenAt = action.target_data?.verified_last_seen_at
+  ? new Date(action.target_data.verified_last_seen_at).getTime()
+  : 0;
+
 const currentLastSeenAt = matchingIngredient.last_seen_at
   ? new Date(matchingIngredient.last_seen_at).getTime()
   : 0;
 
+const comparisonUploadId =
+  verifiedUploadId || baselineUploadId;
+
+const comparisonLastSeenAt =
+  verifiedLastSeenAt || baselineLastSeenAt;
+
 const hasNewUploadPeriod =
-  Boolean(baselineUploadId) &&
+  Boolean(comparisonUploadId) &&
   Boolean(currentUploadId) &&
-  currentUploadId !== baselineUploadId;
+  currentUploadId !== comparisonUploadId;
 
 const hasNewIntegrationPeriod =
-  baselineLastSeenAt > 0 &&
-  currentLastSeenAt > baselineLastSeenAt;
+  comparisonLastSeenAt > 0 &&
+  currentLastSeenAt > comparisonLastSeenAt;
 
 const hasFreshInventoryPeriod =
   hasNewUploadPeriod ||
