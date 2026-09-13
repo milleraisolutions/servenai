@@ -94153,7 +94153,10 @@ const hasNewUnresolvedIssue =
       );
     }
 
-    if (Number(item.excessUsageCost || 0) > 0) {
+   if (
+  Number(item.excessUsageCost || 0) > 0 &&
+  item.status !== "Controlled"
+) {
       return (
         <button
           type="button"
