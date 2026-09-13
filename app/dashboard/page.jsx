@@ -94020,14 +94020,29 @@ const latestInventoryAction = (realAppliedActions || [])
     }
 
     const actionBaselineUploadId = String(
-      action?.baseline_data?.baseline_upload_id || ""
-    ).trim();
+  action?.baseline_data?.baseline_upload_id || ""
+).trim();
 
-    if (currentUploadId) {
-      return actionBaselineUploadId === currentUploadId;
-    }
+const actionVerifiedUploadId = String(
+  action?.target_data?.verified_upload_id || ""
+).trim();
 
-    return !actionBaselineUploadId;
+const actionVerificationStatus = String(
+  action?.verification_status || ""
+).toLowerCase();
+
+if (currentUploadId) {
+  if (actionVerificationStatus === "verified") {
+    return (
+      actionVerifiedUploadId === currentUploadId ||
+      actionBaselineUploadId === currentUploadId
+    );
+  }
+
+  return actionBaselineUploadId === currentUploadId;
+}
+
+return !actionBaselineUploadId && !actionVerifiedUploadId;
   })
   .sort(
     (a, b) =>
