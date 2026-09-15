@@ -16648,25 +16648,7 @@ console.log("LABOR VERIFIER PENDING ACTIONS:", {
         continue;
       }
 
-      const previousMeasurementEnd =
-  action?.target_data?.measurement_end || null;
 
-const nextMeasurementStart =
-  String(action.verification_status || "")
-    .trim()
-    .toLowerCase() === "verified" &&
-  previousMeasurementEnd
-    ? new Date(previousMeasurementEnd)
-    : null;
-
-if (
-  nextMeasurementStart &&
-  !Number.isNaN(nextMeasurementStart.getTime())
-) {
-  nextMeasurementStart.setDate(
-    nextMeasurementStart.getDate() + 1
-  );
-}
 
 const verification =
   calculateLaborRecoveryVerification({
@@ -16674,11 +16656,6 @@ const verification =
     salesRows,
     laborRows,
     minimumMeasurementDays: 7,
-    measurementStartOverride:
-      nextMeasurementStart &&
-      !Number.isNaN(nextMeasurementStart.getTime())
-        ? nextMeasurementStart
-        : null,
   });
 
       console.log(
@@ -20446,7 +20423,6 @@ const calculateLaborRecoveryVerification = ({
   salesRows = [],
   laborRows = [],
   minimumMeasurementDays = 7,
-  measurementStartOverride = null,
 }) => {
   if (!appliedAt) {
     return {
@@ -20477,9 +20453,7 @@ const calculateLaborRecoveryVerification = ({
 
   const millisecondsPerDay = 24 * 60 * 60 * 1000;
 
-const measurementAnchorDate = measurementStartOverride
-  ? new Date(measurementStartOverride)
-  : new Date(actionDate);
+const measurementAnchorDate = new Date(actionDate);
 
 if (Number.isNaN(measurementAnchorDate.getTime())) {
   return {
