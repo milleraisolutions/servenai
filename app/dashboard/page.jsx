@@ -16603,11 +16603,11 @@ useEffect(() => {
           .toLowerCase();
 
         return (
-          category === "labor" &&
-          actionType === "schedule_adjustment" &&
-          decisionStatus === "accepted" &&
-          verificationStatus !== "verified"
-        );
+  category === "labor" &&
+  actionType === "schedule_adjustment" &&
+  decisionStatus === "accepted" &&
+  verificationStatus !== "verified"
+);
       });
 console.log("LABOR VERIFIER PENDING ACTIONS:", {
   count: pendingLaborActions.length,
@@ -16648,13 +16648,38 @@ console.log("LABOR VERIFIER PENDING ACTIONS:", {
         continue;
       }
 
-      const verification =
-        calculateLaborRecoveryVerification({
-          appliedAt,
-          salesRows,
-          laborRows,
-          minimumMeasurementDays: 7,
-        });
+      const previousMeasurementEnd =
+  action?.target_data?.measurement_end || null;
+
+const nextMeasurementStart =
+  String(action.verification_status || "")
+    .trim()
+    .toLowerCase() === "verified" &&
+  previousMeasurementEnd
+    ? new Date(previousMeasurementEnd)
+    : null;
+
+if (
+  nextMeasurementStart &&
+  !Number.isNaN(nextMeasurementStart.getTime())
+) {
+  nextMeasurementStart.setDate(
+    nextMeasurementStart.getDate() + 1
+  );
+}
+
+const verification =
+  calculateLaborRecoveryVerification({
+    appliedAt,
+    salesRows,
+    laborRows,
+    minimumMeasurementDays: 7,
+    measurementStartOverride:
+      nextMeasurementStart &&
+      !Number.isNaN(nextMeasurementStart.getTime())
+        ? nextMeasurementStart
+        : null,
+  });
 
       console.log(
         "LABOR RECOVERY MEASUREMENT:",
@@ -16952,22 +16977,53 @@ useEffect(() => {
         : [];
 
     if (!salesRows.length || !laborRows.length) return;
+const parseLaborRecoveryDate = (value) => {
+  if (!value) return null;
 
-    const getLaborDate = (row = {}) => {
-      const rawDate =
-        row.work_date ||
-        row.date ||
-        row.shift_date ||
-        row["Work Date"] ||
-        row["Date"];
+  const raw = String(value).trim();
 
-      const date = rawDate ? new Date(rawDate) : null;
+  // Preserve date-only values as local calendar dates.
+  const dateOnlyMatch = raw.match(
+    /^(\d{4})-(\d{2})-(\d{2})$/
+  );
 
-      return date && !Number.isNaN(date.getTime())
-        ? date
-        : null;
-    };
+  if (dateOnlyMatch) {
+    const [, year, month, day] = dateOnlyMatch;
 
+    return new Date(
+      Number(year),
+      Number(month) - 1,
+      Number(day)
+    );
+  }
+
+  const parsed = new Date(raw);
+
+  return Number.isNaN(parsed.getTime())
+    ? null
+    : parsed;
+};
+  const getLaborDate = (row = {}) => {
+  const rawDate =
+    row.work_date ||
+    row.date ||
+    row.shift_date ||
+    row["Work Date"] ||
+    row["Date"];
+
+  return parseLaborRecoveryDate(rawDate);
+};
+const getLaborRecoverySaleDate = (row = {}) => {
+  const rawDate =
+    row.sale_date ??
+    row.date ??
+    row.order_date ??
+    row.created_at ??
+    row.timestamp ??
+    row.day;
+
+  return parseLaborRecoveryDate(rawDate);
+};
     const getLaborCost = (row = {}) => {
       const directCost = Number(
         row.labor_cost ||
@@ -17000,7 +17056,7 @@ useEffect(() => {
     };
 
     const validSalesDates = salesRows
-      .map((row) => getSaleDate(row))
+  .map((row) => getLaborRecoverySaleDate(row))
       .filter(Boolean);
 
     const validLaborDates = laborRows
@@ -17122,7 +17178,7 @@ for (const action of verifiedLaborActions) {
 
         const periodSales = salesRows.filter(
           (row) => {
-            const date = getSaleDate(row);
+           const date = getLaborRecoverySaleDate(row);
 
             return (
               date &&
@@ -20390,6 +20446,7 @@ const calculateLaborRecoveryVerification = ({
   salesRows = [],
   laborRows = [],
   minimumMeasurementDays = 7,
+  measurementStartOverride = null,
 }) => {
   if (!appliedAt) {
     return {
@@ -20420,13 +20477,29 @@ const calculateLaborRecoveryVerification = ({
 
   const millisecondsPerDay = 24 * 60 * 60 * 1000;
 
-  const elapsedDays = Math.max(
-    0,
-    Math.floor(
-      (today.getTime() - actionDate.getTime()) /
-        millisecondsPerDay
-    ) + 1
-  );
+const measurementAnchorDate = measurementStartOverride
+  ? new Date(measurementStartOverride)
+  : new Date(actionDate);
+
+if (Number.isNaN(measurementAnchorDate.getTime())) {
+  return {
+    verificationStatus: "not_started",
+    calculatedRecovery: 0,
+    verifiedRecovery: null,
+    baselineMetrics: {},
+    measuredMetrics: {},
+  };
+}
+
+measurementAnchorDate.setHours(0, 0, 0, 0);
+
+const elapsedDays = Math.max(
+  0,
+  Math.floor(
+    (today.getTime() - measurementAnchorDate.getTime()) /
+      millisecondsPerDay
+  ) + 1
+);
 
   const measurementDays = Math.min(
     Math.max(elapsedDays, 0),
@@ -20447,9 +20520,11 @@ const calculateLaborRecoveryVerification = ({
     };
   }
 
-  const measurementStart = new Date(actionDate);
+const measurementStart = new Date(
+  measurementAnchorDate
+);
 
-  const measurementEnd = new Date(actionDate);
+  const measurementEnd = new Date(measurementStart);
   measurementEnd.setDate(
     measurementEnd.getDate() + measurementDays - 1
   );
