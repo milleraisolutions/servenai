@@ -21288,6 +21288,21 @@ grouped[key].push({
   date,
   unitCost,
   quantity,
+
+  invoiceItemId:
+    invoice.id || null,
+
+  invoiceId:
+    invoice.invoice_id || null,
+
+  uploadId:
+    invoice.upload_id || null,
+
+  invoiceDate:
+    invoice.invoice_date ||
+    invoice.purchase_date ||
+    invoice.date ||
+    null,
 });
   });
 
@@ -21326,15 +21341,50 @@ const latest = sorted[sorted.length - 1];
         recommendation = "Small price increase detected. Continue monitoring.";
       }
 
-      return {
-  itemName: latest?.itemName || "Unknown Item",
-  vendor: latest?.vendor || "Unknown Vendor",
-  previousCost: previous?.unitCost || 0,
-  latestCost: latest?.unitCost || 0,
- quantity: Number(latest?.quantity || 0),
+    return {
+  itemName:
+    latest?.itemName || "Unknown Item",
+
+  vendor:
+    latest?.vendor || "Unknown Vendor",
+
+  previousCost:
+    previous?.unitCost || 0,
+
+  latestCost:
+    latest?.unitCost || 0,
+
+  quantity:
+    Number(latest?.quantity || 0),
+
   priceChange,
   status,
   recommendation,
+
+  // Permanent evidence for Vendor Recovery
+  invoiceItemId:
+    latest?.invoiceItemId || null,
+
+  invoiceId:
+    latest?.invoiceId || null,
+
+  uploadId:
+    latest?.uploadId || null,
+
+  invoiceDate:
+    latest?.invoiceDate || null,
+
+  previousInvoiceItemId:
+    previous?.invoiceItemId || null,
+
+  previousInvoiceId:
+    previous?.invoiceId || null,
+
+  previousUploadId:
+    previous?.uploadId || null,
+
+  previousInvoiceDate:
+    previous?.invoiceDate || null,
 };
     })
     .filter((item) => item.latestCost > 0)
@@ -23266,6 +23316,210 @@ setRealAppliedActions((previous) => {
 
     setMessage(
       "Could not save the inventory corrective action."
+    );
+  }
+};
+
+const handleAcceptVendorPriceAction = async (item) => {
+  console.log("VENDOR PRICE ACTION CLICKED:", item);
+
+  try {
+    const itemName = String(
+      item?.itemName || "Unknown Item"
+    ).trim();
+
+    const vendorName = String(
+      item?.vendor || "Unknown Vendor"
+    ).trim();
+
+    const previousCost = Number(
+      item?.previousCost || 0
+    );
+
+    const latestCost = Number(
+      item?.latestCost || 0
+    );
+
+    const quantity = Number(
+      item?.quantity || 0
+    );
+
+    const priceChangePercent = Number(
+      item?.priceChange || 0
+    );
+
+    const baselineUploadId =
+      item?.uploadId || null;
+
+    const baselineInvoiceId =
+      item?.invoiceId || null;
+
+    const baselineInvoiceItemId =
+      item?.invoiceItemId || null;
+
+    const unitIncrease =
+      previousCost > 0 &&
+      latestCost > previousCost
+        ? latestCost - previousCost
+        : 0;
+
+    const baselineExposure =
+      unitIncrease * quantity;
+
+    if (!baselineInvoiceItemId) {
+      setMessage(
+        `Unable to identify the invoice evidence for ${itemName}.`
+      );
+      return;
+    }
+
+    if (
+      previousCost <= 0 ||
+      latestCost <= previousCost ||
+      baselineExposure <= 0
+    ) {
+      setMessage(
+        `${itemName} does not currently have measurable vendor price exposure.`
+      );
+      return;
+    }
+
+    console.log("VENDOR PRICE ACTION PAYLOAD:", {
+      itemName,
+      vendorName,
+      previousCost,
+      latestCost,
+      quantity,
+      priceChangePercent,
+      baselineExposure,
+      baselineUploadId,
+      baselineInvoiceId,
+      baselineInvoiceItemId,
+    });
+
+    const savedAction =
+      await saveAppliedAIAction({
+        actionName:
+          `Reduce vendor cost for ${itemName}`,
+
+        actionDescription:
+          `Operator accepted Serven's recommendation to address the vendor price increase for ${itemName} from ${vendorName}.`,
+
+        impactValue: baselineExposure,
+
+        appliedBy: "manual",
+
+        recoveryCategory: "vendor",
+
+        entityType: "invoice_item",
+
+        entityId: String(
+          baselineInvoiceItemId
+        ),
+
+        actionType: "vendor_price_spike",
+
+        decisionStatus: "accepted",
+
+        implementationStatus: "confirmed",
+
+        baselineData: {
+          supplier_name: vendorName,
+          item_name: itemName,
+
+          previous_unit_price:
+            previousCost,
+
+          baseline_unit_price:
+            latestCost,
+
+          quantity,
+
+          price_change_percent:
+            priceChangePercent,
+
+          baseline_exposure:
+            baselineExposure,
+
+          baseline_upload_id:
+            baselineUploadId,
+
+          baseline_invoice_id:
+            baselineInvoiceId,
+
+          baseline_invoice_item_id:
+            baselineInvoiceItemId,
+
+          baseline_invoice_date:
+            item?.invoiceDate || null,
+
+          previous_upload_id:
+            item?.previousUploadId || null,
+
+          previous_invoice_id:
+            item?.previousInvoiceId || null,
+
+          previous_invoice_item_id:
+            item?.previousInvoiceItemId || null,
+
+          previous_invoice_date:
+            item?.previousInvoiceDate || null,
+        },
+
+        targetData: {
+          target_unit_price:
+            previousCost,
+
+          target_price_increase:
+            0,
+        },
+      });
+
+    if (!savedAction) {
+      setMessage(
+        `Could not save the vendor corrective action for ${itemName}.`
+      );
+      return;
+    }
+
+    setRealAppliedActions((previous) => {
+      const currentActions =
+        previous || [];
+
+      const alreadyExists =
+        currentActions.some(
+          (action) =>
+            String(action.id || "") ===
+            String(savedAction.id || "")
+        );
+
+      if (alreadyExists) {
+        return currentActions.map(
+          (action) =>
+            String(action.id || "") ===
+            String(savedAction.id || "")
+              ? savedAction
+              : action
+        );
+      }
+
+      return [
+        savedAction,
+        ...currentActions,
+      ];
+    });
+
+    setMessage(
+      `Vendor corrective action accepted for ${itemName}. Awaiting a future invoice from ${vendorName} for verification.`
+    );
+  } catch (error) {
+    console.error(
+      "Vendor price corrective action error:",
+      error
+    );
+
+    setMessage(
+      "Could not save the vendor corrective action."
     );
   }
 };
@@ -104124,6 +104378,232 @@ maxWidth: "calc(100% - 28px)",
           <div style={{ width: "100%", color: "#cbd5e1", fontSize: "13px" }}>
             {item.recommendation}
           </div>
+          <div style={{ width: "100%" }}>
+  {(() => {
+    const currentUploadId = String(
+      item?.uploadId || ""
+    ).trim();
+
+    const currentVendor = String(
+      item?.vendor || ""
+    )
+      .trim()
+      .toLowerCase();
+
+    const currentItemName = String(
+      item?.itemName || ""
+    )
+      .trim()
+      .toLowerCase();
+
+    const latestVendorAction =
+      (realAppliedActions || [])
+        .filter((action) => {
+          const isVendorAction =
+            String(
+              action.action_type || ""
+            ).toLowerCase() ===
+              "vendor_price_spike" &&
+            String(
+              action.entity_type || ""
+            ).toLowerCase() ===
+              "invoice_item";
+
+          if (!isVendorAction) {
+            return false;
+          }
+
+          const actionVendor = String(
+            action?.baseline_data
+              ?.supplier_name || ""
+          )
+            .trim()
+            .toLowerCase();
+
+          const actionItemName = String(
+            action?.baseline_data
+              ?.item_name || ""
+          )
+            .trim()
+            .toLowerCase();
+
+          if (
+            actionVendor !== currentVendor ||
+            actionItemName !==
+              currentItemName
+          ) {
+            return false;
+          }
+
+          const actionBaselineUploadId =
+            String(
+              action?.baseline_data
+                ?.baseline_upload_id || ""
+            ).trim();
+
+          const actionVerifiedUploadId =
+            String(
+              action?.target_data
+                ?.verified_upload_id || ""
+            ).trim();
+
+          const actionVerificationStatus =
+            String(
+              action?.verification_status ||
+                ""
+            ).toLowerCase();
+
+          if (currentUploadId) {
+            if (
+              actionVerificationStatus ===
+              "verified"
+            ) {
+              return (
+                actionVerifiedUploadId ===
+                  currentUploadId ||
+                actionBaselineUploadId ===
+                  currentUploadId
+              );
+            }
+
+            return (
+              actionBaselineUploadId ===
+              currentUploadId
+            );
+          }
+
+          return (
+            !actionBaselineUploadId &&
+            !actionVerifiedUploadId
+          );
+        })
+        .sort(
+          (a, b) =>
+            new Date(
+              b.created_at || 0
+            ).getTime() -
+            new Date(
+              a.created_at || 0
+            ).getTime()
+        )[0] || null;
+
+    const verificationStatus = String(
+      latestVendorAction
+        ?.verification_status || ""
+    ).toLowerCase();
+
+    const implementationStatus = String(
+      latestVendorAction
+        ?.implementation_status || ""
+    ).toLowerCase();
+
+    const fixAwaitingVerification =
+      Boolean(latestVendorAction) &&
+      implementationStatus ===
+        "confirmed" &&
+      verificationStatus !== "verified";
+
+    const fixVerified =
+      Boolean(latestVendorAction) &&
+      verificationStatus === "verified";
+
+    if (fixAwaitingVerification) {
+      return (
+        <div>
+          <div
+            style={{
+              color: "#86efac",
+              fontSize: "12px",
+              fontWeight: "900",
+            }}
+          >
+            Fix Confirmed ✓
+          </div>
+
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "10px",
+              marginTop: "3px",
+            }}
+          >
+            Awaiting Verification
+          </div>
+        </div>
+      );
+    }
+
+    if (fixVerified) {
+      return (
+        <div>
+          <div
+            style={{
+              color: "#86efac",
+              fontSize: "12px",
+              fontWeight: "900",
+            }}
+          >
+            Verified ✓
+          </div>
+
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "10px",
+              marginTop: "3px",
+            }}
+          >
+            $
+            {Number(
+              latestVendorAction
+                ?.verified_recovery || 0
+            ).toLocaleString(undefined, {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}{" "}
+            recovered
+          </div>
+        </div>
+      );
+    }
+
+    const hasVendorExposure =
+      Number(item?.previousCost || 0) > 0 &&
+      Number(item?.latestCost || 0) >
+        Number(item?.previousCost || 0) &&
+      Number(item?.quantity || 0) > 0;
+
+    if (hasVendorExposure) {
+      return (
+        <button
+          type="button"
+          onClick={() =>
+            handleAcceptVendorPriceAction(
+              item
+            )
+          }
+          style={{
+            width: "100%",
+            padding: "9px 12px",
+            borderRadius: "10px",
+            border:
+              "1px solid rgba(251,191,36,0.28)",
+            background:
+              "rgba(245,158,11,0.14)",
+            color: "#fde68a",
+            fontSize: "12px",
+            fontWeight: "900",
+            cursor: "pointer",
+          }}
+        >
+          Confirm Vendor Fix ✓
+        </button>
+      );
+    }
+
+    return null;
+  })()}
+</div>
         </div>
       ))
     ) : (

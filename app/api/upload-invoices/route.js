@@ -392,72 +392,95 @@ async function insertInvoiceLineItems({
       )
       .filter(Boolean);
 
-    let historicalItems = [];
+   let historicalItems = [];
 
-    if (itemNames.length) {
-      const {
-        data: historyData,
-        error: historyError,
-      } = await supabase
-        .from("invoice_line_items")
-        .select(
-          "item_name, unit_price, created_at"
-        )
-        .eq("user_id", user.id)
-        .in("item_name", itemNames)
-        .order("created_at", {
-          ascending: false,
-        });
+const normalizedSupplierName = String(
+  parsedInvoice.supplierName || "Unknown Supplier"
+)
+  .trim()
+  .toLowerCase();
 
-      if (historyError) {
-        console.warn(
-          "Invoice price history lookup failed:",
-          historyError
-        );
-      } else {
-        historicalItems = historyData || [];
-      }
-    }
+if (itemNames.length) {
+  const {
+    data: historyData,
+    error: historyError,
+  } = await supabase
+    .from("invoice_line_items")
+    .select(
+      "item_name, supplier_name, unit_price, created_at"
+    )
+    .eq("user_id", user.id)
+    .in("item_name", itemNames)
+    .order("created_at", {
+      ascending: false,
+    });
 
-    /*
-      Because history is ordered newest first,
-      keep only the first row for each item.
-    */
-    const latestPriceByItem = new Map();
+  if (historyError) {
+    console.warn(
+      "Invoice price history lookup failed:",
+      historyError
+    );
+  } else {
+    historicalItems = (historyData || []).filter(
+      (historicalItem) =>
+        String(historicalItem.supplier_name || "Unknown Supplier")
+          .trim()
+          .toLowerCase() === normalizedSupplierName
+    );
+  }
+}
 
-    for (const historicalItem of historicalItems) {
-      const key = String(
-        historicalItem.item_name || ""
-      )
-        .trim()
-        .toLowerCase();
+/*
+  Because history is ordered newest first,
+  keep only the newest row for each
+  supplier + item combination.
+*/
+const latestPriceByItem = new Map();
 
-      if (
-        key &&
-        !latestPriceByItem.has(key)
-      ) {
-        latestPriceByItem.set(
-          key,
-          historicalItem
-        );
-      }
-    }
+for (const historicalItem of historicalItems) {
+  const historicalItemName = String(
+    historicalItem.item_name || ""
+  )
+    .trim()
+    .toLowerCase();
 
-    const rowsToInsert = [];
-    const alerts = [];
+  const historicalSupplierName = String(
+    historicalItem.supplier_name || "Unknown Supplier"
+  )
+    .trim()
+    .toLowerCase();
 
-    for (const item of parsedInvoice.items) {
-      const normalizedItemName = String(
-        item.item_name || ""
-      )
-        .trim()
-        .toLowerCase();
+  const key =
+    `${historicalSupplierName}|${historicalItemName}`;
 
-      const previousItem =
-        latestPriceByItem.get(
-          normalizedItemName
-        ) || null;
+  if (
+    historicalItemName &&
+    !latestPriceByItem.has(key)
+  ) {
+    latestPriceByItem.set(
+      key,
+      historicalItem
+    );
+  }
+}
 
+const rowsToInsert = [];
+const alerts = [];
+
+for (const item of parsedInvoice.items) {
+  const normalizedItemName = String(
+    item.item_name || ""
+  )
+    .trim()
+    .toLowerCase();
+
+  const priceHistoryKey =
+    `${normalizedSupplierName}|${normalizedItemName}`;
+
+  const previousItem =
+    latestPriceByItem.get(
+      priceHistoryKey
+    ) || null;
       const previousPrice =
         previousItem?.unit_price != null
           ? Number(previousItem.unit_price)
