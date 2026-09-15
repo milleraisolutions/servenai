@@ -21246,10 +21246,11 @@ const vendorPriceSpikeData = useMemo(() => {
       invoice.supplier_name ||
       "Unknown Vendor";
 
-   const dateRaw =
+  const dateRaw =
   invoice.invoice_date ||
   invoice.purchase_date ||
   invoice.date ||
+  invoice.created_at ||
   null;
 
     const parsedDate = dateRaw ? new Date(dateRaw) : null;
@@ -21297,12 +21298,12 @@ grouped[key].push({
 
   uploadId:
     invoice.upload_id || null,
-
-  invoiceDate:
-    invoice.invoice_date ||
-    invoice.purchase_date ||
-    invoice.date ||
-    null,
+invoiceDate:
+  invoice.invoice_date ||
+  invoice.purchase_date ||
+  invoice.date ||
+  invoice.created_at ||
+  null,
 });
   });
 
