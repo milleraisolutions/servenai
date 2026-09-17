@@ -423,10 +423,18 @@ if (itemNames.length) {
     error: historyError,
   } = await supabase
     .from("invoice_line_items")
-    .select(
-      "item_name, supplier_name, unit_price, created_at"
+.select(
+  `
+    item_name,
+    supplier_name,
+    unit_price,
+    created_at,
+    invoice_id,
+    invoice_uploads!invoice_line_items_invoice_id_fkey (
+      invoice_date
     )
-    .eq("user_id", user.id)
+  `
+)    .eq("user_id", user.id)
     .in("item_name", itemNames)
     .order("created_at", {
       ascending: false,
@@ -448,11 +456,77 @@ if (itemNames.length) {
 }
 
 /*
-  Because history is ordered newest first,
-  keep only the newest row for each
-  supplier + item combination.
+  Vendor price history must follow the actual invoice date,
+  not the time the PDF was uploaded.
+
+  Only invoices dated BEFORE the current invoice are eligible.
+  For each supplier + item, keep the nearest earlier invoice.
 */
 const latestPriceByItem = new Map();
+
+const currentInvoiceDate =
+  parsedInvoice.invoiceDate || null;
+
+const eligibleHistoricalItems = historicalItems
+  .map((historicalItem) => {
+    const joinedInvoice =
+      Array.isArray(historicalItem.invoice_uploads)
+        ? historicalItem.invoice_uploads[0]
+        : historicalItem.invoice_uploads;
+
+    const historicalInvoiceDate =
+      joinedInvoice?.invoice_date || null;
+
+    return {
+      ...historicalItem,
+      historicalInvoiceDate,
+    };
+  })
+  .filter((historicalItem) => {
+    if (
+      !currentInvoiceDate ||
+      !historicalItem.historicalInvoiceDate
+    ) {
+      return false;
+    }
+
+    return (
+      historicalItem.historicalInvoiceDate <
+      currentInvoiceDate
+    );
+  })
+  .sort((a, b) =>
+    String(b.historicalInvoiceDate).localeCompare(
+      String(a.historicalInvoiceDate)
+    )
+  );
+
+for (const historicalItem of eligibleHistoricalItems) {
+  const historicalItemName = String(
+    historicalItem.item_name || ""
+  )
+    .trim()
+    .toLowerCase();
+
+  const historicalSupplierName = String(
+    historicalItem.supplier_name || "Unknown Supplier"
+  )
+    .trim()
+    .toLowerCase();
+
+  const key =
+    `${historicalSupplierName}|${historicalItemName}`;
+
+  if (
+    historicalItemName &&
+    !latestPriceByItem.has(key)
+  ) {
+    latestPriceByItem.set(
+      key,
+      historicalItem
+    );
+  }
+}
 
 for (const historicalItem of historicalItems) {
   const historicalItemName = String(
