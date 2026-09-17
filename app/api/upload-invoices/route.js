@@ -131,9 +131,9 @@ const supplierName = String(
     ""
   )
   .trim() || "Unknown Supplier";
-  const dateMatch = rawText.match(
-    /\b(\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4})\b/
-  );
+ const dateMatch = rawText.match(
+  /\b(\d{4}-\d{1,2}-\d{1,2}|\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4})\b/
+);
 
   const invoiceDate = dateMatch
     ? normalizeDate(dateMatch[1])
