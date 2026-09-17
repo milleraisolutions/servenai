@@ -9247,7 +9247,7 @@ console.log("INVOICE STEP 1: started");
       return Number.isFinite(num) ? num : 0;
     };
 
-    const supplierName = getValue(rows[0], ["Vendor", "vendor", "Supplier", "supplier"]);
+   const supplierName =  getValue(rows[0], ["Vendor", "vendor", "Supplier", "supplier"]);
     const invoiceDate = getValue(rows[0], ["Invoice Date", "invoice_date"]);
     const invoiceNumber = getValue(rows[0], ["Invoice Number", "invoice_number"]);
 

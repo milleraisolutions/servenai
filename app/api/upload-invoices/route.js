@@ -16,14 +16,24 @@ function normalizeDate(dateStr) {
 
   if (parts.length !== 3) return null;
 
-  let [month, day, year] = parts;
+  let year;
+  let month;
+  let day;
+
+  // YYYY-MM-DD
+  if (parts[0]?.length === 4) {
+    [year, month, day] = parts;
+  } else {
+    // MM/DD/YYYY or MM-DD-YYYY
+    [month, day, year] = parts;
+
+    if (String(year || "").length === 2) {
+      year = `20${year}`;
+    }
+  }
 
   month = String(month || "").padStart(2, "0");
   day = String(day || "").padStart(2, "0");
-
-  if (String(year || "").length === 2) {
-    year = `20${year}`;
-  }
 
   const normalized = `${year}-${month}-${day}`;
   const parsedDate = new Date(`${normalized}T00:00:00Z`);
@@ -93,7 +103,7 @@ function parseInvoiceText(text) {
     .map((line) => line.replace(/\s+/g, " ").trim())
     .filter(Boolean);
 
-  const supplierName =
+const rawSupplierName =
     lines.find((line) => {
       const lower = line.toLowerCase();
 
@@ -113,7 +123,14 @@ function parseInvoiceText(text) {
     }) ||
     rawText.match(/^(.+?)(?=\s+Invoice Date[:\s])/i)?.[1]?.trim() ||
     "Unknown Supplier";
-
+const supplierName = String(
+  rawSupplierName || "Unknown Supplier"
+)
+  .replace(
+    /\s+invoice\s*(?:number|no\.?|#)\s*:?\s*.*$/i,
+    ""
+  )
+  .trim() || "Unknown Supplier";
   const dateMatch = rawText.match(
     /\b(\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4})\b/
   );
