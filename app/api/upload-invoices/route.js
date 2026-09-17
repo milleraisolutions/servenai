@@ -166,11 +166,15 @@ const supplierName = String(
       Remove invoice metadata that may appear before the first
       item when PDF text is flattened.
     */
-    itemName = itemName
-      .replace(/^.*?customer:\s*[^$]+?(?=[A-Z][a-z])/i, "")
-      .replace(/^.*?invoice number:\s*\S+\s*/i, "")
-      .replace(/^.*?invoice date:\s*\S+\s*/i, "")
-      .trim();
+  itemName = itemName
+  .replace(/^.*?customer:\s*[^$]+?(?=[A-Z][a-z])/i, "")
+  .replace(/^.*?invoice number:\s*\S+\s*/i, "")
+  .replace(/^.*?invoice date:\s*\S+\s*/i, "")
+  .replace(
+    /^.*?ingredient\s+category\s+qty\s+unit\s+unit\s+cost\s+total\s+/i,
+    ""
+  )
+  .trim();
 
     const lowerName = itemName.toLowerCase();
 
