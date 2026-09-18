@@ -638,7 +638,160 @@ for (const item of parsedInvoice.items) {
           lineItemError.message,
       };
     }
+/*
+  Rebuild vendor price history after every successful invoice import.
 
+  This makes price history independent of upload order.
+  Example:
+    Aug 17 uploaded first
+    Aug 03 uploaded second
+    Aug 10 uploaded third
+
+  Final history still becomes:
+    Aug 03 -> no previous price
+    Aug 10 -> Aug 03
+    Aug 17 -> Aug 10
+*/
+try {
+  const {
+    data: supplierHistoryRows,
+    error: supplierHistoryError,
+  } = await supabase
+    .from("invoice_line_items")
+    .select(
+      `
+        id,
+        invoice_id,
+        item_name,
+        supplier_name,
+        unit_price,
+        invoice_uploads!invoice_line_items_invoice_id_fkey (
+          invoice_date
+        )
+      `
+    )
+    .eq("user_id", user.id);
+
+  if (supplierHistoryError) {
+    console.warn(
+      "Vendor price history rebuild lookup failed:",
+      supplierHistoryError
+    );
+  } else {
+    const normalizedCurrentSupplier = String(
+      parsedInvoice.supplierName || "Unknown Supplier"
+    )
+      .trim()
+      .toLowerCase();
+
+    const supplierRows = (supplierHistoryRows || [])
+      .map((historyRow) => {
+        const joinedInvoice =
+          Array.isArray(historyRow.invoice_uploads)
+            ? historyRow.invoice_uploads[0]
+            : historyRow.invoice_uploads;
+
+        return {
+          ...historyRow,
+          historyInvoiceDate:
+            joinedInvoice?.invoice_date || null,
+        };
+      })
+      .filter((historyRow) => {
+        const historySupplier = String(
+          historyRow.supplier_name || "Unknown Supplier"
+        )
+          .trim()
+          .toLowerCase();
+
+        return (
+          historySupplier === normalizedCurrentSupplier &&
+          historyRow.historyInvoiceDate
+        );
+      })
+      .sort((a, b) =>
+        String(a.historyInvoiceDate).localeCompare(
+          String(b.historyInvoiceDate)
+        )
+      );
+
+    const rowsByItem = new Map();
+
+    for (const historyRow of supplierRows) {
+      const itemKey = String(
+        historyRow.item_name || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      if (!itemKey) continue;
+
+      if (!rowsByItem.has(itemKey)) {
+        rowsByItem.set(itemKey, []);
+      }
+
+      rowsByItem.get(itemKey).push(historyRow);
+    }
+
+    for (const itemRows of rowsByItem.values()) {
+      for (let index = 0; index < itemRows.length; index += 1) {
+        const currentRow = itemRows[index];
+        const previousRow =
+          index > 0 ? itemRows[index - 1] : null;
+
+        const currentPrice = Number(
+          currentRow.unit_price || 0
+        );
+
+        const previousPrice =
+          previousRow?.unit_price != null
+            ? Number(previousRow.unit_price)
+            : null;
+
+        const priceChange =
+          previousPrice != null
+            ? currentPrice - previousPrice
+            : null;
+
+        const priceChangePercent =
+          previousPrice != null &&
+          previousPrice > 0
+            ? (priceChange / previousPrice) * 100
+            : null;
+
+        const flaggedIncrease =
+          priceChangePercent != null &&
+          priceChangePercent >= 5;
+
+        const {
+          error: historyUpdateError,
+        } = await supabase
+          .from("invoice_line_items")
+          .update({
+            previous_unit_price: previousPrice,
+            price_change: priceChange,
+            price_change_percent: priceChangePercent,
+            flagged_increase: flaggedIncrease,
+          })
+          .eq("id", currentRow.id)
+          .eq("user_id", user.id);
+
+        if (historyUpdateError) {
+          console.warn(
+            "Vendor price history rebuild update failed:",
+            currentRow.id,
+            historyUpdateError
+          );
+        }
+      }
+    }
+  }
+} catch (historyRebuildError) {
+  console.warn(
+    "Vendor price history rebuild crashed:",
+    historyRebuildError
+  );
+}
     return {
       insertedItems: insertedItems || [],
       alerts,
