@@ -21698,6 +21698,21 @@ const vendorPriceSpikeData = useMemo(() => {
     invoiceData ||
     [];
 
+  /*
+    Vendor price chronology must use the actual invoice date,
+    not invoice_line_items.created_at.
+
+    invoice_line_items.invoice_id links to invoice_uploads.id.
+  */
+  const invoiceUploadById = new Map(
+    (invoiceUploads || [])
+      .filter((upload) => upload?.id)
+      .map((upload) => [
+        String(upload.id),
+        upload,
+      ])
+  );
+
   const grouped = {};
 
   invoiceRows.forEach((invoice) => {
@@ -21716,11 +21731,16 @@ const vendorPriceSpikeData = useMemo(() => {
       invoice.supplier_name ||
       "Unknown Vendor";
 
-  const dateRaw =
+const parentInvoice =
+  invoiceUploadById.get(
+    String(invoice.invoice_id || "")
+  ) || null;
+
+const dateRaw =
+  parentInvoice?.invoice_date ||
   invoice.invoice_date ||
   invoice.purchase_date ||
   invoice.date ||
-  invoice.created_at ||
   null;
 
     const parsedDate = dateRaw ? new Date(dateRaw) : null;
@@ -21769,10 +21789,10 @@ grouped[key].push({
   uploadId:
     invoice.upload_id || null,
 invoiceDate:
+  parentInvoice?.invoice_date ||
   invoice.invoice_date ||
   invoice.purchase_date ||
   invoice.date ||
-  invoice.created_at ||
   null,
 });
   });
@@ -21860,7 +21880,7 @@ const latest = sorted[sorted.length - 1];
     })
     .filter((item) => item.latestCost > 0)
     .sort((a, b) => b.priceChange - a.priceChange);
-}, [invoicesData]);
+}, [invoicesData, invoiceUploads]);
 const invoiceRecoveryOpportunity = (vendorPriceSpikeData || []).reduce(
   (sum, item) => {
     const previousCost = Number(item.previousCost || 0);
