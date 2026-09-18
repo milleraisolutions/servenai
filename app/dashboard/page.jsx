@@ -17372,7 +17372,472 @@ useEffect(() => {
   invoiceUploads,
 ]);
 
+/*
+  ======================================================
+  ONGOING VERIFIED VENDOR RECOVERY
+  ======================================================
 
+  After a vendor action has been verified once, every new
+  qualifying invoice line for the same supplier + item can
+  contribute additional verified recovery.
+
+  Recovery always uses the ORIGINAL accepted spike price
+  as the fixed baseline.
+
+  Each invoice line is ledgered independently so refreshes
+  cannot count the same evidence twice.
+*/
+useEffect(() => {
+  const trackOngoingVerifiedVendorRecovery = async () => {
+    if (!authReady) return;
+
+    const verifiedVendorActions = (
+      realAppliedActions || []
+    ).filter((action) => {
+      const category = String(
+        action.recovery_category || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      const actionType = String(
+        action.action_type || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      const verificationStatus = String(
+        action.verification_status || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      return (
+        category === "vendor" &&
+        actionType === "vendor_price_spike" &&
+        verificationStatus === "verified"
+      );
+    });
+
+    if (!verifiedVendorActions.length) return;
+
+    if (
+      !Array.isArray(invoicesData) ||
+      !invoicesData.length ||
+      !Array.isArray(invoiceUploads) ||
+      !invoiceUploads.length
+    ) {
+      return;
+    }
+
+    /*
+      invoice_line_items.invoice_id
+      -> invoice_uploads.id
+      -> actual invoice_date
+    */
+    const invoiceUploadById = new Map(
+      invoiceUploads
+        .filter((upload) => upload?.id)
+        .map((upload) => [
+          String(upload.id),
+          upload,
+        ])
+    );
+
+    let anyRecoveryChanged = false;
+
+    for (const action of verifiedVendorActions) {
+      let recoveryChanged = false;
+
+      const baselineData =
+        action.baseline_data || {};
+
+      const supplierName = String(
+        baselineData.supplier_name || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      const itemName = String(
+        baselineData.item_name || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      /*
+        IMPORTANT:
+        Keep the original accepted spike price fixed.
+        Do not replace this with the latest invoice price.
+      */
+      const baselineUnitPrice = Number(
+        baselineData.baseline_unit_price || 0
+      );
+
+      const baselineInvoiceDate = String(
+        baselineData.baseline_invoice_date || ""
+      )
+        .trim()
+        .slice(0, 10);
+
+      if (
+        !supplierName ||
+        !itemName ||
+        baselineUnitPrice <= 0 ||
+        !baselineInvoiceDate
+      ) {
+        continue;
+      }
+
+      const {
+        data: existingLedgerRows,
+        error: existingLedgerError,
+      } = await supabase
+        .from("verified_recovery_ledger")
+        .select(
+          "period_start, period_end, verification_method"
+        )
+        .eq("action_id", action.id)
+        .eq("status", "verified");
+
+      if (existingLedgerError) {
+        console.error(
+          "ONGOING VENDOR LEDGER LOAD ERROR:",
+          existingLedgerError
+        );
+
+        continue;
+      }
+
+      const existingEvidence = new Set(
+        (existingLedgerRows || []).map(
+          (row) =>
+            `${row.period_start}|${row.period_end}|${row.verification_method}`
+        )
+      );
+
+      /*
+        Gather every invoice after the original spike
+        for this exact supplier + item.
+      */
+      const futureInvoiceItems = invoicesData
+        .map((invoiceItem) => {
+          const parentInvoice =
+            invoiceUploadById.get(
+              String(
+                invoiceItem.invoice_id || ""
+              )
+            ) || null;
+
+          const invoiceDate = String(
+            parentInvoice?.invoice_date || ""
+          )
+            .trim()
+            .slice(0, 10);
+
+          return {
+            ...invoiceItem,
+            recoveryInvoiceDate:
+              invoiceDate,
+          };
+        })
+        .filter((invoiceItem) => {
+          const itemSupplier = String(
+            invoiceItem.supplier_name ||
+              invoiceItem.vendor ||
+              ""
+          )
+            .trim()
+            .toLowerCase();
+
+          const currentItemName = String(
+            invoiceItem.item_name || ""
+          )
+            .trim()
+            .toLowerCase();
+
+          return (
+            invoiceItem.id &&
+            itemSupplier === supplierName &&
+            currentItemName === itemName &&
+            invoiceItem.recoveryInvoiceDate &&
+            invoiceItem.recoveryInvoiceDate >
+              baselineInvoiceDate
+          );
+        })
+        .sort((a, b) =>
+          String(
+            a.recoveryInvoiceDate
+          ).localeCompare(
+            String(
+              b.recoveryInvoiceDate
+            )
+          )
+        );
+
+      for (const invoiceItem of futureInvoiceItems) {
+        const futureUnitPrice = Number(
+          invoiceItem.unit_price || 0
+        );
+
+        const futureQuantity = Number(
+          invoiceItem.quantity || 0
+        );
+
+        if (
+          futureUnitPrice <= 0 ||
+          futureQuantity <= 0
+        ) {
+          continue;
+        }
+
+        /*
+          Only an actual improvement below the original
+          spike price produces verified recovery.
+        */
+        const invoiceRecovery = Math.max(
+          0,
+          (baselineUnitPrice -
+            futureUnitPrice) *
+            futureQuantity
+        );
+
+        if (invoiceRecovery <= 0) {
+          continue;
+        }
+
+        const evidenceDate =
+          invoiceItem.recoveryInvoiceDate;
+
+        /*
+          Invoice-line ID makes each evidence event unique.
+        */
+        const verificationMethod =
+          `vendor_invoice_line_${invoiceItem.id}`;
+
+        const evidenceKey =
+          `${evidenceDate}|${evidenceDate}|${verificationMethod}`;
+
+        if (
+          existingEvidence.has(
+            evidenceKey
+          )
+        ) {
+          continue;
+        }
+
+        const verificationTimestamp =
+          new Date().toISOString();
+
+        const {
+          error: ledgerInsertError,
+        } = await supabase
+          .from(
+            "verified_recovery_ledger"
+          )
+          .upsert(
+            [
+              {
+                user_id:
+                  action.user_id,
+
+                action_id:
+                  action.id,
+
+                recovery_category:
+                  "vendor",
+
+                entity_type:
+                  action.entity_type ||
+                  "invoice_item",
+
+                entity_id:
+                  action.entity_id
+                    ? String(
+                        action.entity_id
+                      )
+                    : null,
+
+                location_id:
+                  action.location_id ||
+                  null,
+
+                location_name:
+                  action.location_name ||
+                  null,
+
+                period_start:
+                  evidenceDate,
+
+                period_end:
+                  evidenceDate,
+
+                recovery_amount:
+                  Number(
+                    invoiceRecovery.toFixed(
+                      2
+                    )
+                  ),
+
+                verification_method:
+                  verificationMethod,
+
+                baseline_data: {
+                  supplier_name:
+                    baselineData.supplier_name ||
+                    null,
+
+                  item_name:
+                    baselineData.item_name ||
+                    null,
+
+                  baseline_unit_price:
+                    baselineUnitPrice,
+
+                  baseline_invoice_date:
+                    baselineInvoiceDate,
+
+                  baseline_invoice_id:
+                    baselineData.baseline_invoice_id ||
+                    null,
+
+                  baseline_invoice_item_id:
+                    baselineData.baseline_invoice_item_id ||
+                    null,
+                },
+
+                measured_data: {
+                  verified_invoice_line_id:
+                    invoiceItem.id,
+
+                  verified_invoice_id:
+                    invoiceItem.invoice_id ||
+                    null,
+
+                  verified_upload_id:
+                    invoiceItem.upload_id ||
+                    null,
+
+                  verified_invoice_date:
+                    evidenceDate,
+
+                  measured_unit_price:
+                    futureUnitPrice,
+
+                  measured_quantity:
+                    futureQuantity,
+
+                  unit_savings:
+                    baselineUnitPrice -
+                    futureUnitPrice,
+                },
+
+                status:
+                  "verified",
+
+                verified_at:
+                  verificationTimestamp,
+              },
+            ],
+            {
+              onConflict:
+                "action_id,period_start,period_end,verification_method",
+
+              ignoreDuplicates:
+                true,
+            }
+          );
+
+        if (ledgerInsertError) {
+          console.error(
+            "ONGOING VENDOR LEDGER INSERT ERROR:",
+            ledgerInsertError
+          );
+
+          continue;
+        }
+
+        existingEvidence.add(
+          evidenceKey
+        );
+
+        recoveryChanged = true;
+        anyRecoveryChanged = true;
+      }
+
+      /*
+        Recalculate lifetime Vendor Recovery from
+        verified ledger evidence, never from UI state.
+      */
+      if (recoveryChanged) {
+        const {
+          data: lifetimeRows,
+          error: lifetimeError,
+        } = await supabase
+          .from(
+            "verified_recovery_ledger"
+          )
+          .select("recovery_amount")
+          .eq("action_id", action.id)
+          .eq("status", "verified");
+
+        if (lifetimeError) {
+          console.error(
+            "VENDOR LIFETIME RECOVERY LOAD ERROR:",
+            lifetimeError
+          );
+
+          continue;
+        }
+
+        const lifetimeRecovery =
+          (lifetimeRows || []).reduce(
+            (sum, row) =>
+              sum +
+              Number(
+                row.recovery_amount ||
+                  0
+              ),
+            0
+          );
+
+        const {
+          error: lifetimeUpdateError,
+        } = await supabase
+          .from("ai_applied_actions")
+          .update({
+            verified_recovery:
+              Number(
+                lifetimeRecovery.toFixed(
+                  2
+                )
+              ),
+
+            verified_at:
+              new Date().toISOString(),
+          })
+          .eq("id", action.id);
+
+        if (lifetimeUpdateError) {
+          console.error(
+            "VENDOR LIFETIME RECOVERY UPDATE ERROR:",
+            lifetimeUpdateError
+          );
+        }
+      }
+    }
+
+    if (anyRecoveryChanged) {
+      await loadRealAppliedActions();
+    }
+  };
+
+  trackOngoingVerifiedVendorRecovery();
+}, [
+  authReady,
+  realAppliedActions,
+  invoicesData,
+  invoiceUploads,
+]);
 useEffect(() => {
   const trackOngoingVerifiedLaborRecovery = async () => {
     if (!authReady) return;
