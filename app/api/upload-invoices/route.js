@@ -534,32 +534,6 @@ for (const historicalItem of eligibleHistoricalItems) {
   }
 }
 
-for (const historicalItem of historicalItems) {
-  const historicalItemName = String(
-    historicalItem.item_name || ""
-  )
-    .trim()
-    .toLowerCase();
-
-  const historicalSupplierName = String(
-    historicalItem.supplier_name || "Unknown Supplier"
-  )
-    .trim()
-    .toLowerCase();
-
-  const key =
-    `${historicalSupplierName}|${historicalItemName}`;
-
-  if (
-    historicalItemName &&
-    !latestPriceByItem.has(key)
-  ) {
-    latestPriceByItem.set(
-      key,
-      historicalItem
-    );
-  }
-}
 
 const rowsToInsert = [];
 const alerts = [];
