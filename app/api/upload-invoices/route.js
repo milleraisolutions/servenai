@@ -175,7 +175,9 @@ const supplierName = String(
     ""
   )
   .trim();
-
+itemName = itemName
+  .replace(/\s+(protein|seafood|produce|dairy)$/i, "")
+  .trim();
     const lowerName = itemName.toLowerCase();
 
     if (
