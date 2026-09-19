@@ -105409,17 +105409,16 @@ maxWidth: "calc(100% - 28px)",
                 ""
             ).toLowerCase();
 
-          if (currentUploadId) {
+                  if (currentUploadId) {
             if (
               actionVerificationStatus ===
               "verified"
             ) {
-              return (
-                actionVerifiedUploadId ===
-                  currentUploadId ||
-                actionBaselineUploadId ===
-                  currentUploadId
-              );
+              // A verified Vendor Recovery action remains attached
+              // to the same supplier + item across future invoice
+              // periods. Ongoing recovery is tracked separately by
+              // unique invoice-line evidence in the recovery ledger.
+              return true;
             }
 
             return (
