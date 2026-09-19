@@ -18535,6 +18535,31 @@ const inventoryVerifiedRecovery =
 
 const vendorVerifiedRecovery =
   Number(verifiedRecoverySummary.vendor || 0);
+  const parseRecoveryLedgerDate = (value) => {
+  if (!value) return null;
+
+  const rawValue = String(value).trim();
+
+  const dateOnlyMatch = rawValue.match(
+    /^(\d{4})-(\d{2})-(\d{2})$/
+  );
+
+  if (dateOnlyMatch) {
+    const [, year, month, day] = dateOnlyMatch;
+
+    return new Date(
+      Number(year),
+      Number(month) - 1,
+      Number(day)
+    );
+  }
+
+  const parsedDate = new Date(rawValue);
+
+  return Number.isNaN(parsedDate.getTime())
+    ? null
+    : parsedDate;
+};
   const verifiedRecoveryActivity = useMemo(() => {
   const actionById = new Map(
     (realAppliedActions || [])
@@ -18562,9 +18587,8 @@ const vendorVerifiedRecovery =
         ledgerRow?.created_at ||
         null;
 
-      const recoveryDate = recoveryDateRaw
-        ? new Date(recoveryDateRaw)
-        : null;
+ const recoveryDate =
+  parseRecoveryLedgerDate(recoveryDateRaw);
 
       return {
         id: ledgerRow?.id,
@@ -18851,9 +18875,8 @@ const recoveryVelocity = useMemo(() => {
         row?.created_at ||
         null;
 
-      const recoveryDate = recoveryDateRaw
-        ? new Date(recoveryDateRaw)
-        : null;
+      const recoveryDate =
+  parseRecoveryLedgerDate(recoveryDateRaw);
 
       return {
         recoveredValue:
@@ -18928,9 +18951,8 @@ const verifiedRecoveryPeriods = useMemo(() => {
         row?.created_at ||
         null;
 
-      const recoveryDate = recoveryDateRaw
-        ? new Date(recoveryDateRaw)
-        : null;
+      const recoveryDate =
+  parseRecoveryLedgerDate(recoveryDateRaw);
 
       return {
         recoveredValue:
