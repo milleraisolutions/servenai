@@ -51394,7 +51394,7 @@ borderRadius: "14px",
    ✅ VERIFIED RECOVERY ACTIVITY
 ========================= */}
 
-{hasProAccess && verifiedRecoveryActions.length > 0 && (
+{hasProAccess && verifiedRecoveryActivity.length > 0 && (
   <div
     style={{
       marginTop: "18px",
@@ -51442,61 +51442,60 @@ borderRadius: "14px",
     </div>
 
     <div style={{ display: "grid", gap: "12px" }}>
-      {verifiedRecoveryActions.map((action) => {
-        const verifiedRecovery = Number(
-          action.verified_recovery || 0
-        );
+    {verifiedRecoveryActivity.map((activity) => {
+  const verifiedRecovery = Number(
+    activity?.recoveryAmount || 0
+  );
 
-        const matchingMenuItem = (menuItemsData || []).find(
-          (menuItem) =>
-            String(menuItem?.id || "") ===
-            String(action?.entity_id || "")
-        );
+  const baselinePrice = Number(
+    activity?.baselineData?.baseline_unit_price ??
+      activity?.baselineData?.price ??
+      0
+  );
 
-        const baselinePrice = Number(
-          action?.baseline_data?.price || 0
-        );
+  const measuredPrice = Number(
+    activity?.measuredData?.measured_unit_price ??
+      activity?.measuredData?.current_unit_price ??
+      0
+  );
 
-        const currentPrice = Number(
-          matchingMenuItem?.price || 0
-        );
+  const itemName =
+    activity?.baselineData?.item_name ||
+    activity?.baselineData?.ingredient_name ||
+    activity?.baselineData?.entity_name ||
+    activity?.actionName ||
+    "Verified Recovery";
 
-        const itemName =
-          matchingMenuItem?.name ||
-          action?.action_name ||
-          "Verified Recovery";
+  const verifiedDate =
+    activity?.recoveryDate instanceof Date
+      ? activity.recoveryDate
+      : null;
 
-        const verifiedDateRaw =
-          action?.verified_at ||
-          action?.implemented_at ||
-          action?.updated_at ||
-          action?.created_at ||
-          null;
+  const verifiedDateLabel =
+    verifiedDate &&
+    !Number.isNaN(verifiedDate.getTime())
+      ? verifiedDate.toLocaleDateString(undefined, {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+        })
+      : "Verified";
 
-        const verifiedDate = verifiedDateRaw
-          ? new Date(verifiedDateRaw)
-          : null;
+  const actionTypeLabel =
+    String(
+      activity?.actionType ||
+        activity?.recoveryCategory ||
+        ""
+    )
+      .replaceAll("_", " ")
+      .replace(/\b\w/g, (char) =>
+        char.toUpperCase()
+      ) || "Recovery Action";
 
-        const verifiedDateLabel =
-          verifiedDate &&
-          !Number.isNaN(verifiedDate.getTime())
-            ? verifiedDate.toLocaleDateString(undefined, {
-                year: "numeric",
-                month: "short",
-                day: "numeric",
-              })
-            : "Verified";
-
-        const actionTypeLabel =
-          String(action?.action_type || "")
-            .replaceAll("_", " ")
-            .replace(/\b\w/g, (char) =>
-              char.toUpperCase()
-            ) || "Recovery Action";
-
-        return (
+  return (
+        
           <div
-            key={action.id}
+            key={activity.id}
             style={{
               padding: "18px",
               borderRadius: "18px",
@@ -51534,7 +51533,7 @@ borderRadius: "14px",
                   {actionTypeLabel}
                 </div>
 
-                {baselinePrice > 0 && currentPrice > 0 && (
+                {baselinePrice > 0 && measuredPrice > 0 && (
                   <div
                     style={{
                       color: "#94a3b8",
@@ -51542,7 +51541,7 @@ borderRadius: "14px",
                       marginTop: "6px",
                     }}
                   >
-                    ${baselinePrice.toFixed(2)} → ${currentPrice.toFixed(2)}
+                   ${baselinePrice.toFixed(2)} → ${measuredPrice.toFixed(2)}
                   </div>
                 )}
               </div>
