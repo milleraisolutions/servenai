@@ -753,6 +753,7 @@ const pendingUploadRowsRef = useRef([]);
 const [realProfitEngine, setRealProfitEngine] = useState(null);
 const [realProfitLoading, setRealProfitLoading] = useState(false);
 const [realAppliedActions, setRealAppliedActions] = useState([]);
+const [verifiedRecoveryLedger, setVerifiedRecoveryLedger] = useState([]);
 const [uploadComparison, setUploadComparison] = useState(null);
 const [uploadComparisonLoading, setUploadComparisonLoading] = useState(false);
 const [activeAiCommandTab, setActiveAiCommandTab] = useState("alerts");
@@ -9559,11 +9560,48 @@ const loadRealAppliedActions = async () => {
 
   setRealAppliedActions(data || []);
 };
+const loadVerifiedRecoveryLedger = async () => {
+  if (!authReady) {
+    console.log("VERIFIED RECOVERY LEDGER WAITING FOR AUTH");
+    return;
+  }
 
+  const ownerId =
+    dataOwnerId ||
+    authenticatedUserId ||
+    userProfile?.owner_user_id ||
+    user?.id ||
+    null;
+
+  if (!ownerId) {
+    console.log(
+      "VERIFIED RECOVERY LEDGER SKIPPED: no authenticated user"
+    );
+    return;
+  }
+
+  const { data, error } = await supabase
+    .from("verified_recovery_ledger")
+    .select("*")
+    .eq("user_id", ownerId)
+    .eq("status", "verified")
+    .order("period_start", { ascending: true });
+
+  if (error) {
+    console.error(
+      "Load verified recovery ledger failed:",
+      error
+    );
+    return;
+  }
+
+  setVerifiedRecoveryLedger(data || []);
+};
 useEffect(() => {
   if (!authReady) return;
 
   loadRealAppliedActions();
+  loadVerifiedRecoveryLedger();
 }, [
   authReady,
   authenticatedUserId,
@@ -18437,6 +18475,152 @@ const totalAIRecoveryOpportunity =
   
   const loadedPeriodOpportunity =
   Number(totalAIRecoveryOpportunity || 0);
+  const verifiedRecoverySummary = useMemo(() => {
+  const rows = Array.isArray(verifiedRecoveryLedger)
+    ? verifiedRecoveryLedger
+    : [];
+
+  return rows.reduce(
+    (summary, row) => {
+      const recoveryAmount = Number(row?.recovery_amount || 0);
+
+      if (
+        !Number.isFinite(recoveryAmount) ||
+        recoveryAmount <= 0
+      ) {
+        return summary;
+      }
+
+      const category = String(
+        row?.recovery_category || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      summary.total += recoveryAmount;
+
+      if (category === "labor") {
+        summary.labor += recoveryAmount;
+      } else if (
+        category === "inventory" ||
+        category === "waste"
+      ) {
+        summary.inventory += recoveryAmount;
+      } else if (category === "vendor") {
+        summary.vendor += recoveryAmount;
+      } else {
+        summary.other += recoveryAmount;
+      }
+
+      return summary;
+    },
+    {
+      total: 0,
+      labor: 0,
+      inventory: 0,
+      vendor: 0,
+      other: 0,
+    }
+  );
+}, [verifiedRecoveryLedger]);
+
+const totalVerifiedRecovery =
+  Number(verifiedRecoverySummary.total || 0);
+
+const laborVerifiedRecovery =
+  Number(verifiedRecoverySummary.labor || 0);
+
+const inventoryVerifiedRecovery =
+  Number(verifiedRecoverySummary.inventory || 0);
+
+const vendorVerifiedRecovery =
+  Number(verifiedRecoverySummary.vendor || 0);
+  const verifiedRecoveryActivity = useMemo(() => {
+  const actionById = new Map(
+    (realAppliedActions || [])
+      .filter((action) => action?.id)
+      .map((action) => [
+        String(action.id),
+        action,
+      ])
+  );
+
+  return (verifiedRecoveryLedger || [])
+    .map((ledgerRow) => {
+      const action = actionById.get(
+        String(ledgerRow?.action_id || "")
+      );
+
+      const recoveryAmount = Number(
+        ledgerRow?.recovery_amount || 0
+      );
+
+      const recoveryDateRaw =
+        ledgerRow?.period_end ||
+        ledgerRow?.period_start ||
+        ledgerRow?.verified_at ||
+        ledgerRow?.created_at ||
+        null;
+
+      const recoveryDate = recoveryDateRaw
+        ? new Date(recoveryDateRaw)
+        : null;
+
+      return {
+        id: ledgerRow?.id,
+        actionId: ledgerRow?.action_id,
+        recoveryAmount:
+          Number.isFinite(recoveryAmount)
+            ? recoveryAmount
+            : 0,
+        recoveryCategory: String(
+          ledgerRow?.recovery_category || ""
+        )
+          .trim()
+          .toLowerCase(),
+        entityType:
+          ledgerRow?.entity_type ||
+          action?.entity_type ||
+          null,
+        entityId:
+          ledgerRow?.entity_id ||
+          action?.entity_id ||
+          null,
+        periodStart: ledgerRow?.period_start || null,
+        periodEnd: ledgerRow?.period_end || null,
+        recoveryDate,
+        verificationMethod:
+          ledgerRow?.verification_method || null,
+        baselineData:
+          ledgerRow?.baseline_data ||
+          action?.baseline_data ||
+          {},
+        measuredData:
+          ledgerRow?.measured_data || {},
+        actionName:
+          action?.action_name ||
+          "Verified Recovery",
+        actionType:
+          action?.action_type ||
+          ledgerRow?.recovery_category ||
+          "recovery",
+      };
+    })
+    .filter(
+      (entry) =>
+        entry.recoveryAmount > 0 &&
+        entry.recoveryDate instanceof Date &&
+        !Number.isNaN(entry.recoveryDate.getTime())
+    )
+    .sort(
+      (a, b) =>
+        b.recoveryDate.getTime() -
+        a.recoveryDate.getTime()
+    );
+}, [
+  verifiedRecoveryLedger,
+  realAppliedActions,
+]);
 const verifiedRecoveryActions = (realAppliedActions || []).filter(
   (action) => {
     const verificationStatus = String(
@@ -18480,24 +18664,18 @@ const verifiedMenuRecoveryActions = (realAppliedActions || []).filter(
     );
   }
 );
-const verifiedRecoveredProfit = verifiedRecoveryActions.reduce(
-  (sum, action) => {
-    const value = Number(
-      action.verified_recovery ??
-        action.actual_recovery ??
-        action.actualRecovery ??
-        action.recovered_profit ??
-        action.recoveredProfit ??
-        action.verified_recovered ??
-        action.recovered ??
-        0
-    );
+const verifiedRecoveredProfit =
+  Number(totalVerifiedRecovery || 0);
+const verifiedLedgerActionCount = useMemo(() => {
+  const uniqueActionIds = new Set(
+    (verifiedRecoveryLedger || [])
+      .map((row) => row?.action_id)
+      .filter(Boolean)
+      .map((actionId) => String(actionId))
+  );
 
-    return sum + (Number.isFinite(value) ? value : 0);
-  },
-  0
-);
-
+  return uniqueActionIds.size;
+}, [verifiedRecoveryLedger]);
 const profitRecoverySummary = useMemo(() => {
   const estimatedRecoverable = Number(totalAIRecoveryOpportunity || 0);
   const verifiedRecovered = Number(verifiedRecoveredProfit || 0);
@@ -18513,34 +18691,50 @@ const profitRecoverySummary = useMemo(() => {
       : 0;
 
 const getCategoryRecovered = (categoryLabel) => {
-  return (verifiedRecoveryActions || []).reduce((sum, action) => {
-    const actionCategory = String(
-      action.recovery_category ||
-        action.category ||
-        ""
-    )
-      .trim()
-      .toLowerCase();
+  const targetCategory = String(categoryLabel || "")
+    .trim()
+    .toLowerCase();
 
-    const targetCategory = String(categoryLabel || "")
-      .trim()
-      .toLowerCase();
+  if (targetCategory === "labor") {
+    return Number(laborVerifiedRecovery || 0);
+  }
 
-    const recoveredValue = Number(
-      action.verified_recovery ??
-        action.actual_recovery ??
-        action.actualRecovery ??
-        action.recovered_profit ??
-        action.recoveredProfit ??
-        action.verified_recovered ??
-        action.recovered ??
-        0
-    );
+  if (
+    targetCategory === "inventory" ||
+    targetCategory === "waste"
+  ) {
+    return Number(inventoryVerifiedRecovery || 0);
+  }
 
-    return actionCategory === targetCategory
-      ? sum + recoveredValue
-      : sum;
-  }, 0);
+  if (targetCategory === "vendor") {
+    return Number(vendorVerifiedRecovery || 0);
+  }
+
+  return (verifiedRecoveryLedger || []).reduce(
+    (sum, row) => {
+      const rowCategory = String(
+        row?.recovery_category || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      if (rowCategory !== targetCategory) {
+        return sum;
+      }
+
+      const recoveryAmount = Number(
+        row?.recovery_amount || 0
+      );
+
+      return (
+        sum +
+        (Number.isFinite(recoveryAmount)
+          ? recoveryAmount
+          : 0)
+      );
+    },
+    0
+  );
 };
 
   const buildCategory = ({ icon, label, route, action, opportunity }) => {
@@ -18570,7 +18764,7 @@ const getCategoryRecovered = (categoryLabel) => {
   verifiedRecovered,
   remaining,
   recoveryProgress,
-  verifiedActionCount: verifiedRecoveryActions.length,
+ verifiedActionCount: verifiedLedgerActionCount,
 
   categories: [
     buildCategory({
@@ -18613,6 +18807,14 @@ const getCategoryRecovered = (categoryLabel) => {
       action: "Review pour variance, alcohol cost, and beverage margin leakage.",
       opportunity: estimatedAlcoholRecovery,
     }),
+    buildCategory({
+  icon: "🧾",
+  label: "Vendor",
+  route: "inventory",
+  action:
+    "Review supplier price increases, invoice cost changes, and purchasing pressure.",
+  opportunity: executiveInvoiceRecoveryOpportunity,
+}),
   ]
     .filter((category) => Number(category.opportunity || 0) > 0)
     .sort((a, b) => b.opportunity - a.opportunity),
@@ -18620,82 +18822,84 @@ const getCategoryRecovered = (categoryLabel) => {
 }, [
   totalAIRecoveryOpportunity,
   verifiedRecoveredProfit,
-  verifiedRecoveryActions,
+  verifiedRecoveryLedger,
+  laborVerifiedRecovery,
+  inventoryVerifiedRecovery,
+  vendorVerifiedRecovery,
   estimatedLaborRecovery,
   operationalEstimatedWasteRecovery,
+  estimatedMarginRecovery,
   estimatedFoodRecovery,
   estimatedAlcoholRecovery,
+  executiveInvoiceRecoveryOpportunity,
 ]);
 const recoveryVelocity = useMemo(() => {
-  const actions = verifiedRecoveryActions || [];
+  const ledgerRows = Array.isArray(verifiedRecoveryLedger)
+    ? verifiedRecoveryLedger
+    : [];
 
-  const datedActions = actions
-    .map((action) => {
-  const recoveredValue = Number(
-  action.verified_recovery ??
-    action.actual_recovery ??
-    action.actualRecovery ??
-    action.recovered_profit ??
-    action.recoveredProfit ??
-    action.impact_value ??
-    action.impactValue ??
-    action.verified_recovered ??
-    action.recovered ??
-    action.impact ??
-    action.value ??
-    0
-);
+  const datedRecoveries = ledgerRows
+    .map((row) => {
+      const recoveredValue = Number(
+        row?.recovery_amount || 0
+      );
 
-const completedDateRaw =
-  action.verified_at ||
-  action.verifiedAt ||
-  action.implemented_at ||
-  action.implementedAt ||
-  action.completed_at ||
-  action.completedAt ||
-  action.updated_at ||
-  action.updatedAt ||
-  action.created_at ||
-  action.createdAt ||
-  null;
+      const recoveryDateRaw =
+        row?.period_end ||
+        row?.period_start ||
+        row?.verified_at ||
+        row?.created_at ||
+        null;
 
-const completedDate = completedDateRaw
-  ? new Date(completedDateRaw)
-  : null;
+      const recoveryDate = recoveryDateRaw
+        ? new Date(recoveryDateRaw)
+        : null;
 
       return {
-        recoveredValue: Number.isFinite(recoveredValue) ? recoveredValue : 0,
-        completedDate,
+        recoveredValue:
+          Number.isFinite(recoveredValue)
+            ? recoveredValue
+            : 0,
+        recoveryDate,
       };
     })
     .filter(
-      (action) =>
-        action.recoveredValue > 0 &&
-        action.completedDate instanceof Date &&
-        !Number.isNaN(action.completedDate.getTime())
+      (row) =>
+        row.recoveredValue > 0 &&
+        row.recoveryDate instanceof Date &&
+        !Number.isNaN(row.recoveryDate.getTime())
     );
 
-  const totalRecovered = datedActions.reduce(
-    (sum, action) => sum + action.recoveredValue,
+  const totalRecovered = datedRecoveries.reduce(
+    (sum, row) => sum + row.recoveredValue,
     0
   );
 
-  const firstDate = datedActions.length
-    ? datedActions.reduce(
-        (oldest, action) =>
-          action.completedDate < oldest ? action.completedDate : oldest,
-        datedActions[0].completedDate
+  const firstDate = datedRecoveries.length
+    ? datedRecoveries.reduce(
+        (oldest, row) =>
+          row.recoveryDate < oldest
+            ? row.recoveryDate
+            : oldest,
+        datedRecoveries[0].recoveryDate
       )
     : null;
 
   const daysTracked = firstDate
     ? Math.max(
         1,
-        Math.ceil((new Date() - firstDate) / (1000 * 60 * 60 * 24))
+        Math.ceil(
+          (new Date() - firstDate) /
+            (1000 * 60 * 60 * 24)
+        )
       )
     : 0;
 
-  const dailyPace = daysTracked > 0 ? totalRecovered / daysTracked : 0;
+  const dailyPace =
+    daysTracked > 0
+      ? totalRecovered / daysTracked
+      : 0;
+
   const weeklyPace = dailyPace * 7;
 
   return {
@@ -18703,55 +18907,45 @@ const completedDate = completedDateRaw
     daysTracked,
     dailyPace,
     weeklyPace,
-    hasVelocity: datedActions.length > 0 && weeklyPace > 0,
+    hasVelocity:
+      datedRecoveries.length > 0 &&
+      weeklyPace > 0,
   };
-}, [verifiedRecoveryActions]);
+}, [verifiedRecoveryLedger]);
 
 
 const verifiedRecoveryPeriods = useMemo(() => {
-  const actions = (verifiedRecoveryActions || [])
-    .map((action) => {
+  const rows = (verifiedRecoveryLedger || [])
+    .map((row) => {
       const recoveredValue = Number(
-  action.verified_recovery ??
-    action.actual_recovery ??
-    action.actualRecovery ??
-    action.recovered_profit ??
-    action.recoveredProfit ??
-    action.verified_recovered ??
-    action.recovered ??
-    0
-);
+        row?.recovery_amount || 0
+      );
 
-      const completedDateRaw =
-  action.verified_at ||
-  action.verifiedAt ||
-  action.implemented_at ||
-  action.implementedAt ||
-  action.completed_at ||
-  action.completedAt ||
-  action.updated_at ||
-  action.updatedAt ||
-  action.created_at ||
-  action.createdAt ||
-  null;
+      const recoveryDateRaw =
+        row?.period_end ||
+        row?.period_start ||
+        row?.verified_at ||
+        row?.created_at ||
+        null;
 
-      const completedDate = completedDateRaw
-        ? new Date(completedDateRaw)
+      const recoveryDate = recoveryDateRaw
+        ? new Date(recoveryDateRaw)
         : null;
 
       return {
         recoveredValue:
-          Number.isFinite(recoveredValue) && recoveredValue > 0
+          Number.isFinite(recoveredValue) &&
+          recoveredValue > 0
             ? recoveredValue
             : 0,
-        completedDate,
+        recoveryDate,
       };
     })
     .filter(
-      (action) =>
-        action.recoveredValue > 0 &&
-        action.completedDate instanceof Date &&
-        !Number.isNaN(action.completedDate.getTime())
+      (row) =>
+        row.recoveredValue > 0 &&
+        row.recoveryDate instanceof Date &&
+        !Number.isNaN(row.recoveryDate.getTime())
     );
 
   const now = new Date();
@@ -18764,8 +18958,13 @@ const verifiedRecoveryPeriods = useMemo(() => {
 
   const startOfWeek = new Date(startOfToday);
   const dayOfWeek = startOfWeek.getDay();
-  const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-  startOfWeek.setDate(startOfWeek.getDate() - daysSinceMonday);
+
+  const daysSinceMonday =
+    dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+
+  startOfWeek.setDate(
+    startOfWeek.getDate() - daysSinceMonday
+  );
 
   const startOfMonth = new Date(
     now.getFullYear(),
@@ -18780,16 +18979,16 @@ const verifiedRecoveryPeriods = useMemo(() => {
   );
 
   const sumSince = (startDate) =>
-    actions.reduce(
-      (sum, action) =>
-        action.completedDate >= startDate
-          ? sum + action.recoveredValue
+    rows.reduce(
+      (sum, row) =>
+        row.recoveryDate >= startDate
+          ? sum + row.recoveredValue
           : sum,
       0
     );
 
-  const allTime = actions.reduce(
-    (sum, action) => sum + action.recoveredValue,
+  const allTime = rows.reduce(
+    (sum, row) => sum + row.recoveredValue,
     0
   );
 
@@ -18800,7 +18999,7 @@ const verifiedRecoveryPeriods = useMemo(() => {
     year: sumSince(startOfYear),
     allTime,
   };
-}, [verifiedRecoveryActions]);
+}, [verifiedRecoveryLedger]);
 const estimatedRecoveryDays = useMemo(() => {
   if (profitRecoverySummary.remaining <= 0) return 0;
 
@@ -18940,20 +19139,28 @@ const executiveRecoveryScore = useMemo(() => {
 
   const actionScore = Math.min(20, verifiedActionCount * 5);
 
-  const completionScore =
-    estimatedRecoveryDays > 0 && estimatedRecoveryDays <= 30
-      ? 15
-      : estimatedRecoveryDays > 30 && estimatedRecoveryDays <= 60
-      ? 10
-      : estimatedRecoveryDays > 60
-      ? 5
-      : 0;
+  const evidenceScore =
+  verifiedRecovered > 0
+    ? Math.min(
+        15,
+        5 +
+          Math.min(
+            10,
+            verifiedActionCount * 2
+          )
+      )
+    : 0;
 
   const score =
     profitRecoverySummary.loadedPeriodRecoverable> 0
       ? Math.min(
           100,
-          Math.round(progressScore + velocityScore + actionScore + completionScore)
+         Math.round(
+  progressScore +
+    velocityScore +
+    actionScore +
+    evidenceScore
+)
         )
       : 0;
 
@@ -82042,7 +82249,7 @@ role: "Executive visibility & AI intelligence",
     </div>
 
     {/* VERIFIED RECOVERY ACTIVITY */}
-{verifiedRecoveryActions.length > 0 && (
+{verifiedRecoveryActivity.length > 0 && (
   <div
     style={{
       marginTop: "18px",
@@ -82089,61 +82296,60 @@ role: "Executive visibility & AI intelligence",
     </div>
 
     <div style={{ display: "grid", gap: "12px" }}>
-      {verifiedRecoveryActions.map((action) => {
-        const verifiedRecovery = Number(
-          action.verified_recovery || 0
-        );
+   {verifiedRecoveryActivity.map((activity) => {
+  const verifiedRecovery = Number(
+    activity?.recoveryAmount || 0
+  );
 
-        const matchingMenuItem = (menuItemsData || []).find(
-          (menuItem) =>
-            String(menuItem?.id || "") ===
-            String(action?.entity_id || "")
-        );
+  const baselinePrice = Number(
+    activity?.baselineData?.baseline_unit_price ??
+      activity?.baselineData?.price ??
+      0
+  );
 
-        const baselinePrice = Number(
-          action?.baseline_data?.price || 0
-        );
+  const measuredPrice = Number(
+    activity?.measuredData?.measured_unit_price ??
+      activity?.measuredData?.current_unit_price ??
+      0
+  );
 
-        const currentPrice = Number(
-          matchingMenuItem?.price || 0
-        );
+  const itemName =
+    activity?.baselineData?.item_name ||
+    activity?.baselineData?.ingredient_name ||
+    activity?.baselineData?.entity_name ||
+    activity?.actionName ||
+    "Verified Recovery";
 
-        const itemName =
-          matchingMenuItem?.name ||
-          action?.action_name ||
-          "Verified Recovery";
+  const verifiedDate =
+    activity?.recoveryDate instanceof Date
+      ? activity.recoveryDate
+      : null;
 
-        const verifiedDateRaw =
-          action?.verified_at ||
-          action?.implemented_at ||
-          action?.updated_at ||
-          action?.created_at ||
-          null;
+  const verifiedDateLabel =
+    verifiedDate &&
+    !Number.isNaN(verifiedDate.getTime())
+      ? verifiedDate.toLocaleDateString(undefined, {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+        })
+      : "Verified";
 
-        const verifiedDate = verifiedDateRaw
-          ? new Date(verifiedDateRaw)
-          : null;
+  const actionTypeLabel =
+    String(
+      activity?.actionType ||
+        activity?.recoveryCategory ||
+        ""
+    )
+      .replaceAll("_", " ")
+      .replace(/\b\w/g, (char) =>
+        char.toUpperCase()
+      ) || "Recovery Action";
 
-        const verifiedDateLabel =
-          verifiedDate &&
-          !Number.isNaN(verifiedDate.getTime())
-            ? verifiedDate.toLocaleDateString(undefined, {
-                year: "numeric",
-                month: "short",
-                day: "numeric",
-              })
-            : "Verified";
-
-        const actionTypeLabel =
-          String(action?.action_type || "")
-            .replaceAll("_", " ")
-            .replace(/\b\w/g, (char) =>
-              char.toUpperCase()
-            ) || "Recovery Action";
-
-        return (
+  return (
+        
           <div
-            key={action.id}
+            key={activity.id}
             style={{
               padding: "16px",
               borderRadius: "18px",
@@ -82181,7 +82387,7 @@ role: "Executive visibility & AI intelligence",
                   {actionTypeLabel}
                 </div>
 
-                {baselinePrice > 0 && currentPrice > 0 && (
+                {baselinePrice > 0 && measuredPrice > 0 && (
                   <div
                     style={{
                       color: "#94a3b8",
@@ -82189,7 +82395,7 @@ role: "Executive visibility & AI intelligence",
                       marginTop: "6px",
                     }}
                   >
-                    ${baselinePrice.toFixed(2)} → ${currentPrice.toFixed(2)}
+                    ${baselinePrice.toFixed(2)} → ${measuredPrice.toFixed(2)}
                   </div>
                 )}
               </div>
