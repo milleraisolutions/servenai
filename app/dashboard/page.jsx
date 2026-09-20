@@ -3689,7 +3689,74 @@ const realSalesMetrics = useMemo(() => {
     hasTodaySales: todayRows.length > 0,
   };
 }, [dbSalesRows]);
+const loadedSalesPeriod = useMemo(() => {
+  const rows = Array.isArray(dbSalesRows) ? dbSalesRows : [];
+
+  const validDates = rows
+    .map((row) => {
+      const rawDate =
+        row?.sale_date ||
+        row?.date ||
+        row?.business_date ||
+        null;
+
+      if (!rawDate) return null;
+
+      const rawValue = String(rawDate).trim();
+
+      const dateOnlyMatch = rawValue.match(
+        /^(\d{4})-(\d{2})-(\d{2})$/
+      );
+
+      if (dateOnlyMatch) {
+        const [, year, month, day] = dateOnlyMatch;
+
+        return new Date(
+          Number(year),
+          Number(month) - 1,
+          Number(day)
+        );
+      }
+
+      const parsedDate = new Date(rawValue);
+
+      return Number.isNaN(parsedDate.getTime())
+        ? null
+        : parsedDate;
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.getTime() - b.getTime());
+
+  if (!validDates.length) {
+    return {
+      startDate: null,
+      endDate: null,
+      startKey: null,
+      endKey: null,
+    };
+  }
+
+  const startDate = validDates[0];
+  const endDate = validDates[validDates.length - 1];
+
+  const toLocalDateKey = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+
+    return `${year}-${month}-${day}`;
+  };
+
+  return {
+    startDate,
+    endDate,
+    startKey: toLocalDateKey(startDate),
+    endKey: toLocalDateKey(endDate),
+  };
+}, [dbSalesRows]);
+
 const liveTotalRevenue =
+
   Number(realSalesMetrics?.totalRevenueFromDb || 0) > 0
     ? Number(realSalesMetrics.totalRevenueFromDb || 0)
     : Number(revenueTracker?.totalRevenue || totalRevenue || 0);
@@ -19152,7 +19219,120 @@ const totalAIRecoveryOpportunity =
 }
   );
 }, [verifiedRecoveryLedger]);
+const loadedPeriodVerifiedRecoverySummary = useMemo(() => {
+  const rows = Array.isArray(verifiedRecoveryLedger)
+    ? verifiedRecoveryLedger
+    : [];
 
+  const periodStart = loadedSalesPeriod?.startDate;
+  const periodEnd = loadedSalesPeriod?.endDate;
+
+  if (!periodStart || !periodEnd) {
+    return {
+      total: 0,
+      labor: 0,
+      inventory: 0,
+      vendor: 0,
+      menu: 0,
+      other: 0,
+    };
+  }
+
+  const startBoundary = new Date(periodStart);
+  startBoundary.setHours(0, 0, 0, 0);
+
+  const endBoundary = new Date(periodEnd);
+  endBoundary.setHours(23, 59, 59, 999);
+
+  return rows.reduce(
+    (summary, row) => {
+      const recoveryAmount = Number(row?.recovery_amount || 0);
+
+      if (
+        !Number.isFinite(recoveryAmount) ||
+        recoveryAmount <= 0
+      ) {
+        return summary;
+      }
+
+      const rawRecoveryDate =
+        row?.period_end ||
+        row?.period_start ||
+        row?.verified_at ||
+        row?.created_at ||
+        null;
+
+      if (!rawRecoveryDate) {
+        return summary;
+      }
+
+      const rawValue = String(rawRecoveryDate).trim();
+
+      let recoveryDate = null;
+
+      const dateOnlyMatch = rawValue.match(
+        /^(\d{4})-(\d{2})-(\d{2})$/
+      );
+
+      if (dateOnlyMatch) {
+        const [, year, month, day] = dateOnlyMatch;
+
+        recoveryDate = new Date(
+          Number(year),
+          Number(month) - 1,
+          Number(day)
+        );
+      } else {
+        const parsedDate = new Date(rawValue);
+
+        if (!Number.isNaN(parsedDate.getTime())) {
+          recoveryDate = parsedDate;
+        }
+      }
+
+      if (
+        !recoveryDate ||
+        recoveryDate < startBoundary ||
+        recoveryDate > endBoundary
+      ) {
+        return summary;
+      }
+
+      const category = String(
+        row?.recovery_category || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      summary.total += recoveryAmount;
+
+      if (category === "labor") {
+        summary.labor += recoveryAmount;
+      } else if (
+        category === "inventory" ||
+        category === "waste"
+      ) {
+        summary.inventory += recoveryAmount;
+      } else if (category === "vendor") {
+        summary.vendor += recoveryAmount;
+      } else if (category === "menu") {
+        summary.menu += recoveryAmount;
+      } else {
+        summary.other += recoveryAmount;
+      }
+
+      return summary;
+    },
+    {
+      total: 0,
+      labor: 0,
+      inventory: 0,
+      vendor: 0,
+      menu: 0,
+      other: 0,
+    }
+  );
+}, [verifiedRecoveryLedger, loadedSalesPeriod]);
 const totalVerifiedRecovery =
   Number(verifiedRecoverySummary.total || 0);
 
@@ -19351,49 +19531,33 @@ const getCategoryRecovered = (categoryLabel) => {
     .toLowerCase();
 
   if (targetCategory === "labor") {
-    return Number(laborVerifiedRecovery || 0);
+    return Number(
+      loadedPeriodVerifiedRecoverySummary?.labor || 0
+    );
   }
 
   if (
     targetCategory === "inventory" ||
     targetCategory === "waste"
   ) {
-    return Number(inventoryVerifiedRecovery || 0);
+    return Number(
+      loadedPeriodVerifiedRecoverySummary?.inventory || 0
+    );
   }
 
-if (targetCategory === "vendor") {
-  return Number(vendorVerifiedRecovery || 0);
-}
+  if (targetCategory === "vendor") {
+    return Number(
+      loadedPeriodVerifiedRecoverySummary?.vendor || 0
+    );
+  }
 
-if (targetCategory === "menu") {
-  return Number(menuVerifiedRecovery || 0);
-}
+  if (targetCategory === "menu") {
+    return Number(
+      loadedPeriodVerifiedRecoverySummary?.menu || 0
+    );
+  }
 
-return (verifiedRecoveryLedger || []).reduce(
-    (sum, row) => {
-      const rowCategory = String(
-        row?.recovery_category || ""
-      )
-        .trim()
-        .toLowerCase();
-
-      if (rowCategory !== targetCategory) {
-        return sum;
-      }
-
-      const recoveryAmount = Number(
-        row?.recovery_amount || 0
-      );
-
-      return (
-        sum +
-        (Number.isFinite(recoveryAmount)
-          ? recoveryAmount
-          : 0)
-      );
-    },
-    0
-  );
+  return 0;
 };
 
   const buildCategory = ({ icon, label, route, action, opportunity }) => {
