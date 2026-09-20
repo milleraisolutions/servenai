@@ -15853,6 +15853,9 @@ console.log("LABOR COST % DEBUG", {
   liveTotalRevenue,
   weekRevenue: revenueTracker?.weekRevenue,
   effectiveLaborCostPercent,
+  laborRevenueBase,
+  matchedLaborDates: liveLaborIntelligence?.matchedLaborDates,
+  laborRecoveryOpportunity: liveLaborIntelligence?.laborRecoveryOpportunity,
 });
 const estimatedCOGS =
   Number(liveTotalRevenue || 0) * (effectiveFoodCostPercent / 100);
@@ -17235,15 +17238,9 @@ const estimatedFoodRecovery =
 const laborRecoveryTargetPercent = 28;
 
 const estimatedLaborRecovery =
-  effectiveLaborCostPercent > laborRecoveryTargetPercent
-    ? Math.max(
-        0,
-        (Number(effectiveLaborCostPercent || 0) -
-          laborRecoveryTargetPercent) /
-          100 *
-          Number(liveTotalRevenue || 0)
-      )
-    : 0;
+  Number(
+    liveLaborIntelligence?.laborRecoveryOpportunity || 0
+  );
 // =========================================================
 // VERIFIED LABOR RECOVERY
 // Confirms accepted schedule adjustments from newer labor data
