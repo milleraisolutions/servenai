@@ -19132,21 +19132,24 @@ const totalAIRecoveryOpportunity =
         category === "waste"
       ) {
         summary.inventory += recoveryAmount;
-      } else if (category === "vendor") {
-        summary.vendor += recoveryAmount;
-      } else {
-        summary.other += recoveryAmount;
-      }
+     } else if (category === "vendor") {
+  summary.vendor += recoveryAmount;
+} else if (category === "menu") {
+  summary.menu += recoveryAmount;
+} else {
+  summary.other += recoveryAmount;
+}
 
       return summary;
     },
-    {
-      total: 0,
-      labor: 0,
-      inventory: 0,
-      vendor: 0,
-      other: 0,
-    }
+   {
+  total: 0,
+  labor: 0,
+  inventory: 0,
+  vendor: 0,
+  menu: 0,
+  other: 0,
+}
   );
 }, [verifiedRecoveryLedger]);
 
@@ -19161,6 +19164,8 @@ const inventoryVerifiedRecovery =
 
 const vendorVerifiedRecovery =
   Number(verifiedRecoverySummary.vendor || 0);
+  const menuVerifiedRecovery =
+  Number(verifiedRecoverySummary.menu || 0);
   const parseRecoveryLedgerDate = (value) => {
   if (!value) return null;
 
@@ -19356,11 +19361,15 @@ const getCategoryRecovered = (categoryLabel) => {
     return Number(inventoryVerifiedRecovery || 0);
   }
 
-  if (targetCategory === "vendor") {
-    return Number(vendorVerifiedRecovery || 0);
-  }
+if (targetCategory === "vendor") {
+  return Number(vendorVerifiedRecovery || 0);
+}
 
-  return (verifiedRecoveryLedger || []).reduce(
+if (targetCategory === "menu") {
+  return Number(menuVerifiedRecovery || 0);
+}
+
+return (verifiedRecoveryLedger || []).reduce(
     (sum, row) => {
       const rowCategory = String(
         row?.recovery_category || ""
@@ -19476,6 +19485,7 @@ const getCategoryRecovered = (categoryLabel) => {
   laborVerifiedRecovery,
   inventoryVerifiedRecovery,
   vendorVerifiedRecovery,
+  menuVerifiedRecovery,
   estimatedLaborRecovery,
   operationalEstimatedWasteRecovery,
   estimatedMarginRecovery,
