@@ -50276,12 +50276,15 @@ selectedHandler();
   >
     {[
       {
-        label: "Performance Fee",
-        value: `$${Number(
-          servenPerformanceSummary.performanceFee || 0
-        ).toLocaleString()}`,
-        subtext: "15% of verified recovery",
-      },
+  label: "Performance Fee",
+  value: `$${Number(
+    servenPerformanceSummary.performanceFee || 0
+  ).toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`,
+  subtext: "15% of verified recovery",
+},
       {
         label: "Platform Fee",
         value:
@@ -50303,12 +50306,15 @@ selectedHandler();
             : "Performance fee currently calculated",
       },
       {
-        label: "Restaurant Net Gain",
-        value: `+$${Number(
-          servenPerformanceSummary.restaurantNetGain || 0
-        ).toLocaleString()}`,
-        subtext: "Recovered profit after Serven fees",
-      },
+  label: "Restaurant Net Gain",
+  value: `+$${Number(
+    servenPerformanceSummary.restaurantNetGain || 0
+  ).toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`,
+  subtext: "Recovered profit after Serven fees",
+},
     ].map((item) => (
       <div
         key={item.label}
@@ -50724,18 +50730,21 @@ selectedHandler();
             Performance Fee (15%)
           </span>
 
-          <span
-            style={{
-              color: "white",
-              fontSize: "13px",
-              fontWeight: "900",
-            }}
-          >
-            $
-            {Number(
-              servenPerformanceSummary.performanceFee || 0
-            ).toLocaleString()}
-          </span>
+        <span
+  style={{
+    color: "white",
+    fontSize: "13px",
+    fontWeight: "900",
+  }}
+>
+  $
+  {Number(
+    servenPerformanceSummary.performanceFee || 0
+  ).toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}
+</span>
         </div>
 
         <div
@@ -50835,9 +50844,12 @@ selectedHandler();
         }}
       >
         +$
-        {Number(
-          servenPerformanceSummary.restaurantNetGain || 0
-        ).toLocaleString()}
+{Number(
+  servenPerformanceSummary.restaurantNetGain || 0
+).toLocaleString(undefined, {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+})}
       </div>
 
       <div
