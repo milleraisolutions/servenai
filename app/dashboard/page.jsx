@@ -82904,7 +82904,192 @@ role: "Executive visibility & AI intelligence",
         </div>
       </div>
     </div>
+{/* RECOVERY BREAKDOWN BY CATEGORY */}
+    <div
+      style={{
+        padding: isMobile ? "22px" : "28px",
+        borderRadius: "28px",
+        background:
+          "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.92))",
+        border: "1px solid rgba(255,255,255,0.08)",
+        boxShadow: "0 18px 50px rgba(0,0,0,0.24)",
+      }}
+    >
+      {/* BREAKDOWN HEADER */}
+      <div style={{ marginBottom: "20px" }}>
+        <div
+          style={{
+            fontSize: "12px",
+            fontWeight: "900",
+            letterSpacing: "0.12em",
+            textTransform: "uppercase",
+            color: "#86efac",
+            marginBottom: "8px",
+          }}
+        >
+          Recovery Breakdown
+        </div>
 
+        <h2
+          style={{
+            margin: 0,
+            color: "white",
+            fontSize: isMobile ? "24px" : "30px",
+            letterSpacing: "-0.03em",
+          }}
+        >
+          Where recoverable profit is coming from
+        </h2>
+
+        <p
+          style={{
+            marginTop: "8px",
+            color: "#94a3b8",
+            fontSize: "13px",
+            lineHeight: 1.7,
+            maxWidth: "720px",
+          }}
+        >
+          Serven separates recovery by operational category so clients can see
+          which problems are worth fixing first.
+        </p>
+      </div>
+
+      {/* BREAKDOWN CATEGORY CARDS */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: isMobile ? "1fr" : "repeat(3, minmax(0, 1fr))",
+          gap: "14px",
+        }}
+      >
+        {(profitRecoverySummary.categories || []).map((category) => (
+          <div
+            key={category.label}
+            style={{
+              padding: "18px",
+              borderRadius: "22px",
+              background: "rgba(255,255,255,0.045)",
+              border: "1px solid rgba(255,255,255,0.08)",
+            }}
+          >
+            {/* CATEGORY NAME */}
+            <div
+              style={{
+                color: "#e2e8f0",
+                fontSize: "15px",
+                fontWeight: "900",
+                marginBottom: "14px",
+              }}
+            >
+              {category.icon} {category.label}
+            </div>
+
+            {/* CATEGORY NUMBERS */}
+            <div style={{ display: "grid", gap: "10px" }}>
+              <div>
+                <div style={{ color: "#64748b", fontSize: "11px" }}>
+                  Opportunity
+                </div>
+                <div
+                  style={{
+                    color: "white",
+                    fontSize: "22px",
+                    fontWeight: "950",
+                  }}
+                >
+                  ${Number(category.opportunity || 0).toLocaleString()}
+                </div>
+              </div>
+
+              <div>
+                <div style={{ color: "#64748b", fontSize: "11px" }}>
+                  Recovered
+                </div>
+                <div
+                  style={{
+                    color: "#86efac",
+                    fontSize: "18px",
+                    fontWeight: "900",
+                  }}
+                >
+                  ${Number(category.recovered || 0).toLocaleString()}
+                </div>
+              </div>
+
+              <div>
+                <div style={{ color: "#64748b", fontSize: "11px" }}>
+                  Remaining
+                </div>
+                <div
+                  style={{
+                    color: "#fbbf24",
+                    fontSize: "18px",
+                    fontWeight: "900",
+                  }}
+                >
+                  ${Number(category.remaining || 0).toLocaleString()}
+                </div>
+              </div>
+            </div>
+
+            {/* CATEGORY PROGRESS BAR */}
+            <div style={{ marginTop: "14px" }}>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  fontSize: "11px",
+                  color: "#94a3b8",
+                  fontWeight: "800",
+                  marginBottom: "6px",
+                }}
+              >
+                <span>Status</span>
+                <span>{category.progress}%</span>
+              </div>
+
+              <div
+                style={{
+                  height: "8px",
+                  borderRadius: "999px",
+                  background: "rgba(255,255,255,0.08)",
+                  overflow: "hidden",
+                }}
+              >
+                <div
+                  style={{
+                    width: `${category.progress}%`,
+                    height: "100%",
+                    borderRadius: "999px",
+                    background: "linear-gradient(135deg, #22c55e, #86efac)",
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* EMPTY STATE */}
+      {(!profitRecoverySummary.categories ||
+        profitRecoverySummary.categories.length === 0) && (
+        <div
+          style={{
+            marginTop: "18px",
+            padding: "18px",
+            borderRadius: "20px",
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(255,255,255,0.08)",
+            color: "#94a3b8",
+            fontSize: "13px",
+          }}
+        >
+          Upload POS, labor, inventory, menu, beverage, and invoice data to
+          generate a recovery breakdown.
+        </div>
+      )}
+    </div>
     {/* VERIFIED RECOVERY ACTIVITY */}
 {verifiedRecoveryActivity.length > 0 && (
   <div
@@ -83943,192 +84128,7 @@ role: "Executive visibility & AI intelligence",
     </div>
   )}
 </div>
-    {/* RECOVERY BREAKDOWN BY CATEGORY */}
-    <div
-      style={{
-        padding: isMobile ? "22px" : "28px",
-        borderRadius: "28px",
-        background:
-          "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.92))",
-        border: "1px solid rgba(255,255,255,0.08)",
-        boxShadow: "0 18px 50px rgba(0,0,0,0.24)",
-      }}
-    >
-      {/* BREAKDOWN HEADER */}
-      <div style={{ marginBottom: "20px" }}>
-        <div
-          style={{
-            fontSize: "12px",
-            fontWeight: "900",
-            letterSpacing: "0.12em",
-            textTransform: "uppercase",
-            color: "#86efac",
-            marginBottom: "8px",
-          }}
-        >
-          Recovery Breakdown
-        </div>
-
-        <h2
-          style={{
-            margin: 0,
-            color: "white",
-            fontSize: isMobile ? "24px" : "30px",
-            letterSpacing: "-0.03em",
-          }}
-        >
-          Where recoverable profit is coming from
-        </h2>
-
-        <p
-          style={{
-            marginTop: "8px",
-            color: "#94a3b8",
-            fontSize: "13px",
-            lineHeight: 1.7,
-            maxWidth: "720px",
-          }}
-        >
-          Serven separates recovery by operational category so clients can see
-          which problems are worth fixing first.
-        </p>
-      </div>
-
-      {/* BREAKDOWN CATEGORY CARDS */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: isMobile ? "1fr" : "repeat(3, minmax(0, 1fr))",
-          gap: "14px",
-        }}
-      >
-        {(profitRecoverySummary.categories || []).map((category) => (
-          <div
-            key={category.label}
-            style={{
-              padding: "18px",
-              borderRadius: "22px",
-              background: "rgba(255,255,255,0.045)",
-              border: "1px solid rgba(255,255,255,0.08)",
-            }}
-          >
-            {/* CATEGORY NAME */}
-            <div
-              style={{
-                color: "#e2e8f0",
-                fontSize: "15px",
-                fontWeight: "900",
-                marginBottom: "14px",
-              }}
-            >
-              {category.icon} {category.label}
-            </div>
-
-            {/* CATEGORY NUMBERS */}
-            <div style={{ display: "grid", gap: "10px" }}>
-              <div>
-                <div style={{ color: "#64748b", fontSize: "11px" }}>
-                  Opportunity
-                </div>
-                <div
-                  style={{
-                    color: "white",
-                    fontSize: "22px",
-                    fontWeight: "950",
-                  }}
-                >
-                  ${Number(category.opportunity || 0).toLocaleString()}
-                </div>
-              </div>
-
-              <div>
-                <div style={{ color: "#64748b", fontSize: "11px" }}>
-                  Recovered
-                </div>
-                <div
-                  style={{
-                    color: "#86efac",
-                    fontSize: "18px",
-                    fontWeight: "900",
-                  }}
-                >
-                  ${Number(category.recovered || 0).toLocaleString()}
-                </div>
-              </div>
-
-              <div>
-                <div style={{ color: "#64748b", fontSize: "11px" }}>
-                  Remaining
-                </div>
-                <div
-                  style={{
-                    color: "#fbbf24",
-                    fontSize: "18px",
-                    fontWeight: "900",
-                  }}
-                >
-                  ${Number(category.remaining || 0).toLocaleString()}
-                </div>
-              </div>
-            </div>
-
-            {/* CATEGORY PROGRESS BAR */}
-            <div style={{ marginTop: "14px" }}>
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  fontSize: "11px",
-                  color: "#94a3b8",
-                  fontWeight: "800",
-                  marginBottom: "6px",
-                }}
-              >
-                <span>Status</span>
-                <span>{category.progress}%</span>
-              </div>
-
-              <div
-                style={{
-                  height: "8px",
-                  borderRadius: "999px",
-                  background: "rgba(255,255,255,0.08)",
-                  overflow: "hidden",
-                }}
-              >
-                <div
-                  style={{
-                    width: `${category.progress}%`,
-                    height: "100%",
-                    borderRadius: "999px",
-                    background: "linear-gradient(135deg, #22c55e, #86efac)",
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* EMPTY STATE */}
-      {(!profitRecoverySummary.categories ||
-        profitRecoverySummary.categories.length === 0) && (
-        <div
-          style={{
-            marginTop: "18px",
-            padding: "18px",
-            borderRadius: "20px",
-            background: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(255,255,255,0.08)",
-            color: "#94a3b8",
-            fontSize: "13px",
-          }}
-        >
-          Upload POS, labor, inventory, menu, beverage, and invoice data to
-          generate a recovery breakdown.
-        </div>
-      )}
-    </div>
+    
     {/* RECOVERY COACH */}
 <div
   style={{
