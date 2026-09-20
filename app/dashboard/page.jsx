@@ -13343,7 +13343,7 @@ const previousQuantitySold = Number(
 
 const postChangeQuantitySold = Math.max(
   0,
-  currentQuantitySold - previousQuantitySold
+  currentQuantitySold
 );
 
   // A verified before/after comparison requires both baselines.
@@ -13466,7 +13466,37 @@ const verification =
     matchingMenuItem,
     action.baseline_data || null
   );
+const baselineMenuUploadId =
+  action.baseline_data?.baseline_upload_id ||
+  action.baseline_data?.upload_id ||
+  null;
 
+const baselineMenuLastSeenAt = action.baseline_data?.baseline_last_seen_at
+  ? new Date(action.baseline_data.baseline_last_seen_at).getTime()
+  : action.baseline_data?.last_seen_at
+  ? new Date(action.baseline_data.last_seen_at).getTime()
+  : 0;
+
+const currentMenuUploadId =
+  matchingMenuItem?.upload_id || null;
+
+const currentMenuLastSeenAt = matchingMenuItem?.last_seen_at
+  ? new Date(matchingMenuItem.last_seen_at).getTime()
+  : 0;
+
+const hasNewMenuUploadPeriod =
+  Boolean(baselineMenuUploadId) &&
+  Boolean(currentMenuUploadId) &&
+  String(currentMenuUploadId) !==
+    String(baselineMenuUploadId);
+
+const hasNewMenuIntegrationPeriod =
+  baselineMenuLastSeenAt > 0 &&
+  currentMenuLastSeenAt > baselineMenuLastSeenAt;
+
+const hasFreshMenuPeriod =
+  hasNewMenuUploadPeriod ||
+  hasNewMenuIntegrationPeriod;
 const actionType = String(
   action.action_type || ""
 ).toLowerCase();
@@ -13523,7 +13553,7 @@ if (actionType === "cost_portion_adjustment") {
 if (!implementationConfirmed) {
   continue;
 }
-if (!hasFreshInventoryPeriod) {
+if (!hasFreshMenuPeriod) {
   continue;
 }
 if (
@@ -13537,8 +13567,139 @@ const verifiedRecovery = Number(
   verification.recovered || 0
 );
 
-   const verificationTimestamp =
+const verificationTimestamp =
   new Date().toISOString();
+
+/*
+  ==========================================
+  WRITE INITIAL VERIFIED MENU PERIOD TO LEDGER
+  ==========================================
+*/
+
+const menuEvidenceUploadId =
+  matchingMenuItem?.upload_id || null;
+
+const menuEvidenceLastSeenAt =
+  matchingMenuItem?.last_seen_at || null;
+
+const menuEvidenceDate = menuEvidenceLastSeenAt
+  ? String(menuEvidenceLastSeenAt).slice(0, 10)
+  : verificationTimestamp.slice(0, 10);
+
+const menuVerificationMethod =
+  menuEvidenceUploadId
+    ? `menu_upload_${menuEvidenceUploadId}_${matchingMenuItem.id}`
+    : `menu_seen_${String(
+        menuEvidenceLastSeenAt || verificationTimestamp
+      ).replace(/[^0-9A-Za-z]/g, "_")}_${matchingMenuItem.id}`;
+
+const { error: menuLedgerError } = await supabase
+  .from("verified_recovery_ledger")
+  .upsert(
+    [
+      {
+        user_id: action.user_id,
+
+        action_id: action.id,
+
+        recovery_category: "menu",
+
+        entity_type:
+          action.entity_type || "menu_item",
+
+        entity_id:
+          action.entity_id
+            ? String(action.entity_id)
+            : String(matchingMenuItem.id || ""),
+
+        location_id:
+          action.location_id || null,
+
+        location_name:
+          action.location_name || null,
+
+        period_start: menuEvidenceDate,
+
+        period_end: menuEvidenceDate,
+
+        recovery_amount: Number(
+          verifiedRecovery.toFixed(2)
+        ),
+
+        verification_method:
+          menuVerificationMethod,
+
+        baseline_data: {
+          ...(action.baseline_data || {}),
+
+          item_name:
+            action.baseline_data?.item_name ||
+            matchingMenuItem?.name ||
+            matchingMenuItem?.item_name ||
+            null,
+
+          baseline_upload_id:
+            action.baseline_data?.baseline_upload_id ||
+            null,
+
+          baseline_last_seen_at:
+            action.baseline_data?.baseline_last_seen_at ||
+            null,
+        },
+
+        measured_data: {
+          measured_price: Number(
+            verification?.currentPrice || 0
+          ),
+
+          measured_cost: Number(
+            verification?.currentCost || 0
+          ),
+
+          measured_quantity_sold: Number(
+            verification?.currentQuantitySold || 0
+          ),
+
+          baseline_quantity_sold: Number(
+            verification?.previousQuantitySold || 0
+          ),
+
+          post_change_quantity_sold: Number(
+            verification?.postChangeQuantitySold || 0
+          ),
+
+          improvement_per_unit: Number(
+            verification?.improvementPerUnit || 0
+          ),
+
+          measured_upload_id:
+            menuEvidenceUploadId,
+
+          measured_last_seen_at:
+            menuEvidenceLastSeenAt,
+        },
+
+        status: "verified",
+
+        verified_at:
+          verificationTimestamp,
+      },
+    ],
+    {
+      onConflict:
+        "action_id,period_start,period_end,verification_method",
+    }
+  );
+
+if (menuLedgerError) {
+  console.error(
+    "MENU RECOVERY LEDGER ERROR:",
+    menuLedgerError
+  );
+
+  continue;
+}
+
 const { error } = await supabase
   .from("ai_applied_actions")
   .update({
@@ -13588,6 +13749,471 @@ if (error) {
   menuItemsData,
 ]);
 
+/*
+  ==========================================
+  ONGOING VERIFIED MENU RECOVERY
+  ==========================================
+*/
+
+useEffect(() => {
+  const trackOngoingVerifiedMenuRecovery = async () => {
+    if (!authReady) return;
+
+    const verifiedMenuActions = (
+      realAppliedActions || []
+    ).filter((action) => {
+      const category = String(
+        action.recovery_category || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      const actionType = String(
+        action.action_type || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      const verificationStatus = String(
+        action.verification_status || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      return (
+        category === "menu" &&
+        (
+          actionType === "price_adjustment" ||
+          actionType === "cost_portion_adjustment"
+        ) &&
+        verificationStatus === "verified"
+      );
+    });
+
+    if (!verifiedMenuActions.length) return;
+
+    if (
+      !Array.isArray(menuItemsData) ||
+      !menuItemsData.length
+    ) {
+      return;
+    }
+
+    let anyRecoveryChanged = false;
+
+    for (const action of verifiedMenuActions) {
+      const baselineData =
+        action.baseline_data || {};
+
+      const baselinePrice = Number(
+        baselineData.price || 0
+      );
+
+      const baselineCost = Number(
+        baselineData.cost || 0
+      );
+
+      const baselineUploadId =
+        baselineData.baseline_upload_id ||
+        null;
+
+      const baselineLastSeenAt =
+        baselineData.baseline_last_seen_at ||
+        null;
+
+      const baselineItemName = String(
+        baselineData.item_name || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      if (
+        baselinePrice <= 0 ||
+        baselineCost < 0
+      ) {
+        continue;
+      }
+
+      const matchingMenuItem = (
+        menuItemsData || []
+      ).find((item) => {
+        const sameId =
+          action.entity_id &&
+          item?.id &&
+          String(item.id) ===
+            String(action.entity_id);
+
+        const itemName = String(
+          item?.name ||
+            item?.item_name ||
+            ""
+        )
+          .trim()
+          .toLowerCase();
+
+        const sameName =
+          baselineItemName &&
+          itemName === baselineItemName;
+
+        return sameId || sameName;
+      });
+
+      if (!matchingMenuItem?.id) {
+        continue;
+      }
+
+      const currentUploadId =
+        matchingMenuItem.upload_id ||
+        null;
+
+      const currentLastSeenAt =
+        matchingMenuItem.last_seen_at ||
+        null;
+
+      /*
+        Current evidence must be later than the
+        original accepted Menu baseline.
+      */
+      const hasNewUploadPeriod =
+        Boolean(baselineUploadId) &&
+        Boolean(currentUploadId) &&
+        String(currentUploadId) !==
+          String(baselineUploadId);
+
+      const baselineSeenTime =
+        baselineLastSeenAt
+          ? new Date(
+              baselineLastSeenAt
+            ).getTime()
+          : 0;
+
+      const currentSeenTime =
+        currentLastSeenAt
+          ? new Date(
+              currentLastSeenAt
+            ).getTime()
+          : 0;
+
+      const hasNewIntegrationPeriod =
+        baselineSeenTime > 0 &&
+        currentSeenTime >
+          baselineSeenTime;
+
+      if (
+        !hasNewUploadPeriod &&
+        !hasNewIntegrationPeriod
+      ) {
+        continue;
+      }
+
+      const currentPrice = Number(
+        matchingMenuItem.price ||
+          matchingMenuItem.menu_price ||
+          0
+      );
+
+      const currentCost = Number(
+        matchingMenuItem.cost ||
+          matchingMenuItem.recipeCost ||
+          matchingMenuItem.recipe_cost ||
+          matchingMenuItem.food_cost ||
+          0
+      );
+
+      const currentQuantitySold = Number(
+        matchingMenuItem.quantitySold ||
+          matchingMenuItem.quantity_sold ||
+          matchingMenuItem.qtySold ||
+          matchingMenuItem.unitsSold ||
+          matchingMenuItem.sold ||
+          0
+      );
+
+      if (
+        currentPrice <= 0 ||
+        currentCost < 0 ||
+        currentQuantitySold <= 0
+      ) {
+        continue;
+      }
+
+      const baselineProfitPerUnit =
+        baselinePrice - baselineCost;
+
+      const currentProfitPerUnit =
+        currentPrice - currentCost;
+
+      const improvementPerUnit =
+        currentProfitPerUnit -
+        baselineProfitPerUnit;
+
+      if (improvementPerUnit <= 0) {
+        continue;
+      }
+
+      const periodRecovery =
+        improvementPerUnit *
+        currentQuantitySold;
+
+      if (periodRecovery <= 0) {
+        continue;
+      }
+
+      const evidenceDate =
+        currentLastSeenAt
+          ? String(
+              currentLastSeenAt
+            ).slice(0, 10)
+          : new Date()
+              .toISOString()
+              .slice(0, 10);
+
+      const verificationMethod =
+        currentUploadId
+          ? `menu_upload_${currentUploadId}_${matchingMenuItem.id}`
+          : `menu_seen_${String(
+              currentLastSeenAt || ""
+            ).replace(
+              /[^0-9A-Za-z]/g,
+              "_"
+            )}_${matchingMenuItem.id}`;
+
+      const {
+        data: existingLedgerRows,
+        error: existingLedgerError,
+      } = await supabase
+        .from(
+          "verified_recovery_ledger"
+        )
+        .select(
+          "period_start, period_end, verification_method"
+        )
+        .eq("action_id", action.id)
+        .eq("status", "verified");
+
+      if (existingLedgerError) {
+        console.error(
+          "ONGOING MENU LEDGER LOAD ERROR:",
+          existingLedgerError
+        );
+
+        continue;
+      }
+
+      const evidenceKey =
+        `${evidenceDate}|${evidenceDate}|${verificationMethod}`;
+
+      const existingEvidence =
+        new Set(
+          (existingLedgerRows || []).map(
+            (row) =>
+              `${row.period_start}|${row.period_end}|${row.verification_method}`
+          )
+        );
+
+      if (
+        existingEvidence.has(
+          evidenceKey
+        )
+      ) {
+        continue;
+      }
+
+      const verificationTimestamp =
+        new Date().toISOString();
+
+      const {
+        error: ledgerInsertError,
+      } = await supabase
+        .from(
+          "verified_recovery_ledger"
+        )
+        .upsert(
+          [
+            {
+              user_id:
+                action.user_id,
+
+              action_id:
+                action.id,
+
+              recovery_category:
+                "menu",
+
+              entity_type:
+                action.entity_type ||
+                "menu_item",
+
+              entity_id:
+                action.entity_id
+                  ? String(
+                      action.entity_id
+                    )
+                  : String(
+                      matchingMenuItem.id
+                    ),
+
+              location_id:
+                action.location_id ||
+                null,
+
+              location_name:
+                action.location_name ||
+                null,
+
+              period_start:
+                evidenceDate,
+
+              period_end:
+                evidenceDate,
+
+              recovery_amount:
+                Number(
+                  periodRecovery.toFixed(
+                    2
+                  )
+                ),
+
+              verification_method:
+                verificationMethod,
+
+              baseline_data: {
+                ...baselineData,
+
+                item_name:
+                  baselineData.item_name ||
+                  matchingMenuItem.name ||
+                  matchingMenuItem.item_name ||
+                  null,
+
+                baseline_price:
+                  baselinePrice,
+
+                baseline_cost:
+                  baselineCost,
+              },
+
+              measured_data: {
+                measured_price:
+                  currentPrice,
+
+                measured_cost:
+                  currentCost,
+
+                measured_quantity_sold:
+                  currentQuantitySold,
+
+                improvement_per_unit:
+                  improvementPerUnit,
+
+                measured_upload_id:
+                  currentUploadId,
+
+                measured_last_seen_at:
+                  currentLastSeenAt,
+              },
+
+              status:
+                "verified",
+
+              verified_at:
+                verificationTimestamp,
+            },
+          ],
+          {
+            onConflict:
+              "action_id,period_start,period_end,verification_method",
+
+            ignoreDuplicates:
+              true,
+          }
+        );
+
+      if (ledgerInsertError) {
+        console.error(
+          "ONGOING MENU LEDGER INSERT ERROR:",
+          ledgerInsertError
+        );
+
+        continue;
+      }
+
+      /*
+        Recalculate lifetime Menu Recovery
+        exclusively from verified ledger evidence.
+      */
+
+      const {
+        data: lifetimeRows,
+        error: lifetimeError,
+      } = await supabase
+        .from(
+          "verified_recovery_ledger"
+        )
+        .select("recovery_amount")
+        .eq("action_id", action.id)
+        .eq("status", "verified");
+
+      if (lifetimeError) {
+        console.error(
+          "MENU LIFETIME RECOVERY LOAD ERROR:",
+          lifetimeError
+        );
+
+        continue;
+      }
+
+      const lifetimeRecovery =
+        (lifetimeRows || []).reduce(
+          (sum, row) =>
+            sum +
+            Number(
+              row.recovery_amount ||
+                0
+            ),
+          0
+        );
+
+      const {
+        error: lifetimeUpdateError,
+      } = await supabase
+        .from("ai_applied_actions")
+        .update({
+          verified_recovery:
+            Number(
+              lifetimeRecovery.toFixed(
+                2
+              )
+            ),
+
+          verified_at:
+            verificationTimestamp,
+        })
+        .eq("id", action.id);
+
+      if (lifetimeUpdateError) {
+        console.error(
+          "MENU LIFETIME RECOVERY UPDATE ERROR:",
+          lifetimeUpdateError
+        );
+
+        continue;
+      }
+
+      anyRecoveryChanged = true;
+    }
+
+    if (anyRecoveryChanged) {
+      await loadRealAppliedActions();
+    }
+  };
+
+  trackOngoingVerifiedMenuRecovery();
+}, [
+  authReady,
+  realAppliedActions,
+  menuItemsData,
+]);
 
 const shiftWasteImpact = Number(shiftWasteAlerts?.[0]?.riskAmount || 0);
 
@@ -102964,17 +103590,45 @@ disabled={
 
       implementationStatus:
         "awaiting_verification",
+baselineData: {
+  price: Number(
+    item.price ||
+      item.menu_price ||
+      0
+  ),
 
-      baselineData: {
-        price: Number(item.price || 0),
-        cost: Number(item.cost || 0),
-        margin: Number(
-          item.marginPercent || 0
-        ),
-        quantity_sold: Number(
-          item.quantitySold || 0
-        ),
-      },
+  cost: Number(
+    item.cost ||
+      item.recipeCost ||
+      item.recipe_cost ||
+      item.food_cost ||
+      0
+  ),
+
+  margin: Number(
+    item.marginPercent ||
+      item.margin ||
+      0
+  ),
+
+  quantity_sold: Number(
+    item.quantitySold ||
+      item.quantity_sold ||
+      item.qtySold ||
+      item.unitsSold ||
+      item.sold ||
+      0
+  ),
+
+  baseline_upload_id:
+    item.upload_id || null,
+
+  baseline_last_seen_at:
+    item.last_seen_at || null,
+
+  item_name:
+    item.name || null,
+},
 
       targetData: null,
     });
@@ -103164,16 +103818,45 @@ disabled={
       implementationStatus:
         "awaiting_verification",
 
-      baselineData: {
-        price: Number(item.price || 0),
-        cost: Number(item.cost || 0),
-        margin: Number(
-          item.marginPercent || 0
-        ),
-        quantity_sold: Number(
-          item.quantitySold || 0
-        ),
-      },
+   baselineData: {
+  price: Number(
+    item.price ||
+      item.menu_price ||
+      0
+  ),
+
+  cost: Number(
+    item.cost ||
+      item.recipeCost ||
+      item.recipe_cost ||
+      item.food_cost ||
+      0
+  ),
+
+  margin: Number(
+    item.marginPercent ||
+      item.margin ||
+      0
+  ),
+
+  quantity_sold: Number(
+    item.quantitySold ||
+      item.quantity_sold ||
+      item.qtySold ||
+      item.unitsSold ||
+      item.sold ||
+      0
+  ),
+
+  baseline_upload_id:
+    item.upload_id || null,
+
+  baseline_last_seen_at:
+    item.last_seen_at || null,
+
+  item_name:
+    item.name || null,
+},
 
       targetData: null,
     });
