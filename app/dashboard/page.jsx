@@ -19557,27 +19557,32 @@ const getCategoryRecovered = (categoryLabel) => {
   return 0;
 };
 
-  const buildCategory = ({ icon, label, route, action, opportunity }) => {
-    const safeOpportunity = Number(opportunity || 0);
-    const recovered = getCategoryRecovered(label);
-    const categoryRemaining = Math.max(0, safeOpportunity - recovered);
+ const buildCategory = ({ icon, label, route, action, opportunity }) => {
+  const safeOpportunity = Number(opportunity || 0);
 
-    const progress =
-      safeOpportunity > 0
-        ? Math.min(100, Math.round((recovered / safeOpportunity) * 100))
-        : 0;
+  const lifetimeRecovered =
+    String(label || "").trim().toLowerCase() === "labor"
+      ? Number(laborVerifiedRecovery || 0)
+      : String(label || "").trim().toLowerCase() === "inventory" ||
+        String(label || "").trim().toLowerCase() === "waste"
+      ? Number(inventoryVerifiedRecovery || 0)
+      : String(label || "").trim().toLowerCase() === "vendor"
+      ? Number(vendorVerifiedRecovery || 0)
+      : String(label || "").trim().toLowerCase() === "menu"
+      ? Number(menuVerifiedRecovery || 0)
+      : 0;
 
-    return {
-      icon,
-      label,
-      route,
-      action,
-      opportunity: safeOpportunity,
-      recovered,
-      remaining: categoryRemaining,
-      progress,
-    };
+  return {
+    icon,
+    label,
+    route,
+    action,
+    opportunity: safeOpportunity,
+    recovered: lifetimeRecovered,
+    remaining: null,
+    progress: null,
   };
+};
 
  return {
  loadedPeriodRecoverable: estimatedRecoverable,
@@ -19853,15 +19858,17 @@ const executiveRecoveryInsight = useMemo(() => {
   const secondCategory = profitRecoverySummary.categories?.[1] || null;
   const thirdCategory = profitRecoverySummary.categories?.[2] || null;
 
-  const topOpportunity = Number(topCategory?.remaining || topCategory?.opportunity || 0);
+const topOpportunity = Number(
+  topCategory?.opportunity || 0
+);
 
-  const topThreeOpportunity = (profitRecoverySummary.categories || [])
-    .slice(0, 3)
-    .reduce(
-      (sum, category) =>
-        sum + Number(category.remaining || category.opportunity || 0),
-      0
-    );
+const topThreeOpportunity = (profitRecoverySummary.categories || [])
+  .slice(0, 3)
+  .reduce(
+    (sum, category) =>
+      sum + Number(category.opportunity || 0),
+    0
+  );
 
  const weeklyPace = recoveryVelocity.hasVelocity
   ? recoveryVelocity.weeklyPace
@@ -83157,89 +83164,110 @@ role: "Executive visibility & AI intelligence",
             >
               {category.icon} {category.label}
             </div>
+{/* CATEGORY NUMBERS */}
+<div
+  style={{
+    display: "grid",
+    gridTemplateColumns: isMobile
+      ? "1fr"
+      : "repeat(2, minmax(0, 1fr))",
+    gap: "14px",
+  }}
+>
+  <div
+    style={{
+      padding: "14px",
+      borderRadius: "16px",
+      background: "rgba(255,255,255,0.035)",
+      border: "1px solid rgba(255,255,255,0.06)",
+    }}
+  >
+    <div
+      style={{
+        color: "#94a3b8",
+        fontSize: "11px",
+        fontWeight: "800",
+        textTransform: "uppercase",
+        letterSpacing: "0.04em",
+      }}
+    >
+      Current Opportunity
+    </div>
 
-            {/* CATEGORY NUMBERS */}
-            <div style={{ display: "grid", gap: "10px" }}>
-              <div>
-                <div style={{ color: "#64748b", fontSize: "11px" }}>
-                  Opportunity
-                </div>
-                <div
-                  style={{
-                    color: "white",
-                    fontSize: "22px",
-                    fontWeight: "950",
-                  }}
-                >
-                  ${Number(category.opportunity || 0).toLocaleString()}
-                </div>
-              </div>
+    <div
+      style={{
+        color: "white",
+        fontSize: "22px",
+        fontWeight: "950",
+        marginTop: "6px",
+      }}
+    >
+      $
+      {Number(category.opportunity || 0).toLocaleString(undefined, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })}
+    </div>
 
-              <div>
-                <div style={{ color: "#64748b", fontSize: "11px" }}>
-                  Recovered
-                </div>
-                <div
-                  style={{
-                    color: "#86efac",
-                    fontSize: "18px",
-                    fontWeight: "900",
-                  }}
-                >
-                  ${Number(category.recovered || 0).toLocaleString()}
-                </div>
-              </div>
+    <div
+      style={{
+        color: "#64748b",
+        fontSize: "11px",
+        lineHeight: 1.5,
+        marginTop: "5px",
+      }}
+    >
+      Opportunity detected in the current matched data period
+    </div>
+  </div>
 
-              <div>
-                <div style={{ color: "#64748b", fontSize: "11px" }}>
-                  Remaining
-                </div>
-                <div
-                  style={{
-                    color: "#fbbf24",
-                    fontSize: "18px",
-                    fontWeight: "900",
-                  }}
-                >
-                  ${Number(category.remaining || 0).toLocaleString()}
-                </div>
-              </div>
-            </div>
+  <div
+    style={{
+      padding: "14px",
+      borderRadius: "16px",
+      background: "rgba(34,197,94,0.06)",
+      border: "1px solid rgba(34,197,94,0.14)",
+    }}
+  >
+    <div
+      style={{
+        color: "#86efac",
+        fontSize: "11px",
+        fontWeight: "800",
+        textTransform: "uppercase",
+        letterSpacing: "0.04em",
+      }}
+    >
+      Lifetime Verified
+    </div>
 
-            {/* CATEGORY PROGRESS BAR */}
-            <div style={{ marginTop: "14px" }}>
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  fontSize: "11px",
-                  color: "#94a3b8",
-                  fontWeight: "800",
-                  marginBottom: "6px",
-                }}
-              >
-                <span>Status</span>
-                <span>{category.progress}%</span>
-              </div>
+    <div
+      style={{
+        color: "#86efac",
+        fontSize: "22px",
+        fontWeight: "950",
+        marginTop: "6px",
+      }}
+    >
+      $
+      {Number(category.recovered || 0).toLocaleString(undefined, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })}
+    </div>
 
-              <div
-                style={{
-                  height: "8px",
-                  borderRadius: "999px",
-                  background: "rgba(255,255,255,0.08)",
-                  overflow: "hidden",
-                }}
-              >
-                <div
-                  style={{
-                    width: `${category.progress}%`,
-                    height: "100%",
-                    borderRadius: "999px",
-                    background: "linear-gradient(135deg, #22c55e, #86efac)",
-                  }}
-                />
-              </div>
-            </div>
+    <div
+      style={{
+        color: "#64748b",
+        fontSize: "11px",
+        lineHeight: 1.5,
+        marginTop: "5px",
+      }}
+    >
+      Recovery proven by verified operational evidence
+    </div>
+  </div>
+</div>
           </div>
         ))}
       </div>
@@ -83994,37 +84022,8 @@ role: "Executive visibility & AI intelligence",
           </div>
         </div>
 
-        {/* IMPACT */}
-        <div>
-          <div
-            style={{
-              color: "#64748b",
-              fontSize: "11px",
-              fontWeight: "900",
-              textTransform: "uppercase",
-            }}
-          >
-            Remaining
-          </div>
-
-          <div
-            style={{
-              color: "white",
-              fontSize: "22px",
-              fontWeight: "950",
-              marginTop: "4px",
-            }}
-          >
-            $
-            {Number(
-              category.remaining || category.opportunity || 0
-            ).toLocaleString()}
-          </div>
-          <div
-  style={{
-    marginTop: "10px",
-  }}
->
+       {/* CURRENT OPPORTUNITY */}
+<div>
   <div
     style={{
       color: "#64748b",
@@ -84033,29 +84032,36 @@ role: "Executive visibility & AI intelligence",
       textTransform: "uppercase",
     }}
   >
-    Estimated Completion
+    Current Opportunity
   </div>
 
   <div
     style={{
-      color: "#e2e8f0",
-      fontSize: "14px",
-      fontWeight: "800",
+      color: "white",
+      fontSize: "22px",
+      fontWeight: "950",
       marginTop: "4px",
     }}
   >
-    {recoveryVelocity.hasVelocity
-      ? `${Math.max(
-          1,
-          Math.ceil(
-            (category.remaining || category.opportunity || 0) /
-              Math.max(recoveryVelocity.dailyPace, 1)
-          )
-        )} Days`
-      : "Calculating..."}
+    $
+    {Number(category.opportunity || 0).toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}
+  </div>
+
+  <div
+    style={{
+      color: "#94a3b8",
+      fontSize: "11px",
+      lineHeight: 1.5,
+      marginTop: "8px",
+      maxWidth: "220px",
+    }}
+  >
+    Detected in the current matched operational data period
   </div>
 </div>
-        </div>
 
         {/* ACTION */}
         <button
@@ -84456,7 +84462,10 @@ role: "Executive visibility & AI intelligence",
               marginTop: "4px",
             }}
           >
-            ${Number(category.remaining || category.opportunity || 0).toLocaleString()}
+           ${Number(category.opportunity || 0).toLocaleString(undefined, {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+})}
           </div>
         </div>
 
@@ -85177,15 +85186,19 @@ role: "Executive visibility & AI intelligence",
           </div>
 
           <div
-            style={{
-              color: "#cbd5e1",
-              fontSize: "12px",
-              lineHeight: 1.6,
-            }}
-          >
-            ${Number(category.remaining || 0).toLocaleString()} remaining •{" "}
-            {Number(category.progress || 0)}% recovered
-          </div>
+  style={{
+    color: "#cbd5e1",
+    fontSize: "12px",
+    lineHeight: 1.6,
+  }}
+>
+  $
+  {Number(category.recovered || 0).toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}{" "}
+  lifetime verified
+</div>
         </div>
       ))
     ) : (
