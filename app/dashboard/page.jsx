@@ -19512,15 +19512,7 @@ const profitRecoverySummary = useMemo(() => {
   const estimatedRecoverable = Number(totalAIRecoveryOpportunity || 0);
   const verifiedRecovered = Number(verifiedRecoveredProfit || 0);
 
-  const remaining = Math.max(0, estimatedRecoverable - verifiedRecovered);
-
-  const recoveryProgress =
-    estimatedRecoverable > 0
-      ? Math.min(
-          100,
-          Math.round((verifiedRecovered / estimatedRecoverable) * 100)
-        )
-      : 0;
+  
 
 const getCategoryRecovered = (categoryLabel) => {
   const targetCategory = String(categoryLabel || "")
@@ -19584,12 +19576,10 @@ const getCategoryRecovered = (categoryLabel) => {
   };
 };
 
- return {
- loadedPeriodRecoverable: estimatedRecoverable,
+return {
+  loadedPeriodRecoverable: estimatedRecoverable,
   verifiedRecovered,
-  remaining,
-  recoveryProgress,
- verifiedActionCount: verifiedLedgerActionCount,
+  verifiedActionCount: verifiedLedgerActionCount,
 
   categories: [
     buildCategory({
@@ -19824,35 +19814,8 @@ const verifiedRecoveryPeriods = useMemo(() => {
     allTime,
   };
 }, [verifiedRecoveryLedger]);
-const estimatedRecoveryDays = useMemo(() => {
-  if (profitRecoverySummary.remaining <= 0) return 0;
 
-  if (recoveryVelocity.hasVelocity && recoveryVelocity.dailyPace > 0) {
-    return Math.max(
-      1,
-      Math.ceil(profitRecoverySummary.remaining / recoveryVelocity.dailyPace)
-    );
-  }
 
-  return 0;
-}, [
-  profitRecoverySummary.remaining,
-  recoveryVelocity.hasVelocity,
-  recoveryVelocity.dailyPace,
-]);
-const estimatedRecoveryDate = useMemo(() => {
-  if (!estimatedRecoveryDays) return null;
-
-  const date = new Date();
-
-  date.setDate(date.getDate() + estimatedRecoveryDays);
-
-  return date.toLocaleDateString(undefined, {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
-}, [estimatedRecoveryDays]);
 const executiveRecoveryInsight = useMemo(() => {
   const topCategory = profitRecoverySummary.categories?.[0] || null;
   const secondCategory = profitRecoverySummary.categories?.[1] || null;
@@ -19875,7 +19838,7 @@ const topThreeOpportunity = (profitRecoverySummary.categories || [])
   : 0;
 
   if (!topCategory || profitRecoverySummary.loadedPeriodRecoverable <= 0) {
-   return {
+ return {
   headline: "Upload operational data to generate executive recovery insight.",
 
   situation:
@@ -19888,7 +19851,7 @@ const topThreeOpportunity = (profitRecoverySummary.categories || [])
     "Upload current operational data to unlock prioritized recovery guidance.",
 
   expectedOutcome:
-    "Once data is available, Serven will summarize the highest-impact recovery opportunity, estimated timeline, and recommended next move.",
+    "Once data is available, Serven will summarize the highest-impact recovery opportunity, supporting evidence, and recommended next move.",
 
   pace:
     "Recovery pace will appear after recoverable profit or verified recovery actions are available.",
@@ -19906,62 +19869,72 @@ const topThreeOpportunity = (profitRecoverySummary.categories || [])
 };
   }
 
-  return {
-    headline: `${topCategory.label} is currently your largest recovery opportunity at $${topOpportunity.toLocaleString()}.`,
+ return {
+  headline: `${topCategory.label} is currently your largest recovery opportunity at $${topOpportunity.toLocaleString()}.`,
 
-    situation: secondCategory
-      ? `${topCategory.label} is creating the highest remaining profit recovery opportunity, followed by ${secondCategory.label}${
-          thirdCategory ? ` and ${thirdCategory.label}` : ""
-        }.`
-      : `${topCategory.label} is currently the primary recovery opportunity based on uploaded operational data.`,
-keyRisk:
-  topOpportunity > 0 && profitRecoverySummary.remaining > 0
-    ? `${topCategory.label} represents ${Math.round(
-        (topOpportunity / profitRecoverySummary.remaining) * 100
-      )}% of remaining recovery opportunity.`
-    : "Key recovery risks will appear once remaining opportunity is available.",
-    recommendation:
-      topCategory.action ||
-      `Prioritize ${topCategory.label.toLowerCase()} recovery before moving to lower-impact items.`,
+  situation: secondCategory
+    ? `${topCategory.label} is creating the highest current profit recovery opportunity, followed by ${secondCategory.label}${
+        thirdCategory ? ` and ${thirdCategory.label}` : ""
+      }.`
+    : `${topCategory.label} is currently the primary recovery opportunity based on uploaded operational data.`,
 
-    expectedOutcome:
-      estimatedRecoveryDays > 0
-        ? `At the current recovery pace, Serven estimates the current recovery plan can be completed in ${estimatedRecoveryDays} days${
-            estimatedRecoveryDate ? `, with an expected completion date of ${estimatedRecoveryDate}` : ""
-          }.`
-        : "Serven will estimate completion timing once recovery pace or remaining opportunity is available.",
+  keyRisk:
+    topOpportunity > 0 && topThreeOpportunity > 0
+      ? `${topCategory.label} represents ${Math.round(
+          (topOpportunity / topThreeOpportunity) * 100
+        )}% of the current opportunity across the top recovery priorities.`
+      : "Key recovery risks will appear once current recovery opportunities are available.",
 
-    pace: recoveryVelocity.hasVelocity
-      ? `Current verified recovery pace is $${Math.round(
-          recoveryVelocity.weeklyPace
-        ).toLocaleString()} per week based on ${recoveryVelocity.daysTracked} tracked day${
-          recoveryVelocity.daysTracked === 1 ? "" : "s"
-        } of completed recovery actions.`
-      : `Projected recovery pace is $${Math.round(
-          weeklyPace
-        ).toLocaleString()} per week until enough verified recovery history is available.`,
+  recommendation:
+    topCategory.action ||
+    `Prioritize ${topCategory.label.toLowerCase()} recovery before moving to lower-impact items.`,
 
-    topThree:
-      topThreeOpportunity > 0
-        ? `Completing the top three recovery priorities could address approximately $${topThreeOpportunity.toLocaleString()} in remaining opportunity.`
-        : "Top recovery priorities will appear as more operational data becomes available.",
+  expectedOutcome:
+    `Serven identified approximately $${topOpportunity.toLocaleString()} in current ${topCategory.label.toLowerCase()} recovery opportunity based on the matched operational data. Verified recovery will be recorded as future operational evidence confirms improvement.`,
 
-    confidence: `${profitRecoverySummary.loadedPeriodRecoverable > 0 ? recoveryVelocity.hasVelocity ? 96 : 82 : 0}%`,
-  };
+  pace: recoveryVelocity.hasVelocity
+    ? `Current verified recovery pace is $${Math.round(
+        recoveryVelocity.weeklyPace
+      ).toLocaleString()} per week based on ${recoveryVelocity.daysTracked} tracked day${
+        recoveryVelocity.daysTracked === 1 ? "" : "s"
+      } of completed recovery actions.`
+    : "Verified recovery pace will appear after enough completed recovery evidence is available.",
+
+  topThree:
+    topThreeOpportunity > 0
+      ? `The top recovery priorities currently represent approximately $${topThreeOpportunity.toLocaleString()} in detected opportunity.`
+      : "Top recovery priorities will appear as more operational data becomes available.",
+
+  confidence: `${
+    profitRecoverySummary.loadedPeriodRecoverable > 0
+      ? recoveryVelocity.hasVelocity
+        ? 96
+        : 82
+      : 0
+  }%`,
+};
 }, [
   profitRecoverySummary,
   recoveryVelocity,
-  estimatedRecoveryDays,
-  estimatedRecoveryDate,
 ]);
 const executiveRecoveryScore = useMemo(() => {
-  const recoveryProgress = Number(profitRecoverySummary.recoveryProgress || 0);
-  const verifiedRecovered = Number(profitRecoverySummary.verifiedRecovered || 0);
-  const verifiedActionCount = Number(profitRecoverySummary.verifiedActionCount || 0);
+const verifiedRecovered = Number(
+  profitRecoverySummary.verifiedRecovered || 0
+);
 
-  const velocityScore = recoveryVelocity.hasVelocity ? 25 : 10;
+const verifiedActionCount = Number(
+  profitRecoverySummary.verifiedActionCount || 0
+);
 
-  const progressScore = Math.min(40, recoveryProgress * 0.4);
+const velocityScore = recoveryVelocity.hasVelocity ? 25 : 10;
+
+const recoveryEvidenceScore =
+  verifiedRecovered > 0
+    ? Math.min(
+        40,
+        10 + Math.log10(verifiedRecovered + 1) * 8
+      )
+    : 0;
 
   const actionScore = Math.min(20, verifiedActionCount * 5);
 
@@ -19981,8 +19954,8 @@ const executiveRecoveryScore = useMemo(() => {
     profitRecoverySummary.loadedPeriodRecoverable> 0
       ? Math.min(
           100,
-         Math.round(
-  progressScore +
+      Math.round(
+  recoveryEvidenceScore +
     velocityScore +
     actionScore +
     evidenceScore
@@ -20006,17 +19979,15 @@ const executiveRecoveryScore = useMemo(() => {
   : "Awaiting Verified Recovery";
 
   return {
-    score,
-    status,
-    velocityLabel,
-    verifiedRecovered,
-    verifiedActionCount,
-    estimatedRecoveryDays,
-  };
+  score,
+  status,
+  velocityLabel,
+  verifiedRecovered,
+  verifiedActionCount,
+};
 }, [
   profitRecoverySummary,
   recoveryVelocity,
-  estimatedRecoveryDays,
 ]);
 const highestROIActions = useMemo(() => {
   const actions = [
@@ -20416,10 +20387,7 @@ const verifiedRecovery = Number(
   profitRecoverySummary?.verifiedRecovered || 0
 );
 
-const remainingRecovery = Math.max(
-  0,
-  potentialRecovery - verifiedRecovery
-);
+
 
 const performanceFee =
   verifiedRecovery > 0
@@ -20439,26 +20407,18 @@ const restaurantNetGain = Math.max(
   verifiedRecovery - totalInvoice
 );
 
-const recoveryRate =
-  potentialRecovery > 0
-    ? Math.min(
-        100,
-        Math.round(
-          (verifiedRecovery / potentialRecovery) * 100
-        )
-      )
-    : 0;
+
 
 const servenPerformanceSummary = {
   potentialRecovery,
   verifiedRecovery,
-  remainingRecovery,
+
   performanceFee,
   performanceRate: servenPerformanceRate,
   platformFee,
   totalInvoice,
   restaurantNetGain,
-  recoveryRate,
+
 };
   const topLossCategories = [
   {
@@ -50215,9 +50175,9 @@ selectedHandler();
         fontWeight: "900",
       }}
     >
-      {servenPerformanceSummary.verifiedRecovery > 0
-        ? `${servenPerformanceSummary.recoveryRate}% Recovered`
-        : "Recovery Tracking Active"}
+   {servenPerformanceSummary.verifiedRecovery > 0
+  ? "Verified Recovery Active"
+  : "Recovery Tracking Active"}
     </div>
   </div>
 
@@ -50357,7 +50317,7 @@ selectedHandler();
           letterSpacing: "0.08em",
         }}
       >
-        Still Available
+    Current Opportunity
       </div>
 
       <div
@@ -50370,7 +50330,7 @@ selectedHandler();
       >
         $
         {Number(
-          servenPerformanceSummary.remainingRecovery || 0
+          servenPerformanceSummary.potentialRecovery || 0
         ).toLocaleString()}
       </div>
 
@@ -50381,11 +50341,11 @@ selectedHandler();
           marginTop: "5px",
         }}
       >
-        Remaining profit opportunity
+    Detected in the current operational data period
       </div>
     </div>
 
-    {/* RECOVERY RATE */}
+  {/* VERIFIED RECOVERY */}
     <div
       style={{
         padding: "18px",
@@ -50403,7 +50363,7 @@ selectedHandler();
           letterSpacing: "0.08em",
         }}
       >
-        Recovery Progress
+        Verified Recovery
       </div>
 
       <div
@@ -50414,10 +50374,13 @@ selectedHandler();
           marginTop: "7px",
         }}
       >
-        {Number(
-          servenPerformanceSummary.recoveryRate || 0
-        ).toLocaleString()}
-        %
+      $
+{Number(
+  servenPerformanceSummary.potentialRecovery || 0
+).toLocaleString(undefined, {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+})}
       </div>
 
       <div
@@ -50427,7 +50390,7 @@ selectedHandler();
           marginTop: "5px",
         }}
       >
-        Of identified opportunity recovered
+        Lifetime recovery confirmed by operational evidence
       </div>
     </div>
   </div>
@@ -50741,7 +50704,7 @@ selectedHandler();
           marginBottom: "8px",
         }}
       >
-        Remaining Opportunity
+       Current Opportunity
       </div>
 
       <div
@@ -50752,9 +50715,12 @@ selectedHandler();
         }}
       >
         $
-        {Number(
-          servenPerformanceSummary.remainingRecovery || 0
-        ).toLocaleString()}
+      {Number(
+  servenPerformanceSummary.potentialRecovery || 0
+).toLocaleString(undefined, {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+})}
       </div>
 
       <div
@@ -50764,90 +50730,12 @@ selectedHandler();
           marginTop: "6px",
         }}
       >
-        Profit still available to recover
+       Detected in the current operational data period
       </div>
     </div>
   </div>
 
-  {/* RECOVERY PROGRESS */}
-  <div
-    style={{
-      padding: "18px",
-      borderRadius: "20px",
-      background: "rgba(255,255,255,0.035)",
-      border: "1px solid rgba(255,255,255,0.07)",
-      marginBottom: "18px",
-    }}
-  >
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        gap: "12px",
-        flexWrap: "wrap",
-        marginBottom: "10px",
-      }}
-    >
-      <span
-        style={{
-          color: "#e2e8f0",
-          fontSize: "13px",
-          fontWeight: "900",
-        }}
-      >
-        Recovery Progress
-      </span>
 
-      <span
-        style={{
-          color: "#86efac",
-          fontSize: "14px",
-          fontWeight: "950",
-        }}
-      >
-        {Number(
-          servenPerformanceSummary.recoveryRate || 0
-        ).toLocaleString()}
-        %
-      </span>
-    </div>
-
-    <div
-      style={{
-        width: "100%",
-        height: "10px",
-        borderRadius: "999px",
-        background: "rgba(255,255,255,0.07)",
-        overflow: "hidden",
-      }}
-    >
-      <div
-        style={{
-          width: `${Math.min(
-            100,
-            Number(servenPerformanceSummary.recoveryRate || 0)
-          )}%`,
-          height: "100%",
-          borderRadius: "999px",
-          background:
-            "linear-gradient(90deg, #22c55e, #86efac)",
-          transition: "width 0.4s ease",
-        }}
-      />
-    </div>
-
-    <div
-      style={{
-        color: "#64748b",
-        fontSize: "11px",
-        marginTop: "8px",
-      }}
-    >
-      Percentage of identified monthly profit opportunity that has been
-      verified as recovered.
-    </div>
-  </div>
 
   {/* BILLING + NET VALUE */}
   <div
@@ -51082,17 +50970,19 @@ selectedHandler();
 />
 
 <GlassCard
-  title="Recovery Progress"
- value={
-  hasFullRecoveryData
-    ? `${Number(
-        profitRecoverySummary?.recoveryProgress || 0
-      )}%`
-    : "Awaiting Analysis"
-}
-  subtext="Applied recovery progress"
+  title="Verified Recovery"
+  value={
+    hasFullRecoveryData
+      ? `$${Number(
+          profitRecoverySummary?.verifiedRecovered || 0
+        ).toLocaleString(undefined, {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })}`
+      : "Awaiting Analysis"
+  }
+  subtext="Lifetime recovery confirmed by operational evidence"
 />
-
 <GlassCard
   title="Loaded Period Opportunity"
   value={
@@ -51200,12 +51090,15 @@ selectedHandler();
   subtext: "Actually recovered",
 },
 {
-  label: "Remaining Opportunity",
+  label: "Current Opportunity",
   value:
     profitRecoverySummary.loadedPeriodRecoverable > 0
-      ? `$${profitRecoverySummary.remaining.toLocaleString()}`
+      ? `$${profitRecoverySummary.loadedPeriodRecoverable.toLocaleString(undefined, {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })}`
       : "Awaiting Data",
-  subtext: "Still available to recover",
+  subtext: "Detected in the current operational data period",
 },
       {
   label: "Top Category",
@@ -51213,13 +51106,18 @@ selectedHandler();
   subtext: "Click to investigate",
   route: profitRecoverySummary.categories?.[0]?.route,
 },
-     {
-  label: "Recovery Progress",
+   {
+  label: "Lifetime Verified",
   value:
-    profitRecoverySummary.loadedPeriodRecoverable > 0
-      ? `${profitRecoverySummary.recoveryProgress}%`
-      : "0%",
-  subtext: "Verified recovery captured",
+    profitRecoverySummary.verifiedRecovered > 0
+      ? `$${Number(
+          profitRecoverySummary.verifiedRecovered || 0
+        ).toLocaleString(undefined, {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })}`
+      : "$0.00",
+  subtext: "Recovery confirmed by operational evidence",
 },
     ].map((item) => (
      <div
@@ -51275,26 +51173,7 @@ selectedHandler();
     ))}
   </div>
 
-  <div
-    style={{
-      height: "10px",
-      width: "100%",
-      borderRadius: "999px",
-      background: "rgba(148,163,184,0.16)",
-      overflow: "hidden",
-      marginBottom: "16px",
-    }}
-  >
-    <div
-      style={{
-        height: "100%",
-        width: `${profitRecoverySummary.recoveryProgress || 0}%`,
-        borderRadius: "999px",
-        background: "linear-gradient(135deg, #22c55e, #86efac)",
-      }}
-    />
-  </div>
-
+  
   <button
     type="button"
     onClick={() => setActiveTab("profit_recovery")}
@@ -82994,14 +82873,17 @@ role: "Executive visibility & AI intelligence",
               profitRecoverySummary.verifiedActionCount === 1 ? "" : "s"
             }`,
           },
-          {
-            label: "Remaining",
-            value:
-              profitRecoverySummary.loadedPeriodRecoverable > 0
-                ? `$${profitRecoverySummary.remaining.toLocaleString()}`
-                : "Awaiting Data",
-            subtext: "Uncaptured opportunity",
-          },
+         {
+  label: "Current Opportunity",
+  value:
+    profitRecoverySummary.loadedPeriodRecoverable > 0
+      ? `$${profitRecoverySummary.loadedPeriodRecoverable.toLocaleString(undefined, {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })}`
+      : "Awaiting Data",
+  subtext: "Detected in the current operational data period",
+},
         ].map((metric) => (
           <div
             key={metric.label}
@@ -83048,41 +82930,6 @@ role: "Executive visibility & AI intelligence",
         ))}
       </div>
 
-      {/* HERO RECOVERY PROGRESS BAR */}
-      <div style={{ marginTop: "24px" }}>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            gap: "12px",
-            color: "#cbd5e1",
-            fontSize: "13px",
-            fontWeight: "800",
-            marginBottom: "8px",
-          }}
-        >
-          <span>Recovery Progress</span>
-          <span>{profitRecoverySummary.recoveryProgress}%</span>
-        </div>
-
-        <div
-          style={{
-            height: "12px",
-            borderRadius: "999px",
-            background: "rgba(255,255,255,0.08)",
-            overflow: "hidden",
-          }}
-        >
-          <div
-            style={{
-              width: `${profitRecoverySummary.recoveryProgress}%`,
-              height: "100%",
-              borderRadius: "999px",
-              background: "linear-gradient(135deg, #22c55e, #86efac)",
-            }}
-          />
-        </div>
-      </div>
     </div>
 {/* RECOVERY BREAKDOWN BY CATEGORY */}
     <div
@@ -83587,8 +83434,8 @@ role: "Executive visibility & AI intelligence",
           maxWidth: "760px",
         }}
       >
-        Serven scores recovery health using verified recovery progress, recovery
-        velocity, completed actions, and estimated completion timing.
+       Serven scores recovery health using verified recovery evidence, recovery
+velocity, completed actions, and measured recovery performance.
       </p>
 
       <div
@@ -83614,14 +83461,15 @@ role: "Executive visibility & AI intelligence",
         />
 
         <GlassCard
-          title="Time Remaining"
-          value={
-            executiveRecoveryScore.estimatedRecoveryDays > 0
-              ? `${executiveRecoveryScore.estimatedRecoveryDays} Days`
-              : "Awaiting Data"
-          }
-          subtext="Estimated completion"
-        />
+  title="Verified Recovery"
+  value={`$${Number(
+    executiveRecoveryScore.verifiedRecovered || 0
+  ).toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`}
+  subtext="Lifetime recovery proven by operational evidence"
+/>
       </div>
     </div>
   </div>
@@ -84606,9 +84454,9 @@ role: "Executive visibility & AI intelligence",
   subtext: "Actually recovered and verified",
 },
 {
-  label: "Remaining Opportunity",
-  value: profitRecoverySummary.remaining,
-  subtext: "Opportunity still available to recover",
+  label: "Current Opportunity",
+  value: profitRecoverySummary.loadedPeriodRecoverable,
+  subtext: "Detected in the current operational data period",
 },
       ].map((stage) => (
         <div
@@ -84703,7 +84551,7 @@ role: "Executive visibility & AI intelligence",
         lineHeight: 1.7,
       }}
     >
-      Based on current recovery progress and uploaded operational data.
+     Based on verified recovery evidence and uploaded operational data.
     </p>
   </div>
 
@@ -84783,9 +84631,7 @@ role: "Executive visibility & AI intelligence",
     </div>
   </div>
 ))}
-  </div>
-
- {/* ESTIMATED COMPLETION */}
+  </div>{/* VERIFIED RECOVERY EVIDENCE */}
 <div
   style={{
     marginTop: "18px",
@@ -84805,7 +84651,7 @@ role: "Executive visibility & AI intelligence",
       marginBottom: "8px",
     }}
   >
-    Estimated Completion
+    Verified Recovery Evidence
   </div>
 
   <div
@@ -84816,11 +84662,13 @@ role: "Executive visibility & AI intelligence",
       letterSpacing: "-0.04em",
     }}
   >
-    {profitRecoverySummary.remaining > 0
-  ? `${estimatedRecoveryDays} Days Remaining`
-  : "Recovery Complete"}
+    $
+    {Number(totalVerifiedRecovery || 0).toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}
   </div>
-{estimatedRecoveryDate && profitRecoverySummary.remaining > 0 && (
+
   <div
     style={{
       color: "#86efac",
@@ -84829,9 +84677,10 @@ role: "Executive visibility & AI intelligence",
       marginTop: "8px",
     }}
   >
-    Expected Completion Date: {estimatedRecoveryDate}
+    {profitRecoverySummary.verifiedActionCount} verified recovery{" "}
+    {profitRecoverySummary.verifiedActionCount === 1 ? "action" : "actions"}
   </div>
-)}
+
   <div
     style={{
       color: "#94a3b8",
@@ -84840,7 +84689,8 @@ role: "Executive visibility & AI intelligence",
       marginTop: "8px",
     }}
   >
-    Based on current monthly recovery opportunity and remaining uncaptured value.
+    Lifetime recovery confirmed from operational evidence and recorded in the
+    verified recovery ledger.
   </div>
 </div>
 
@@ -85591,7 +85441,7 @@ const nextAction =
     Recovery Tracking
   </div>
 
-  <h3 style={sectionTitle}>Profit Recovery Progress</h3>
+<h3 style={sectionTitle}>Profit Recovery Tracking</h3>
 
   <div
     style={{
@@ -85603,13 +85453,13 @@ const nextAction =
       marginTop: "18px",
     }}
   ><GlassCard
-  title="Profit Found"
+  title="Current Opportunity"
   value={
-   hasFullRecoveryData
+    hasFullRecoveryData
       ? `$${Number(totalAIRecoveryOpportunity || 0).toLocaleString()}`
       : "Upload POS Data"
   }
-  subtext="Monthly recovery identified"
+  subtext="Detected in the current operational data period"
 />
 
 <GlassCard
@@ -85625,36 +85475,30 @@ const nextAction =
 />
 
 <GlassCard
-  title="Remaining"
+  title="Verified This Month"
   value={
-  hasFullRecoveryData
+    hasFullRecoveryData
       ? `$${Number(
-          Math.max(
-            0,
-            Number(totalAIRecoveryOpportunity || 0) -
-             Number(profitRecoverySummary?.verifiedRecovered || 0)
-          )
-        ).toLocaleString()}`
+          verifiedRecoveryPeriods.month || 0
+        ).toLocaleString(undefined, {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })}`
       : "Awaiting Analysis"
   }
-  subtext="Uncaptured monthly opportunity"
+  subtext="Recovery verified during the current month"
 />
 
 <GlassCard
-  title="Recovery Rate"
+  title="Verified Actions"
   value={
     hasFullRecoveryData
-      ? `${Math.min(
-          100,
-          Math.round(
-            (Number(profitRecoverySummary?.verifiedRecovered || 0) /
-              Number(totalAIRecoveryOpportunity || 1)) *
-              100
-          )
-        )}%`
-      : "Not Started"
+      ? Number(
+          profitRecoverySummary?.verifiedActionCount || 0
+        ).toLocaleString()
+      : "Awaiting Analysis"
   }
-  subtext="Progress toward full recovery"
+  subtext="Recovery actions confirmed by operational evidence"
 />
     <div
   style={{
@@ -85665,91 +85509,8 @@ const nextAction =
     border: "1px solid rgba(255,255,255,0.08)",
   }}
 >
-  <div
-    style={{
-      display: "flex",
-      justifyContent: "space-between",
-      gap: "12px",
-      flexWrap: "wrap",
-      marginBottom: "10px",
-    }}
-  >
-    <span style={{ color: "white", fontWeight: "900" }}>
-      Recovery Progress
-    </span>
 
-   <span style={{ color: "#86efac", fontWeight: "950" }}>
-  {hasFullRecoveryData
-    ? `${Math.min(
-        100,
-        Math.round(
-          (Number(profitRecoverySummary?.verifiedRecovered || 0) /
-            Number(totalAIRecoveryOpportunity || 1)) *
-            100
-        )
-      )}%`
-    : "Awaiting Analysis"}
-</span>
-  </div>
 
-  <div
-    style={{
-      height: "12px",
-      width: "100%",
-      borderRadius: "999px",
-      background: "rgba(148,163,184,0.16)",
-      overflow: "hidden",
-    }}
-  >
-    <div
-      style={{
-        height: "100%",
-        width: `${
-          Number(totalAIRecoveryOpportunity || 0) > 0
-            ? Math.min(
-                100,
-                Math.round(
-                  (Number(profitRecoverySummary?.verifiedRecovered || 0) /
-                    Number(totalAIRecoveryOpportunity || 1)) *
-                    100
-                )
-              )
-            : 0
-        }%`,
-        borderRadius: "999px",
-        background: "linear-gradient(135deg, #22c55e, #86efac)",
-      }}
-    />
-  </div>
-
-  <div
-    style={{
-      display: "flex",
-      justifyContent: "space-between",
-      gap: "12px",
-      flexWrap: "wrap",
-      marginTop: "10px",
-      color: "#94a3b8",
-      fontSize: "12px",
-      fontWeight: "800",
-    }}
-  >
-    <span>
-    ${Number(
-  profitRecoverySummary?.verifiedRecovered || 0
-).toLocaleString()} recovered
-    </span>
-
-    <span>
-      ${Number(
-        Math.max(
-          0,
-          Number(totalAIRecoveryOpportunity || 0) -
-            Number(profitRecoverySummary?.verifiedRecovered || 0)
-        )
-      ).toLocaleString()} remaining
-    </span>
-  </div>
 </div>
   </div>
 </div>
