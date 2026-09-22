@@ -5786,7 +5786,7 @@ const topOpportunitiesThisWeek = useMemo(() => {
       title: "Pricing optimization opportunity",
       description:
         "AI sees room to improve menu pricing and margin capture on underperforming items.",
-      value: `+${Math.round((65 - Number(avgMargin || 0)) * 120).toLocaleString()}/mo`,
+     value: `+${Math.round((65 - Number(avgMargin || 0)) * 120).toLocaleString()}`,
       priority: "high",
     });
   }
@@ -5796,7 +5796,7 @@ const topOpportunitiesThisWeek = useMemo(() => {
       title: "Food cost recovery window",
       description:
         "Reducing waste, tightening portions, or improving supplier pricing could unlock fast margin gains.",
-      value: `+${Math.round((Number(foodCostPercentage || 0) - 28) * 180).toLocaleString()}/mo`,
+      value: `+${Math.round((Number(foodCostPercentage || 0) - 28) * 180).toLocaleString()}`,
       priority: "high",
     });
   }
@@ -5811,7 +5811,7 @@ const topOpportunitiesThisWeek = useMemo(() => {
       title: "Labor scheduling improvement",
       description:
         "AI detected at least one period where staffing efficiency can be improved without hurting service.",
-      value: "+900/mo",
+    value: "+900",
       priority: "medium",
     });
   }
@@ -5821,10 +5821,10 @@ const topOpportunitiesThisWeek = useMemo(() => {
       title: "Momentum scaling opportunity",
       description:
         "Revenue is stable or improving, which gives you room to push promotions, upsells, and winning menu items.",
-      value: `+${Math.max(
-        600,
-        Math.round(Number(revenueTrend?.currentWeekRevenue || 0) * 0.04)
-      ).toLocaleString()}/mo`,
+     value: `+${Math.max(
+  600,
+  Math.round(Number(revenueTrend?.currentWeekRevenue || 0) * 0.04)
+).toLocaleString()}`,
       priority: "medium",
     });
   }
@@ -5834,7 +5834,7 @@ const topOpportunitiesThisWeek = useMemo(() => {
       title: "No major upside signals yet",
       description:
         "Current performance looks stable. Keep monitoring AI actions to surface the next revenue opportunity.",
-      value: "+0/mo",
+      value: "$0",
       priority: "low",
     });
   }
@@ -6162,7 +6162,7 @@ const applyTopRecommendedFix = () => {
     [
       {
         id: Date.now(),
-        text: `Auto-applied AI fix: ${nextAction.name} → +$${value.toFixed(0)}/mo`,
+        text: `Auto-applied AI fix: ${nextAction.name} → +$${value.toFixed(0)} estimated impact`,
       },
       ...prev,
     ].slice(0, 6)
@@ -6611,8 +6611,8 @@ const getRecommendedActionForAlert = (alert) => {
     action.action ||
     action.text ||
     "Recommended optimization",
-  impact: action.estimatedGain
-  ? `+$${Number(action.estimatedGain).toFixed(0)}/mo`
+ impact: action.estimatedGain
+  ? `+$${Number(action.estimatedGain).toFixed(0)} estimated impact`
   : "Impact pending",
 });
 
@@ -9562,7 +9562,7 @@ const finalTopAiActions =
     ? realProfitEngine.actions.map((action) => ({
         title: action.title,
         description: action.recommendation,
-        impact: `+$${Number(action.estimatedMonthlyImpact || 0).toLocaleString()}/mo`,
+        impact: `+$${Number(action.estimatedImpact || 0).toLocaleString()} estimated impact`,
         source: "real_profit_engine",
       }))
     : topAiActions;
@@ -13303,8 +13303,7 @@ const estimatedTotalRecovery =
   estimatedShiftRecovery +
   estimatedInventoryRecovery;
 
-const yearlyRecoveryProjection =
-  estimatedTotalRecovery * 12;
+
 
 const aiOperationalSummary =
   aiLossPreventionScore >= 85
@@ -13314,12 +13313,12 @@ const aiOperationalSummary =
     : aiLossPreventionScore >= 50
     ? "Elevated loss risk detected. Waste patterns, inventory variance, and suspicious operational signals are impacting profitability."
     : "Critical operational risk detected. AI identified significant loss exposure across food usage, inventory control, and shift activity.";
-const formatMonthlyImpact = (value) => {
+const formatEstimatedImpact = (value) => {
   const amount = Math.max(0, Math.round(Number(value || 0)));
 
-  return amount > 0
-    ? `$${amount.toLocaleString()}/mo`
-    : "No active recovery detected";
+ return amount > 0
+  ? `$${amount.toLocaleString()} estimated impact`
+  : "No active recovery detected";
 };
 
 const getMenuRecoveryImpact = (item) => {
@@ -14302,7 +14301,7 @@ const topAIRecommendedAction =
         description:
           "AI detected elevated voids, refunds, or comps during this shift window.",
         priority: "Critical",
-        impact: formatMonthlyImpact(shiftWasteImpact),
+        impact: formatEstimatedImpact(shiftWasteImpact),
         action: "Open Shift Waste Review",
       }
     : ingredientUsageAnomalies.length > 0
@@ -14311,7 +14310,7 @@ const topAIRecommendedAction =
         description:
           "Inventory intelligence detected ingredient usage variance outside expected recipe behavior.",
         priority: "High",
-        impact: formatMonthlyImpact(ingredientUsageImpact),
+        impact: formatEstimatedImpact(ingredientUsageImpact),
         action: "Open Ingredient Audit",
       }
    : suspiciousMenuItems.length > 0
@@ -14320,7 +14319,7 @@ const topAIRecommendedAction =
     description:
       "Menu intelligence detected possible pricing, portioning, or margin inefficiencies.",
     priority: "Medium",
-    impact: formatMonthlyImpact(suspiciousMenuImpact),
+    impact: formatEstimatedImpact(suspiciousMenuImpact),
     action: "Open Menu Review",
 
     category: "menu",
@@ -14335,7 +14334,7 @@ const topAIRecommendedAction =
         description:
           "Actual kitchen usage is drifting above expected prep and recipe consumption.",
         priority: "Medium",
-        impact: formatMonthlyImpact(usageVarianceImpact),
+        impact: formatEstimatedImpact(usageVarianceImpact),
         action: "Open Variance Review",
       }
     : {
@@ -14380,10 +14379,7 @@ const aiFinancialImpactBreakdown = [
   0
 );
 const totalAICriticalImpact =
-  Number(estimatedTotalRecovery || 0) +
-  Number(estimatedWasteRecovery || 0) +
-  Number(estimatedShiftRecovery || 0) +
-  Number(estimatedInventoryRecovery || 0);
+  Number(estimatedTotalRecovery || 0);
 
 const overallAIConfidence = 92;
   
@@ -15747,9 +15743,9 @@ const menuPricingOpportunities = (menuItemsData || [])
     const targetMargin = activeBenchmarks.margin.low;
 
     const marginGap = Math.max(0, targetMargin - marginPercent);
-    const estimatedMonthlyImpact = Math.round(
-      price * (marginGap / 100) * quantitySold
-    );
+   const estimatedImpact = Math.round(
+  price * (marginGap / 100) * quantitySold
+);
 
     return {
       ...item,
@@ -15758,17 +15754,17 @@ const menuPricingOpportunities = (menuItemsData || [])
       quantitySold,
       marginPercent,
       marginGap,
-      estimatedMonthlyImpact,
+     estimatedImpact,
       name: item.name || item.item_name || item.menu_item || "Menu Item",
     };
   })
   .filter((item) => item.price > 0 && item.cost > 0 && item.marginGap > 0)
-  .sort((a, b) => b.estimatedMonthlyImpact - a.estimatedMonthlyImpact);
+ .sort((a, b) => b.estimatedImpact - a.estimatedImpact);
 
 const topUnderpricedItems = menuPricingOpportunities.slice(0, 3);
 
 const dynamicMenuPricingImpact = topUnderpricedItems.reduce(
-  (sum, item) => sum + Number(item.estimatedMonthlyImpact || 0),
+  (sum, item) => sum + Number(item.estimatedImpact || 0),
   0
 );
 const estimatedMenuPricingImpact =
@@ -20482,21 +20478,21 @@ const aiRecoveryInsight =
         totalAIRecoveryOpportunity
       ).toLocaleString()} in potential operational recovery opportunities.`;
 const wowInsight = (() => {
-  if (businessType === "coffee") {
-    return {
-      title: "Missed Revenue Opportunity",
-      value: "$2,300/month",
-      message: "Low add-on rates are limiting revenue",
-    };
-  }
+if (businessType === "coffee") {
+  return {
+    title: "Loaded Period Opportunity",
+    value: `$${Number(totalAIRecoveryOpportunity || 0).toLocaleString()}`,
+    message: "Serven-estimated opportunity for the loaded data period",
+  };
+}
 
-  if (businessType === "smoothie") {
-    return {
-      title: "Ingredient Waste Impact",
-      value: "$1,200/month",
-      message: "Waste is reducing profitability",
-    };
-  }
+ if (businessType === "smoothie") {
+  return {
+    title: "Loaded Period Opportunity",
+    value: `$${Number(totalAIRecoveryOpportunity || 0).toLocaleString()}`,
+    message: "Serven-estimated opportunity for the loaded data period",
+  };
+}
 
 return {
   title: "Loaded Period Opportunity",
@@ -26135,7 +26131,7 @@ const topAIAction = useMemo(() => {
 
 const estimatedImpact =
   alertImpact > 0
-    ? `+$${Math.round(alertImpact).toLocaleString()}/mo`
+    ? `+$${Math.round(alertImpact).toLocaleString()} estimated impact`
     : "Impact pending uploaded data";
 
   return {
@@ -26217,7 +26213,7 @@ const aiProfitRecoveryData = useMemo(() => {
     return sum + Math.max(0, actionImpact);
   }, 0);
 
-  const totalOpportunity = projected + recovered;
+ const totalOpportunity = projected;
 
   return {
     recovered,
@@ -27594,7 +27590,7 @@ const aiDailyFocusInsight =
   topHealthAction
     ? `${topHealthRecommendation} AI estimates this action could protect $${Number(
         topHealthActionImpact || 0
-      ).toLocaleString()} in monthly opportunity.`
+      ).toLocaleString()} in detected opportunity from the loaded operational data.`
     : restaurantHealthScore >= 80
     ? "AI sees strong operational stability. Continue monitoring prime cost, labor efficiency, inventory risk, and margin performance."
     : restaurantHealthInsight;
@@ -35889,7 +35885,7 @@ const aiOperationalHealthColor =
 
   summary:
     totalAIFinancialImpact > 0
-      ? `SerVen AI found $${totalAIFinancialImpact.toLocaleString()}/mo in potential profit recovery.`
+      ? `SerVen AI found $${totalAIFinancialImpact.toLocaleString()} in potential profit recovery from the loaded operational data.`
       : "No major profit leakage detected today.",
 };
 const autopilotRecoveryTracker = {
@@ -35909,7 +35905,7 @@ const aiExecutiveTimeline = [
   },
   {
     label: "Projected",
-    value: `$${totalAIFinancialImpact.toLocaleString()}/mo recovery opportunity`,
+   value: `$${totalAIFinancialImpact.toLocaleString()} recovery opportunity`,
   },
   {
     label: "Next Action",
@@ -36041,7 +36037,7 @@ const aiExecutiveRecommendations = [
   },
   {
     title: "Prioritize Recovery Potential",
-    detail: `$${totalAIFinancialImpact.toLocaleString()}/mo in estimated optimization opportunity.`,
+    detail: `$${totalAIFinancialImpact.toLocaleString()} in estimated optimization opportunity from the loaded operational data.`,
   },
   {
     title: "Monitor Portfolio Risk",
@@ -36086,7 +36082,7 @@ const aiExecutiveKPIMatrix = [
   },
   {
     label: "Recovery Opportunity",
-    value: `$${totalAIFinancialImpact.toLocaleString()}/mo`,
+   value: `$${totalAIFinancialImpact.toLocaleString()}`,
   },
   {
     label: "Open AI Actions",
@@ -36125,7 +36121,7 @@ const aiEnterpriseRecoveryPlanner = [
   {
     phase: "Phase 2",
     title: "Recover Margin Opportunity",
-    action: `Target $${totalAIFinancialImpact.toLocaleString()}/mo in projected optimization.`,
+    action: `Target $${totalAIFinancialImpact.toLocaleString()} in projected optimization from the loaded operational data.`,
   },
   {
     phase: "Phase 3",
@@ -36156,7 +36152,7 @@ const aiExecutiveAlertsFeed = [
   },
   {
     label: "Open Recovery Plan",
-    detail: `$${totalAICriticalImpact.toLocaleString()}/mo opportunity`,
+    detail: `$${totalAICriticalImpact.toLocaleString()} opportunity from the loaded operational data`,
   },
   {
     label: "View Executive Alerts",
@@ -36192,7 +36188,7 @@ const aiCEOSummaryLayer = {
 
   summary:
     totalAIFinancialImpact > 0
-      ? `SerVen AI identified $${totalAIFinancialImpact.toLocaleString()}/mo in optimization opportunity with ${aiConfidenceScore}% confidence.`
+     ? `SerVen AI identified $${totalAIFinancialImpact.toLocaleString()} in optimization opportunity from the loaded operational data with ${aiConfidenceScore}% confidence.`
       : `SerVen AI is monitoring operations with ${aiConfidenceScore}% confidence and no major recovery opportunity detected.`,
 };
 
@@ -44369,9 +44365,7 @@ const expansionReadiness =
     ? "Moderate"
     : "At Risk";
 
-const liveMonthlyImpact =
-  Number(totalAIRecoveryOpportunity || 0) +
-  Number(estimatedRecoverableProfit || 0);
+
 
 const liveCampaignImpactLow = Math.round(
   Math.max(
@@ -50138,7 +50132,7 @@ selectedHandler();
           letterSpacing: "-0.035em",
         }}
       >
-        Monthly Profit Recovery
+        Profit Recovery Overview
       </h2>
 
       <p
@@ -50548,7 +50542,7 @@ selectedHandler();
           letterSpacing: "-0.03em",
         }}
       >
-        Your Monthly Recovery Performance
+        Your Recovery Performance
       </h3>
 
       <p
@@ -50959,14 +50953,15 @@ selectedHandler();
       gap: "14px",
       marginTop: "18px",
     }}
-  ><GlassCard
-  title="Monthly Recovery"
+  >
+ <GlassCard
+  title="Current Opportunity"
   value={
     hasFullRecoveryData
       ? `$${Number(totalAIRecoveryOpportunity || 0).toLocaleString()}`
       : "Upload POS Data"
   }
-  subtext="Total profit recovery found"
+  subtext="Detected in the current operational data period"
 />
 
 <GlassCard
@@ -51064,7 +51059,7 @@ selectedHandler();
   >
   {profitRecoverySummary.loadedPeriodRecoverable > 0
   ? "Serven detected recoverable profit leakage across labor, inventory, menu, beverage, and operational performance. Open the Recovery Center to see exactly where profit is being lost, which actions will recover it first, and how long recovery is expected to take."
-  : "Upload POS, labor, inventory, menu, beverage, and invoice data to reveal monthly profit leakage and recovery opportunities."}
+  :"Upload POS, labor, inventory, menu, beverage, and invoice data to reveal profit leakage and recovery opportunities for the loaded operational period."}
   </p>
 
   <div
@@ -51379,7 +51374,7 @@ increase margin efficiency, and reduce operational leakage.
       ? `$${Number(totalAIRecoveryOpportunity || 0).toLocaleString()}`
       : "Awaiting Data"
   }
-  subtitle="Estimated monthly opportunity"
+subtitle="Estimated opportunity for the loaded data period"
 />
 
 <GlassCard
@@ -51531,7 +51526,7 @@ increase margin efficiency, and reduce operational leakage.
               lineHeight: 1.5,
             }}
           >
-            Estimated monthly profit recovery opportunity.
+           Estimated profit recovery opportunity for the loaded data period.
           </div>
         </div>
       ))
@@ -76785,13 +76780,13 @@ Recovered profit is based on saved AI action impact.
           ).toLocaleString()}`,
           sub: "from open alerts",
         },
-        {
-          label: "Total Opportunity",
-          value: `$${Number(
-            aiProfitRecoveryData?.totalOpportunity || 0
-          ).toLocaleString()}`,
-          sub: "monthly profit potential",
-        },
+      {
+  label: "Total Opportunity",
+  value: `$${Number(
+    aiProfitRecoveryData?.totalOpportunity || 0
+  ).toLocaleString()}`,
+  sub: "from current open alerts",
+},
       ].map((metric) => (
         <div
           key={metric.label}
@@ -83975,8 +83970,8 @@ velocity, completed actions, and measured recovery performance.
         marginTop: "8px",
       }}
     >
-      Serven ranks recovery actions by estimated monthly opportunity, effort,
-      and expected time to impact.
+    Serven ranks recovery actions by estimated opportunity, effort,
+and expected time to impact.
     </p>
   </div>
 
@@ -84742,8 +84737,8 @@ velocity, completed actions, and measured recovery performance.
       marginTop: "8px",
     }}
   >
-    Based on current monthly recovery opportunity divided into weekly recovery
-    targets.
+   Based on verified recovery evidence when available, with current opportunity
+shown until enough recovery history is established.
   </div>
 </div>
 
@@ -85032,7 +85027,7 @@ velocity, completed actions, and measured recovery performance.
               marginBottom: "8px",
             }}
           >
-            ${Number(category.opportunity || 0).toLocaleString()}/mo
+            ${Number(category.opportunity || 0).toLocaleString()}
           </div>
 
           <div
@@ -85104,7 +85099,7 @@ velocity, completed actions, and measured recovery performance.
       lineHeight: 1.6,
     }}
   >
-    Highest-impact actions Serven recommends to recover monthly profit.
+   Highest-impact actions Serven recommends to recover profit from detected operational opportunities.
   </p>
 
   <div
@@ -85269,7 +85264,7 @@ const nextAction =
       fontWeight: "900",
     }}
   >
-    Recover up to ${expectedRecovery.toLocaleString()}/mo
+    Recover up to ${expectedRecovery.toLocaleString()}
   </span>
 
             </div>
@@ -85378,12 +85373,12 @@ const nextAction =
       [
         {
           id: Date.now(),
-          text: `Recommendation accepted: ${
-            item.title ||
-            "AI Recovery Action"
-          } • potential +$${Number(
-            expectedRecovery || 0
-          ).toLocaleString()}/mo`,
+     text: `Recommendation accepted: ${
+  item.title ||
+  "AI Recovery Action"
+} • potential +$${Number(
+  expectedRecovery || 0
+).toLocaleString()}`,
         },
         ...prev,
       ].slice(0, 6)
@@ -85629,7 +85624,7 @@ const nextAction =
             fontWeight: "900",
           }}
         >
-          +${Number(aiProfitOpportunities[0]?.impact || 0).toLocaleString()}/mo
+          +${Number(aiProfitOpportunities[0]?.impact || 0).toLocaleString()}
         </span>
       </div>
 
@@ -85697,7 +85692,7 @@ const nextAction =
                   whiteSpace: "nowrap",
                 }}
               >
-                +${Number(item.impact || 0).toLocaleString()}/mo
+                +${Number(item.impact || 0).toLocaleString()}
               </div>
             </div>
           ))}
@@ -103432,9 +103427,8 @@ Number(safeEffectiveLaborCostPercent || 0) <= 35 && {
                 fontSize: "14px",
               }}
             >
-              +$
-              {Number(item.estimatedMonthlyImpact || 0).toLocaleString()}
-              /mo
+             +$
+{Number(item.estimatedImpact || 0).toLocaleString()}
             </div>
           </div>
 
@@ -103526,9 +103520,9 @@ disabled={
       actionDescription:
         `Operator accepted Serven's pricing recommendation for ${item.name}.`,
 
-      impactValue: Number(
-        item.estimatedMonthlyImpact || 0
-      ),
+   impactValue: Number(
+  item.estimatedImpact || 0
+),
 
       appliedBy: "manual",
 
@@ -103753,7 +103747,7 @@ baselineData: {
         `Operator accepted Serven's cost or portion recommendation for ${item.name}.`,
 
       impactValue: Number(
-        item.estimatedMonthlyImpact || 0
+        item.estimatedImpact || 0
       ),
 
       appliedBy: "manual",
@@ -104561,13 +104555,12 @@ maxWidth: "calc(100% - 28px)",
     </div>
 
     <div style={{ color: "white", fontSize: "34px", fontWeight: "950", marginBottom: "6px" }}>
-      ${Number(estimatedTotalRecovery || 0).toLocaleString()}/mo
+      ${Number(estimatedTotalRecovery || 0).toLocaleString()}
     </div>
 
-    <div style={{ color: "#bbf7d0", fontSize: "13px", fontWeight: "800" }}>
-      Projected yearly protection: $
-      {Number(yearlyRecoveryProjection || 0).toLocaleString()}
-    </div>
+   <div style={{ color: "#bbf7d0", fontSize: "13px", fontWeight: "800" }}>
+  Estimated recovery opportunity from the loaded operational data
+</div>
   </div>
 <div
   style={{
@@ -111796,7 +111789,7 @@ subtext: "Profit recovered from applied AI actions",
       ? `$${Number(totalAIRecoveryOpportunity || 0).toLocaleString()}`
       : "Awaiting Data"
   }
-  subtitle="Potential monthly upside"
+  subtitle="Potential upside for the loaded data period"
 />
 
 <GlassCard
@@ -112477,7 +112470,7 @@ impact: hasOperationalData
                   {hasOperationalData
   ? `Estimated impact: +$${Math.round(
     Number(totalAIRecoveryOpportunity || 0)
-  ).toLocaleString()}/mo`
+  ).toLocaleString()} for loaded period`
   : "Estimated impact: Awaiting Data"}
                 </div>
 
@@ -112530,10 +112523,10 @@ impact: hasOperationalData
                     fontWeight: "800",
                   }}
                 >
-                 {hasOperationalData
+                {hasOperationalData
   ? `Estimated impact: +$${Math.round(
     Number(totalAIRecoveryOpportunity || 0)
-  ).toLocaleString()}/mo`
+  ).toLocaleString()} for loaded period`
   : "Estimated impact: Awaiting Data"}
                 </div>
 
@@ -114111,3 +114104,5 @@ const deadInventoryMiniValueStyle = {
   marginTop: "4px",
   overflowWrap: "break-word",
 };
+
+

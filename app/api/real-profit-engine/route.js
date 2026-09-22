@@ -56,16 +56,16 @@ export async function POST(req) {
           price > 0 ? ((price - cost) / price) * 100 : Number(item.margin || 0);
 
         const lostPerSale = marginPercent < 60 ? price * 0.6 - (price - cost) : 0;
-        const monthlyImpact = Math.max(0, lostPerSale * quantitySold);
+   const estimatedImpact = Math.max(0, lostPerSale * quantitySold);
 
         return {
           ...item,
           marginPercent,
-          monthlyImpact,
+          estimatedImpact,
         };
       })
       .filter((item) => item.marginPercent < 60)
-      .sort((a, b) => b.monthlyImpact - a.monthlyImpact);
+     .sort((a, b) => b.estimatedImpact - a.estimatedImpact);
 
     const highCostIngredients = (ingredients || [])
       .map((item) => {
@@ -101,7 +101,7 @@ export async function POST(req) {
         ).toFixed(2)} to about $${suggestedPrice.toFixed(
           2
         )}, reducing portion cost, or promoting higher-margin alternatives.`,
-        estimatedMonthlyImpact: money(item.monthlyImpact),
+        estimatedImpact: money(item.estimatedImpact),
       });
     });
 
@@ -115,7 +115,7 @@ export async function POST(req) {
         ).toFixed(2)}.`,
         recommendation:
           "Check supplier pricing, compare vendor alternatives, or reduce waste tied to this ingredient.",
-        estimatedMonthlyImpact: money(Number(item.totalCost || 0) * 0.08),
+        estimatedImpact: money(Number(item.totalCost || 0) * 0.08),
       });
     });
 
@@ -127,22 +127,21 @@ export async function POST(req) {
         issue: `${item.name} is no longer active in the latest menu data.`,
         recommendation:
           "Review whether this item was intentionally removed. If it was profitable, consider replacing it with a similar high-margin offer.",
-        estimatedMonthlyImpact: money(Number(item.revenue || 0) * 0.15),
+        estimatedImpact: money(Number(item.revenue || 0) * 0.15),
       });
     });
-
-    const totalOpportunity = actions.reduce(
-      (sum, action) => sum + Number(action.estimatedMonthlyImpact || 0),
-      0
-    );
+const totalOpportunity = actions.reduce(
+  (sum, action) => sum + Number(action.estimatedImpact || 0),
+  0
+);
 
     return NextResponse.json({
-      summary:
-        actions.length > 0
-          ? `Serven found ${actions.length} real profit opportunities worth an estimated $${money(
-              totalOpportunity
-            ).toLocaleString()}/month.`
-          : "Serven did not find major profit leaks in the current uploaded data.",
+  summary:
+  actions.length > 0
+    ? `Serven found ${actions.length} real profit opportunities worth an estimated $${money(
+        totalOpportunity
+      ).toLocaleString()} from the current uploaded data.`
+    : "Serven did not find major profit leaks in the current uploaded data.",
       totalOpportunity: money(totalOpportunity),
       actions: actions.slice(0, 6),
       counts: {
