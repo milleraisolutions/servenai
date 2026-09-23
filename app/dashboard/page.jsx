@@ -693,8 +693,8 @@ const [selectedAlertAction, setSelectedAlertAction] = useState(null);
 const selectedAiFixRef = useRef(null);
 const applyingAIActionKeysRef = useRef(new Set());
 const [aiHistory, setAiHistory] = useState([]);
-const [totalAiProfit, setTotalAiProfit] = useState(0);
-const [displayTotalAiProfit, setDisplayTotalAiProfit] = useState(0);
+const [totalAppliedAiImpact, setTotalAppliedAiImpact] = useState(0);
+const [displayTotalAppliedAiImpact, setDisplayTotalAppliedAiImpact] = useState(0);
 
 const [selectedClient, setSelectedClient] = useState(null);
 const [clientSearch, setClientSearch] = useState("");
@@ -758,7 +758,7 @@ const [uploadComparison, setUploadComparison] = useState(null);
 const [uploadComparisonLoading, setUploadComparisonLoading] = useState(false);
 const [activeAiCommandTab, setActiveAiCommandTab] = useState("alerts");
 const [dbSalesRows, setDbSalesRows] = useState([]);
-const [displayProfit, setDisplayProfit] = useState(0);
+
 const [aiLiveStatus, setAiLiveStatus] = useState("AI monitoring quietly");
 const [autopilotActivity, setAutopilotActivity] = useState([]);
 const [aiRecoveredProfit, setAiRecoveredProfit] = useState(0);
@@ -768,7 +768,7 @@ const [uploadError, setUploadError] = useState("");
 const [lastAutopilotTrigger, setLastAutopilotTrigger] = useState(null);
 const [lastAutopilotRunAt, setLastAutopilotRunAt] = useState(0);
 const [autopilotReason, setAutopilotReason] = useState("");
-const [totalAIRevenueRecovered, setTotalAIRevenueRecovered] = useState(0);
+
 const [leads, setLeads] = useState([]);
 const [leadsLoading, setLeadsLoading] = useState(false);
 const [restockLogs, setRestockLogs] = useState([]);
@@ -1084,29 +1084,6 @@ const hasProAccess =
   );
 
 
-const getBestAutopilotLeak = () => {
-  const signals = Array.isArray(profitLeakSignals) ? profitLeakSignals : [];
-
-  if (!signals.length) return null;
-
-  return signals
-    .map((leak) => ({
-      ...leak,
-      itemName: leak.item || leak.name || "Low-margin item",
-      margin: Number(leak.margin ?? leak.marginPercent ?? 0),
-      impact: Number(
-        leak.impact ??
-          leak.recoverableProfit ??
-          leak.monthlyImpact ??
-          leak.loss ??
-          0
-      ),
-    }))
-    .sort((a, b) => {
-      if (b.impact !== a.impact) return b.impact - a.impact;
-      return a.margin - b.margin;
-    })[0];
-};
 
 
 
@@ -1230,72 +1207,69 @@ const [authReady, setAuthReady] = useState(false);
   const [timelineAnimated, setTimelineAnimated] = useState(false);
   const [revenueScenario, setRevenueScenario] = useState("base");
   /* ================= MAIN DASHBOARD ================= */
-  const {
-    totalRevenue,
-    foodCostPercentage,
-    foodCostStatus,
-    foodCostInsight,
-    revenueMomentum,
-    revenueMomentumInsight,
-    momentumPercent,
-    revenueData,
-    salesData,
-    starterAlerts,
-    score,
-    avgMargin,
-    topSellingItems,
-    mostProfitableItems,
-    worstItems,
-    profitLeakSignals,
-    peakHours,
-    aov,
-    loading,
-    restaurantAISummary,
-    restaurantSummary,
-    finalStarterRecommendations,
-    growthDiagnosis,
-    growthRecoverableProfit,
-    growthRecoverableConfidence,
-    fixSuggestions,
-    unusualDropDetected,
-    unusualDropInsight,
-    revenueDropPercent,
-    topGrowthProblems,
-    forecastedNextDayRevenue,
-    forecastedNextWeekRevenue,
-    forecastConfidence,
-    forecastPeakPeriod,
-    wasteRiskItems,
-    totalWasteLoss,
-    wasteDetectionInsight,
-    laborCostPercentage,
-    laborCostStatus,
-    laborCostInsight,
-    monthlyLaborLoss,
-    inventoryForecast,
-    inventoryForecastInsight,
-    menuOptimization,
-    menuOptimizationInsight,
-   
-    priceElasticitySignals,
-    elasticityInsight,
-    salesAnalyzerInsight,
-    salesAnalyzerSignal,
-    salesAnalyzerHighlights,
-    strongestSalesDay,
-    weakestSalesDay,
-    staffPlanningSignals,
-    staffPlanningInsight,
-    scoreLabel,
-    profitLeaks,
-    businessType,
-    lastUpdatedText,
-    dataSourceStatus,
-    shelfLifeRiskItems,
-    shelfLifeLoss,
-    shelfLifeInsight,
-    totalOrders,
-  } = useDashboardData();
+ const {
+  totalRevenue,
+  foodCostPercentage,
+  foodCostStatus,
+  foodCostInsight,
+  revenueMomentum,
+  revenueMomentumInsight,
+  momentumPercent,
+  revenueData,
+  salesData,
+  starterAlerts,
+  score,
+  avgMargin,
+  topSellingItems,
+  mostProfitableItems,
+  worstItems,
+  profitLeakSignals,
+  peakHours,
+  aov,
+  loading,
+  restaurantAISummary,
+  restaurantSummary,
+  finalStarterRecommendations,
+  growthDiagnosis,
+
+  fixSuggestions,
+  unusualDropDetected,
+  unusualDropInsight,
+  revenueDropPercent,
+  topGrowthProblems,
+  forecastedNextDayRevenue,
+  forecastedNextWeekRevenue,
+  forecastConfidence,
+  forecastPeakPeriod,
+wasteRiskItems,
+wasteDetectionInsight,
+laborCostPercentage,
+  laborCostStatus,
+  laborCostInsight,
+  periodLaborLoss,
+  inventoryForecast,
+  inventoryForecastInsight,
+  menuOptimization,
+  menuOptimizationInsight,
+  priceElasticitySignals,
+  elasticityInsight,
+  salesAnalyzerInsight,
+  salesAnalyzerSignal,
+  salesAnalyzerHighlights,
+  strongestSalesDay,
+  weakestSalesDay,
+  staffPlanningSignals,
+  staffPlanningInsight,
+  scoreLabel,
+  profitLeaks,
+  businessType,
+  lastUpdatedText,
+  dataSourceStatus,
+  shelfLifeRiskItems,
+  shelfLifeLoss,
+  shelfLifeInsight,
+  totalOrders,
+} = useDashboardData();
 
 const activeBenchmarks = {
   foodCost: {
@@ -1371,33 +1345,7 @@ useEffect(() => {
   totalRevenue,
   hasProAccess,
 ]);
-useEffect(() => {
-  if (!hasProAccess) return;
-  if (!autoCampaignsEnabled) return;
-  if (!profitLeakSignals || profitLeakSignals.length === 0) return;
 
-  const topLeak = getBestAutopilotLeak();
-
-  if (!topLeak) return;
-
-  const itemName = topLeak.itemName;
-  const triggerKey = `profit-leak-${itemName}`;
-
-  if (lastAutopilotTrigger === triggerKey) return;
-
-  setLastAutopilotTrigger(triggerKey);
-
- // handleAutoLaunchCampaignFromRecommendation({
-//   item: itemName,
-//   suggestion:
-//     topLeak?.suggestion || "Promote higher-margin items to recover profit",
-// });
-}, [
-  hasProAccess,
-  autoCampaignsEnabled,
-  profitLeakSignals,
-  lastAutopilotTrigger,
-]);
 
 
 console.log("ACCESS DEBUG:", {
@@ -2629,16 +2577,16 @@ const currentShelfLifeCopy =
   value:
     businessType === "coffee"
       ? `${Math.max(0, Math.round((22 - Number(aov || 0)) * 10))}%`
-      : businessType === "smoothie"
-      ? `$${Number(totalWasteLoss || 0).toLocaleString()}`
-      : `${profitLeakSignals?.length || 0} issues`,
+     : businessType === "smoothie"
+? `${wasteRiskItems?.length || 0} risks`
+: `${profitLeakSignals?.length || 0} issues`,
 
   subtext:
     businessType === "coffee"
       ? "Potential ticket growth from add-ons and combos"
       : businessType === "smoothie"
-      ? "Estimated monthly waste-related margin pressure"
-      : "Low-margin menu items needing attention",
+? "Menu performance signals that may indicate waste risk"
+: "Low-margin menu items needing attention",
 };
 
 
@@ -4373,16 +4321,12 @@ const getTrend = (value, inverse = false) => {
 const revenueLiftTimeline = useMemo(() => {
   const currentRevenue = Number(totalRevenue || 0);
 
-  return [
-    { label: "Current Month", revenue: currentRevenue },
-    {
-      label: "Applied AI Recovery",
-      revenue: currentRevenue + Number(totalAiProfit || 0),
-    },
-    { label: "Current Run Rate", revenue: currentRevenue },
-    { label: "Live Revenue Baseline", revenue: currentRevenue },
-  ];
-}, [totalRevenue, totalAiProfit]);
+ return [
+  { label: "Current Data", revenue: currentRevenue },
+  { label: "Current Run Rate", revenue: currentRevenue },
+  { label: "Live Revenue Baseline", revenue: currentRevenue },
+];
+}, [totalRevenue]);
 const marginTrendBadge = getTrend(Number(avgMargin || 0) - 60);
 const foodCostTrendBadge = getTrend(Number(foodCostPercentage || 0) - 30, true);
 const revenueTrendBadge = getTrend(
@@ -4774,7 +4718,11 @@ estimated_cost: estimatedCampaignCost,
 
 const topAIActions = (fixSuggestions || [])
   .slice()
-  .sort((a, b) => (b.estimatedGain || 0) - (a.estimatedGain || 0))
+  .sort(
+    (a, b) =>
+      Number(a.priority || 999) -
+      Number(b.priority || 999)
+  )
   .slice(0, 3);
 
 const dashboardShellStyle = {
@@ -5263,10 +5211,14 @@ setTopAiActions(
         topAction?.title || topAction?.name || "AI action";
 
       if (!appliedFixes.includes(actionKey)) {
-        const value =
-          Number(
-            String(topAction?.impact || 0).replace(/[^0-9]/g, "")
-          ) || 0;
+       const value =
+  Number(
+    String(
+      topAction?.estimatedImpact ??
+        topAction?.impact ??
+        0
+    ).replace(/[^0-9.-]/g, "")
+  ) || 0;
 
    
         setAppliedFixes((prev) => [...prev, actionKey]);
@@ -5397,20 +5349,20 @@ useEffect(() => {
   }
 }, []);
 useEffect(() => {
-  if (displayTotalAiProfit === totalAiProfit) return;
+  if (displayTotalAppliedAiImpact === totalAppliedAiImpact) return;
 
-  const diff = totalAiProfit - displayTotalAiProfit;
+  const diff = totalAppliedAiImpact - displayTotalAppliedAiImpact;
   const step = Math.abs(diff) < 10 ? diff : diff / 8;
 
   const timer = setTimeout(() => {
-    setDisplayTotalAiProfit((prev) => {
+    setDisplayTotalAppliedAiImpact((prev) => {
       const next = prev + step;
 
       if (
-        (diff > 0 && next >= totalAiProfit) ||
-        (diff < 0 && next <= totalAiProfit)
+        (diff > 0 && next >= totalAppliedAiImpact) ||
+        (diff < 0 && next <= totalAppliedAiImpact)
       ) {
-        return totalAiProfit;
+        return totalAppliedAiImpact;
       }
 
       return next;
@@ -5418,7 +5370,7 @@ useEffect(() => {
   }, 40);
 
   return () => clearTimeout(timer);
-}, [totalAiProfit, displayTotalAiProfit]);
+}, [totalAppliedAiImpact, displayTotalAppliedAiImpact]);
 useEffect(() => {
   localStorage.setItem(
     "serven_autopilot_enabled",
@@ -5454,60 +5406,7 @@ const loadClientUploads = async () => {
     setClientUploads([]);
   }
 };
-useEffect(() => {
-  const loadAIRevenue = async () => {
-    try {
-      if (!authReady) {
-        console.log("AI REVENUE WAITING FOR AUTH");
-        return;
-      }
 
-      const ownerId =
-        dataOwnerId ||
-        authenticatedUserId ||
-        userProfile?.owner_user_id ||
-        user?.id ||
-        null;
-
-      if (!ownerId) {
-        console.log("AI REVENUE: NO OWNER ID");
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from("users")
-        .select("id, ai_revenue_recovered")
-        .eq("id", ownerId)
-        .maybeSingle();
-
-      if (error) {
-        console.error(
-          "Supabase users read error:",
-          JSON.stringify(error, null, 2)
-        );
-        return;
-      }
-
-      console.log("Loaded AI revenue row:", data);
-
-      setTotalAIRevenueRecovered(
-        Number(data?.ai_revenue_recovered || 0)
-      );
-    } catch (error) {
-      console.error("Unexpected AI revenue load error:", error);
-    }
-  };
-
-  if (!authReady) return;
-
-  loadAIRevenue();
-}, [
-  authReady,
-  authenticatedUserId,
-  dataOwnerId,
-  user?.id,
-  userProfile?.owner_user_id,
-]);
 useEffect(() => {
   if (!isOwnerRole) return;
   loadClientUploads();
@@ -5518,21 +5417,71 @@ const top3AIActions = useMemo(() => {
     : fixSuggestions?.length
     ? fixSuggestions.map((item, index) => ({
         id: index + 1,
-        title: item.name || item.title || `Opportunity ${index + 1}`,
+        title:
+          item.name ||
+          item.title ||
+          `Opportunity ${index + 1}`,
         description:
           item.description ||
           item.action ||
           "AI identified a profit improvement opportunity.",
-        impact: Number(item.estimatedGain || item.impact || 0),
+        impact: 0,
         category: "Profit Optimization",
         difficulty: "Medium",
+        confidence: item.confidence || "low",
+        priority: Number(item.priority || index + 1),
       }))
     : [];
 
   return [...source]
-    .sort((a, b) => Number(b.impact || 0) - Number(a.impact || 0))
+    .sort((a, b) => {
+      const aImpact = Number(a.impact || 0);
+      const bImpact = Number(b.impact || 0);
+
+      if (aImpact > 0 || bImpact > 0) {
+        return bImpact - aImpact;
+      }
+
+      return (
+        Number(a.priority || 999) -
+        Number(b.priority || 999)
+      );
+    })
     .slice(0, 3);
 }, [aiProfitOpportunities, fixSuggestions]);
+
+const aiConfidenceScore = useMemo(() => {
+  const actions = Array.isArray(top3AIActions)
+    ? top3AIActions
+    : [];
+
+  if (!actions.length) return 0;
+
+  const confidenceValues = actions
+    .map((item) => {
+      const confidence = String(
+        item?.confidence || ""
+      ).toLowerCase();
+
+      if (confidence === "high") return 90;
+      if (confidence === "medium") return 70;
+      if (confidence === "low") return 50;
+
+      return null;
+    })
+    .filter((value) => value !== null);
+
+  if (!confidenceValues.length) {
+    return Math.min(85, 50 + actions.length * 10);
+  }
+
+  return Math.round(
+    confidenceValues.reduce(
+      (sum, value) => sum + value,
+      0
+    ) / confidenceValues.length
+  );
+}, [top3AIActions]);
 
 const top3AITotalImpact = useMemo(() => {
   return top3AIActions.reduce(
@@ -5541,23 +5490,7 @@ const top3AITotalImpact = useMemo(() => {
   );
 }, [top3AIActions]);
 
-const aiConfidenceScore = useMemo(() => {
-  const actionCount = Number(top3AIActions?.length || 0);
-  const impactScore = Number(top3AITotalImpact || 0);
 
-  if (actionCount <= 0 && impactScore <= 0) return 0;
-return Math.max(
-  0,
-  Math.min(
-    100,
-    Math.round(
-      45 +
-        actionCount * 12 +
-        Math.min(25, impactScore / 100)
-    )
-  )
-);
-}, [top3AIActions, top3AITotalImpact]);
 const proLockOverlay = (
   <div
     style={{
@@ -6149,8 +6082,12 @@ const applyTopRecommendedFix = () => {
   );
 
   if (!nextAction) return;
+const value = Number(nextAction.estimatedGain || 0);
 
-  const value = Number(nextAction.estimatedGain || 0);
+const impactText =
+  value > 0
+    ? ` → +$${value.toFixed(0)} estimated impact`
+    : "";
 
  
 
@@ -6162,7 +6099,7 @@ const applyTopRecommendedFix = () => {
     [
       {
         id: Date.now(),
-        text: `Auto-applied AI fix: ${nextAction.name} → +$${value.toFixed(0)} estimated impact`,
+        text: `Auto-applied AI fix: ${nextAction.name}${impactText}`,
       },
       ...prev,
     ].slice(0, 6)
@@ -6944,7 +6881,7 @@ const addToAiHistory = (newItem) => {
     return [newItem, ...prev].slice(0, 5);
   });
 
-  setTotalAiProfit((prev) => prev + Number(newItem.impact_value || 0));
+  setTotalAppliedAiImpact((prev) => prev + Number(newItem.impact_value || 0));
 };
 const formatTimeAgo = (dateString) => {
   if (!dateString) return "Just now";
@@ -9716,10 +9653,7 @@ useEffect(() => {
 
   setMenuActionSelections(selections);
 }, [realAppliedActions]);
-const realTotalAiProfit = realAppliedActions.reduce(
-  (sum, action) => sum + Number(action.impact_value || 0),
-  0
-);
+
 const loadUploadComparison = async () => {
   try {
     if (!authReady) return;
@@ -11043,28 +10977,7 @@ useEffect(() => {
 
   runRealProfitEngine();
 }, [autopilotEnabled]);
-useEffect(() => {
-  let start = Number(displayProfit || 0);
-  const end = Number(totalAiProfit || 0);
 
-  if (start === end) return;
-
-  const step = (end - start) / 12;
-
-  const interval = setInterval(() => {
-    start += step;
-
-    if (Math.abs(start - end) < 1) {
-      setDisplayProfit(end);
-      clearInterval(interval);
-      return;
-    }
-
-    setDisplayProfit(start);
-  }, 30);
-
-  return () => clearInterval(interval);
-}, [totalAiProfit]);
 
 const visibleAIActions =
   realProfitEngine?.actions?.length
@@ -11095,12 +11008,23 @@ console.log("AUTOPILOT ACTIONS:", actions);
 
   // simulate applying fix
   setAppliedFixes((prev) => [...prev, actionTitle]);
-setAiRecoveredProfit((prev) => prev + Number(topAction.impact || topAction.monthlyImpact || 0));
+setAiRecoveredProfit(
+  (prev) =>
+    prev +
+    Number(
+      topAction.estimatedImpact ??
+        topAction.impact ??
+        0
+    )
+);
   // 🔥 THIS IS YOUR NEW PART (activity tracking)
   setAutopilotActivity((prev) => [
     {
       title: actionTitle,
-      impact: topAction.impact || topAction.monthlyImpact || 0,
+    impact:
+  topAction.estimatedImpact ??
+  topAction.impact ??
+  0,
       time: new Date().toLocaleTimeString([], {
         hour: "2-digit",
         minute: "2-digit",
@@ -11110,20 +11034,7 @@ setAiRecoveredProfit((prev) => prev + Number(topAction.impact || topAction.month
   ].slice(0, 5));
 };
 
-useEffect(() => {
-  const interval = setInterval(() => {
-    setDisplayProfit((prev) => {
-      if (prev >= aiRecoveredProfit) return prev;
 
-      const diff = aiRecoveredProfit - prev;
-      const step = Math.max(diff * 0.2, 1); // smooth growth
-
-      return Math.min(prev + step, aiRecoveredProfit);
-    });
-  }, 50);
-
-  return () => clearInterval(interval);
-}, [aiRecoveredProfit]);
 const safeSales =
   Array.isArray(dbSalesRows) && dbSalesRows.length
     ? dbSalesRows
@@ -11132,8 +11043,7 @@ const safeSales =
     : Array.isArray(realSalesMetrics?.salesData) && realSalesMetrics.salesData.length
     ? realSalesMetrics.salesData
     : [];
-const currentRevenueWithRecoveredProfit =
-  Number(totalRevenue || 0) + Number(totalAiProfit || 0);
+
 const inputStyle = {
   width: "100%",
   padding: "12px 14px",
@@ -11213,7 +11123,7 @@ const loadingText = {
 const getProfitDrivenCampaign = () => {
   const foodCost = Number(foodCostPercentage || 0);
   const margin = Number(avgMargin || 0);
-  const wasteLoss = Number(totalWasteLoss || 0);
+const hasWasteRisk = (wasteRiskItems || []).length > 0;
 
   if (foodCost > 35) {
     return {
@@ -11241,7 +11151,7 @@ const getProfitDrivenCampaign = () => {
     };
   }
 
-  if (wasteLoss > 0) {
+if (hasWasteRisk) {
     return {
       issue: "Waste risk detected",
       title: "Move Inventory Before It Becomes Waste",
@@ -11280,7 +11190,7 @@ const marketingInputStyle = {
 };
 const buildProfitDrivenCampaign = () => {
   const margin = Number(avgMargin || 0);
-  const wasteLoss = Number(totalWasteLoss || 0);
+  const hasWasteRisk = (wasteRiskItems || []).length > 0;
   const revenueDrop = Number(revenueDropPercent || 0);
 
   let smartCampaign = {
@@ -11307,7 +11217,7 @@ const buildProfitDrivenCampaign = () => {
     };
   }
 
-  if (wasteLoss > 0) {
+  if (hasWasteRisk) {
     smartCampaign = {
       name: "Waste Recovery Special",
       offer: "Limited-time special on select fresh items before inventory turns.",
@@ -11534,31 +11444,34 @@ useEffect(() => {
 }, [savedCampaigns?.length]);
 const getAIRecommendations = () => {
   const recs = [];
+  const hasWasteRisk = (wasteRiskItems || []).length > 0;
 
   if (unusualDropDetected) {
-   recs.push({
-  title: "Revenue Drop Detected",
-  message: "Traffic dropped recently. Launch a recovery campaign to bring customers back.",
-  action: "Launch Recovery Campaign",
-  type: "danger",
-  confidence: "92%",
-  impact: "$600 - $1,800",
-});
+    recs.push({
+      title: "Revenue Drop Detected",
+      message:
+        "Traffic dropped recently. Launch a recovery campaign to bring customers back.",
+      action: "Launch Recovery Campaign",
+      type: "danger",
+      confidence: "92%",
+    });
   }
 
   if (Number(avgMargin || 0) < 60) {
     recs.push({
       title: "Margin Pressure",
-      message: "Margins are low. Promote high-margin items to improve profitability.",
+      message:
+        "Margins are low. Promote high-margin items to improve profitability.",
       action: "Promote High-Margin Items",
       type: "warning",
     });
   }
 
-  if (Number(totalWasteLoss || 0) > 0) {
+  if (hasWasteRisk) {
     recs.push({
       title: "Waste Risk Detected",
-      message: "Inventory waste is increasing. Run a limited-time promo to recover losses.",
+      message:
+        "Menu performance signals indicate potential waste risk. Consider a limited-time promotion to help move inventory.",
       action: "Launch Waste Recovery Campaign",
       type: "warning",
     });
@@ -11567,7 +11480,8 @@ const getAIRecommendations = () => {
   if (!recs.length) {
     recs.push({
       title: "All Systems Healthy",
-      message: "No urgent issues detected. Continue running your current campaigns.",
+      message:
+        "No urgent issues detected. Continue running your current campaigns.",
       action: null,
       type: "good",
     });
@@ -11787,81 +11701,79 @@ const autoBuildCampaignFromSignals = () => {
   if (!hasProAccess || !autoCampaignsEnabled) return;
 
   const margin = Number(avgMargin || 0);
-  const wasteLoss = Number(totalWasteLoss || 0);
   const revenueDrop = Number(revenueDropPercent || 0);
+  const hasWasteRisk = (wasteRiskItems || []).length > 0;
 
   let reason = "";
   let campaign = null;
-let aiReasoning = "";
-let aiConfidence = 0;
-let expectedLift = 0;
+  let aiReasoning = "";
+  let aiConfidence = 0;
 
-if (unusualDropDetected || revenueDrop > 10) {
-  reason = "Revenue Drop";
+  if (unusualDropDetected || revenueDrop > 10) {
+    reason = "Revenue Drop";
 
-  aiReasoning = `Revenue dropped ${Number(revenueDrop || 0).toFixed(
-    1
-  )}%, so Serven launched a recovery campaign to bring back customers this week.`;
+    aiReasoning = `Revenue dropped ${Number(revenueDrop || 0).toFixed(
+      1
+    )}%, so Serven launched a recovery campaign to bring back customers this week.`;
 
-  aiConfidence = 92;
-  expectedLift = 18;
+    aiConfidence = 92;
 
-  campaign = {
-    name: "🚨 Traffic Recovery Campaign",
-    offer: "We miss you — come back this week for a limited-time special.",
-    audience: "Returning Customers",
-    timing: "This Week",
-    goal: "Increase Repeat Visits",
-    channel: "SMS",
-    expectedRevenue: liveCampaignImpactRange,
-    cost: "175",
-  };
+    campaign = {
+      name: "🚨 Traffic Recovery Campaign",
+      offer: "We miss you — come back this week for a limited-time special.",
+      audience: "Returning Customers",
+      timing: "This Week",
+      goal: "Increase Repeat Visits",
+      channel: "SMS",
+      expectedRevenue: "",
+      cost: "175",
+    };
+  } else if (hasWasteRisk) {
+    reason = "Waste Risk";
 
-} else if (wasteLoss > 0) {
-  reason = "Waste Risk";
+    aiReasoning = `${wasteRiskItems.length} menu performance ${
+      wasteRiskItems.length === 1 ? "signal indicates" : "signals indicate"
+    } potential waste risk, so Serven created a promotion to help move inventory before it becomes waste.`;
 
-  aiReasoning = `Waste risk of $${Number(wasteLoss || 0).toLocaleString()} detected, so Serven launched a promotion to recover inventory value before items expire.`;
+    aiConfidence = 87;
 
-  aiConfidence = 87;
-  expectedLift = 12;
+    campaign = {
+      name: "♻️ Waste Recovery Promo",
+      offer: "Fresh specials available now — limited quantities!",
+      audience: "All Customers",
+      timing: "Next 7 Days",
+      goal: "Increase Traffic",
+      channel: "SMS",
+      expectedRevenue: "",
+      cost: "120",
+    };
+  } else if (margin < 60) {
+    reason = "Low Margin";
 
-  campaign = {
-    name: "♻️ Waste Recovery Promo",
-    offer: "Fresh specials available now — limited quantities!",
-    audience: "All Customers",
-    timing: "Next 7 Days",
-    goal: "Increase Traffic",
-    channel: "SMS",
-    expectedRevenue: "$500 - $1,400",
-    cost: "120",
-  };
+    aiReasoning = `Margins are at ${Number(margin || 0).toFixed(
+      1
+    )}%, so Serven created a high-margin push to increase profitability across orders.`;
 
-} else if (margin < 60) {
-  reason = "Low Margin";
+    aiConfidence = 90;
 
-  aiReasoning = `Margins are at ${Number(margin || 0).toFixed(
-    1
-  )}%, so Serven launched a high-margin push to increase profitability across orders.`;
+    campaign = {
+      name: "💰 High-Margin Push",
+      offer: "Try our chef’s most popular dishes this week.",
+      audience: "Returning Customers",
+      timing: "This Week",
+      goal: "Promote High-Margin Items",
+      channel: "Email",
+      expectedRevenue: "",
+      cost: "220",
+    };
+  }
 
-  aiConfidence = 90;
-  expectedLift = 15;
+  if (!campaign) return;
 
-  campaign = {
-    name: "💰 High-Margin Push",
-    offer: "Try our chef’s most popular dishes this week.",
-    audience: "Returning Customers",
-    timing: "This Week",
-    goal: "Promote High-Margin Items",
-    channel: "Email",
-    expectedRevenue: "$900 - $2,200",
-    cost: "220",
-  };
-}
-if (!campaign) return;
   const updatedForm = {
-  ...campaignForm,
-  ...campaign,
-};
+    ...campaignForm,
+    ...campaign,
+  };
 
   setCampaignForm(updatedForm);
 
@@ -11878,30 +11790,28 @@ if (!campaign) return;
 
   setGeneratedPromotions(generated);
 
-const newCampaign = {
-  id: Date.now() + Math.random(), // temporary local ID
-  ...updatedForm,
-  status: "draft", // important change
-  source: "autopilot",
-  reason,
-  createdAt: new Date().toISOString(),
-};
-
-setSavedCampaigns((prev) => [newCampaign, ...prev]);
-
-pushActivity(
-  `🚀 ${campaign.name} launched • ${reason} detected • Expected ${campaign.expectedRevenue}`,
-  "autopilot",
-  {
+  const newCampaign = {
+    id: Date.now() + Math.random(),
+    ...updatedForm,
+    status: "draft",
+    source: "autopilot",
     reason,
-    aiReasoning,
-    aiConfidence,
-    expectedLift,
-    campaignName: campaign.name,
-    expectedRevenue: campaign.expectedRevenue,
-    status: "live",
-  }
-);
+    createdAt: new Date().toISOString(),
+  };
+
+  setSavedCampaigns((prev) => [newCampaign, ...prev]);
+
+  pushActivity(
+    `🚀 ${campaign.name} created • ${reason} detected`,
+    "autopilot",
+    {
+      reason,
+      aiReasoning,
+      aiConfidence,
+      campaignName: campaign.name,
+      status: "draft",
+    }
+  );
 
   return campaign;
 };
@@ -11917,7 +11827,7 @@ useEffect(() => {
   hasProAccess,
   autoCampaignsEnabled,
   unusualDropDetected,
-  totalWasteLoss,
+  wasteRiskItems,
   avgMargin,
   revenueDropPercent,
   autoBuildCampaignFromSignals,
@@ -11966,29 +11876,9 @@ const saveAutopilotCampaign = async (campaignData, userId) => {
 
   return data; // ← contains REAL UUID
 };
-const autopilotRecoverableRevenue =
-  Math.round(
-    Number(growthRecoverableProfit || 0) +
-    Number(totalWasteLoss || 0)
-  ) || 0;
 
-const updateAIRevenue = async (newTotal) => {
-  try {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
 
-    const user = session?.user;
-    if (!user?.id) return;
 
-    await supabase
-      .from("users")
-      .update({ ai_revenue_recovered: newTotal })
-      .eq("id", user.id);
-  } catch (err) {
-    console.error("Failed to update AI revenue:", err);
-  }
-};
 
 const revenueTrendData =
   revenueChartData?.length > 0
@@ -12522,8 +12412,6 @@ const inventoryAISummary = useMemo(() => {
   const criticalCount = criticalItems.length;
   const usageCount = usageItems.length;
 
-  const estimatedRisk = criticalCount * 600 + usageCount * 250;
-  const potentialRevenueLoss = criticalCount * 900 + usageCount * 350;
 
   // 🔥 NEW: Build recommendation text
   let recommendation = "";
@@ -12548,8 +12436,7 @@ const inventoryAISummary = useMemo(() => {
   return {
     criticalCount,
     usageCount,
-    estimatedRisk,
-    potentialRevenueLoss,
+   
     recommendation,
     message:
       criticalCount > 0
@@ -14348,10 +14235,6 @@ const topAIRecommendedAction =
 
 const aiFinancialImpactBreakdown = [
   {
-    label: "Waste Recovery",
-    amount: Math.round(Number(totalWasteLoss || 0)),
-  },
-  {
     label: "Inventory Control",
     amount: (combinedInventoryAlerts || []).reduce(
       (sum, alert) =>
@@ -15273,9 +15156,9 @@ useEffect(() => {
   if (!autoCampaignsEnabled) return;
 
   const shouldRunCampaign =
-    unusualDropDetected ||
-    Number(avgMargin || 0) < 60 ||
-    Number(totalWasteLoss || 0) > 0;
+  unusualDropDetected ||
+  Number(avgMargin || 0) < 60 ||
+  (wasteRiskItems || []).length > 0;
 
   if (!shouldRunCampaign) return;
 
@@ -15312,7 +15195,7 @@ useEffect(() => {
   autoCampaignsEnabled,
   unusualDropDetected,
   avgMargin,
-  totalWasteLoss,
+  wasteRiskItems,
   buildProfitDrivenCampaign,
   pushActivity,
 ]);
@@ -16538,20 +16421,168 @@ const shiftActionRecommendation =
     : topShift?.shift
     ? `Protect ${topShift.shift} by keeping top-selling items stocked and staffing coverage strong.`
     : "Upload POS and labor data to generate AI shift recommendations.";
+    const usageVarianceData = useMemo(() => {
+ const sales = resolvedSalesData || [];
+  const rules = recipeUsageRules || [];
+  const activeIngredients =
+  uploadComparison?.activeIngredients || [];
+
+const ingredients =
+  activeIngredients.length > 0
+    ? activeIngredients
+    : locationIngredientsData || [];
+
+  return ingredients.map((ingredient) => {
+    const ingredientName = String(
+      ingredient.name ||
+        ingredient.ingredient_name ||
+        ingredient["Ingredient Name"] ||
+        "Unknown Ingredient"
+    )
+      .trim()
+      .toLowerCase();
+
+    const linkedRules = rules.filter(
+      (rule) =>
+        String(rule.ingredient || "")
+          .trim()
+          .toLowerCase() === ingredientName
+    );
+
+    let expectedUsage = 0;
+
+    linkedRules.forEach((rule) => {
+      const linkedMenuItem = String(
+        rule.menu_item || rule.menuItem || ""
+      )
+        .trim()
+        .toLowerCase();
+
+     const quantityUsed = Number(
+  rule.amount_used ||
+    rule.amountUsed ||
+    rule.quantity_used ||
+    0
+);
+
+      const matchingSales = sales.filter((sale) => {
+        const saleItem = String(
+          sale.item_name ||
+            sale.name ||
+            sale.menu_item ||
+            sale["Item Name"] ||
+            ""
+        )
+          .trim()
+          .toLowerCase();
+
+        return saleItem === linkedMenuItem;
+      });
+
+      const totalSold = matchingSales.reduce((sum, sale) => {
+        return (
+          sum +
+          Number(
+            sale.quantity ||
+              sale.qty ||
+              sale.quantity_sold ||
+              sale.units_sold ||
+              1
+          )
+        );
+      }, 0);
+
+      expectedUsage += totalSold * quantityUsed;
+    });
+
+    const actualUsage = Number(
+      ingredient.quantity_used ||
+        ingredient.usage ||
+        ingredient.actual_usage ||
+        ingredient.current_usage ||
+        0
+    );
+
+    const variance = actualUsage - expectedUsage;
+
+    const variancePercent =
+      expectedUsage > 0
+        ? (variance / expectedUsage) * 100
+        : 0;
+const costPerUnit = Number(
+  ingredient.cost_per_unit ||
+    ingredient.costPerUnit ||
+    ingredient.unit_cost ||
+    ingredient.cost ||
+    0
+);
+
+const excessUsage = Math.max(
+  Number(variance || 0),
+  0
+);
+
+const excessUsageCost =
+  excessUsage > 0 && costPerUnit > 0
+    ? excessUsage * costPerUnit
+    : 0;
+    let status = "Controlled";
+
+    if (variancePercent > 15) {
+      status = "Critical Waste Risk";
+    } else if (variancePercent > 8) {
+      status = "Waste Risk";
+    } else if (variancePercent > 5) {
+      status = "Minor Variance";
+    }
+
+   return {
+  ingredientName:
+    ingredient.name ||
+    ingredient.ingredient_name ||
+    "Unknown Ingredient",
+
+  ingredientId: ingredient.id || null,
+inventoryUploadId: ingredient.upload_id || null,
+inventoryLastSeenAt: ingredient.last_seen_at || null,
+  expectedUsage,
+  actualUsage,
+  variance,
+  variancePercent,
+
+  costPerUnit,
+  excessUsage,
+  excessUsageCost,
+
+  status,
+  linkedRecipeCount: linkedRules.length,
+};
+  });
+}, [
+  resolvedSalesData,
+  recipeUsageRules,
+  uploadComparison,
+  locationIngredientsData,
+]);
 /* =========================
    ACTUAL VS EXPECTED USAGE INTELLIGENCE
 ========================= */
 
-const expectedUsageValue =
-  Number(totalCOGS || 0) > 0
-    ? Number(totalCOGS || 0)
-    : 0;
+const expectedUsageValue = (usageVarianceData || []).reduce(
+  (sum, item) =>
+    sum +
+    Math.max(0, Number(item?.expectedUsage || 0)) *
+      Math.max(0, Number(item?.costPerUnit || 0)),
+  0
+);
 
-const actualUsageValue =
-  Number(totalCOGS || 0) > 0
-    ? Number(totalCOGS || 0)
-    : 0;
-
+const actualUsageValue = (usageVarianceData || []).reduce(
+  (sum, item) =>
+    sum +
+    Math.max(0, Number(item?.actualUsage || 0)) *
+      Math.max(0, Number(item?.costPerUnit || 0)),
+  0
+);
 const operationalUsageVarianceValue =
   actualUsageValue - expectedUsageValue;
 
@@ -16566,21 +16597,7 @@ const operationalUsageVariancePercent =
       )
     : 0;
 
-const operationalUsageVarianceStatus =
-  operationalUsageVariancePercent <= 0
-    ? "Controlled"
-    : operationalUsageVariancePercent <= 5
-    ? "Minor Variance"
-    : operationalUsageVariancePercent <= 10
-    ? "Waste Risk"
-    : "Critical Waste Risk";
 
-const operationalUsageVarianceColor =
-  operationalUsageVariancePercent <= 0
-    ? "#86efac"
-    : operationalUsageVariancePercent <= 5
-    ? "#fbbf24"
-    : "#f87171";
 
 const operationalUsageVarianceInsight =
   expectedUsageValue <= 0
@@ -19076,21 +19093,17 @@ if (anyRecoveryChanged) {
 
   trackOngoingVerifiedLaborRecovery();
 }, [
-  authReady,
-  realAppliedActions,
-  dbSalesRows,
-  locationSalesData,
-  locationLaborData,
-  laborData,
+  resolvedSalesData,
+  recipeUsageRules,
+  uploadComparison,
+  locationIngredientsData,
 ]);
-const operationalEstimatedWasteRecovery =
-  operationalUsageVariancePercent > 5
-    ? Math.round(
-        (operationalUsageVariancePercent / 100) *
-          liveTotalRevenue *
-          0.25
-      )
-    : 0;
+
+const operationalEstimatedWasteRecovery = Math.round(
+  (usageVarianceData || []).reduce((sum, item) => {
+    return sum + Math.max(0, Number(item?.excessUsageCost || 0));
+  }, 0)
+);
 
 const estimatedAlcoholRecovery =
   alcoholVariancePercent > 5
@@ -19100,39 +19113,128 @@ const estimatedAlcoholRecovery =
           0.2
       )
     : 0;
-const executiveInvoiceRecoveryOpportunity = (invoicesData || []).reduce(
-  (sum, row) => {
+const executiveInvoiceRecoveryOpportunity = (() => {
+  const invoiceUploadById = new Map(
+    (invoiceUploads || [])
+      .filter((upload) => upload?.id)
+      .map((upload) => [
+        String(upload.id),
+        upload,
+      ])
+  );
+
+  const grouped = {};
+
+  (invoicesData || []).forEach((row) => {
+    const itemName =
+      row.item_name ||
+      row.item ||
+      row.ingredient_name ||
+      row.product ||
+      row.description ||
+      "Unknown Item";
+
+    const vendor =
+      row.vendor ||
+      row.vendor_name ||
+      row.supplier ||
+      row.supplier_name ||
+      "Unknown Vendor";
+
+    const parentInvoice =
+      invoiceUploadById.get(
+        String(row.invoice_id || "")
+      ) || null;
+
+    const dateRaw =
+      parentInvoice?.invoice_date ||
+      row.invoice_date ||
+      row.purchase_date ||
+      row.date ||
+      null;
+
+    const parsedDate = dateRaw
+      ? new Date(dateRaw)
+      : null;
+
+    if (
+      !parsedDate ||
+      Number.isNaN(parsedDate.getTime())
+    ) {
+      return;
+    }
+
     const unitCost = Number(
-      row.unit_cost ||
-        row.unit_price ||
-        row.price_per_unit ||
+      row.unit_price ||
+        row.unit_cost ||
         row.cost_per_unit ||
-        row.amount ||
+        row.price_per_unit ||
+        row.price ||
+        row.cost ||
         0
     );
 
-   const quantity = Number(
-  row.quantity ||
-    row.qty ||
-    row.units ||
-    row.quantity_purchased ||
+    const quantity = Number(
+      row.quantity ||
+        row.qty ||
+        row.units ||
+        row.quantity_purchased ||
+        0
+    );
+
+    const key = `${vendor}-${itemName}`;
+
+    if (!grouped[key]) {
+      grouped[key] = [];
+    }
+
+    grouped[key].push({
+      date: parsedDate,
+      unitCost,
+      quantity,
+    });
+  });
+
+  return Object.values(grouped).reduce(
+    (total, rows) => {
+      const sorted = rows.sort(
+        (a, b) =>
+          a.date.getTime() - b.date.getTime()
+      );
+
+      const previous =
+        sorted[sorted.length - 2];
+
+      const latest =
+        sorted[sorted.length - 1];
+
+      if (!previous || !latest) {
+        return total;
+      }
+
+      const previousCost =
+        Number(previous.unitCost || 0);
+
+      const latestCost =
+        Number(latest.unitCost || 0);
+
+      const observedQuantity =
+        Number(latest.quantity || 0);
+
+      const unitIncrease =
+        previousCost > 0 &&
+        latestCost > previousCost
+          ? latestCost - previousCost
+          : 0;
+
+      return (
+        total +
+        unitIncrease * observedQuantity
+      );
+    },
     0
-);
-
-    const variancePercent = Number(
-      row.variancePercent ||
-        row.variance_percent ||
-        row.price_increase_percent ||
-        0
-    );
-
-    const estimatedIncrease =
-      variancePercent > 0 ? unitCost * quantity * (variancePercent / 100) : 0;
-
-    return sum + Math.max(0, estimatedIncrease);
-  },
-  0
-);
+  );
+})();
 const healthyMarginTarget = 20;
 
 const effectiveProfitMargin = Number(
@@ -22787,10 +22889,7 @@ const primeCostPercentage =
   Number(liveLaborIntelligence?.laborPercent || 0);
 
 
-const estimatedPrimeCostLoss =
-  primeCostPercentage > 60
-    ? Math.round((primeCostPercentage - 60) * 250)
-    : 0;
+
 
 
 
@@ -23340,26 +23439,23 @@ const invoiceRecoveryOpportunity = (vendorPriceSpikeData || []).reduce(
     const previousCost = Number(item.previousCost || 0);
     const latestCost = Number(item.latestCost || 0);
 
-   const unitIncrease =
-  previousCost > 0 && latestCost > previousCost
-    ? latestCost - previousCost
-    : 0;
+    const unitIncrease =
+      previousCost > 0 && latestCost > previousCost
+        ? latestCost - previousCost
+        : 0;
 
-  const observedQuantity =
-  Number(item.monthlyQuantity || 0) ||
-  Number(item.totalQuantity || 0) ||
-  Number(item.quantity || 0) ||
-  0;
+    const observedQuantity =
+      Number(item.monthlyQuantity || 0) ||
+      Number(item.totalQuantity || 0) ||
+      Number(item.quantity || 0) ||
+      0;
 
-return sum + unitIncrease * observedQuantity;
-
-    return sum + unitIncrease * monthlyQuantity;
+    return sum + unitIncrease * observedQuantity;
   },
   0
 );
 
-const vendorInflationImpact =
-  Number(invoiceRecoveryOpportunity || 0);
+
 const recipeCostingData = useMemo(() => {
   const rules = recipeUsageRules || [];
 
@@ -23782,61 +23878,7 @@ const aiActionHistory = activityFeed.filter(
   (activity) => activity.type === "ai_action"
 );
 
-const aiActionImpact = useMemo(() => {
-  return aiActionCenter.reduce((sum, action) => {
-    if (action.category === "Prime Cost") {
-      return sum + Number(estimatedPrimeCostLoss || 0);
-    }
 
-    if (action.category === "Waste Detection") {
-      return (
-        sum +
-        aiWasteDetection.reduce(
-          (total, item) => total + Number(item.estimatedLoss || 0),
-          0
-        )
-      );
-    }
-
-    if (action.category === "Inventory") {
-      return sum + Number(inventoryAISummary?.estimatedRisk || 0);
-    }
-
-    if (action.category === "Vendors") {
-      return (
-        sum +
-        vendorPriceSpikeData.reduce((total, item) => {
-          const increase =
-            Number(item.latestCost || 0) - Number(item.previousCost || 0);
-
-         const affectedQuantity = Number(
-  item.quantity ||
-    item.quantityPurchased ||
-    item.quantity_purchased ||
-    item.units ||
-    item.caseQuantity ||
-    0
-);
-
-return total + Math.max(0, increase * affectedQuantity);
-        }, 0)
-      );
-    }
-
-    if (action.category === "Labor") {
-      return sum + Number(monthlyLaborLoss || 0);
-    }
-
-    return sum;
-  }, 0);
-}, [
-  aiActionCenter,
-  estimatedPrimeCostLoss,
-  aiWasteDetection,
-  inventoryAISummary,
-  vendorPriceSpikeData,
-  monthlyLaborLoss,
-]);
 
 const aiFixCards = useMemo(() => {
   return aiActionCenter.map((action) => {
@@ -24993,149 +25035,7 @@ useEffect(() => {
 
 console.log("RECIPE COSTING DATA:", recipeCostingData);
 
-const usageVarianceData = useMemo(() => {
- const sales = resolvedSalesData || [];
-  const rules = recipeUsageRules || [];
-  const activeIngredients =
-  uploadComparison?.activeIngredients || [];
 
-const ingredients =
-  activeIngredients.length > 0
-    ? activeIngredients
-    : locationIngredientsData || [];
-
-  return ingredients.map((ingredient) => {
-    const ingredientName = String(
-      ingredient.name ||
-        ingredient.ingredient_name ||
-        ingredient["Ingredient Name"] ||
-        "Unknown Ingredient"
-    )
-      .trim()
-      .toLowerCase();
-
-    const linkedRules = rules.filter(
-      (rule) =>
-        String(rule.ingredient || "")
-          .trim()
-          .toLowerCase() === ingredientName
-    );
-
-    let expectedUsage = 0;
-
-    linkedRules.forEach((rule) => {
-      const linkedMenuItem = String(
-        rule.menu_item || rule.menuItem || ""
-      )
-        .trim()
-        .toLowerCase();
-
-     const quantityUsed = Number(
-  rule.amount_used ||
-    rule.amountUsed ||
-    rule.quantity_used ||
-    0
-);
-
-      const matchingSales = sales.filter((sale) => {
-        const saleItem = String(
-          sale.item_name ||
-            sale.name ||
-            sale.menu_item ||
-            sale["Item Name"] ||
-            ""
-        )
-          .trim()
-          .toLowerCase();
-
-        return saleItem === linkedMenuItem;
-      });
-
-      const totalSold = matchingSales.reduce((sum, sale) => {
-        return (
-          sum +
-          Number(
-            sale.quantity ||
-              sale.qty ||
-              sale.quantity_sold ||
-              sale.units_sold ||
-              1
-          )
-        );
-      }, 0);
-
-      expectedUsage += totalSold * quantityUsed;
-    });
-
-    const actualUsage = Number(
-      ingredient.quantity_used ||
-        ingredient.usage ||
-        ingredient.actual_usage ||
-        ingredient.current_usage ||
-        0
-    );
-
-    const variance = actualUsage - expectedUsage;
-
-    const variancePercent =
-      expectedUsage > 0
-        ? (variance / expectedUsage) * 100
-        : 0;
-const costPerUnit = Number(
-  ingredient.cost_per_unit ||
-    ingredient.costPerUnit ||
-    ingredient.unit_cost ||
-    ingredient.cost ||
-    0
-);
-
-const excessUsage = Math.max(
-  Number(variance || 0),
-  0
-);
-
-const excessUsageCost =
-  excessUsage > 0 && costPerUnit > 0
-    ? excessUsage * costPerUnit
-    : 0;
-    let status = "Controlled";
-
-    if (variancePercent > 15) {
-      status = "Critical Waste Risk";
-    } else if (variancePercent > 8) {
-      status = "Waste Risk";
-    } else if (variancePercent > 5) {
-      status = "Minor Variance";
-    }
-
-   return {
-  ingredientName:
-    ingredient.name ||
-    ingredient.ingredient_name ||
-    "Unknown Ingredient",
-
-  ingredientId: ingredient.id || null,
-inventoryUploadId: ingredient.upload_id || null,
-inventoryLastSeenAt: ingredient.last_seen_at || null,
-  expectedUsage,
-  actualUsage,
-  variance,
-  variancePercent,
-
-  costPerUnit,
-  excessUsage,
-  excessUsageCost,
-
-  status,
-  linkedRecipeCount: linkedRules.length,
-};
-  });
-}, [
-  resolvedSalesData,
-  recipeUsageRules,
-  uploadComparison,
-  locationIngredientsData,
-]);
 const handleAcceptInventoryWasteAction = async (item) => {
   console.log("INVENTORY WASTE ACTION CLICKED:", item);
   try {
@@ -26685,10 +26585,7 @@ const inventoryWasteIntelligence = useMemo(() => {
     return variance >= 8;
   });
 
-  const estimatedWasteExposure = wasteRiskItems.reduce((sum, item) => {
-    const variance = Math.abs(Number(item.variancePercent || 0));
-    return sum + variance * 18;
-  }, 0);
+
 
   const riskScore = Math.min(
     100,
@@ -26713,16 +26610,15 @@ const inventoryWasteIntelligence = useMemo(() => {
   }
 
   return {
-    ingredients,
-    usageItems,
-    criticalStockItems,
-    wasteRiskItems,
-    estimatedWasteExposure,
-    riskScore,
-    status,
-    color,
-    insight,
-  };
+  ingredients,
+  usageItems,
+  criticalStockItems,
+  wasteRiskItems,
+  riskScore,
+  status,
+  color,
+  insight,
+};
 }, [
   uploadComparison,
   ingredientsData,
@@ -27563,10 +27459,8 @@ const topHealthAction =
   null;
 
 const topHealthActionImpact =
-  estimatedRecoverableProfit ||
-  aiActionImpact ||
-  estimatedWasteRecovery ||
-  0;
+  Number(estimatedRecoverableProfit || 0) ||
+  Number(loadedPeriodOpportunity || 0);
 
 const topHealthRecommendation =
   topHealthAction?.text?.includes("Prime cost")
@@ -29720,8 +29614,7 @@ const wasteHealthScore = Math.max(
   Math.round(
     100 -
       Number(aiWasteDetection?.length || 0) * 8 -
-      Number(ingredientVarianceData?.length || 0) * 4 -
-      Number(totalWasteLoss || 0) / 250
+      Number(ingredientVarianceData?.length || 0) * 4
   )
 );
 const financialAlertsFeed = useMemo(() => {
@@ -30947,7 +30840,7 @@ const operationalMemoryEvents = useMemo(() => {
       message: `Food cost is currently ${Number(foodCostPercentage || 0).toFixed(
         1
       )}%, above the 32% target.`,
-      impact: Number(totalWasteLoss || 0),
+     impact: Number(operationalEstimatedWasteRecovery || 0),
     });
   }
 
@@ -30981,7 +30874,7 @@ const operationalMemoryEvents = useMemo(() => {
       severity: "Watch",
       title: "Supplier cost movement detected",
       message: `${supplierAlerts.length} supplier alert(s) detected from invoice intelligence.`,
-      impact: supplierAlerts.length * 350,
+      impact: Number(invoiceRecoveryOpportunity || 0),
     });
   }
 
@@ -30993,7 +30886,7 @@ const operationalMemoryEvents = useMemo(() => {
       message: `Operational health is currently ${
   aiHealthEngine?.overallScore || restaurantHealthScore || 0
 }/100.`,
-      impact: Math.max(0, 75 - restaurantHealthScore) * 120,
+    impact: 0,
     });
   }
 
@@ -31003,7 +30896,7 @@ const operationalMemoryEvents = useMemo(() => {
       severity: "Positive",
       title: "AI optimization actions applied",
       message: `${(appliedFixes?.length || 0) + (appliedAIFixes?.length || 0)} AI action(s) have been applied.`,
-      impact: Number(aiRecoveredProfit || totalAIRevenueRecovered || 0),
+      impact: Number(totalVerifiedRecovery || 0),
     });
   }
 if (Number(aiHealthEngine?.categoryScores?.consumablesHealth ?? 0) < 75) {
@@ -31013,7 +30906,9 @@ if (Number(aiHealthEngine?.categoryScores?.consumablesHealth ?? 0) < 75) {
     title: "Consumables variance detected",
     message:
       "Consumables show unusual estimated depletion across oil, garnish, berries, citrus, herbs, or prep usage.",
-    impact: 850,
+ impact: Number(
+  aiHealthEngine?.consumablesEstimatedLeakage || 0
+),
   });
 }
   return events
@@ -31026,15 +30921,14 @@ if (Number(aiHealthEngine?.categoryScores?.consumablesHealth ?? 0) < 75) {
 }, [
   liveMomentumPercent,
   foodCostPercentage,
-  totalWasteLoss,
+  operationalEstimatedWasteRecovery,
   liveLaborIntelligence,
   criticalOunceVariance,
   supplierAlerts,
   restaurantHealthScore,
   appliedFixes,
   appliedAIFixes,
-  aiRecoveredProfit,
-  totalAIRevenueRecovered, 
+  totalVerifiedRecovery,
   aiHealthEngine,
 ]);
 
@@ -31089,7 +30983,9 @@ const crossSystemSignals = useMemo(() => {
       severity: "High",
       message:
         "Labor percentage is elevated while revenue momentum is declining. AI recommends reviewing shift schedules against demand.",
-      impact: Number(liveLaborIntelligence?.totalLaborCost || 0) * 0.12,
+      impact: Number(
+  liveLaborIntelligence?.laborRecoveryOpportunity || 0
+),
     });
   }
 
@@ -31103,7 +30999,7 @@ const crossSystemSignals = useMemo(() => {
       severity: "High",
       message:
         "Food cost is above target while average margin is below healthy range. AI recommends reviewing recipes, pricing, and supplier costs.",
-      impact: Number(totalWasteLoss || 0) || 1200,
+      impact: Number(operationalEstimatedWasteRecovery || 0),
     });
   }
 
@@ -31117,7 +31013,7 @@ const crossSystemSignals = useMemo(() => {
       severity: "Watch",
       message:
         "Supplier alerts and food cost pressure are appearing together. AI recommends checking recent invoices against menu margins.",
-      impact: supplierAlerts.length * 500,
+      impact: Number(invoiceRecoveryOpportunity || 0),
     });
   }
 
@@ -31179,7 +31075,9 @@ if (
     severity: "High",
     message:
       "Oil, garnish, berry, citrus, or herb variance is appearing while food cost is above target. AI recommends reviewing prep usage and invoice depletion.",
-    impact: 850,
+    impact: Number(
+  aiHealthEngine?.consumablesEstimatedLeakage || 0
+),
   });
 }
   return signals.sort((a, b) => Number(b.impact || 0) - Number(a.impact || 0));
@@ -31188,7 +31086,7 @@ if (
   liveMomentumPercent,
   foodCostPercentage,
   liveAvgMargin,
-  totalWasteLoss,
+  operationalEstimatedWasteRecovery,
   supplierAlerts,
   criticalOunceVariance,
   happyHourBeverageStatus,
@@ -31285,13 +31183,16 @@ const executiveSummaryNarrative = (() => {
     );
   }
 
-  if (Number(aiRecoveredProfit || totalAIRevenueRecovered || 0) > 0) {
-    insights.push(
-      `AI systems have tracked approximately $${Number(
-        aiRecoveredProfit || totalAIRevenueRecovered || 0
-      ).toLocaleString()} in operational recovery impact.`
-    );
-  }
+ if (Number(totalVerifiedRecovery || 0) > 0) {
+  insights.push(
+    `SerVen has verified $${Number(
+      totalVerifiedRecovery || 0
+    ).toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })} in recovered profit from operational evidence.`
+  );
+}
 const consumablesHealthScore = Number(
   aiHealthEngine?.categoryScores?.consumablesHealth || 0
 );
@@ -31445,12 +31346,7 @@ const executiveActionQueue = useMemo(() => {
     department: "Predictive Risk",
     priority: predictiveRiskSignals[0].level,
     reason: predictiveRiskSignals[0].message,
-    impact:
-      Number(crossSystemRiskValue || 0) > 0
-        ? Math.round(
-            Number(crossSystemRiskValue || 0) * 0.15
-          )
-        : 0,
+   impact: 0,
   });
 }
 
@@ -31482,12 +31378,14 @@ const executiveActionQueue = useMemo(() => {
       reason: `Food cost is currently ${Number(foodCostPercentage || 0).toFixed(
         1
       )}%, above target.`,
-      impact: Number(totalWasteLoss || 0),
+      impact: Number(operationalEstimatedWasteRecovery || 0),
     });
   }
 if (Number(aiHealthEngine?.categoryScores?.consumablesHealth ?? 0) < 75) {
   actions.push({
-    title: "Review Consumables Depletion",
+    impact: Number(
+  aiHealthEngine?.consumablesEstimatedLeakage || 0
+),
     department: "Consumables",
     priority:
       Number(aiHealthEngine?.categoryScores?.consumablesHealth ?? 0) < 60
@@ -31495,7 +31393,9 @@ if (Number(aiHealthEngine?.categoryScores?.consumablesHealth ?? 0) < 75) {
         : "High",
     reason:
       "Consumables show unusual estimated usage variance. Review oil, garnish, berries, citrus, herbs, and prep loss.",
-    impact: 650,
+    impact: Number(
+  aiHealthEngine?.consumablesEstimatedLeakage || 0
+),
   });
 }
   return actions
@@ -31508,7 +31408,7 @@ if (Number(aiHealthEngine?.categoryScores?.consumablesHealth ?? 0) < 75) {
   operationalMemoryEvents,
   criticalOunceVariance,
   foodCostPercentage,
-  totalWasteLoss,
+  operationalEstimatedWasteRecovery,
   crossSystemRiskValue,
   aiHealthEngine,
 ]);
@@ -31554,7 +31454,9 @@ const autonomousAIRecommendations = useMemo(() => {
       severity: "High",
       action:
         "Review recipes, supplier pricing, and low-margin menu items contributing to elevated food cost.",
-      impact: Math.round(Number(totalWasteLoss || 0) * 0.35 || 1200),
+     impact: Math.round(
+  Number(operationalEstimatedWasteRecovery || 0)
+),
     });
   }
 
@@ -31568,9 +31470,9 @@ const autonomousAIRecommendations = useMemo(() => {
       severity: "High",
       action:
         "AI recommends optimizing shift scheduling against projected demand patterns.",
-      impact: Math.round(
-        Number(liveLaborIntelligence?.totalLaborCost || 0) * 0.12
-      ),
+     impact: Math.round(
+  Number(liveLaborIntelligence?.laborRecoveryOpportunity || 0)
+),
     });
   }
 
@@ -31594,12 +31496,16 @@ const autonomousAIRecommendations = useMemo(() => {
     Number(aiHealthEngine?.categoryScores?.consumablesHealth ?? 0) < 75
   ) {
     recommendations.push({
-      title: "Reduce Consumables Waste",
+      impact: Number(
+  aiHealthEngine?.consumablesEstimatedLeakage || 0
+),
       category: "Consumables",
       severity: "High",
       action:
         "AI detected unusual depletion across oils, garnish, berries, herbs, citrus, or prep usage.",
-      impact: 650,
+      impact: Number(
+  aiHealthEngine?.consumablesEstimatedLeakage || 0
+),
     });
   }
 
@@ -31610,7 +31516,7 @@ const autonomousAIRecommendations = useMemo(() => {
       severity: "Watch",
       action:
         "Recent supplier movement may be compressing profitability across inventory and recipes.",
-      impact: supplierAlerts.length * 350,
+      impact: Number(invoiceRecoveryOpportunity || 0),
     });
   }
 
@@ -31620,7 +31526,7 @@ const autonomousAIRecommendations = useMemo(() => {
 }, [
   foodCostPercentage,
   liveAvgMargin,
-  totalWasteLoss,
+operationalEstimatedWasteRecovery,
   liveLaborIntelligence,
   liveMomentumPercent,
   criticalOunceVariance,
@@ -31633,17 +31539,6 @@ const aiFinancialCommand = useMemo(() => {
     Number(foodCostPercentage || 0) +
     Number(liveLaborIntelligence?.laborPercent || 0);
 
-  const projectedWeeklyRecovery =
-    Number(totalWasteLoss || 0) * 0.18 +
-    Number(aiRecoveredProfit || 0) * 0.12 +
-    (criticalOunceVariance || []).reduce(
-      (sum, item) => sum + Number(item.estimatedLoss || 0),
-      0
-    ) *
-      0.22;
-
-  const projectedMonthlyRecovery =
-    projectedWeeklyRecovery * 4;
 
   const marginPressureLevel =
     Number(liveAvgMargin || 0) >= 70
@@ -31676,23 +31571,17 @@ const aiFinancialCommand = useMemo(() => {
     )
   );
 
-  return {
-    primeCost,
-    projectedWeeklyRecovery,
-    projectedMonthlyRecovery,
-    marginPressureLevel,
-    cashFlowRisk,
-    operationalProfitabilityScore,
-  };
+return {
+  primeCost,
+  marginPressureLevel,
+  cashFlowRisk,
+  operationalProfitabilityScore,
+};
 }, [
   foodCostPercentage,
   liveLaborIntelligence,
-  totalWasteLoss,
-  aiRecoveredProfit,
-  criticalOunceVariance,
   liveAvgMargin,
 ]);
-
 const executiveBenchmarkingData = useMemo(() => {
   const primeCost = Number(aiFinancialCommand?.primeCost || 0);
   const laborPercent = Number(liveLaborIntelligence?.laborPercent || 0);
@@ -35141,32 +35030,20 @@ const autonomousProfitRecoveryEngine = useMemo(() => {
   const recommendations = autonomousAIRecommendations || [];
   const executiveActions = executiveActionQueue || [];
 
-  const recommendationImpact = recommendations.reduce(
-    (sum, item) => sum + Number(item.impact || 0),
-    0
-  );
-
-  const executiveImpact = executiveActions.reduce(
-    (sum, item) => sum + Number(item.impact || 0),
-    0
-  );
-
-  const projectedRecovery =
-    recommendationImpact +
-    executiveImpact +
-    Number(aiFinancialCommand?.projectedMonthlyRecovery || 0);
+ const currentRecoveryOpportunity =
+  Number(loadedPeriodOpportunity || 0);
 
   const activeRecoveryActions =
     recommendations.length + executiveActions.length;
 
   const recoveryStage =
-    projectedRecovery >= 10000
-      ? "High-Value Recovery"
-      : projectedRecovery >= 5000
-      ? "Active Recovery"
-      : projectedRecovery > 0
-      ? "Monitoring Recovery"
-      : "Stable";
+  currentRecoveryOpportunity >= 10000
+    ? "High-Value Opportunity"
+    : currentRecoveryOpportunity >= 5000
+    ? "Active Opportunity"
+    : currentRecoveryOpportunity > 0
+    ? "Monitoring Opportunity"
+    : "Stable";
 
   const topRecoveryArea =
     recommendations?.[0]?.category ||
@@ -35174,15 +35051,15 @@ const autonomousProfitRecoveryEngine = useMemo(() => {
     "Operations";
 
   return {
-    projectedRecovery,
-    activeRecoveryActions,
-    recoveryStage,
-    topRecoveryArea,
-  };
+  currentRecoveryOpportunity,
+  activeRecoveryActions,
+  recoveryStage,
+  topRecoveryArea,
+};
 }, [
   autonomousAIRecommendations,
   executiveActionQueue,
-  aiFinancialCommand,
+  loadedPeriodOpportunity,
 ]);
 
 const multiLocationIntelligence = useMemo(() => {
@@ -35505,7 +35382,7 @@ const executiveDailyBriefing = useMemo(() => {
     multiLocationIntelligence?.weakestLocation?.name || "N/A";
 
   const recoveryOpportunity =
-    autonomousProfitRecoveryEngine?.projectedRecovery || 0;
+  autonomousProfitRecoveryEngine?.currentRecoveryOpportunity || 0;
 
   const aiHealth =
     aiHealthEngine?.overallScore ||
@@ -35602,17 +35479,7 @@ estimatedImpact:
 });
 });
 
-  if (Number(aiFinancialCommand?.projectedMonthlyRecovery || 0) > 0) {
-    notifications.push({
-  title: "Profit Recovery Opportunity",
-  type: "Financial",
-  severity: "High",
-  message: `AI detected $${Number(
-    aiFinancialCommand.projectedMonthlyRecovery || 0
-  ).toLocaleString()} in projected monthly recovery opportunity.`,
-  detectedAt: new Date().toISOString(),
-});
-  }
+ 
 
   if (executiveActionQueue?.[0]) {
     notifications.push({
@@ -35649,7 +35516,6 @@ return [...notifications]
 }, [
   predictiveRiskSignals,
   crossLocationAlerts,
-  aiFinancialCommand,
   executiveActionQueue,
 ]);
 
@@ -35889,9 +35755,9 @@ const aiOperationalHealthColor =
       : "No major profit leakage detected today.",
 };
 const autopilotRecoveryTracker = {
-  recoveredToDate: Number(userProfile?.ai_revenue_recovered || 0),
-  projectedMonthly: totalAIFinancialImpact,
-  projectedAnnual: totalAIFinancialImpact * 12,
+  verifiedRecovered: Number(totalVerifiedRecovery || 0),
+  currentOpportunity: Number(loadedPeriodOpportunity || 0),
+  verifiedThisMonth: Number(verifiedRecoveryPeriods?.month || 0),
 };
 
 const aiExecutiveTimeline = [
@@ -43149,34 +43015,42 @@ const gmServiceExecution = useMemo(() => {
 const gmProfitRecovery = useMemo(() => {
   const opportunities = [];
 
-  if (Number(foodCostPercentage || 0) > 32) {
-    opportunities.push({
-      title: "Food Cost Recovery",
-      amount: "$2.4K/mo",
-      detail:
-        "Reducing waste and tightening prep control could recover margin.",
-    });
-  }
+ if (Number(foodCostPercentage || 0) > 32) {
+  opportunities.push({
+    title: "Food Cost Risk",
+    amount: `${Number(foodCostPercentage || 0).toFixed(1)}%`,
+    detail:
+      "Food cost is above the current operating threshold and needs review.",
+  });
+}
 
-  if (Number(liveLaborIntelligence?.laborPercent || 0) > 30) {
-    opportunities.push({
-      title: "Labor Optimization",
-      amount: "$1.8K/mo",
-      detail:
-        "Optimizing shift deployment may reduce labor pressure.",
-    });
-  }
+if (
+  Number(liveLaborIntelligence?.laborPercent || 0) > 30 &&
+  Number(liveLaborIntelligence?.laborRecoveryOpportunity || 0) > 0
+) {
+  opportunities.push({
+    title: "Labor Optimization",
+    amount: `$${Number(
+      liveLaborIntelligence?.laborRecoveryOpportunity || 0
+    ).toLocaleString()}`,
+    detail:
+      "Estimated labor recovery opportunity for the loaded operating period.",
+  });
+}
 
-  if ((profitLeakSignals || []).length > 0) {
-    opportunities.push({
-      title: "Menu Margin Recovery",
-      amount: `$${(
-        profitLeakSignals.length * 700
-      ).toLocaleString()}/mo`,
-      detail:
-        "AI identified low-margin menu or pricing inefficiencies.",
-    });
-  }
+if (
+  (profitLeakSignals || []).length > 0 &&
+  Number(estimatedFoodRecovery || 0) > 0
+) {
+  opportunities.push({
+    title: "Menu Margin Recovery",
+    amount: `$${Number(
+      estimatedFoodRecovery || 0
+    ).toLocaleString()}`,
+    detail:
+      "Estimated opportunity for the loaded data period from menu and food-cost performance.",
+  });
+}
 
   if (!opportunities.length) {
     opportunities.push({
@@ -43192,6 +43066,7 @@ const gmProfitRecovery = useMemo(() => {
   foodCostPercentage,
   liveLaborIntelligence,
   profitLeakSignals,
+  estimatedFoodRecovery,
 ]);
 
 const gmForecastingCenter = useMemo(() => {
@@ -53405,19 +53280,19 @@ const color = !hasScore
     }}
   >
     {[
-      {
-        label: "Recovered To Date",
-        value: autopilotRecoveryTracker.recoveredToDate,
-      },
-      {
-        label: "Projected Monthly",
-        value: autopilotRecoveryTracker.projectedMonthly,
-      },
-      {
-        label: "Projected Annual",
-        value: autopilotRecoveryTracker.projectedAnnual,
-      },
-    ].map((item, index) => (
+  {
+    label: "Verified Recovered",
+    value: autopilotRecoveryTracker.verifiedRecovered,
+  },
+  {
+    label: "Current Opportunity",
+    value: autopilotRecoveryTracker.currentOpportunity,
+  },
+  {
+    label: "Verified This Month",
+    value: autopilotRecoveryTracker.verifiedThisMonth,
+  },
+].map((item, index) => (
       <div
         key={index}
         style={{
@@ -55063,32 +54938,28 @@ const color = noData
       marginBottom: "18px",
     }}
   >
-    {[
-      {
-        label: "Tracked Consumables",
-        value:
-  Number(aiHealthEngine?.categoryScores?.consumablesHealth ?? 0) < 75
-    ? 1
-    : 0,
-        sub: "Oil, garnish, herbs, berries, citrus",
-      },
-      {
-        label: "Variance Risks",
-        value:
-  Number(aiHealthEngine?.categoryScores?.consumablesHealth ?? 0) < 75
-    ? 1
-    : 0,
-        sub: "Estimated depletion concerns",
-      },
-      {
-        label: "Estimated Leakage",
-       value: `$${Math.round(
-  (100 -
-    Number(aiHealthEngine?.categoryScores?.consumablesHealth ?? 0)) * 25
-).toLocaleString()}`,
-        sub: "Potential monthly prep loss",
-      },
-    ].map((item) => (
+   {[
+  {
+    label: "Tracked Consumables",
+    value: Number(consumablesIntelligenceData?.length || 0),
+    sub: "Oil, garnish, herbs, berries, citrus",
+  },
+  {
+    label: "Variance Risks",
+    value: Number(consumablesVarianceRisk?.length || 0),
+    sub: "Detected depletion concerns",
+  },
+  {
+    label: "Estimated Leakage",
+    value: `$${Number(
+      consumablesEstimatedLeakage || 0
+    ).toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`,
+    sub: "Estimated from loaded consumables data",
+  },
+].map((item) => (
       <div
         key={item.label}
         style={{
@@ -55121,23 +54992,24 @@ const color = noData
   </div>
 
   <div style={{ display: "grid", gap: "12px" }}>
-   {(
-  Number(aiHealthEngine?.categoryScores?.consumablesHealth ?? 0) < 75
-    ? [
-        {
-          name: "Consumables Variance",
-          status: "Variance Risk",
-          estimatedLeakage: 650,
-        },
-      ]
+ {(
+  consumablesIntelligenceData.length > 0
+    ? consumablesIntelligenceData
     : [
         {
-          name: "Consumables Stable",
-          status: "Controlled",
+          name: "No consumables data",
+          category: "Consumables",
+          currentStock: 0,
+          invoiceQuantity: 0,
+          estimatedUsage: 0,
+          estimatedVariance: 0,
           estimatedLeakage: 0,
+          status: "Controlled",
         },
       ]
-).slice(0, 6).map((item) => (
+)
+  .slice(0, 6)
+  .map((item) => (
       <div
         key={item.name}
         style={{
@@ -55178,12 +55050,12 @@ const color = noData
       </div>
     ))}
 
-   {Number(aiHealthEngine?.categoryScores?.consumablesHealth ?? 0) >= 95 && (
-      <div style={itemStyle}>
-        Upload ingredient or invoice rows containing oil, citrus, berries, herbs,
-        or garnish items to activate consumables intelligence.
-      </div>
-    )}
+ {consumablesIntelligenceData.length === 0 && (
+  <div style={itemStyle}>
+    Upload ingredient or invoice rows containing oil, citrus, berries, herbs,
+    or garnish items to activate consumables intelligence.
+  </div>
+)}
   </div>
 </div>
   </>
@@ -55778,8 +55650,10 @@ Restaurant AI Health is currently rated{" "}
       inventoryProfitRecovered > 0 &&
         `$${Number(inventoryProfitRecovered || 0).toLocaleString()} inventory profit has been recovered.`,
 
-      aiActionImpact > 0 &&
-        `AI action center is protecting an estimated $${Number(aiActionImpact || 0).toLocaleString()}/mo.`,
+      Number(loadedPeriodOpportunity || 0) > 0 &&
+  `AI action center has identified $${Number(
+    loadedPeriodOpportunity || 0
+  ).toLocaleString()} in opportunity from the loaded operational data.`,
     ]
       .filter(Boolean)
       .map((opportunity, index) => (
@@ -56132,15 +56006,12 @@ Restaurant AI Health is currently rated{" "}
 />
 
 <GlassCard
-  title="Projected AI Recovery"
-  value={`$${aiActions
-    .reduce(
-      (sum, action) =>
-        sum + Number(action.estimated_value || 0),
-      0
-    )
-    .toFixed(0)}`}
-  subtitle="Projected revenue recovery"
+  title="Verified AI Recovery"
+  value={`$${Number(totalVerifiedRecovery || 0).toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`}
+  subtitle="Recovery verified from operational evidence"
 />
 </div>
  
@@ -68630,7 +68501,8 @@ gridColumn: "1 / -1",
   );
 })()}
 
-   {/* AI PROFIT RECOVERY TREND */}
+  {/* REVENUE PERFORMANCE TREND */}
+
 <div
   style={{
     gridColumn: isMobile ? "span 1" : "span 12",
@@ -68672,7 +68544,7 @@ gridColumn: "1 / -1",
         fontWeight: "950",
       }}
     >
-      AI profit recovery trend
+      Revenue performance trend
     </h3>
 
     <p
@@ -68683,7 +68555,7 @@ gridColumn: "1 / -1",
         lineHeight: 1.6,
       }}
     >
-      Compare baseline revenue against projected AI-optimized revenue.
+      Compare revenue performance using the currently loaded operational data.
     </p>
   </div>
 
@@ -68839,7 +68711,7 @@ gridColumn: "1 / -1",
         </div>
 
         <div style={{ color: "white", fontSize: "20px", fontWeight: "950" }}>
-          Projected recovery path
+          Current recovery opportunity
         </div>
 
         <p
@@ -68850,8 +68722,8 @@ gridColumn: "1 / -1",
             lineHeight: 1.6,
           }}
         >
-          This compares your baseline revenue against the projected revenue after
-          AI recommendations are applied.
+          This shows the estimated financial impact of AI recommendations that
+have been applied.
         </p>
       </div>
 
@@ -68865,11 +68737,11 @@ gridColumn: "1 / -1",
           }}
         >
           <div style={{ color: "#94a3b8", fontSize: "11px" }}>
-            Projected Profit Lift
+           Estimated Applied Impact
           </div>
 
           <div style={{ color: "#c4b5fd", fontSize: "18px", fontWeight: "900" }}>
-            +${Number(totalAiProfit || 0).toLocaleString()}
+            +${Number(totalAppliedAiImpact || 0).toLocaleString()}
           </div>
         </div>
 
@@ -69385,10 +69257,10 @@ minWidth: 0,
 )}
 
 
-{/* 📈 REVENUE GROWTH TIMELINE */}
+{/* 📈 REVENUE PERFORMANCE */}
 {(() => {
   const timelineData = revenueLiftTimeline || [];
-  const safeProfit = Number(displayProfit || totalAiProfit || 0);
+ 
   const currentRevenue = Number(totalRevenue || liveTotalRevenue || 0);
 
   const chartData =
@@ -69404,34 +69276,15 @@ minWidth: 0,
           };
         })
       : [
-          {
-            label: "Current",
-            baseline: currentRevenue,
-            projected: currentRevenue,
-            upside: 0,
-          },
-          {
-            label: "30 Days",
-            baseline: currentRevenue,
-            projected: currentRevenue + safeProfit * 0.33,
-            upside: safeProfit * 0.33,
-          },
-          {
-            label: "60 Days",
-            baseline: currentRevenue,
-            projected: currentRevenue + safeProfit * 0.66,
-            upside: safeProfit * 0.66,
-          },
-          {
-            label: "90 Days",
-            baseline: currentRevenue,
-            projected: currentRevenue + safeProfit,
-            upside: safeProfit,
-          },
-        ];
-
+    {
+      label: "Current",
+      baseline: currentRevenue,
+      projected: currentRevenue,
+      upside: 0,
+    },
+  ];
   const hasTimelineData =
-    Number(currentRevenue || 0) > 0 || Number(safeProfit || 0) > 0;
+  Number(currentRevenue || 0) > 0;
 
   return (
     <div
@@ -69470,7 +69323,7 @@ minWidth: 0,
               marginBottom: "8px",
             }}
           >
-            Revenue Growth Timeline
+           Revenue Performance
           </div>
 
           <h3
@@ -69481,7 +69334,7 @@ minWidth: 0,
               fontWeight: "950",
             }}
           >
-            AI revenue recovery path
+            Live revenue baseline
           </h3>
 
           <p
@@ -69493,29 +69346,12 @@ minWidth: 0,
               maxWidth: "720px",
             }}
           >
-            Tracks baseline revenue against projected AI-optimized revenue as
-            recovery actions are applied over time.
+            Tracks revenue from the currently loaded operational data without
+mixing estimated AI impact into realized revenue.
           </p>
         </div>
 
-        <div
-          style={{
-            padding: "9px 13px",
-            borderRadius: "999px",
-            background: "rgba(96,165,250,0.12)",
-            border: "1px solid rgba(96,165,250,0.20)",
-            color: "#93c5fd",
-            fontSize: "12px",
-            fontWeight: "900",
-            whiteSpace: "nowrap",
-          }}
-        >
-          <CountUpValue
-            value={Math.floor(safeProfit)}
-            prefix="+$"
-            suffix=" recovery upside"
-          />
-        </div>
+        
       </div>
 
       <div
@@ -69637,8 +69473,8 @@ minWidth: 0,
               fontSize: "13px",
             }}
           >
-            Upload revenue data or apply AI recovery actions to generate a
-            revenue growth timeline.
+           Upload revenue data to generate a live
+revenue performance view.
           </div>
         )}
       </div>
@@ -69646,7 +69482,7 @@ minWidth: 0,
   );
 })()}
 
-{/* 💸 PROJECTED REVENUE LIFT */}
+{/* 💸 PROJECTED AI IMPACT */}
 <div
   style={{
     marginTop: "24px",
@@ -69681,7 +69517,7 @@ minWidth: 0,
           marginBottom: "8px",
         }}
       >
-        Projected Revenue Lift
+        Projected AI Impact
       </div>
 
       <div
@@ -69692,7 +69528,7 @@ minWidth: 0,
           lineHeight: 1.1,
         }}
       >
-        <CountUpValue value={Number(totalAiProfit || 0)} prefix="$" />
+        <CountUpValue value={Number(totalAppliedAiImpact || 0)} prefix="$" />
       </div>
 
       <div
@@ -69703,7 +69539,7 @@ minWidth: 0,
           fontWeight: "700",
         }}
       >
-        AI-optimized revenue potential
+       Estimated impact from applied AI actions
       </div>
 
       <div
@@ -69838,7 +69674,7 @@ minWidth: 0,
           marginBottom: "8px",
         }}
       >
-        AI Revenue Lift
+       Applied AI Impact
       </div>
 
       <div
@@ -69848,7 +69684,7 @@ minWidth: 0,
           color: "#4ade80",
         }}
       >
-       ${Number(totalAiProfit || 0).toLocaleString()} projected
+     ${Number(totalAppliedAiImpact || 0).toLocaleString()} estimated
       </div>
     </div>
 
@@ -70063,7 +69899,7 @@ Recovered profit is based on saved AI action impact.
         {
           label: "Recovery Opportunity",
           value: `$${Number(
-            autonomousProfitRecoveryEngine?.projectedRecovery || 0
+            autonomousProfitRecoveryEngine?.currentRecoveryOpportunity || 0
           ).toLocaleString()}`,
         },
         {
@@ -70165,7 +70001,7 @@ Recovered profit is based on saved AI action impact.
         marginTop: "5px",
       }}
     >
-      Applied AI recovery actions
+      Applied AI actions
     </div>
   </div>
 
@@ -74179,7 +74015,7 @@ Recovered profit is based on saved AI action impact.
       }}
     >
       SerVen AI monitors operational profitability, cash flow pressure,
-      margin compression, and projected recovery opportunities.
+      margin compression, and operating efficiency.
     </p>
 
     <div
@@ -74195,13 +74031,16 @@ Recovered profit is based on saved AI action impact.
           value: `${Number(aiFinancialCommand?.primeCost || 0).toFixed(1)}%`,
           subtext: "Labor + Food Cost",
         },
-        {
-          label: "Weekly Recovery",
-          value: `$${Number(
-            aiFinancialCommand?.projectedWeeklyRecovery || 0
-          ).toLocaleString()}`,
-          subtext: "Projected AI recovery",
-        },
+      {
+  label: "Weekly Recovery",
+  value: `$${Number(
+    verifiedRecoveryPeriods.week || 0
+  ).toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`,
+  subtext: "Verified recovery this week",
+},
         {
           label: "Cash Flow Risk",
           value: aiFinancialCommand?.cashFlowRisk || "Stable",
@@ -75651,9 +75490,9 @@ Recovered profit is based on saved AI action impact.
     >
       {[
         {
-          label: "Projected Recovery",
+          label: "Current Opportunity",
           value: `$${Number(
-            autonomousProfitRecoveryEngine?.projectedRecovery || 0
+            autonomousProfitRecoveryEngine?.currentRecoveryOpportunity || 0
           ).toLocaleString()}`,
         },
         {
@@ -76268,7 +76107,7 @@ Recovered profit is based on saved AI action impact.
         }}
       >
         When enabled, SerVen AI can identify high-value draft actions and prepare
-        them for automatic execution based on projected recovery value.
+       them for automatic execution based on current operational opportunity and supporting evidence.
       </p>
     </div>
 
@@ -84535,7 +84374,7 @@ and expected time to impact.
         letterSpacing: "-0.03em",
       }}
     >
-      Your projected recovery journey
+   Your recovery opportunity journey
     </h2>
 
     <p
@@ -86328,7 +86167,7 @@ const nextAction =
     <div
   style={{
     display: "grid",
-    gridTemplateColumns: isMobile ? "1fr" : "repeat(2, minmax(0, 1fr))",
+    gridTemplateColumns: "1fr",
     gap: "12px",
     marginTop: "16px",
     marginBottom: "16px",
@@ -86340,11 +86179,7 @@ const nextAction =
     subtext="Supplier cost pressure for the loaded data period"
   />
 
-  <GlassCard
-    title="Vendor Inflation Impact"
-    value={`$${Number(vendorInflationImpact || 0).toLocaleString()}`}
-    subtext="Supplier cost pressure for the loaded data period"
-  />
+ 
 </div>
 {(!vendorCostInsights || vendorCostInsights.length === 0) && (
   <div
@@ -90359,7 +90194,7 @@ margin: "0",
             <strong>Autopilot Signal:</strong>{" "}
             {unusualDropDetected
               ? "Revenue drop detected — recovery campaign recommended."
-              : Number(totalWasteLoss || 0) > 0
+           : (wasteRiskItems || []).length > 0
               ? "Waste risk detected — recovery campaign recommended."
               : Number(avgMargin || 0) < 60
               ? "Margin pressure detected — high-margin campaign recommended."
@@ -90440,39 +90275,6 @@ margin: "0",
     AI detects profit leaks and launches campaigns without manual work
   </div>
 </div>
-{autopilotRecoverableRevenue > 0 && (
-  <div
-    style={{
-      marginBottom: "10px",
-      padding: "10px 12px",
-      borderRadius: "12px",
-      background:
-        "linear-gradient(135deg, rgba(34,197,94,0.15), rgba(15,23,42,0.9))",
-      border: "1px solid rgba(34,197,94,0.3)",
-    }}
-  >
-    <div
-      style={{
-        fontSize: "12px",
-        color: "#86efac",
-        fontWeight: "800",
-      }}
-    >
-      💰 Autopilot could recover $
-      {autopilotRecoverableRevenue.toLocaleString()}/month
-    </div>
-
-    <div
-      style={{
-        fontSize: "11px",
-        color: "#94a3b8",
-        marginTop: "2px",
-      }}
-    >
-      Based on detected profit leaks and waste
-    </div>
-  </div>
-)}
   <button
     type="button"
    onClick={() => {
@@ -90498,8 +90300,8 @@ margin: "0",
       opacity: hasProAccess ? 1 : 0.6,
     }}
   >
-    {!hasProAccess
-  ? `Unlock Autopilot (+$${autopilotRecoverableRevenue.toLocaleString()}/mo)`
+   {!hasProAccess
+  ? "Unlock Autopilot"
   : autoCampaignsEnabled
   ? "Turn Off Autopilot"
   : "Turn On Autopilot"}
@@ -95164,20 +94966,7 @@ const invoiceRows =
         0
       );
 
-      const estimatedWasteExposure =
-        tiedUpCash +
-        alerts.reduce((sum, alert) => {
-          return (
-            sum +
-            Number(
-              alert.estimatedLoss ||
-                alert.revenueRisk ||
-                alert.impact ||
-                alert.amount ||
-                0
-            )
-          );
-        }, 0);
+    
 
       const wasteRiskLevel =
         deadStockRows.length > 0 || alerts.some((a) => a.priority === "Critical")
@@ -95300,21 +95089,23 @@ const invoiceRows =
                   gap: "12px",
                 }}
               >
-                {[
-                  ["Waste Risk", wasteRiskLevel, "Current inventory exposure", wasteRiskColor],
-                  [
-                    "Estimated Exposure",
-                    `$${Math.round(estimatedWasteExposure || 0).toLocaleString()}`,
-                    "Potential cash / risk impact",
-                    "#f87171",
-                  ],
-                  ["Dead Stock", deadStockRows.length, "Items not moving", "#f87171"],
-                  [
-                    "Tied-Up Cash",
-                    `$${Math.round(tiedUpCash || 0).toLocaleString()}`,
-                    "Capital stuck in inventory",
-                    "#fbbf24",
-                  ],
+              {[
+  ["Waste Risk", wasteRiskLevel, "Current inventory exposure", wasteRiskColor],
+  [
+    "Waste Opportunity",
+    `$${Math.round(
+      Number(operationalEstimatedWasteRecovery || 0)
+    ).toLocaleString()}`,
+    "Loaded-period excess ingredient usage cost",
+    "#f87171",
+  ],
+  ["Dead Stock", deadStockRows.length, "Items not moving", "#f87171"],
+  [
+    "Tied-Up Cash",
+    `$${Math.round(tiedUpCash || 0).toLocaleString()}`,
+    "Capital stuck in inventory",
+    "#fbbf24",
+  ],
                 ].map(([label, value, subtext, color]) => (
                   <div
                     key={label}
@@ -97172,16 +96963,13 @@ const safeOpportunities =
           "#818cf8",
         ],
         [
-          "Waste Exposure",
-          `$${Number(
-            inventoryWasteIntelligence?.estimatedWasteExposure ||
-              estimatedWasteRecovery ||
-              totalWasteLoss ||
-              0
-          ).toLocaleString()}`,
-          "Tracked waste risk",
-          "#86efac",
-        ],
+  "Waste Opportunity",
+  `$${Number(
+    operationalEstimatedWasteRecovery || 0
+  ).toLocaleString()}`,
+  "Loaded-period ingredient variance opportunity",
+  "#86efac",
+],
       ];
 
       const readout =
@@ -98188,8 +97976,7 @@ const safeInventoryWaste =
 const safeEstimatedWasteRecovery =
   typeof estimatedWasteRecovery !== "undefined" ? estimatedWasteRecovery : 0;
 
-const safeTotalWasteLoss =
-  typeof totalWasteLoss !== "undefined" ? totalWasteLoss : 0;
+
 
 const safeInputStyle =
   typeof inputStyle !== "undefined"
@@ -98211,11 +97998,7 @@ const safeInputStyle =
         minWidth: 0,
       };
 const tiedWasteValue = Number(
-  (typeof inventoryWasteIntelligence !== "undefined" &&
-    inventoryWasteIntelligence?.estimatedWasteExposure) ||
-    (typeof estimatedWasteRecovery !== "undefined" && estimatedWasteRecovery) ||
-    (typeof totalWasteLoss !== "undefined" && totalWasteLoss) ||
-    0
+  operationalEstimatedWasteRecovery || 0
 );
 
       const highVarianceItems = usageData.filter(
@@ -98481,13 +98264,13 @@ const tiedWasteValue = Number(
                 }}
               >
                 <GlassCard
-                  title="Estimated Waste Recovery"
-                  value={`$${Number(
-                    estimatedWasteRecovery || totalWasteLoss || 0
-                  ).toLocaleString()}`}
-                  subtext="Estimated recoverable monthly waste"
-                  featured
-                />
+  title="Waste Recovery Opportunity"
+  value={`$${Number(
+    operationalEstimatedWasteRecovery || 0
+  ).toLocaleString()}`}
+  subtext="Loaded-period excess ingredient usage cost"
+  featured
+/>
 
                 <GlassCard
                   title="High Variance Items"
@@ -111034,7 +110817,8 @@ minWidth: 0,
               fontWeight: "700",
             }}
           >
-            +${Number(totalAiProfit || 0).toLocaleString()}/mo applied
+            +${Number(totalAppliedAiImpact || 0).toLocaleString()} estimated impact
+
           </div>
         </div>
       </div>{/* ================= AI / AUTOPILOT KPI STRIP ================= */}
@@ -111053,9 +110837,9 @@ minWidth: 0,
 >
   {[
     {
-      label: "AI PROFIT RECOVERED",
-value: `+$${Number(totalAiProfit || 0).toLocaleString()}`,
-subtext: "Profit recovered from applied AI actions",
+  label: "APPLIED AI IMPACT",
+  value: `+$${Number(totalAppliedAiImpact || 0).toLocaleString()}`,
+  subtext: "Estimated impact from applied AI actions",
       accent: "#6ee7b7",
       bg: "rgba(16,185,129,0.12)",
       border: "1px solid rgba(16,185,129,0.24)",
@@ -111242,11 +111026,11 @@ subtext: "Profit recovered from applied AI actions",
           action: hasOperationalData
             ? "Adjust purchasing cadence based on usage variance."
             : "Upload inventory and invoice data to activate waste optimization intelligence.",
-          result: hasOperationalData
-            ? `+$${Math.round(
-                Number(operationalEstimatedWasteRecovery || 0)
-              ).toLocaleString()}/mo waste reduction`
-            : "Awaiting Data",
+        result: hasOperationalData
+  ? `+$${Math.round(
+      Number(operationalEstimatedWasteRecovery || 0)
+    ).toLocaleString()} loaded-period waste opportunity`
+  : "Awaiting Data",
           status: hasOperationalData ? "Monitoring" : "Awaiting Data",
         },
       ].map((item, index) => {
@@ -111876,9 +111660,9 @@ subtext: "Profit recovered from applied AI actions",
     : "Upload inventory, usage, and invoice data to activate waste recovery intelligence.",
 
 impact: hasOperationalData
-  ? `+$${Math.round(
+? `+$${Math.round(
     Number(operationalEstimatedWasteRecovery || 0)
-  ).toLocaleString()}/mo waste recovery`
+  ).toLocaleString()} loaded-period waste opportunity`
   : "Awaiting Data",
 
   confidence: hasOperationalData
@@ -112035,7 +111819,7 @@ impact: hasOperationalData
                       letterSpacing: "0.08em",
                     }}
                   >
-                    AI PROFIT POTENTIAL
+                   APPLIED AI IMPACT
                   </div>
 
                   <div
@@ -112047,7 +111831,7 @@ impact: hasOperationalData
                       lineHeight: 1,
                     }}
                   >
-                   +${Number(totalAiProfit || 0).toLocaleString()}/month
+                 +${Number(totalAppliedAiImpact || 0).toLocaleString()}
                   </div>
 
                   <div
@@ -112058,8 +111842,8 @@ impact: hasOperationalData
                       lineHeight: 1.6,
                     }}
                   >
-                    This is the projected recoverable profit from pricing, labor,
-                    supplier, and waste optimizations applied through Serven AI.
+                   This is the estimated impact of pricing, labor, supplier,
+and waste optimizations applied through Serven AI.
                   </div>
 
                   {/* AI CONFIDENCE */}
@@ -113189,7 +112973,9 @@ const res = await fetch("/api/client-upload-summary", {
   ),
 
   profitLeakCount: profitLeakSignals?.length || 0,
-  wasteLoss: Number(totalWasteLoss ?? 0),
+ wasteOpportunity: Number(
+  operationalEstimatedWasteRecovery || 0
+),
   laborCost: Number(laborCostPercentage ?? 0),
   alertsTriggered: starterAlerts?.length || 0,
   topIssue: topGrowthProblems?.[0]?.title || null,
@@ -114104,5 +113890,7 @@ const deadInventoryMiniValueStyle = {
   marginTop: "4px",
   overflowWrap: "break-word",
 };
+
+
 
 

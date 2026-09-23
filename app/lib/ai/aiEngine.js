@@ -127,7 +127,6 @@ if (aov < 15) {
   aovInsight = "AOV is average. Small pricing or combo adjustments could help.";
 }
 
-const aovOpportunity = Math.round(aov * 120);
   /* ===============================
      REVENUE BY DAY
   =============================== */
@@ -198,7 +197,7 @@ const aovOpportunity = Math.round(aov * 120);
     return total;
   }, 0);
 
-  const monthlyLaborLoss = Math.round(laborLoss * 4.33);
+ const periodLaborLoss = Math.round(laborLoss);
 
   /* ===============================
      PREDICTIONS
@@ -323,105 +322,90 @@ const worstItems = [...enrichedItems]
 =============================== */
 
 const growthDiagnosis = [...enrichedItems]
-  .filter(i => i.totalSold > 5)
-  .map(i => {
+  .filter((i) => i.totalSold > 5)
+  .map((i) => {
     let issue = null;
-    let impact = 0;
     let confidence = "low";
     let severity = "low";
 
     if (i.margin < 40) {
       issue = "Low margin and high ingredient cost";
-      impact = i.cost * 0.25;
       confidence = i.totalSold > 20 ? "high" : "medium";
+      severity = "high";
     } else if (i.margin < 55) {
       issue = "Food cost above target range";
-      impact = i.cost * 0.15;
       confidence = i.totalSold > 15 ? "medium" : "low";
+      severity = "medium";
     } else if (i.totalSold > 20 && i.margin < 60) {
       issue = "High demand but weak profitability";
-      impact = i.cost * 0.18;
       confidence = "high";
+      severity = "low";
     }
 
     if (!issue) return null;
 
-    const roundedImpact = Math.round(impact);
-
-    if (roundedImpact >= 1500) {
-      severity = "high";
-    } else if (roundedImpact >= 700) {
-      severity = "medium";
-    }
-
     return {
       name: i.name,
       issue,
-      impact: roundedImpact,
+      margin: Number(i.margin || 0),
+      totalSold: Number(i.totalSold || 0),
       confidence,
       severity,
     };
   })
   .filter(Boolean)
-  .sort((a, b) => b.impact - a.impact)
+  .sort(
+    (a, b) =>
+      a.margin - b.margin ||
+      b.totalSold - a.totalSold
+  )
   .map((item, index) => ({
     ...item,
     priority: index + 1,
   }))
   .slice(0, 5);
-  /* ===============================
+
+/* ===============================
    TOP 3 GROWTH PROBLEMS
 =============================== */
 
-const topGrowthProblems = growthDiagnosis.slice(0, 3).map((item) => ({
-  name: item.name,
-  impact: item.impact,
-  severity: item.severity,
-  priority: item.priority,
-}));
+const topGrowthProblems = growthDiagnosis
+  .slice(0, 3)
+  .map((item) => ({
+    name: item.name,
+    severity: item.severity,
+    priority: item.priority,
+    margin: item.margin,
+    totalSold: item.totalSold,
+  }));
 
-  /* ===============================
+/* ===============================
    AI FIX SUGGESTIONS
 =============================== */
 
-const fixSuggestions = growthDiagnosis.map((item) => {
-  let action = "Review pricing and cost structure";
-  let estimatedGain = Math.round(Number(item.impact || 0) * 1.2);
+const fixSuggestions = growthDiagnosis
+  .map((item) => {
+    let action = "Review pricing and cost structure";
 
-  if (item.issue === "Low margin and high ingredient cost") {
-    action = "Increase price or reduce ingredient cost";
-    estimatedGain = Math.round(Number(item.impact || 0) * 1.25);
-  } else if (item.issue === "Food cost above target range") {
-    action = "Reduce portion size or renegotiate supplier cost";
-    estimatedGain = Math.round(Number(item.impact || 0) * 1.15);
-  } else if (item.issue === "High demand but weak profitability") {
-    action = "Raise price slightly to improve margin";
-    estimatedGain = Math.round(Number(item.impact || 0) * 1.3);
-  }
+    if (item.issue === "Low margin and high ingredient cost") {
+      action = "Review menu price and ingredient costs";
+    } else if (item.issue === "Food cost above target range") {
+      action = "Review portions and supplier pricing";
+    } else if (item.issue === "High demand but weak profitability") {
+      action = "Review pricing for this high-demand item";
+    }
 
-  return {
-    name: item.name,
-    action,
-    estimatedGain,
-    confidence: item.confidence || "medium",
-  };
-}).slice(0, 5);
-   /* ===============================
-   GROWTH RECOVERABLE PROFIT
-=============================== */
-
-const growthRecoverableProfit = growthDiagnosis.reduce(
-  (sum, item) => sum + Number(item.impact || 0),
-  0
-);
-
-let growthRecoverableConfidence = "medium";
-
-if (growthRecoverableProfit >= 4000) {
-  growthRecoverableConfidence = "high";
-} else if (growthRecoverableProfit < 1500) {
-  growthRecoverableConfidence = "low";
-}
+    return {
+      name: item.name,
+      action,
+      confidence: item.confidence,
+      severity: item.severity,
+      margin: item.margin,
+      totalSold: item.totalSold,
+      priority: item.priority,
+    };
+  })
+  .slice(0, 5);
   /* ===============================
    STARTER PROFIT LEAK SIGNALS
 =============================== */
@@ -436,9 +420,9 @@ const signalPrefix =
 
 if (foodCostPercentage > 30) {
   profitLeakSignals.push(
-    `🚨 ${signalPrefix}: High food cost — estimated $${Math.round(
-      totalRevenue * 0.08
-    )}/month loss`
+    `🚨 ${signalPrefix}: Food cost is ${Number(
+      foodCostPercentage || 0
+    ).toFixed(1)}% and needs review`
   );
 }
 
@@ -448,9 +432,9 @@ if (profitLeaks.length > 2) {
   );
 }
 
-if (monthlyLaborLoss > 0) {
+if (periodLaborLoss > 0) {
   profitLeakSignals.push(
-    `🚨 ${signalPrefix}: Labor inefficiency costing about $${monthlyLaborLoss}/month`
+    `🚨 ${signalPrefix}: Labor inefficiency costing about $${periodLaborLoss} in the selected data period`
   );
 }
 
@@ -590,14 +574,13 @@ if (businessType === "coffee") {
 }
 
 else if (businessType === "smoothie") {
-  // Smoothie = waste + margin
+  // Smoothie = food cost + margin
 
   if (foodCostPercentage > 30) score -= 20;
 
-  if (totalWasteLoss > 1000) score -= 20;
-  else if (totalWasteLoss > 500) score -= 10;
-
-  if (profitLeaks.length > 0) score -= profitLeaks.length * 5;
+  if (profitLeaks.length > 0) {
+    score -= profitLeaks.length * 5;
+  }
 }
 
 else {
@@ -684,10 +667,9 @@ if (profitLeaks.length > 0) {
   summary += ` You have ${profitLeaks.length} low-margin items hurting performance.`;
 }
 
-if (monthlyLaborLoss > 0) {
-  summary += ` Labor inefficiency is costing about $${monthlyLaborLoss}/month.`;
+if (periodLaborLoss > 0) {
+  summary += ` Labor inefficiency is costing about $${periodLaborLoss} in the selected data period.`;
 }
-
   /* ===============================
      PRICE SUGGESTIONS
   =============================== */
@@ -900,54 +882,62 @@ if (recentRevenueSeries.length >= 5) {
 
 const forecastPeakPeriod =
   peakHours?.length > 0 ? peakHours[0].label : "No forecast period yet";
-  /* ===============================
-   WASTE DETECTION
+ /* ===============================
+   WASTE RISK DETECTION
 =============================== */
 
 const wasteRiskItems = [...enrichedItems]
-  .filter((item) => item.totalSold > 0 && Number(item.cost || 0) > 0)
+  .filter(
+    (item) =>
+      Number(item.totalSold || 0) > 0 &&
+      Number(item.cost || 0) > 0
+  )
   .map((item) => {
     const margin = Number(item.margin || 0);
     const totalSold = Number(item.totalSold || 0);
-    const cost = Number(item.cost || 0);
 
     let wasteRisk = "low";
-    let estimatedWasteLoss = 0;
 
     if (margin < 40 && totalSold < 12) {
       wasteRisk = "high";
-      estimatedWasteLoss = Math.round(cost * 0.18);
-    } else if (margin < 55) {
+    } else if (margin < 55 || totalSold < 8) {
       wasteRisk = "medium";
-      estimatedWasteLoss = Math.round(cost * 0.1);
-    } else if (totalSold < 8) {
-      wasteRisk = "medium";
-      estimatedWasteLoss = Math.round(cost * 0.08);
     }
 
     return {
       name: item.name,
       wasteRisk,
-      estimatedWasteLoss,
+      margin,
+      totalSold,
     };
   })
-  .filter((item) => item.wasteRisk !== "low" && item.estimatedWasteLoss > 0)
-  .sort((a, b) => b.estimatedWasteLoss - a.estimatedWasteLoss)
+  .filter((item) => item.wasteRisk !== "low")
+  .sort((a, b) => {
+    const riskRank = {
+      high: 2,
+      medium: 1,
+      low: 0,
+    };
+
+    return (
+      Number(riskRank[b.wasteRisk] || 0) -
+        Number(riskRank[a.wasteRisk] || 0) ||
+      Number(a.margin || 0) - Number(b.margin || 0) ||
+      Number(a.totalSold || 0) - Number(b.totalSold || 0)
+    );
+  })
   .slice(0, 5);
 
-const totalWasteLoss = wasteRiskItems.reduce(
-  (sum, item) => sum + Number(item.estimatedWasteLoss || 0),
-  0
-);
+
 
 let wasteDetectionInsight = "Waste risk appears under control.";
 
-if (totalWasteLoss > 1500) {
+if (wasteRiskItems.some((item) => item.wasteRisk === "high")) {
   wasteDetectionInsight =
-    "Waste risk is significantly reducing profitability.";
-} else if (totalWasteLoss > 500) {
+    "Menu performance indicates elevated waste risk that should be reviewed against ingredient usage data.";
+} else if (wasteRiskItems.length > 0) {
   wasteDetectionInsight =
-    "Some menu items may be creating avoidable waste.";
+    "Menu performance indicates potential waste risk that should be reviewed against ingredient usage data.";
 }
 /* ===============================
    LABOR COST INSIGHT
@@ -1387,7 +1377,7 @@ if (shelfLifeRiskItems.some((item) => item.shelfStatus === "expired")) {
 aov,
     laborByDay,
     laborLoss,
-    monthlyLaborLoss,
+   periodLaborLoss,
 
     predictedWeeklyRevenue,
     predictedProfit,
@@ -1413,13 +1403,12 @@ aov,
     priceSuggestions,
     restaurantSummary,
     growthDiagnosis,
-    growthRecoverableProfit,
-    growthRecoverableConfidence,
+   
     fixSuggestions, 
     aov,
 aovStatus,
 aovInsight,
-aovOpportunity,
+
 unusualDropDetected,
 unusualDropInsight,
 revenueDropPercent,
@@ -1429,12 +1418,11 @@ forecastedNextWeekRevenue,
 forecastConfidence,
 forecastPeakPeriod,
 wasteRiskItems,
-totalWasteLoss,
 wasteDetectionInsight,
 laborCostPercentage,
 laborCostStatus,
 laborCostInsight,
-monthlyLaborLoss,
+periodLaborLoss,
 inventoryForecast,
 inventoryForecastInsight,
 menuOptimization,
