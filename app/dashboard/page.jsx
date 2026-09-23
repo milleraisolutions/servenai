@@ -49886,6 +49886,13 @@ return (
   onChange={handleBeverageUpload}
   style={{ display: "none" }}
 />
+<input
+  id="beverageUsageUpload"
+  type="file"
+  accept=".csv"
+  onChange={handleBeverageUsageUpload}
+  style={{ display: "none" }}
+/>
 {uploadError && (
   <div
     style={{
@@ -50806,6 +50813,30 @@ need to add historical restaurant data.
   }}
 >
   Upload Beverage Data
+</button>
+<button
+  type="button"
+  onClick={() => {
+    const input = document.getElementById(
+      "beverageUsageUpload"
+    );
+
+    if (!input) {
+      console.error(
+        "Beverage usage upload input not found"
+      );
+      return;
+    }
+
+    input.value = "";
+    input.click();
+  }}
+  style={{
+    ...setupGoldButton,
+    gridColumn: isMobile ? "auto" : "1 / span 3",
+  }}
+>
+  Upload Beverage Usage
 </button>
     </div>
   </div>
