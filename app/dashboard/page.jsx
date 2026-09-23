@@ -30861,13 +30861,37 @@ const handleConfirmBeveragePourFix = async (item) => {
       },
     });
 
-    if (!savedAction) {
-      return;
-    }
+  if (!savedAction) {
+  setMessage(
+    `Could not save the beverage corrective action for ${beverageName}.`
+  );
+  return;
+}
 
-    setMessage(
-      `${beverageName} pour variance fix confirmed. Serven will verify recovery against a future beverage usage period.`
+setRealAppliedActions((previous) => {
+  const currentActions = previous || [];
+
+  const alreadyExists = currentActions.some(
+    (action) =>
+      String(action.id || "") ===
+      String(savedAction.id || "")
+  );
+
+  if (alreadyExists) {
+    return currentActions.map((action) =>
+      String(action.id || "") ===
+      String(savedAction.id || "")
+        ? savedAction
+        : action
     );
+  }
+
+  return [savedAction, ...currentActions];
+});
+
+setMessage(
+  `${beverageName} pour variance fix confirmed. Serven will verify recovery against a future beverage usage period.`
+);
   } catch (error) {
     console.error(
       "BEVERAGE POUR FIX CONFIRM ERROR:",
