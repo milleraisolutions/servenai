@@ -4549,9 +4549,9 @@ const handleLaunchCampaign = async (campaign) => {
       channel: campaignForm.channel || "SMS",
       audience: campaignForm.audience || "All Customers",
       timing: campaignForm.timing || "This Week",
-      impact: campaignForm.expectedRevenue
-  ? `+$${Number(campaignForm.expectedRevenue || 0).toLocaleString()}/month`
-  : "+$0/mo",
+     impact: campaignForm.expectedRevenue
+  ? `$${Number(campaignForm.expectedRevenue || 0).toLocaleString()} user target`
+  : "",
       status: "draft",
     };
 
@@ -5329,7 +5329,9 @@ useEffect(() => {
       [
         {
           id: Date.now(),
-          text: `AI applied: ${nextAction.title} → ${nextAction.impact || "+$0/mo"}`,
+          text: nextAction.impact
+  ? `AI applied: ${nextAction.title} → ${nextAction.impact}`
+  : `AI applied: ${nextAction.title}`,
         },
         ...prev,
       ].slice(0, 6)
@@ -10034,12 +10036,9 @@ const autopilotRecommendation = useMemo(() => {
 const handleApplyAiFix = async () => {
   if (!autopilotRecommendation?.alert) return;
 
-  const impact = 1200;
-
-
   handleResolveAlert(autopilotRecommendation.alert);
 
-  setMessage(`Applied fix: +$${impact.toLocaleString()}/month improvement`);
+  setMessage("Fix applied. Serven will track future data for verified impact.");
 };
 const weeklyDashboardContext = useMemo(() => {
   const now = new Date();
@@ -11200,7 +11199,6 @@ const buildProfitDrivenCampaign = () => {
     timing: "This Weekend",
     goal: "Increase Traffic",
     channel: "SMS",
-    expectedRevenue: "$500 - $1,500",
     cost: "150",
   };
 
@@ -11212,7 +11210,7 @@ const buildProfitDrivenCampaign = () => {
       timing: "This Week",
       goal: "Promote High-Margin Items",
       channel: "Email",
-      expectedRevenue: "$750 - $2,000",
+      
       cost: "200",
     };
   }
@@ -11225,7 +11223,7 @@ const buildProfitDrivenCampaign = () => {
       timing: "Next 7 Days",
       goal: "Increase Traffic",
       channel: "SMS",
-      expectedRevenue: "$400 - $1,200",
+     
       cost: "125",
     };
   }
@@ -11238,15 +11236,16 @@ const buildProfitDrivenCampaign = () => {
       timing: "This Week",
       goal: "Increase Repeat Visits",
       channel: "SMS",
-      expectedRevenue: "$600 - $1,800",
+     
       cost: "175",
     };
   }
 
-  const updatedForm = {
-    ...campaignForm,
-    ...smartCampaign,
-  };
+ const updatedForm = {
+  ...campaignForm,
+  ...smartCampaign,
+  expectedRevenue: "",
+};
 
   setCampaignForm(updatedForm);
 
@@ -11272,18 +11271,7 @@ const buildProfitDrivenCampaign = () => {
 };
 
 
-const getCampaignRevenueImpact = (campaign = {}) => {
-  const expected = campaign.expectedRevenue || campaign.impact || "";
 
-  if (expected.includes("$")) return expected;
-
-  if (campaign.goal === "Boost AOV") return "$900 - $2,400";
-  if (campaign.goal === "Promote High-Margin Items") return "$750 - $2,000";
-  if (campaign.goal === "Increase Repeat Visits") return "$600 - $1,800";
-  if (campaign.goal === "Increase Traffic") return "$500 - $1,500";
-
-  return "$400 - $1,200";
-};
 const getCampaignWindowDays = (campaign = {}) => {
   if (campaign.timing === "This Weekend") return 2;
   if (campaign.timing === "Next 30 Days") return 30;
@@ -30322,7 +30310,7 @@ const aiStrategicRecommendations = useMemo(() => {
       priority: inventoryHealthScoreData.score < 60 ? "Critical" : "High",
       recommendation:
         "Prioritize critical inventory items, slow-moving stock, and forecasted depletion risks.",
-      impact: inventoryHealthScoreData?.revenueLoss || 1800,
+      impact: Number(operationalEstimatedWasteRecovery || 0),
     });
   }
 
@@ -30355,6 +30343,7 @@ const aiStrategicRecommendations = useMemo(() => {
   beverageHealthScoreData,
   estimatedRecoverableProfit,
   aiAutopilotActionEngine,
+  operationalEstimatedWasteRecovery,
 ]);
 
 const aiAutopilotExecutiveSummary = useMemo(() => {
@@ -30449,7 +30438,1501 @@ const beverageRevenuePercent =
   liveTotalRevenue > 0
     ? Number(((advancedBeverageRevenue / liveTotalRevenue) * 100).toFixed(1))
     : 0;
+// =========================
+// BEVERAGE USAGE RECOVERY ENGINE
+// Real beverage usage evidence grouped by upload period.
+// Dollar exposure uses actual bottle cost / bottle size.
+// =========================
 
+const beverageUsageRecoveryData = useMemo(() => {
+  const normalizeBeverageName = (value) =>
+    String(value || "")
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, " ");
+
+  const itemByName = new Map();
+
+  (beverageItems || []).forEach((item) => {
+    const normalizedName = normalizeBeverageName(
+      item.beverage_name ||
+        item.name ||
+        item.item_name ||
+        item.product
+    );
+
+    if (!normalizedName) return;
+
+    const bottleSizeOz = Number(item.bottle_size_oz || 0);
+    const costPerBottle = Number(item.cost_per_bottle || 0);
+
+    const costPerOz =
+      bottleSizeOz > 0 && costPerBottle > 0
+        ? costPerBottle / bottleSizeOz
+        : 0;
+
+    const existingItem = itemByName.get(normalizedName);
+
+    const currentCreatedAt = new Date(
+      item.created_at || 0
+    ).getTime();
+
+    const existingCreatedAt = new Date(
+      existingItem?.created_at || 0
+    ).getTime();
+
+    if (
+      !existingItem ||
+      currentCreatedAt >= existingCreatedAt
+    ) {
+      itemByName.set(normalizedName, {
+        ...item,
+        costPerOz,
+      });
+    }
+  });
+
+  const groupedByPeriodAndBeverage = new Map();
+
+  (beverageUsage || []).forEach((usageRow) => {
+    const normalizedName = normalizeBeverageName(
+      usageRow.beverage_name ||
+        usageRow.name ||
+        usageRow.item_name ||
+        usageRow.product
+    );
+
+    const uploadId = String(
+      usageRow.upload_id || ""
+    ).trim();
+
+    if (!normalizedName || !uploadId) return;
+
+    const matchingItem = itemByName.get(normalizedName);
+
+    const bottleSizeOz = Number(
+      matchingItem?.bottle_size_oz || 0
+    );
+
+    const costPerBottle = Number(
+      matchingItem?.cost_per_bottle || 0
+    );
+
+    const costPerOz =
+      bottleSizeOz > 0 && costPerBottle > 0
+        ? costPerBottle / bottleSizeOz
+        : 0;
+
+    const expectedOz = Number(
+      usageRow.expected_oz || 0
+    );
+
+    const actualOz = Number(
+      usageRow.actual_oz || 0
+    );
+
+    const wasteOz = Number(
+      usageRow.waste_oz || 0
+    );
+
+    const compsOz = Number(
+      usageRow.comps_oz || 0
+    );
+
+    const groupKey = `${uploadId}::${normalizedName}`;
+
+    const existing =
+      groupedByPeriodAndBeverage.get(groupKey) || {
+        uploadId,
+        beverageName:
+          usageRow.beverage_name ||
+          matchingItem?.beverage_name ||
+          normalizedName,
+        normalizedName,
+        usageDate: usageRow.usage_date || null,
+        locationName:
+          usageRow.location_name ||
+          matchingItem?.location_name ||
+          null,
+        expectedOz: 0,
+        actualOz: 0,
+        wasteOz: 0,
+        compsOz: 0,
+        bottleSizeOz,
+        costPerBottle,
+        costPerOz,
+        matchedBeverageItem: Boolean(matchingItem),
+      };
+
+    existing.expectedOz += expectedOz;
+    existing.actualOz += actualOz;
+    existing.wasteOz += wasteOz;
+    existing.compsOz += compsOz;
+
+    if (
+      usageRow.usage_date &&
+      (
+        !existing.usageDate ||
+        new Date(usageRow.usage_date).getTime() >
+          new Date(existing.usageDate).getTime()
+      )
+    ) {
+      existing.usageDate = usageRow.usage_date;
+    }
+
+    groupedByPeriodAndBeverage.set(
+      groupKey,
+      existing
+    );
+  });
+
+  return Array.from(
+    groupedByPeriodAndBeverage.values()
+  )
+    .map((item) => {
+      const varianceOz =
+        Number(item.actualOz || 0) -
+        Number(item.expectedOz || 0);
+
+      const excessOz = Math.max(0, varianceOz);
+
+      const variancePercent =
+        Number(item.expectedOz || 0) > 0
+          ? Number(
+              (
+                (varianceOz /
+                  Number(item.expectedOz || 0)) *
+                100
+              ).toFixed(1)
+            )
+          : 0;
+
+      const excessUsageCost =
+        Number(item.costPerOz || 0) > 0
+          ? Number(
+              (
+                excessOz *
+                Number(item.costPerOz || 0)
+              ).toFixed(2)
+            )
+          : 0;
+
+      return {
+        ...item,
+        varianceOz,
+        excessOz,
+        variancePercent,
+        excessUsageCost,
+        hasCostEvidence:
+          Number(item.costPerOz || 0) > 0,
+      };
+    })
+    .sort((a, b) => {
+      const aDate = new Date(
+        a.usageDate || 0
+      ).getTime();
+
+      const bDate = new Date(
+        b.usageDate || 0
+      ).getTime();
+
+      return bDate - aDate;
+    });
+}, [beverageItems, beverageUsage]);
+// =========================
+// CURRENT BEVERAGE USAGE PERIOD
+// Determines the newest real beverage usage evidence period.
+// =========================
+
+const currentBeverageUsagePeriod = useMemo(() => {
+  if (!Array.isArray(beverageUsageRecoveryData)) {
+    return null;
+  }
+
+  const rowsWithUpload = beverageUsageRecoveryData.filter(
+    (item) => String(item.uploadId || "").trim()
+  );
+
+  if (!rowsWithUpload.length) {
+    return null;
+  }
+
+  const periodMap = new Map();
+
+  rowsWithUpload.forEach((item) => {
+    const uploadId = String(item.uploadId || "").trim();
+
+    const usageTimestamp = item.usageDate
+      ? new Date(item.usageDate).getTime()
+      : 0;
+
+    const existing = periodMap.get(uploadId);
+
+    if (
+      !existing ||
+      usageTimestamp > existing.latestUsageTimestamp
+    ) {
+      periodMap.set(uploadId, {
+        uploadId,
+        latestUsageTimestamp: usageTimestamp,
+        usageDate: item.usageDate || null,
+      });
+    }
+  });
+
+  const newestPeriod = Array.from(
+    periodMap.values()
+  ).sort(
+    (a, b) =>
+      Number(b.latestUsageTimestamp || 0) -
+      Number(a.latestUsageTimestamp || 0)
+  )[0];
+
+  if (!newestPeriod?.uploadId) {
+    return null;
+  }
+
+  const periodRows = rowsWithUpload.filter(
+    (item) =>
+      String(item.uploadId || "") ===
+      String(newestPeriod.uploadId)
+  );
+
+  return {
+    uploadId: newestPeriod.uploadId,
+    usageDate: newestPeriod.usageDate,
+    rows: periodRows,
+
+    totalExpectedOz: Number(
+      periodRows
+        .reduce(
+          (sum, item) =>
+            sum + Number(item.expectedOz || 0),
+          0
+        )
+        .toFixed(2)
+    ),
+
+    totalActualOz: Number(
+      periodRows
+        .reduce(
+          (sum, item) =>
+            sum + Number(item.actualOz || 0),
+          0
+        )
+        .toFixed(2)
+    ),
+
+    totalExcessOz: Number(
+      periodRows
+        .reduce(
+          (sum, item) =>
+            sum + Number(item.excessOz || 0),
+          0
+        )
+        .toFixed(2)
+    ),
+
+    totalExcessUsageCost: Number(
+      periodRows
+        .reduce(
+          (sum, item) =>
+            sum +
+            Number(item.excessUsageCost || 0),
+          0
+        )
+        .toFixed(2)
+    ),
+  };
+}, [beverageUsageRecoveryData]);
+const handleConfirmBeveragePourFix = async (item) => {
+  try {
+    const baselineUploadId = String(
+      item?.uploadId || ""
+    ).trim();
+
+    const beverageName = String(
+      item?.beverageName || ""
+    ).trim();
+
+    const baselineExcessUsageCost = Number(
+      item?.excessUsageCost || 0
+    );
+
+    if (!baselineUploadId) {
+      setMessage(
+        "This beverage variance does not have a valid usage period."
+      );
+      return;
+    }
+
+    if (!beverageName) {
+      setMessage(
+        "This beverage variance does not have a valid beverage name."
+      );
+      return;
+    }
+
+    if (!item?.hasCostEvidence) {
+      setMessage(
+        `Add bottle size and bottle cost for ${beverageName} before confirming this fix.`
+      );
+      return;
+    }
+
+    if (baselineExcessUsageCost <= 0) {
+      setMessage(
+        `${beverageName} does not currently have a positive excess usage cost to recover.`
+      );
+      return;
+    }
+
+    const baselineData = {
+      beverage_name: beverageName,
+
+      baseline_upload_id: baselineUploadId,
+      baseline_usage_date: item?.usageDate || null,
+
+      expected_oz: Number(
+        Number(item?.expectedOz || 0).toFixed(2)
+      ),
+
+      actual_oz: Number(
+        Number(item?.actualOz || 0).toFixed(2)
+      ),
+
+      variance_oz: Number(
+        Number(item?.varianceOz || 0).toFixed(2)
+      ),
+
+      variance_percent: Number(
+        Number(item?.variancePercent || 0).toFixed(2)
+      ),
+
+      excess_oz: Number(
+        Number(item?.excessOz || 0).toFixed(2)
+      ),
+
+      bottle_size_oz: Number(
+        Number(item?.bottleSizeOz || 0).toFixed(2)
+      ),
+
+      cost_per_bottle: Number(
+        Number(item?.costPerBottle || 0).toFixed(2)
+      ),
+
+      cost_per_oz: Number(
+        Number(item?.costPerOz || 0).toFixed(4)
+      ),
+
+      baseline_excess_usage_cost: Number(
+        baselineExcessUsageCost.toFixed(2)
+      ),
+
+      location_name: item?.locationName || null,
+    };
+
+    const savedAction = await saveAppliedAIAction({
+      actionName: `Correct pour variance for ${beverageName}`,
+
+      actionDescription:
+        `Reduce excess beverage usage for ${beverageName} and verify improvement against a future beverage usage period.`,
+
+      impactValue: Number(
+        baselineExcessUsageCost.toFixed(2)
+      ),
+
+      appliedBy: "operator",
+
+      recoveryCategory: "beverage",
+      entityType: "beverage_item",
+      entityId: beverageName,
+
+      actionType: "beverage_pour_variance",
+
+      decisionStatus: "accepted",
+      implementationStatus: "confirmed",
+
+      baselineData,
+
+      targetData: {
+        target: "reduce_excess_usage_cost",
+        baseline_upload_id: baselineUploadId,
+      },
+    });
+
+    if (!savedAction) {
+      return;
+    }
+
+    setMessage(
+      `${beverageName} pour variance fix confirmed. Serven will verify recovery against a future beverage usage period.`
+    );
+  } catch (error) {
+    console.error(
+      "BEVERAGE POUR FIX CONFIRM ERROR:",
+      error
+    );
+
+    setMessage(
+      "Could not confirm the beverage pour variance fix."
+    );
+  }
+};
+/*
+  ==========================================
+  BEVERAGE VERIFIED RECOVERY
+  ==========================================
+
+  Baseline:
+  Operator confirms a real excess-usage
+  period from beverage_usage.
+
+  Verification:
+  A later beverage usage upload for the same
+  beverage must reduce excess usage.
+
+  Recovery is valued using the ORIGINAL
+  baseline cost per ounce so vendor price
+  movement cannot manufacture recovery.
+*/
+
+useEffect(() => {
+  const verifyAppliedBeverageRecoveries = async () => {
+    if (!authReady) return;
+
+    if (
+      !Array.isArray(realAppliedActions) ||
+      !realAppliedActions.length ||
+      !Array.isArray(beverageUsageRecoveryData) ||
+      !beverageUsageRecoveryData.length
+    ) {
+      return;
+    }
+
+    const normalizeBeverageName = (value) =>
+      String(value || "")
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, " ");
+
+    const pendingBeverageActions = (
+      realAppliedActions || []
+    ).filter((action) => {
+      const category = String(
+        action.recovery_category || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      const entityType = String(
+        action.entity_type || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      const actionType = String(
+        action.action_type || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      const verificationStatus = String(
+        action.verification_status || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      const decisionStatus = String(
+        action.decision_status || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      return (
+        category === "beverage" &&
+        entityType === "beverage_item" &&
+        actionType === "beverage_pour_variance" &&
+        decisionStatus === "accepted" &&
+        verificationStatus !== "verified"
+      );
+    });
+
+    if (!pendingBeverageActions.length) {
+      return;
+    }
+
+    let verificationChanged = false;
+
+    for (const action of pendingBeverageActions) {
+      const baselineData =
+        action.baseline_data || {};
+
+      const baselineUploadId = String(
+        baselineData.baseline_upload_id || ""
+      ).trim();
+
+      const baselineBeverageName =
+        normalizeBeverageName(
+          baselineData.beverage_name ||
+            action.entity_id ||
+            ""
+        );
+
+      const baselineExpectedOz = Number(
+        baselineData.expected_oz || 0
+      );
+
+      const baselineActualOz = Number(
+        baselineData.actual_oz || 0
+      );
+
+      const baselineExcessOz = Number(
+        baselineData.excess_oz || 0
+      );
+
+      const baselineCostPerOz = Number(
+        baselineData.cost_per_oz || 0
+      );
+
+      const baselineExcessUsageCost = Number(
+        baselineData.baseline_excess_usage_cost ||
+          0
+      );
+
+      if (
+        !baselineUploadId ||
+        !baselineBeverageName ||
+        baselineCostPerOz <= 0 ||
+        baselineExcessUsageCost <= 0
+      ) {
+        continue;
+      }
+
+      /*
+        Only evidence from a DIFFERENT upload
+        period can verify the accepted fix.
+      */
+
+      const futureCandidates = (
+        beverageUsageRecoveryData || []
+      ).filter((item) => {
+        const itemName =
+          normalizeBeverageName(
+            item?.beverageName ||
+              item?.normalizedName ||
+              ""
+          );
+
+        const itemUploadId = String(
+          item?.uploadId || ""
+        ).trim();
+
+        const sameBeverage =
+          itemName === baselineBeverageName;
+
+        const differentPeriod =
+          Boolean(itemUploadId) &&
+          itemUploadId !== baselineUploadId;
+
+        const baselineLocation =
+          String(
+            baselineData.location_name || ""
+          )
+            .trim()
+            .toLowerCase();
+
+        const itemLocation =
+          String(item?.locationName || "")
+            .trim()
+            .toLowerCase();
+
+        const sameLocation =
+          !baselineLocation ||
+          !itemLocation ||
+          baselineLocation === itemLocation;
+
+        return (
+          sameBeverage &&
+          differentPeriod &&
+          sameLocation
+        );
+      });
+
+      if (!futureCandidates.length) {
+        continue;
+      }
+
+      /*
+        Use the newest available future usage
+        evidence for initial verification.
+      */
+
+      const currentEvidence = [
+        ...futureCandidates,
+      ].sort((a, b) => {
+        const aTime = a?.usageDate
+          ? new Date(a.usageDate).getTime()
+          : 0;
+
+        const bTime = b?.usageDate
+          ? new Date(b.usageDate).getTime()
+          : 0;
+
+        return bTime - aTime;
+      })[0];
+
+      if (!currentEvidence) {
+        continue;
+      }
+
+      const currentUploadId = String(
+        currentEvidence.uploadId || ""
+      ).trim();
+
+      const currentExpectedOz = Number(
+        currentEvidence.expectedOz || 0
+      );
+
+      const currentActualOz = Number(
+        currentEvidence.actualOz || 0
+      );
+
+      const currentExcessOz = Math.max(
+        0,
+        currentActualOz - currentExpectedOz
+      );
+
+      /*
+        IMPORTANT:
+        Use baseline cost/oz, not current
+        beverage cost. This isolates operational
+        recovery from vendor price movement.
+      */
+
+      const normalizedCurrentExcessUsageCost =
+        Number(
+          (
+            currentExcessOz *
+            baselineCostPerOz
+          ).toFixed(2)
+        );
+
+      const verifiedRecovery =
+        baselineExcessUsageCost > 0 &&
+        normalizedCurrentExcessUsageCost <
+          baselineExcessUsageCost
+          ? Number(
+              (
+                baselineExcessUsageCost -
+                normalizedCurrentExcessUsageCost
+              ).toFixed(2)
+            )
+          : 0;
+
+      if (verifiedRecovery <= 0) {
+        continue;
+      }
+
+      const verificationTimestamp =
+        new Date().toISOString();
+
+      const evidenceDate =
+        currentEvidence.usageDate
+          ? String(
+              currentEvidence.usageDate
+            ).slice(0, 10)
+          : verificationTimestamp.slice(0, 10);
+
+      const verificationMethod =
+        `beverage_usage_${currentUploadId}_${baselineBeverageName.replace(
+          /[^0-9A-Za-z]/g,
+          "_"
+        )}`;
+
+      /*
+        ==========================================
+        WRITE INITIAL VERIFIED BEVERAGE PERIOD
+        ==========================================
+      */
+
+      const {
+        error: beverageLedgerError,
+      } = await supabase
+        .from("verified_recovery_ledger")
+        .upsert(
+          [
+            {
+              user_id: action.user_id,
+
+              action_id: action.id,
+
+              recovery_category: "beverage",
+
+              entity_type:
+                action.entity_type ||
+                "beverage_item",
+
+              entity_id:
+                action.entity_id
+                  ? String(action.entity_id)
+                  : String(
+                      baselineData.beverage_name ||
+                        ""
+                    ),
+
+              location_id:
+                action.location_id || null,
+
+              location_name:
+                action.location_name ||
+                baselineData.location_name ||
+                null,
+
+              period_start: evidenceDate,
+
+              period_end: evidenceDate,
+
+              recovery_amount:
+                verifiedRecovery,
+
+              verification_method:
+                verificationMethod,
+
+              baseline_data: {
+                ...baselineData,
+
+                beverage_name:
+                  baselineData.beverage_name ||
+                  action.entity_id ||
+                  null,
+
+                baseline_upload_id:
+                  baselineUploadId,
+
+                baseline_expected_oz:
+                  baselineExpectedOz,
+
+                baseline_actual_oz:
+                  baselineActualOz,
+
+                baseline_excess_oz:
+                  baselineExcessOz,
+
+                baseline_cost_per_oz:
+                  baselineCostPerOz,
+
+                baseline_excess_usage_cost:
+                  baselineExcessUsageCost,
+              },
+
+              measured_data: {
+                measured_upload_id:
+                  currentUploadId,
+
+                measured_usage_date:
+                  currentEvidence.usageDate ||
+                  null,
+
+                measured_expected_oz:
+                  currentExpectedOz,
+
+                measured_actual_oz:
+                  currentActualOz,
+
+                measured_excess_oz:
+                  currentExcessOz,
+
+                baseline_cost_per_oz:
+                  baselineCostPerOz,
+
+                measured_excess_usage_cost:
+                  normalizedCurrentExcessUsageCost,
+
+                recovery_amount:
+                  verifiedRecovery,
+              },
+
+              status: "verified",
+
+              verified_at:
+                verificationTimestamp,
+            },
+          ],
+          {
+            onConflict:
+              "action_id,period_start,period_end,verification_method",
+          }
+        );
+
+      if (beverageLedgerError) {
+        console.error(
+          "BEVERAGE RECOVERY LEDGER ERROR:",
+          beverageLedgerError
+        );
+
+        continue;
+      }
+
+      const { error: actionUpdateError } =
+        await supabase
+          .from("ai_applied_actions")
+          .update({
+            implementation_status:
+              "confirmed",
+
+            verification_status:
+              "verified",
+
+            verified_recovery:
+              verifiedRecovery,
+
+            verified_at:
+              verificationTimestamp,
+
+            target_data: {
+              ...(action.target_data || {}),
+
+              verified_upload_id:
+                currentUploadId,
+
+              verified_usage_date:
+                currentEvidence.usageDate ||
+                null,
+
+              verified_expected_oz:
+                currentExpectedOz,
+
+              verified_actual_oz:
+                currentActualOz,
+
+              verified_excess_oz:
+                currentExcessOz,
+
+              verified_excess_usage_cost:
+                normalizedCurrentExcessUsageCost,
+            },
+
+            status: "verified",
+          })
+          .eq("id", action.id);
+
+      if (actionUpdateError) {
+        console.error(
+          "BEVERAGE RECOVERY VERIFICATION ERROR:",
+          actionUpdateError
+        );
+
+        continue;
+      }
+
+      verificationChanged = true;
+
+      console.log(
+        "BEVERAGE RECOVERY VERIFIED:",
+        {
+          actionId: action.id,
+          beverageName:
+            baselineData.beverage_name ||
+            action.entity_id,
+          baselineUploadId,
+          verifiedUploadId:
+            currentUploadId,
+          baselineExcessUsageCost,
+          currentExcessUsageCost:
+            normalizedCurrentExcessUsageCost,
+          verifiedRecovery,
+        }
+      );
+    }
+
+    if (verificationChanged) {
+      await loadRealAppliedActions();
+    }
+  };
+
+  verifyAppliedBeverageRecoveries();
+}, [
+  authReady,
+  realAppliedActions,
+  beverageUsageRecoveryData,
+]);
+
+/*
+  ==========================================
+  ONGOING VERIFIED BEVERAGE RECOVERY
+  ==========================================
+
+  Every later beverage usage upload can add
+  another verified recovery period.
+
+  The ORIGINAL accepted baseline remains fixed.
+  Existing ledger evidence is never counted twice.
+*/
+
+useEffect(() => {
+  const trackOngoingVerifiedBeverageRecovery =
+    async () => {
+      if (!authReady) return;
+
+      if (
+        !Array.isArray(realAppliedActions) ||
+        !realAppliedActions.length ||
+        !Array.isArray(
+          beverageUsageRecoveryData
+        ) ||
+        !beverageUsageRecoveryData.length
+      ) {
+        return;
+      }
+
+      const normalizeBeverageName = (value) =>
+        String(value || "")
+          .trim()
+          .toLowerCase()
+          .replace(/\s+/g, " ");
+
+      const verifiedBeverageActions = (
+        realAppliedActions || []
+      ).filter((action) => {
+        const category = String(
+          action.recovery_category || ""
+        )
+          .trim()
+          .toLowerCase();
+
+        const actionType = String(
+          action.action_type || ""
+        )
+          .trim()
+          .toLowerCase();
+
+        const verificationStatus = String(
+          action.verification_status || ""
+        )
+          .trim()
+          .toLowerCase();
+
+        return (
+          category === "beverage" &&
+          actionType ===
+            "beverage_pour_variance" &&
+          verificationStatus === "verified"
+        );
+      });
+
+      if (!verifiedBeverageActions.length) {
+        return;
+      }
+
+      let anyRecoveryChanged = false;
+
+      for (const action of verifiedBeverageActions) {
+        const baselineData =
+          action.baseline_data || {};
+
+        const baselineUploadId = String(
+          baselineData.baseline_upload_id ||
+            ""
+        ).trim();
+
+        const baselineBeverageName =
+          normalizeBeverageName(
+            baselineData.beverage_name ||
+              action.entity_id ||
+              ""
+          );
+
+        const baselineCostPerOz = Number(
+          baselineData.cost_per_oz || 0
+        );
+
+        const baselineExcessUsageCost =
+          Number(
+            baselineData.baseline_excess_usage_cost ||
+              0
+          );
+
+        if (
+          !baselineUploadId ||
+          !baselineBeverageName ||
+          baselineCostPerOz <= 0 ||
+          baselineExcessUsageCost <= 0
+        ) {
+          continue;
+        }
+
+        const baselineLocation = String(
+          baselineData.location_name || ""
+        )
+          .trim()
+          .toLowerCase();
+
+        /*
+          Load all ledger evidence once for this
+          action so already-counted upload periods
+          can be skipped.
+        */
+
+        const {
+          data: existingLedgerRows,
+          error: existingLedgerError,
+        } = await supabase
+          .from("verified_recovery_ledger")
+          .select(
+            "period_start, period_end, verification_method, measured_data"
+          )
+          .eq("action_id", action.id)
+          .eq("status", "verified");
+
+        if (existingLedgerError) {
+          console.error(
+            "ONGOING BEVERAGE LEDGER LOAD ERROR:",
+            existingLedgerError
+          );
+
+          continue;
+        }
+
+        const alreadyMeasuredUploadIds =
+          new Set(
+            (existingLedgerRows || [])
+              .map((row) =>
+                String(
+                  row?.measured_data
+                    ?.measured_upload_id || ""
+                ).trim()
+              )
+              .filter(Boolean)
+          );
+
+        const futurePeriods = (
+          beverageUsageRecoveryData || []
+        )
+          .filter((item) => {
+            const itemName =
+              normalizeBeverageName(
+                item?.beverageName ||
+                  item?.normalizedName ||
+                  ""
+              );
+
+            const itemUploadId = String(
+              item?.uploadId || ""
+            ).trim();
+
+            const itemLocation = String(
+              item?.locationName || ""
+            )
+              .trim()
+              .toLowerCase();
+
+            const sameLocation =
+              !baselineLocation ||
+              !itemLocation ||
+              baselineLocation ===
+                itemLocation;
+
+            return (
+              itemName ===
+                baselineBeverageName &&
+              Boolean(itemUploadId) &&
+              itemUploadId !==
+                baselineUploadId &&
+              sameLocation &&
+              !alreadyMeasuredUploadIds.has(
+                itemUploadId
+              )
+            );
+          })
+          .sort((a, b) => {
+            const aTime = a?.usageDate
+              ? new Date(
+                  a.usageDate
+                ).getTime()
+              : 0;
+
+            const bTime = b?.usageDate
+              ? new Date(
+                  b.usageDate
+                ).getTime()
+              : 0;
+
+            return aTime - bTime;
+          });
+
+        if (!futurePeriods.length) {
+          continue;
+        }
+
+        for (const currentEvidence of futurePeriods) {
+          const currentUploadId = String(
+            currentEvidence.uploadId || ""
+          ).trim();
+
+          const currentExpectedOz = Number(
+            currentEvidence.expectedOz || 0
+          );
+
+          const currentActualOz = Number(
+            currentEvidence.actualOz || 0
+          );
+
+          const currentExcessOz = Math.max(
+            0,
+            currentActualOz -
+              currentExpectedOz
+          );
+
+          /*
+            Continue valuing every future period
+            using the ORIGINAL baseline cost/oz.
+          */
+
+          const normalizedCurrentExcessUsageCost =
+            Number(
+              (
+                currentExcessOz *
+                baselineCostPerOz
+              ).toFixed(2)
+            );
+
+          const periodRecovery =
+            baselineExcessUsageCost > 0 &&
+            normalizedCurrentExcessUsageCost <
+              baselineExcessUsageCost
+              ? Number(
+                  (
+                    baselineExcessUsageCost -
+                    normalizedCurrentExcessUsageCost
+                  ).toFixed(2)
+                )
+              : 0;
+
+          if (periodRecovery <= 0) {
+            continue;
+          }
+
+          const verificationTimestamp =
+            new Date().toISOString();
+
+          const evidenceDate =
+            currentEvidence.usageDate
+              ? String(
+                  currentEvidence.usageDate
+                ).slice(0, 10)
+              : verificationTimestamp.slice(
+                  0,
+                  10
+                );
+
+          const verificationMethod =
+            `beverage_usage_${currentUploadId}_${baselineBeverageName.replace(
+              /[^0-9A-Za-z]/g,
+              "_"
+            )}`;
+
+          const evidenceKey =
+            `${evidenceDate}|${evidenceDate}|${verificationMethod}`;
+
+          const existingEvidence =
+            new Set(
+              (existingLedgerRows || []).map(
+                (row) =>
+                  `${row.period_start}|${row.period_end}|${row.verification_method}`
+              )
+            );
+
+          if (
+            existingEvidence.has(
+              evidenceKey
+            )
+          ) {
+            continue;
+          }
+
+          const {
+            error: ledgerInsertError,
+          } = await supabase
+            .from(
+              "verified_recovery_ledger"
+            )
+            .upsert(
+              [
+                {
+                  user_id:
+                    action.user_id,
+
+                  action_id:
+                    action.id,
+
+                  recovery_category:
+                    "beverage",
+
+                  entity_type:
+                    action.entity_type ||
+                    "beverage_item",
+
+                  entity_id:
+                    action.entity_id
+                      ? String(
+                          action.entity_id
+                        )
+                      : String(
+                          baselineData.beverage_name ||
+                            ""
+                        ),
+
+                  location_id:
+                    action.location_id ||
+                    null,
+
+                  location_name:
+                    action.location_name ||
+                    baselineData.location_name ||
+                    null,
+
+                  period_start:
+                    evidenceDate,
+
+                  period_end:
+                    evidenceDate,
+
+                  recovery_amount:
+                    periodRecovery,
+
+                  verification_method:
+                    verificationMethod,
+
+                  baseline_data: {
+                    ...baselineData,
+
+                    beverage_name:
+                      baselineData.beverage_name ||
+                      action.entity_id ||
+                      null,
+
+                    baseline_upload_id:
+                      baselineUploadId,
+
+                    baseline_cost_per_oz:
+                      baselineCostPerOz,
+
+                    baseline_excess_usage_cost:
+                      baselineExcessUsageCost,
+                  },
+
+                  measured_data: {
+                    measured_upload_id:
+                      currentUploadId,
+
+                    measured_usage_date:
+                      currentEvidence.usageDate ||
+                      null,
+
+                    measured_expected_oz:
+                      currentExpectedOz,
+
+                    measured_actual_oz:
+                      currentActualOz,
+
+                    measured_excess_oz:
+                      currentExcessOz,
+
+                    baseline_cost_per_oz:
+                      baselineCostPerOz,
+
+                    measured_excess_usage_cost:
+                      normalizedCurrentExcessUsageCost,
+
+                    recovery_amount:
+                      periodRecovery,
+                  },
+
+                  status: "verified",
+
+                  verified_at:
+                    verificationTimestamp,
+                },
+              ],
+              {
+                onConflict:
+                  "action_id,period_start,period_end,verification_method",
+
+                ignoreDuplicates: true,
+              }
+            );
+
+          if (ledgerInsertError) {
+            console.error(
+              "ONGOING BEVERAGE LEDGER INSERT ERROR:",
+              ledgerInsertError
+            );
+
+            continue;
+          }
+
+          /*
+            Add this period to our local evidence
+            set immediately so this same effect run
+            cannot process it twice.
+          */
+
+          alreadyMeasuredUploadIds.add(
+            currentUploadId
+          );
+
+          existingLedgerRows.push({
+            period_start: evidenceDate,
+            period_end: evidenceDate,
+            verification_method:
+              verificationMethod,
+            measured_data: {
+              measured_upload_id:
+                currentUploadId,
+            },
+          });
+
+          anyRecoveryChanged = true;
+        }
+
+        /*
+          ==========================================
+          RECALCULATE LIFETIME BEVERAGE RECOVERY
+          ==========================================
+
+          ai_applied_actions.verified_recovery is
+          derived exclusively from verified ledger
+          evidence.
+        */
+
+        const {
+          data: lifetimeRows,
+          error: lifetimeError,
+        } = await supabase
+          .from("verified_recovery_ledger")
+          .select("recovery_amount")
+          .eq("action_id", action.id)
+          .eq("status", "verified");
+
+        if (lifetimeError) {
+          console.error(
+            "BEVERAGE LIFETIME RECOVERY LOAD ERROR:",
+            lifetimeError
+          );
+
+          continue;
+        }
+
+        const lifetimeRecovery = Number(
+          (lifetimeRows || [])
+            .reduce(
+              (sum, row) =>
+                sum +
+                Number(
+                  row.recovery_amount || 0
+                ),
+              0
+            )
+            .toFixed(2)
+        );
+
+        if (lifetimeRecovery <= 0) {
+          continue;
+        }
+
+        const latestEvidence = [
+          ...futurePeriods,
+        ].sort((a, b) => {
+          const aTime = a?.usageDate
+            ? new Date(
+                a.usageDate
+              ).getTime()
+            : 0;
+
+          const bTime = b?.usageDate
+            ? new Date(
+                b.usageDate
+              ).getTime()
+            : 0;
+
+          return bTime - aTime;
+        })[0];
+
+        const {
+          error: actionUpdateError,
+        } = await supabase
+          .from("ai_applied_actions")
+          .update({
+            implementation_status:
+              "confirmed",
+
+            verification_status:
+              "verified",
+
+            verified_recovery:
+              lifetimeRecovery,
+
+            verified_at:
+              new Date().toISOString(),
+
+            target_data: {
+              ...(action.target_data || {}),
+
+              verified_upload_id:
+                latestEvidence?.uploadId ||
+                action.target_data
+                  ?.verified_upload_id ||
+                null,
+
+              verified_usage_date:
+                latestEvidence?.usageDate ||
+                action.target_data
+                  ?.verified_usage_date ||
+                null,
+
+              lifetime_verified_recovery:
+                lifetimeRecovery,
+            },
+
+            status: "verified",
+          })
+          .eq("id", action.id);
+
+        if (actionUpdateError) {
+          console.error(
+            "ONGOING BEVERAGE ACTION UPDATE ERROR:",
+            actionUpdateError
+          );
+
+          continue;
+        }
+
+        anyRecoveryChanged = true;
+
+        console.log(
+          "ONGOING BEVERAGE RECOVERY UPDATED:",
+          {
+            actionId: action.id,
+            beverageName:
+              baselineData.beverage_name ||
+              action.entity_id,
+            lifetimeRecovery,
+          }
+        );
+      }
+
+      if (anyRecoveryChanged) {
+        await loadRealAppliedActions();
+      }
+    };
+
+  trackOngoingVerifiedBeverageRecovery();
+}, [
+  authReady,
+  realAppliedActions,
+  beverageUsageRecoveryData,
+]);
 const ouncePourVarianceData = (locationIngredientsData || [])
   .filter(isBeverageRow)
   .map((item, index) => {
@@ -30828,7 +32311,7 @@ const operationalMemoryEvents = useMemo(() => {
       message: `Revenue momentum is down ${Math.abs(
         Number(liveMomentumPercent || 0)
       ).toFixed(1)}%.`,
-      impact: Math.abs(Number(liveMomentumPercent || 0)) * 100,
+      impact: 0,
     });
   }
 
@@ -30852,7 +32335,9 @@ const operationalMemoryEvents = useMemo(() => {
       message: `Labor is running at ${Number(
         liveLaborIntelligence?.laborPercent || 0
       ).toFixed(1)}% of revenue.`,
-      impact: Number(liveLaborIntelligence?.totalLaborCost || 0),
+     impact: Number(
+  liveLaborIntelligence?.laborRecoveryOpportunity || 0
+),
     });
   }
 
@@ -31045,10 +32530,7 @@ const crossSystemSignals = useMemo(() => {
       severity: "Watch",
       message:
         "Beverage contribution is low while AOV is below premium target. AI recommends pairing beverages with high-margin menu items.",
-     impact:
-  Number(liveTotalOrders || 0) > 0
-    ? Math.round(Number(liveTotalOrders || 0) * 3)
-    : 0,
+  impact: 0,
     });
   }
 
@@ -37385,17 +38867,17 @@ const restaurantDigitalTwinExecutiveEngine = useMemo(() => {
       )
     );
 
-  /*
-   * =========================================
-   * ESTIMATED MONTHLY OPPORTUNITY
-   * =========================================
+/*
+ * =========================================
+ * CURRENT OPPORTUNITY
+ * =========================================
    *
    * Only use the ranked top decisions so the
    * executive view does not blindly total
    * every alert in the system.
    */
 
-  const estimatedMonthlyOpportunity =
+  const currentOpportunity =
     topDecisions.reduce(
       (sum, decision) =>
         sum +
@@ -37630,7 +39112,7 @@ const roleViews = {
     executiveHealthScore,
     crossSystemRiskScore,
 
-    estimatedMonthlyOpportunity,
+   currentOpportunity,
 
     criticalDecisionCount:
       criticalCount,
@@ -44242,23 +45724,7 @@ const expansionReadiness =
 
 
 
-const liveCampaignImpactLow = Math.round(
-  Math.max(
-    250,
-    Number(totalAIRecoveryOpportunity || 0) * 0.25 +
-      Number(estimatedRecoverableProfit || 0) * 0.25
-  )
-);
 
-const liveCampaignImpactHigh = Math.round(
-  Math.max(
-    750,
-    Number(totalAIRecoveryOpportunity || 0) * 0.65 +
-      Number(estimatedRecoverableProfit || 0) * 0.65
-  )
-);
-
-const liveCampaignImpactRange = `$${liveCampaignImpactLow.toLocaleString()} - $${liveCampaignImpactHigh.toLocaleString()}`;
 
 const laborHealthScore = Math.max(
   40,
@@ -50071,7 +51537,7 @@ selectedHandler();
         marginBottom: "8px",
       }}
     >
-      You&apos;re Currently Losing
+      Current Recoverable Opportunity
     </div>
 
     <div
@@ -50087,16 +51553,7 @@ selectedHandler();
       {Number(
         servenPerformanceSummary.potentialRecovery || 0
       ).toLocaleString()}
-      <span
-        style={{
-          color: "#94a3b8",
-          fontSize: isMobile ? "16px" : "20px",
-          fontWeight: "800",
-          marginLeft: "6px",
-        }}
-      >
-        /month
-      </span>
+    
     </div>
 
     <div
@@ -50504,7 +51961,7 @@ selectedHandler();
           marginTop: "6px",
         }}
       >
-        Monthly opportunity detected
+        Opportunity detected in the loaded data period
       </div>
     </div>
 
@@ -74429,8 +75886,8 @@ Recovered profit is based on saved AI action impact.
         label: "Monthly Opportunity",
         value: restaurantDigitalTwinExecutiveEngine?.hasData
           ? `$${Number(
-              restaurantDigitalTwinExecutiveEngine.estimatedMonthlyOpportunity ||
-                0
+            restaurantDigitalTwinExecutiveEngine.currentOpportunity ||
+  0
             ).toLocaleString()}`
           : "Waiting",
       },
@@ -75764,12 +77221,11 @@ Recovered profit is based on saved AI action impact.
         value={topAIAction.category || "Monitoring"}
         subtitle="Highest operational priority"
       />
-
-      <GlassCard
-        title="Projected Impact"
-        value={topAIAction.impact || "+$0/mo"}
-        subtitle="Estimated monthly recovery"
-      />
+<GlassCard
+  title="Action Status"
+  value="Recommended"
+  subtitle="Impact is verified from future operational data"
+/>
 
       <GlassCard
         title="Severity"
@@ -75786,9 +77242,7 @@ Recovered profit is based on saved AI action impact.
           title: topAIAction.title,
           description: topAIAction.recommendation,
           customer: null,
-          estimatedValue: Number(
-            String(topAIAction.impact || "0").replace(/[^0-9.]/g, "")
-          ),
+          estimatedValue: 0,
           channel: "Operational",
           message: topAIAction.recommendation,
         })
@@ -90120,7 +91574,7 @@ margin: "0",
                 expectedRevenue: e.target.value,
               }))
             }
-            placeholder="Expected revenue impact"
+            placeholder="Your revenue target (optional)"
             style={{
               ...inputStyle,
               width: "100%",
@@ -108168,22 +109622,102 @@ maxWidth: "calc(100% - 28px)",
       Ounce-Level Pour Variance
     </h3>
 
-    {(ouncePourVarianceData || []).slice(0, 5).map((item) => (
-      <div key={item.name} style={itemStyle}>
-        <strong>{item.name}</strong>
-        <br />
-        Expected: {item.expectedOz || 0} oz · Actual: {item.actualOz || 0} oz
-        <br />
-        Variance: {item.variancePercent || 0}% · Est. Loss: $
-        {Number(item.estimatedLoss || 0).toLocaleString()}
-        <br />
-        Status: {item.status}
-      </div>
-    ))}
+   {(currentBeverageUsagePeriod?.rows || [])
+  .filter(
+    (item) =>
+      Number(item?.varianceOz || 0) !== 0 ||
+      Number(item?.excessUsageCost || 0) > 0
+  )
+  .sort(
+    (a, b) =>
+      Number(b?.excessUsageCost || 0) -
+      Number(a?.excessUsageCost || 0)
+  )
+  .slice(0, 5)
+  .map((item) => {
+    const hasRecoverableExposure =
+      Boolean(item?.hasCostEvidence) &&
+      Number(item?.excessUsageCost || 0) > 0;
 
-    {!ouncePourVarianceData?.length && (
-      <div style={itemStyle}>Upload beverage inventory data to activate pour variance.</div>
-    )}
+    const status =
+      Number(item?.variancePercent || 0) >= 15
+        ? "Critical Overpour"
+        : Number(item?.variancePercent || 0) >= 8
+        ? "Overpour Risk"
+        : Number(item?.variancePercent || 0) <= -10
+        ? "Underpour / Stock Mismatch"
+        : "Controlled";
+
+    return (
+      <div
+        key={`${item.uploadId}-${item.normalizedName}`}
+        style={itemStyle}
+      >
+        <strong>{item.beverageName}</strong>
+
+        <br />
+
+        Expected:{" "}
+        {Number(item.expectedOz || 0).toFixed(2)} oz
+        {" · "}
+        Actual:{" "}
+        {Number(item.actualOz || 0).toFixed(2)} oz
+
+        <br />
+
+        Variance:{" "}
+        {Number(item.variancePercent || 0).toFixed(1)}%
+
+        {" · "}
+
+        Excess Usage Cost:{" "}
+        {item.hasCostEvidence
+          ? `$${Number(
+              item.excessUsageCost || 0
+            ).toLocaleString(undefined, {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}`
+          : "Cost data needed"}
+
+        <br />
+
+        Status: {status}
+
+        {hasRecoverableExposure && (
+          <div style={{ marginTop: "12px" }}>
+            <button
+              type="button"
+              onClick={() =>
+                handleConfirmBeveragePourFix(item)
+              }
+              style={{
+                padding: "9px 13px",
+                borderRadius: "12px",
+                border:
+                  "1px solid rgba(34,197,94,0.28)",
+                background:
+                  "rgba(34,197,94,0.14)",
+                color: "#86efac",
+                fontSize: "12px",
+                fontWeight: "900",
+                cursor: "pointer",
+              }}
+            >
+              Confirm Fix
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  })}
+
+{!(currentBeverageUsagePeriod?.rows || []).length && (
+  <div style={itemStyle}>
+    Upload beverage usage data to activate pour variance.
+  </div>
+)}
+  
   </div>
 
   <div style={sectionCard}>
