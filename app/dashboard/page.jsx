@@ -109230,31 +109230,185 @@ maxWidth: "calc(100% - 28px)",
         <br />
 
         Status: {status}
+{(() => {
+  const normalizedBeverageName = String(
+    item.beverageName || ""
+  )
+    .trim()
+    .toLowerCase();
 
-        {hasRecoverableExposure && (
-          <div style={{ marginTop: "12px" }}>
-            <button
-              type="button"
-              onClick={() =>
-                handleConfirmBeveragePourFix(item)
-              }
-              style={{
-                padding: "9px 13px",
-                borderRadius: "12px",
-                border:
-                  "1px solid rgba(34,197,94,0.28)",
-                background:
-                  "rgba(34,197,94,0.14)",
-                color: "#86efac",
-                fontSize: "12px",
-                fontWeight: "900",
-                cursor: "pointer",
-              }}
-            >
-              Confirm Fix
-            </button>
-          </div>
-        )}
+  const beverageAction = (realAppliedActions || [])
+    .filter((action) => {
+      const actionType = String(
+        action.action_type || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      const recoveryCategory = String(
+        action.recovery_category || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      const actionEntityName = String(
+        action.entity_id ||
+          action.baseline_data?.beverage_name ||
+          ""
+      )
+        .trim()
+        .toLowerCase();
+
+      const decisionStatus = String(
+        action.decision_status || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      return (
+        actionType === "beverage_pour_variance" &&
+        recoveryCategory === "beverage" &&
+        actionEntityName === normalizedBeverageName &&
+        decisionStatus === "accepted"
+      );
+    })
+    .sort(
+      (a, b) =>
+        new Date(b.created_at || 0).getTime() -
+        new Date(a.created_at || 0).getTime()
+    )[0];
+
+  const beverageActionId = String(
+    beverageAction?.id || ""
+  );
+
+  const beverageRecoveryRows = beverageActionId
+    ? (verifiedRecoveryLedger || []).filter(
+        (row) =>
+          String(row.action_id || "") ===
+            beverageActionId &&
+          String(row.status || "")
+            .trim()
+            .toLowerCase() === "verified"
+      )
+    : [];
+
+  const verifiedBeverageRecovery =
+    beverageRecoveryRows.reduce(
+      (sum, row) =>
+        sum +
+        Math.max(
+          0,
+          Number(row.recovery_amount || 0)
+        ),
+      0
+    );
+
+  if (verifiedBeverageRecovery > 0) {
+    return (
+      <div
+        style={{
+          marginTop: "12px",
+          padding: "12px 14px",
+          borderRadius: "14px",
+          background: "rgba(34,197,94,0.10)",
+          border:
+            "1px solid rgba(34,197,94,0.24)",
+          minWidth: "220px",
+        }}
+      >
+        <div
+          style={{
+            color: "#86efac",
+            fontSize: "11px",
+            fontWeight: "900",
+            textTransform: "uppercase",
+            letterSpacing: "0.05em",
+            marginBottom: "5px",
+          }}
+        >
+          Verified Recovery
+        </div>
+
+        <div
+          style={{
+            color: "#ffffff",
+            fontSize: "20px",
+            fontWeight: "900",
+          }}
+        >
+          $
+          {verifiedBeverageRecovery.toLocaleString(
+            undefined,
+            {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            }
+          )}
+        </div>
+
+        <div
+          style={{
+            color: "#86efac",
+            fontSize: "11px",
+            fontWeight: "800",
+            marginTop: "4px",
+          }}
+        >
+          ✓ Confirmed from live beverage usage data
+        </div>
+      </div>
+    );
+  }
+
+  if (beverageAction) {
+    return (
+      <div
+        style={{
+          marginTop: "12px",
+          padding: "10px 13px",
+          borderRadius: "12px",
+          background: "rgba(250,204,21,0.10)",
+          border:
+            "1px solid rgba(250,204,21,0.24)",
+          color: "#fde68a",
+          fontSize: "12px",
+          fontWeight: "900",
+        }}
+      >
+        Awaiting Verification
+      </div>
+    );
+  }
+
+  if (!hasRecoverableExposure) {
+    return null;
+  }
+
+  return (
+    <div style={{ marginTop: "12px" }}>
+      <button
+        type="button"
+        onClick={() =>
+          handleConfirmBeveragePourFix(item)
+        }
+        style={{
+          padding: "9px 13px",
+          borderRadius: "12px",
+          border:
+            "1px solid rgba(34,197,94,0.28)",
+          background: "rgba(34,197,94,0.14)",
+          color: "#86efac",
+          fontSize: "12px",
+          fontWeight: "900",
+          cursor: "pointer",
+        }}
+      >
+        Confirm Fix
+      </button>
+    </div>
+  );
+})()}
       </div>
     );
   })}
