@@ -7922,6 +7922,296 @@ e.target.value = "";
 
 console.log("TRACE AFTER HANDLE FILE UPLOAD");
 console.log("TRACE BEFORE IMPORT MAPPED SALES");
+const normalizePosRows = ({
+  incomingRows = [],
+  ownerId,
+  sourceName = "Manual Upload",
+  locationId = null,
+}) => {
+  if (!ownerId || !Array.isArray(incomingRows)) {
+    return [];
+  }
+
+  return incomingRows
+    .map((row) => {
+      const rawDate =
+        row.sale_date ||
+        row.date ||
+        row.Date ||
+        row["Sale Date"] ||
+        row["Business Date"] ||
+        row.day ||
+        row.Day ||
+        null;
+
+      const rawRevenue =
+        row.revenue ||
+        row.Revenue ||
+        row.sales ||
+        row.Sales ||
+        row.total_sales ||
+        row.totalSales ||
+        row["Total Sales"] ||
+        row.net_sales ||
+        row.netSales ||
+        row["Net Sales"] ||
+        row.gross_sales ||
+        row.grossSales ||
+        row["Gross Sales"] ||
+        row.amount ||
+        row.Amount ||
+        row.total ||
+        row.Total ||
+        0;
+
+      const rawOrders =
+        row.orders_count ||
+        row.ordersCount ||
+        row.orders ||
+        row.Orders ||
+        row.order_count ||
+        row["Order Count"] ||
+        row.check_count ||
+        row["Check Count"] ||
+        row.ticket_count ||
+        row["Ticket Count"] ||
+        row.transactions ||
+        row.Transactions ||
+        row["Guest Count"] ||
+        row.guests ||
+        row.Guests ||
+        0;
+
+      const rawLabor =
+        row.labor ??
+        row.labor_cost ??
+        row.Labor ??
+        row["Labor Cost"] ??
+        row.total_labor ??
+        row.total_labor_cost ??
+        row["Total Labor"] ??
+        row["Total Labor Cost"] ??
+        row.payroll ??
+        row.Payroll ??
+        row.wages ??
+        row.Wages ??
+        row.total_pay ??
+        row["Total Pay"] ??
+        row.gross_pay ??
+        row["Gross Pay"] ??
+        0;
+
+      const rawName =
+        row.name ||
+        row.Name ||
+        row.item ||
+        row.Item ||
+        row.item_name ||
+        row["Item Name"] ||
+        row.menu_item ||
+        row["Menu Item"] ||
+        row.product ||
+        row.Product ||
+        null;
+
+      const rawQuantity =
+        row.quantity ??
+        row.Quantity ??
+        row.quantity_sold ??
+        row["Quantity Sold"] ??
+        row.qty_sold ??
+        row["Qty Sold"] ??
+        row.qty ??
+        row.Qty ??
+        0;
+
+      const rawShift =
+        row.shift ||
+        row.Shift ||
+        row.daypart ||
+        row.Daypart ||
+        row["Day Part"] ||
+        row.meal_period ||
+        row["Meal Period"] ||
+        row.service_period ||
+        row["Service Period"] ||
+        "";
+
+      const rawTime =
+        row.time ||
+        row.Time ||
+        row.order_time ||
+        row["Order Time"] ||
+        row.check_time ||
+        row["Check Time"] ||
+        row.closed_time ||
+        row["Closed Time"] ||
+        row.opened_time ||
+        row["Opened Time"] ||
+        row.hour ||
+        row.Hour ||
+        "";
+
+      const rawLocation =
+        row.location ||
+        row.Location ||
+        row.store ||
+        row.Store ||
+        row.restaurant ||
+        row.Restaurant ||
+        row.location_name ||
+        row["Location Name"] ||
+        null;
+
+      const parsedDate = rawDate ? new Date(rawDate) : null;
+
+      return {
+        user_id: ownerId,
+
+        sale_date:
+          parsedDate &&
+          !Number.isNaN(parsedDate.getTime())
+            ? parsedDate.toISOString().slice(0, 10)
+            : null,
+
+        revenue: Number(
+          String(rawRevenue).replace(/[$,]/g, "") || 0
+        ),
+
+        orders_count: Number(
+          String(rawOrders).replace(/[,]/g, "") || 0
+        ),
+
+        labor: Number(
+          String(rawLabor).replace(/[$,]/g, "") || 0
+        ),
+
+        name: rawName,
+
+        quantity: Number(
+          String(rawQuantity).replace(/[,]/g, "") || 0
+        ),
+
+        shift: rawShift || null,
+        order_time: rawTime || null,
+        location_name: rawLocation,
+
+        source_name: sourceName || "Manual Upload",
+        location_id: locationId || null,
+      };
+    })
+    .filter(
+      (row) =>
+        row.sale_date &&
+        Number.isFinite(row.revenue) &&
+        row.revenue > 0
+    );
+};
+
+
+const ingestNormalizedPosRows = async ({
+  ownerId,
+  normalizedRows = [],
+  fileName = "POS Upload",
+  sourceName = "Manual Upload",
+  locationId = null,
+}) => {
+  if (!ownerId) {
+    throw new Error("POS ingestion requires an owner ID.");
+  }
+
+  if (!Array.isArray(normalizedRows) || !normalizedRows.length) {
+    throw new Error("POS ingestion requires normalized sales rows.");
+  }
+
+  const uploadPayload = {
+    user_id: ownerId,
+    file_name: fileName || "POS Upload",
+    source_name: sourceName || "Manual Upload",
+    row_count: Number(normalizedRows.length || 0),
+    upload_type: "pos",
+    status: "completed",
+    location_id: locationId || null,
+  };
+
+  console.log("POS INGEST UPLOAD PAYLOAD:", uploadPayload);
+
+  const {
+    data: uploadedFileRow,
+    error: uploadInsertError,
+  } = await supabase
+    .from("uploads")
+    .insert([uploadPayload])
+    .select("*")
+    .single();
+
+  if (uploadInsertError) {
+    console.error(
+      "POS INGEST UPLOAD INSERT FAILED:",
+      uploadInsertError
+    );
+
+    throw uploadInsertError;
+  }
+
+  if (!uploadedFileRow?.id) {
+    throw new Error(
+      "POS upload record was created but no upload ID was returned."
+    );
+  }
+
+  const finalSalesRows = normalizedRows.map((row) => ({
+    ...row,
+    user_id: ownerId,
+    upload_id: uploadedFileRow.id,
+  }));
+
+  console.log(
+    "POS INGEST SALES ROWS:",
+    finalSalesRows.length
+  );
+
+  const {
+    data: insertedSales,
+    error: salesInsertError,
+  } = await supabase
+    .from("sales")
+    .insert(finalSalesRows)
+    .select("*");
+
+  if (salesInsertError) {
+    console.error(
+      "POS INGEST SALES INSERT FAILED:",
+      salesInsertError
+    );
+
+    /*
+      Prevent an orphan upload record if the sales insert fails.
+      The upload record belongs to this ingestion attempt, so it is
+      safe to remove here.
+    */
+    const { error: cleanupError } = await supabase
+      .from("uploads")
+      .delete()
+      .eq("id", uploadedFileRow.id)
+      .eq("user_id", ownerId);
+
+    if (cleanupError) {
+      console.error(
+        "POS INGEST FAILED UPLOAD CLEANUP ERROR:",
+        cleanupError
+      );
+    }
+
+    throw salesInsertError;
+  }
+
+  return {
+    uploadedFileRow,
+    insertedSales: insertedSales || [],
+    finalSalesRows,
+  };
+};
 const handleImportMappedSales = async (rowsOverride = null) => {
   console.trace("🚨 handleImportMappedSales CALLED");
   console.log("POS IMPORT CALL STATE:", {
@@ -7962,152 +8252,12 @@ if (!posRows.length) {
   setMessage("No rows to import");
   return;
 }
-    const salesRows = posRows
-      .map((row) => {
-        const rawDate =
-          row.sale_date ||
-          row.date ||
-          row.Date ||
-          row["Sale Date"] ||
-          row["Business Date"] ||
-          row.day ||
-          row.Day ||
-          null;
-
-       const rawRevenue =
-  row.revenue ||
-  row.Revenue ||
-  row.sales ||
-  row.Sales ||
-  row.total_sales ||
-  row.totalSales ||
-  row["Total Sales"] ||
-  row.net_sales ||
-  row.netSales ||
-  row["Net Sales"] ||
-  row.gross_sales ||
-  row.grossSales ||
-  row["Gross Sales"] ||
-  row.amount ||
-  row.Amount ||
-  row.total ||
-  row.Total ||
-  0;
-
-        const rawOrders =
-  row.orders_count ||
-  row.ordersCount ||
-  row.orders ||
-  row.Orders ||
-  row.order_count ||
-  row["Order Count"] ||
-  row.check_count ||
-  row["Check Count"] ||
-  row.ticket_count ||
-  row["Ticket Count"] ||
-  row.transactions ||
-  row.Transactions ||
-  row["Guest Count"] ||
-  row.guests ||
-  row.Guests ||
-  0;
-const rawLabor =
-  row.labor ??
-  row.labor_cost ??
-  row.Labor ??
-  row["Labor Cost"] ??
-  row.total_labor ??
-  row.total_labor_cost ??
-  row["Total Labor"] ??
-  row["Total Labor Cost"] ??
-  row.payroll ??
-  row.Payroll ??
-  row.wages ??
-  row.Wages ??
-  row.total_pay ??
-  row["Total Pay"] ??
-  row.gross_pay ??
-  row["Gross Pay"] ??
-  0;
-  const rawName =
-  row.name ||
-  row.Name ||
-  row.item ||
-  row.Item ||
-  row.item_name ||
-  row["Item Name"] ||
-  row.menu_item ||
-  row["Menu Item"] ||
-  row.product ||
-  row.Product ||
-  null;
-
-const rawQuantity =
-  row.quantity ??
-  row.Quantity ??
-  row.quantity_sold ??
-  row["Quantity Sold"] ??
-  row.qty_sold ??
-  row["Qty Sold"] ??
-  row.qty ??
-  row.Qty ??
-  0;
-const rawShift =
-  row.shift ||
-  row.Shift ||
-  row.daypart ||
-  row.Daypart ||
-  row["Day Part"] ||
-  row.meal_period ||
-  row["Meal Period"] ||
-  row.service_period ||
-  row["Service Period"] ||
-  "";
-
-const rawTime =
-  row.time ||
-  row.Time ||
-  row.order_time ||
-  row["Order Time"] ||
-  row.check_time ||
-  row["Check Time"] ||
-  row.closed_time ||
-  row["Closed Time"] ||
-  row.opened_time ||
-  row["Opened Time"] ||
-  row.hour ||
-  row.Hour ||
-  "";
-
-const rawLocation =
-  row.location ||
-  row.Location ||
-  row.store ||
-  row.Store ||
-  row.restaurant ||
-  row.Restaurant ||
-  row.location_name ||
-  row["Location Name"] ||
-  null;
-        return {
-          user_id: user.id,
-          sale_date: rawDate
-            ? new Date(rawDate).toISOString().slice(0, 10)
-            : null,
-          revenue: Number(String(rawRevenue).replace(/[$,]/g, "") || 0),
-          orders_count: Number(String(rawOrders).replace(/[,]/g, "") || 0),
-          labor: Number(String(rawLabor).replace(/[$,]/g, "") || 0),
-name: rawName,
-quantity: Number(String(rawQuantity).replace(/[,]/g, "") || 0),
-shift: rawShift || null,
-order_time: rawTime || null,
-location_name: rawLocation,
-
-source_name: selectedDataSource || "Manual Upload",
-location_id: selectedUploadLocationId || null,
-        };
-      })
-      .filter((row) => row.sale_date && row.revenue > 0);
+const salesRows = normalizePosRows({
+  incomingRows: posRows,
+  ownerId: user.id,
+  sourceName: selectedDataSource || "Manual Upload",
+  locationId: selectedUploadLocationId || null,
+});
 
     if (!salesRows.length) {
       setMessage("No valid sales rows found. Check your date/revenue mapping.");
@@ -8169,25 +8319,6 @@ if (!uploadedFileRow?.id) {
   throw new Error("Upload record was created but no upload ID was returned.");
 }
 
-    const finalSalesRows = salesRows.map((row) => ({
-      ...row,
-      upload_id: uploadedFileRow?.id || null,
-    }));
-
-    console.log("POS SALES ROWS TO INSERT:", finalSalesRows);
-console.log("FINAL SALES ROWS:", finalSalesRows);
-console.log("FIRST SALES ROW:", finalSalesRows?.[0]);
-    const { data: insertedSales, error: salesInsertError } = await supabase
-      .from("sales")
-      .insert(finalSalesRows)
-      .select("*");
-
-    if (salesInsertError) {
-      console.error("Sales insert failed:", salesInsertError);
-      alert(`Sales insert failed: ${salesInsertError.message}`);
-      setMessage("Failed to import sales");
-      return;
-    }
 
     setDbSalesRows((prev) => [...(insertedSales || []), ...(prev || [])]);
 
@@ -9215,6 +9346,320 @@ const cleanDate = (value) => {
 };
 console.log("TRACE AFTER CLEAN DATE");
 console.log("TRACE BEFORE IMPORT INVOICES");
+
+const normalizeInvoiceRows = ({
+  incomingRows = [],
+  ownerId,
+  supplierName = "",
+  invoiceId,
+  uploadId,
+  fileName = "Invoice Upload",
+  connectionId = null,
+}) => {
+  if (
+    !ownerId ||
+    !invoiceId ||
+    !uploadId ||
+    !Array.isArray(incomingRows)
+  ) {
+    return [];
+  }
+
+  const getValue = (row, keys, fallback = "") => {
+    for (const key of keys) {
+      if (
+        row?.[key] !== undefined &&
+        row?.[key] !== null &&
+        row?.[key] !== ""
+      ) {
+        return row[key];
+      }
+    }
+
+    return fallback;
+  };
+
+  const toNumber = (value) => {
+    const num = Number(
+      String(value ?? "")
+        .replaceAll("$", "")
+        .replaceAll(",", "")
+        .trim()
+    );
+
+    return Number.isFinite(num) ? num : 0;
+  };
+
+  return incomingRows
+    .map((row) => {
+      const itemName = getValue(row, [
+        "Ingredient Name",
+        "ingredient_name",
+        "Item Name",
+        "item_name",
+        "item",
+        "Item",
+        "Product",
+        "product",
+      ]);
+
+      if (!itemName) return null;
+
+      const quantity = toNumber(
+        getValue(row, [
+          "Quantity",
+          "quantity",
+          "Qty",
+          "qty",
+        ])
+      );
+
+      const unitPrice = toNumber(
+        getValue(row, [
+          "Unit Cost",
+          "unit_cost",
+          "Unit Price",
+          "unit_price",
+          "Price",
+          "price",
+        ])
+      );
+
+      const suppliedTotal = toNumber(
+        getValue(row, [
+          "Total Cost",
+          "total_cost",
+          "Total Price",
+          "total_price",
+        ])
+      );
+
+      const totalPrice =
+        suppliedTotal || quantity * unitPrice;
+
+      const rowSupplier =
+        supplierName ||
+        getValue(row, [
+          "Vendor",
+          "vendor",
+          "Supplier",
+          "supplier",
+          "Supplier Name",
+          "supplier_name",
+        ]) ||
+        "Unknown Supplier";
+
+      return {
+        user_id: ownerId,
+        invoice_id: invoiceId,
+        upload_id: uploadId,
+        file_name: fileName || "Invoice Upload",
+        supplier_name: rowSupplier,
+        item_name: String(itemName).trim(),
+        unit:
+          getValue(row, [
+            "Unit",
+            "unit",
+            "UOM",
+            "uom",
+          ]) || null,
+        quantity,
+        unit_price: unitPrice,
+        total_price: totalPrice,
+        previous_unit_price: null,
+        price_change: 0,
+        price_change_percent: 0,
+        flagged_increase: false,
+        connection_id: connectionId || null,
+      };
+    })
+    .filter(Boolean);
+};
+
+const ingestNormalizedInvoiceRows = async ({
+  ownerId,
+  incomingRows = [],
+  fileName = "Invoice Upload",
+  supplierName = "Unknown Supplier",
+  invoiceDate = null,
+  sourceName = "invoice_upload",
+  locationName = null,
+  locationId = null,
+  connectionId = null,
+}) => {
+  if (!ownerId) {
+    throw new Error("Invoice ingestion requires an owner ID.");
+  }
+
+  if (!Array.isArray(incomingRows) || !incomingRows.length) {
+    throw new Error("Invoice ingestion requires invoice rows.");
+  }
+
+  /*
+    1. Create the canonical upload record.
+    Manual uploads and future integrations both pass through here.
+  */
+  const uploadPayload = {
+    user_id: ownerId,
+    file_name: fileName || "Invoice Upload",
+    source_name: sourceName || "invoice_upload",
+    row_count: Number(incomingRows.length || 0),
+    upload_type: "invoices",
+    status: "completed",
+    archived: false,
+    location_id: locationId || null,
+  };
+
+  const {
+    data: uploadedFileRow,
+    error: uploadInsertError,
+  } = await supabase
+    .from("uploads")
+    .insert([uploadPayload])
+    .select("*")
+    .single();
+
+  if (uploadInsertError) {
+    console.error(
+      "INVOICE INGEST UPLOAD INSERT FAILED:",
+      uploadInsertError
+    );
+
+    throw uploadInsertError;
+  }
+
+  if (!uploadedFileRow?.id) {
+    throw new Error(
+      "Invoice upload record was created but no upload ID was returned."
+    );
+  }
+
+  /*
+    2. Create the canonical invoice header.
+
+    invoice_uploads owns invoice chronology.
+    Vendor recovery must use invoice_date from this record.
+  */
+  const invoiceUploadPayload = {
+    user_id: ownerId,
+    upload_id: uploadedFileRow.id,
+    supplier_name:
+      supplierName || "Unknown Supplier",
+    invoice_date: invoiceDate || null,
+    file_name: fileName || "Invoice Upload",
+    file_url: null,
+    location_name: locationName || null,
+    connection_id: connectionId || null,
+  };
+
+  const {
+    data: invoiceUpload,
+    error: invoiceUploadError,
+  } = await supabase
+    .from("invoice_uploads")
+    .insert([invoiceUploadPayload])
+    .select("*")
+    .single();
+
+  if (invoiceUploadError) {
+    console.error(
+      "INVOICE INGEST HEADER INSERT FAILED:",
+      invoiceUploadError
+    );
+
+    const { error: uploadCleanupError } = await supabase
+      .from("uploads")
+      .delete()
+      .eq("id", uploadedFileRow.id)
+      .eq("user_id", ownerId);
+
+    if (uploadCleanupError) {
+      console.error(
+        "INVOICE INGEST UPLOAD CLEANUP FAILED:",
+        uploadCleanupError
+      );
+    }
+
+    throw invoiceUploadError;
+  }
+
+  /*
+    3. Normalize every invoice line into the canonical
+       invoice_line_items schema.
+  */
+  const normalizedRows = normalizeInvoiceRows({
+    incomingRows,
+    ownerId,
+    supplierName:
+      supplierName || "Unknown Supplier",
+    invoiceId: invoiceUpload.id,
+    uploadId: uploadedFileRow.id,
+    fileName: fileName || "Invoice Upload",
+    connectionId,
+  });
+
+  if (!normalizedRows.length) {
+    /*
+      Nothing usable was produced, so remove the records
+      created specifically for this failed ingestion.
+    */
+    await supabase
+      .from("invoice_uploads")
+      .delete()
+      .eq("id", invoiceUpload.id)
+      .eq("user_id", ownerId);
+
+    await supabase
+      .from("uploads")
+      .delete()
+      .eq("id", uploadedFileRow.id)
+      .eq("user_id", ownerId);
+
+    throw new Error(
+      "No valid invoice line items were found."
+    );
+  }
+
+  /*
+    4. Insert into the table consumed by Serven's
+       vendor intelligence and verified-recovery engines.
+  */
+  const {
+    data: insertedRows,
+    error: lineItemsInsertError,
+  } = await supabase
+    .from("invoice_line_items")
+    .insert(normalizedRows)
+    .select("*");
+
+  if (lineItemsInsertError) {
+    console.error(
+      "INVOICE INGEST LINE ITEMS FAILED:",
+      lineItemsInsertError
+    );
+
+    await supabase
+      .from("invoice_uploads")
+      .delete()
+      .eq("id", invoiceUpload.id)
+      .eq("user_id", ownerId);
+
+    await supabase
+      .from("uploads")
+      .delete()
+      .eq("id", uploadedFileRow.id)
+      .eq("user_id", ownerId);
+
+    throw lineItemsInsertError;
+  }
+
+  return {
+    uploadedFileRow,
+    invoiceUpload,
+    insertedRows: insertedRows || [],
+    normalizedRows,
+  };
+};
 const handleImportInvoices = async () => {
   try {
     setMessage("Importing invoice items...");
@@ -9244,140 +9689,34 @@ console.log("INVOICE STEP 1: started");
       return fallback;
     };
 
-    const toNumber = (value) => {
-      const num = Number(
-        String(value || "")
-          .replaceAll("$", "")
-          .replaceAll(",", "")
-          .trim()
-      );
-      return Number.isFinite(num) ? num : 0;
-    };
+    
 
    const supplierName =  getValue(rows[0], ["Vendor", "vendor", "Supplier", "supplier"]);
     const invoiceDate = getValue(rows[0], ["Invoice Date", "invoice_date"]);
-    const invoiceNumber = getValue(rows[0], ["Invoice Number", "invoice_number"]);
-
-    const { data: invoiceUpload, error: invoiceUploadError } = await supabase
-  .from("invoice_uploads")
-  .insert([
-    {
-      user_id: user.id,
-      upload_id: null,
-      supplier_name: supplierName || "Unknown Supplier",
-      invoice_date: invoiceDate || null,
-      file_name: pendingUploadSummary?.fileName || "Invoice Upload",
-      file_url: null,
-    },
-  ])
-      .select()
-      .single();
-
-    if (invoiceUploadError) {
-      console.error("Invoice upload header failed:", invoiceUploadError);
-      throw invoiceUploadError;
-    }
-console.log("INVOICE STEP 3: invoice_uploads inserted", invoiceUpload);
-const { data: recentUploadRow, error: recentUploadError } = await supabase
-  .from("uploads")
-  .insert([
-    {
-      user_id: user.id,
-      file_name: pendingUploadSummary?.fileName || "Invoice Upload",
-      source_name: "invoice_upload",
-      row_count: rows.length,
-      upload_type: "invoices",
-      status: "completed",
-      archived: false,
-      location_id: selectedUploadLocationId || null,
-    },
-  ])
-  .select()
-  .single();
-
-if (recentUploadError) {
-  console.error("Invoice recent upload record failed:", recentUploadError);
-  throw recentUploadError;
-}
-const { error: invoiceLinkError } = await supabase
-  .from("invoice_uploads")
-  .update({
-    upload_id: recentUploadRow.id,
-  })
-  .eq("id", invoiceUpload.id)
-  .eq("user_id", user.id);
-
-if (invoiceLinkError) {
-  console.error(
-    "Failed to connect invoice_uploads to uploads:",
-    invoiceLinkError
-  );
-  throw invoiceLinkError;
-}
-
-console.log("INVOICE UPLOAD LINKED:", {
-  invoiceUploadId: invoiceUpload.id,
-  recentUploadId: recentUploadRow.id,
+const {
+  uploadedFileRow,
+  invoiceUpload,
+  insertedRows,
+  normalizedRows,
+} = await ingestNormalizedInvoiceRows({
+  ownerId: user.id,
+  incomingRows: rows,
+  fileName:
+    pendingUploadSummary?.fileName ||
+    "Invoice Upload",
+  supplierName:
+    supplierName || "Unknown Supplier",
+  invoiceDate:
+    invoiceDate || null,
+  sourceName: "invoice_upload",
+  locationName: null,
+  locationId:
+    selectedUploadLocationId || null,
+  connectionId: null,
 });
-    const cleanedRows = rows
-      .map((row) => {
-        const itemName = getValue(row, [
-          "Ingredient Name",
-          "ingredient_name",
-          "Item Name",
-          "item_name",
-          "item",
-          "Item",
-          "Product",
-          "product",
-        ]);
 
-        if (!itemName) return null;
-
-        const unitPrice = toNumber(
-          getValue(row, ["Unit Cost", "unit_cost", "Unit Price", "unit_price", "Price", "price"])
-        );
-
-        const quantity = toNumber(getValue(row, ["Quantity", "quantity", "Qty", "qty"]));
-
-        const totalPrice =
-          toNumber(getValue(row, ["Total Cost", "total_cost", "Total Price", "total_price"])) ||
-          quantity * unitPrice;
-
-        return {
-          user_id: user.id,
-          invoice_id: invoiceUpload.id,
-          vendor: supplierName || getValue(row, ["Vendor", "vendor", "Supplier", "supplier"]),
-          invoice_number: invoiceNumber,
-          invoice_date: invoiceDate || null,
-          item_name: itemName,
-          category: getValue(row, ["Category", "category"]),
-          quantity,
-          unit: getValue(row, ["Unit", "unit", "UOM", "uom"]),
-          unit_price: unitPrice,
-          total_price: totalPrice,
-          previous_unit_price: null,
-          price_change: 0,
-          price_change_percent: 0,
-          flagged_increase: false,
-          location_id: selectedUploadLocationId || null,
-        };
-      })
-      .filter(Boolean);
-console.log("INVOICE STEP 4: inserting invoice_items", cleanedRows.length);
-console.log("FIRST CLEANED INVOICE ROW:", cleanedRows[0]);
-    const { data: insertedRows, error } = await supabase
-      .from("invoice_items")
-      .insert(cleanedRows)
-      .select();
-
-    if (error) {
-      console.error("Invoice items insert failed:", error);
-      throw error;
-    }
-console.log("INVOICE STEP 5: invoice_items inserted", insertedRows?.length);
-    const uploadRow = recentUploadRow;
-
+const cleanedRows = normalizedRows;
+const uploadRow = uploadedFileRow;
     setClientImports((prev) => [uploadRow, ...(prev || [])]);
     setRecentUploads((prev) => [uploadRow, ...(prev || [])]);
     setInvoicesData(insertedRows || cleanedRows);
