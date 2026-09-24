@@ -126,6 +126,27 @@ const rawSupplierName =
 const supplierName = String(
   rawSupplierName || "Unknown Supplier"
 )
+  /*
+    PDF extraction can collapse a vendor name and a following
+    invoice-title heading onto the same text line.
+
+    Example:
+    "Serven Test Foods TEST INVOICE - INGESTION PIPELINE"
+    becomes:
+    "Serven Test Foods"
+
+    This intentionally requires whitespace before the invoice
+    heading so legitimate vendor names containing "Invoice"
+    are not stripped simply because the word exists.
+  */
+  .replace(
+    /\s+(?:test\s+)?invoice\s*(?:[-–—:]\s*.*)?$/i,
+    ""
+  )
+  /*
+    Remove invoice-number metadata when the PDF extractor
+    places it on the same line as the supplier.
+  */
   .replace(
     /\s+invoice\s*(?:number|no\.?|#)\s*:?\s*.*$/i,
     ""
