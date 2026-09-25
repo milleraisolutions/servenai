@@ -21526,26 +21526,26 @@ const ingestNormalizedLaborRows = async ({
 
     const employeeIdByName = new Map();
 
-    if (employeeNames.length > 0) {
-      const { data: employeeRows, error: employeeError } = await supabase
-        .from("employees")
-        .select("id, name")
-        .eq("user_id", ownerId);
+   if (employeeNames.length > 0) {
+  const { data: employeeRows, error: employeeError } = await supabase
+    .from("employees")
+    .select("id, employee_name")
+    .eq("user_id", ownerId);
 
-      if (employeeError) {
-        throw employeeError;
-      }
+  if (employeeError) {
+    throw employeeError;
+  }
 
-      (employeeRows || []).forEach((employee) => {
-        const key = String(employee.name || "")
-          .trim()
-          .toLowerCase();
+  (employeeRows || []).forEach((employee) => {
+    const key = String(employee.employee_name || "")
+      .trim()
+      .toLowerCase();
 
-        if (key && employee.id) {
-          employeeIdByName.set(key, employee.id);
-        }
-      });
+    if (key && employee.id) {
+      employeeIdByName.set(key, employee.id);
     }
+  });
+}
 
     /*
      * ==========================================
