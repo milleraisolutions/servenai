@@ -21201,7 +21201,447 @@ const menuEngineeringInsight =
   lowMarginMenuItems.length > 0
     ? `${lowMarginMenuItems.length} menu items are operating below target profitability. AI recommends adjusting pricing, reducing ingredient cost, or repositioning low-performing items to improve contribution margins.`
     : "Menu profitability looks healthy based on current menu engineering analysis.";
+const normalizeLaborRows = ({
+  incomingRows = [],
+  ownerId,
+  uploadId = null,
+  fileName = "Labor Upload",
+  locationId = null,
+  locationName = null,
+  connectionId = null,
+  employeeIdByName = new Map(),
+}) => {
+  const toNumber = (value) => {
+    const cleaned = String(value ?? "")
+      .replaceAll("$", "")
+      .replaceAll(",", "")
+      .trim();
 
+    const number = Number(cleaned);
+    return Number.isFinite(number) ? number : 0;
+  };
+
+  const normalizeDate = (value) => {
+    if (!value) return null;
+
+    const raw = String(value).trim();
+    if (!raw) return null;
+
+    const directMatch = raw.match(
+      /^(\d{4})-(\d{2})-(\d{2})/
+    );
+
+    if (directMatch) {
+      return `${directMatch[1]}-${directMatch[2]}-${directMatch[3]}`;
+    }
+
+    const parsedDate = new Date(raw);
+
+    if (Number.isNaN(parsedDate.getTime())) {
+      return null;
+    }
+
+    const year = parsedDate.getFullYear();
+    const month = String(
+      parsedDate.getMonth() + 1
+    ).padStart(2, "0");
+    const day = String(
+      parsedDate.getDate()
+    ).padStart(2, "0");
+
+    return `${year}-${month}-${day}`;
+  };
+
+  const normalizeTime = (value) => {
+    if (!value) return null;
+
+    const raw = String(value).trim();
+    if (!raw) return null;
+
+    const twentyFourHourMatch = raw.match(
+      /^(\d{1,2}):(\d{2})(?::(\d{2}))?$/
+    );
+
+    if (twentyFourHourMatch) {
+      const hour = Number(twentyFourHourMatch[1]);
+      const minute = Number(twentyFourHourMatch[2]);
+      const second = Number(
+        twentyFourHourMatch[3] || 0
+      );
+
+      if (
+        hour >= 0 &&
+        hour <= 23 &&
+        minute >= 0 &&
+        minute <= 59 &&
+        second >= 0 &&
+        second <= 59
+      ) {
+        return `${String(hour).padStart(2, "0")}:${String(
+          minute
+        ).padStart(2, "0")}:${String(second).padStart(2, "0")}`;
+      }
+    }
+
+    const twelveHourMatch = raw.match(
+      /^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)$/i
+    );
+
+    if (twelveHourMatch) {
+      let hour = Number(twelveHourMatch[1]);
+      const minute = Number(twelveHourMatch[2]);
+      const second = Number(twelveHourMatch[3] || 0);
+      const period = twelveHourMatch[4].toUpperCase();
+
+      if (period === "PM" && hour !== 12) {
+        hour += 12;
+      }
+
+      if (period === "AM" && hour === 12) {
+        hour = 0;
+      }
+
+      return `${String(hour).padStart(2, "0")}:${String(
+        minute
+      ).padStart(2, "0")}:${String(second).padStart(2, "0")}`;
+    }
+
+    return null;
+  };
+
+  return (incomingRows || [])
+    .map((row) => {
+      const employeeName = String(
+        row.employee_name ||
+          row["Employee Name"] ||
+          row.employee ||
+          row.Employee ||
+          row.name ||
+          row.Name ||
+          ""
+      ).trim();
+
+      const role = String(
+        row.role ||
+          row.Role ||
+          row.position ||
+          row.Position ||
+          row.job_title ||
+          row["Job Title"] ||
+          ""
+      ).trim();
+
+      const shiftDate = normalizeDate(
+        row.shift_date ||
+          row["Shift Date"] ||
+          row.work_date ||
+          row["Work Date"] ||
+          row.date ||
+          row.Date ||
+          row.business_date
+      );
+
+      const hoursWorked = toNumber(
+        row.hours_worked ??
+          row["Hours Worked"] ??
+          row.hours ??
+          row.Hours ??
+          row.total_hours ??
+          row["Total Hours"]
+      );
+
+      const hourlyRate = toNumber(
+        row.hourly_rate ??
+          row["Hourly Rate"] ??
+          row.rate ??
+          row.Rate ??
+          row.pay_rate ??
+          row["Pay Rate"]
+      );
+
+      const uploadedLaborCost = toNumber(
+        row.labor_cost ??
+          row["Labor Cost"] ??
+          row.payroll ??
+          row.Payroll ??
+          row.wages ??
+          row.Wages ??
+          row.total_pay ??
+          row["Total Pay"] ??
+          row.gross_pay ??
+          row["Gross Pay"]
+      );
+
+      const laborCost =
+        uploadedLaborCost > 0
+          ? uploadedLaborCost
+          : hoursWorked * hourlyRate;
+
+      const rowLocationName = String(
+        row.location_name ||
+          row["Location Name"] ||
+          row.location ||
+          row.Location ||
+          locationName ||
+          ""
+      ).trim();
+
+      const shift = String(
+        row.shift ||
+          row.Shift ||
+          row.shift_name ||
+          row["Shift Name"] ||
+          ""
+      ).trim();
+
+      const employeeKey = employeeName.toLowerCase();
+
+      return {
+        user_id: ownerId,
+        employee_id:
+          employeeIdByName.get(employeeKey) || null,
+        shift_date: shiftDate,
+        shift_start: normalizeTime(
+          row.shift_start ||
+            row["Shift Start"] ||
+            row.clock_in ||
+            row["Clock In"] ||
+            row.start_time ||
+            row["Start Time"]
+        ),
+        shift_end: normalizeTime(
+          row.shift_end ||
+            row["Shift End"] ||
+            row.clock_out ||
+            row["Clock Out"] ||
+            row.end_time ||
+            row["End Time"]
+        ),
+        hours_worked: hoursWorked,
+        labor_cost: laborCost,
+        revenue_during_shift: toNumber(
+          row.revenue_during_shift ??
+            row["Revenue During Shift"] ??
+            row.revenue ??
+            row.Revenue
+        ),
+        location_name: rowLocationName || null,
+        upload_id: uploadId,
+        file_name: fileName,
+        employee_name: employeeName || null,
+        role: role || null,
+        connection_id: connectionId || null,
+        hourly_rate: hourlyRate,
+        location_id:
+          row.location_id ||
+          row["Location ID"] ||
+          locationId ||
+          null,
+        shift: shift || null,
+      };
+    })
+    .filter(
+      (row) =>
+        row.shift_date &&
+        (row.employee_name ||
+          row.employee_id ||
+          row.hours_worked > 0 ||
+          row.labor_cost > 0)
+    );
+};
+const ingestNormalizedLaborRows = async ({
+  ownerId,
+  incomingRows = [],
+  fileName = "Labor Upload",
+  sourceName = "labor_upload",
+  locationId = null,
+  locationName = null,
+  connectionId = null,
+}) => {
+  if (!ownerId) {
+    throw new Error("Missing labor data owner.");
+  }
+
+  if (!Array.isArray(incomingRows) || incomingRows.length === 0) {
+    throw new Error("No labor rows were provided.");
+  }
+
+  let uploadedFileRow = null;
+
+  try {
+    /*
+     * ==========================================
+     * 1. CREATE CANONICAL UPLOAD RECORD
+     * ==========================================
+     */
+    const { data: uploadRow, error: uploadError } = await supabase
+      .from("uploads")
+      .insert([
+        {
+          user_id: ownerId,
+          file_name: fileName,
+          source_name: sourceName,
+          row_count: incomingRows.length,
+          upload_type: "labor",
+          status: "completed",
+          archived: false,
+          location_id: locationId || null,
+        },
+      ])
+      .select()
+      .single();
+
+    if (uploadError) {
+      throw uploadError;
+    }
+
+    uploadedFileRow = uploadRow;
+
+    /*
+     * ==========================================
+     * 2. RESOLVE EMPLOYEES
+     * ==========================================
+     *
+     * employee_shifts is the canonical labor table.
+     * employees is used only to attach an employee_id
+     * when a matching employee record exists.
+     */
+    const employeeNames = [
+      ...new Set(
+        incomingRows
+          .map((row) =>
+            String(
+              row.employee_name ||
+                row["Employee Name"] ||
+                row.employee ||
+                row.Employee ||
+                row.name ||
+                row.Name ||
+                ""
+            ).trim()
+          )
+          .filter(Boolean)
+      ),
+    ];
+
+    const employeeIdByName = new Map();
+
+    if (employeeNames.length > 0) {
+      const { data: employeeRows, error: employeeError } = await supabase
+        .from("employees")
+        .select("id, name")
+        .eq("user_id", ownerId);
+
+      if (employeeError) {
+        throw employeeError;
+      }
+
+      (employeeRows || []).forEach((employee) => {
+        const key = String(employee.name || "")
+          .trim()
+          .toLowerCase();
+
+        if (key && employee.id) {
+          employeeIdByName.set(key, employee.id);
+        }
+      });
+    }
+
+    /*
+     * ==========================================
+     * 3. NORMALIZE INTO CANONICAL SHIFT SHAPE
+     * ==========================================
+     */
+    const normalizedRows = normalizeLaborRows({
+      incomingRows,
+      ownerId,
+      uploadId: uploadedFileRow.id,
+      fileName,
+      locationId,
+      locationName,
+      connectionId,
+      employeeIdByName,
+    });
+
+    if (!normalizedRows.length) {
+      throw new Error(
+        "No valid labor rows remained after normalization."
+      );
+    }
+
+    /*
+     * Keep the canonical upload row count aligned with
+     * the rows that actually qualify for ingestion.
+     */
+    if (normalizedRows.length !== incomingRows.length) {
+      const { error: rowCountUpdateError } = await supabase
+        .from("uploads")
+        .update({
+          row_count: normalizedRows.length,
+        })
+        .eq("id", uploadedFileRow.id)
+        .eq("user_id", ownerId);
+
+      if (rowCountUpdateError) {
+        throw rowCountUpdateError;
+      }
+
+      uploadedFileRow = {
+        ...uploadedFileRow,
+        row_count: normalizedRows.length,
+      };
+    }
+
+    /*
+     * ==========================================
+     * 4. WRITE CANONICAL LABOR RECORDS
+     * ==========================================
+     */
+    const {
+      data: insertedEmployeeShiftRows,
+      error: employeeShiftInsertError,
+    } = await supabase
+      .from("employee_shifts")
+      .insert(normalizedRows)
+      .select();
+
+    if (employeeShiftInsertError) {
+      throw employeeShiftInsertError;
+    }
+
+    console.log(
+      "LABOR CANONICAL INGEST COMPLETE:",
+      insertedEmployeeShiftRows?.length || 0
+    );
+
+    return {
+      uploadedFileRow,
+      insertedRows: insertedEmployeeShiftRows || [],
+      normalizedRows,
+    };
+  } catch (error) {
+    /*
+     * If canonical labor insertion fails, do not leave
+     * an orphan uploads record behind.
+     */
+    if (uploadedFileRow?.id) {
+      const { error: cleanupError } = await supabase
+        .from("uploads")
+        .delete()
+        .eq("id", uploadedFileRow.id)
+        .eq("user_id", ownerId);
+
+      if (cleanupError) {
+        console.error(
+          "LABOR INGEST UPLOAD CLEANUP FAILED:",
+          cleanupError
+        );
+      }
+    }
+
+    throw error;
+  }
+};
 const handleImportLabor = async (rowsOverride = null) => {
   console.log("=== LABOR IMPORT STARTED ===");
   setLaborUploadLoading(true);
@@ -21259,41 +21699,6 @@ const uploadLocationName =
   selectedLaborFile?.name ||
   "Labor Upload";
 
-const {
-  data: uploadedFileRow,
-  error: uploadInsertError,
-} = await supabase
-  .from("uploads")
-  .insert({
-    user_id: ownerId,
-    upload_type: "labor",
-    source_name: "labor_upload",
-    file_name: laborFileName,
-    row_count: laborRows.length,
-    archived: false,
-  })
-  .select("id, file_name, upload_type")
-  .single();
-
-if (uploadInsertError) {
-  console.error(
-    "LABOR PARENT UPLOAD INSERT ERROR:",
-    uploadInsertError
-  );
-
-  throw uploadInsertError;
-}
-
-if (!uploadedFileRow?.id) {
-  throw new Error(
-    "The labor parent upload record was not created."
-  );
-}
-
-console.log(
-  "LABOR PARENT UPLOAD CREATED:",
-  uploadedFileRow
-);
     // --- Helper Sanitization Functions ---
     const cleanDate = (value) => {
   if (
@@ -21451,7 +21856,7 @@ const validLocationId =
 
   return {
   user_id: ownerId,
-  upload_id: uploadedFileRow.id,
+upload_id: null,
 
   employee:
     row.employee ||
@@ -21572,456 +21977,43 @@ location_name: resolvedLaborLocation,
 
     console.log(`PREPPED ${rowsToInsert.length} ROWS FOR DATABASE. SAMPLE:`, rowsToInsert[0]);
 
-    // 4. Supabase DB Payload dispatch
-    console.log("🚀 STARTING labor_uploads INSERT");
-    
-    const { data: insertedLaborRows, error: dbError } = await supabase
-      .from("labor_uploads")
-      .insert(rowsToInsert)
-      .select();
-console.log(
-  "LABOR INSERT COUNT:",
-  insertedLaborRows?.length || 0
-);
+      // ========================================
+    // CANONICAL LABOR INGESTION
+    // ========================================
 
-console.log(
-  "LABOR INSERT ERROR EXACT:",
-  dbError
-);
-console.log(
-  "LABOR INSERT ERROR MESSAGE:",
-  dbError?.message || "NO DB ERROR"
-);
-    if (dbError) {
-      console.error("Supabase Database Insertion Error:", dbError);
-      setMessage(`Import failed: ${dbError.message || "Check Row Level Security (RLS) policies."}`);
-      return;
-    }
-
-    console.log("DATABASE INSERTION SUCCESS:", insertedLaborRows);
-// ========================================
-// CANONICAL LABOR → EMPLOYEE SHIFTS
-// ========================================
-
-// 1. Collect unique NAMED employees from this labor upload.
-// Anonymous labor rows remain usable for labor analysis,
-// but Serven does not invent an employee identity.
-const laborEmployeeMap = new Map();
-
-rowsToInsert.forEach((row) => {
-  const employeeName = String(
-    row.employee_name ||
-      row.employee ||
-      ""
-  ).trim();
-
-  if (!employeeName) return;
-
-  const employeeLookupKey =
-    employeeName.toLowerCase();
-
-  if (!laborEmployeeMap.has(employeeLookupKey)) {
-    const nowIso = new Date().toISOString();
-
-    laborEmployeeMap.set(employeeLookupKey, {
-      user_id: ownerId,
-      employee_name: employeeName,
-
-      role:
-        row.role ||
-        row.position ||
-        "Staff",
-
-      department: "Labor",
-
-      hourly_rate: Number(
-        row.hourly_rate ||
-          row.rate ||
-          0
-      ),
-
-      status: "active",
-
-      location_id:
-        row.location_id ||
-        null,
-
-      connection_id:
-        row.connection_id ||
-        null,
-
-      first_seen_at: nowIso,
-      last_seen_at: nowIso,
-    });
-  }
-});
-
-const laborEmployeesToResolve = Array.from(
-  laborEmployeeMap.values()
-);
-
-console.log(
-  "LABOR → EMPLOYEES TO RESOLVE:",
-  laborEmployeesToResolve
-);
-
-
-// 2. Load existing employees for this restaurant
-const {
-  data: existingLaborEmployees,
-  error: existingLaborEmployeesError,
-} = await supabase
-  .from("employees")
-  .select("id, employee_name")
-  .eq("user_id", ownerId);
-
-console.log(
-  "LABOR → EXISTING EMPLOYEES:",
-  existingLaborEmployees
-);
-
-console.log(
-  "LABOR → EXISTING EMPLOYEE ERROR:",
-  existingLaborEmployeesError
-);
-
-if (existingLaborEmployeesError) {
-  throw existingLaborEmployeesError;
-}
-
-
-// 3. Determine which employees are new
-const existingLaborEmployeeByName = new Map(
-  (existingLaborEmployees || []).map((employee) => [
-    String(employee.employee_name || "")
-      .trim()
-      .toLowerCase(),
-    employee,
-  ])
-);
-
-const newLaborEmployees = laborEmployeesToResolve.filter(
-  (employee) =>
-    !existingLaborEmployeeByName.has(
-      String(employee.employee_name || "")
-        .trim()
-        .toLowerCase()
-    )
-);
-
-console.log(
-  "LABOR → NEW EMPLOYEES:",
-  newLaborEmployees
-);
-// Refresh last_seen_at for existing named employees
-const existingLaborEmployeeIdsSeen =
-  laborEmployeesToResolve
-    .map((employee) => {
-      const employeeLookupKey = String(
-        employee.employee_name || ""
-      )
-        .trim()
-        .toLowerCase();
-
-      return existingLaborEmployeeByName.get(
-        employeeLookupKey
-      )?.id;
-    })
-    .filter(Boolean);
-
-if (existingLaborEmployeeIdsSeen.length > 0) {
-  const {
-    error: existingEmployeeSeenError,
-  } = await supabase
-    .from("employees")
-    .update({
-      last_seen_at: new Date().toISOString(),
-      status: "active",
-    })
-    .in("id", existingLaborEmployeeIdsSeen)
-    .eq("user_id", ownerId);
-
-  if (existingEmployeeSeenError) {
-    throw existingEmployeeSeenError;
-  }
-}
-
-// 4. Insert only employees that do not already exist
-let insertedLaborEmployees = [];
-
-if (newLaborEmployees.length > 0) {
-  const {
-    data: newEmployeeRows,
-    error: newEmployeeError,
-  } = await supabase
-    .from("employees")
-    .insert(newLaborEmployees)
-    .select("id, employee_name");
-
-  console.log(
-    "LABOR → INSERTED EMPLOYEES:",
-    newEmployeeRows
-  );
-
-  console.log(
-    "LABOR → EMPLOYEE INSERT ERROR:",
-    newEmployeeError
-  );
-
-  if (newEmployeeError) {
-    throw newEmployeeError;
-  }
-
-  insertedLaborEmployees = newEmployeeRows || [];
-}
-
-
-// 5. Build final employee UUID lookup
-const allResolvedLaborEmployees = [
-  ...(existingLaborEmployees || []),
-  ...insertedLaborEmployees,
-];
-
-const laborEmployeeIdLookup = new Map(
-  allResolvedLaborEmployees.map((employee) => [
-    String(employee.employee_name || "")
-      .trim()
-      .toLowerCase(),
-    employee.id,
-  ])
-);
-
-
-// 6. Convert timestamp values into employee_shifts time values
-const getLaborShiftTime = (value) => {
-  if (!value) return null;
-
-  const stringValue = String(value).trim();
-
-  if (!stringValue) return null;
-
-  if (stringValue.includes("T")) {
-    return stringValue.split("T")[1]?.slice(0, 8) || null;
-  }
-
-  if (/^\d{1,2}:\d{2}/.test(stringValue)) {
-    const parts = stringValue.split(":");
-
-    const hours = String(parts[0] || "00").padStart(2, "0");
-    const minutes = String(parts[1] || "00").padStart(2, "0");
-    const seconds = String(parts[2] || "00").padStart(2, "0");
-
-    return `${hours}:${minutes}:${seconds}`;
-  }
-
-  return null;
-};
-
-// Convert labor dates into canonical YYYY-MM-DD values.
-const getLaborShiftDate = (value) => {
-  if (value === null || value === undefined || value === "") {
-    return null;
-  }
-
-  // Excel serial date, for example 46205.
-  if (
-    typeof value === "number" ||
-    /^\d+(\.\d+)?$/.test(String(value).trim())
-  ) {
-    const numericValue = Number(value);
-
-    if (
-      Number.isFinite(numericValue) &&
-      numericValue > 1000 &&
-      numericValue < 100000
-    ) {
-      const excelEpoch = Date.UTC(1899, 11, 30);
-
-      const parsedDate = new Date(
-        excelEpoch + numericValue * 86400000
-      );
-
-      if (!Number.isNaN(parsedDate.getTime())) {
-        return parsedDate.toISOString().slice(0, 10);
+    console.log(
+      "🚀 STARTING CANONICAL LABOR INGESTION:",
+      {
+        ownerId,
+        rowCount: rowsToInsert.length,
+        fileName: laborFileName,
+        sourceName: selectedDataSource || "Manual Upload",
+        locationId: selectedUploadLocationId || null,
       }
-    }
-  }
+    );
 
-  const stringValue = String(value).trim();
+    const {
+      uploadedFileRow,
+      insertedRows: insertedEmployeeShiftRows,
+      normalizedRows,
+    } = await ingestNormalizedLaborRows({
+      ownerId,
+      incomingRows: rowsToInsert,
+      fileName: laborFileName,
+      sourceName: selectedDataSource || "Manual Upload",
+      locationId: selectedUploadLocationId || null,
+      locationName: uploadLocationName,
+      connectionId: null,
+    });
 
-  if (!stringValue) return null;
-
-  // Already canonical.
-  if (/^\d{4}-\d{2}-\d{2}$/.test(stringValue)) {
-    return stringValue;
-  }
-
-  // ISO timestamp.
-  if (/^\d{4}-\d{2}-\d{2}T/.test(stringValue)) {
-    return stringValue.slice(0, 10);
-  }
-
-  // Common U.S. spreadsheet date: M/D/YYYY or MM/DD/YYYY.
-  const usDateMatch = stringValue.match(
-    /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/
-  );
-
-  if (usDateMatch) {
-    const [, month, day, year] = usDateMatch;
-
-    return `${year}-${String(month).padStart(
-      2,
-      "0"
-    )}-${String(day).padStart(2, "0")}`;
-  }
-
-  return null;
-};
-// 7. Build canonical employee shift rows
-const employeeShiftRowsFromLabor = rowsToInsert.map(
-  (row) => {
-    const employeeName = String(
-  row.employee_name ||
-    row.employee ||
-    ""
-).trim();
-
-    const employeeLookupKey =
-      employeeName.toLowerCase();
-
-    return {
-      user_id: ownerId,
-
-      employee_id:
-        laborEmployeeIdLookup.get(employeeLookupKey) ||
-        null,
-
-      upload_id: uploadedFileRow.id,
-
-      file_name: laborFileName,
-
-      employee_name:
-  employeeName ||
-  null,
-
-      role:
-        row.role ||
-        row.position ||
-        "Staff",
-shift:
-  row.shift ||
-  row.shift_name ||
-  row.daypart ||
-  row.period ||
-  row.service ||
-  row.Shift ||
-  row.Daypart ||
-  null,
-      shift_date: getLaborShiftDate(
-  row.work_date ||
-    row.shift_date
-),
-
-      shift_start: getLaborShiftTime(
-        row.clock_in ||
-          row.shift_start
-      ),
-
-      shift_end: getLaborShiftTime(
-        row.clock_out ||
-          row.shift_end
-      ),
-
-      hours_worked: Number(
-        row.hours_worked ||
-          row.hours ||
-          0
-      ),
-
-      hourly_rate: Number(
-        row.hourly_rate ||
-          row.rate ||
-          0
-      ),
-
-      labor_cost: Number(
-        row.labor_cost ||
-          0
-      ),
-
-      revenue_during_shift: Number(
-        row.sales_generated ||
-          row.revenue_during_shift ||
-          0
-      ),
-
-     location_id:
-  row.location_id ||
-  null,
-
-location_name:
-  row.location_name ||
-  row.location ||
-  null,
-
-connection_id: null,
-    };
-  }
-);
-
-console.log(
-  "LABOR → EMPLOYEE SHIFTS ROWS:",
-  employeeShiftRowsFromLabor
-);
-
-
-// 8. Safety check — every labor employee should have a UUID
-const unresolvedLaborEmployees =
-  employeeShiftRowsFromLabor.filter(
-    (row) =>
-      row.employee_name &&
-      !row.employee_id
-  );
-
-if (unresolvedLaborEmployees.length > 0) {
-  console.error(
-    "LABOR → UNRESOLVED EMPLOYEE IDS:",
-    unresolvedLaborEmployees
-  );
-
-  throw new Error(
-    `${unresolvedLaborEmployees.length} labor employee(s) could not be linked to an employee record.`
-  );
-}
-
-
-// 9. Write canonical shifts
-const {
-  data: insertedEmployeeShiftRows,
-  error: employeeShiftInsertError,
-} = await supabase
-  .from("employee_shifts")
-  .insert(employeeShiftRowsFromLabor)
-  .select();
-
-console.log(
-  "LABOR → EMPLOYEE SHIFTS RESULT:",
-  {
-    insertedEmployeeShiftRows,
-    employeeShiftInsertError,
-  }
-);
-
-if (employeeShiftInsertError) {
-  console.error(
-    "LABOR → EMPLOYEE SHIFTS INSERT ERROR:",
-    employeeShiftInsertError
-  );
-
-  throw employeeShiftInsertError;
-}
-
-
+    console.log(
+      "✅ CANONICAL LABOR INGESTION SUCCESS:",
+      {
+        uploadId: uploadedFileRow?.id,
+        insertedCount:
+          insertedEmployeeShiftRows?.length || 0,
+      }
+    );
 // 10. Update frontend employee-shift state immediately
 setEmployeeShifts((previous) => {
   const existing = Array.isArray(previous)
@@ -22112,7 +22104,10 @@ if (refreshError) {
       ? previous
       : [];
 
-    const incoming = insertedLaborRows || rowsToInsert;
+   const incoming =
+  insertedEmployeeShiftRows?.length
+    ? insertedEmployeeShiftRows
+    : normalizedRows;
 
     const merged = [...incoming, ...existing];
 
@@ -22136,36 +22131,53 @@ if (refreshError) {
     );
   });
 } else {
-setLaborData((previous) => {
-  const existing = Array.isArray(previous) ? previous : [];
-  const incoming = insertedLaborRows || [];
+  setLaborData((previous) => {
+    const existing = Array.isArray(previous)
+      ? previous
+      : [];
 
-  const merged = [...incoming, ...existing];
+    const incoming =
+      insertedEmployeeShiftRows?.length
+        ? insertedEmployeeShiftRows
+        : normalizedRows;
 
-  return merged.filter(
-    (row, index, array) =>
-      index ===
-      array.findIndex((candidate) => candidate.id === row.id)
-  );
-});
+    const merged = [...incoming, ...existing];
+
+    return merged.filter(
+      (row, index, array) =>
+        index ===
+        array.findIndex(
+          (candidate) => candidate.id === row.id
+        )
+    );
+  });
 }
 
 
 const newLaborUpload = {
- id: uploadedFileRow.id,
+  id: uploadedFileRow.id,
+
   file_name:
     pendingUploadSummary?.fileName ||
     selectedLaborFile?.name ||
     "Labor upload",
+
   source_name: "labor_upload",
   upload_type: "labor",
+
   row_count:
-    insertedLaborRows?.length ||
-    rowsToInsert.length,
+    insertedEmployeeShiftRows?.length ||
+    normalizedRows.length,
+
   created_at:
-    insertedLaborRows?.[0]?.created_at ||
+    uploadedFileRow?.created_at ||
+    insertedEmployeeShiftRows?.[0]?.created_at ||
     new Date().toISOString(),
-  rows: insertedLaborRows || rowsToInsert,
+
+  rows:
+    insertedEmployeeShiftRows?.length
+      ? insertedEmployeeShiftRows
+      : normalizedRows,
 };
 
 setClientImports((previous) => [
