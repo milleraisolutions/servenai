@@ -9156,6 +9156,7 @@ const ingestNormalizedInventoryEvidence = async ({
   locationId = null,
   connectionId = null,
   deactivateMissing = false,
+  existingUploadRow = null,
 } = {}) => {
   if (!ownerId) {
     throw new Error("Inventory ingestion requires an owner ID.");
@@ -9167,8 +9168,15 @@ const ingestNormalizedInventoryEvidence = async ({
 
   const now = new Date().toISOString();
 
-  // 1. Create the evidence-period upload record.
-  const { data: uploadRow, error: uploadError } = await supabase
+// 1. Reuse the parent upload when another canonical importer
+// already created it. Otherwise create the evidence-period upload.
+let uploadRow = existingUploadRow;
+
+if (!uploadRow?.id) {
+  const {
+    data: createdUploadRow,
+    error: uploadError,
+  } = await supabase
     .from("uploads")
     .insert([
       {
@@ -9188,6 +9196,9 @@ const ingestNormalizedInventoryEvidence = async ({
   if (uploadError) {
     throw uploadError;
   }
+
+  uploadRow = createdUploadRow;
+}
 
   try {
     // 2. Load current canonical ingredient state.
@@ -9404,15 +9415,18 @@ const ingestNormalizedInventoryEvidence = async ({
       savedRows,
       snapshotRows,
     };
-  } catch (error) {
-    // Prevent an orphan upload record if canonical ingestion fails.
+ } catch (error) {
+  // Only clean up an upload record created by this helper.
+  // A caller-supplied parent upload owns its own rollback.
+  if (!existingUploadRow?.id && uploadRow?.id) {
     await supabase
       .from("uploads")
       .delete()
       .eq("id", uploadRow.id);
-
-    throw error;
   }
+
+  throw error;
+}
 };
 const handleImportIngredients = async (rowsOverride = null) => {
   try {
@@ -22843,7 +22857,44 @@ const handleImportInventory = async () => {
       await supabase.from("uploads").delete().eq("id", uploadRow.id);
       throw insertError;
     }
+    const normalizedEvidenceRows =
+      normalizeInventoryEvidenceRows({
+        incomingRows: inventoryRows,
+        ownerId: currentUser.id,
+        locationId: selectedUploadLocationId || null,
+        connectionId: null,
+      });
 
+    if (!normalizedEvidenceRows.length) {
+      throw new Error(
+        "Inventory rows could not be normalized into canonical inventory evidence."
+      );
+    }
+
+    const {
+      savedRows: canonicalIngredientRows,
+      snapshotRows: canonicalSnapshotRows,
+    } = await ingestNormalizedInventoryEvidence({
+      ownerId: currentUser.id,
+      normalizedRows: normalizedEvidenceRows,
+      fileName,
+      sourceName: "inventory_upload",
+      locationId: selectedUploadLocationId || null,
+      connectionId: null,
+
+      // The Inventory upload may contain stock/par data rather than
+      // the restaurant's complete ingredient master list.
+      deactivateMissing: false,
+
+      // Reuse this Inventory import's existing upload ID.
+      existingUploadRow: uploadRow,
+    });
+
+    console.log("INVENTORY RECOVERY EVIDENCE INGESTED:", {
+      uploadId: uploadRow?.id,
+      ingredients: canonicalIngredientRows.length,
+      snapshots: canonicalSnapshotRows.length,
+    });
     const cleanUploadRow = {
       ...uploadRow,
       upload_type: "inventory",
