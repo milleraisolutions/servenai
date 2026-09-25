@@ -8923,298 +8923,343 @@ console.log(
 };
 console.log("TRACE AFTER IMPORT MENU ITEMS");
 console.log("TRACE BEFORE IMPORT INGREDIENTS");
-const handleImportIngredients = async (rowsOverride = null) => {
-  try {
-    console.log("INGREDIENTS CONFIRM CLICKED");
-    setMessage("Importing ingredients...");
-console.log("INGREDIENT STEP 1: started");
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
 
-    if (!user?.id) {
-      setMessage("You must be logged in to import ingredients.");
-      alert("You must be logged in to import ingredients.");
-      return;
+const normalizeInventoryEvidenceRows = ({
+  incomingRows = [],
+  ownerId,
+  now = new Date().toISOString(),
+  locationId = null,
+  connectionId = null,
+} = {}) => {
+  const toNumber = (value, fallback = 0) => {
+    const cleaned = String(value ?? "")
+      .replaceAll("$", "")
+      .replaceAll(",", "")
+      .replaceAll("%", "")
+      .trim();
+
+    const num = Number(cleaned);
+    return Number.isFinite(num) ? num : fallback;
+  };
+
+  const getValue = (row, keys, fallback = "") => {
+    for (const key of keys) {
+      if (
+        row?.[key] !== undefined &&
+        row?.[key] !== null &&
+        row?.[key] !== ""
+      ) {
+        return row[key];
+      }
     }
-const ownerId =
-  dataOwnerId ||
-  authenticatedUserId ||
-  userProfile?.owner_user_id ||
-  user.id;
-const rawRowsToImport =
-  rowsOverride?.length
-    ? rowsOverride
-    : pendingUploadSummary?.rows || [];
 
-    const rowsToImport = rawRowsToImport.filter((row) => {
-      if (Array.isArray(row)) {
-        const firstCell = String(row[0] || "").trim().toLowerCase();
-        return firstCell && firstCell !== "name" && firstCell !== "ingredient";
+    return fallback;
+  };
+
+  return (incomingRows || [])
+    .map((row) => {
+      const isArrayRow = Array.isArray(row);
+
+      const name = String(
+        isArrayRow
+          ? row[0]
+          : getValue(row, [
+              "name",
+              "Name",
+              "ingredient_name",
+              "Ingredient Name",
+              "ingredient",
+              "Ingredient",
+              "item_name",
+              "Item Name",
+              "inventory_item",
+              "Inventory Item",
+              "item",
+              "Item",
+              "product",
+              "Product",
+            ])
+      ).trim();
+
+      if (
+        !name ||
+        name.toLowerCase() === "name" ||
+        name.toLowerCase() === "ingredient" ||
+        name.toLowerCase() === "unnamed ingredient"
+      ) {
+        return null;
       }
 
-      const firstValue = String(
-        row.name ||
-          row.Name ||
-          row.ingredient ||
-          row.Ingredient ||
-          row.ingredient_name ||
-          row["Ingredient Name"] ||
-          ""
-      )
+      const supplier = String(
+        isArrayRow
+          ? row[1]
+          : getValue(row, [
+              "supplier",
+              "Supplier",
+              "vendor",
+              "Vendor",
+            ])
+      ).trim();
+
+      const category = String(
+        isArrayRow
+          ? row[2]
+          : getValue(
+              row,
+              ["category", "Category", "type", "Type", "department", "Department"],
+              "Uncategorized"
+            )
+      ).trim();
+
+      const unit = String(
+        isArrayRow
+          ? row[3]
+          : getValue(row, [
+              "unit",
+              "Unit",
+              "uom",
+              "UOM",
+              "Unit Of Measure",
+              "Unit of Measure",
+              "measure",
+              "Measure",
+            ])
+      ).trim();
+
+      const quantity = toNumber(
+        isArrayRow
+          ? row[4]
+          : getValue(row, [
+              "quantity",
+              "Quantity",
+              "qty",
+              "Qty",
+              "on_hand",
+              "On Hand",
+              "Quantity On Hand",
+              "Qty On Hand",
+              "stock",
+              "Stock",
+              "current_stock",
+              "Current Stock",
+              "count",
+              "Count",
+            ])
+      );
+
+      const costPerUnit = toNumber(
+        isArrayRow
+          ? row[5]
+          : getValue(row, [
+              "cost_per_unit",
+              "Cost Per Unit",
+              "unit_cost",
+              "Unit Cost",
+              "cost",
+              "Cost",
+              "price",
+              "Price",
+              "invoice_price",
+              "Invoice Price",
+            ])
+      );
+
+      const uploadedTotalCost = toNumber(
+        isArrayRow
+          ? row[6]
+          : getValue(row, [
+              "total_cost",
+              "Total Cost",
+              "total_value",
+              "Total Value",
+              "inventory_value",
+              "Inventory Value",
+              "value",
+              "Value",
+            ])
+      );
+
+      const totalCost =
+        uploadedTotalCost > 0
+          ? uploadedTotalCost
+          : quantity * costPerUnit;
+
+      const ingredientType = String(
+        isArrayRow
+          ? row[7] || "core"
+          : getValue(
+              row,
+              ["ingredient_type", "Ingredient Type"],
+              "core"
+            )
+      ).trim();
+
+      const varianceTolerance = toNumber(
+        isArrayRow
+          ? row[8]
+          : getValue(
+              row,
+              [
+                "variance_tolerance",
+                "Variance Tolerance",
+                "tolerance",
+                "Tolerance",
+              ],
+              5
+            ),
+        5
+      );
+
+      const actualUsage = toNumber(
+        isArrayRow
+          ? row[9]
+          : getValue(row, [
+              "actual_usage",
+              "Actual Usage",
+              "usage",
+              "Usage",
+            ])
+      );
+
+      return {
+        user_id: ownerId,
+        name,
+        supplier,
+        category,
+        unit,
+        quantity,
+        cost_per_unit: costPerUnit,
+        total_cost: totalCost,
+        ingredient_type: ingredientType || "core",
+        variance_tolerance: varianceTolerance,
+        actual_usage: actualUsage,
+        is_active: true,
+        last_seen_at: now,
+        created_at: now,
+        location_id:
+          getValue(row, ["location_id", "Location ID"], locationId) ||
+          locationId ||
+          null,
+        connection_id:
+          getValue(row, ["connection_id", "Connection ID"], connectionId) ||
+          connectionId ||
+          null,
+      };
+    })
+    .filter(Boolean);
+};
+const ingestNormalizedInventoryEvidence = async ({
+  ownerId,
+  normalizedRows = [],
+  fileName = "Ingredients Upload",
+  sourceName = "Manual Upload",
+  locationId = null,
+  connectionId = null,
+  deactivateMissing = false,
+} = {}) => {
+  if (!ownerId) {
+    throw new Error("Inventory ingestion requires an owner ID.");
+  }
+
+  if (!normalizedRows.length) {
+    throw new Error("No normalized inventory rows found.");
+  }
+
+  const now = new Date().toISOString();
+
+  // 1. Create the evidence-period upload record.
+  const { data: uploadRow, error: uploadError } = await supabase
+    .from("uploads")
+    .insert([
+      {
+        user_id: ownerId,
+        file_name: fileName,
+        source_name: sourceName,
+        row_count: normalizedRows.length,
+        upload_type: "ingredients",
+        status: "completed",
+        archived: false,
+        location_id: locationId || null,
+      },
+    ])
+    .select()
+    .single();
+
+  if (uploadError) {
+    throw uploadError;
+  }
+
+  try {
+    // 2. Load current canonical ingredient state.
+    let existingQuery = supabase
+      .from("ingredients")
+      .select("*")
+      .eq("user_id", ownerId);
+
+    if (locationId) {
+      existingQuery = existingQuery.eq("location_id", locationId);
+    }
+
+    const {
+      data: existingRows,
+      error: existingError,
+    } = await existingQuery;
+
+    if (existingError) {
+      throw existingError;
+    }
+
+    const existingByName = new Map(
+      (existingRows || []).map((row) => [
+        String(row.name || "").trim().toLowerCase(),
+        row,
+      ])
+    );
+
+    const savedRows = [];
+
+    // 3. Update or create canonical ingredients.
+    for (const ingredient of normalizedRows) {
+      const normalizedName = String(ingredient.name || "")
         .trim()
         .toLowerCase();
 
-      return firstValue && firstValue !== "name" && firstValue !== "ingredient";
-    });
-
-    if (!rowsToImport.length) {
-      setMessage("No ingredients data found to import.");
-      alert("No ingredients data found to import.");
-      return;
-    }
-
-    const now = new Date().toISOString();
-
-    const toNumber = (value, fallback = 0) => {
-      const cleaned = String(value ?? "")
-        .replaceAll("$", "")
-        .replaceAll(",", "")
-        .replaceAll("%", "")
-        .trim();
-
-      const num = Number(cleaned);
-      return Number.isFinite(num) ? num : fallback;
-    };
-
-    const getValue = (row, keys, fallback = "") => {
-      for (const key of keys) {
-        if (row?.[key] !== undefined && row?.[key] !== null && row?.[key] !== "") {
-          return row[key];
-        }
-      }
-
-      return fallback;
-    };
-
-    const cleanedRows = rowsToImport
-      .map((row) => {
-        const isArrayRow = Array.isArray(row);
-
-        const name = String(
-          isArrayRow
-            ? row[0]
-            : getValue(row, [
-                "name",
-                "Name",
-                "ingredient_name",
-                "Ingredient Name",
-                "ingredient",
-                "Ingredient",
-                "item",
-                "Item",
-                "product",
-                "Product",
-              ])
-        ).trim();
-
-        if (!name || name.toLowerCase() === "unnamed ingredient") return null;
-
-        const supplier = String(
-          isArrayRow
-            ? row[1]
-            : getValue(row, ["supplier", "Supplier", "vendor", "Vendor"])
-        ).trim();
-
-        const category = String(
-          isArrayRow
-            ? row[2]
-            : getValue(row, ["category", "Category", "type", "Type"], "Uncategorized")
-        ).trim();
-
-        const unit = String(
-          isArrayRow
-            ? row[3]
-            : getValue(row, [
-                "unit",
-                "Unit",
-                "uom",
-                "UOM",
-                "Unit Of Measure",
-                "Unit of Measure",
-              ])
-        ).trim();
-
-        const quantity = toNumber(
-          isArrayRow
-            ? row[4]
-            : getValue(row, [
-                "quantity",
-                "Quantity",
-                "qty",
-                "Qty",
-                "on_hand",
-                "On Hand",
-                "Quantity On Hand",
-                "Qty On Hand",
-                "stock",
-                "Stock",
-              ])
-        );
-
-        const costPerUnit = toNumber(
-          isArrayRow
-            ? row[5]
-            : getValue(row, [
-                "cost_per_unit",
-                "Cost Per Unit",
-                "unit_cost",
-                "Unit Cost",
-                "cost",
-                "Cost",
-                "price",
-                "Price",
-              ])
-        );
-
-        const uploadedTotalCost = toNumber(
-          isArrayRow
-            ? row[6]
-            : getValue(row, [
-                "total_cost",
-                "Total Cost",
-                "inventory_value",
-                "Inventory Value",
-                "value",
-                "Value",
-              ])
-        );
-
-        const totalCost =
-          uploadedTotalCost > 0 ? uploadedTotalCost : quantity * costPerUnit;
-
-        return {
-          user_id: user.id,
-          name,
-          supplier,
-          category,
-          unit,
-          quantity,
-          cost_per_unit: costPerUnit,
-          total_cost: totalCost,
-
-          ingredient_type: String(
-            isArrayRow
-              ? row[7] || "core"
-              : getValue(
-                  row,
-                  ["ingredient_type", "Ingredient Type", "type", "Type"],
-                  "core"
-                )
-          ).trim(),
-
-          variance_tolerance: toNumber(
-            isArrayRow
-              ? row[8]
-              : getValue(
-                  row,
-                  ["variance_tolerance", "Variance Tolerance", "tolerance", "Tolerance"],
-                  5
-                ),
-            5
-          ),
-
-          is_active: true,
-          last_seen_at: now,
-          created_at: now,
-        };
-      })
-      .filter(Boolean);
-
-    if (!cleanedRows.length) {
-      setMessage("No valid ingredients found after cleaning.");
-      alert("No valid ingredients found after cleaning.");
-      return;
-    }
-
-    const uploadedNames = cleanedRows.map((item) =>
-      String(item.name || "").trim().toLowerCase()
-    );
-console.log("INGREDIENT STEP 2: inserting upload row", cleanedRows.length);
-    const { data: uploadRow, error: uploadError } = await supabase
-      .from("uploads")
-      .insert([
-        {
-          user_id: user.id,
-          file_name: pendingUploadSummary?.fileName || "Ingredients Upload",
-          source_name: "Manual Upload",
-          row_count: cleanedRows.length,
-          upload_type: "ingredients",
-          status: "completed",
-          location_id: selectedUploadLocationId || null,
-        },
-      ])
-      .select()
-      .single();
-
-    if (uploadError) {
-      console.error("Ingredients upload row failed:", uploadError);
-      throw uploadError;
-    }
-console.log("INGREDIENT STEP 3: upload row inserted", uploadRow);
-    if (uploadRow) {
-      setClientImports((prev) => [
-        uploadRow,
-        ...(prev || []).filter((upload) => upload.id !== uploadRow.id),
-      ]);
-
-      setRecentUploads((prev) => [
-        uploadRow,
-        ...(prev || []).filter((upload) => upload.id !== uploadRow.id),
-      ]);
-    }
-console.log("INGREDIENT STEP 4: fetching existing ingredients");
-    const { data: existingRows, error: existingError } = await supabase
-      .from("ingredients")
-      .select("*")
-     .eq("user_id", dataOwnerId || user.id)
-
-    if (existingError) {
-      console.error("Ingredient existing rows fetch failed:", existingError);
-      throw existingError;
-    }
-console.log("INGREDIENT STEP 5: existing rows fetched", existingRows?.length);
-    const savedRows = [];
-console.log("INGREDIENT STEP 6: syncing ingredient rows");
-    for (const ingredient of cleanedRows) {
-      const existing = (existingRows || []).find(
-        (item) =>
-          String(item.name || "").trim().toLowerCase() ===
-          String(ingredient.name || "").trim().toLowerCase()
-      );
+      const existing = existingByName.get(normalizedName);
 
       if (existing) {
         const { data: updatedRows, error: updateError } = await supabase
           .from("ingredients")
           .update({
-            upload_id: uploadRow?.id || null,
-            supplier: ingredient.supplier,
-            category: ingredient.category,
-            unit: ingredient.unit,
-            quantity: ingredient.quantity,
-            cost_per_unit: ingredient.cost_per_unit,
-            total_cost: ingredient.total_cost,
+            upload_id: uploadRow.id,
+            supplier: ingredient.supplier || null,
+            category: ingredient.category || null,
+            unit: ingredient.unit || null,
+            quantity: Number(ingredient.quantity || 0),
+            cost_per_unit: Number(ingredient.cost_per_unit || 0),
+            total_cost: Number(ingredient.total_cost || 0),
             actual_usage: Number(ingredient.actual_usage || 0),
             ingredient_type: ingredient.ingredient_type || "core",
-            variance_tolerance: Number(ingredient.variance_tolerance || 5),
+            variance_tolerance: Number(
+              ingredient.variance_tolerance ?? 5
+            ),
             is_active: true,
             last_seen_at: now,
+            location_id:
+              ingredient.location_id ||
+              locationId ||
+              existing.location_id ||
+              null,
+            connection_id:
+              ingredient.connection_id ||
+              connectionId ||
+              existing.connection_id ||
+              null,
           })
           .eq("id", existing.id)
+          .eq("user_id", ownerId)
           .select();
 
         if (updateError) {
-          console.error("Ingredient update error:", updateError);
           throw updateError;
         }
 
@@ -9225,13 +9270,23 @@ console.log("INGREDIENT STEP 6: syncing ingredient rows");
           .insert([
             {
               ...ingredient,
-              upload_id: uploadRow?.id || null,
+              user_id: ownerId,
+              upload_id: uploadRow.id,
+              location_id:
+                ingredient.location_id ||
+                locationId ||
+                null,
+              connection_id:
+                ingredient.connection_id ||
+                connectionId ||
+                null,
+              is_active: true,
+              last_seen_at: now,
             },
           ])
           .select();
 
         if (insertError) {
-          console.error("Ingredient insert error:", insertError);
           throw insertError;
         }
 
@@ -9239,99 +9294,251 @@ console.log("INGREDIENT STEP 6: syncing ingredient rows");
       }
     }
 
-    const snapshotRows = (savedRows.length ? savedRows : cleanedRows).map(
-  (ingredient) => ({
-    user_id: dataOwnerId || user.id,
-    ingredient_id: ingredient.id || null,
-    upload_id: uploadRow?.id || null,
-    connection_id: ingredient.connection_id || null,
-    location_id:
-      ingredient.location_id ||
-      selectedUploadLocationId ||
-      null,
+    // 4. Every ingestion period gets immutable snapshot evidence.
+    const snapshotRows = savedRows.map((ingredient) => ({
+      user_id: ownerId,
+      ingredient_id: ingredient.id || null,
+      upload_id: uploadRow.id,
+      connection_id:
+        ingredient.connection_id ||
+        connectionId ||
+        null,
+      location_id:
+        ingredient.location_id ||
+        locationId ||
+        null,
 
-    ingredient_name: ingredient.name || "Unknown Ingredient",
-    supplier: ingredient.supplier || null,
-    category: ingredient.category || null,
-    ingredient_type: ingredient.ingredient_type || "core",
+      ingredient_name:
+        ingredient.name || "Unknown Ingredient",
+      supplier: ingredient.supplier || null,
+      category: ingredient.category || null,
+      ingredient_type:
+        ingredient.ingredient_type || "core",
 
-    unit: ingredient.unit || null,
-    quantity: Number(ingredient.quantity || 0),
-    cost_per_unit: Number(ingredient.cost_per_unit || 0),
-    total_cost: Number(ingredient.total_cost || 0),
-    actual_usage: Number(ingredient.actual_usage || 0),
+      unit: ingredient.unit || null,
+      quantity: Number(ingredient.quantity || 0),
+      cost_per_unit: Number(
+        ingredient.cost_per_unit || 0
+      ),
+      total_cost: Number(ingredient.total_cost || 0),
+      actual_usage: Number(
+        ingredient.actual_usage || 0
+      ),
 
-    purchase_weight: Number(ingredient.purchase_weight || 0),
-    weight_unit: ingredient.weight_unit || null,
-    current_stock: Number(
-      ingredient.current_stock ??
-        ingredient.quantity ??
-        0
-    ),
+      purchase_weight: Number(
+        ingredient.purchase_weight || 0
+      ),
+      weight_unit: ingredient.weight_unit || null,
+      current_stock: Number(
+        ingredient.current_stock ??
+          ingredient.quantity ??
+          0
+      ),
 
-    source_type: ingredient.connection_id
-      ? "integration"
-      : "manual_upload",
+      source_type: connectionId
+        ? "integration"
+        : "manual_upload",
 
-    source_name: ingredient.connection_id
-      ? "integration"
-      : "Manual Upload",
+      source_name: sourceName,
+      file_name: fileName,
+      snapshot_at: now,
+    }));
 
-    file_name:
-      pendingUploadSummary?.fileName ||
-      "Ingredients Upload",
+    if (snapshotRows.length) {
+      const { error: snapshotError } = await supabase
+        .from("inventory_snapshots")
+        .insert(snapshotRows);
 
-    snapshot_at: now,
-  })
-);
+      if (snapshotError) {
+        throw snapshotError;
+      }
+    }
 
-if (snapshotRows.length) {
-  const { error: snapshotError } = await supabase
-    .from("inventory_snapshots")
-    .insert(snapshotRows);
+    // 5. Only complete inventory periods may deactivate missing ingredients.
+    if (deactivateMissing) {
+      const uploadedNames = new Set(
+        normalizedRows.map((ingredient) =>
+          String(ingredient.name || "")
+            .trim()
+            .toLowerCase()
+        )
+      );
 
-  if (snapshotError) {
-    console.error("Inventory snapshot insert failed:", snapshotError);
-    throw snapshotError;
+      const ingredientsToDeactivate = (
+        existingRows || []
+      ).filter(
+        (ingredient) =>
+          ingredient.is_active !== false &&
+          !uploadedNames.has(
+            String(ingredient.name || "")
+              .trim()
+              .toLowerCase()
+          )
+      );
+
+      for (const ingredient of ingredientsToDeactivate) {
+        const { error: deactivateError } = await supabase
+          .from("ingredients")
+          .update({
+            is_active: false,
+            last_seen_at: now,
+          })
+          .eq("id", ingredient.id)
+          .eq("user_id", ownerId);
+
+        if (deactivateError) {
+          throw deactivateError;
+        }
+      }
+    }
+
+    console.log("INVENTORY CANONICAL INGEST COMPLETE:", {
+      uploadId: uploadRow.id,
+      rowCount: savedRows.length,
+      sourceName,
+      connectionId,
+    });
+
+    return {
+      uploadRow,
+      savedRows,
+      snapshotRows,
+    };
+  } catch (error) {
+    // Prevent an orphan upload record if canonical ingestion fails.
+    await supabase
+      .from("uploads")
+      .delete()
+      .eq("id", uploadRow.id);
+
+    throw error;
   }
-}
-console.log("INGREDIENT STEP 7: ingredient rows synced", savedRows.length);
-    const ingredientsToDeactivate = (existingRows || []).filter(
-      (item) =>
-        item.is_active !== false &&
-        !uploadedNames.includes(String(item.name || "").trim().toLowerCase())
+};
+const handleImportIngredients = async (rowsOverride = null) => {
+  try {
+    console.log("INGREDIENTS CONFIRM CLICKED");
+    setMessage("Importing ingredients...");
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user?.id) {
+      setMessage("You must be logged in to import ingredients.");
+      alert("You must be logged in to import ingredients.");
+      return;
+    }
+
+    const ownerId =
+      dataOwnerId ||
+      authenticatedUserId ||
+      userProfile?.owner_user_id ||
+      user.id;
+
+    const rawRowsToImport =
+      rowsOverride?.length
+        ? rowsOverride
+        : pendingUploadSummary?.rows?.length
+        ? pendingUploadSummary.rows
+        : pendingUploadRows?.length
+        ? pendingUploadRows
+        : pendingUploadRowsRef.current?.length
+        ? pendingUploadRowsRef.current
+        : [];
+
+    if (!rawRowsToImport.length) {
+      setMessage("No ingredients data found to import.");
+      alert("No ingredients data found to import.");
+      return;
+    }
+
+    const now = new Date().toISOString();
+
+    const cleanedRows = normalizeInventoryEvidenceRows({
+      incomingRows: rawRowsToImport,
+      ownerId,
+      now,
+      locationId: selectedUploadLocationId || null,
+      connectionId: null,
+    });
+
+    if (!cleanedRows.length) {
+      setMessage("No valid ingredients found after cleaning.");
+      alert("No valid ingredients found after cleaning.");
+      return;
+    }
+
+    console.log(
+      "INGREDIENT NORMALIZED ROWS:",
+      cleanedRows.length
     );
 
-    for (const oldIngredient of ingredientsToDeactivate) {
-      const { error: deactivateError } = await supabase
-        .from("ingredients")
-        .update({
-          is_active: false,
-          last_seen_at: now,
-        })
-        .eq("id", oldIngredient.id);
+    const fileName =
+      pendingUploadSummary?.fileName ||
+      "Ingredients Upload";
 
-      if (deactivateError) {
-        console.error("Ingredient deactivate error:", deactivateError);
-        throw deactivateError;
-      }
+    const {
+      uploadRow,
+      savedRows,
+    } = await ingestNormalizedInventoryEvidence({
+      ownerId,
+      normalizedRows: cleanedRows,
+      fileName,
+      sourceName: "Manual Upload",
+      locationId: selectedUploadLocationId || null,
+      connectionId: null,
+
+      // Manual Ingredients upload represents a complete inventory period.
+      // Missing ingredients should retain the existing deactivation behavior.
+      deactivateMissing: true,
+    });
+
+    console.log("INGREDIENT CANONICAL IMPORT COMPLETE:", {
+      uploadId: uploadRow?.id,
+      savedRows: savedRows.length,
+    });
+
+    if (uploadRow) {
+      setClientImports((prev) => [
+        uploadRow,
+        ...(prev || []).filter(
+          (upload) => upload.id !== uploadRow.id
+        ),
+      ]);
+
+      setRecentUploads((prev) => [
+        uploadRow,
+        ...(prev || []).filter(
+          (upload) => upload.id !== uploadRow.id
+        ),
+      ]);
     }
 
     await loadClientUploads?.();
     await loadUploadComparison?.();
 
-    setIngredientsData(savedRows.length ? savedRows : cleanedRows);
+    setIngredientsData(savedRows);
+
     setPendingUploadSummary(null);
     setPendingUploadRows([]);
     pendingUploadRowsRef.current = [];
 
     setMessage(
-      `Ingredients synced: ${cleanedRows.length} active, ${ingredientsToDeactivate.length} marked inactive.`
+      `Ingredients synced: ${savedRows.length} active ingredient row(s).`
     );
   } catch (error) {
     console.error("Ingredients import failed:", error);
-    setMessage(`Ingredients import failed: ${error?.message || "Unknown error"}`);
-    alert(error?.message || "Ingredients import failed.");
+
+    setMessage(
+      `Ingredients import failed: ${
+        error?.message || "Unknown error"
+      }`
+    );
+
+    alert(
+      error?.message ||
+        "Ingredients import failed."
+    );
   }
 };
 console.log("TRACE AFTER IMPORT INGREDIENTS");
