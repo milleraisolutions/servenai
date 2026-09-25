@@ -22857,20 +22857,34 @@ const handleImportInventory = async () => {
       await supabase.from("uploads").delete().eq("id", uploadRow.id);
       throw insertError;
     }
-    const normalizedEvidenceRows =
-      normalizeInventoryEvidenceRows({
-        incomingRows: inventoryRows,
-        ownerId: currentUser.id,
-        locationId: selectedUploadLocationId || null,
-        connectionId: null,
-      });
+   console.log("INVENTORY EVIDENCE PIPELINE START:", {
+  uploadId: uploadRow?.id,
+  rawRowCount: inventoryRows?.length || 0,
+  firstRawRow: inventoryRows?.[0] || null,
+});
+
+const normalizedEvidenceRows =
+  normalizeInventoryEvidenceRows({
+    incomingRows: inventoryRows,
+    ownerId: currentUser.id,
+    locationId: selectedUploadLocationId || null,
+    connectionId: null,
+  });
+
+console.log("INVENTORY EVIDENCE NORMALIZED:", {
+  normalizedCount: normalizedEvidenceRows?.length || 0,
+  firstNormalizedRow: normalizedEvidenceRows?.[0] || null,
+});
 
     if (!normalizedEvidenceRows.length) {
       throw new Error(
         "Inventory rows could not be normalized into canonical inventory evidence."
       );
     }
-
+console.log("INVENTORY EVIDENCE CALLING SHARED INGESTER:", {
+  uploadId: uploadRow?.id,
+  normalizedCount: normalizedEvidenceRows.length,
+});
     const {
       savedRows: canonicalIngredientRows,
       snapshotRows: canonicalSnapshotRows,
@@ -22928,7 +22942,14 @@ const handleImportInventory = async () => {
       details: `Uploaded inventory data with ${rowsWithUploadId.length} row(s).`,
     });
   } catch (error) {
-    console.error("Inventory import error:", error);
+  console.error("INVENTORY IMPORT FAILED:", {
+  error,
+  message: error?.message,
+  code: error?.code,
+  details: error?.details,
+  hint: error?.hint,
+  uploadId: uploadRow?.id || null,
+});
 
     if (uploadRow?.id) {
       await supabase.from("uploads").delete().eq("id", uploadRow.id);
