@@ -106609,7 +106609,7 @@ sub: "items with recipe rules or uploaded cost",
         gap: "12px",
       }}
     >
-      {(recipeCostingData || []).slice(0, 10).map((item, index) => (
+      {(recipeCostingData || []).map((item, index) => (
         <div
           key={`${item.itemName}-${index}`}
           style={{
