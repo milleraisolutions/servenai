@@ -25994,7 +25994,229 @@ useEffect(() => {
   activeLocation,
 ]);
 
+/* =========================
+   POS MENU PROFITABILITY
+   Actual POS revenue + live recipe cost
+========================= */
 
+const posMenuProfitabilityData = useMemo(() => {
+  const normalizeItemName = (value) =>
+    String(value || "")
+      .trim()
+      .toLowerCase();
+
+  const salesRows =
+    locationSalesData?.length > 0
+      ? locationSalesData
+      : salesData || [];
+
+  const recipeRows = recipeCostingData || [];
+
+  if (!salesRows.length || !recipeRows.length) {
+    return [];
+  }
+
+  // =========================================================
+  // BUILD LIVE RECIPE COST LOOKUP
+  // =========================================================
+
+  const recipeByItemName = new Map();
+
+  recipeRows.forEach((recipeItem) => {
+    const itemName = String(
+      recipeItem.itemName ||
+        recipeItem.name ||
+        recipeItem.menu_item ||
+        ""
+    ).trim();
+
+    if (!itemName) return;
+
+    recipeByItemName.set(
+      normalizeItemName(itemName),
+      recipeItem
+    );
+  });
+
+  // =========================================================
+  // AGGREGATE CANONICAL POS SALES BY ITEM
+  // =========================================================
+
+  const performanceByItemName = new Map();
+
+  salesRows.forEach((sale) => {
+    const saleItemName = String(
+      sale.name ||
+        sale.item_name ||
+        sale.menu_item ||
+        sale.item ||
+        sale.product ||
+        ""
+    ).trim();
+
+    if (!saleItemName) return;
+
+    const normalizedName =
+      normalizeItemName(saleItemName);
+
+    const recipeItem =
+      recipeByItemName.get(normalizedName);
+
+    /*
+     * Only calculate recipe-driven profitability when
+     * the POS item can be matched to a known recipe/menu item.
+     */
+    if (!recipeItem) return;
+
+    const quantitySold = Number(
+      sale.quantity ??
+        sale.quantity_sold ??
+        sale.qty_sold ??
+        sale.units_sold ??
+        0
+    );
+
+    const revenue = Number(
+      sale.revenue ??
+        sale.sales ??
+        sale.total_sales ??
+        sale.total ??
+        0
+    );
+
+    if (!performanceByItemName.has(normalizedName)) {
+      performanceByItemName.set(normalizedName, {
+        itemName:
+          recipeItem.itemName ||
+          saleItemName,
+
+        quantitySold: 0,
+        revenue: 0,
+
+        recipeCost: Number(
+          recipeItem.recipeCost || 0
+        ),
+
+        price: Number(
+          recipeItem.price || 0
+        ),
+
+        costSource:
+          recipeItem.costSource ||
+          "unresolved",
+
+        ingredientCount: Number(
+          recipeItem.ingredientCount || 0
+        ),
+
+        resolvedIngredientCount: Number(
+          recipeItem.resolvedIngredientCount || 0
+        ),
+
+        unresolvedIngredientCount: Number(
+          recipeItem.unresolvedIngredientCount || 0
+        ),
+
+        hasCompleteLiveRecipeCost: Boolean(
+          recipeItem.hasCompleteLiveRecipeCost
+        ),
+      });
+    }
+
+    const current =
+      performanceByItemName.get(normalizedName);
+
+    if (
+      Number.isFinite(quantitySold) &&
+      quantitySold > 0
+    ) {
+      current.quantitySold += quantitySold;
+    }
+
+    if (
+      Number.isFinite(revenue) &&
+      revenue > 0
+    ) {
+      current.revenue += revenue;
+    }
+  });
+
+  // =========================================================
+  // CALCULATE POS PERIOD PROFITABILITY
+  // =========================================================
+
+  return Array.from(
+    performanceByItemName.values()
+  )
+    .map((item) => {
+      const quantitySold = Number(
+        item.quantitySold || 0
+      );
+
+      const revenue = Number(
+        item.revenue || 0
+      );
+
+      const recipeCost = Number(
+        item.recipeCost || 0
+      );
+
+      /*
+       * This is theoretical food cost because it is based on
+       * recipe cost × units sold, not an accounting COGS entry.
+       */
+      const theoreticalFoodCost =
+        quantitySold > 0 && recipeCost >= 0
+          ? quantitySold * recipeCost
+          : 0;
+
+      const theoreticalGrossProfit =
+        revenue > 0
+          ? revenue - theoreticalFoodCost
+          : 0;
+
+      const grossMargin =
+        revenue > 0
+          ? (theoreticalGrossProfit / revenue) *
+            100
+          : 0;
+
+      const realizedAveragePrice =
+        quantitySold > 0
+          ? revenue / quantitySold
+          : 0;
+
+      return {
+        ...item,
+
+        quantitySold,
+        revenue,
+
+        realizedAveragePrice,
+
+        theoreticalFoodCost,
+        theoreticalGrossProfit,
+
+        grossMargin: Number(
+          grossMargin.toFixed(1)
+        ),
+      };
+    })
+    .filter(
+      (item) =>
+        item.quantitySold > 0 &&
+        item.revenue > 0
+    )
+    .sort(
+      (a, b) =>
+        Number(b.revenue || 0) -
+        Number(a.revenue || 0)
+    );
+}, [
+  locationSalesData,
+  salesData,
+  recipeCostingData,
+]);
 console.log("RECIPE COSTING DATA:", recipeCostingData);
 
 
