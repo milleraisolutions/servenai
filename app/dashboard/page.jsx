@@ -24205,79 +24205,114 @@ const recipeCostingData = useMemo(() => {
           .toLowerCase()
           .trim()
     );
-
-   const calculatedRecipeCost = linkedRules.reduce((sum, rule) => {
-  const ingredient = ingredients.find(
-    (ing) =>
-      String(
-        ing.name ||
-          ing.ingredient_name ||
-          ""
-      )
-        .toLowerCase()
-        .trim() ===
-      String(rule.ingredient || "")
-        .toLowerCase()
-        .trim()
-  );
-
-  if (!ingredient) {
-    return sum;
-  }
-
-  const costPerUnit = Number(
-    ingredient?.cost_per_unit ||
-      ingredient?.costPerUnit ||
-      ingredient?.unit_cost ||
-      ingredient?.price_per_unit ||
-      ingredient?.cost ||
-      0
-  );
-
-  if (!Number.isFinite(costPerUnit) || costPerUnit <= 0) {
-    return sum;
-  }
-
-  const amountUsed = Number(
-    rule.amount_used ??
-      rule.quantity_used ??
-      rule.amountUsed ??
-      0
-  );
-
-  const recipeUnit =
-    rule.unit ||
-    rule.uom ||
-    rule.measurement_unit ||
-    null;
-
-  const ingredientUnit =
-    ingredient.unit ||
-    ingredient.uom ||
-    ingredient.measurement_unit ||
-    null;
-
-  const convertedQuantity =
-    convertRecipeQuantityToIngredientUnit(
-      amountUsed,
-      recipeUnit,
-      ingredientUnit
+const recipeCostResolution = linkedRules.reduce(
+  (result, rule) => {
+    const ingredient = ingredients.find(
+      (ing) =>
+        String(
+          ing.name ||
+            ing.ingredient_name ||
+            ""
+        )
+          .toLowerCase()
+          .trim() ===
+        String(rule.ingredient || "")
+          .toLowerCase()
+          .trim()
     );
 
-  if (convertedQuantity === null) {
-    console.warn("RECIPE COST UNIT MISMATCH:", {
-      menuItem: itemName,
-      ingredient: rule.ingredient,
-      amountUsed,
-      recipeUnit,
-      ingredientUnit,
-    });
+    if (!ingredient) {
+      return {
+        ...result,
+        unresolvedCount: result.unresolvedCount + 1,
+      };
+    }
 
-    return sum;
+    const costPerUnit = Number(
+      ingredient?.cost_per_unit ||
+        ingredient?.costPerUnit ||
+        ingredient?.unit_cost ||
+        ingredient?.price_per_unit ||
+        ingredient?.cost ||
+        0
+    );
+
+    if (!Number.isFinite(costPerUnit) || costPerUnit <= 0) {
+      return {
+        ...result,
+        unresolvedCount: result.unresolvedCount + 1,
+      };
+    }
+
+    const amountUsed = Number(
+      rule.amount_used ??
+        rule.quantity_used ??
+        rule.amountUsed ??
+        0
+    );
+
+    if (!Number.isFinite(amountUsed) || amountUsed <= 0) {
+      return {
+        ...result,
+        unresolvedCount: result.unresolvedCount + 1,
+      };
+    }
+
+    const recipeUnit =
+      rule.unit ||
+      rule.uom ||
+      rule.measurement_unit ||
+      null;
+
+    const ingredientUnit =
+      ingredient.unit ||
+      ingredient.uom ||
+      ingredient.measurement_unit ||
+      null;
+
+    const convertedQuantity =
+      convertRecipeQuantityToIngredientUnit(
+        amountUsed,
+        recipeUnit,
+        ingredientUnit
+      );
+
+    if (convertedQuantity === null) {
+      console.warn("RECIPE COST UNIT MISMATCH:", {
+        menuItem: itemName,
+        ingredient: rule.ingredient,
+        amountUsed,
+        recipeUnit,
+        ingredientUnit,
+      });
+
+      return {
+        ...result,
+        unresolvedCount: result.unresolvedCount + 1,
+      };
+    }
+
+    return {
+      cost: result.cost + convertedQuantity * costPerUnit,
+      resolvedCount: result.resolvedCount + 1,
+      unresolvedCount: result.unresolvedCount,
+    };
+  },
+  {
+    cost: 0,
+    resolvedCount: 0,
+    unresolvedCount: 0,
   }
+);
 
-  return sum + convertedQuantity * costPerUnit;
-}, 0);
+const hasCompleteLiveRecipeCost =
+  linkedRules.length > 0 &&
+  recipeCostResolution.resolvedCount === linkedRules.length &&
+  recipeCostResolution.unresolvedCount === 0;
+
+const calculatedRecipeCost = hasCompleteLiveRecipeCost
+  ? recipeCostResolution.cost
+  : 0;
 
     const uploadedCost = Number(
       menuItem.cost ||
