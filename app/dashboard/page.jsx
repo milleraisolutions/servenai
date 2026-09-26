@@ -41884,100 +41884,8 @@ const handleRecipeUpload = async (event) => {
               recipe,
             ])
           );
-
-          const ingredientRows = [];
-
-          for (const [recipeName, group] of recipeMap) {
-            const recipeInsert = insertedRecipeByName.get(String(recipeName).trim());
-
-            if (!recipeInsert?.id) continue;
-
-            group.ingredients.forEach((row) => {
-              const quantity = Number(row.quantity || row.Quantity || row.qty || row.Qty || 0);
-
-              const costPerUnit = Number(
-                row.cost_per_unit ||
-                  row["Cost Per Unit"] ||
-                  row.unit_cost ||
-                  row["Unit Cost"] ||
-                  row.cost ||
-                  row.Cost ||
-                  0
-              );
-
-              ingredientRows.push({
-                user_id: currentUser.id,
-                upload_id: uploadRow.id,
-                recipe_id: recipeInsert.id,
-
-                location_name:
-                  activeLocation !== "all" ? activeLocation : assignedLocation || null,
-
-               ingredient_name:
-  row.ingredient_name ||
-  row["Ingredient Name"] ||
-  row.ingredient ||
-  row.Ingredient ||
-  row["ingredient"] ||
-  row.item ||
-  row.Item ||
-  "Ingredient",
-
-                quantity,
-
-                unit: row.unit || row.Unit || row.uom || row.UOM || null,
-
-                cost_per_unit: costPerUnit,
-                total_cost: quantity * costPerUnit,
-              });
-            });
-          }
-
-          console.log("RECIPE ingredientRows:", ingredientRows);
-
-          let insertedIngredients = [];
-
-          if (ingredientRows.length) {
-            const { data: ingredientInsert, error: ingredientError } = await supabase
-              .from("recipe_ingredients")
-              .insert(ingredientRows)
-              .select();
-
-            console.log("RECIPE ingredientInsert:", ingredientInsert);
-            console.log("RECIPE ingredientError:", ingredientError);
-if (ingredientError) {
-  console.error("RECIPE INGREDIENT ERROR:", {
-    message: ingredientError.message,
-    details: ingredientError.details,
-    hint: ingredientError.hint,
-    code: ingredientError.code,
-  });
-
-  await supabase
-    .from("recipe_usage_rules")
-    .delete()
-    .eq("upload_id", uploadRow.id);
-
-  await supabase
-    .from("recipe_ingredients")
-    .delete()
-    .eq("upload_id", uploadRow.id);
-
-  await supabase
-    .from("recipes")
-    .delete()
-    .eq("upload_id", uploadRow.id);
-
-  await supabase
-    .from("uploads")
-    .delete()
-    .eq("id", uploadRow.id);
-
-  throw ingredientError;
-}
-
-            insertedIngredients = ingredientInsert || [];
-            const recipeUsageRuleRows = [];
+const ingredientRows = [];
+const recipeUsageRuleRows = [];
 
 for (const [recipeName, group] of recipeMap) {
   const recipeInsert = insertedRecipeByName.get(
@@ -41986,10 +41894,11 @@ for (const [recipeName, group] of recipeMap) {
 
   if (!recipeInsert?.id) continue;
 
-  const menuItemName =
+  const menuItemName = String(
     recipeInsert.menu_item_name ||
-    group.recipe?.menu_item_name ||
-    recipeName;
+      group.recipe?.menu_item_name ||
+      recipeName
+  ).trim();
 
   group.ingredients.forEach((row) => {
     const ingredientName = String(
@@ -42003,13 +41912,13 @@ for (const [recipeName, group] of recipeMap) {
         ""
     ).trim();
 
-    const amountUsed = Number(
-      row.quantity ||
-        row.Quantity ||
-        row.qty ||
-        row.Qty ||
-        row.amount_used ||
-        row["Amount Used"] ||
+    const quantity = Number(
+      row.quantity ??
+        row.Quantity ??
+        row.qty ??
+        row.Qty ??
+        row.amount_used ??
+        row["Amount Used"] ??
         0
     );
 
@@ -42021,47 +41930,131 @@ for (const [recipeName, group] of recipeMap) {
         ""
     ).trim();
 
-    if (!ingredientName || !Number.isFinite(amountUsed) || amountUsed <= 0) {
+    const costPerUnit = Number(
+      row.cost_per_unit ??
+        row["Cost Per Unit"] ??
+        row.unit_cost ??
+        row["Unit Cost"] ??
+        row.cost ??
+        row.Cost ??
+        0
+    );
+
+    if (
+      !ingredientName ||
+      !Number.isFinite(quantity) ||
+      quantity <= 0
+    ) {
       return;
     }
+
+    ingredientRows.push({
+      user_id: currentUser.id,
+      upload_id: uploadRow.id,
+      recipe_id: recipeInsert.id,
+
+      location_name:
+        activeLocation !== "all"
+          ? activeLocation
+          : assignedLocation || null,
+
+      ingredient_name: ingredientName,
+      quantity,
+      unit: unit || null,
+
+      cost_per_unit:
+        Number.isFinite(costPerUnit) && costPerUnit >= 0
+          ? costPerUnit
+          : 0,
+
+      total_cost:
+        Number.isFinite(costPerUnit) && costPerUnit >= 0
+          ? quantity * costPerUnit
+          : 0,
+    });
 
     recipeUsageRuleRows.push({
       user_id: currentUser.id,
       menu_item: menuItemName,
       ingredient: ingredientName,
-      amount_used: amountUsed,
+      amount_used: quantity,
       unit: unit || null,
       upload_id: uploadRow.id,
     });
   });
 }
 
-let insertedRecipeUsageRules = [];
-
-if (recipeUsageRuleRows.length) {
-  const {
-    data: usageRuleInsert,
-    error: usageRuleError,
-  } = await supabase
-    .from("recipe_usage_rules")
-    .insert(recipeUsageRuleRows)
-    .select();
-
-  if (usageRuleError) {
-    console.error("RECIPE USAGE RULE INSERT ERROR:", {
-      message: usageRuleError.message,
-      details: usageRuleError.details,
-      hint: usageRuleError.hint,
-      code: usageRuleError.code,
-    });
-
-    throw usageRuleError;
-  }
-
-  insertedRecipeUsageRules = usageRuleInsert || [];
+if (!ingredientRows.length) {
+  throw new Error(
+    "Recipe upload did not contain any valid ingredient rows."
+  );
 }
-          }
 
+if (!recipeUsageRuleRows.length) {
+  throw new Error(
+    "Recipe upload did not contain any valid recipe usage rules."
+  );
+}
+
+// =========================================================
+// SAVE RECIPE INGREDIENT DEFINITIONS
+// =========================================================
+
+const {
+  data: ingredientInsert,
+  error: ingredientError,
+} = await supabase
+  .from("recipe_ingredients")
+  .insert(ingredientRows)
+  .select();
+
+if (ingredientError) {
+  console.error("RECIPE INGREDIENT ERROR:", {
+    message: ingredientError.message,
+    details: ingredientError.details,
+    hint: ingredientError.hint,
+    code: ingredientError.code,
+  });
+
+  throw ingredientError;
+}
+
+const insertedIngredients = ingredientInsert || [];
+
+// =========================================================
+// SAVE CANONICAL RECIPE USAGE RULES
+// =========================================================
+
+const {
+  data: usageRuleInsert,
+  error: usageRuleError,
+} = await supabase
+  .from("recipe_usage_rules")
+  .insert(recipeUsageRuleRows)
+  .select();
+
+if (usageRuleError) {
+  console.error("RECIPE USAGE RULE INSERT ERROR:", {
+    message: usageRuleError.message,
+    details: usageRuleError.details,
+    hint: usageRuleError.hint,
+    code: usageRuleError.code,
+  });
+
+  throw usageRuleError;
+}
+
+const insertedRecipeUsageRules =
+  usageRuleInsert || [];
+
+if (
+  insertedRecipeUsageRules.length !==
+  recipeUsageRuleRows.length
+) {
+  throw new Error(
+    `Recipe usage rule insert was incomplete. Expected ${recipeUsageRuleRows.length}, saved ${insertedRecipeUsageRules.length}.`
+  );
+}
           const cleanUploadRow = {
             ...uploadRow,
             status: "completed",
