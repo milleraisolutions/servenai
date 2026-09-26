@@ -9877,13 +9877,361 @@ const ingestNormalizedInvoiceRows = async ({
 
     throw lineItemsInsertError;
   }
+/*
+  5. Synchronize verified invoice costs into existing
+     canonical ingredients.
 
-  return {
-    uploadedFileRow,
-    invoiceUpload,
-    insertedRows: insertedRows || [],
-    normalizedRows,
+  Invoice evidence changes purchasing cost only.
+  It must NOT change stock quantity or actual usage.
+
+  Costs are converted into the ingredient's canonical unit
+  before ingredients.cost_per_unit is updated.
+*/
+const normalizeCostUnit = (value) => {
+  const raw = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\./g, "")
+    .replace(/\s+/g, "_");
+
+  const aliases = {
+    lb: "lb",
+    lbs: "lb",
+    pound: "lb",
+    pounds: "lb",
+
+    oz: "oz",
+    ounce: "oz",
+    ounces: "oz",
+
+    kg: "kg",
+    kilogram: "kg",
+    kilograms: "kg",
+
+    g: "g",
+    gram: "g",
+    grams: "g",
+
+    each: "each",
+    ea: "each",
+    unit: "each",
+    units: "each",
+
+    fl_oz: "fl_oz",
+    floz: "fl_oz",
+    fluid_ounce: "fl_oz",
+    fluid_ounces: "fl_oz",
+
+    pt: "pt",
+    pint: "pt",
+    pints: "pt",
+
+    qt: "qt",
+    quart: "qt",
+    quarts: "qt",
+
+    gal: "gal",
+    gallon: "gal",
+    gallons: "gal",
   };
+
+  return aliases[raw] || raw || null;
+};
+
+const unitFamily = {
+  lb: "weight",
+  oz: "weight",
+  kg: "weight",
+  g: "weight",
+
+  fl_oz: "volume",
+  pt: "volume",
+  qt: "volume",
+  gal: "volume",
+
+  each: "count",
+};
+
+const unitsPerBase = {
+  // Weight base = ounce
+  oz: 1,
+  lb: 16,
+  g: 1 / 28.349523125,
+  kg: 35.27396195,
+
+  // Volume base = fluid ounce
+  fl_oz: 1,
+  pt: 16,
+  qt: 32,
+  gal: 128,
+
+  // Count base = each
+  each: 1,
+};
+
+const convertInvoiceCostPerUnit = ({
+  costPerInvoiceUnit,
+  invoiceUnit,
+  ingredientUnit,
+}) => {
+  const sourceUnit = normalizeCostUnit(invoiceUnit);
+  const targetUnit = normalizeCostUnit(ingredientUnit);
+
+  const cost = Number(costPerInvoiceUnit || 0);
+
+  if (
+    !Number.isFinite(cost) ||
+    cost <= 0 ||
+    !sourceUnit ||
+    !targetUnit
+  ) {
+    return null;
+  }
+
+  if (sourceUnit === targetUnit) {
+    return cost;
+  }
+
+  const sourceFamily = unitFamily[sourceUnit];
+  const targetFamily = unitFamily[targetUnit];
+
+  if (
+    !sourceFamily ||
+    !targetFamily ||
+    sourceFamily !== targetFamily
+  ) {
+    return null;
+  }
+
+  const sourceSize = Number(unitsPerBase[sourceUnit]);
+  const targetSize = Number(unitsPerBase[targetUnit]);
+
+  if (
+    !Number.isFinite(sourceSize) ||
+    !Number.isFinite(targetSize) ||
+    sourceSize <= 0 ||
+    targetSize <= 0
+  ) {
+    return null;
+  }
+
+  /*
+    Example:
+    invoice = $16 / lb
+    ingredient = oz
+
+    $16 / 16 oz = $1 / oz
+  */
+  const costPerBaseUnit = cost / sourceSize;
+
+  return costPerBaseUnit * targetSize;
+};
+
+const normalizeIngredientMatchName = (value) =>
+  String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+
+const invoiceIngredientNames = [
+  ...new Set(
+    (insertedRows || [])
+      .map((row) =>
+        normalizeIngredientMatchName(row.item_name)
+      )
+      .filter(Boolean)
+  ),
+];
+
+let synchronizedIngredientCosts = [];
+
+if (invoiceIngredientNames.length > 0) {
+  const {
+    data: existingIngredients,
+    error: ingredientLookupError,
+  } = await supabase
+    .from("ingredients")
+    .select(
+      "id, name, supplier, unit, quantity, cost_per_unit, total_cost, previous_cost_per_unit, previous_total_cost, last_seen_at, location_id"
+    )
+    .eq("user_id", ownerId)
+    .eq("is_active", true);
+
+  if (ingredientLookupError) {
+    console.error(
+      "INVOICE INGREDIENT COST LOOKUP FAILED:",
+      ingredientLookupError
+    );
+  } else {
+    const ingredientByName = new Map();
+
+    (existingIngredients || []).forEach((ingredient) => {
+      const key = normalizeIngredientMatchName(
+        ingredient.name
+      );
+
+      if (key && !ingredientByName.has(key)) {
+        ingredientByName.set(key, ingredient);
+      }
+    });
+
+    for (const invoiceRow of insertedRows || []) {
+      const matchKey = normalizeIngredientMatchName(
+        invoiceRow.item_name
+      );
+
+      const ingredient =
+        ingredientByName.get(matchKey);
+
+      if (!ingredient?.id) continue;
+
+      const convertedCostPerUnit =
+        convertInvoiceCostPerUnit({
+          costPerInvoiceUnit: invoiceRow.unit_price,
+          invoiceUnit: invoiceRow.unit,
+          ingredientUnit: ingredient.unit,
+        });
+
+      if (
+        convertedCostPerUnit === null ||
+        !Number.isFinite(convertedCostPerUnit) ||
+        convertedCostPerUnit <= 0
+      ) {
+        console.warn(
+          "INVOICE INGREDIENT COST SYNC SKIPPED — UNIT MISMATCH:",
+          {
+            ingredient: ingredient.name,
+            invoiceUnit: invoiceRow.unit,
+            ingredientUnit: ingredient.unit,
+            invoiceUnitPrice: invoiceRow.unit_price,
+          }
+        );
+
+        continue;
+      }
+
+      const previousCostPerUnit = Number(
+        ingredient.cost_per_unit || 0
+      );
+
+      const ingredientQuantity = Number(
+        ingredient.quantity || 0
+      );
+
+      const previousTotalCost = Number(
+        ingredient.total_cost || 0
+      );
+
+      const nextTotalCost =
+        ingredientQuantity > 0
+          ? ingredientQuantity *
+            convertedCostPerUnit
+          : previousTotalCost;
+
+      const ingredientUpdate = {
+        previous_cost_per_unit:
+          previousCostPerUnit,
+
+        previous_total_cost:
+          previousTotalCost,
+
+        cost_per_unit:
+          convertedCostPerUnit,
+
+        total_cost:
+          nextTotalCost,
+
+        supplier:
+          invoiceRow.supplier_name ||
+          ingredient.supplier ||
+          null,
+
+        last_seen_at:
+          new Date().toISOString(),
+      };
+
+      const {
+        data: updatedIngredient,
+        error: ingredientUpdateError,
+      } = await supabase
+        .from("ingredients")
+        .update(ingredientUpdate)
+        .eq("id", ingredient.id)
+        .eq("user_id", ownerId)
+        .select("*")
+        .single();
+
+      if (ingredientUpdateError) {
+        console.error(
+          "INVOICE INGREDIENT COST UPDATE FAILED:",
+          {
+            ingredient: ingredient.name,
+            error: ingredientUpdateError,
+          }
+        );
+
+        continue;
+      }
+
+      if (updatedIngredient) {
+        synchronizedIngredientCosts.push(
+          updatedIngredient
+        );
+
+        ingredientByName.set(
+          matchKey,
+          updatedIngredient
+        );
+      }
+    }
+  }
+}
+
+console.log(
+  "INVOICE → INGREDIENT COST SYNC:",
+  {
+    invoiceLines: (insertedRows || []).length,
+    ingredientCostsUpdated:
+      synchronizedIngredientCosts.length,
+    updatedIngredients:
+      synchronizedIngredientCosts.map(
+        (ingredient) => ({
+          name: ingredient.name,
+          unit: ingredient.unit,
+          previousCostPerUnit:
+            ingredient.previous_cost_per_unit,
+          costPerUnit:
+            ingredient.cost_per_unit,
+        })
+      ),
+  }
+);
+
+if (synchronizedIngredientCosts.length > 0) {
+  setIngredientsData((previous) => {
+    const updatedById = new Map(
+      synchronizedIngredientCosts.map(
+        (ingredient) => [
+          String(ingredient.id),
+          ingredient,
+        ]
+      )
+    );
+
+    return (previous || []).map((ingredient) =>
+      updatedById.has(String(ingredient.id))
+        ? updatedById.get(String(ingredient.id))
+        : ingredient
+    );
+  });
+}
+  return {
+  uploadedFileRow,
+  invoiceUpload,
+  insertedRows: insertedRows || [],
+  normalizedRows,
+  synchronizedIngredientCosts,
+};
 };
 const handleImportInvoices = async () => {
   try {
