@@ -8214,7 +8214,8 @@ const ingestNormalizedPosRows = async ({
   };
 };
 const handleImportMappedSales = async (rowsOverride = null) => {
-  console.trace("🚨 handleImportMappedSales CALLED");
+  console.trace("handleImportMappedSales CALLED");
+
   console.log("POS IMPORT CALL STATE:", {
     rowsCount: rows?.length || 0,
     uploadedFileName,
@@ -8242,144 +8243,146 @@ const handleImportMappedSales = async (rowsOverride = null) => {
       return;
     }
 
-  const posRows =
-  rowsOverride?.length
-    ? rowsOverride
-    : rows?.length
-    ? rows
-    : pendingUploadSummary?.rows || [];
+    const posRows =
+      rowsOverride?.length
+        ? rowsOverride
+        : rows?.length
+        ? rows
+        : pendingUploadSummary?.rows || [];
 
-if (!posRows.length) {
-  setMessage("No rows to import");
-  return;
-}
-const salesRows = normalizePosRows({
-  incomingRows: posRows,
-  ownerId: user.id,
-  sourceName: selectedDataSource || "Manual Upload",
-  locationId: selectedUploadLocationId || null,
-});
-
-    if (!salesRows.length) {
-      setMessage("No valid sales rows found. Check your date/revenue mapping.");
+    if (!posRows.length) {
+      setMessage("No rows to import");
       return;
     }
-const uploadPayload = {
-  user_id: user.id,
-  file_name:
-    uploadedFileName ||
-    pendingUploadSummary?.fileName ||
-    "POS Upload",
-  source_name: selectedDataSource || "Manual Upload",
-  row_count: Number(salesRows.length || 0),
-  upload_type: "pos",
-  status: "completed",
-  location_id: selectedUploadLocationId || null,
-};
 
-console.log("POS UPLOAD PAYLOAD:", uploadPayload);
+    const salesRows = normalizePosRows({
+      incomingRows: posRows,
+      ownerId: user.id,
+      sourceName:
+        selectedDataSource || "Manual Upload",
+      locationId:
+        selectedUploadLocationId || null,
+    });
 
-const { data: uploadedFileRow, error: uploadInsertError } = await supabase
-  .from("uploads")
-  .insert([uploadPayload])
-  .select("*")
-  .single();
-
-console.log("POS UPLOAD INSERT RESULT:", {
-  uploadedFileRow,
-  uploadInsertError,
-});
-
-if (uploadInsertError) {
-  console.error("Uploads insert failed:", {
-    message: uploadInsertError?.message,
-    details: uploadInsertError?.details,
-    hint: uploadInsertError?.hint,
-    code: uploadInsertError?.code,
-    fullError: uploadInsertError,
-  });
-
-  alert(
-    `POS upload log failed: ${
-      uploadInsertError?.message ||
-      uploadInsertError?.details ||
-      "Unknown upload error"
-    }`
-  );
-
-  setMessage(
-    uploadInsertError?.message ||
-      uploadInsertError?.details ||
-      "Upload failed"
-  );
-
-  return;
-}
-
-if (!uploadedFileRow?.id) {
-  throw new Error("Upload record was created but no upload ID was returned.");
-}
-
-
-    setDbSalesRows((prev) => [...(insertedSales || []), ...(prev || [])]);
-
-    if (uploadedFileRow) {
-      setClientImports((prev) => [
-        uploadedFileRow,
-        ...(prev || []).filter((upload) => upload.id !== uploadedFileRow.id),
-      ]);
-
-      setRecentUploads((prev) => [
-        uploadedFileRow,
-        ...(prev || []).filter((upload) => upload.id !== uploadedFileRow.id),
-      ]);
+    if (!salesRows.length) {
+      setMessage(
+        "No valid sales rows found. Check your date/revenue mapping."
+      );
+      return;
     }
-await logAuditEvent({
-  action: "uploaded_pos",
-  entityType: "upload",
-  entityId: uploadedFileRow?.id || null,
-  details: `Uploaded POS sales data with ${finalSalesRows.length} row(s).`,
-});
-  setMessage(`DONE: POS sales imported ${finalSalesRows.length} rows`);
-setPendingUploadSummary(null);
-setRows([]);
-setPendingUploadRows([]);
-} catch (error) {
-  console.error("POS IMPORT FULL ERROR:", {
-    message: error?.message,
-    details: error?.details,
-    hint: error?.hint,
-    code: error?.code,
-    stack: error?.stack,
-    error,
-  });
 
-  alert(
-    JSON.stringify(
-      {
-        message: error?.message,
-        details: error?.details,
-        hint: error?.hint,
-        code: error?.code,
-      },
-      null,
-      2
-    )
-  );
+    /*
+     * Shared canonical POS ingestion.
+     *
+     * This creates the uploads record, attaches its upload_id
+     * to every normalized sales row, inserts those rows into
+     * the canonical sales table, and returns the inserted data.
+     */
+    const {
+      uploadedFileRow,
+      insertedSales,
+      finalSalesRows,
+    } = await ingestNormalizedPosRows({
+      ownerId: user.id,
+      normalizedRows: salesRows,
+      fileName:
+        uploadedFileName ||
+        pendingUploadSummary?.fileName ||
+        "POS Upload",
+      sourceName:
+        selectedDataSource ||
+        "Manual Upload",
+      locationId:
+        selectedUploadLocationId || null,
+    });
 
-  setMessage(
-    `Import failed: ${
-      error?.message ||
-      error?.details ||
-      error?.hint ||
-      "Unknown error"
-    }`
-  );
-} finally {
-   console.log("POS IMPORT FINALLY - unlocked");
-  importLockRef.current = false;
-  setImportingPOS(false);
-}
+    console.log("POS SHARED INGEST RESULT:", {
+      uploadId: uploadedFileRow?.id || null,
+      insertedSalesCount:
+        insertedSales?.length || 0,
+      finalSalesRowsCount:
+        finalSalesRows?.length || 0,
+    });
+
+    if (!uploadedFileRow?.id) {
+      throw new Error(
+        "POS ingestion completed without an upload ID."
+      );
+    }
+
+    setDbSalesRows((prev) => [
+      ...(insertedSales || []),
+      ...(prev || []),
+    ]);
+
+    setClientImports((prev) => [
+      uploadedFileRow,
+      ...(prev || []).filter(
+        (upload) =>
+          upload.id !== uploadedFileRow.id
+      ),
+    ]);
+
+    setRecentUploads((prev) => [
+      uploadedFileRow,
+      ...(prev || []).filter(
+        (upload) =>
+          upload.id !== uploadedFileRow.id
+      ),
+    ]);
+
+    await logAuditEvent({
+      action: "uploaded_pos",
+      entityType: "upload",
+      entityId: uploadedFileRow.id,
+      details: `Uploaded POS sales data with ${
+        finalSalesRows.length
+      } row(s).`,
+    });
+
+    setMessage(
+      `DONE: POS sales imported ${finalSalesRows.length} rows`
+    );
+
+    setPendingUploadSummary(null);
+    setRows([]);
+    setPendingUploadRows([]);
+  } catch (error) {
+    console.error("POS IMPORT FULL ERROR:", {
+      message: error?.message,
+      details: error?.details,
+      hint: error?.hint,
+      code: error?.code,
+      stack: error?.stack,
+      error,
+    });
+
+    alert(
+      JSON.stringify(
+        {
+          message: error?.message,
+          details: error?.details,
+          hint: error?.hint,
+          code: error?.code,
+        },
+        null,
+        2
+      )
+    );
+
+    setMessage(
+      `Import failed: ${
+        error?.message ||
+        error?.details ||
+        error?.hint ||
+        "Unknown error"
+      }`
+    );
+  } finally {
+    console.log("POS IMPORT FINALLY - unlocked");
+    importLockRef.current = false;
+    setImportingPOS(false);
+  }
 };
 const syncMenuItemsWithHistory = async ({
   ownerId,
@@ -25994,229 +25997,7 @@ useEffect(() => {
   activeLocation,
 ]);
 
-/* =========================
-   POS MENU PROFITABILITY
-   Actual POS revenue + live recipe cost
-========================= */
 
-const posMenuProfitabilityData = useMemo(() => {
-  const normalizeItemName = (value) =>
-    String(value || "")
-      .trim()
-      .toLowerCase();
-
-  const salesRows =
-    locationSalesData?.length > 0
-      ? locationSalesData
-      : salesData || [];
-
-  const recipeRows = recipeCostingData || [];
-
-  if (!salesRows.length || !recipeRows.length) {
-    return [];
-  }
-
-  // =========================================================
-  // BUILD LIVE RECIPE COST LOOKUP
-  // =========================================================
-
-  const recipeByItemName = new Map();
-
-  recipeRows.forEach((recipeItem) => {
-    const itemName = String(
-      recipeItem.itemName ||
-        recipeItem.name ||
-        recipeItem.menu_item ||
-        ""
-    ).trim();
-
-    if (!itemName) return;
-
-    recipeByItemName.set(
-      normalizeItemName(itemName),
-      recipeItem
-    );
-  });
-
-  // =========================================================
-  // AGGREGATE CANONICAL POS SALES BY ITEM
-  // =========================================================
-
-  const performanceByItemName = new Map();
-
-  salesRows.forEach((sale) => {
-    const saleItemName = String(
-      sale.name ||
-        sale.item_name ||
-        sale.menu_item ||
-        sale.item ||
-        sale.product ||
-        ""
-    ).trim();
-
-    if (!saleItemName) return;
-
-    const normalizedName =
-      normalizeItemName(saleItemName);
-
-    const recipeItem =
-      recipeByItemName.get(normalizedName);
-
-    /*
-     * Only calculate recipe-driven profitability when
-     * the POS item can be matched to a known recipe/menu item.
-     */
-    if (!recipeItem) return;
-
-    const quantitySold = Number(
-      sale.quantity ??
-        sale.quantity_sold ??
-        sale.qty_sold ??
-        sale.units_sold ??
-        0
-    );
-
-    const revenue = Number(
-      sale.revenue ??
-        sale.sales ??
-        sale.total_sales ??
-        sale.total ??
-        0
-    );
-
-    if (!performanceByItemName.has(normalizedName)) {
-      performanceByItemName.set(normalizedName, {
-        itemName:
-          recipeItem.itemName ||
-          saleItemName,
-
-        quantitySold: 0,
-        revenue: 0,
-
-        recipeCost: Number(
-          recipeItem.recipeCost || 0
-        ),
-
-        price: Number(
-          recipeItem.price || 0
-        ),
-
-        costSource:
-          recipeItem.costSource ||
-          "unresolved",
-
-        ingredientCount: Number(
-          recipeItem.ingredientCount || 0
-        ),
-
-        resolvedIngredientCount: Number(
-          recipeItem.resolvedIngredientCount || 0
-        ),
-
-        unresolvedIngredientCount: Number(
-          recipeItem.unresolvedIngredientCount || 0
-        ),
-
-        hasCompleteLiveRecipeCost: Boolean(
-          recipeItem.hasCompleteLiveRecipeCost
-        ),
-      });
-    }
-
-    const current =
-      performanceByItemName.get(normalizedName);
-
-    if (
-      Number.isFinite(quantitySold) &&
-      quantitySold > 0
-    ) {
-      current.quantitySold += quantitySold;
-    }
-
-    if (
-      Number.isFinite(revenue) &&
-      revenue > 0
-    ) {
-      current.revenue += revenue;
-    }
-  });
-
-  // =========================================================
-  // CALCULATE POS PERIOD PROFITABILITY
-  // =========================================================
-
-  return Array.from(
-    performanceByItemName.values()
-  )
-    .map((item) => {
-      const quantitySold = Number(
-        item.quantitySold || 0
-      );
-
-      const revenue = Number(
-        item.revenue || 0
-      );
-
-      const recipeCost = Number(
-        item.recipeCost || 0
-      );
-
-      /*
-       * This is theoretical food cost because it is based on
-       * recipe cost × units sold, not an accounting COGS entry.
-       */
-      const theoreticalFoodCost =
-        quantitySold > 0 && recipeCost >= 0
-          ? quantitySold * recipeCost
-          : 0;
-
-      const theoreticalGrossProfit =
-        revenue > 0
-          ? revenue - theoreticalFoodCost
-          : 0;
-
-      const grossMargin =
-        revenue > 0
-          ? (theoreticalGrossProfit / revenue) *
-            100
-          : 0;
-
-      const realizedAveragePrice =
-        quantitySold > 0
-          ? revenue / quantitySold
-          : 0;
-
-      return {
-        ...item,
-
-        quantitySold,
-        revenue,
-
-        realizedAveragePrice,
-
-        theoreticalFoodCost,
-        theoreticalGrossProfit,
-
-        grossMargin: Number(
-          grossMargin.toFixed(1)
-        ),
-      };
-    })
-    .filter(
-      (item) =>
-        item.quantitySold > 0 &&
-        item.revenue > 0
-    )
-    .sort(
-      (a, b) =>
-        Number(b.revenue || 0) -
-        Number(a.revenue || 0)
-    );
-}, [
-  locationSalesData,
-  salesData,
-  recipeCostingData,
-]);
 console.log("RECIPE COSTING DATA:", recipeCostingData);
 
 
@@ -42106,8 +41887,100 @@ const handleRecipeUpload = async (event) => {
               recipe,
             ])
           );
-const ingredientRows = [];
-const recipeUsageRuleRows = [];
+
+          const ingredientRows = [];
+
+          for (const [recipeName, group] of recipeMap) {
+            const recipeInsert = insertedRecipeByName.get(String(recipeName).trim());
+
+            if (!recipeInsert?.id) continue;
+
+            group.ingredients.forEach((row) => {
+              const quantity = Number(row.quantity || row.Quantity || row.qty || row.Qty || 0);
+
+              const costPerUnit = Number(
+                row.cost_per_unit ||
+                  row["Cost Per Unit"] ||
+                  row.unit_cost ||
+                  row["Unit Cost"] ||
+                  row.cost ||
+                  row.Cost ||
+                  0
+              );
+
+              ingredientRows.push({
+                user_id: currentUser.id,
+                upload_id: uploadRow.id,
+                recipe_id: recipeInsert.id,
+
+                location_name:
+                  activeLocation !== "all" ? activeLocation : assignedLocation || null,
+
+               ingredient_name:
+  row.ingredient_name ||
+  row["Ingredient Name"] ||
+  row.ingredient ||
+  row.Ingredient ||
+  row["ingredient"] ||
+  row.item ||
+  row.Item ||
+  "Ingredient",
+
+                quantity,
+
+                unit: row.unit || row.Unit || row.uom || row.UOM || null,
+
+                cost_per_unit: costPerUnit,
+                total_cost: quantity * costPerUnit,
+              });
+            });
+          }
+
+          console.log("RECIPE ingredientRows:", ingredientRows);
+
+          let insertedIngredients = [];
+
+          if (ingredientRows.length) {
+            const { data: ingredientInsert, error: ingredientError } = await supabase
+              .from("recipe_ingredients")
+              .insert(ingredientRows)
+              .select();
+
+            console.log("RECIPE ingredientInsert:", ingredientInsert);
+            console.log("RECIPE ingredientError:", ingredientError);
+if (ingredientError) {
+  console.error("RECIPE INGREDIENT ERROR:", {
+    message: ingredientError.message,
+    details: ingredientError.details,
+    hint: ingredientError.hint,
+    code: ingredientError.code,
+  });
+
+  await supabase
+    .from("recipe_usage_rules")
+    .delete()
+    .eq("upload_id", uploadRow.id);
+
+  await supabase
+    .from("recipe_ingredients")
+    .delete()
+    .eq("upload_id", uploadRow.id);
+
+  await supabase
+    .from("recipes")
+    .delete()
+    .eq("upload_id", uploadRow.id);
+
+  await supabase
+    .from("uploads")
+    .delete()
+    .eq("id", uploadRow.id);
+
+  throw ingredientError;
+}
+
+            insertedIngredients = ingredientInsert || [];
+            const recipeUsageRuleRows = [];
 
 for (const [recipeName, group] of recipeMap) {
   const recipeInsert = insertedRecipeByName.get(
@@ -42116,11 +41989,10 @@ for (const [recipeName, group] of recipeMap) {
 
   if (!recipeInsert?.id) continue;
 
-  const menuItemName = String(
+  const menuItemName =
     recipeInsert.menu_item_name ||
-      group.recipe?.menu_item_name ||
-      recipeName
-  ).trim();
+    group.recipe?.menu_item_name ||
+    recipeName;
 
   group.ingredients.forEach((row) => {
     const ingredientName = String(
@@ -42134,13 +42006,13 @@ for (const [recipeName, group] of recipeMap) {
         ""
     ).trim();
 
-    const quantity = Number(
-      row.quantity ??
-        row.Quantity ??
-        row.qty ??
-        row.Qty ??
-        row.amount_used ??
-        row["Amount Used"] ??
+    const amountUsed = Number(
+      row.quantity ||
+        row.Quantity ||
+        row.qty ||
+        row.Qty ||
+        row.amount_used ||
+        row["Amount Used"] ||
         0
     );
 
@@ -42152,131 +42024,47 @@ for (const [recipeName, group] of recipeMap) {
         ""
     ).trim();
 
-    const costPerUnit = Number(
-      row.cost_per_unit ??
-        row["Cost Per Unit"] ??
-        row.unit_cost ??
-        row["Unit Cost"] ??
-        row.cost ??
-        row.Cost ??
-        0
-    );
-
-    if (
-      !ingredientName ||
-      !Number.isFinite(quantity) ||
-      quantity <= 0
-    ) {
+    if (!ingredientName || !Number.isFinite(amountUsed) || amountUsed <= 0) {
       return;
     }
-
-    ingredientRows.push({
-      user_id: currentUser.id,
-      upload_id: uploadRow.id,
-      recipe_id: recipeInsert.id,
-
-      location_name:
-        activeLocation !== "all"
-          ? activeLocation
-          : assignedLocation || null,
-
-      ingredient_name: ingredientName,
-      quantity,
-      unit: unit || null,
-
-      cost_per_unit:
-        Number.isFinite(costPerUnit) && costPerUnit >= 0
-          ? costPerUnit
-          : 0,
-
-      total_cost:
-        Number.isFinite(costPerUnit) && costPerUnit >= 0
-          ? quantity * costPerUnit
-          : 0,
-    });
 
     recipeUsageRuleRows.push({
       user_id: currentUser.id,
       menu_item: menuItemName,
       ingredient: ingredientName,
-      amount_used: quantity,
+      amount_used: amountUsed,
       unit: unit || null,
       upload_id: uploadRow.id,
     });
   });
 }
 
-if (!ingredientRows.length) {
-  throw new Error(
-    "Recipe upload did not contain any valid ingredient rows."
-  );
+let insertedRecipeUsageRules = [];
+
+if (recipeUsageRuleRows.length) {
+  const {
+    data: usageRuleInsert,
+    error: usageRuleError,
+  } = await supabase
+    .from("recipe_usage_rules")
+    .insert(recipeUsageRuleRows)
+    .select();
+
+  if (usageRuleError) {
+    console.error("RECIPE USAGE RULE INSERT ERROR:", {
+      message: usageRuleError.message,
+      details: usageRuleError.details,
+      hint: usageRuleError.hint,
+      code: usageRuleError.code,
+    });
+
+    throw usageRuleError;
+  }
+
+  insertedRecipeUsageRules = usageRuleInsert || [];
 }
+          }
 
-if (!recipeUsageRuleRows.length) {
-  throw new Error(
-    "Recipe upload did not contain any valid recipe usage rules."
-  );
-}
-
-// =========================================================
-// SAVE RECIPE INGREDIENT DEFINITIONS
-// =========================================================
-
-const {
-  data: ingredientInsert,
-  error: ingredientError,
-} = await supabase
-  .from("recipe_ingredients")
-  .insert(ingredientRows)
-  .select();
-
-if (ingredientError) {
-  console.error("RECIPE INGREDIENT ERROR:", {
-    message: ingredientError.message,
-    details: ingredientError.details,
-    hint: ingredientError.hint,
-    code: ingredientError.code,
-  });
-
-  throw ingredientError;
-}
-
-const insertedIngredients = ingredientInsert || [];
-
-// =========================================================
-// SAVE CANONICAL RECIPE USAGE RULES
-// =========================================================
-
-const {
-  data: usageRuleInsert,
-  error: usageRuleError,
-} = await supabase
-  .from("recipe_usage_rules")
-  .insert(recipeUsageRuleRows)
-  .select();
-
-if (usageRuleError) {
-  console.error("RECIPE USAGE RULE INSERT ERROR:", {
-    message: usageRuleError.message,
-    details: usageRuleError.details,
-    hint: usageRuleError.hint,
-    code: usageRuleError.code,
-  });
-
-  throw usageRuleError;
-}
-
-const insertedRecipeUsageRules =
-  usageRuleInsert || [];
-
-if (
-  insertedRecipeUsageRules.length !==
-  recipeUsageRuleRows.length
-) {
-  throw new Error(
-    `Recipe usage rule insert was incomplete. Expected ${recipeUsageRuleRows.length}, saved ${insertedRecipeUsageRules.length}.`
-  );
-}
           const cleanUploadRow = {
             ...uploadRow,
             status: "completed",
