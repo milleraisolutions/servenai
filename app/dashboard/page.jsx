@@ -722,6 +722,7 @@ const [executiveModeEnabled, setExecutiveModeEnabled] = useState(false);
 const [recipeMenuItem, setRecipeMenuItem] = useState("");
 const [recipeIngredient, setRecipeIngredient] = useState("");
 const [recipeQuantityUsed, setRecipeQuantityUsed] = useState("");
+const [recipeUnit, setRecipeUnit] = useState("");
 const [recipeTolerance, setRecipeTolerance] = useState(5);
 const [recipes, setRecipes] = useState([]);
 const [recipeIngredients, setRecipeIngredients] = useState([]);
@@ -22857,11 +22858,7 @@ const handleImportInventory = async () => {
       await supabase.from("uploads").delete().eq("id", uploadRow.id);
       throw insertError;
     }
-   console.log("INVENTORY EVIDENCE PIPELINE START:", {
-  uploadId: uploadRow?.id,
-  rawRowCount: inventoryRows?.length || 0,
-  firstRawRow: inventoryRows?.[0] || null,
-});
+  
 
 const normalizedEvidenceRows =
   normalizeInventoryEvidenceRows({
@@ -22871,20 +22868,14 @@ const normalizedEvidenceRows =
     connectionId: null,
   });
 
-console.log("INVENTORY EVIDENCE NORMALIZED:", {
-  normalizedCount: normalizedEvidenceRows?.length || 0,
-  firstNormalizedRow: normalizedEvidenceRows?.[0] || null,
-});
+
 
     if (!normalizedEvidenceRows.length) {
       throw new Error(
         "Inventory rows could not be normalized into canonical inventory evidence."
       );
     }
-console.log("INVENTORY EVIDENCE CALLING SHARED INGESTER:", {
-  uploadId: uploadRow?.id,
-  normalizedCount: normalizedEvidenceRows.length,
-});
+
     const {
       savedRows: canonicalIngredientRows,
       snapshotRows: canonicalSnapshotRows,
@@ -24073,7 +24064,114 @@ const invoiceRecoveryOpportunity = (vendorPriceSpikeData || []).reduce(
   0
 );
 
+const normalizeRecipeCostUnit = (value) => {
+  const unit = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\./g, "");
 
+  const aliases = {
+    lb: "lb",
+    lbs: "lb",
+    pound: "lb",
+    pounds: "lb",
+
+    oz: "oz",
+    ounce: "oz",
+    ounces: "oz",
+
+    kg: "kg",
+    kilogram: "kg",
+    kilograms: "kg",
+
+    g: "g",
+    gram: "g",
+    grams: "g",
+
+    gal: "gal",
+    gallon: "gal",
+    gallons: "gal",
+
+    qt: "qt",
+    quart: "qt",
+    quarts: "qt",
+
+    pt: "pt",
+    pint: "pt",
+    pints: "pt",
+
+    "fl oz": "fl_oz",
+    floz: "fl_oz",
+    fluidounce: "fl_oz",
+    fluidounces: "fl_oz",
+
+    each: "each",
+    ea: "each",
+    unit: "each",
+    units: "each",
+    count: "each",
+  };
+
+  return aliases[unit] || unit;
+};
+
+const convertRecipeQuantityToIngredientUnit = (
+  quantity,
+  recipeUnit,
+  ingredientUnit
+) => {
+  const amount = Number(quantity || 0);
+
+  if (!Number.isFinite(amount) || amount < 0) {
+    return null;
+  }
+
+  const fromUnit = normalizeRecipeCostUnit(recipeUnit);
+  const toUnit = normalizeRecipeCostUnit(ingredientUnit);
+
+  if (!fromUnit || !toUnit) {
+    return fromUnit === toUnit ? amount : null;
+  }
+
+  if (fromUnit === toUnit) {
+    return amount;
+  }
+
+  const weightInGrams = {
+    g: 1,
+    kg: 1000,
+    oz: 28.349523125,
+    lb: 453.59237,
+  };
+
+  if (weightInGrams[fromUnit] && weightInGrams[toUnit]) {
+    const grams = amount * weightInGrams[fromUnit];
+    return grams / weightInGrams[toUnit];
+  }
+
+  const volumeInFluidOunces = {
+    fl_oz: 1,
+    pt: 16,
+    qt: 32,
+    gal: 128,
+  };
+
+  if (
+    volumeInFluidOunces[fromUnit] &&
+    volumeInFluidOunces[toUnit]
+  ) {
+    const fluidOunces =
+      amount * volumeInFluidOunces[fromUnit];
+
+    return fluidOunces / volumeInFluidOunces[toUnit];
+  }
+
+  if (fromUnit === "each" && toUnit === "each") {
+    return amount;
+  }
+
+  return null;
+};
 const recipeCostingData = useMemo(() => {
   const rules = recipeUsageRules || [];
 
@@ -24108,40 +24206,78 @@ const recipeCostingData = useMemo(() => {
           .trim()
     );
 
-    const calculatedRecipeCost = linkedRules.reduce((sum, rule) => {
-      const ingredient = ingredients.find(
-        (ing) =>
-          String(
-            ing.name ||
-              ing.ingredient_name ||
-              ""
-          )
-            .toLowerCase()
-            .trim() ===
-          String(rule.ingredient || "")
-            .toLowerCase()
-            .trim()
-      );
+   const calculatedRecipeCost = linkedRules.reduce((sum, rule) => {
+  const ingredient = ingredients.find(
+    (ing) =>
+      String(
+        ing.name ||
+          ing.ingredient_name ||
+          ""
+      )
+        .toLowerCase()
+        .trim() ===
+      String(rule.ingredient || "")
+        .toLowerCase()
+        .trim()
+  );
 
-      const costPerUnit = Number(
-        ingredient?.cost_per_unit ||
-          ingredient?.costPerUnit ||
-          ingredient?.unit_cost ||
-          ingredient?.price_per_unit ||
-          ingredient?.cost ||
-          0
-      );
+  if (!ingredient) {
+    return sum;
+  }
 
-      return (
-        sum +
-        Number(
-          rule.quantity_used ||
-            rule.amountUsed ||
-            0
-        ) *
-          costPerUnit
-      );
-    }, 0);
+  const costPerUnit = Number(
+    ingredient?.cost_per_unit ||
+      ingredient?.costPerUnit ||
+      ingredient?.unit_cost ||
+      ingredient?.price_per_unit ||
+      ingredient?.cost ||
+      0
+  );
+
+  if (!Number.isFinite(costPerUnit) || costPerUnit <= 0) {
+    return sum;
+  }
+
+  const amountUsed = Number(
+    rule.amount_used ??
+      rule.quantity_used ??
+      rule.amountUsed ??
+      0
+  );
+
+  const recipeUnit =
+    rule.unit ||
+    rule.uom ||
+    rule.measurement_unit ||
+    null;
+
+  const ingredientUnit =
+    ingredient.unit ||
+    ingredient.uom ||
+    ingredient.measurement_unit ||
+    null;
+
+  const convertedQuantity =
+    convertRecipeQuantityToIngredientUnit(
+      amountUsed,
+      recipeUnit,
+      ingredientUnit
+    );
+
+  if (convertedQuantity === null) {
+    console.warn("RECIPE COST UNIT MISMATCH:", {
+      menuItem: itemName,
+      ingredient: rule.ingredient,
+      amountUsed,
+      recipeUnit,
+      ingredientUnit,
+    });
+
+    return sum;
+  }
+
+  return sum + convertedQuantity * costPerUnit;
+}, 0);
 
     const uploadedCost = Number(
       menuItem.cost ||
@@ -25555,12 +25691,13 @@ const saveRecipeRule = async () => {
       .from("recipe_usage_rules")
       .insert([
         {
-          user_id: user.id,
-          menu_item: recipeMenuItem,
-          ingredient: recipeIngredient,
-          amount_used: Number(recipeQuantityUsed || 0),
-          variance_tolerance: Number(recipeTolerance || 5),
-        },
+  user_id: user.id,
+  menu_item: recipeMenuItem,
+  ingredient: recipeIngredient,
+  amount_used: Number(recipeQuantityUsed || 0),
+  unit: recipeUnit || null,
+  variance_tolerance: Number(recipeTolerance || 5),
+},
       ]);
 
     if (error) {
@@ -25572,6 +25709,7 @@ const saveRecipeRule = async () => {
     setRecipeMenuItem("");
     setRecipeIngredient("");
     setRecipeQuantityUsed("");
+    setRecipeUnit("");
     setRecipeTolerance(5);
 
    await fetchRecipeUsageRules();
@@ -41601,14 +41739,18 @@ const handleRecipeUpload = async (event) => {
 
             console.log("RECIPE ingredientInsert:", ingredientInsert);
             console.log("RECIPE ingredientError:", ingredientError);
-
-            if (ingredientError) {
+if (ingredientError) {
   console.error("RECIPE INGREDIENT ERROR:", {
     message: ingredientError.message,
     details: ingredientError.details,
     hint: ingredientError.hint,
     code: ingredientError.code,
   });
+
+  await supabase
+    .from("recipe_usage_rules")
+    .delete()
+    .eq("upload_id", uploadRow.id);
 
   await supabase
     .from("recipe_ingredients")
@@ -41629,6 +41771,89 @@ const handleRecipeUpload = async (event) => {
 }
 
             insertedIngredients = ingredientInsert || [];
+            const recipeUsageRuleRows = [];
+
+for (const [recipeName, group] of recipeMap) {
+  const recipeInsert = insertedRecipeByName.get(
+    String(recipeName).trim()
+  );
+
+  if (!recipeInsert?.id) continue;
+
+  const menuItemName =
+    recipeInsert.menu_item_name ||
+    group.recipe?.menu_item_name ||
+    recipeName;
+
+  group.ingredients.forEach((row) => {
+    const ingredientName = String(
+      row.ingredient_name ||
+        row["Ingredient Name"] ||
+        row.ingredient ||
+        row.Ingredient ||
+        row["ingredient"] ||
+        row.item ||
+        row.Item ||
+        ""
+    ).trim();
+
+    const amountUsed = Number(
+      row.quantity ||
+        row.Quantity ||
+        row.qty ||
+        row.Qty ||
+        row.amount_used ||
+        row["Amount Used"] ||
+        0
+    );
+
+    const unit = String(
+      row.unit ||
+        row.Unit ||
+        row.uom ||
+        row.UOM ||
+        ""
+    ).trim();
+
+    if (!ingredientName || !Number.isFinite(amountUsed) || amountUsed <= 0) {
+      return;
+    }
+
+    recipeUsageRuleRows.push({
+      user_id: currentUser.id,
+      menu_item: menuItemName,
+      ingredient: ingredientName,
+      amount_used: amountUsed,
+      unit: unit || null,
+      upload_id: uploadRow.id,
+    });
+  });
+}
+
+let insertedRecipeUsageRules = [];
+
+if (recipeUsageRuleRows.length) {
+  const {
+    data: usageRuleInsert,
+    error: usageRuleError,
+  } = await supabase
+    .from("recipe_usage_rules")
+    .insert(recipeUsageRuleRows)
+    .select();
+
+  if (usageRuleError) {
+    console.error("RECIPE USAGE RULE INSERT ERROR:", {
+      message: usageRuleError.message,
+      details: usageRuleError.details,
+      hint: usageRuleError.hint,
+      code: usageRuleError.code,
+    });
+
+    throw usageRuleError;
+  }
+
+  insertedRecipeUsageRules = usageRuleInsert || [];
+}
           }
 
           const cleanUploadRow = {
@@ -41645,7 +41870,13 @@ const handleRecipeUpload = async (event) => {
             ...insertedIngredients,
             ...(prev || []),
           ]);
-
+setRecipeUsageRules((prev) => [
+  ...insertedRecipeUsageRules,
+  ...(prev || []).filter(
+    (rule) =>
+      String(rule.upload_id || "") !== String(uploadRow.id || "")
+  ),
+]);
           setClientImports((prev) => [
             cleanUploadRow,
             ...(prev || []).filter((item) => item.id !== optimisticUpload.id),
@@ -41675,11 +41906,27 @@ const handleRecipeUpload = async (event) => {
         } catch (innerError) {
           console.error("Recipe upload inner error:", innerError);
 
-          if (uploadRow?.id) {
-            await supabase.from("recipe_ingredients").delete().eq("upload_id", uploadRow.id);
-            await supabase.from("recipes").delete().eq("upload_id", uploadRow.id);
-            await supabase.from("uploads").delete().eq("id", uploadRow.id);
-          }
+         if (uploadRow?.id) {
+  await supabase
+    .from("recipe_usage_rules")
+    .delete()
+    .eq("upload_id", uploadRow.id);
+
+  await supabase
+    .from("recipe_ingredients")
+    .delete()
+    .eq("upload_id", uploadRow.id);
+
+  await supabase
+    .from("recipes")
+    .delete()
+    .eq("upload_id", uploadRow.id);
+
+  await supabase
+    .from("uploads")
+    .delete()
+    .eq("id", uploadRow.id);
+}
 
           setMessage(innerError?.message || "Recipe upload failed.");
           alert(innerError?.message || "Recipe upload failed.");
@@ -100458,6 +100705,23 @@ const tiedWasteValue = Number(
   placeholder="Qty Used"
   style={safeInputStyle}
 />
+
+<select
+  value={recipeUnit || ""}
+  onChange={(e) => setRecipeUnit(e.target.value)}
+  style={safeInputStyle}
+>
+  <option value="">Unit</option>
+  <option value="oz">oz</option>
+  <option value="lb">lb</option>
+  <option value="g">g</option>
+  <option value="kg">kg</option>
+  <option value="fl_oz">fl oz</option>
+  <option value="pt">pint</option>
+  <option value="qt">quart</option>
+  <option value="gal">gallon</option>
+  <option value="each">each</option>
+</select>
 
 <input
   type="number"
