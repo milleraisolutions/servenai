@@ -24181,8 +24181,92 @@ const recipeCostingData = useMemo(() => {
     [];
 
   const menuItems = locationMenuItemsData || [];
+  const importedRecipes = recipes || [];
 
-  return menuItems.map((menuItem) => {
+  // =========================================================
+  // BUILD ONE UNIFIED MENU / RECIPE LIST
+  // =========================================================
+  // Menu items remain the primary source when an item exists
+  // in both menu_items and recipes.
+  //
+  // Imported recipes are also allowed into the costing engine
+  // so a restaurant does not have to upload the same item twice.
+  // =========================================================
+
+  const unifiedItemsByName = new Map();
+
+  menuItems.forEach((menuItem) => {
+    const itemName = String(
+      menuItem.name ||
+        menuItem.item_name ||
+        menuItem["Item Name"] ||
+        ""
+    ).trim();
+
+    if (!itemName) return;
+
+    unifiedItemsByName.set(itemName.toLowerCase(), {
+      ...menuItem,
+      name: itemName,
+      costingSource: "menu_item",
+    });
+  });
+
+  importedRecipes.forEach((recipe) => {
+    const itemName = String(
+      recipe.menu_item_name ||
+        recipe.recipe_name ||
+        ""
+    ).trim();
+
+    if (!itemName) return;
+
+    const key = itemName.toLowerCase();
+
+    if (unifiedItemsByName.has(key)) {
+      const existingItem = unifiedItemsByName.get(key);
+
+      const existingPrice = Number(
+        existingItem.price ||
+          existingItem.menu_price ||
+          existingItem["Price"] ||
+          0
+      );
+
+      unifiedItemsByName.set(key, {
+        ...existingItem,
+
+        price:
+          existingPrice > 0
+            ? existingPrice
+            : Number(recipe.selling_price || 0),
+
+        recipe_id: recipe.id || null,
+        recipe_upload_id: recipe.upload_id || null,
+      });
+
+      return;
+    }
+
+    unifiedItemsByName.set(key, {
+      name: itemName,
+      item_name: itemName,
+      price: Number(recipe.selling_price || 0),
+      recipe_id: recipe.id || null,
+      recipe_upload_id: recipe.upload_id || null,
+      costingSource: "recipe",
+    });
+  });
+
+  const costingItems = Array.from(
+    unifiedItemsByName.values()
+  );
+
+  // =========================================================
+  // CALCULATE LIVE RECIPE ECONOMICS
+  // =========================================================
+
+  return costingItems.map((menuItem) => {
     const itemName =
       menuItem.name ||
       menuItem.item_name ||
@@ -24196,124 +24280,161 @@ const recipeCostingData = useMemo(() => {
         0
     );
 
+    // Find every recipe usage rule belonging to this menu item.
     const linkedRules = rules.filter(
       (rule) =>
-        String(rule.menu_item || rule.menuItem || "")
+        String(
+          rule.menu_item ||
+            rule.menuItem ||
+            ""
+        )
           .toLowerCase()
           .trim() ===
         String(itemName || "")
           .toLowerCase()
           .trim()
     );
-const recipeCostResolution = linkedRules.reduce(
-  (result, rule) => {
-    const ingredient = ingredients.find(
-      (ing) =>
-        String(
-          ing.name ||
-            ing.ingredient_name ||
-            ""
-        )
-          .toLowerCase()
-          .trim() ===
-        String(rule.ingredient || "")
-          .toLowerCase()
-          .trim()
+
+    // =======================================================
+    // RESOLVE EACH RECIPE INGREDIENT AGAINST CURRENT
+    // CANONICAL INGREDIENT COST
+    // =======================================================
+
+    const recipeCostResolution = linkedRules.reduce(
+      (result, rule) => {
+        const ingredient = ingredients.find(
+          (ing) =>
+            String(
+              ing.name ||
+                ing.ingredient_name ||
+                ""
+            )
+              .toLowerCase()
+              .trim() ===
+            String(rule.ingredient || "")
+              .toLowerCase()
+              .trim()
+        );
+
+        // Never silently exclude an ingredient from recipe cost.
+        if (!ingredient) {
+          return {
+            ...result,
+            unresolvedCount:
+              result.unresolvedCount + 1,
+          };
+        }
+
+        const costPerUnit = Number(
+          ingredient.cost_per_unit ||
+            ingredient.costPerUnit ||
+            ingredient.unit_cost ||
+            ingredient.price_per_unit ||
+            ingredient.cost ||
+            0
+        );
+
+        if (
+          !Number.isFinite(costPerUnit) ||
+          costPerUnit <= 0
+        ) {
+          return {
+            ...result,
+            unresolvedCount:
+              result.unresolvedCount + 1,
+          };
+        }
+
+        const amountUsed = Number(
+          rule.amount_used ??
+            rule.quantity_used ??
+            rule.amountUsed ??
+            0
+        );
+
+        if (
+          !Number.isFinite(amountUsed) ||
+          amountUsed <= 0
+        ) {
+          return {
+            ...result,
+            unresolvedCount:
+              result.unresolvedCount + 1,
+          };
+        }
+
+        const recipeUnit =
+          rule.unit ||
+          rule.uom ||
+          rule.measurement_unit ||
+          null;
+
+        const ingredientUnit =
+          ingredient.unit ||
+          ingredient.uom ||
+          ingredient.measurement_unit ||
+          null;
+
+        const convertedQuantity =
+          convertRecipeQuantityToIngredientUnit(
+            amountUsed,
+            recipeUnit,
+            ingredientUnit
+          );
+
+        // Do not guess when units cannot safely be converted.
+        if (convertedQuantity === null) {
+          console.warn(
+            "RECIPE COST UNIT MISMATCH:",
+            {
+              menuItem: itemName,
+              ingredient: rule.ingredient,
+              amountUsed,
+              recipeUnit,
+              ingredientUnit,
+            }
+          );
+
+          return {
+            ...result,
+            unresolvedCount:
+              result.unresolvedCount + 1,
+          };
+        }
+
+        return {
+          cost:
+            result.cost +
+            convertedQuantity * costPerUnit,
+
+          resolvedCount:
+            result.resolvedCount + 1,
+
+          unresolvedCount:
+            result.unresolvedCount,
+        };
+      },
+      {
+        cost: 0,
+        resolvedCount: 0,
+        unresolvedCount: 0,
+      }
     );
 
-    if (!ingredient) {
-      return {
-        ...result,
-        unresolvedCount: result.unresolvedCount + 1,
-      };
-    }
+    // Live recipe cost is authoritative only when every
+    // linked ingredient successfully resolves.
+    const hasCompleteLiveRecipeCost =
+      linkedRules.length > 0 &&
+      recipeCostResolution.resolvedCount ===
+        linkedRules.length &&
+      recipeCostResolution.unresolvedCount === 0;
 
-    const costPerUnit = Number(
-      ingredient?.cost_per_unit ||
-        ingredient?.costPerUnit ||
-        ingredient?.unit_cost ||
-        ingredient?.price_per_unit ||
-        ingredient?.cost ||
-        0
-    );
+    const calculatedRecipeCost =
+      hasCompleteLiveRecipeCost
+        ? recipeCostResolution.cost
+        : 0;
 
-    if (!Number.isFinite(costPerUnit) || costPerUnit <= 0) {
-      return {
-        ...result,
-        unresolvedCount: result.unresolvedCount + 1,
-      };
-    }
-
-    const amountUsed = Number(
-      rule.amount_used ??
-        rule.quantity_used ??
-        rule.amountUsed ??
-        0
-    );
-
-    if (!Number.isFinite(amountUsed) || amountUsed <= 0) {
-      return {
-        ...result,
-        unresolvedCount: result.unresolvedCount + 1,
-      };
-    }
-
-    const recipeUnit =
-      rule.unit ||
-      rule.uom ||
-      rule.measurement_unit ||
-      null;
-
-    const ingredientUnit =
-      ingredient.unit ||
-      ingredient.uom ||
-      ingredient.measurement_unit ||
-      null;
-
-    const convertedQuantity =
-      convertRecipeQuantityToIngredientUnit(
-        amountUsed,
-        recipeUnit,
-        ingredientUnit
-      );
-
-    if (convertedQuantity === null) {
-      console.warn("RECIPE COST UNIT MISMATCH:", {
-        menuItem: itemName,
-        ingredient: rule.ingredient,
-        amountUsed,
-        recipeUnit,
-        ingredientUnit,
-      });
-
-      return {
-        ...result,
-        unresolvedCount: result.unresolvedCount + 1,
-      };
-    }
-
-    return {
-      cost: result.cost + convertedQuantity * costPerUnit,
-      resolvedCount: result.resolvedCount + 1,
-      unresolvedCount: result.unresolvedCount,
-    };
-  },
-  {
-    cost: 0,
-    resolvedCount: 0,
-    unresolvedCount: 0,
-  }
-);
-
-const hasCompleteLiveRecipeCost =
-  linkedRules.length > 0 &&
-  recipeCostResolution.resolvedCount === linkedRules.length &&
-  recipeCostResolution.unresolvedCount === 0;
-
-const calculatedRecipeCost = hasCompleteLiveRecipeCost
-  ? recipeCostResolution.cost
-  : 0;
-
+    // Existing uploaded menu cost remains a fallback only.
     const uploadedCost = Number(
       menuItem.cost ||
         menuItem.recipe_cost ||
@@ -24324,35 +24445,61 @@ const calculatedRecipeCost = hasCompleteLiveRecipeCost
     );
 
     const recipeCost =
-      calculatedRecipeCost > 0
+      hasCompleteLiveRecipeCost
         ? calculatedRecipeCost
         : uploadedCost;
 
-    const profit = price - recipeCost;
+    const costSource =
+      hasCompleteLiveRecipeCost
+        ? "live"
+        : uploadedCost > 0
+          ? "uploaded"
+          : "unresolved";
+
+    const profit =
+      price > 0 && recipeCost > 0
+        ? price - recipeCost
+        : 0;
 
     const margin =
-      price > 0
+      price > 0 && recipeCost > 0
         ? (profit / price) * 100
         : 0;
 
-    let status = "Needs Price Data";
+    const foodCostPercent =
+      price > 0 && recipeCost > 0
+        ? (recipeCost / price) * 100
+        : 0;
+
+    let status = "Needs Cost Data";
 
     let recommendation =
-      "Add menu price and recipe rules to calculate true margin.";
+      "Connect recipe ingredients to current ingredient costs.";
 
-    if (price > 0 && margin >= 70) {
+    if (price <= 0) {
+      status = "Needs Price Data";
+      recommendation =
+        "Add a selling price to calculate menu profitability.";
+    } else if (
+      !hasCompleteLiveRecipeCost &&
+      uploadedCost <= 0
+    ) {
+      status = "Needs Cost Mapping";
+      recommendation =
+        "Resolve missing ingredient costs or recipe units before calculating margin.";
+    } else if (margin >= 70) {
       status = "High Profit";
       recommendation =
         "Promote this item. It has strong recipe profitability.";
-    } else if (price > 0 && margin >= 60) {
+    } else if (margin >= 60) {
       status = "Healthy";
       recommendation =
         "Margin is healthy. Monitor ingredient cost changes.";
-    } else if (price > 0 && margin >= 50) {
+    } else if (margin >= 50) {
       status = "Watch";
       recommendation =
         "Review pricing or ingredient portions.";
-    } else if (price > 0) {
+    } else {
       status = "Low Margin";
       recommendation =
         "Adjust price, reduce portion cost, or renegotiate ingredients.";
@@ -24361,12 +24508,35 @@ const calculatedRecipeCost = hasCompleteLiveRecipeCost
     return {
       itemName,
       price,
+
       recipeCost,
+      calculatedRecipeCost,
+      uploadedCost,
+
       profit,
       margin,
+      foodCostPercent,
+
       status,
       recommendation,
+
       ingredientCount: linkedRules.length,
+      resolvedIngredientCount:
+        recipeCostResolution.resolvedCount,
+      unresolvedIngredientCount:
+        recipeCostResolution.unresolvedCount,
+
+      hasCompleteLiveRecipeCost,
+      costSource,
+
+      costingSource:
+        menuItem.costingSource || "menu_item",
+
+      recipeId:
+        menuItem.recipe_id || null,
+
+      recipeUploadId:
+        menuItem.recipe_upload_id || null,
     };
   });
 }, [
@@ -24374,6 +24544,7 @@ const calculatedRecipeCost = hasCompleteLiveRecipeCost
   uploadComparison,
   locationIngredientsData,
   locationMenuItemsData,
+  recipes,
 ]);
 const inventoryTrendData = useMemo(() => {
   const items =
