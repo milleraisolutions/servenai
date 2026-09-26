@@ -106612,138 +106612,271 @@ sub: "items with recipe rules or uploaded cost",
         gap: "12px",
       }}
     >
-      {(recipeCostingData || []).map((item, index) => (
-        <div
-          key={`${item.itemName}-${index}`}
-          style={{
-            padding: "16px",
-            borderRadius: "18px",
-            background: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(255,255,255,0.08)",
-            display: "grid",
-            gridTemplateColumns: "1.4fr 0.7fr 0.8fr 0.8fr 1fr",
-            gap: "12px",
-            alignItems: "center",
-          }}
-        >
-          <div>
-            <div
-              style={{
-                color: "white",
-                fontWeight: "900",
-                marginBottom: "4px",
-              }}
-            >
-              {item.itemName}
-            </div>
+{(recipeCostingData || []).map((item, index) => {
+  const normalizedItemName = String(
+    item.itemName || ""
+  )
+    .trim()
+    .toLowerCase();
 
-            <div
-              style={{
-                color: "#94a3b8",
-                fontSize: "12px",
-              }}
-            >
-              {item.ingredientCount} linked ingredients
-            </div>
+  const posPerformance = (
+    posMenuProfitabilityData || []
+  ).find(
+    (performanceItem) =>
+      String(performanceItem.itemName || "")
+        .trim()
+        .toLowerCase() === normalizedItemName
+  );
+
+  return (
+    <div
+      key={`${item.itemName}-${index}`}
+      style={{
+        padding: "16px",
+        borderRadius: "18px",
+        background: "rgba(255,255,255,0.04)",
+        border: "1px solid rgba(255,255,255,0.08)",
+      }}
+    >
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: isMobile
+            ? "1fr"
+            : "1.4fr 0.7fr 0.8fr 0.8fr 1fr",
+          gap: "12px",
+          alignItems: "center",
+        }}
+      >
+        <div>
+          <div
+            style={{
+              color: "white",
+              fontWeight: "900",
+              marginBottom: "4px",
+            }}
+          >
+            {item.itemName}
           </div>
 
-          <div>
-            <div
-              style={{
-                color: "#94a3b8",
-                fontSize: "11px",
-                marginBottom: "4px",
-              }}
-            >
-              Price
-            </div>
-
-            <div
-              style={{
-                color: "white",
-                fontWeight: "800",
-              }}
-            >
-              ${Number(item.price || 0).toFixed(2)}
-            </div>
-          </div>
-
-          <div>
-            <div
-              style={{
-                color: "#94a3b8",
-                fontSize: "11px",
-                marginBottom: "4px",
-              }}
-            >
-              Recipe Cost
-            </div>
-
-            <div
-              style={{
-                color: "white",
-                fontWeight: "800",
-              }}
-            >
-              ${Number(item.recipeCost || 0).toFixed(2)}
-            </div>
-          </div>
-
-          <div>
-            <div
-              style={{
-                color: "#94a3b8",
-                fontSize: "11px",
-                marginBottom: "4px",
-              }}
-            >
-              Margin
-            </div>
-
-            <div
-              style={{
-                color:
-                  Number(item.margin || 0) >= 70
-                    ? "#22c55e"
-                    : Number(item.margin || 0) >= 60
-                    ? "#facc15"
-                    : "#f87171",
-                fontWeight: "950",
-              }}
-            >
-              {Number(item.margin || 0).toFixed(1)}%
-            </div>
-          </div>
-
-          <div>
-            <div
-              style={{
-                color: "#94a3b8",
-                fontSize: "11px",
-                marginBottom: "4px",
-              }}
-            >
-              Status
-            </div>
-
-            <div
-              style={{
-                color:
-                  item.status === "High Profit"
-                    ? "#22c55e"
-                    : item.status === "Healthy"
-                    ? "#facc15"
-                    : item.status === "Watch"
-                    ? "#fb923c"
-                    : "#f87171",
-                fontWeight: "900",
-              }}
-            >
-              {item.status}
-            </div>
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "12px",
+            }}
+          >
+            {item.ingredientCount} linked ingredients
           </div>
         </div>
-      ))}
+
+        <div>
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "11px",
+              marginBottom: "4px",
+            }}
+          >
+            Price
+          </div>
+
+          <div
+            style={{
+              color: "white",
+              fontWeight: "800",
+            }}
+          >
+            ${Number(item.price || 0).toFixed(2)}
+          </div>
+        </div>
+
+        <div>
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "11px",
+              marginBottom: "4px",
+            }}
+          >
+            Recipe Cost
+          </div>
+
+          <div
+            style={{
+              color: "white",
+              fontWeight: "800",
+            }}
+          >
+            ${Number(item.recipeCost || 0).toFixed(2)}
+          </div>
+        </div>
+
+        <div>
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "11px",
+              marginBottom: "4px",
+            }}
+          >
+            Margin
+          </div>
+
+          <div
+            style={{
+              color:
+                Number(item.margin || 0) >= 70
+                  ? "#22c55e"
+                  : Number(item.margin || 0) >= 60
+                  ? "#facc15"
+                  : "#f87171",
+              fontWeight: "950",
+            }}
+          >
+            {Number(item.margin || 0).toFixed(1)}%
+          </div>
+        </div>
+
+        <div>
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "11px",
+              marginBottom: "4px",
+            }}
+          >
+            Status
+          </div>
+
+          <div
+            style={{
+              color:
+                item.status === "High Profit"
+                  ? "#22c55e"
+                  : item.status === "Healthy"
+                  ? "#facc15"
+                  : item.status === "Watch"
+                  ? "#fb923c"
+                  : "#f87171",
+              fontWeight: "900",
+            }}
+          >
+            {item.status}
+          </div>
+        </div>
+      </div>
+
+      {posPerformance && (
+        <div
+          style={{
+            marginTop: "14px",
+            paddingTop: "14px",
+            borderTop:
+              "1px solid rgba(255,255,255,0.08)",
+          }}
+        >
+          <div
+            style={{
+              color: "#c4b5fd",
+              fontSize: "11px",
+              fontWeight: "900",
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+              marginBottom: "10px",
+            }}
+          >
+            POS Performance
+          </div>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: isMobile
+                ? "repeat(2, minmax(0, 1fr))"
+                : "repeat(5, minmax(0, 1fr))",
+              gap: "10px",
+            }}
+          >
+            {[
+              {
+                label: "Units Sold",
+                value: Number(
+                  posPerformance.quantitySold || 0
+                ).toLocaleString(),
+              },
+              {
+                label: "Actual POS Revenue",
+                value: `$${Number(
+                  posPerformance.revenue || 0
+                ).toLocaleString(undefined, {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}`,
+              },
+              {
+                label: "Theoretical Food Cost",
+                value: `$${Number(
+                  posPerformance.theoreticalFoodCost || 0
+                ).toLocaleString(undefined, {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}`,
+              },
+              {
+                label: "Theoretical Gross Profit",
+                value: `$${Number(
+                  posPerformance.theoreticalGrossProfit || 0
+                ).toLocaleString(undefined, {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}`,
+              },
+              {
+                label: "POS Gross Margin",
+                value: `${Number(
+                  posPerformance.grossMargin || 0
+                ).toFixed(1)}%`,
+              },
+            ].map((metric) => (
+              <div
+                key={metric.label}
+                style={{
+                  padding: "10px",
+                  borderRadius: "12px",
+                  background:
+                    "rgba(15,23,42,0.55)",
+                  border:
+                    "1px solid rgba(255,255,255,0.06)",
+                }}
+              >
+                <div
+                  style={{
+                    color: "#64748b",
+                    fontSize: "10px",
+                    fontWeight: "800",
+                    marginBottom: "4px",
+                  }}
+                >
+                  {metric.label}
+                </div>
+
+                <div
+                  style={{
+                    color: "white",
+                    fontSize: "14px",
+                    fontWeight: "900",
+                  }}
+                >
+                  {metric.value}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+})}
     </div>
   </div>
   
