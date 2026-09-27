@@ -187,15 +187,32 @@ const supplierName = String(
       Remove invoice metadata that may appear before the first
       item when PDF text is flattened.
     */
-  itemName = itemName
+ itemName = itemName
+  /*
+    PDF extractors frequently flatten invoice metadata and the
+    line-item table header onto the first item row.
+
+    Examples:
+      Invoice Number: 123 Ingredient Name Quantity Unit Unit Price Total Price Ribeye
+      Ingredient Category Qty Unit Unit Cost Total Ribeye
+
+    Strip everything through a recognized line-item table header,
+    leaving only the actual item description.
+  */
+  .replace(
+    /^.*?(?:ingredient\s+name|ingredient|description|item\s+name|item)\s+(?:category\s+)?(?:qty|quantity)\s+unit\s+(?:unit\s+)?(?:cost|price)\s+(?:total(?:\s+(?:cost|price))?)\s+/i,
+    ""
+  )
+
+  /*
+    Fallback cleanup for metadata when the PDF preserves the
+    metadata separately from the table header.
+  */
   .replace(/^.*?customer:\s*[^$]+?(?=[A-Z][a-z])/i, "")
   .replace(/^.*?invoice number:\s*\S+\s*/i, "")
   .replace(/^.*?invoice date:\s*\S+\s*/i, "")
-  .replace(
-    /^.*?ingredient\s+category\s+qty\s+unit\s+unit\s+cost\s+total\s+/i,
-    ""
-  )
   .trim();
+
 itemName = itemName
   .replace(/\s+(protein|seafood|produce|dairy)$/i, "")
   .trim();
