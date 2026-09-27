@@ -830,6 +830,380 @@ try {
     historyRebuildError
   );
 }
+/*
+  Synchronize canonical ingredient costs from invoice evidence.
+
+  Rules:
+  - Only existing active ingredients are eligible.
+  - Ingredient names must match exactly after normalization.
+  - Invoice quantity never changes inventory quantity.
+  - Costs are converted only between compatible units.
+  - The newest invoice by actual invoice_date is authoritative.
+  - Upload order must never allow an older invoice to roll cost backward.
+*/
+try {
+  const normalizeCostUnit = (value) => {
+    const unit = String(value || "")
+      .trim()
+      .toLowerCase()
+      .replace(/\./g, "")
+      .replace(/\s+/g, "_");
+
+    const aliases = {
+      lb: "lb",
+      lbs: "lb",
+      pound: "lb",
+      pounds: "lb",
+
+      oz: "oz",
+      ounce: "oz",
+      ounces: "oz",
+
+      kg: "kg",
+      kilogram: "kg",
+      kilograms: "kg",
+
+      g: "g",
+      gram: "g",
+      grams: "g",
+
+      fl_oz: "fl_oz",
+      floz: "fl_oz",
+      fluid_ounce: "fl_oz",
+      fluid_ounces: "fl_oz",
+
+      pt: "pt",
+      pint: "pt",
+      pints: "pt",
+
+      qt: "qt",
+      quart: "qt",
+      quarts: "qt",
+
+      gal: "gal",
+      gallon: "gal",
+      gallons: "gal",
+
+      each: "each",
+      ea: "each",
+      unit: "each",
+      units: "each",
+    };
+
+    return aliases[unit] || unit;
+  };
+
+  const unitFamily = {
+    lb: "weight",
+    oz: "weight",
+    kg: "weight",
+    g: "weight",
+
+    fl_oz: "volume",
+    pt: "volume",
+    qt: "volume",
+    gal: "volume",
+
+    each: "count",
+  };
+
+  /*
+    Base units:
+    weight -> oz
+    volume -> fl_oz
+    count  -> each
+  */
+  const toBaseFactor = {
+    lb: 16,
+    oz: 1,
+    kg: 35.27396195,
+    g: 0.03527396195,
+
+    fl_oz: 1,
+    pt: 16,
+    qt: 32,
+    gal: 128,
+
+    each: 1,
+  };
+
+  const convertInvoiceCostPerUnit = (
+    invoiceCost,
+    invoiceUnit,
+    ingredientUnit
+  ) => {
+    const sourceUnit = normalizeCostUnit(invoiceUnit);
+    const targetUnit = normalizeCostUnit(ingredientUnit);
+
+    const numericCost = Number(invoiceCost);
+
+    if (
+      !Number.isFinite(numericCost) ||
+      numericCost < 0 ||
+      !sourceUnit ||
+      !targetUnit
+    ) {
+      return null;
+    }
+
+    if (sourceUnit === targetUnit) {
+      return numericCost;
+    }
+
+    if (
+      !unitFamily[sourceUnit] ||
+      !unitFamily[targetUnit] ||
+      unitFamily[sourceUnit] !== unitFamily[targetUnit]
+    ) {
+      return null;
+    }
+
+    const sourceFactor = toBaseFactor[sourceUnit];
+    const targetFactor = toBaseFactor[targetUnit];
+
+    if (!sourceFactor || !targetFactor) {
+      return null;
+    }
+
+    /*
+      Example:
+      $16/lb -> $1/oz
+
+      $16 / 16 source-base-units
+      then × 1 target-base-unit
+    */
+    return (numericCost / sourceFactor) * targetFactor;
+  };
+
+  const normalizeIngredientName = (value) =>
+    String(value || "")
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, " ");
+
+  const {
+    data: canonicalIngredients,
+    error: ingredientLookupError,
+  } = await supabase
+    .from("ingredients")
+    .select(
+      `
+        id,
+        name,
+        unit,
+        quantity,
+        cost_per_unit,
+        total_cost,
+        supplier,
+        last_seen_at
+      `
+    )
+    .eq("user_id", user.id)
+    .or("is_active.eq.true,is_active.is.null");
+
+  if (ingredientLookupError) {
+    console.warn(
+      "Invoice ingredient cost sync lookup failed:",
+      ingredientLookupError
+    );
+  } else {
+    const ingredientByName = new Map(
+      (canonicalIngredients || []).map((ingredient) => [
+        normalizeIngredientName(ingredient.name),
+        ingredient,
+      ])
+    );
+
+    for (const insertedItem of insertedItems || []) {
+      const normalizedItemName =
+        normalizeIngredientName(insertedItem.item_name);
+
+      if (!normalizedItemName) continue;
+
+      const matchingIngredient =
+        ingredientByName.get(normalizedItemName);
+
+      if (!matchingIngredient) {
+        console.log(
+          "Invoice ingredient cost sync skipped - no canonical ingredient:",
+          insertedItem.item_name
+        );
+        continue;
+      }
+
+      /*
+        Determine the newest invoice for this exact supplier + item
+        using invoice_date, never upload time.
+      */
+      const {
+        data: latestInvoiceEvidence,
+        error: latestEvidenceError,
+      } = await supabase
+        .from("invoice_line_items")
+        .select(
+          `
+            id,
+            item_name,
+            supplier_name,
+            unit,
+            unit_price,
+            invoice_uploads!invoice_line_items_invoice_id_fkey (
+              invoice_date
+            )
+          `
+        )
+        .eq("user_id", user.id)
+        .eq("item_name", insertedItem.item_name)
+        .eq(
+          "supplier_name",
+          insertedItem.supplier_name ||
+            parsedInvoice.supplierName ||
+            "Unknown Supplier"
+        );
+
+      if (latestEvidenceError) {
+        console.warn(
+          "Invoice ingredient latest-cost lookup failed:",
+          insertedItem.item_name,
+          latestEvidenceError
+        );
+        continue;
+      }
+
+      const newestEvidence = (latestInvoiceEvidence || [])
+        .map((row) => {
+          const joinedInvoice =
+            Array.isArray(row.invoice_uploads)
+              ? row.invoice_uploads[0]
+              : row.invoice_uploads;
+
+          return {
+            ...row,
+            invoiceDate:
+              joinedInvoice?.invoice_date || null,
+          };
+        })
+        .filter((row) => row.invoiceDate)
+        .sort((a, b) =>
+          String(b.invoiceDate).localeCompare(
+            String(a.invoiceDate)
+          )
+        )[0];
+
+      if (!newestEvidence) continue;
+
+      /*
+        Only synchronize if this uploaded invoice is the
+        authoritative newest invoice for the item.
+      */
+      if (newestEvidence.id !== insertedItem.id) {
+        console.log(
+          "Invoice ingredient cost sync skipped - newer invoice already exists:",
+          insertedItem.item_name
+        );
+        continue;
+      }
+
+      const convertedCost = convertInvoiceCostPerUnit(
+        newestEvidence.unit_price,
+        newestEvidence.unit,
+        matchingIngredient.unit
+      );
+
+      if (
+        convertedCost == null ||
+        !Number.isFinite(convertedCost)
+      ) {
+        console.warn(
+          "Invoice ingredient cost sync skipped - incompatible units:",
+          insertedItem.item_name,
+          newestEvidence.unit,
+          matchingIngredient.unit
+        );
+        continue;
+      }
+
+      const previousCost = Number(
+        matchingIngredient.cost_per_unit || 0
+      );
+
+      const previousTotalCost = Number(
+        matchingIngredient.total_cost || 0
+      );
+
+      const ingredientQuantity = Number(
+        matchingIngredient.quantity || 0
+      );
+
+      const nextTotalCost =
+        ingredientQuantity > 0
+          ? ingredientQuantity * convertedCost
+          : previousTotalCost;
+
+      const {
+        error: ingredientUpdateError,
+      } = await supabase
+        .from("ingredients")
+        .update({
+          previous_cost_per_unit: previousCost,
+          cost_per_unit: convertedCost,
+          previous_total_cost: previousTotalCost,
+          total_cost: nextTotalCost,
+          supplier:
+            insertedItem.supplier_name ||
+            parsedInvoice.supplierName ||
+            matchingIngredient.supplier ||
+            null,
+          last_seen_at: new Date().toISOString(),
+        })
+        .eq("id", matchingIngredient.id)
+        .eq("user_id", user.id);
+
+      if (ingredientUpdateError) {
+        console.error(
+          "Invoice ingredient cost sync update failed:",
+          insertedItem.item_name,
+          ingredientUpdateError
+        );
+        continue;
+      }
+
+      console.log(
+        "INVOICE INGREDIENT COST SYNC:",
+        {
+          ingredient: matchingIngredient.name,
+          previousCost,
+          newCost: convertedCost,
+          quantity: ingredientQuantity,
+          previousTotalCost,
+          newTotalCost: nextTotalCost,
+          invoiceDate: parsedInvoice.invoiceDate,
+        }
+      );
+
+      /*
+        Keep the in-memory ingredient representation current
+        during this request in case another matching invoice
+        item is processed.
+      */
+      matchingIngredient.cost_per_unit = convertedCost;
+      matchingIngredient.total_cost = nextTotalCost;
+      matchingIngredient.supplier =
+        insertedItem.supplier_name ||
+        parsedInvoice.supplierName ||
+        matchingIngredient.supplier;
+    }
+  }
+} catch (ingredientSyncError) {
+  /*
+    Invoice persistence must remain successful even if canonical
+    ingredient synchronization encounters an unexpected problem.
+  */
+  console.error(
+    "Invoice ingredient cost synchronization crashed:",
+    ingredientSyncError
+  );
+}
     return {
       insertedItems: insertedItems || [],
       alerts,
