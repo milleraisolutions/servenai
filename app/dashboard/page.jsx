@@ -8425,12 +8425,20 @@ const syncMenuItemsWithHistory = async ({
 
     if (!incomingName) continue;
 
-    const existing = (existingRows || []).find(
-      (item) =>
-        String(item.name || "")
-          .trim()
-          .toLowerCase() === incomingName
-    );
+    const existing = (existingRows || []).find((item) => {
+  const existingName = String(item.name || "")
+    .trim()
+    .toLowerCase();
+
+  if (existingName !== incomingName) {
+    return false;
+  }
+
+  const existingLocationId = item.location_id || null;
+  const incomingLocationId = locationId || null;
+
+  return existingLocationId === incomingLocationId;
+});
 
     const price = Number(incomingItem.price || 0);
     const cost = Number(incomingItem.cost || 0);
@@ -8865,15 +8873,28 @@ console.log(
   syncedMenuRows
 );
 
-    const isFullMenuSync = cleanedRows.length >= 20;
+   const isFullMenuSync = cleanedRows.length >= 20;
 
-    const menuItemsToDeactivate = isFullMenuSync
-      ? (existingRows || []).filter(
-          (item) =>
-            item.is_active !== false &&
-            !uploadedNames.includes(String(item.name || "").trim().toLowerCase())
-        )
-      : [];
+const currentMenuLocationId = selectedUploadLocationId || null;
+
+const menuItemsToDeactivate = isFullMenuSync
+  ? (existingRows || []).filter((item) => {
+      const existingLocationId = item.location_id || null;
+
+      const belongsToCurrentLocation =
+        existingLocationId === currentMenuLocationId;
+
+      const itemName = String(item.name || "")
+        .trim()
+        .toLowerCase();
+
+      return (
+        belongsToCurrentLocation &&
+        item.is_active !== false &&
+        !uploadedNames.includes(itemName)
+      );
+    })
+  : [];
 
     for (const oldItem of menuItemsToDeactivate) {
       const { error } = await supabase
@@ -42295,10 +42316,12 @@ const handleRecipeUpload = async (event) => {
       header: true,
       skipEmptyLines: true,
 
-      complete: async (results) => {
-        let uploadRow = null;
+    complete: async (results) => {
+  let uploadRow = null;
+  let newlyCreatedRecipeIds = [];
+  let insertedRecipeUsageRules = [];
 
-        try {
+  try {
           const rows = results.data || [];
 
           if (!rows.length) {
@@ -42336,13 +42359,19 @@ const handleRecipeUpload = async (event) => {
             if (!recipeMap.has(recipeName)) {
               recipeMap.set(recipeName, {
                 recipe: {
-                  user_id: currentUser.id,
-                  upload_id: null,
+  user_id: currentUser.id,
+  upload_id: null,
 
-                  location_name:
-                    activeLocation !== "all" ? activeLocation : assignedLocation || null,
+  location_id: selectedUploadLocationId || null,
 
-                  recipe_name: recipeName,
+  location_name:
+    activeLocation !== "all" ? activeLocation : assignedLocation || null,
+
+  connection_id: null,
+  is_active: true,
+  last_seen_at: new Date().toISOString(),
+
+  recipe_name: recipeName,
 
                   menu_item_name:
                     row.menu_item_name || row["Menu Item"] || recipeName,
@@ -42406,41 +42435,146 @@ const handleRecipeUpload = async (event) => {
           console.log("RECIPE uploadError:", uploadError);
 
           if (uploadError) throw uploadError;
+const recipeRows = Array.from(recipeMap.values()).map((group) => ({
+  ...group.recipe,
+  upload_id: uploadRow.id,
+}));
 
-          const recipeRows = Array.from(recipeMap.values()).map((group) => ({
-            ...group.recipe,
-            upload_id: uploadRow.id,
-          }));
+console.log("RECIPE recipeRows:", recipeRows);
 
-          console.log("RECIPE recipeRows:", recipeRows);
+const currentRecipeLocationId = selectedUploadLocationId || null;
+const now = new Date().toISOString();
 
-          const { data: insertedRecipes, error: recipeError } = await supabase
-            .from("recipes")
-            .insert(recipeRows)
-            .select();
+const { data: existingRecipeRows, error: existingRecipeError } =
+  await supabase
+    .from("recipes")
+    .select("*")
+    .eq("user_id", currentUser.id);
 
-          console.log("RECIPE insertedRecipes:", insertedRecipes);
-          console.log("RECIPE recipeError:", recipeError);
-
-         if (recipeError) {
-  console.error("RECIPE INSERT ERROR:", {
-    message: recipeError.message,
-    details: recipeError.details,
-    hint: recipeError.hint,
-    code: recipeError.code,
-  });
-
-  await supabase.from("uploads").delete().eq("id", uploadRow.id);
-
-  throw recipeError;
+if (existingRecipeError) {
+  throw existingRecipeError;
 }
 
-          const insertedRecipeByName = new Map(
-            (insertedRecipes || []).map((recipe) => [
-              String(recipe.recipe_name || "").trim(),
-              recipe,
-            ])
-          );
+const syncedRecipes = [];
+
+
+for (const recipeRow of recipeRows) {
+  const normalizedRecipeName = String(recipeRow.recipe_name || "")
+    .trim()
+    .toLowerCase();
+
+  const existingRecipe = (existingRecipeRows || []).find((recipe) => {
+    const existingName = String(recipe.recipe_name || "")
+      .trim()
+      .toLowerCase();
+
+    const existingLocationId = recipe.location_id || null;
+
+    return (
+      existingName === normalizedRecipeName &&
+      existingLocationId === currentRecipeLocationId
+    );
+  });
+
+  if (existingRecipe) {
+    const { data: updatedRecipeRows, error: updateRecipeError } =
+      await supabase
+        .from("recipes")
+        .update({
+          menu_item_name:
+            recipeRow.menu_item_name ||
+            existingRecipe.menu_item_name ||
+            recipeRow.recipe_name,
+
+          category:
+            recipeRow.category ||
+            existingRecipe.category ||
+            null,
+
+          selling_price: Number(recipeRow.selling_price || 0),
+
+          prep_time_minutes: Number(
+            recipeRow.prep_time_minutes || 0
+          ),
+
+          serving_size:
+            recipeRow.serving_size ||
+            existingRecipe.serving_size ||
+            null,
+
+          notes:
+            recipeRow.notes ||
+            existingRecipe.notes ||
+            null,
+
+          location_id: currentRecipeLocationId,
+
+          location_name:
+            recipeRow.location_name ||
+            existingRecipe.location_name ||
+            null,
+
+          connection_id:
+            recipeRow.connection_id ||
+            existingRecipe.connection_id ||
+            null,
+
+          is_active: true,
+          last_seen_at: now,
+        })
+        .eq("id", existingRecipe.id)
+        .eq("user_id", currentUser.id)
+        .select();
+
+    if (updateRecipeError) {
+      throw updateRecipeError;
+    }
+
+    if (!updatedRecipeRows?.length) {
+      throw new Error(
+        `Recipe sync matched zero rows for "${recipeRow.recipe_name}".`
+      );
+    }
+
+    syncedRecipes.push(updatedRecipeRows[0]);
+  } else {
+    const { data: insertedRecipeRows, error: insertRecipeError } =
+      await supabase
+        .from("recipes")
+        .insert([
+          {
+            ...recipeRow,
+            is_active: true,
+            last_seen_at: now,
+          },
+        ])
+        .select();
+
+    if (insertRecipeError) {
+      throw insertRecipeError;
+    }
+
+    if (insertedRecipeRows?.[0]) {
+      syncedRecipes.push(insertedRecipeRows[0]);
+      newlyCreatedRecipeIds.push(insertedRecipeRows[0].id);
+    }
+  }
+}
+
+const insertedRecipes = syncedRecipes;
+
+console.log("RECIPE SYNCED RECIPES:", insertedRecipes);
+console.log(
+  "RECIPE NEWLY CREATED IDS:",
+  newlyCreatedRecipeIds
+);
+
+const insertedRecipeByName = new Map(
+  (insertedRecipes || []).map((recipe) => [
+    String(recipe.recipe_name || "").trim(),
+    recipe,
+  ])
+);
 
           const ingredientRows = [];
 
@@ -42466,7 +42600,10 @@ const handleRecipeUpload = async (event) => {
                 user_id: currentUser.id,
                 upload_id: uploadRow.id,
                 recipe_id: recipeInsert.id,
-
+location_id: selectedUploadLocationId || null,
+connection_id: null,
+is_active: true,
+last_seen_at: new Date().toISOString(),
                 location_name:
                   activeLocation !== "all" ? activeLocation : assignedLocation || null,
 
@@ -42520,10 +42657,13 @@ if (ingredientError) {
     .delete()
     .eq("upload_id", uploadRow.id);
 
+if (newlyCreatedRecipeIds.length) {
   await supabase
     .from("recipes")
     .delete()
-    .eq("upload_id", uploadRow.id);
+    .in("id", newlyCreatedRecipeIds)
+    .eq("user_id", currentUser.id);
+}
 
   await supabase
     .from("uploads")
@@ -42582,18 +42722,26 @@ for (const [recipeName, group] of recipeMap) {
       return;
     }
 
-    recipeUsageRuleRows.push({
-      user_id: currentUser.id,
-      menu_item: menuItemName,
-      ingredient: ingredientName,
-      amount_used: amountUsed,
-      unit: unit || null,
-      upload_id: uploadRow.id,
-    });
+ recipeUsageRuleRows.push({
+  user_id: currentUser.id,
+
+  recipe_id: recipeInsert.id,
+  location_id: selectedUploadLocationId || null,
+  connection_id: null,
+
+  menu_item: menuItemName,
+  ingredient: ingredientName,
+  amount_used: amountUsed,
+  unit: unit || null,
+
+  upload_id: uploadRow.id,
+  is_active: true,
+  last_seen_at: new Date().toISOString(),
+});
   });
 }
 
-let insertedRecipeUsageRules = [];
+
 
 if (recipeUsageRuleRows.length) {
   const {
@@ -42680,10 +42828,13 @@ setRecipeUsageRules((prev) => [
     .delete()
     .eq("upload_id", uploadRow.id);
 
+ if (newlyCreatedRecipeIds.length) {
   await supabase
     .from("recipes")
     .delete()
-    .eq("upload_id", uploadRow.id);
+    .in("id", newlyCreatedRecipeIds)
+    .eq("user_id", currentUser.id);
+}
 
   await supabase
     .from("uploads")
