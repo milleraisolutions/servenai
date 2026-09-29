@@ -9228,13 +9228,15 @@ if (!uploadRow?.id) {
   try {
     // 2. Load current canonical ingredient state.
     let existingQuery = supabase
-      .from("ingredients")
-      .select("*")
-      .eq("user_id", ownerId);
+  .from("ingredients")
+  .select("*")
+  .eq("user_id", ownerId);
 
-    if (locationId) {
-      existingQuery = existingQuery.eq("location_id", locationId);
-    }
+if (locationId) {
+  existingQuery = existingQuery.eq("location_id", locationId);
+} else {
+  existingQuery = existingQuery.is("location_id", null);
+}
 
     const {
       data: existingRows,
@@ -9245,22 +9247,39 @@ if (!uploadRow?.id) {
       throw existingError;
     }
 
-    const existingByName = new Map(
-      (existingRows || []).map((row) => [
-        String(row.name || "").trim().toLowerCase(),
-        row,
-      ])
-    );
+  const existingByCanonicalKey = new Map(
+  (existingRows || []).map((row) => {
+    const normalizedName = String(row.name || "")
+      .trim()
+      .toLowerCase();
 
-    const savedRows = [];
+    const rowLocationId = row.location_id || null;
 
-    // 3. Update or create canonical ingredients.
-    for (const ingredient of normalizedRows) {
-      const normalizedName = String(ingredient.name || "")
-        .trim()
-        .toLowerCase();
+    return [
+      `${rowLocationId || "__null__"}::${normalizedName}`,
+      row,
+    ];
+  })
+);
 
-      const existing = existingByName.get(normalizedName);
+const savedRows = [];
+
+// 3. Update or create canonical ingredients.
+for (const ingredient of normalizedRows) {
+  const normalizedName = String(ingredient.name || "")
+    .trim()
+    .toLowerCase();
+
+  const incomingLocationId =
+    ingredient.location_id ||
+    locationId ||
+    null;
+
+  const canonicalKey =
+    `${incomingLocationId || "__null__"}::${normalizedName}`;
+
+  const existing =
+    existingByCanonicalKey.get(canonicalKey);
 
       if (existing) {
         const { data: updatedRows, error: updateError } = await supabase
@@ -23032,7 +23051,14 @@ const handleImportInventory = async () => {
 
   const currentUser = user;
 
-  if (!currentUser?.id) {
+  const inventoryOwnerId =
+    dataOwnerId ||
+    authenticatedUserId ||
+    userProfile?.owner_user_id ||
+    currentUser?.id ||
+    null;
+
+  if (!inventoryOwnerId) {
     setMessage("Please log in before importing inventory data.");
     return;
   }
@@ -23126,7 +23152,7 @@ const handleImportInventory = async () => {
         uploadLocationName;
 
       return {
-        user_id: currentUser.id,
+       user_id: inventoryOwnerId,
         item_name: String(itemName || "").trim(),
         category:
           row.category ||
@@ -23195,7 +23221,7 @@ const handleImportInventory = async () => {
       .from("uploads")
       .insert([
         {
-          user_id: currentUser.id,
+          user_id: inventoryOwnerId,
           file_name: fileName,
           source_name: "inventory_upload",
           row_count: rowsToInsert.length,
@@ -23235,7 +23261,7 @@ const handleImportInventory = async () => {
 const normalizedEvidenceRows =
   normalizeInventoryEvidenceRows({
     incomingRows: inventoryRows,
-    ownerId: currentUser.id,
+  ownerId: inventoryOwnerId,
     locationId: selectedUploadLocationId || null,
     connectionId: null,
   });
@@ -23252,7 +23278,7 @@ const normalizedEvidenceRows =
       savedRows: canonicalIngredientRows,
       snapshotRows: canonicalSnapshotRows,
     } = await ingestNormalizedInventoryEvidence({
-      ownerId: currentUser.id,
+      ownerId: inventoryOwnerId,
       normalizedRows: normalizedEvidenceRows,
       fileName,
       sourceName: "inventory_upload",
