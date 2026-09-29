@@ -42289,6 +42289,7 @@ useEffect(() => {
 const handleRecipeUpload = async (event) => {
   try {
     const file = event.target.files?.[0];
+
     const fileError = validateUploadFile(file, 25);
 
     if (fileError) {
@@ -42316,12 +42317,13 @@ const handleRecipeUpload = async (event) => {
       header: true,
       skipEmptyLines: true,
 
-    complete: async (results) => {
-  let uploadRow = null;
-  let newlyCreatedRecipeIds = [];
-  let insertedRecipeUsageRules = [];
+      complete: async (results) => {
+        let uploadRow = null;
+        let newlyCreatedRecipeIds = [];
+        let newlyCreatedRecipeIngredientIds = [];
+        let newlyCreatedRecipeUsageRuleIds = [];
 
-  try {
+        try {
           const rows = results.data || [];
 
           if (!rows.length) {
@@ -42331,62 +42333,75 @@ const handleRecipeUpload = async (event) => {
           }
 
           const fileName = file.name || "Recipe Cards Upload";
-
           const recipeMap = new Map();
 
           rows.forEach((row) => {
-        const recipeName = String(
-  row.recipe_name ||
-    row["Recipe Name"] ||
-    row.menu_item_name ||
-    row["Menu Item Name"] ||
-    row.menu_item ||
-    row["menu_item"] ||
-    row["Menu Item"] ||
-    row.name ||
-    row.Name ||
-    row.item ||
-    row.Item ||
-    row.product ||
-    row.Product ||
-    row.dish ||
-    row.Dish ||
-    `Recipe ${recipeMap.size + 1}`
-).trim();
+            const recipeName = String(
+              row.recipe_name ||
+                row["Recipe Name"] ||
+                row.menu_item_name ||
+                row["Menu Item Name"] ||
+                row.menu_item ||
+                row["menu_item"] ||
+                row["Menu Item"] ||
+                row.name ||
+                row.Name ||
+                row.item ||
+                row.Item ||
+                row.product ||
+                row.Product ||
+                row.dish ||
+                row.Dish ||
+                `Recipe ${recipeMap.size + 1}`
+            ).trim();
 
-           if (!recipeName) return;
+            if (!recipeName) return;
 
             if (!recipeMap.has(recipeName)) {
               recipeMap.set(recipeName, {
                 recipe: {
-  user_id: currentUser.id,
-  upload_id: null,
+                  user_id: currentUser.id,
+                  upload_id: null,
 
-  location_id: selectedUploadLocationId || null,
+                  location_id: selectedUploadLocationId || null,
 
-  location_name:
-    activeLocation !== "all" ? activeLocation : assignedLocation || null,
+                  location_name:
+                    activeLocation !== "all"
+                      ? activeLocation
+                      : assignedLocation || null,
 
-  connection_id: null,
-  is_active: true,
-  last_seen_at: new Date().toISOString(),
+                  connection_id: null,
+                  is_active: true,
+                  last_seen_at: new Date().toISOString(),
 
-  recipe_name: recipeName,
+                  recipe_name: recipeName,
 
                   menu_item_name:
-                    row.menu_item_name || row["Menu Item"] || recipeName,
+                    row.menu_item_name ||
+                    row["Menu Item"] ||
+                    recipeName,
 
                   category: row.category || row.Category || null,
 
                   selling_price: Number(
-                    row.selling_price || row["Selling Price"] || row.price || row.Price || 0
+                    row.selling_price ||
+                      row["Selling Price"] ||
+                      row.price ||
+                      row.Price ||
+                      0
                   ),
 
                   prep_time_minutes: Number(
-                    row.prep_time_minutes || row["Prep Time"] || row.prep_time || 0
+                    row.prep_time_minutes ||
+                      row["Prep Time"] ||
+                      row.prep_time ||
+                      0
                   ),
 
-                  serving_size: row.serving_size || row["Serving Size"] || null,
+                  serving_size:
+                    row.serving_size ||
+                    row["Serving Size"] ||
+                    null,
 
                   notes: row.notes || row.Notes || null,
                 },
@@ -42410,181 +42425,238 @@ const handleRecipeUpload = async (event) => {
             rowCount: rows.length,
           });
 
-          const { data: createdUploadRow, error: uploadError } = await supabase
-            .from("uploads")
-            .insert([
-              {
-                user_id: currentUser.id,
-                file_name: fileName,
-                source_name: "recipe_upload",
-                row_count: rows.length,
-                upload_type: "recipes",
-                status: "completed",
-                archived: false,
-                location_id: selectedUploadLocationId || null,
-                location_name:
-                  activeLocation !== "all" ? activeLocation : assignedLocation || null,
-              },
-            ])
-            .select()
-            .single();
+          const { data: createdUploadRow, error: uploadError } =
+            await supabase
+              .from("uploads")
+              .insert([
+                {
+                  user_id: currentUser.id,
+                  file_name: fileName,
+                  source_name: "recipe_upload",
+                  row_count: rows.length,
+                  upload_type: "recipes",
+                  status: "completed",
+                  archived: false,
+
+                  location_id: selectedUploadLocationId || null,
+
+                  location_name:
+                    activeLocation !== "all"
+                      ? activeLocation
+                      : assignedLocation || null,
+                },
+              ])
+              .select()
+              .single();
 
           uploadRow = createdUploadRow;
 
           console.log("RECIPE uploadRow:", uploadRow);
           console.log("RECIPE uploadError:", uploadError);
 
-          if (uploadError) throw uploadError;
-const recipeRows = Array.from(recipeMap.values()).map((group) => ({
-  ...group.recipe,
-  upload_id: uploadRow.id,
-}));
+          if (uploadError) {
+            throw uploadError;
+          }
 
-console.log("RECIPE recipeRows:", recipeRows);
+          const recipeRows = Array.from(recipeMap.values()).map(
+            (group) => ({
+              ...group.recipe,
+              upload_id: uploadRow.id,
+            })
+          );
 
-const currentRecipeLocationId = selectedUploadLocationId || null;
-const now = new Date().toISOString();
+          console.log("RECIPE recipeRows:", recipeRows);
 
-const { data: existingRecipeRows, error: existingRecipeError } =
-  await supabase
-    .from("recipes")
-    .select("*")
-    .eq("user_id", currentUser.id);
+          const currentRecipeLocationId =
+            selectedUploadLocationId || null;
 
-if (existingRecipeError) {
-  throw existingRecipeError;
-}
+          const now = new Date().toISOString();
 
-const syncedRecipes = [];
+          // ============================================
+          // CANONICAL PARENT RECIPE SYNC
+          // Identity:
+          // user + location + normalized recipe name
+          // ============================================
 
+          const {
+            data: existingRecipeRows,
+            error: existingRecipeError,
+          } = await supabase
+            .from("recipes")
+            .select("*")
+            .eq("user_id", currentUser.id);
 
-for (const recipeRow of recipeRows) {
-  const normalizedRecipeName = String(recipeRow.recipe_name || "")
-    .trim()
-    .toLowerCase();
+          if (existingRecipeError) {
+            throw existingRecipeError;
+          }
 
-  const existingRecipe = (existingRecipeRows || []).find((recipe) => {
-    const existingName = String(recipe.recipe_name || "")
-      .trim()
-      .toLowerCase();
+          const syncedRecipes = [];
 
-    const existingLocationId = recipe.location_id || null;
+          for (const recipeRow of recipeRows) {
+            const normalizedRecipeName = String(
+              recipeRow.recipe_name || ""
+            )
+              .trim()
+              .toLowerCase();
 
-    return (
-      existingName === normalizedRecipeName &&
-      existingLocationId === currentRecipeLocationId
-    );
-  });
+            const existingRecipe = (
+              existingRecipeRows || []
+            ).find((recipe) => {
+              const existingName = String(
+                recipe.recipe_name || ""
+              )
+                .trim()
+                .toLowerCase();
 
-  if (existingRecipe) {
-    const { data: updatedRecipeRows, error: updateRecipeError } =
-      await supabase
-        .from("recipes")
-        .update({
-          menu_item_name:
-            recipeRow.menu_item_name ||
-            existingRecipe.menu_item_name ||
-            recipeRow.recipe_name,
+              const existingLocationId =
+                recipe.location_id || null;
 
-          category:
-            recipeRow.category ||
-            existingRecipe.category ||
-            null,
+              return (
+                existingName === normalizedRecipeName &&
+                existingLocationId === currentRecipeLocationId
+              );
+            });
 
-          selling_price: Number(recipeRow.selling_price || 0),
+            if (existingRecipe) {
+              const {
+                data: updatedRecipeRows,
+                error: updateRecipeError,
+              } = await supabase
+                .from("recipes")
+                .update({
+                  menu_item_name:
+                    recipeRow.menu_item_name ||
+                    existingRecipe.menu_item_name ||
+                    recipeRow.recipe_name,
 
-          prep_time_minutes: Number(
-            recipeRow.prep_time_minutes || 0
-          ),
+                  category:
+                    recipeRow.category ||
+                    existingRecipe.category ||
+                    null,
 
-          serving_size:
-            recipeRow.serving_size ||
-            existingRecipe.serving_size ||
-            null,
+                  selling_price: Number(
+                    recipeRow.selling_price || 0
+                  ),
 
-          notes:
-            recipeRow.notes ||
-            existingRecipe.notes ||
-            null,
+                  prep_time_minutes: Number(
+                    recipeRow.prep_time_minutes || 0
+                  ),
 
-          location_id: currentRecipeLocationId,
+                  serving_size:
+                    recipeRow.serving_size ||
+                    existingRecipe.serving_size ||
+                    null,
 
-          location_name:
-            recipeRow.location_name ||
-            existingRecipe.location_name ||
-            null,
+                  notes:
+                    recipeRow.notes ||
+                    existingRecipe.notes ||
+                    null,
 
-          connection_id:
-            recipeRow.connection_id ||
-            existingRecipe.connection_id ||
-            null,
+                  location_id: currentRecipeLocationId,
 
-          is_active: true,
-          last_seen_at: now,
-        })
-        .eq("id", existingRecipe.id)
-        .eq("user_id", currentUser.id)
-        .select();
+                  location_name:
+                    recipeRow.location_name ||
+                    existingRecipe.location_name ||
+                    null,
 
-    if (updateRecipeError) {
-      throw updateRecipeError;
-    }
+                  connection_id:
+                    recipeRow.connection_id ||
+                    existingRecipe.connection_id ||
+                    null,
 
-    if (!updatedRecipeRows?.length) {
-      throw new Error(
-        `Recipe sync matched zero rows for "${recipeRow.recipe_name}".`
-      );
-    }
+                  is_active: true,
+                  last_seen_at: now,
+                })
+                .eq("id", existingRecipe.id)
+                .eq("user_id", currentUser.id)
+                .select();
 
-    syncedRecipes.push(updatedRecipeRows[0]);
-  } else {
-    const { data: insertedRecipeRows, error: insertRecipeError } =
-      await supabase
-        .from("recipes")
-        .insert([
-          {
-            ...recipeRow,
-            is_active: true,
-            last_seen_at: now,
-          },
-        ])
-        .select();
+              if (updateRecipeError) {
+                throw updateRecipeError;
+              }
 
-    if (insertRecipeError) {
-      throw insertRecipeError;
-    }
+              if (!updatedRecipeRows?.length) {
+                throw new Error(
+                  `Recipe sync matched zero rows for "${recipeRow.recipe_name}".`
+                );
+              }
 
-    if (insertedRecipeRows?.[0]) {
-      syncedRecipes.push(insertedRecipeRows[0]);
-      newlyCreatedRecipeIds.push(insertedRecipeRows[0].id);
-    }
-  }
-}
+              syncedRecipes.push(updatedRecipeRows[0]);
+            } else {
+              const {
+                data: insertedRecipeRows,
+                error: insertRecipeError,
+              } = await supabase
+                .from("recipes")
+                .insert([
+                  {
+                    ...recipeRow,
+                    is_active: true,
+                    last_seen_at: now,
+                  },
+                ])
+                .select();
 
-const insertedRecipes = syncedRecipes;
+              if (insertRecipeError) {
+                throw insertRecipeError;
+              }
 
-console.log("RECIPE SYNCED RECIPES:", insertedRecipes);
-console.log(
-  "RECIPE NEWLY CREATED IDS:",
-  newlyCreatedRecipeIds
-);
+              if (!insertedRecipeRows?.[0]) {
+                throw new Error(
+                  `Recipe insert returned no row for "${recipeRow.recipe_name}".`
+                );
+              }
 
-const insertedRecipeByName = new Map(
-  (insertedRecipes || []).map((recipe) => [
-    String(recipe.recipe_name || "").trim(),
-    recipe,
-  ])
-);
+              syncedRecipes.push(insertedRecipeRows[0]);
+
+              newlyCreatedRecipeIds.push(
+                insertedRecipeRows[0].id
+              );
+            }
+          }
+
+          const insertedRecipes = syncedRecipes;
+
+          console.log(
+            "RECIPE SYNCED RECIPES:",
+            insertedRecipes
+          );
+
+          console.log(
+            "RECIPE NEWLY CREATED IDS:",
+            newlyCreatedRecipeIds
+          );
+
+          const insertedRecipeByName = new Map(
+            (insertedRecipes || []).map((recipe) => [
+              String(recipe.recipe_name || "")
+                .trim()
+                .toLowerCase(),
+              recipe,
+            ])
+          );
+
+          // ============================================
+          // BUILD CANONICAL RECIPE INGREDIENT ROWS
+          // ============================================
 
           const ingredientRows = [];
 
           for (const [recipeName, group] of recipeMap) {
-            const recipeInsert = insertedRecipeByName.get(String(recipeName).trim());
+            const recipeInsert = insertedRecipeByName.get(
+              String(recipeName).trim().toLowerCase()
+            );
 
             if (!recipeInsert?.id) continue;
 
             group.ingredients.forEach((row) => {
-              const quantity = Number(row.quantity || row.Quantity || row.qty || row.Qty || 0);
+              const quantity = Number(
+                row.quantity ||
+                  row.Quantity ||
+                  row.qty ||
+                  row.Qty ||
+                  0
+              );
 
               const costPerUnit = Number(
                 row.cost_per_unit ||
@@ -42596,30 +42668,46 @@ const insertedRecipeByName = new Map(
                   0
               );
 
+              const ingredientName = String(
+                row.ingredient_name ||
+                  row["Ingredient Name"] ||
+                  row.ingredient ||
+                  row.Ingredient ||
+                  row["ingredient"] ||
+                  row.item ||
+                  row.Item ||
+                  "Ingredient"
+              ).trim();
+
+              if (!ingredientName) return;
+
               ingredientRows.push({
                 user_id: currentUser.id,
                 upload_id: uploadRow.id,
                 recipe_id: recipeInsert.id,
-location_id: selectedUploadLocationId || null,
-connection_id: null,
-is_active: true,
-last_seen_at: new Date().toISOString(),
-                location_name:
-                  activeLocation !== "all" ? activeLocation : assignedLocation || null,
 
-               ingredient_name:
-  row.ingredient_name ||
-  row["Ingredient Name"] ||
-  row.ingredient ||
-  row.Ingredient ||
-  row["ingredient"] ||
-  row.item ||
-  row.Item ||
-  "Ingredient",
+                location_id:
+                  selectedUploadLocationId || null,
+
+                connection_id: null,
+                is_active: true,
+                last_seen_at: now,
+
+                location_name:
+                  activeLocation !== "all"
+                    ? activeLocation
+                    : assignedLocation || null,
+
+                ingredient_name: ingredientName,
 
                 quantity,
 
-                unit: row.unit || row.Unit || row.uom || row.UOM || null,
+                unit:
+                  row.unit ||
+                  row.Unit ||
+                  row.uom ||
+                  row.UOM ||
+                  null,
 
                 cost_per_unit: costPerUnit,
                 total_cost: quantity * costPerUnit,
@@ -42627,182 +42715,479 @@ last_seen_at: new Date().toISOString(),
             });
           }
 
-          console.log("RECIPE ingredientRows:", ingredientRows);
+          console.log(
+            "RECIPE ingredientRows:",
+            ingredientRows
+          );
 
-          let insertedIngredients = [];
+          // ============================================
+          // CANONICAL RECIPE INGREDIENT SYNC
+          // Identity:
+          // user + recipe + location + ingredient name
+          // ============================================
+
+          const insertedIngredients = [];
 
           if (ingredientRows.length) {
-            const { data: ingredientInsert, error: ingredientError } = await supabase
+            const recipeIds = [
+              ...new Set(
+                ingredientRows
+                  .map((row) => row.recipe_id)
+                  .filter(Boolean)
+              ),
+            ];
+
+            const {
+              data: existingIngredientRows,
+              error: existingIngredientError,
+            } = await supabase
               .from("recipe_ingredients")
-              .insert(ingredientRows)
-              .select();
+              .select("*")
+              .eq("user_id", currentUser.id)
+              .in("recipe_id", recipeIds);
 
-            console.log("RECIPE ingredientInsert:", ingredientInsert);
-            console.log("RECIPE ingredientError:", ingredientError);
-if (ingredientError) {
-  console.error("RECIPE INGREDIENT ERROR:", {
-    message: ingredientError.message,
-    details: ingredientError.details,
-    hint: ingredientError.hint,
-    code: ingredientError.code,
-  });
+            if (existingIngredientError) {
+              throw existingIngredientError;
+            }
 
-  await supabase
-    .from("recipe_usage_rules")
-    .delete()
-    .eq("upload_id", uploadRow.id);
+            for (const ingredientRow of ingredientRows) {
+              const normalizedIngredientName = String(
+                ingredientRow.ingredient_name || ""
+              )
+                .trim()
+                .toLowerCase();
 
-  await supabase
-    .from("recipe_ingredients")
-    .delete()
-    .eq("upload_id", uploadRow.id);
+              const incomingLocationId =
+                ingredientRow.location_id || null;
 
-if (newlyCreatedRecipeIds.length) {
-  await supabase
-    .from("recipes")
-    .delete()
-    .in("id", newlyCreatedRecipeIds)
-    .eq("user_id", currentUser.id);
-}
+              const existingIngredient = (
+                existingIngredientRows || []
+              ).find((existingRow) => {
+                const existingName = String(
+                  existingRow.ingredient_name || ""
+                )
+                  .trim()
+                  .toLowerCase();
 
-  await supabase
-    .from("uploads")
-    .delete()
-    .eq("id", uploadRow.id);
+                const existingLocationId =
+                  existingRow.location_id || null;
 
-  throw ingredientError;
-}
+                return (
+                  existingRow.recipe_id ===
+                    ingredientRow.recipe_id &&
+                  existingName ===
+                    normalizedIngredientName &&
+                  existingLocationId ===
+                    incomingLocationId
+                );
+              });
 
-            insertedIngredients = ingredientInsert || [];
-            const recipeUsageRuleRows = [];
+              if (existingIngredient) {
+                const {
+                  data: updatedIngredientRows,
+                  error: updateIngredientError,
+                } = await supabase
+                  .from("recipe_ingredients")
+                  .update({
+                    quantity: Number(
+                      ingredientRow.quantity || 0
+                    ),
 
-for (const [recipeName, group] of recipeMap) {
-  const recipeInsert = insertedRecipeByName.get(
-    String(recipeName).trim()
-  );
+                    unit: ingredientRow.unit || null,
 
-  if (!recipeInsert?.id) continue;
+                    cost_per_unit: Number(
+                      ingredientRow.cost_per_unit || 0
+                    ),
 
-  const menuItemName =
-    recipeInsert.menu_item_name ||
-    group.recipe?.menu_item_name ||
-    recipeName;
+                    total_cost: Number(
+                      ingredientRow.total_cost || 0
+                    ),
 
-  group.ingredients.forEach((row) => {
-    const ingredientName = String(
-      row.ingredient_name ||
-        row["Ingredient Name"] ||
-        row.ingredient ||
-        row.Ingredient ||
-        row["ingredient"] ||
-        row.item ||
-        row.Item ||
-        ""
-    ).trim();
+                    location_id: incomingLocationId,
 
-    const amountUsed = Number(
-      row.quantity ||
-        row.Quantity ||
-        row.qty ||
-        row.Qty ||
-        row.amount_used ||
-        row["Amount Used"] ||
-        0
-    );
+                    location_name:
+                      ingredientRow.location_name ||
+                      existingIngredient.location_name ||
+                      null,
 
-    const unit = String(
-      row.unit ||
-        row.Unit ||
-        row.uom ||
-        row.UOM ||
-        ""
-    ).trim();
+                    connection_id:
+                      ingredientRow.connection_id ||
+                      existingIngredient.connection_id ||
+                      null,
 
-    if (!ingredientName || !Number.isFinite(amountUsed) || amountUsed <= 0) {
-      return;
-    }
+                    is_active: true,
+                    last_seen_at: now,
+                  })
+                  .eq("id", existingIngredient.id)
+                  .eq("user_id", currentUser.id)
+                  .select();
 
- recipeUsageRuleRows.push({
-  user_id: currentUser.id,
+                if (updateIngredientError) {
+                  throw updateIngredientError;
+                }
 
-  recipe_id: recipeInsert.id,
-  location_id: selectedUploadLocationId || null,
-  connection_id: null,
+                if (!updatedIngredientRows?.length) {
+                  throw new Error(
+                    `Recipe ingredient sync matched zero rows for "${ingredientRow.ingredient_name}".`
+                  );
+                }
 
-  menu_item: menuItemName,
-  ingredient: ingredientName,
-  amount_used: amountUsed,
-  unit: unit || null,
+                insertedIngredients.push(
+                  updatedIngredientRows[0]
+                );
+              } else {
+                const {
+                  data: insertedIngredientRows,
+                  error: insertIngredientError,
+                } = await supabase
+                  .from("recipe_ingredients")
+                  .insert([
+                    {
+                      ...ingredientRow,
+                      is_active: true,
+                      last_seen_at: now,
+                    },
+                  ])
+                  .select();
 
-  upload_id: uploadRow.id,
-  is_active: true,
-  last_seen_at: new Date().toISOString(),
-});
-  });
-}
+                if (insertIngredientError) {
+                  throw insertIngredientError;
+                }
 
+                if (!insertedIngredientRows?.[0]) {
+                  throw new Error(
+                    `Recipe ingredient insert returned no row for "${ingredientRow.ingredient_name}".`
+                  );
+                }
 
+                insertedIngredients.push(
+                  insertedIngredientRows[0]
+                );
 
-if (recipeUsageRuleRows.length) {
-  const {
-    data: usageRuleInsert,
-    error: usageRuleError,
-  } = await supabase
-    .from("recipe_usage_rules")
-    .insert(recipeUsageRuleRows)
-    .select();
-
-  if (usageRuleError) {
-    console.error("RECIPE USAGE RULE INSERT ERROR:", {
-      message: usageRuleError.message,
-      details: usageRuleError.details,
-      hint: usageRuleError.hint,
-      code: usageRuleError.code,
-    });
-
-    throw usageRuleError;
-  }
-
-  insertedRecipeUsageRules = usageRuleInsert || [];
-}
+                newlyCreatedRecipeIngredientIds.push(
+                  insertedIngredientRows[0].id
+                );
+              }
+            }
           }
+
+          console.log(
+            "RECIPE CANONICAL INGREDIENTS:",
+            insertedIngredients
+          );
+
+          // ============================================
+          // BUILD RECIPE USAGE RULE ROWS
+          // ============================================
+
+          const recipeUsageRuleRows = [];
+
+          for (const [recipeName, group] of recipeMap) {
+            const recipeInsert = insertedRecipeByName.get(
+              String(recipeName).trim().toLowerCase()
+            );
+
+            if (!recipeInsert?.id) continue;
+
+            const menuItemName =
+              recipeInsert.menu_item_name ||
+              group.recipe?.menu_item_name ||
+              recipeName;
+
+            group.ingredients.forEach((row) => {
+              const ingredientName = String(
+                row.ingredient_name ||
+                  row["Ingredient Name"] ||
+                  row.ingredient ||
+                  row.Ingredient ||
+                  row["ingredient"] ||
+                  row.item ||
+                  row.Item ||
+                  ""
+              ).trim();
+
+              const amountUsed = Number(
+                row.quantity ||
+                  row.Quantity ||
+                  row.qty ||
+                  row.Qty ||
+                  row.amount_used ||
+                  row["Amount Used"] ||
+                  0
+              );
+
+              const unit = String(
+                row.unit ||
+                  row.Unit ||
+                  row.uom ||
+                  row.UOM ||
+                  ""
+              ).trim();
+
+              if (
+                !ingredientName ||
+                !Number.isFinite(amountUsed) ||
+                amountUsed <= 0
+              ) {
+                return;
+              }
+
+              recipeUsageRuleRows.push({
+                user_id: currentUser.id,
+
+                recipe_id: recipeInsert.id,
+                location_id:
+                  selectedUploadLocationId || null,
+                connection_id: null,
+
+                menu_item: menuItemName,
+                ingredient: ingredientName,
+                amount_used: amountUsed,
+                unit: unit || null,
+
+                upload_id: uploadRow.id,
+                is_active: true,
+                last_seen_at: now,
+              });
+            });
+          }
+
+          // ============================================
+          // CANONICAL RECIPE USAGE RULE SYNC
+          // Identity:
+          // user + recipe + location + ingredient
+          // ============================================
+
+          const insertedRecipeUsageRules = [];
+
+          if (recipeUsageRuleRows.length) {
+            const recipeIds = [
+              ...new Set(
+                recipeUsageRuleRows
+                  .map((row) => row.recipe_id)
+                  .filter(Boolean)
+              ),
+            ];
+
+            const {
+              data: existingUsageRuleRows,
+              error: existingUsageRuleError,
+            } = await supabase
+              .from("recipe_usage_rules")
+              .select("*")
+              .eq("user_id", currentUser.id)
+              .in("recipe_id", recipeIds);
+
+            if (existingUsageRuleError) {
+              throw existingUsageRuleError;
+            }
+
+            for (const usageRuleRow of recipeUsageRuleRows) {
+              const normalizedIngredientName = String(
+                usageRuleRow.ingredient || ""
+              )
+                .trim()
+                .toLowerCase();
+
+              const incomingLocationId =
+                usageRuleRow.location_id || null;
+
+              const existingUsageRule = (
+                existingUsageRuleRows || []
+              ).find((existingRow) => {
+                const existingIngredientName = String(
+                  existingRow.ingredient || ""
+                )
+                  .trim()
+                  .toLowerCase();
+
+                const existingLocationId =
+                  existingRow.location_id || null;
+
+                return (
+                  existingRow.recipe_id ===
+                    usageRuleRow.recipe_id &&
+                  existingIngredientName ===
+                    normalizedIngredientName &&
+                  existingLocationId ===
+                    incomingLocationId
+                );
+              });
+
+              if (existingUsageRule) {
+                const {
+                  data: updatedUsageRuleRows,
+                  error: updateUsageRuleError,
+                } = await supabase
+                  .from("recipe_usage_rules")
+                  .update({
+                    menu_item:
+                      usageRuleRow.menu_item ||
+                      existingUsageRule.menu_item ||
+                      null,
+
+                    ingredient:
+                      usageRuleRow.ingredient,
+
+                    amount_used: Number(
+                      usageRuleRow.amount_used || 0
+                    ),
+
+                    unit: usageRuleRow.unit || null,
+
+                    location_id: incomingLocationId,
+
+                    connection_id:
+                      usageRuleRow.connection_id ||
+                      existingUsageRule.connection_id ||
+                      null,
+
+                    is_active: true,
+                    last_seen_at: now,
+                  })
+                  .eq("id", existingUsageRule.id)
+                  .eq("user_id", currentUser.id)
+                  .select();
+
+                if (updateUsageRuleError) {
+                  throw updateUsageRuleError;
+                }
+
+                if (!updatedUsageRuleRows?.length) {
+                  throw new Error(
+                    `Recipe usage rule sync matched zero rows for "${usageRuleRow.ingredient}".`
+                  );
+                }
+
+                insertedRecipeUsageRules.push(
+                  updatedUsageRuleRows[0]
+                );
+              } else {
+                const {
+                  data: insertedUsageRuleRows,
+                  error: insertUsageRuleError,
+                } = await supabase
+                  .from("recipe_usage_rules")
+                  .insert([
+                    {
+                      ...usageRuleRow,
+                      is_active: true,
+                      last_seen_at: now,
+                    },
+                  ])
+                  .select();
+
+                if (insertUsageRuleError) {
+                  throw insertUsageRuleError;
+                }
+
+                if (!insertedUsageRuleRows?.[0]) {
+                  throw new Error(
+                    `Recipe usage rule insert returned no row for "${usageRuleRow.ingredient}".`
+                  );
+                }
+
+                insertedRecipeUsageRules.push(
+                  insertedUsageRuleRows[0]
+                );
+
+                newlyCreatedRecipeUsageRuleIds.push(
+                  insertedUsageRuleRows[0].id
+                );
+              }
+            }
+          }
+
+          console.log(
+            "RECIPE CANONICAL USAGE RULES:",
+            insertedRecipeUsageRules
+          );
 
           const cleanUploadRow = {
             ...uploadRow,
             status: "completed",
             upload_type: "recipes",
             source_name: "recipe_upload",
-            row_count: insertedRecipes?.length || recipeRows.length || 0,
+            row_count:
+              insertedRecipes?.length ||
+              recipeRows.length ||
+              0,
           };
 
-          setRecipes((prev) => [...(insertedRecipes || []), ...(prev || [])]);
+          // ============================================
+          // MERGE CANONICAL ROWS INTO REACT STATE
+          // Do not duplicate an existing UUID in memory.
+          // ============================================
 
-          setRecipeIngredients((prev) => [
-            ...insertedIngredients,
-            ...(prev || []),
-          ]);
-setRecipeUsageRules((prev) => [
-  ...insertedRecipeUsageRules,
-  ...(prev || []).filter(
-    (rule) =>
-      String(rule.upload_id || "") !== String(uploadRow.id || "")
-  ),
-]);
+          setRecipes((prev) => {
+            const syncedIds = new Set(
+              (insertedRecipes || []).map((row) =>
+                String(row.id)
+              )
+            );
+
+            return [
+              ...(insertedRecipes || []),
+              ...(prev || []).filter(
+                (row) => !syncedIds.has(String(row.id))
+              ),
+            ];
+          });
+
+          setRecipeIngredients((prev) => {
+            const syncedIds = new Set(
+              (insertedIngredients || []).map((row) =>
+                String(row.id)
+              )
+            );
+
+            return [
+              ...(insertedIngredients || []),
+              ...(prev || []).filter(
+                (row) => !syncedIds.has(String(row.id))
+              ),
+            ];
+          });
+
+          setRecipeUsageRules((prev) => {
+            const syncedIds = new Set(
+              (insertedRecipeUsageRules || []).map(
+                (row) => String(row.id)
+              )
+            );
+
+            return [
+              ...(insertedRecipeUsageRules || []),
+              ...(prev || []).filter(
+                (row) => !syncedIds.has(String(row.id))
+              ),
+            ];
+          });
+
           setClientImports((prev) => [
             cleanUploadRow,
-            ...(prev || []).filter((item) => item.id !== optimisticUpload.id),
+            ...(prev || []).filter(
+              (item) => item.id !== optimisticUpload.id
+            ),
           ]);
 
           setRecentUploads((prev) => [
             cleanUploadRow,
-            ...(prev || []).filter((item) => item.id !== optimisticUpload.id),
+            ...(prev || []).filter(
+              (item) => item.id !== optimisticUpload.id
+            ),
           ]);
 
           setPendingUploadSummary(null);
           setPendingUploadRows([]);
           pendingUploadRowsRef.current = [];
 
-          setMessage(`Imported ${insertedRecipes?.length || recipeRows.length} recipe card(s).`);
+          setMessage(
+            `Imported ${
+              insertedRecipes?.length ||
+              recipeRows.length
+            } recipe card(s).`
+          );
 
           event.target.value = "";
 
@@ -42810,52 +43195,92 @@ setRecipeUsageRules((prev) => [
             action: "uploaded_recipes",
             entityType: "upload",
             entityId: uploadRow?.id || null,
-            details: `Uploaded ${insertedRecipes?.length || recipeRows.length} recipe card(s).`,
+            details: `Uploaded ${
+              insertedRecipes?.length ||
+              recipeRows.length
+            } recipe card(s).`,
           }).catch((auditError) => {
-            console.warn("Recipe audit log failed:", auditError);
+            console.warn(
+              "Recipe audit log failed:",
+              auditError
+            );
           });
         } catch (innerError) {
-          console.error("Recipe upload inner error:", innerError);
+          console.error(
+            "Recipe upload inner error:",
+            innerError
+          );
 
-         if (uploadRow?.id) {
-  await supabase
-    .from("recipe_usage_rules")
-    .delete()
-    .eq("upload_id", uploadRow.id);
+          if (uploadRow?.id) {
+            // Remove only NEW child rows created by this failed sync.
+            if (newlyCreatedRecipeUsageRuleIds.length) {
+              await supabase
+                .from("recipe_usage_rules")
+                .delete()
+                .in(
+                  "id",
+                  newlyCreatedRecipeUsageRuleIds
+                )
+                .eq("user_id", currentUser.id);
+            }
 
-  await supabase
-    .from("recipe_ingredients")
-    .delete()
-    .eq("upload_id", uploadRow.id);
+            if (newlyCreatedRecipeIngredientIds.length) {
+              await supabase
+                .from("recipe_ingredients")
+                .delete()
+                .in(
+                  "id",
+                  newlyCreatedRecipeIngredientIds
+                )
+                .eq("user_id", currentUser.id);
+            }
 
- if (newlyCreatedRecipeIds.length) {
-  await supabase
-    .from("recipes")
-    .delete()
-    .in("id", newlyCreatedRecipeIds)
-    .eq("user_id", currentUser.id);
-}
+            if (newlyCreatedRecipeIds.length) {
+              await supabase
+                .from("recipes")
+                .delete()
+                .in("id", newlyCreatedRecipeIds)
+                .eq("user_id", currentUser.id);
+            }
 
-  await supabase
-    .from("uploads")
-    .delete()
-    .eq("id", uploadRow.id);
-}
+            await supabase
+              .from("uploads")
+              .delete()
+              .eq("id", uploadRow.id);
+          }
 
-          setMessage(innerError?.message || "Recipe upload failed.");
-          alert(innerError?.message || "Recipe upload failed.");
+          setMessage(
+            innerError?.message ||
+              "Recipe upload failed."
+          );
+
+          alert(
+            innerError?.message ||
+              "Recipe upload failed."
+          );
         }
       },
 
       error: (parseError) => {
-        console.error("Recipe CSV parse failed:", parseError);
+        console.error(
+          "Recipe CSV parse failed:",
+          parseError
+        );
+
         setMessage("Recipe CSV parse failed.");
-        alert(`Recipe CSV parse failed: ${parseError.message}`);
+
+        alert(
+          `Recipe CSV parse failed: ${parseError.message}`
+        );
       },
     });
   } catch (error) {
     console.error("Recipe upload crashed:", error);
-    setMessage("Recipe upload failed. Check console.");
+
+    setMessage(
+      "Recipe upload failed. Check console."
+    );
+
     alert(error?.message || "Recipe upload failed.");
   }
 };
