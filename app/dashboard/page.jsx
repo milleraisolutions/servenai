@@ -42729,22 +42729,13 @@ const handleRecipeUpload = async (event) => {
           const insertedIngredients = [];
 
           if (ingredientRows.length) {
-            const recipeIds = [
-              ...new Set(
-                ingredientRows
-                  .map((row) => row.recipe_id)
-                  .filter(Boolean)
-              ),
-            ];
-
-            const {
-              data: existingIngredientRows,
-              error: existingIngredientError,
-            } = await supabase
-              .from("recipe_ingredients")
-              .select("*")
-              .eq("user_id", currentUser.id)
-              .in("recipe_id", recipeIds);
+         const {
+  data: existingIngredientRows,
+  error: existingIngredientError,
+} = await supabase
+  .from("recipe_ingredients")
+  .select("*")
+  .eq("user_id", currentUser.id);
 
             if (existingIngredientError) {
               throw existingIngredientError;
@@ -42970,13 +42961,12 @@ const handleRecipeUpload = async (event) => {
             ];
 
             const {
-              data: existingUsageRuleRows,
-              error: existingUsageRuleError,
-            } = await supabase
-              .from("recipe_usage_rules")
-              .select("*")
-              .eq("user_id", currentUser.id)
-              .in("recipe_id", recipeIds);
+  data: existingUsageRuleRows,
+  error: existingUsageRuleError,
+} = await supabase
+  .from("recipe_usage_rules")
+  .select("*")
+  .eq("user_id", currentUser.id);
 
             if (existingUsageRuleError) {
               throw existingUsageRuleError;
