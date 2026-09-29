@@ -42305,13 +42305,20 @@ const handleRecipeUpload = async (event) => {
 
     setMessage("Importing recipe cards...");
 
-    const currentUser = user;
+const currentUser = user;
 
-    if (!currentUser?.id) {
-      setMessage("You must be logged in to upload recipes.");
-      alert("You must be logged in to upload recipes.");
-      return;
-    }
+const recipeOwnerId =
+  dataOwnerId ||
+  authenticatedUserId ||
+  userProfile?.owner_user_id ||
+  currentUser?.id ||
+  null;
+
+if (!recipeOwnerId) {
+  setMessage("You must be logged in to upload recipes.");
+  alert("You must be logged in to upload recipes.");
+  return;
+}
 
     Papa.parse(file, {
       header: true,
@@ -42360,7 +42367,7 @@ const handleRecipeUpload = async (event) => {
             if (!recipeMap.has(recipeName)) {
               recipeMap.set(recipeName, {
                 recipe: {
-                  user_id: currentUser.id,
+                  user_id: recipeOwnerId,
                   upload_id: null,
 
                   location_id: selectedUploadLocationId || null,
@@ -42430,7 +42437,7 @@ const handleRecipeUpload = async (event) => {
               .from("uploads")
               .insert([
                 {
-                  user_id: currentUser.id,
+                  user_id: recipeOwnerId,
                   file_name: fileName,
                   source_name: "recipe_upload",
                   row_count: rows.length,
@@ -42484,7 +42491,7 @@ const handleRecipeUpload = async (event) => {
           } = await supabase
             .from("recipes")
             .select("*")
-            .eq("user_id", currentUser.id);
+            .eq("user_id", recipeOwnerId);
 
           if (existingRecipeError) {
             throw existingRecipeError;
@@ -42568,7 +42575,7 @@ const handleRecipeUpload = async (event) => {
                   last_seen_at: now,
                 })
                 .eq("id", existingRecipe.id)
-                .eq("user_id", currentUser.id)
+                .eq("user_id", recipeOwnerId)
                 .select();
 
               if (updateRecipeError) {
@@ -42682,7 +42689,7 @@ const handleRecipeUpload = async (event) => {
               if (!ingredientName) return;
 
               ingredientRows.push({
-                user_id: currentUser.id,
+                user_id: recipeOwnerId,
                 upload_id: uploadRow.id,
                 recipe_id: recipeInsert.id,
 
@@ -42735,7 +42742,7 @@ const handleRecipeUpload = async (event) => {
 } = await supabase
   .from("recipe_ingredients")
   .select("*")
-  .eq("user_id", currentUser.id);
+  .eq("user_id", recipeOwnerId);
 
             if (existingIngredientError) {
               throw existingIngredientError;
@@ -42811,7 +42818,7 @@ return (
                     last_seen_at: now,
                   })
                   .eq("id", existingIngredient.id)
-                  .eq("user_id", currentUser.id)
+                  .eq("user_id", recipeOwnerId)
                   .select();
 
                 if (updateIngredientError) {
@@ -42925,7 +42932,7 @@ return (
               }
 
               recipeUsageRuleRows.push({
-                user_id: currentUser.id,
+                user_id: recipeOwnerId,
 
                 recipe_id: recipeInsert.id,
                 location_id:
@@ -42967,7 +42974,7 @@ return (
 } = await supabase
   .from("recipe_usage_rules")
   .select("*")
-  .eq("user_id", currentUser.id);
+  .eq("user_id", recipeOwnerId);
 
             if (existingUsageRuleError) {
               throw existingUsageRuleError;
@@ -43037,7 +43044,7 @@ return (
                     last_seen_at: now,
                   })
                   .eq("id", existingUsageRule.id)
-                  .eq("user_id", currentUser.id)
+                  .eq("user_id", recipeOwnerId)
                   .select();
 
                 if (updateUsageRuleError) {
@@ -43212,7 +43219,7 @@ return (
                   "id",
                   newlyCreatedRecipeUsageRuleIds
                 )
-                .eq("user_id", currentUser.id);
+                .eq("user_id", recipeOwnerId);
             }
 
             if (newlyCreatedRecipeIngredientIds.length) {
@@ -43223,7 +43230,7 @@ return (
                   "id",
                   newlyCreatedRecipeIngredientIds
                 )
-                .eq("user_id", currentUser.id);
+                .eq("user_id", recipeOwnerId);
             }
 
             if (newlyCreatedRecipeIds.length) {
@@ -43231,7 +43238,7 @@ return (
                 .from("recipes")
                 .delete()
                 .in("id", newlyCreatedRecipeIds)
-                .eq("user_id", currentUser.id);
+                .eq("user_id", recipeOwnerId);
             }
 
             await supabase
