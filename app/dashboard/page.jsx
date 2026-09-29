@@ -42740,7 +42740,15 @@ const handleRecipeUpload = async (event) => {
             if (existingIngredientError) {
               throw existingIngredientError;
             }
+console.log(
+  "RECIPE EXISTING INGREDIENT ROWS:",
+  existingIngredientRows
+);
 
+console.log(
+  "RECIPE INCOMING INGREDIENT ROWS:",
+  ingredientRows
+);
             for (const ingredientRow of ingredientRows) {
               const normalizedIngredientName = String(
                 ingredientRow.ingredient_name || ""
@@ -42761,16 +42769,39 @@ const handleRecipeUpload = async (event) => {
                   .toLowerCase();
 
                 const existingLocationId =
-                  existingRow.location_id || null;
+  existingRow.location_id || null;
 
-                return (
-                  existingRow.recipe_id ===
-                    ingredientRow.recipe_id &&
-                  existingName ===
-                    normalizedIngredientName &&
-                  existingLocationId ===
-                    incomingLocationId
-                );
+console.log("RECIPE INGREDIENT MATCH CHECK:", {
+  existingId: existingRow.id,
+
+  existingRecipeId: existingRow.recipe_id,
+  incomingRecipeId: ingredientRow.recipe_id,
+
+  recipeIdMatches:
+    String(existingRow.recipe_id || "") ===
+    String(ingredientRow.recipe_id || ""),
+
+  existingName,
+  normalizedIngredientName,
+
+  nameMatches:
+    existingName === normalizedIngredientName,
+
+  existingLocationId,
+  incomingLocationId,
+
+  locationMatches:
+    existingLocationId === incomingLocationId,
+});
+
+return (
+  existingRow.recipe_id ===
+    ingredientRow.recipe_id &&
+  existingName ===
+    normalizedIngredientName &&
+  existingLocationId ===
+    incomingLocationId
+);
               });
 
               if (existingIngredient) {
