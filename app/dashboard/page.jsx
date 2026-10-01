@@ -47602,8 +47602,8 @@ const handleBeverageUpload = async (event) => {
   }
 
   let uploadRow = null;
-  let optimisticUpload = null;
-
+let optimisticUpload = null;
+let importCommitted = false;
   try {
     setMessage("Importing beverage data...");
 
