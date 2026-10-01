@@ -1400,12 +1400,23 @@ const filterByActiveLocation = (rows = []) => {
     return normalizedRowLocation === normalizedActiveLocation;
   });
 };
-const resolvedSalesData =
+const resolvedSalesDataRaw =
   Array.isArray(dbSalesRows) && dbSalesRows.length > 0
     ? dbSalesRows
     : Array.isArray(salesData)
     ? salesData
     : [];
+
+const resolvedSalesData = resolvedSalesDataRaw.filter((sale) => {
+  const isVoided =
+    sale?.is_voided === true ||
+    String(sale?.is_voided || "").toLowerCase() === "true";
+
+  const isProviderDeleted =
+    Boolean(sale?.provider_deleted_at);
+
+  return !isVoided && !isProviderDeleted;
+});
 
 const locationSalesData =
   filterByActiveLocation(resolvedSalesData);
@@ -3560,7 +3571,10 @@ const laborRows =
   locationLaborData,
 ]);
 const realSalesMetrics = useMemo(() => {
-  const rows = dbSalesRows || [];
+const rows =
+  Array.isArray(resolvedSalesData)
+    ? resolvedSalesData
+    : [];
 
   const cleanRows = rows.filter((row) => {
     const revenue = Number(row.revenue || 0);
@@ -3637,7 +3651,7 @@ const realSalesMetrics = useMemo(() => {
     hasDbSales: cleanRows.length > 0,
     hasTodaySales: todayRows.length > 0,
   };
-}, [dbSalesRows]);
+}, [resolvedSalesData]);
 const loadedSalesPeriod = useMemo(() => {
   const rows = Array.isArray(dbSalesRows) ? dbSalesRows : [];
 
@@ -4823,24 +4837,21 @@ const secondaryButtonStyle = {
 
 
 
-
 const safeSalesRows =
-  dbSalesRows?.length
-    ? dbSalesRows
-    : locationSalesData?.length
+  locationSalesData?.length
     ? locationSalesData
+    : resolvedSalesData?.length
+    ? resolvedSalesData
     : pendingUploadRows?.length
     ? pendingUploadRows
-    : salesData?.length
-    ? salesData
     : [];
 
 const revenueChartData = useMemo(() => {
   const sourceRows =
-    dbSalesRows?.length
-      ? dbSalesRows
-      : locationSalesData?.length
+    locationSalesData?.length
       ? locationSalesData
+      : resolvedSalesData?.length
+      ? resolvedSalesData
       : [];
 
   const grouped = {};
@@ -4872,7 +4883,7 @@ const revenueChartData = useMemo(() => {
       revenue,
     }))
     .sort((a, b) => new Date(a.date) - new Date(b.date));
-}, [dbSalesRows, locationSalesData]);
+}, [locationSalesData, resolvedSalesData]);
 
 // Temporary placeholder so old chart references don't crash
 const aiProfitTrendData = [];
@@ -7928,6 +7939,8 @@ const normalizePosRows = ({
   ownerId,
   sourceName = "Manual Upload",
   locationId = null,
+  connectionId = null,
+  externalIdType = null,
 }) => {
   if (!ownerId || !Array.isArray(incomingRows)) {
     return [];
@@ -7935,6 +7948,107 @@ const normalizePosRows = ({
 
   return incomingRows
     .map((row) => {
+      const rawExternalId =
+  row.external_id ||
+  row.externalId ||
+  row.transaction_id ||
+  row.transactionId ||
+  row.order_id ||
+  row.orderId ||
+  row.check_id ||
+  row.checkId ||
+  row.ticket_id ||
+  row.ticketId ||
+  null;
+
+const rawExternalIdType =
+  row.external_id_type ||
+  row.externalIdType ||
+  externalIdType ||
+  null;
+  const rawProviderUpdatedAt =
+  row.provider_updated_at ||
+  row.providerUpdatedAt ||
+  row.updated_at ||
+  row.updatedAt ||
+  row.modified_at ||
+  row.modifiedAt ||
+  row.last_modified_at ||
+  row.lastModifiedAt ||
+  null;
+const rawProviderStatus =
+  row.provider_status ||
+  row.providerStatus ||
+  row.status ||
+  row.order_status ||
+  row.orderStatus ||
+  row.payment_status ||
+  row.paymentStatus ||
+  null;
+
+const normalizedProviderStatus = rawProviderStatus
+  ? String(rawProviderStatus).trim().toLowerCase()
+  : null;
+
+const rawIsVoided =
+  row.is_voided ??
+  row.isVoided ??
+  row.voided ??
+  row.is_canceled ??
+  row.isCanceled ??
+  row.canceled ??
+  row.cancelled ??
+  null;
+
+const statusIndicatesVoid = [
+  "void",
+  "voided",
+  "cancelled",
+  "canceled",
+].includes(normalizedProviderStatus);
+
+const hasExplicitVoidSignal =
+  rawIsVoided !== null &&
+  rawIsVoided !== undefined &&
+  String(rawIsVoided).trim() !== "";
+
+const explicitVoidValue =
+  rawIsVoided === true ||
+  String(rawIsVoided).toLowerCase() === "true" ||
+  String(rawIsVoided) === "1";
+
+const isVoided =
+  statusIndicatesVoid
+    ? true
+    : hasExplicitVoidSignal
+    ? explicitVoidValue
+    : null;
+
+const rawProviderDeletedAt =
+  row.provider_deleted_at ||
+  row.providerDeletedAt ||
+  row.deleted_at ||
+  row.deletedAt ||
+  null;
+
+const parsedProviderDeletedAt = rawProviderDeletedAt
+  ? new Date(rawProviderDeletedAt)
+  : null;
+
+const providerDeletedAt =
+  parsedProviderDeletedAt &&
+  !Number.isNaN(parsedProviderDeletedAt.getTime())
+    ? parsedProviderDeletedAt.toISOString()
+    : null;
+const parsedProviderUpdatedAt = rawProviderUpdatedAt
+  ? new Date(rawProviderUpdatedAt)
+  : null;
+
+const providerUpdatedAt =
+  parsedProviderUpdatedAt &&
+  !Number.isNaN(parsedProviderUpdatedAt.getTime())
+    ? parsedProviderUpdatedAt.toISOString()
+    : null;
       const rawDate =
         row.sale_date ||
         row.date ||
@@ -8064,9 +8178,159 @@ const normalizePosRows = ({
         row["Location Name"] ||
         null;
 
-      const parsedDate = rawDate ? new Date(rawDate) : null;
+     const parsedDate = rawDate ? new Date(rawDate) : null;
 
-      return {
+const providedFields = {
+  sale_date:
+    rawDate !== null &&
+    rawDate !== undefined &&
+    String(rawDate).trim() !== "",
+
+  revenue:
+    [
+      "revenue",
+      "Revenue",
+      "sales",
+      "Sales",
+      "total_sales",
+      "totalSales",
+      "Total Sales",
+      "net_sales",
+      "netSales",
+      "Net Sales",
+      "gross_sales",
+      "grossSales",
+      "Gross Sales",
+      "amount",
+      "Amount",
+      "total",
+      "Total",
+    ].some((key) =>
+      Object.prototype.hasOwnProperty.call(row, key)
+    ),
+
+  orders_count:
+    [
+      "orders_count",
+      "ordersCount",
+      "orders",
+      "Orders",
+      "order_count",
+      "Order Count",
+      "check_count",
+      "Check Count",
+      "ticket_count",
+      "Ticket Count",
+      "transactions",
+      "Transactions",
+      "Guest Count",
+      "guests",
+      "Guests",
+    ].some((key) =>
+      Object.prototype.hasOwnProperty.call(row, key)
+    ),
+
+  labor:
+    [
+      "labor",
+      "labor_cost",
+      "Labor",
+      "Labor Cost",
+      "total_labor",
+      "total_labor_cost",
+      "Total Labor",
+      "Total Labor Cost",
+      "payroll",
+      "Payroll",
+      "wages",
+      "Wages",
+      "total_pay",
+      "Total Pay",
+      "gross_pay",
+      "Gross Pay",
+    ].some((key) =>
+      Object.prototype.hasOwnProperty.call(row, key)
+    ),
+
+  name:
+    [
+      "name",
+      "Name",
+      "item",
+      "Item",
+      "item_name",
+      "Item Name",
+      "menu_item",
+      "Menu Item",
+      "product",
+      "Product",
+    ].some((key) =>
+      Object.prototype.hasOwnProperty.call(row, key)
+    ),
+
+  quantity:
+    [
+      "quantity",
+      "Quantity",
+      "quantity_sold",
+      "Quantity Sold",
+      "qty_sold",
+      "Qty Sold",
+      "qty",
+      "Qty",
+    ].some((key) =>
+      Object.prototype.hasOwnProperty.call(row, key)
+    ),
+
+  shift:
+    [
+      "shift",
+      "Shift",
+      "daypart",
+      "Daypart",
+      "Day Part",
+      "meal_period",
+      "Meal Period",
+      "service_period",
+      "Service Period",
+    ].some((key) =>
+      Object.prototype.hasOwnProperty.call(row, key)
+    ),
+
+  order_time:
+    [
+      "time",
+      "Time",
+      "order_time",
+      "Order Time",
+      "check_time",
+      "Check Time",
+      "closed_time",
+      "Closed Time",
+      "opened_time",
+      "Opened Time",
+      "hour",
+      "Hour",
+    ].some((key) =>
+      Object.prototype.hasOwnProperty.call(row, key)
+    ),
+
+  location_name:
+    [
+      "location",
+      "Location",
+      "store",
+      "Store",
+      "restaurant",
+      "Restaurant",
+      "location_name",
+      "Location Name",
+    ].some((key) =>
+      Object.prototype.hasOwnProperty.call(row, key)
+    ),
+};
+
+return {
         user_id: ownerId,
 
         sale_date:
@@ -8097,16 +8361,56 @@ const normalizePosRows = ({
         order_time: rawTime || null,
         location_name: rawLocation,
 
-        source_name: sourceName || "Manual Upload",
-        location_id: locationId || null,
-      };
-    })
-    .filter(
-      (row) =>
-        row.sale_date &&
-        Number.isFinite(row.revenue) &&
-        row.revenue > 0
+      source_name: sourceName || "Manual Upload",
+location_id: locationId || null,
+connection_id: connectionId || null,
+
+external_id:
+  rawExternalId !== null &&
+  rawExternalId !== undefined &&
+  String(rawExternalId).trim() !== ""
+    ? String(rawExternalId).trim()
+    : null,
+
+external_id_type:
+  rawExternalIdType !== null &&
+  rawExternalIdType !== undefined &&
+  String(rawExternalIdType).trim() !== ""
+    ? String(rawExternalIdType).trim()
+    : null,
+
+provider_updated_at: providerUpdatedAt,
+provider_status: normalizedProviderStatus,
+is_voided: isVoided,
+provider_deleted_at: providerDeletedAt,
+
+_provided_fields: providedFields,
+};
+    }).filter((row) => {
+  const hasValidSaleDate = Boolean(row.sale_date);
+  const hasFiniteRevenue = Number.isFinite(row.revenue);
+
+  const hasProviderIdentity =
+    Boolean(row.connection_id) &&
+    Boolean(row.external_id);
+
+  const isProviderLifecycleRow =
+    hasProviderIdentity &&
+    (
+      row.is_voided === true ||
+      Boolean(row.provider_deleted_at)
     );
+
+  const isValidOperationalSale =
+    hasValidSaleDate &&
+    hasFiniteRevenue &&
+    row.revenue > 0;
+
+  return (
+    isValidOperationalSale ||
+    isProviderLifecycleRow
+  );
+});
 };
 
 
@@ -8116,6 +8420,7 @@ const ingestNormalizedPosRows = async ({
   fileName = "POS Upload",
   sourceName = "Manual Upload",
   locationId = null,
+  connectionId = null,
 }) => {
   if (!ownerId) {
     throw new Error("POS ingestion requires an owner ID.");
@@ -8161,24 +8466,378 @@ const ingestNormalizedPosRows = async ({
     );
   }
 
-  const finalSalesRows = normalizedRows.map((row) => ({
-    ...row,
-    user_id: ownerId,
-    upload_id: uploadedFileRow.id,
-  }));
+const finalSalesRows = normalizedRows.map((row) => ({
+  ...row,
 
-  console.log(
-    "POS INGEST SALES ROWS:",
-    finalSalesRows.length
-  );
+  user_id: ownerId,
+  upload_id: uploadedFileRow.id,
+
+  location_id:
+    row.location_id ||
+    locationId ||
+    null,
+
+  connection_id:
+    row.connection_id ||
+    connectionId ||
+    null,
+
+  external_id:
+    row.external_id !== null &&
+    row.external_id !== undefined &&
+    String(row.external_id).trim() !== ""
+      ? String(row.external_id).trim()
+      : null,
+
+  external_id_type:
+  row.external_id_type !== null &&
+  row.external_id_type !== undefined &&
+  String(row.external_id_type).trim() !== ""
+    ? String(row.external_id_type).trim()
+    : null,
+
+
+
+last_synced_at:
+  row.connection_id || connectionId
+    ? new Date().toISOString()
+    : null,
+}));
+const providerRows = finalSalesRows.filter(
+  (row) =>
+    row.connection_id &&
+    row.external_id
+);
+
+const manualRows = finalSalesRows.filter(
+  (row) =>
+    !row.connection_id ||
+    !row.external_id
+);
+let providerRowsToInsert = providerRows;
+const providerRowsToUpdate = [];
+const staleProviderRowsSeen = [];
+
+if (providerRows.length > 0) {
+  const connectionIds = [
+    ...new Set(
+      providerRows
+        .map((row) => row.connection_id)
+        .filter(Boolean)
+    ),
+  ];
+
+  const externalIds = [
+    ...new Set(
+      providerRows
+        .map((row) => String(row.external_id).trim())
+        .filter(Boolean)
+    ),
+  ];
 
   const {
-    data: insertedSales,
-    error: salesInsertError,
+    data: existingProviderSales,
+    error: existingProviderSalesError,
   } = await supabase
     .from("sales")
-    .insert(finalSalesRows)
+ .select(
+  "id, user_id, connection_id, external_id, external_id_type, location_id, upload_id, sale_date, revenue, orders_count, labor, name, quantity, shift, order_time, location_name, source_name, provider_updated_at, provider_status, is_voided, provider_deleted_at"
+)
+    .eq("user_id", ownerId)
+    .in("connection_id", connectionIds)
+    .in("external_id", externalIds);
+
+  if (existingProviderSalesError) {
+    throw existingProviderSalesError;
+  }
+
+  const existingProviderByKey = new Map(
+    (existingProviderSales || []).map((row) => {
+      const key =
+        `${row.connection_id}::` +
+        `${row.external_id_type || ""}::` +
+        `${String(row.external_id || "").trim()}`;
+
+      return [key, row];
+    })
+  );
+
+  const incomingProviderByKey = new Map();
+
+ providerRows.forEach((row) => {
+  const key =
+    `${row.connection_id}::` +
+    `${row.external_id_type || ""}::` +
+    `${String(row.external_id || "").trim()}`;
+
+  const existingIncoming =
+    incomingProviderByKey.get(key);
+
+  if (!existingIncoming) {
+    incomingProviderByKey.set(key, row);
+    return;
+  }
+
+  const incomingUpdatedAt =
+    row.provider_updated_at
+      ? new Date(row.provider_updated_at).getTime()
+      : null;
+
+  const existingIncomingUpdatedAt =
+    existingIncoming.provider_updated_at
+      ? new Date(
+          existingIncoming.provider_updated_at
+        ).getTime()
+      : null;
+
+  const shouldReplaceExistingIncoming =
+    incomingUpdatedAt !== null &&
+    (
+      existingIncomingUpdatedAt === null ||
+      incomingUpdatedAt >= existingIncomingUpdatedAt
+    );
+
+  if (shouldReplaceExistingIncoming) {
+    incomingProviderByKey.set(key, row);
+  }
+});
+
+  providerRowsToInsert = [];
+
+  for (const [key, row] of incomingProviderByKey.entries()) {
+    const existing = existingProviderByKey.get(key);
+
+   if (existing) {
+  const incomingProviderUpdatedAt =
+    row.provider_updated_at
+      ? new Date(row.provider_updated_at).getTime()
+      : null;
+
+  const existingProviderUpdatedAt =
+    existing.provider_updated_at
+      ? new Date(existing.provider_updated_at).getTime()
+      : null;
+
+  const incomingIsStale =
+    incomingProviderUpdatedAt !== null &&
+    existingProviderUpdatedAt !== null &&
+    incomingProviderUpdatedAt < existingProviderUpdatedAt;
+
+ if (!incomingIsStale) {
+  providerRowsToUpdate.push({
+    existing,
+    incoming: row,
+  });
+} else {
+  staleProviderRowsSeen.push({
+    existing,
+    incoming: row,
+  });
+}
+} else {
+  const isLifecycleOnlyProviderRow =
+    row.is_voided === true ||
+    Boolean(row.provider_deleted_at);
+
+  const hasCompleteNewSaleData =
+    Boolean(row.sale_date) &&
+    Number.isFinite(row.revenue) &&
+    row.revenue > 0;
+
+  if (!isLifecycleOnlyProviderRow && hasCompleteNewSaleData) {
+    providerRowsToInsert.push(row);
+  } else if (isLifecycleOnlyProviderRow) {
+    console.warn(
+      "POS INGEST SKIPPED UNMATCHED LIFECYCLE EVENT:",
+      {
+        connection_id: row.connection_id,
+        external_id: row.external_id,
+        external_id_type: row.external_id_type,
+        provider_status: row.provider_status,
+        is_voided: row.is_voided,
+        provider_deleted_at: row.provider_deleted_at,
+      }
+    );
+  }
+}
+  }
+}
+const salesRowsToInsert = [
+  ...manualRows,
+  ...providerRowsToInsert,
+].map((row) => {
+  const {
+    _provided_fields,
+    ...databaseRow
+  } = row;
+
+  return {
+    ...databaseRow,
+    is_voided:
+      row.is_voided === true,
+  };
+});
+
+if (providerRowsToUpdate.length > 0) {
+  for (const { existing, incoming } of providerRowsToUpdate) {
+    const providerUpdatePayload = {
+      sale_date:
+  incoming._provided_fields?.sale_date
+    ? incoming.sale_date
+    : existing.sale_date,
+
+revenue:
+  incoming._provided_fields?.revenue
+    ? incoming.revenue
+    : existing.revenue,
+
+orders_count:
+  incoming._provided_fields?.orders_count
+    ? incoming.orders_count
+    : existing.orders_count,
+
+labor:
+  incoming._provided_fields?.labor
+    ? incoming.labor
+    : existing.labor,
+
+name:
+  incoming._provided_fields?.name
+    ? incoming.name
+    : existing.name,
+
+quantity:
+  incoming._provided_fields?.quantity
+    ? incoming.quantity
+    : existing.quantity,
+
+shift:
+  incoming._provided_fields?.shift
+    ? incoming.shift
+    : existing.shift,
+
+order_time:
+  incoming._provided_fields?.order_time
+    ? incoming.order_time
+    : existing.order_time,
+
+location_name:
+  incoming._provided_fields?.location_name
+    ? incoming.location_name
+    : existing.location_name,
+
+source_name:
+  incoming.source_name ||
+  existing.source_name ||
+  null,
+
+      location_id:
+        incoming.location_id ||
+        existing.location_id ||
+        null,
+
+      connection_id: incoming.connection_id,
+
+      external_id: incoming.external_id,
+
+      external_id_type:
+  incoming.external_id_type ||
+  existing.external_id_type ||
+  null,
+
+provider_updated_at:
+  incoming.provider_updated_at ||
+  existing.provider_updated_at ||
+  null,
+
+provider_status:
+  incoming.provider_status ??
+  existing.provider_status ??
+  null,
+
+is_voided:
+  incoming.is_voided !== null &&
+  incoming.is_voided !== undefined
+    ? incoming.is_voided
+    : existing.is_voided === true,
+
+provider_deleted_at:
+  incoming.provider_deleted_at ??
+  existing.provider_deleted_at ??
+  null,
+
+last_synced_at: new Date().toISOString(),
+    };
+
+    const {
+      error: providerUpdateError,
+    } = await supabase
+      .from("sales")
+      .update(providerUpdatePayload)
+      .eq("id", existing.id)
+      .eq("user_id", ownerId);
+
+    if (providerUpdateError) {
+      console.error(
+        "POS PROVIDER UPDATE FAILED:",
+        existing.id,
+        providerUpdateError
+      );
+
+      throw providerUpdateError;
+    }
+  }
+}
+if (staleProviderRowsSeen.length > 0) {
+  const staleSeenAt = new Date().toISOString();
+
+  for (const { existing } of staleProviderRowsSeen) {
+    const {
+      error: staleProviderSeenError,
+    } = await supabase
+      .from("sales")
+      .update({
+        last_synced_at: staleSeenAt,
+      })
+      .eq("id", existing.id)
+      .eq("user_id", ownerId);
+
+    if (staleProviderSeenError) {
+      console.error(
+        "POS STALE PROVIDER SEEN UPDATE FAILED:",
+        existing.id,
+        staleProviderSeenError
+      );
+
+      throw staleProviderSeenError;
+    }
+  }
+}
+console.log("POS INGEST SALES ROWS:", {
+  normalizedCount: finalSalesRows.length,
+  manualCount: manualRows.length,
+  providerCount: providerRows.length,
+  providerNewCount: providerRowsToInsert.length,
+  providerUpdateCount: providerRowsToUpdate.length,
+  staleProviderSeenCount: staleProviderRowsSeen.length,
+  insertCount: salesRowsToInsert.length,
+});
+
+  let insertedSales = [];
+let salesInsertError = null;
+
+if (salesRowsToInsert.length > 0) {
+  const {
+    data,
+    error,
+  } = await supabase
+    .from("sales")
+    .insert(salesRowsToInsert)
     .select("*");
+
+  insertedSales = data || [];
+  salesInsertError = error;
+}
 
   if (salesInsertError) {
     console.error(
@@ -8238,10 +8897,17 @@ const handleImportMappedSales = async (rowsOverride = null) => {
       data: { user },
     } = await supabase.auth.getUser();
 
-    if (!user?.id) {
-      setMessage("You must be logged in");
-      return;
-    }
+  const posOwnerId =
+  dataOwnerId ||
+  authenticatedUserId ||
+  userProfile?.owner_user_id ||
+  user?.id ||
+  null;
+
+if (!posOwnerId) {
+  setMessage("You must be logged in");
+  return;
+}
 
     const posRows =
       rowsOverride?.length
@@ -8257,7 +8923,7 @@ const handleImportMappedSales = async (rowsOverride = null) => {
 
     const salesRows = normalizePosRows({
       incomingRows: posRows,
-      ownerId: user.id,
+      ownerId: posOwnerId,
       sourceName:
         selectedDataSource || "Manual Upload",
       locationId:
@@ -8283,7 +8949,7 @@ const handleImportMappedSales = async (rowsOverride = null) => {
       insertedSales,
       finalSalesRows,
     } = await ingestNormalizedPosRows({
-      ownerId: user.id,
+      ownerId: posOwnerId,
       normalizedRows: salesRows,
       fileName:
         uploadedFileName ||
@@ -8752,12 +9418,12 @@ const handleImportMenuItems = async (rowsOverride = null) => {
               ])
         );
 
-        const posRows =
-          dbSalesRows?.length
-            ? dbSalesRows
-            : locationSalesData?.length
-            ? locationSalesData
-            : salesData || [];
+       const posRows =
+  locationSalesData?.length
+    ? locationSalesData
+    : resolvedSalesData?.length
+    ? resolvedSalesData
+    : [];
 
         const matchingPOSRows = (posRows || []).filter((sale) => {
           const saleItemName = String(
@@ -9619,6 +10285,7 @@ const normalizeInvoiceRows = ({
   invoiceId,
   uploadId,
   fileName = "Invoice Upload",
+  locationId = null,
   connectionId = null,
 }) => {
   if (
@@ -9629,6 +10296,13 @@ const normalizeInvoiceRows = ({
   ) {
     return [];
   }
+
+  const hasProvidedValue = (row, keys) =>
+    keys.some(
+      (key) =>
+        Object.prototype.hasOwnProperty.call(row || {}, key) &&
+        row?.[key] !== undefined
+    );
 
   const getValue = (row, keys, fallback = "") => {
     for (const key of keys) {
@@ -9655,9 +10329,25 @@ const normalizeInvoiceRows = ({
     return Number.isFinite(num) ? num : 0;
   };
 
+  const toProviderTimestamp = (value) => {
+    if (
+      value === undefined ||
+      value === null ||
+      String(value).trim() === ""
+    ) {
+      return null;
+    }
+
+    const parsed = new Date(value);
+
+    return Number.isNaN(parsed.getTime())
+      ? null
+      : parsed.toISOString();
+  };
+
   return incomingRows
     .map((row) => {
-      const itemName = getValue(row, [
+      const itemNameKeys = [
         "Ingredient Name",
         "ingredient_name",
         "Item Name",
@@ -9666,37 +10356,160 @@ const normalizeInvoiceRows = ({
         "Item",
         "Product",
         "product",
-      ]);
+      ];
 
-      if (!itemName) return null;
+      const quantityKeys = [
+        "Quantity",
+        "quantity",
+        "Qty",
+        "qty",
+      ];
+
+      const unitPriceKeys = [
+        "Unit Cost",
+        "unit_cost",
+        "Unit Price",
+        "unit_price",
+        "Price",
+        "price",
+      ];
+
+      const totalPriceKeys = [
+        "Total Cost",
+        "total_cost",
+        "Total Price",
+        "total_price",
+      ];
+
+      const unitKeys = [
+        "Unit",
+        "unit",
+        "UOM",
+        "uom",
+      ];
+
+      const supplierKeys = [
+        "Vendor",
+        "vendor",
+        "Supplier",
+        "supplier",
+        "Supplier Name",
+        "supplier_name",
+      ];
+
+      const externalIdKeys = [
+        "external_id",
+        "externalId",
+        "line_item_id",
+        "lineItemId",
+        "invoice_line_id",
+        "invoiceLineId",
+        "provider_line_id",
+        "providerLineId",
+      ];
+
+      const externalIdTypeKeys = [
+        "external_id_type",
+        "externalIdType",
+      ];
+
+      const providerUpdatedAtKeys = [
+        "provider_updated_at",
+        "providerUpdatedAt",
+        "updated_at",
+        "updatedAt",
+        "modified_at",
+        "modifiedAt",
+      ];
+
+      const providerStatusKeys = [
+        "provider_status",
+        "providerStatus",
+        "line_status",
+        "lineStatus",
+        "status",
+      ];
+
+      const providerDeletedAtKeys = [
+        "provider_deleted_at",
+        "providerDeletedAt",
+        "deleted_at",
+        "deletedAt",
+        "voided_at",
+        "voidedAt",
+        "cancelled_at",
+        "cancelledAt",
+        "canceled_at",
+        "canceledAt",
+      ];
+
+      const itemName = getValue(
+        row,
+        itemNameKeys
+      );
+
+      const externalIdRaw = getValue(
+        row,
+        externalIdKeys,
+        ""
+      );
+
+      const externalId =
+        externalIdRaw !== undefined &&
+        externalIdRaw !== null &&
+        String(externalIdRaw).trim() !== ""
+          ? String(externalIdRaw).trim()
+          : null;
+
+      /*
+       * Normal invoice lines require an item name.
+       * Provider lifecycle events may omit the item
+       * name as long as they carry stable identity.
+       */
+      const normalizedProviderStatus = String(
+        getValue(row, providerStatusKeys, "")
+      )
+        .trim()
+        .toLowerCase();
+
+      const providerDeletedAt =
+        toProviderTimestamp(
+          getValue(
+            row,
+            providerDeletedAtKeys,
+            null
+          )
+        );
+
+      const isProviderLifecycleRow =
+        Boolean(connectionId) &&
+        Boolean(externalId) &&
+        (
+          Boolean(providerDeletedAt) ||
+          [
+            "cancelled",
+            "canceled",
+            "deleted",
+            "removed",
+            "void",
+            "voided",
+          ].includes(normalizedProviderStatus)
+        );
+
+      if (!itemName && !isProviderLifecycleRow) {
+        return null;
+      }
 
       const quantity = toNumber(
-        getValue(row, [
-          "Quantity",
-          "quantity",
-          "Qty",
-          "qty",
-        ])
+        getValue(row, quantityKeys)
       );
 
       const unitPrice = toNumber(
-        getValue(row, [
-          "Unit Cost",
-          "unit_cost",
-          "Unit Price",
-          "unit_price",
-          "Price",
-          "price",
-        ])
+        getValue(row, unitPriceKeys)
       );
 
       const suppliedTotal = toNumber(
-        getValue(row, [
-          "Total Cost",
-          "total_cost",
-          "Total Price",
-          "total_price",
-        ])
+        getValue(row, totalPriceKeys)
       );
 
       const totalPrice =
@@ -9704,43 +10517,122 @@ const normalizeInvoiceRows = ({
 
       const rowSupplier =
         supplierName ||
-        getValue(row, [
-          "Vendor",
-          "vendor",
-          "Supplier",
-          "supplier",
-          "Supplier Name",
-          "supplier_name",
-        ]) ||
+        getValue(row, supplierKeys) ||
         "Unknown Supplier";
 
-      return {
-        user_id: ownerId,
-        invoice_id: invoiceId,
-        upload_id: uploadId,
-        file_name: fileName || "Invoice Upload",
-        supplier_name: rowSupplier,
-        item_name: String(itemName).trim(),
+      const externalIdTypeRaw = getValue(
+        row,
+        externalIdTypeKeys,
+        ""
+      );
+
+      const externalIdType = externalId
+        ? String(
+            externalIdTypeRaw || "invoice_line"
+          ).trim()
+        : null;
+
+      const providerUpdatedAt =
+        toProviderTimestamp(
+          getValue(
+            row,
+            providerUpdatedAtKeys,
+            null
+          )
+        );
+
+     return {
+  user_id: ownerId,
+  invoice_id: invoiceId,
+  upload_id: uploadId,
+
+  location_id:
+    getValue(
+      row,
+      ["location_id", "locationId", "Location ID"],
+      locationId
+    ) ||
+    locationId ||
+    null,
+
+  file_name:
+    fileName || "Invoice Upload",
+
+  supplier_name: rowSupplier,
+
+        item_name: itemName
+          ? String(itemName).trim()
+          : null,
+
         unit:
-          getValue(row, [
-            "Unit",
-            "unit",
-            "UOM",
-            "uom",
-          ]) || null,
+          getValue(row, unitKeys) || null,
+
         quantity,
         unit_price: unitPrice,
         total_price: totalPrice,
+
         previous_unit_price: null,
         price_change: 0,
         price_change_percent: 0,
         flagged_increase: false,
-        connection_id: connectionId || null,
+
+        connection_id:
+          connectionId || null,
+
+        external_id: externalId,
+        external_id_type:
+          externalIdType,
+
+        provider_updated_at:
+          providerUpdatedAt,
+
+        provider_status:
+          normalizedProviderStatus || null,
+
+        provider_deleted_at:
+          providerDeletedAt,
+
+        _provided_fields: {
+          item_name:
+            hasProvidedValue(
+              row,
+              itemNameKeys
+            ),
+
+          supplier_name:
+            hasProvidedValue(
+              row,
+              supplierKeys
+            ),
+
+          unit:
+            hasProvidedValue(
+              row,
+              unitKeys
+            ),
+
+          quantity:
+            hasProvidedValue(
+              row,
+              quantityKeys
+            ),
+
+          unit_price:
+            hasProvidedValue(
+              row,
+              unitPriceKeys
+            ),
+
+          total_price:
+            hasProvidedValue(
+              row,
+              totalPriceKeys
+            ),
+        },
       };
     })
     .filter(Boolean);
 };
-
 const ingestNormalizedInvoiceRows = async ({
   ownerId,
   incomingRows = [],
@@ -9751,6 +10643,15 @@ const ingestNormalizedInvoiceRows = async ({
   locationName = null,
   locationId = null,
   connectionId = null,
+
+  // Provider-level invoice identity.
+  // These identify the invoice header itself,
+  // not individual invoice line items.
+  externalInvoiceId = null,
+  externalInvoiceIdType = "invoice",
+  providerUpdatedAt = null,
+  providerStatus = null,
+  providerDeletedAt = null,
 }) => {
   if (!ownerId) {
     throw new Error("Invoice ingestion requires an owner ID.");
@@ -9804,75 +10705,458 @@ const ingestNormalizedInvoiceRows = async ({
 
     invoice_uploads owns invoice chronology.
     Vendor recovery must use invoice_date from this record.
-  */
-  const invoiceUploadPayload = {
-    user_id: ownerId,
-    upload_id: uploadedFileRow.id,
-    supplier_name:
-      supplierName || "Unknown Supplier",
-    invoice_date: invoiceDate || null,
-    file_name: fileName || "Invoice Upload",
-    file_url: null,
-    location_name: locationName || null,
-    connection_id: connectionId || null,
-  };
+  */const normalizedExternalInvoiceId =
+  externalInvoiceId !== undefined &&
+  externalInvoiceId !== null &&
+  String(externalInvoiceId).trim() !== ""
+    ? String(externalInvoiceId).trim()
+    : null;
 
+const normalizedExternalInvoiceIdType =
+  normalizedExternalInvoiceId
+    ? String(
+        externalInvoiceIdType || "invoice"
+      ).trim()
+    : null;
+
+const normalizeProviderTimestamp = (value) => {
+  if (
+    value === undefined ||
+    value === null ||
+    String(value).trim() === ""
+  ) {
+    return null;
+  }
+
+  const parsed = new Date(value);
+
+  return Number.isNaN(parsed.getTime())
+    ? null
+    : parsed.toISOString();
+};
+
+const normalizedProviderUpdatedAt =
+  normalizeProviderTimestamp(
+    providerUpdatedAt
+  );
+
+const normalizedProviderDeletedAt =
+  normalizeProviderTimestamp(
+    providerDeletedAt
+  );
+
+const normalizedProviderStatus = String(
+  providerStatus || ""
+)
+  .trim()
+  .toLowerCase() || null;
+  const invoiceHeaderProvidedFields = {
+  supplier_name:
+    supplierName !== undefined &&
+    supplierName !== null &&
+    String(supplierName).trim() !== "",
+
+  invoice_date:
+    invoiceDate !== undefined &&
+    invoiceDate !== null &&
+    String(invoiceDate).trim() !== "",
+
+  file_name:
+    fileName !== undefined &&
+    fileName !== null &&
+    String(fileName).trim() !== "",
+
+  location_name:
+    locationName !== undefined &&
+    locationName !== null &&
+    String(locationName).trim() !== "",
+};
+const isLifecycleOnlyInvoiceEvent =
+  Boolean(normalizedProviderDeletedAt) ||
+  [
+    "cancelled",
+    "canceled",
+    "deleted",
+    "removed",
+    "void",
+    "voided",
+  ].includes(normalizedProviderStatus);
+const invoiceUploadPayload = {
+  user_id: ownerId,
+  upload_id: uploadedFileRow.id,
+
+  supplier_name:
+    supplierName || "Unknown Supplier",
+
+  invoice_date:
+    invoiceDate || null,
+
+  file_name:
+    fileName || "Invoice Upload",
+
+  file_url: null,
+
+  location_name:
+    locationName || null,
+
+  connection_id:
+    connectionId || null,
+
+  external_id:
+    normalizedExternalInvoiceId,
+
+  external_id_type:
+    normalizedExternalInvoiceIdType,
+
+  provider_updated_at:
+    normalizedProviderUpdatedAt,
+
+  provider_status:
+    normalizedProviderStatus,
+
+  provider_deleted_at:
+    normalizedProviderDeletedAt,
+
+  last_synced_at:
+    connectionId &&
+    normalizedExternalInvoiceId
+      ? new Date().toISOString()
+      : null,
+};
+
+let invoiceUpload = null;
+let invoiceUploadError = null;
+let createdInvoiceHeader = false;
+
+/*
+ * Provider-backed invoices use stable identity:
+ *
+ * connection_id
+ * + external_id_type
+ * + external_id
+ *
+ * Manual invoices remain append-only.
+ */
+if (
+  connectionId &&
+  normalizedExternalInvoiceId
+) {
   const {
-    data: invoiceUpload,
-    error: invoiceUploadError,
+    data: existingInvoiceHeaders,
+    error: existingInvoiceLookupError,
+  } = await supabase
+    .from("invoice_uploads")
+    .select("*")
+    .eq("user_id", ownerId)
+    .eq("connection_id", connectionId)
+    .eq(
+      "external_id_type",
+      normalizedExternalInvoiceIdType
+    )
+    .eq(
+      "external_id",
+      normalizedExternalInvoiceId
+    )
+    .limit(1);
+
+  if (existingInvoiceLookupError) {
+    invoiceUploadError =
+      existingInvoiceLookupError;
+  } else {
+    const existingInvoice =
+      existingInvoiceHeaders?.[0] || null;
+if (!existingInvoice) {
+  if (isLifecycleOnlyInvoiceEvent) {
+    /*
+     * Ignore lifecycle-only provider events for invoices
+     * Serven has never seen.
+     *
+     * Do not create ghost canonical invoice headers for
+     * unknown voided, cancelled, removed, or deleted invoices.
+     */
+    console.warn(
+      "Skipping unknown lifecycle-only provider invoice:",
+      {
+        connectionId,
+        externalIdType:
+          normalizedExternalInvoiceIdType,
+        externalId:
+          normalizedExternalInvoiceId,
+        providerStatus:
+          normalizedProviderStatus,
+        providerDeletedAt:
+          normalizedProviderDeletedAt,
+      }
+    );
+  } else {
+    const {
+      data: insertedInvoice,
+      error: insertedInvoiceError,
+    } = await supabase
+      .from("invoice_uploads")
+      .insert([invoiceUploadPayload])
+      .select("*")
+      .single();
+
+    invoiceUpload =
+      insertedInvoice || null;
+
+    invoiceUploadError =
+      insertedInvoiceError || null;
+
+    if (
+      !insertedInvoiceError &&
+      insertedInvoice?.id
+    ) {
+      createdInvoiceHeader = true;
+    }
+  }
+} else {
+      const existingProviderTime =
+        existingInvoice.provider_updated_at
+          ? new Date(
+              existingInvoice.provider_updated_at
+            ).getTime()
+          : null;
+
+      const incomingProviderTime =
+        normalizedProviderUpdatedAt
+          ? new Date(
+              normalizedProviderUpdatedAt
+            ).getTime()
+          : null;
+
+      const isStaleProviderInvoice =
+        Number.isFinite(existingProviderTime) &&
+        Number.isFinite(incomingProviderTime) &&
+        incomingProviderTime <
+          existingProviderTime;
+
+      if (isStaleProviderInvoice) {
+        /*
+         * Never let an older provider event roll
+         * the canonical invoice header backward.
+         */
+        const {
+          data: refreshedInvoice,
+          error: refreshInvoiceError,
+        } = await supabase
+          .from("invoice_uploads")
+          .update({
+            last_synced_at:
+              new Date().toISOString(),
+          })
+          .eq("id", existingInvoice.id)
+          .eq("user_id", ownerId)
+          .select("*")
+          .single();
+
+        invoiceUpload =
+          refreshedInvoice ||
+          existingInvoice;
+
+        invoiceUploadError =
+          refreshInvoiceError || null;
+      } else {
+        const invoiceHeaderUpdate = {
+          upload_id:
+            uploadedFileRow.id,
+supplier_name:
+  invoiceHeaderProvidedFields.supplier_name
+    ? supplierName
+    : existingInvoice.supplier_name,
+
+invoice_date:
+  invoiceHeaderProvidedFields.invoice_date
+    ? invoiceDate
+    : existingInvoice.invoice_date,
+
+file_name:
+  invoiceHeaderProvidedFields.file_name
+    ? fileName
+    : existingInvoice.file_name,
+
+location_name:
+  invoiceHeaderProvidedFields.location_name
+    ? locationName
+    : existingInvoice.location_name,
+
+          provider_updated_at:
+            normalizedProviderUpdatedAt ||
+            existingInvoice.provider_updated_at ||
+            null,
+
+          provider_status:
+            normalizedProviderStatus !== null
+              ? normalizedProviderStatus
+              : existingInvoice.provider_status,
+
+          provider_deleted_at:
+            normalizedProviderDeletedAt !== null
+              ? normalizedProviderDeletedAt
+              : existingInvoice.provider_deleted_at,
+
+          last_synced_at:
+            new Date().toISOString(),
+        };
+
+        const {
+          data: updatedInvoice,
+          error: updatedInvoiceError,
+        } = await supabase
+          .from("invoice_uploads")
+          .update(invoiceHeaderUpdate)
+          .eq("id", existingInvoice.id)
+          .eq("user_id", ownerId)
+          .select("*")
+          .single();
+
+        invoiceUpload =
+          updatedInvoice || null;
+
+        invoiceUploadError =
+          updatedInvoiceError || null;
+      }
+    }
+  }
+} else {
+  /*
+   * Manual invoice upload.
+   * Preserve existing append-only behavior.
+   */
+  const {
+    data: insertedInvoice,
+    error: insertedInvoiceError,
   } = await supabase
     .from("invoice_uploads")
     .insert([invoiceUploadPayload])
     .select("*")
     .single();
 
-  if (invoiceUploadError) {
-    console.error(
-      "INVOICE INGEST HEADER INSERT FAILED:",
-      invoiceUploadError
-    );
+invoiceUpload =
+  insertedInvoice || null;
 
-    const { error: uploadCleanupError } = await supabase
+invoiceUploadError =
+  insertedInvoiceError || null;
+
+if (
+  !insertedInvoiceError &&
+  insertedInvoice?.id
+) {
+  createdInvoiceHeader = true;
+}
+}
+
+if (invoiceUploadError) {
+  console.error(
+    "INVOICE INGEST HEADER WRITE FAILED:",
+    invoiceUploadError
+  );
+
+  const { error: uploadCleanupError } =
+    await supabase
       .from("uploads")
       .delete()
       .eq("id", uploadedFileRow.id)
       .eq("user_id", ownerId);
 
-    if (uploadCleanupError) {
-      console.error(
-        "INVOICE INGEST UPLOAD CLEANUP FAILED:",
-        uploadCleanupError
-      );
-    }
-
-    throw invoiceUploadError;
+  if (uploadCleanupError) {
+    console.error(
+      "INVOICE INGEST UPLOAD CLEANUP FAILED:",
+      uploadCleanupError
+    );
   }
 
+  throw invoiceUploadError;
+}
+
+if (!invoiceUpload?.id) {
+  /*
+   * An unknown lifecycle-only provider event is an
+   * intentional no-op, not an ingestion failure.
+   *
+   * Remove the temporary canonical upload evidence
+   * because no invoice header or line was accepted.
+   */
+  if (
+    connectionId &&
+    normalizedExternalInvoiceId &&
+    isLifecycleOnlyInvoiceEvent &&
+    !invoiceUploadError
+  ) {
+    await supabase
+      .from("uploads")
+      .delete()
+      .eq("id", uploadedFileRow.id)
+      .eq("user_id", ownerId);
+
+    console.log(
+      "Skipped unknown lifecycle-only provider invoice:",
+      {
+        connectionId,
+        externalIdType:
+          normalizedExternalInvoiceIdType,
+        externalId:
+          normalizedExternalInvoiceId,
+        providerStatus:
+          normalizedProviderStatus,
+        providerDeletedAt:
+          normalizedProviderDeletedAt,
+      }
+    );
+
+    return {
+      uploadRow: null,
+      invoiceUpload: null,
+      insertedRows: [],
+      synchronizedIngredientCosts: [],
+      skipped: true,
+      skipReason:
+        "unknown_lifecycle_only_provider_invoice",
+    };
+  }
+
+  await supabase
+    .from("uploads")
+    .delete()
+    .eq("id", uploadedFileRow.id)
+    .eq("user_id", ownerId);
+
+  throw new Error(
+    "Invoice header write completed without returning an invoice ID."
+  );
+}
   /*
     3. Normalize every invoice line into the canonical
        invoice_line_items schema.
   */
-  const normalizedRows = normalizeInvoiceRows({
-    incomingRows,
-    ownerId,
-    supplierName:
-      supplierName || "Unknown Supplier",
-    invoiceId: invoiceUpload.id,
-    uploadId: uploadedFileRow.id,
-    fileName: fileName || "Invoice Upload",
-    connectionId,
-  });
+ const normalizedRows = normalizeInvoiceRows({
+  incomingRows,
+  ownerId,
+  supplierName:
+    supplierName || "Unknown Supplier",
+  invoiceId: invoiceUpload.id,
+  uploadId: uploadedFileRow.id,
+  fileName: fileName || "Invoice Upload",
+  locationId,
+  connectionId,
+});
 
   if (!normalizedRows.length) {
     /*
       Nothing usable was produced, so remove the records
       created specifically for this failed ingestion.
     */
-    await supabase
-      .from("invoice_uploads")
-      .delete()
-      .eq("id", invoiceUpload.id)
-      .eq("user_id", ownerId);
+  if (
+  createdInvoiceHeader &&
+  invoiceUpload?.id
+) {
+  await supabase
+    .from("invoice_uploads")
+    .delete()
+    .eq("id", invoiceUpload.id)
+    .eq("user_id", ownerId);
+}
 
     await supabase
       .from("uploads")
@@ -9886,28 +11170,143 @@ const ingestNormalizedInvoiceRows = async ({
   }
 
   /*
-    4. Insert into the table consumed by Serven's
-       vendor intelligence and verified-recovery engines.
-  */
+  4. Persist canonical invoice lines.
+
+  Manual invoice lines remain append-only evidence.
+
+  Provider-backed invoice lines use stable provider identity:
+    connection_id + external_id_type + external_id
+
+  Provider updates are idempotent, stale-event safe,
+  and preserve fields omitted from partial updates.
+*/
+const providerRows = normalizedRows.filter(
+  (row) => row.connection_id && row.external_id
+);
+
+const manualRows = normalizedRows.filter(
+  (row) => !(row.connection_id && row.external_id)
+);
+
+const providerIdentityKey = (row) =>
+  [
+    String(row.connection_id || "").trim(),
+    String(
+      row.external_id_type || "invoice_line"
+    ).trim(),
+    String(row.external_id || "").trim(),
+  ].join("::");
+
+const isInactiveProviderInvoiceLine = (row) => {
+  const normalizedStatus = String(
+    row?.provider_status || ""
+  )
+    .trim()
+    .toLowerCase();
+
+  return (
+    Boolean(row?.provider_deleted_at) ||
+    [
+      "cancelled",
+      "canceled",
+      "deleted",
+      "removed",
+      "void",
+      "voided",
+    ].includes(normalizedStatus)
+  );
+};
+
+/*
+ * Collapse duplicate provider identities inside the
+ * same sync payload before touching the database.
+ *
+ * When both rows have provider timestamps, newest wins.
+ * Without comparable timestamps, preserve the first row
+ * rather than allowing payload order to overwrite evidence.
+ */
+const providerRowsByIdentity = new Map();
+
+for (const row of providerRows) {
+  const key = providerIdentityKey(row);
+  const existingPayloadRow =
+    providerRowsByIdentity.get(key);
+
+  if (!existingPayloadRow) {
+    providerRowsByIdentity.set(key, row);
+    continue;
+  }
+
+  const existingTime = existingPayloadRow.provider_updated_at
+    ? new Date(
+        existingPayloadRow.provider_updated_at
+      ).getTime()
+    : null;
+
+  const incomingTime = row.provider_updated_at
+    ? new Date(row.provider_updated_at).getTime()
+    : null;
+
+  if (
+    Number.isFinite(incomingTime) &&
+    (
+      !Number.isFinite(existingTime) ||
+      incomingTime > existingTime
+    )
+  ) {
+    providerRowsByIdentity.set(key, row);
+  }
+}
+
+const dedupedProviderRows = [
+  ...providerRowsByIdentity.values(),
+];
+
+let existingProviderRows = [];
+
+if (dedupedProviderRows.length > 0) {
+  const connectionIds = [
+    ...new Set(
+      dedupedProviderRows
+        .map((row) => row.connection_id)
+        .filter(Boolean)
+    ),
+  ];
+
+  const externalIds = [
+    ...new Set(
+      dedupedProviderRows
+        .map((row) => row.external_id)
+        .filter(Boolean)
+    ),
+  ];
+
   const {
-    data: insertedRows,
-    error: lineItemsInsertError,
+    data: existingRows,
+    error: existingRowsError,
   } = await supabase
     .from("invoice_line_items")
-    .insert(normalizedRows)
-    .select("*");
+    .select("*")
+    .eq("user_id", ownerId)
+    .in("connection_id", connectionIds)
+    .in("external_id", externalIds);
 
-  if (lineItemsInsertError) {
+  if (existingRowsError) {
     console.error(
-      "INVOICE INGEST LINE ITEMS FAILED:",
-      lineItemsInsertError
+      "INVOICE PROVIDER LINE LOOKUP FAILED:",
+      existingRowsError
     );
 
-    await supabase
-      .from("invoice_uploads")
-      .delete()
-      .eq("id", invoiceUpload.id)
-      .eq("user_id", ownerId);
+if (
+  createdInvoiceHeader &&
+  invoiceUpload?.id
+) {
+  await supabase
+    .from("invoice_uploads")
+    .delete()
+    .eq("id", invoiceUpload.id)
+    .eq("user_id", ownerId);
+}
 
     await supabase
       .from("uploads")
@@ -9915,8 +11314,340 @@ const ingestNormalizedInvoiceRows = async ({
       .eq("id", uploadedFileRow.id)
       .eq("user_id", ownerId);
 
-    throw lineItemsInsertError;
+    throw existingRowsError;
   }
+
+  existingProviderRows = existingRows || [];
+}
+
+const existingProviderByIdentity = new Map();
+
+(existingProviderRows || []).forEach((row) => {
+  existingProviderByIdentity.set(
+    providerIdentityKey(row),
+    row
+  );
+});
+
+const insertedRows = [];
+const syncedAt = new Date().toISOString();
+
+/*
+ * Manual uploads remain normal append-only invoice evidence.
+ * Strip application-only field metadata before persistence.
+ */
+if (manualRows.length > 0) {
+  const cleanManualRows = manualRows.map((row) => {
+    const {
+      _provided_fields,
+      ...databaseRow
+    } = row;
+
+    return databaseRow;
+  });
+
+  const {
+    data: insertedManualRows,
+    error: manualInsertError,
+  } = await supabase
+    .from("invoice_line_items")
+    .insert(cleanManualRows)
+    .select("*");
+
+  if (manualInsertError) {
+    console.error(
+      "INVOICE MANUAL LINE ITEMS FAILED:",
+      manualInsertError
+    );
+
+    if (
+  createdInvoiceHeader &&
+  invoiceUpload?.id
+) {
+  await supabase
+    .from("invoice_uploads")
+    .delete()
+    .eq("id", invoiceUpload.id)
+    .eq("user_id", ownerId);
+}
+
+    await supabase
+      .from("uploads")
+      .delete()
+      .eq("id", uploadedFileRow.id)
+      .eq("user_id", ownerId);
+
+    throw manualInsertError;
+  }
+
+  insertedRows.push(
+    ...(insertedManualRows || [])
+  );
+}
+
+/*
+ * Provider-backed rows update canonical provider identities
+ * instead of creating duplicates on every synchronization.
+ */
+for (const row of dedupedProviderRows) {
+  const identityKey =
+    providerIdentityKey(row);
+
+  const existingRow =
+    existingProviderByIdentity.get(identityKey);
+
+  const provided =
+    row._provided_fields || {};
+
+  /*
+   * A lifecycle event for an identity Serven has never seen
+   * must not create a ghost invoice line.
+   */
+  if (
+    !existingRow &&
+    isInactiveProviderInvoiceLine(row)
+  ) {
+    console.warn(
+      "INVOICE INGEST SKIPPED UNMATCHED LIFECYCLE EVENT:",
+      {
+        connectionId: row.connection_id,
+        externalIdType:
+          row.external_id_type,
+        externalId: row.external_id,
+        providerStatus:
+          row.provider_status,
+        providerDeletedAt:
+          row.provider_deleted_at,
+      }
+    );
+
+    continue;
+  }
+
+  /*
+   * A new active provider line must contain enough
+   * operational data to become canonical evidence.
+   */
+  if (!existingRow) {
+    if (!row.item_name) {
+      console.warn(
+        "INVOICE INGEST SKIPPED INCOMPLETE NEW PROVIDER LINE:",
+        {
+          connectionId: row.connection_id,
+          externalIdType:
+            row.external_id_type,
+          externalId: row.external_id,
+        }
+      );
+
+      continue;
+    }
+
+    const {
+      _provided_fields,
+      ...databaseRow
+    } = row;
+
+    const {
+      data: insertedProviderRow,
+      error: providerInsertError,
+    } = await supabase
+      .from("invoice_line_items")
+      .insert([
+        {
+          ...databaseRow,
+          last_synced_at: syncedAt,
+        },
+      ])
+      .select("*")
+      .single();
+
+    if (providerInsertError) {
+      console.error(
+        "INVOICE PROVIDER LINE INSERT FAILED:",
+        providerInsertError
+      );
+
+      throw providerInsertError;
+    }
+
+    if (insertedProviderRow) {
+      insertedRows.push(
+        insertedProviderRow
+      );
+
+      existingProviderByIdentity.set(
+        identityKey,
+        insertedProviderRow
+      );
+    }
+
+    continue;
+  }
+
+  const existingProviderTime =
+    existingRow.provider_updated_at
+      ? new Date(
+          existingRow.provider_updated_at
+        ).getTime()
+      : null;
+
+  const incomingProviderTime =
+    row.provider_updated_at
+      ? new Date(
+          row.provider_updated_at
+        ).getTime()
+      : null;
+
+  const isStaleProviderEvent =
+    Number.isFinite(existingProviderTime) &&
+    Number.isFinite(incomingProviderTime) &&
+    incomingProviderTime <
+      existingProviderTime;
+
+  /*
+   * Stale events cannot roll canonical data backward.
+   * We still record that this identity was observed
+   * during the current synchronization.
+   */
+  if (isStaleProviderEvent) {
+    const {
+      data: staleSyncRow,
+      error: staleSyncError,
+    } = await supabase
+      .from("invoice_line_items")
+      .update({
+        last_synced_at: syncedAt,
+      })
+      .eq("id", existingRow.id)
+      .eq("user_id", ownerId)
+      .select("*")
+      .single();
+
+    if (staleSyncError) {
+      console.error(
+        "INVOICE STALE PROVIDER LINE SYNC FAILED:",
+        staleSyncError
+      );
+
+      throw staleSyncError;
+    }
+
+    if (staleSyncRow) {
+      insertedRows.push(staleSyncRow);
+
+      existingProviderByIdentity.set(
+        identityKey,
+        staleSyncRow
+      );
+    }
+
+    continue;
+  }
+
+  const updatePayload = {
+    invoice_id: invoiceUpload.id,
+    upload_id: uploadedFileRow.id,
+    file_name:
+      fileName ||
+      existingRow.file_name ||
+      "Invoice Upload",
+
+    supplier_name:
+      provided.supplier_name
+        ? row.supplier_name
+        : existingRow.supplier_name,
+
+    item_name:
+      provided.item_name
+        ? row.item_name
+        : existingRow.item_name,
+
+    unit:
+      provided.unit
+        ? row.unit
+        : existingRow.unit,
+
+    quantity:
+      provided.quantity
+        ? row.quantity
+        : existingRow.quantity,
+
+    unit_price:
+      provided.unit_price
+        ? row.unit_price
+        : existingRow.unit_price,
+
+    total_price:
+      provided.total_price
+        ? row.total_price
+        : (
+            provided.quantity ||
+            provided.unit_price
+          )
+          ? Number(
+              provided.quantity
+                ? row.quantity
+                : existingRow.quantity || 0
+            ) *
+            Number(
+              provided.unit_price
+                ? row.unit_price
+                : existingRow.unit_price || 0
+            )
+          : existingRow.total_price,
+
+    provider_updated_at:
+      row.provider_updated_at ||
+      existingRow.provider_updated_at ||
+      null,
+
+    provider_status:
+      row.provider_status !== null &&
+      row.provider_status !== undefined
+        ? row.provider_status
+        : existingRow.provider_status,
+
+    provider_deleted_at:
+      row.provider_deleted_at !== null &&
+      row.provider_deleted_at !== undefined
+        ? row.provider_deleted_at
+        : existingRow.provider_deleted_at,
+
+    last_synced_at: syncedAt,
+  };
+
+  const {
+    data: updatedProviderRow,
+    error: providerUpdateError,
+  } = await supabase
+    .from("invoice_line_items")
+    .update(updatePayload)
+    .eq("id", existingRow.id)
+    .eq("user_id", ownerId)
+    .select("*")
+    .single();
+
+  if (providerUpdateError) {
+    console.error(
+      "INVOICE PROVIDER LINE UPDATE FAILED:",
+      providerUpdateError
+    );
+
+    throw providerUpdateError;
+  }
+
+  if (updatedProviderRow) {
+    insertedRows.push(
+      updatedProviderRow
+    );
+
+    existingProviderByIdentity.set(
+      identityKey,
+      updatedProviderRow
+    );
+  }
+}
 /*
   5. Synchronize verified invoice costs into existing
      canonical ingredients.
@@ -10071,12 +11802,60 @@ const normalizeIngredientMatchName = (value) =>
   String(value || "")
     .trim()
     .toLowerCase()
-    .replace(/\s+/g, " ");
+    .replace(/\s+/g, " ");/*
+ * Only operational invoice evidence may change
+ * canonical ingredient purchasing costs.
+ *
+ * The parent invoice AND the individual line must
+ * both remain operational.
+ *
+ * Provider lifecycle history stays stored in Supabase,
+ * but cancelled, voided, removed, or deleted evidence
+ * cannot affect current ingredient cost intelligence.
+ */
+const inactiveInvoiceStatuses = new Set([
+  "cancelled",
+  "canceled",
+  "deleted",
+  "removed",
+  "void",
+  "voided",
+]);
 
+const normalizedInvoiceHeaderStatus = String(
+  invoiceUpload?.provider_status || ""
+)
+  .trim()
+  .toLowerCase();
+
+const isInactiveInvoiceHeader =
+  Boolean(invoiceUpload?.provider_deleted_at) ||
+  inactiveInvoiceStatuses.has(
+    normalizedInvoiceHeaderStatus
+  );
+
+const operationalInsertedRows =
+  isInactiveInvoiceHeader
+    ? []
+    : (insertedRows || []).filter((row) => {
+        const normalizedProviderStatus = String(
+          row?.provider_status || ""
+        )
+          .trim()
+          .toLowerCase();
+
+        const isInactiveProviderLine =
+          Boolean(row?.provider_deleted_at) ||
+          inactiveInvoiceStatuses.has(
+            normalizedProviderStatus
+          );
+
+        return !isInactiveProviderLine;
+      });
 const invoiceIngredientNames = [
   ...new Set(
-    (insertedRows || [])
-      .map((row) =>
+    operationalInsertedRows
+  .map((row) =>
         normalizeIngredientMatchName(row.item_name)
       )
       .filter(Boolean)
@@ -10103,27 +11882,75 @@ if (invoiceIngredientNames.length > 0) {
       ingredientLookupError
     );
   } else {
-    const ingredientByName = new Map();
+   /*
+ * Canonical invoice → ingredient identity:
+ * owner + location + normalized ingredient name.
+ *
+ * A null location is its own unassigned scope.
+ * It must never match an ingredient from a real location.
+ */
+const ingredientByLocationAndName = new Map();
 
-    (existingIngredients || []).forEach((ingredient) => {
-      const key = normalizeIngredientMatchName(
-        ingredient.name
-      );
+const buildIngredientLocationKey = ({
+  locationId: keyLocationId,
+  ingredientName,
+}) => {
+  const normalizedLocationId =
+    keyLocationId === null ||
+    keyLocationId === undefined ||
+    String(keyLocationId).trim() === ""
+      ? "__unassigned__"
+      : String(keyLocationId).trim();
 
-      if (key && !ingredientByName.has(key)) {
-        ingredientByName.set(key, ingredient);
-      }
+  const normalizedIngredientName =
+    normalizeIngredientMatchName(
+      ingredientName
+    );
+
+  if (!normalizedIngredientName) {
+    return null;
+  }
+
+  return `${normalizedLocationId}::${normalizedIngredientName}`;
+};
+
+(existingIngredients || []).forEach((ingredient) => {
+  const key = buildIngredientLocationKey({
+    locationId: ingredient.location_id,
+    ingredientName: ingredient.name,
+  });
+
+  if (
+    key &&
+    !ingredientByLocationAndName.has(key)
+  ) {
+    ingredientByLocationAndName.set(
+      key,
+      ingredient
+    );
+  }
+});
+
+   for (const invoiceRow of operationalInsertedRows) {
+  const invoiceRowLocationId =
+    invoiceRow.location_id ??
+    locationId ??
+    null;
+
+  const matchKey =
+    buildIngredientLocationKey({
+      locationId: invoiceRowLocationId,
+      ingredientName: invoiceRow.item_name,
     });
 
-    for (const invoiceRow of insertedRows || []) {
-      const matchKey = normalizeIngredientMatchName(
-        invoiceRow.item_name
-      );
+  const ingredient =
+    matchKey
+      ? ingredientByLocationAndName.get(
+          matchKey
+        )
+      : null;
 
-      const ingredient =
-        ingredientByName.get(matchKey);
-
-      if (!ingredient?.id) continue;
+  if (!ingredient?.id) continue;
 
       const convertedCostPerUnit =
         convertInvoiceCostPerUnit({
@@ -10218,10 +12045,10 @@ if (invoiceIngredientNames.length > 0) {
           updatedIngredient
         );
 
-        ingredientByName.set(
-          matchKey,
-          updatedIngredient
-        );
+       ingredientByLocationAndName.set(
+  matchKey,
+  updatedIngredient
+);
       }
     }
   }
@@ -10230,7 +12057,8 @@ if (invoiceIngredientNames.length > 0) {
 console.log(
   "INVOICE → INGREDIENT COST SYNC:",
   {
-    invoiceLines: (insertedRows || []).length,
+    invoiceLines:
+  operationalInsertedRows.length,
     ingredientCostsUpdated:
       synchronizedIngredientCosts.length,
     updatedIngredients:
@@ -10285,7 +12113,10 @@ console.log("INVOICE STEP 1: started");
       setMessage("You must be logged in.");
       return;
     }
-
+const invoiceOwnerId =
+  dataOwnerId ||
+  userProfile?.owner_user_id ||
+  user.id;
     const rows = pendingUploadSummary?.rows || [];
 
     if (!rows.length) {
@@ -10312,7 +12143,7 @@ const {
   insertedRows,
   normalizedRows,
 } = await ingestNormalizedInvoiceRows({
-  ownerId: user.id,
+   ownerId: invoiceOwnerId,
   incomingRows: rows,
   fileName:
     pendingUploadSummary?.fileName ||
@@ -15381,7 +17212,41 @@ if (
   Array.isArray(canonicalShiftRows) &&
   canonicalShiftRows.length > 0
 ) {
-  data = canonicalShiftRows;
+  /*
+   * Keep provider-deleted/cancelled shifts in the canonical
+   * database for history and audit purposes, but exclude them
+   * from live Serven labor intelligence.
+   */
+  data = canonicalShiftRows.filter((row) => {
+    const normalizedProviderStatus = String(
+      row.provider_status || ""
+    )
+      .trim()
+      .toLowerCase();
+
+    const isInactiveProviderShift =
+      Boolean(row.provider_deleted_at) ||
+      [
+        "cancelled",
+        "canceled",
+        "deleted",
+        "removed",
+        "void",
+        "voided",
+      ].includes(normalizedProviderStatus);
+
+    return !isInactiveProviderShift;
+  });
+
+  console.log(
+    "OPERATIONAL CANONICAL LABOR COUNT:",
+    data.length
+  );
+
+  console.log(
+    "INACTIVE PROVIDER SHIFTS EXCLUDED:",
+    canonicalShiftRows.length - data.length
+  );
 } else {
   // ----------------------------------------
   // LEGACY FALLBACK
@@ -16280,10 +18145,79 @@ useEffect(() => {
       return;
     }
 
-    if (cancelled) return;
+  if (cancelled) return;
 
-    setInvoiceUploads(savedInvoiceUploads || []);
-    setInvoicesData(savedInvoiceItems || []);
+/*
+ * Keep provider lifecycle history in Supabase,
+ * but exclude inactive invoice evidence from
+ * Serven's operational intelligence state.
+ */
+const inactiveInvoiceStatuses = new Set([
+  "cancelled",
+  "canceled",
+  "deleted",
+  "removed",
+  "void",
+  "voided",
+]);
+
+const operationalInvoiceUploads = (
+  savedInvoiceUploads || []
+).filter((invoice) => {
+  const providerStatus = String(
+    invoice?.provider_status || ""
+  )
+    .trim()
+    .toLowerCase();
+
+  return (
+    !invoice?.provider_deleted_at &&
+    !inactiveInvoiceStatuses.has(providerStatus)
+  );
+});
+
+const operationalInvoiceIds = new Set(
+  operationalInvoiceUploads
+    .map((invoice) => String(invoice?.id || ""))
+    .filter(Boolean)
+);
+
+const operationalInvoiceItems = (
+  savedInvoiceItems || []
+).filter((item) => {
+  const providerStatus = String(
+    item?.provider_status || ""
+  )
+    .trim()
+    .toLowerCase();
+
+  const lineIsActive =
+    !item?.provider_deleted_at &&
+    !inactiveInvoiceStatuses.has(providerStatus);
+
+  if (!lineIsActive) {
+    return false;
+  }
+
+  /*
+   * A line belonging to an inactive provider invoice
+   * must not remain operational just because the line
+   * itself was not separately voided.
+   */
+  if (
+    item?.invoice_id &&
+    !operationalInvoiceIds.has(
+      String(item.invoice_id)
+    )
+  ) {
+    return false;
+  }
+
+  return true;
+});
+
+setInvoiceUploads(operationalInvoiceUploads);
+setInvoicesData(operationalInvoiceItems);
 
     console.log(
       "LOADED INVOICE UPLOADS:",
@@ -16813,13 +18747,13 @@ const laborEfficiencyInsight =
 ========================= */
 
 const shiftSalesRows =
-  dbSalesRows?.length
-    ? dbSalesRows
-    : locationSalesData?.length
+  locationSalesData?.length
     ? locationSalesData
+    : resolvedSalesData?.length
+    ? resolvedSalesData
     : pendingUploadRows?.length
     ? pendingUploadRows
-    : salesData || [];
+    : [];
 
 const shiftLaborRows =
   locationLaborData?.length ? locationLaborData : laborData || [];
@@ -21486,9 +23420,8 @@ const servenPerformanceSummary = {
 ]
 .sort((a, b) => b.value - a.value)
 .filter((item) => item.value > 0);
-  const hasRevenueData =
-  (salesData || []).length > 0 ||
-  (dbSalesRows || []).length > 0 ||
+const hasRevenueData =
+  (resolvedSalesData || []).length > 0 ||
   Number(liveTotalRevenue || 0) > 0 ||
   Number(realSalesMetrics?.totalRevenueFromDb || 0) > 0;
 
@@ -22008,8 +23941,205 @@ const normalizeLaborRows = ({
       ).trim();
 
       const employeeKey = employeeName.toLowerCase();
+const hasOwn = (key) =>
+  Object.prototype.hasOwnProperty.call(row, key);
 
-      return {
+const hasAnyOwn = (keys) =>
+  keys.some((key) => hasOwn(key));
+
+const providedFields = {
+  employee_name: hasAnyOwn([
+    "employee_name",
+    "Employee Name",
+    "employee",
+    "Employee",
+    "name",
+    "Name",
+  ]),
+
+  role: hasAnyOwn([
+    "role",
+    "Role",
+    "position",
+    "Position",
+    "job_title",
+    "Job Title",
+  ]),
+
+  shift_date: hasAnyOwn([
+    "shift_date",
+    "Shift Date",
+    "work_date",
+    "Work Date",
+    "date",
+    "Date",
+    "business_date",
+  ]),
+
+  shift_start: hasAnyOwn([
+    "shift_start",
+    "Shift Start",
+    "clock_in",
+    "Clock In",
+    "start_time",
+    "Start Time",
+  ]),
+
+  shift_end: hasAnyOwn([
+    "shift_end",
+    "Shift End",
+    "clock_out",
+    "Clock Out",
+    "end_time",
+    "End Time",
+  ]),
+
+  hours_worked: hasAnyOwn([
+    "hours_worked",
+    "Hours Worked",
+    "hours",
+    "Hours",
+    "total_hours",
+    "Total Hours",
+  ]),
+
+  hourly_rate: hasAnyOwn([
+    "hourly_rate",
+    "Hourly Rate",
+    "rate",
+    "Rate",
+    "pay_rate",
+    "Pay Rate",
+  ]),
+
+  labor_cost: hasAnyOwn([
+    "labor_cost",
+    "Labor Cost",
+    "payroll",
+    "Payroll",
+    "wages",
+    "Wages",
+    "total_pay",
+    "Total Pay",
+    "gross_pay",
+    "Gross Pay",
+  ]),
+
+  revenue_during_shift: hasAnyOwn([
+    "revenue_during_shift",
+    "Revenue During Shift",
+    "revenue",
+    "Revenue",
+  ]),
+
+  location_name: hasAnyOwn([
+    "location_name",
+    "Location Name",
+    "location",
+    "Location",
+  ]),
+
+  location_id: hasAnyOwn([
+    "location_id",
+    "Location ID",
+  ]),
+
+  shift: hasAnyOwn([
+    "shift",
+    "Shift",
+    "shift_name",
+    "Shift Name",
+  ]),
+};
+// Provider identity.
+// Manual uploads normally leave these null.
+// Future providers such as 7shifts should supply a stable shift ID.
+const rawExternalId =
+  row.external_id ||
+  row.externalId ||
+  row.shift_id ||
+  row.shiftId ||
+  row.provider_shift_id ||
+  row.providerShiftId ||
+  row.schedule_shift_id ||
+  row.scheduleShiftId ||
+  null;
+
+const rawExternalIdType =
+  row.external_id_type ||
+  row.externalIdType ||
+  (rawExternalId ? "shift" : null);
+
+const rawProviderUpdatedAt =
+  row.provider_updated_at ||
+  row.providerUpdatedAt ||
+  row.updated_at ||
+  row.updatedAt ||
+  row.modified_at ||
+  row.modifiedAt ||
+  row.last_modified_at ||
+  row.lastModifiedAt ||
+  null;
+
+let providerUpdatedAt = null;
+
+if (rawProviderUpdatedAt) {
+  const parsedProviderUpdatedAt =
+    new Date(rawProviderUpdatedAt);
+
+  if (
+    !Number.isNaN(
+      parsedProviderUpdatedAt.getTime()
+    )
+  ) {
+    providerUpdatedAt =
+      parsedProviderUpdatedAt.toISOString();
+  }
+}
+
+const rawProviderStatus =
+  row.provider_status ||
+  row.providerStatus ||
+  row.shift_status ||
+  row.shiftStatus ||
+  row.status ||
+  null;
+
+const providerStatus =
+  rawProviderStatus !== null &&
+  rawProviderStatus !== undefined &&
+  String(rawProviderStatus).trim() !== ""
+    ? String(rawProviderStatus).trim()
+    : null;
+
+const rawProviderDeletedAt =
+  row.provider_deleted_at ||
+  row.providerDeletedAt ||
+  row.deleted_at ||
+  row.deletedAt ||
+  row.cancelled_at ||
+  row.cancelledAt ||
+  row.canceled_at ||
+  row.canceledAt ||
+  null;
+
+let providerDeletedAt = null;
+
+if (rawProviderDeletedAt) {
+  const parsedProviderDeletedAt =
+    new Date(rawProviderDeletedAt);
+
+  if (
+    !Number.isNaN(
+      parsedProviderDeletedAt.getTime()
+    )
+  ) {
+    providerDeletedAt =
+      parsedProviderDeletedAt.toISOString();
+  }
+}
+
+return {
         user_id: ownerId,
         employee_id:
           employeeIdByName.get(employeeKey) || null,
@@ -22044,6 +24174,23 @@ const normalizeLaborRows = ({
         employee_name: employeeName || null,
         role: role || null,
         connection_id: connectionId || null,
+        external_id:
+  rawExternalId !== null &&
+  rawExternalId !== undefined &&
+  String(rawExternalId).trim() !== ""
+    ? String(rawExternalId).trim()
+    : null,
+
+external_id_type:
+  rawExternalIdType !== null &&
+  rawExternalIdType !== undefined &&
+  String(rawExternalIdType).trim() !== ""
+    ? String(rawExternalIdType).trim()
+    : null,
+
+provider_updated_at: providerUpdatedAt,
+provider_status: providerStatus,
+provider_deleted_at: providerDeletedAt,
         hourly_rate: hourlyRate,
         location_id:
           row.location_id ||
@@ -22051,16 +24198,50 @@ const normalizeLaborRows = ({
           locationId ||
           null,
         shift: shift || null,
+        _provided_fields: providedFields,
       };
     })
-    .filter(
-      (row) =>
-        row.shift_date &&
-        (row.employee_name ||
-          row.employee_id ||
-          row.hours_worked > 0 ||
-          row.labor_cost > 0)
+   .filter((row) => {
+  const hasProviderIdentity =
+    Boolean(row.connection_id) &&
+    Boolean(row.external_id);
+
+  const normalizedProviderStatus = String(
+    row.provider_status || ""
+  )
+    .trim()
+    .toLowerCase();
+
+  const isCancelledProviderShift = [
+    "cancelled",
+    "canceled",
+    "deleted",
+    "removed",
+    "void",
+    "voided",
+  ].includes(normalizedProviderStatus);
+
+  const isProviderLifecycleRow =
+    hasProviderIdentity &&
+    (
+      Boolean(row.provider_deleted_at) ||
+      isCancelledProviderShift
     );
+
+  const isValidOperationalShift =
+    Boolean(row.shift_date) &&
+    (
+      Boolean(row.employee_name) ||
+      Boolean(row.employee_id) ||
+      row.hours_worked > 0 ||
+      row.labor_cost > 0
+    );
+
+  return (
+    isValidOperationalShift ||
+    isProviderLifecycleRow
+  );
+});
 };
 const ingestNormalizedLaborRows = async ({
   ownerId,
@@ -22070,6 +24251,7 @@ const ingestNormalizedLaborRows = async ({
   locationId = null,
   locationName = null,
   connectionId = null,
+  existingUploadRow = null,
 }) => {
   if (!ownerId) {
     throw new Error("Missing labor data owner.");
@@ -22078,16 +24260,24 @@ const ingestNormalizedLaborRows = async ({
   if (!Array.isArray(incomingRows) || incomingRows.length === 0) {
     throw new Error("No labor rows were provided.");
   }
+let uploadedFileRow = existingUploadRow || null;
+let createdUploadInsideHelper = false;
 
-  let uploadedFileRow = null;
-
-  try {
-    /*
-     * ==========================================
-     * 1. CREATE CANONICAL UPLOAD RECORD
-     * ==========================================
-     */
-    const { data: uploadRow, error: uploadError } = await supabase
+try {
+  /*
+   * ==========================================
+   * 1. RESOLVE CANONICAL UPLOAD RECORD
+   * ==========================================
+   *
+   * Normal Labor imports create their upload record here.
+   * Other canonical writers, such as Employee Shifts,
+   * may pass an upload record they already created.
+   */
+  if (!uploadedFileRow?.id) {
+    const {
+      data: uploadRow,
+      error: uploadError,
+    } = await supabase
       .from("uploads")
       .insert([
         {
@@ -22109,6 +24299,8 @@ const ingestNormalizedLaborRows = async ({
     }
 
     uploadedFileRow = uploadRow;
+    createdUploadInsideHelper = true;
+  }
 
     /*
      * ==========================================
@@ -22205,27 +24397,399 @@ const ingestNormalizedLaborRows = async ({
       };
     }
 
-    /*
-     * ==========================================
-     * 4. WRITE CANONICAL LABOR RECORDS
-     * ==========================================
-     */
-    const {
-      data: insertedEmployeeShiftRows,
-      error: employeeShiftInsertError,
-    } = await supabase
-      .from("employee_shifts")
-      .insert(normalizedRows)
-      .select();
+   /*
+ * ==========================================
+ * 4. WRITE CANONICAL LABOR RECORDS
+ * ==========================================
+ *
+ * Manual rows remain append-only upload evidence.
+ *
+ * Provider rows use:
+ *   connection_id + external_id_type + external_id
+ *
+ * as their canonical provider identity so repeated
+ * provider syncs update the existing shift instead
+ * of creating duplicates.
+ */
 
-    if (employeeShiftInsertError) {
-      throw employeeShiftInsertError;
+const providerRows = normalizedRows.filter(
+  (row) => row.connection_id && row.external_id
+);
+
+const manualRows = normalizedRows.filter(
+  (row) => !row.connection_id || !row.external_id
+);
+
+const providerRowsToInsert = [];
+const providerRowsUpdated = [];
+
+/*
+ * Load existing provider shifts only when this
+ * ingestion actually contains provider-backed rows.
+ */
+let existingProviderRows = [];
+
+if (providerRows.length > 0) {
+  const connectionIds = [
+    ...new Set(
+      providerRows
+        .map((row) => row.connection_id)
+        .filter(Boolean)
+    ),
+  ];
+
+  const externalIds = [
+    ...new Set(
+      providerRows
+        .map((row) => row.external_id)
+        .filter(Boolean)
+    ),
+  ];
+
+  const {
+    data: existingRows,
+    error: existingRowsError,
+  } = await supabase
+    .from("employee_shifts")
+    .select("*")
+    .eq("user_id", ownerId)
+    .in("connection_id", connectionIds)
+    .in("external_id", externalIds);
+
+  if (existingRowsError) {
+    throw existingRowsError;
+  }
+
+  existingProviderRows = existingRows || [];
+}
+
+const existingProviderByKey = new Map(
+  existingProviderRows.map((row) => {
+    const key =
+      `${row.connection_id}::` +
+      `${row.external_id_type || ""}::` +
+      `${String(row.external_id || "").trim()}`;
+
+    return [key, row];
+  })
+);
+
+/*
+ * Deduplicate repeated versions of the same provider
+ * shift inside this individual sync payload.
+ *
+ * When timestamps are available, keep the newest.
+ * When neither row has a timestamp, keep the first
+ * row conservatively.
+ */
+const incomingProviderByKey = new Map();
+
+providerRows.forEach((row) => {
+  const key =
+    `${row.connection_id}::` +
+    `${row.external_id_type || ""}::` +
+    `${String(row.external_id || "").trim()}`;
+
+  const existingIncoming =
+    incomingProviderByKey.get(key);
+
+  if (!existingIncoming) {
+    incomingProviderByKey.set(key, row);
+    return;
+  }
+
+  const incomingUpdatedAt =
+    row.provider_updated_at
+      ? new Date(row.provider_updated_at).getTime()
+      : null;
+
+  const existingIncomingUpdatedAt =
+    existingIncoming.provider_updated_at
+      ? new Date(
+          existingIncoming.provider_updated_at
+        ).getTime()
+      : null;
+
+  const shouldReplaceExistingIncoming =
+    incomingUpdatedAt !== null &&
+    (
+      existingIncomingUpdatedAt === null ||
+      incomingUpdatedAt >= existingIncomingUpdatedAt
+    );
+
+  if (shouldReplaceExistingIncoming) {
+    incomingProviderByKey.set(key, row);
+  }
+});
+
+for (const row of incomingProviderByKey.values()) {
+  const key =
+    `${row.connection_id}::` +
+    `${row.external_id_type || ""}::` +
+    `${String(row.external_id || "").trim()}`;
+
+  const existing =
+    existingProviderByKey.get(key);
+
+if (!existing) {
+  const normalizedProviderStatus = String(
+    row.provider_status || ""
+  )
+    .trim()
+    .toLowerCase();
+
+  const isLifecycleOnlyProviderRow =
+    Boolean(row.provider_deleted_at) ||
+    [
+      "cancelled",
+      "canceled",
+      "deleted",
+      "removed",
+      "void",
+      "voided",
+    ].includes(normalizedProviderStatus);
+
+  const hasCompleteNewShiftData =
+    Boolean(row.shift_date) &&
+    (
+      Boolean(row.employee_name) ||
+      Boolean(row.employee_id) ||
+      row.hours_worked > 0 ||
+      row.labor_cost > 0
+    );
+
+  if (
+    !isLifecycleOnlyProviderRow &&
+    hasCompleteNewShiftData
+  ) {
+    providerRowsToInsert.push({
+      ...row,
+      last_synced_at: new Date().toISOString(),
+    });
+  } else if (isLifecycleOnlyProviderRow) {
+    console.warn(
+      "LABOR INGEST SKIPPED UNMATCHED LIFECYCLE EVENT:",
+      {
+        connection_id: row.connection_id,
+        external_id: row.external_id,
+        external_id_type: row.external_id_type,
+        provider_status: row.provider_status,
+        provider_deleted_at:
+          row.provider_deleted_at,
+      }
+    );
+  }
+
+  continue;
+}
+
+  const incomingUpdatedAt =
+    row.provider_updated_at
+      ? new Date(row.provider_updated_at).getTime()
+      : null;
+
+  const existingUpdatedAt =
+    existing.provider_updated_at
+      ? new Date(
+          existing.provider_updated_at
+        ).getTime()
+      : null;
+
+  const isStaleProviderRow =
+    incomingUpdatedAt !== null &&
+    existingUpdatedAt !== null &&
+    incomingUpdatedAt < existingUpdatedAt;
+
+  /*
+   * A stale webhook/sync must never overwrite newer
+   * canonical shift data. Refresh only sync health.
+   */
+  if (isStaleProviderRow) {
+    const { data: staleRefreshRow, error: staleRefreshError } =
+      await supabase
+        .from("employee_shifts")
+        .update({
+          last_synced_at: new Date().toISOString(),
+        })
+        .eq("id", existing.id)
+        .eq("user_id", ownerId)
+        .select()
+        .single();
+
+    if (staleRefreshError) {
+      throw staleRefreshError;
     }
 
-    console.log(
-      "LABOR CANONICAL INGEST COMPLETE:",
-      insertedEmployeeShiftRows?.length || 0
-    );
+    if (staleRefreshRow) {
+      providerRowsUpdated.push(staleRefreshRow);
+    }
+
+    continue;
+  }
+
+  const providerUpdatePayload = {
+    employee_id:
+      row.employee_id ||
+      existing.employee_id ||
+      null,
+employee_name:
+  row._provided_fields?.employee_name
+    ? row.employee_name
+    : existing.employee_name,
+
+role:
+  row._provided_fields?.role
+    ? row.role
+    : existing.role,
+
+shift_date:
+  row._provided_fields?.shift_date
+    ? row.shift_date
+    : existing.shift_date,
+
+shift_start:
+  row._provided_fields?.shift_start
+    ? row.shift_start
+    : existing.shift_start,
+
+shift_end:
+  row._provided_fields?.shift_end
+    ? row.shift_end
+    : existing.shift_end,
+
+hours_worked:
+  row._provided_fields?.hours_worked
+    ? row.hours_worked
+    : existing.hours_worked,
+
+hourly_rate:
+  row._provided_fields?.hourly_rate
+    ? row.hourly_rate
+    : existing.hourly_rate,
+
+labor_cost:
+  row._provided_fields?.labor_cost
+    ? row.labor_cost
+    : existing.labor_cost,
+
+revenue_during_shift:
+  row._provided_fields?.revenue_during_shift
+    ? row.revenue_during_shift
+    : existing.revenue_during_shift,
+
+    location_id:
+  row._provided_fields?.location_id
+    ? row.location_id
+    : existing.location_id,
+
+location_name:
+  row._provided_fields?.location_name
+    ? row.location_name
+    : existing.location_name,
+
+shift:
+  row._provided_fields?.shift
+    ? row.shift
+    : existing.shift,
+
+    connection_id: row.connection_id,
+    external_id: row.external_id,
+
+    external_id_type:
+      row.external_id_type ||
+      existing.external_id_type ||
+      null,
+
+    provider_updated_at:
+      row.provider_updated_at ||
+      existing.provider_updated_at ||
+      null,
+
+    provider_status:
+      row.provider_status ??
+      existing.provider_status ??
+      null,
+
+    provider_deleted_at:
+      row.provider_deleted_at ??
+      existing.provider_deleted_at ??
+      null,
+
+    last_synced_at: new Date().toISOString(),
+  };
+
+  const {
+    data: updatedProviderRow,
+    error: providerUpdateError,
+  } = await supabase
+    .from("employee_shifts")
+    .update(providerUpdatePayload)
+    .eq("id", existing.id)
+    .eq("user_id", ownerId)
+    .select()
+    .single();
+
+  if (providerUpdateError) {
+    throw providerUpdateError;
+  }
+
+  if (updatedProviderRow) {
+    providerRowsUpdated.push(updatedProviderRow);
+  }
+}
+
+/*
+ * Manual uploads still insert every normalized row.
+ * New provider identities insert once.
+ */
+const rowsToInsert = [
+  ...manualRows,
+  ...providerRowsToInsert,
+].map((row) => {
+  const {
+    _provided_fields,
+    ...databaseRow
+  } = row;
+
+  return databaseRow;
+});
+
+let newlyInsertedRows = [];
+
+if (rowsToInsert.length > 0) {
+  const {
+    data: insertedRows,
+    error: employeeShiftInsertError,
+  } = await supabase
+    .from("employee_shifts")
+    .insert(rowsToInsert)
+    .select();
+
+  if (employeeShiftInsertError) {
+    throw employeeShiftInsertError;
+  }
+
+  newlyInsertedRows = insertedRows || [];
+}
+
+/*
+ * Keep the existing function contract intact.
+ * handleImportLabor already expects this variable.
+ */
+const insertedEmployeeShiftRows = [
+  ...newlyInsertedRows,
+  ...providerRowsUpdated,
+];
+
+console.log(
+  "LABOR CANONICAL INGEST COMPLETE:",
+  {
+    manualRows: manualRows.length,
+    providerInserted: providerRowsToInsert.length,
+    providerUpdated: providerRowsUpdated.length,
+    totalReturned: insertedEmployeeShiftRows.length,
+  }
+);
 
     return {
       uploadedFileRow,
@@ -22233,26 +24797,32 @@ const ingestNormalizedLaborRows = async ({
       normalizedRows,
     };
   } catch (error) {
-    /*
-     * If canonical labor insertion fails, do not leave
-     * an orphan uploads record behind.
-     */
-    if (uploadedFileRow?.id) {
-      const { error: cleanupError } = await supabase
-        .from("uploads")
-        .delete()
-        .eq("id", uploadedFileRow.id)
-        .eq("user_id", ownerId);
+   /*
+ * Remove the upload record only when this helper
+ * created it.
+ *
+ * If another workflow supplied existingUploadRow,
+ * that workflow owns its rollback and cleanup.
+ */
+if (
+  createdUploadInsideHelper &&
+  uploadedFileRow?.id
+) {
+  const { error: cleanupError } = await supabase
+    .from("uploads")
+    .delete()
+    .eq("id", uploadedFileRow.id)
+    .eq("user_id", ownerId);
 
-      if (cleanupError) {
-        console.error(
-          "LABOR INGEST UPLOAD CLEANUP FAILED:",
-          cleanupError
-        );
-      }
-    }
+  if (cleanupError) {
+    console.error(
+      "LABOR INGEST UPLOAD CLEANUP FAILED:",
+      cleanupError
+    );
+  }
+}
 
-    throw error;
+throw error;
   }
 };
 const handleImportLabor = async (rowsOverride = null) => {
@@ -22293,7 +24863,19 @@ const laborRows =
       setMessage("Authentication required. Please log in before importing data.");
       return;
     }
-const ownerId = dataOwnerId || user.id;
+const ownerId =
+  dataOwnerId ||
+  authenticatedUserId ||
+  userProfile?.owner_user_id ||
+  user?.id ||
+  null;
+
+if (!ownerId) {
+  setMessage(
+    "Authentication required. Please log in before importing data."
+  );
+  return;
+}
 
 const selectedLaborLocation = (locations || []).find(
   (location) =>
@@ -22678,11 +25260,44 @@ for (let attempt = 1; attempt <= 5; attempt += 1) {
     error: laborReloadError,
   } = await laborQuery;
 
-  if (!laborReloadError) {
-    refreshedLaborRows = loadedLaborRows || [];
-    refreshError = null;
-    break;
-  }
+ if (!laborReloadError) {
+  refreshedLaborRows = (
+    loadedLaborRows || []
+  ).filter((row) => {
+    const normalizedProviderStatus = String(
+      row.provider_status || ""
+    )
+      .trim()
+      .toLowerCase();
+
+    const isInactiveProviderShift =
+      Boolean(row.provider_deleted_at) ||
+      [
+        "cancelled",
+        "canceled",
+        "deleted",
+        "removed",
+        "void",
+        "voided",
+      ].includes(normalizedProviderStatus);
+
+    return !isInactiveProviderShift;
+  });
+
+  console.log(
+    "LABOR POST-IMPORT OPERATIONAL COUNT:",
+    refreshedLaborRows.length
+  );
+
+  console.log(
+    "LABOR POST-IMPORT INACTIVE SHIFTS EXCLUDED:",
+    (loadedLaborRows?.length || 0) -
+      refreshedLaborRows.length
+  );
+
+  refreshError = null;
+  break;
+}
 
   refreshError = laborReloadError;
 
@@ -22742,28 +25357,16 @@ if (refreshError) {
           );
         })
     );
-  });
-} else {
-  setLaborData((previous) => {
-    const existing = Array.isArray(previous)
-      ? previous
-      : [];
-
-    const incoming =
-      insertedEmployeeShiftRows?.length
-        ? insertedEmployeeShiftRows
-        : normalizedRows;
-
-    const merged = [...incoming, ...existing];
-
-    return merged.filter(
-      (row, index, array) =>
-        index ===
-        array.findIndex(
-          (candidate) => candidate.id === row.id
-        )
-    );
-  });
+  });} else {
+  /*
+   * The database reload is authoritative after a
+   * successful canonical labor import.
+   *
+   * Only operational shifts survive the reload,
+   * so cancelled/deleted provider shifts cannot
+   * remain in Labor Intelligence state.
+   */
+  setLaborData(refreshedLaborRows);
 }
 
 
@@ -23367,13 +25970,13 @@ const laborRiskStatus =
 
 const dailyLaborEfficiency = useMemo(() => {
   const salesRows =
-    dbSalesRows?.length
-      ? dbSalesRows
-      : locationSalesData?.length
-? locationSalesData
-      : pendingUploadRows?.length
-      ? pendingUploadRows
-      : [];
+  locationSalesData?.length
+    ? locationSalesData
+    : resolvedSalesData?.length
+    ? resolvedSalesData
+    : pendingUploadRows?.length
+    ? pendingUploadRows
+    : [];
 
   const laborRows = laborData || [];
 
@@ -23450,7 +26053,12 @@ const dailyLaborEfficiency = useMemo(() => {
       recommendation,
     };
   });
-}, [dbSalesRows, locationSalesData, pendingUploadRows, laborData]);
+}, [
+  locationSalesData,
+  resolvedSalesData,
+  pendingUploadRows,
+  laborData,
+]);
 const calculateLaborRecoveryVerification = ({
   appliedAt,
   salesRows = [],
@@ -23728,14 +26336,14 @@ const measurementStart = new Date(
   };
 };
 const shiftLaborIntelligence = useMemo(() => {
-  const salesRows =
-    dbSalesRows?.length
-      ? dbSalesRows
-     : locationSalesData?.length
-? locationSalesData
-      : pendingUploadRows?.length
-      ? pendingUploadRows
-      : [];
+ const salesRows =
+  locationSalesData?.length
+    ? locationSalesData
+    : resolvedSalesData?.length
+    ? resolvedSalesData
+    : pendingUploadRows?.length
+    ? pendingUploadRows
+    : [];
 
   const laborRows = laborData || [];
 
@@ -23889,7 +26497,12 @@ const shiftLaborIntelligence = useMemo(() => {
       recommendation,
     };
   });
-}, [dbSalesRows, locationSalesData, pendingUploadRows, laborData]);
+}, [
+  locationSalesData,
+  resolvedSalesData,
+  pendingUploadRows,
+  laborData,
+]);
 
 const primeCostPercentage =
   Number(foodCostPercentage || 0) +
@@ -24980,13 +27593,13 @@ const inventoryTrendData = useMemo(() => {
 
 const alcoholPourVarianceData = useMemo(() => {
   const salesRows =
-    dbSalesRows?.length
-      ? dbSalesRows
-      : locationSalesData?.length
-      ? locationSalesData
-      : pendingUploadRows?.length
-      ? pendingUploadRows
-      : [];
+  locationSalesData?.length
+    ? locationSalesData
+    : resolvedSalesData?.length
+    ? resolvedSalesData
+    : pendingUploadRows?.length
+    ? pendingUploadRows
+    : [];
   const inventoryItems =
     uploadComparison?.activeIngredients ||
     ingredientsData ||
@@ -25093,7 +27706,13 @@ const alcoholPourVarianceData = useMemo(() => {
     status,
     recommendation,
   };
-}, [dbSalesRows, locationSalesData, pendingUploadRows, uploadComparison, ingredientsData]);
+}, [
+  locationSalesData,
+  resolvedSalesData,
+  pendingUploadRows,
+  uploadComparison,
+  ingredientsData,
+]);
 const laborPercentage =
   totalRevenue > 0
     ? (totalLaborCost / totalRevenue) * 100
@@ -25424,10 +28043,8 @@ const availableLocations = [
 ];
 
 const multiLocationSalesRows =
-  dbSalesRows?.length
-    ? dbSalesRows
-    : salesData?.length
-    ? salesData
+  resolvedSalesData?.length
+    ? resolvedSalesData
     : pendingUploadRows?.length
     ? pendingUploadRows
     : [];
@@ -26209,7 +28826,12 @@ const isServenAdmin =
 
 const expectedVsActualUsageData = useMemo(() => {
   const rules = recipeUsageRules || [];
-  const salesRows = locationSalesData || salesData || [];
+  const salesRows =
+  locationSalesData?.length
+    ? locationSalesData
+    : resolvedSalesData?.length
+    ? resolvedSalesData
+    : [];
   const ingredients = locationIngredientsData || ingredientsData || [];
 
   return rules.map((rule) => {
@@ -26275,7 +28897,7 @@ const expectedVsActualUsageData = useMemo(() => {
 }, [
   recipeUsageRules,
   locationSalesData,
-  salesData,
+ resolvedSalesData,
   locationIngredientsData,
   ingredientsData,
 ]);
@@ -26403,10 +29025,12 @@ const posMenuProfitabilityData = useMemo(() => {
       .trim()
       .toLowerCase();
 
-  const salesRows =
-    locationSalesData?.length > 0
-      ? locationSalesData
-      : salesData || [];
+const salesRows =
+  locationSalesData?.length > 0
+    ? locationSalesData
+    : resolvedSalesData?.length > 0
+    ? resolvedSalesData
+    : [];
 
   const recipeRows = recipeCostingData || [];
 
@@ -26596,7 +29220,7 @@ const posMenuProfitabilityData = useMemo(() => {
     );
 }, [
   locationSalesData,
-  salesData,
+  resolvedSalesData,
   recipeCostingData,
 ]);
 console.log("RECIPE COSTING DATA:", recipeCostingData);
@@ -27465,7 +30089,12 @@ const operationalAlerts = useMemo(() => {
 ]);
 
 const forecastingInsights = useMemo(() => {
-  const sales = locationSalesData?.length ? locationSalesData : salesData || [];
+const sales =
+  locationSalesData?.length
+    ? locationSalesData
+    : resolvedSalesData?.length
+    ? resolvedSalesData
+    : [];
 
   if (!sales.length) return [];
 
@@ -27558,7 +30187,12 @@ const forecastingInsights = useMemo(() => {
      subtext: "Based on current uploaded sales and cost signals",
     },
   ];
-}, [locationSalesData, salesData, shiftOperationalData, recipeCostingData]);
+}, [
+  locationSalesData,
+  resolvedSalesData,
+  shiftOperationalData,
+  recipeCostingData,
+]);
 
 const topAIAction = useMemo(() => {
   const alerts = operationalAlerts || [];
@@ -28363,7 +30997,12 @@ const liveMonitoringFeed = useMemo(() => {
 
 
 const revenueForecastChartData = useMemo(() => {
-  const sales = locationSalesData?.length ? locationSalesData : salesData || [];
+ const sales =
+  locationSalesData?.length
+    ? locationSalesData
+    : resolvedSalesData?.length
+    ? resolvedSalesData
+    : [];
 
   if (!sales.length) return [];
 
@@ -28398,7 +31037,7 @@ const revenueForecastChartData = useMemo(() => {
   }));
 
   return [...actualRows, ...forecastRows];
-}, [locationSalesData, salesData]);
+}, [locationSalesData, resolvedSalesData]);
 
 const primeCostForecastChartData = useMemo(() => {
  const basePrimeCost = Number(primeCostPercentage || 0);
@@ -28550,8 +31189,7 @@ const scoreVendor = (() => {
 const scoreRevenue = (() => {
   const hasRevenueData =
     Number(liveTotalRevenue || 0) > 0 ||
-    (dbSalesRows || []).length > 0 ||
-    (salesData || []).length > 0;
+    (resolvedSalesData || []).length > 0;
 
   if (!hasRevenueData) {
     return 0;
@@ -28709,8 +31347,7 @@ const consumablesSummary = (() => {
 
 const hasFinancialData =
   Number(liveTotalRevenue || 0) > 0 ||
-  (dbSalesRows || []).length > 0 ||
-  (salesData || []).length > 0;
+  (resolvedSalesData || []).length > 0;
 
 const hasLaborData =
   (laborData || []).length > 0 ||
@@ -29624,10 +32261,13 @@ const totalEstimatedWasteRecovery = wasteRecoveryPlan.reduce(
 );
 
 const beverageSalesData =
-  alcoholSalesRows ||
-  locationSalesData ||
-  salesData ||
-  [];
+  alcoholSalesRows?.length
+    ? alcoholSalesRows
+    : locationSalesData?.length
+    ? locationSalesData
+    : resolvedSalesData?.length
+    ? resolvedSalesData
+    : [];
 
 const beverageInventoryData =
   inventoryData ||
@@ -29650,10 +32290,12 @@ const beverageRestockData = useMemo(() => {
   ingredientsData ||
   [];
 
-  const beverageSales =
-    beverageSalesData ||
-    salesData ||
-    [];
+ const beverageSales =
+  beverageSalesData?.length
+    ? beverageSalesData
+    : resolvedSalesData?.length
+    ? resolvedSalesData
+    : [];
 
   return beverageItems.map((item, index) => {
     const name =
@@ -29726,7 +32368,7 @@ const avgDailyUsage =
   inventoryData,
   ingredientsData,
   beverageSalesData,
-  salesData,
+  resolvedSalesData,
 ]);
 
 const beverageRestockInsight = useMemo(() => {
@@ -29858,11 +32500,14 @@ const kegIntelligenceInsight = useMemo(() => {
 
 
 const happyHourProfitabilityData = useMemo(() => {
-  const beverageSales =
-    alcoholSalesRows ||
-    locationSalesData ||
-    salesData ||
-    [];
+ const beverageSales =
+  alcoholSalesRows?.length
+    ? alcoholSalesRows
+    : locationSalesData?.length
+    ? locationSalesData
+    : resolvedSalesData?.length
+    ? resolvedSalesData
+    : [];
 
   const happyHourSales = beverageSales.filter((sale) => {
     const saleHour = new Date(
@@ -29937,7 +32582,7 @@ const happyHourProfitabilityData = useMemo(() => {
 }, [
   alcoholSalesRows,
   locationSalesData,
-  salesData,
+  resolvedSalesData,
 ]);
 
 const cocktailRecipeCostingData = useMemo(() => {
@@ -30026,12 +32671,16 @@ const cocktailRecipeCostingInsight = useMemo(() => {
 }, [cocktailRecipeCostingData]);
 
 const shiftLevelBeverageData = useMemo(() => {
-  const rows =
-    beverageSalesData ||
-    alcoholSalesRows ||
-    locationSalesData ||
-    salesData ||
-    [];
+ const rows =
+  beverageSalesData?.length
+    ? beverageSalesData
+    : alcoholSalesRows?.length
+    ? alcoholSalesRows
+    : locationSalesData?.length
+    ? locationSalesData
+    : resolvedSalesData?.length
+    ? resolvedSalesData
+    : [];
 
   const shifts = {
     Lunch: {
@@ -30121,7 +32770,7 @@ const shiftLevelBeverageData = useMemo(() => {
   beverageSalesData,
   alcoholSalesRows,
   locationSalesData,
-  salesData,
+  resolvedSalesData,
 ]);
 
 const beverageHealthScoreData = useMemo(() => {
@@ -38150,7 +40799,9 @@ const multiLocationIntelligence = useMemo(() => {
   const salesRows =
     multiLocationSalesRows?.length
       ? multiLocationSalesRows
-      : salesData || [];
+      : resolvedSalesData?.length
+      ? resolvedSalesData
+      : [];
 
   const laborRows = laborData || [];
   const inventoryRows = ingredientsData || [];
@@ -38353,7 +41004,7 @@ const multiLocationIntelligence = useMemo(() => {
   };
 }, [
   multiLocationSalesRows,
-  salesData,
+  resolvedSalesData,
   laborData,
   ingredientsData,
   invoicesData,
@@ -43374,8 +46025,42 @@ useEffect(() => {
         throw shiftsError;
       }
 
-      setEmployees(employeesData || []);
-      setEmployeeShifts(shiftsData || []);
+     const operationalEmployeeShifts = (
+  shiftsData || []
+).filter((row) => {
+  const normalizedProviderStatus = String(
+    row.provider_status || ""
+  )
+    .trim()
+    .toLowerCase();
+
+  const isInactiveProviderShift =
+    Boolean(row.provider_deleted_at) ||
+    [
+      "cancelled",
+      "canceled",
+      "deleted",
+      "removed",
+      "void",
+      "voided",
+    ].includes(normalizedProviderStatus);
+
+  return !isInactiveProviderShift;
+});
+
+console.log(
+  "OPERATIONAL EMPLOYEE SHIFTS COUNT:",
+  operationalEmployeeShifts.length
+);
+
+console.log(
+  "INACTIVE EMPLOYEE SHIFTS EXCLUDED:",
+  (shiftsData?.length || 0) -
+    operationalEmployeeShifts.length
+);
+
+setEmployees(employeesData || []);
+setEmployeeShifts(operationalEmployeeShifts);
     } catch (loadError) {
       console.error(
         "EMPLOYEE AND SHIFT LOAD FAILED:",
@@ -44068,13 +46753,22 @@ let importCommitted = false;
 
     setMessage("Importing employee shifts...");
 
-    const currentUser = user;
+  const employeeShiftOwnerId =
+  dataOwnerId ||
+  authenticatedUserId ||
+  userProfile?.owner_user_id ||
+  user?.id ||
+  null;
 
-    if (!currentUser?.id) {
-      setMessage("You must be logged in to upload employee shifts.");
-      alert("You must be logged in to upload employee shifts.");
-      return;
-    }
+if (!employeeShiftOwnerId) {
+  setMessage(
+    "You must be logged in to upload employee shifts."
+  );
+  alert(
+    "You must be logged in to upload employee shifts."
+  );
+  return;
+}
 
     Papa.parse(file, {
       header: true,
@@ -44123,7 +46817,7 @@ let importCommitted = false;
             .from("uploads")
             .insert([
               {
-                user_id: currentUser.id,
+               user_id: employeeShiftOwnerId,
                 file_name: fileName,
                 source_name: "employee_shift_upload",
                 row_count: rows.length,
@@ -44163,7 +46857,7 @@ let importCommitted = false;
             if (!employeeName) return;
 
             employeeMap.set(employeeName, {
-              user_id: currentUser.id,
+             user_id: employeeShiftOwnerId,
               employee_name: employeeName,
               role:
                 row.role ||
@@ -44198,7 +46892,7 @@ let importCommitted = false;
             await supabase
               .from("employees")
               .select("id,employee_name")
-              .eq("user_id", currentUser.id);
+              .eq("user_id", employeeShiftOwnerId);
 
           console.log("EMPLOYEE SHIFT existingEmployees:", existingEmployees);
           console.log(
@@ -44292,7 +46986,7 @@ let importCommitted = false;
   getActiveConnectionLocation();
 
 return {
-  user_id: currentUser.id,
+  user_id: employeeShiftOwnerId,
   upload_id: uploadRow.id,
   file_name: fileName,
 
@@ -44380,13 +47074,35 @@ console.log(
   }))
 );
 
-          const { data: insertedShifts, error: shiftsError } = await supabase
-            .from("employee_shifts")
-            .insert(shiftsToInsert)
-            .select();
+          const canonicalShiftResult =
+  await ingestNormalizedLaborRows({
+    ownerId: employeeShiftOwnerId,
+    incomingRows: shiftsToInsert,
+    fileName,
+    sourceName: "employee_shift_upload",
+
+    locationId:
+      resolvedShiftLocation?.id || null,
+
+    locationName:
+      resolvedShiftLocation?.name ||
+      (activeLocation !== "all"
+        ? activeLocation
+        : assignedLocation || null),
+
+    connectionId: null,
+
+    // Reuse the upload record this workflow
+    // already created instead of creating another one.
+    existingUploadRow: uploadRow,
+  });
+
+const insertedShifts =
+  canonicalShiftResult?.insertedRows || [];
+
 console.log(
-  "EMPLOYEE SHIFT DATABASE RESULT:",
-  insertedShifts?.map((shift) => ({
+  "EMPLOYEE SHIFT CANONICAL DATABASE RESULT:",
+  insertedShifts.map((shift) => ({
     id: shift.id,
     employee_name: shift.employee_name,
     shift_start: shift.shift_start,
@@ -44394,10 +47110,11 @@ console.log(
     upload_id: shift.upload_id,
   }))
 );
-          console.log("EMPLOYEE SHIFT insertedShifts:", insertedShifts);
-          console.log("EMPLOYEE SHIFT shiftsError:", shiftsError);
 
-      if (shiftsError) throw shiftsError;
+console.log(
+  "EMPLOYEE SHIFT CANONICAL INSERTED SHIFTS:",
+  insertedShifts
+);
 
 // The employee shift rows are safely stored.
 // Any later UI error must not delete them.
@@ -44494,7 +47211,12 @@ useEffect(() => {
   let cancelled = false;
 
   const loadEmployeesAndShifts = async () => {
-    const resolvedUserId = dataOwnerId || user?.id;
+    const resolvedUserId =
+  dataOwnerId ||
+  authenticatedUserId ||
+  userProfile?.owner_user_id ||
+  user?.id ||
+  null;
 
     if (!resolvedUserId) {
       console.log("EMPLOYEE SHIFT LOAD SKIPPED: user ID not ready");
@@ -44542,24 +47264,60 @@ useEffect(() => {
         setEmployees(employeesResult.data || []);
       }
 
-      if (shiftsResult.error) {
-        console.error(
-          "EMPLOYEE SHIFTS LOAD ERROR:",
-          shiftsResult.error
-        );
-      } else {
-        console.log(
-          "EMPLOYEE SHIFTS LOAD DATA:",
-          shiftsResult.data
-        );
+     if (shiftsResult.error) {
+  console.error(
+    "EMPLOYEE SHIFTS LOAD ERROR:",
+    shiftsResult.error
+  );
+} else {
+  console.log(
+    "EMPLOYEE SHIFTS LOAD DATA:",
+    shiftsResult.data
+  );
 
-        console.log(
-          "EMPLOYEE SHIFTS LOAD COUNT:",
-          shiftsResult.data?.length || 0
-        );
+  console.log(
+    "EMPLOYEE SHIFTS LOAD COUNT:",
+    shiftsResult.data?.length || 0
+  );
 
-        setEmployeeShifts(shiftsResult.data || []);
-      }
+  const operationalEmployeeShifts = (
+    shiftsResult.data || []
+  ).filter((row) => {
+    const normalizedProviderStatus = String(
+      row.provider_status || ""
+    )
+      .trim()
+      .toLowerCase();
+
+    const isInactiveProviderShift =
+      Boolean(row.provider_deleted_at) ||
+      [
+        "cancelled",
+        "canceled",
+        "deleted",
+        "removed",
+        "void",
+        "voided",
+      ].includes(normalizedProviderStatus);
+
+    return !isInactiveProviderShift;
+  });
+
+  console.log(
+    "OPERATIONAL EMPLOYEE SHIFT COUNT:",
+    operationalEmployeeShifts.length
+  );
+
+  console.log(
+    "INACTIVE PROVIDER SHIFTS EXCLUDED:",
+    (shiftsResult.data?.length || 0) -
+      operationalEmployeeShifts.length
+  );
+
+  setEmployeeShifts(
+    operationalEmployeeShifts
+  );
+}
       if (schedulesResult.error) {
   console.error(
     "EMPLOYEE SCHEDULES LOAD ERROR:",
@@ -44591,7 +47349,12 @@ useEffect(() => {
   return () => {
     cancelled = true;
   };
-}, [user?.id, dataOwnerId]);
+}, [
+  user?.id,
+  dataOwnerId,
+  authenticatedUserId,
+  userProfile?.owner_user_id,
+]);
 useEffect(() => {
   let cancelled = false;
 
@@ -44925,7 +47688,24 @@ const handleBeverageUpload = async (event) => {
           }
 
           uploadRow = createdUploadRow;
+const beverageOwnerId =
+  dataOwnerId ||
+  userProfile?.owner_user_id ||
+  currentUser?.id;
 
+if (!beverageOwnerId) {
+  throw new Error(
+    "Unable to resolve restaurant owner for beverage import."
+  );
+}
+
+const beverageLocationId =
+  selectedUploadLocationId || null;
+
+const beverageLocationName =
+  activeLocation !== "all"
+    ? activeLocation
+    : assignedLocation || null;
           const safeNumber = (value) => {
             if (
               value === null ||
@@ -44998,17 +47778,24 @@ const handleBeverageUpload = async (event) => {
                   100
                 : 0;
 
-            return {
-              user_id: currentUser.id,
-              upload_id: uploadRow.id,
-              file_name: fileName,
+           return {
+  user_id: beverageOwnerId,
+  upload_id: uploadRow.id,
+  file_name: fileName,
 
-              location_name:
-                activeLocation !== "all"
-                  ? activeLocation
-                  : assignedLocation || null,
+  location_id: beverageLocationId,
+  location_name: beverageLocationName,
 
-              beverage_name: String(
+  connection_id: null,
+  external_id: null,
+  external_id_type: null,
+  provider_updated_at: null,
+  last_synced_at: null,
+  provider_status: null,
+  provider_deleted_at: null,
+  is_active: true,
+
+  beverage_name: String(
                 row.beverage_name ||
                   row["Beverage Name"] ||
                   row.name ||
@@ -45043,27 +47830,183 @@ const handleBeverageUpload = async (event) => {
             beverageRows
           );
 
-          const {
-            data: insertedBeverages,
-            error: beverageInsertError,
-          } = await supabase
-            .from("beverage_items")
-            .insert(beverageRows)
-            .select();
+     /*
+ * Canonical Beverage Item Synchronization
+ *
+ * Manual beverage identity:
+ * restaurant owner + location + normalized beverage name
+ *
+ * Re-uploading the same beverage updates the canonical row
+ * instead of creating another duplicate beverage item.
+ */
 
-          console.log(
-            "BEVERAGE INSERTED ROWS:",
-            insertedBeverages
-          );
+const normalizeCanonicalBeverageName = (value) =>
+  String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
 
-          console.log(
-            "BEVERAGE INSERT ERROR:",
-            beverageInsertError
-          );
+const {
+  data: existingBeverageItems,
+  error: existingBeverageItemsError,
+} = await supabase
+  .from("beverage_items")
+  .select("*")
+  .eq("user_id", beverageOwnerId);
 
-          if (beverageInsertError) {
-            throw beverageInsertError;
-          }
+if (existingBeverageItemsError) {
+  throw existingBeverageItemsError;
+}
+
+const normalizeBeverageLocationId = (value) =>
+  value === null ||
+  value === undefined ||
+  String(value).trim() === ""
+    ? "__unassigned__"
+    : String(value).trim();
+
+const buildCanonicalBeverageKey = ({
+  locationId,
+  beverageName,
+}) => {
+  const normalizedName =
+    normalizeCanonicalBeverageName(beverageName);
+
+  if (!normalizedName) {
+    return null;
+  }
+
+  return `${normalizeBeverageLocationId(
+    locationId
+  )}::${normalizedName}`;
+};
+
+const existingBeverageByKey = new Map();
+
+(existingBeverageItems || []).forEach((item) => {
+  const key = buildCanonicalBeverageKey({
+    locationId: item.location_id,
+    beverageName: item.beverage_name,
+  });
+
+  if (key && !existingBeverageByKey.has(key)) {
+    existingBeverageByKey.set(key, item);
+  }
+});
+
+const synchronizedBeverages = [];
+
+// Track exactly what this import changes so a failed
+// canonical sync can be rolled back without deleting
+// pre-existing beverage records.
+const createdBeverageItemIds = [];
+const updatedBeverageItemSnapshots = [];
+
+for (const beverageRow of beverageRows) {
+  const canonicalKey = buildCanonicalBeverageKey({
+    locationId: beverageRow.location_id,
+    beverageName: beverageRow.beverage_name,
+  });
+
+  if (!canonicalKey) {
+    console.warn(
+      "Skipping beverage row without canonical name:",
+      beverageRow
+    );
+    continue;
+  }
+
+  const existingBeverage =
+    existingBeverageByKey.get(canonicalKey);
+if (existingBeverage) {
+  // Snapshot a pre-existing canonical row only once.
+  // Rows created during this same import do not need a snapshot.
+  if (
+    existingBeverage?.id &&
+    !createdBeverageItemIds.includes(existingBeverage.id) &&
+    !updatedBeverageItemSnapshots.some(
+      (snapshot) => snapshot.id === existingBeverage.id
+    )
+  ) {
+    updatedBeverageItemSnapshots.push({
+      ...existingBeverage,
+    });
+  }
+
+  const {
+    data: updatedBeverage,
+    error: beverageUpdateError,
+  } = await supabase
+      .from("beverage_items")
+      .update({
+        upload_id: beverageRow.upload_id,
+        file_name: beverageRow.file_name,
+        location_id: beverageRow.location_id,
+        location_name: beverageRow.location_name,
+        beverage_name: beverageRow.beverage_name,
+        category: beverageRow.category,
+        bottle_size_oz: beverageRow.bottle_size_oz,
+        cost_per_bottle: beverageRow.cost_per_bottle,
+        pour_size_oz: beverageRow.pour_size_oz,
+        selling_price: beverageRow.selling_price,
+        pours_per_bottle: beverageRow.pours_per_bottle,
+        theoretical_cost_per_pour:
+          beverageRow.theoretical_cost_per_pour,
+        theoretical_margin:
+          beverageRow.theoretical_margin,
+        is_active: true,
+      })
+      .eq("id", existingBeverage.id)
+      .eq("user_id", beverageOwnerId)
+      .select("*")
+      .single();
+
+    if (beverageUpdateError) {
+      throw beverageUpdateError;
+    }
+
+    if (updatedBeverage) {
+      synchronizedBeverages.push(updatedBeverage);
+      existingBeverageByKey.set(
+        canonicalKey,
+        updatedBeverage
+      );
+    }
+
+    continue;
+  }
+
+  const {
+    data: insertedBeverage,
+    error: beverageInsertError,
+  } = await supabase
+    .from("beverage_items")
+    .insert([beverageRow])
+    .select("*")
+    .single();
+
+  if (beverageInsertError) {
+    throw beverageInsertError;
+  }
+
+if (insertedBeverage) {
+  createdBeverageItemIds.push(insertedBeverage.id);
+
+  synchronizedBeverages.push(insertedBeverage);
+
+  existingBeverageByKey.set(
+    canonicalKey,
+    insertedBeverage
+  );
+}
+}
+
+const insertedBeverages = synchronizedBeverages;
+
+console.log(
+  "BEVERAGE CANONICAL SYNC ROWS:",
+  insertedBeverages
+);
 importCommitted = true;
           const importedCount =
             insertedBeverages?.length ||
@@ -45078,10 +48021,25 @@ importCommitted = true;
             row_count: importedCount,
           };
 
-          setBeverageItems((prev) => [
-            ...(insertedBeverages || beverageRows),
-            ...(prev || []),
-          ]);
+         setBeverageItems((prev) => {
+  const nextItems = [...(prev || [])];
+
+  for (const beverage of insertedBeverages || []) {
+    if (!beverage?.id) continue;
+
+    const existingIndex = nextItems.findIndex(
+      (item) => item?.id === beverage.id
+    );
+
+    if (existingIndex >= 0) {
+      nextItems[existingIndex] = beverage;
+    } else {
+      nextItems.unshift(beverage);
+    }
+  }
+
+  return nextItems;
+});
 
           setClientImports((prev) => [
             cleanUploadRow,
@@ -45131,17 +48089,73 @@ importCommitted = true;
           );
 
           if (uploadRow?.id && !importCommitted) {
-            await supabase
-              .from("beverage_items")
-              .delete()
-              .eq("upload_id", uploadRow.id);
+  console.log(
+    "BEVERAGE IMPORT FAILED — ROLLING BACK CANONICAL CHANGES"
+  );
 
-            await supabase
-              .from("uploads")
-              .delete()
-              .eq("id", uploadRow.id);
-          }
+  // 1. Restore pre-existing canonical beverage rows
+  // to exactly what they were before this import.
+  for (const snapshot of updatedBeverageItemSnapshots) {
+    const { error: restoreError } = await supabase
+      .from("beverage_items")
+      .update({
+        upload_id: snapshot.upload_id,
+        file_name: snapshot.file_name,
+        location_id: snapshot.location_id,
+        location_name: snapshot.location_name,
+        beverage_name: snapshot.beverage_name,
+        category: snapshot.category,
+        bottle_size_oz: snapshot.bottle_size_oz,
+        cost_per_bottle: snapshot.cost_per_bottle,
+        pour_size_oz: snapshot.pour_size_oz,
+        selling_price: snapshot.selling_price,
+        pours_per_bottle: snapshot.pours_per_bottle,
+        theoretical_cost_per_pour:
+          snapshot.theoretical_cost_per_pour,
+        theoretical_margin: snapshot.theoretical_margin,
+        is_active: snapshot.is_active,
+      })
+      .eq("id", snapshot.id)
+      .eq("user_id", snapshot.user_id);
 
+    if (restoreError) {
+      console.error(
+        "BEVERAGE ROLLBACK RESTORE ERROR:",
+        snapshot.id,
+        restoreError
+      );
+    }
+  }
+
+  // 2. Delete only rows that were newly created
+  // during this failed import.
+  if (createdBeverageItemIds.length > 0) {
+    const { error: createdDeleteError } = await supabase
+      .from("beverage_items")
+      .delete()
+      .in("id", createdBeverageItemIds);
+
+    if (createdDeleteError) {
+      console.error(
+        "BEVERAGE ROLLBACK CREATED ROW DELETE ERROR:",
+        createdDeleteError
+      );
+    }
+  }
+
+  // 3. Remove the failed upload record.
+  const { error: uploadDeleteError } = await supabase
+    .from("uploads")
+    .delete()
+    .eq("id", uploadRow.id);
+
+  if (uploadDeleteError) {
+    console.error(
+      "BEVERAGE ROLLBACK UPLOAD DELETE ERROR:",
+      uploadDeleteError
+    );
+  }
+}
           if (optimisticUpload?.id) {
             setClientImports((prev) =>
               (prev || []).filter(
@@ -45332,13 +48346,14 @@ let importCommitted = false;
             uploadError
           );
 
-          if (uploadError) {
-            throw uploadError;
-          }
+      if (uploadError) {
+  throw uploadError;
+}
 
-          uploadRow = createdUploadRow;
+uploadRow = createdUploadRow;
 
-          const safeNumber = (value) => {
+const safeNumber = (value) => {
+          
             if (
               value === null ||
               value === undefined ||
@@ -48065,7 +51080,12 @@ const executiveHealthLabel =
     : "Critical";
 
 const peakDiningHour = (() => {
-  const rows = salesData?.length ? salesData : locationSalesData || [];
+ const rows =
+  locationSalesData?.length
+    ? locationSalesData
+    : resolvedSalesData?.length
+    ? resolvedSalesData
+    : [];
 
   const hourCounts = {};
 
@@ -48106,7 +51126,12 @@ const peakDiningHour = (() => {
 })();
 
 const peakDiningDay = (() => {
-  const rows = salesData?.length ? salesData : locationSalesData || [];
+  const rows =
+    locationSalesData?.length
+      ? locationSalesData
+      : resolvedSalesData?.length
+      ? resolvedSalesData
+      : [];
 
   const dayCounts = {};
 
@@ -48133,7 +51158,12 @@ const peakDiningDay = (() => {
 })();
 
 const topCustomerSegment = (() => {
-  const rows = salesData?.length ? salesData : locationSalesData || [];
+  const rows =
+    locationSalesData?.length
+      ? locationSalesData
+      : resolvedSalesData?.length
+      ? resolvedSalesData
+      : [];
 
   const segmentCounts = {};
 
@@ -48156,7 +51186,12 @@ const topCustomerSegment = (() => {
 })();
 
 const repeatVisitRate = (() => {
-  const rows = salesData?.length ? salesData : locationSalesData || [];
+  const rows =
+    locationSalesData?.length
+      ? locationSalesData
+      : resolvedSalesData?.length
+      ? resolvedSalesData
+      : [];
 
   const guestVisits = {};
 
