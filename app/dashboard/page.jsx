@@ -48351,8 +48351,29 @@ let importCommitted = false;
 }
 
 uploadRow = createdUploadRow;
+uploadRow = createdUploadRow;
+
+const beverageUsageOwnerId =
+  dataOwnerId ||
+  userProfile?.owner_user_id ||
+  currentUser?.id;
+
+if (!beverageUsageOwnerId) {
+  throw new Error(
+    "Unable to resolve restaurant owner for beverage usage import."
+  );
+}
+
+const beverageUsageLocationId =
+  selectedUploadLocationId || null;
+
+const beverageUsageLocationName =
+  activeLocation !== "all"
+    ? activeLocation
+    : assignedLocation || null;
 
 const safeNumber = (value) => {
+
           
             if (
               value === null ||
@@ -48375,15 +48396,19 @@ const safeNumber = (value) => {
           };
 
           const usageRows = rows.map((row) => ({
-            user_id: currentUser.id,
-            upload_id: uploadRow.id,
-            file_name: fileName,
+  user_id: beverageUsageOwnerId,
+  upload_id: uploadRow.id,
+  file_name: fileName,
 
-            location_name:
-              activeLocation !== "all"
-                ? activeLocation
-                : assignedLocation || null,
-
+  location_id: beverageUsageLocationId,
+  location_name: beverageUsageLocationName,
+connection_id: null,
+external_id: null,
+external_id_type: null,
+provider_updated_at: null,
+last_synced_at: null,
+provider_status: null,
+provider_deleted_at: null,
             beverage_name: String(
               row.beverage_name ||
                 row["Beverage Name"] ||
@@ -48469,11 +48494,15 @@ const safeNumber = (value) => {
             usageInsertError
           );
 
-          if (usageInsertError) {
-            throw usageInsertError;
-          }
+        if (usageInsertError) {
+  throw usageInsertError;
+}
 
-          const importedCount =
+// Beverage usage evidence is safely stored.
+// Any later UI error must not delete committed period data.
+importCommitted = true;
+
+const importedCount =
             insertedUsage?.length ||
             usageRows.length ||
             0;
@@ -48538,7 +48567,7 @@ const safeNumber = (value) => {
             innerError
           );
 
-          if (uploadRow?.id) {
+        if (uploadRow?.id && !importCommitted) {
             await supabase
               .from("beverage_usage")
               .delete()
