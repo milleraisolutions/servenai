@@ -1501,6 +1501,17 @@ const operationalLaborData =
     : [];
 const locationMenuItemsData = filterByActiveLocation(menuItemsData);
 const locationIngredientsData = filterByActiveLocation(ingredientsData);
+const locationInventoryData = filterByActiveLocation(inventoryData);
+
+const operationalIngredientsData =
+  activeLocation === "all" || !activeLocation
+    ? ingredientsData || []
+    : locationIngredientsData;
+
+const operationalInventoryData =
+  activeLocation === "all" || !activeLocation
+    ? inventoryData || []
+    : locationInventoryData;
 
 const locationInvoicesData = filterByActiveLocation(invoicesData);
 console.log("DB POS ROWS:", dbSalesRows?.length || 0);
@@ -13029,7 +13040,7 @@ salesUsageNote,
   };
 });
 
-  const items = (locationIngredientsData || []).map((item) => {
+  const items = (operationalIngredientsData || []).map((item) => {
   const quantity = Number(item.quantity || 0);
 
   const recipeSalesUsage = Number(
@@ -13096,7 +13107,7 @@ const runOutDate =
 }, [
   uploadComparison,
   ingredientUsageFromSales,
-  locationIngredientsData,
+  operationalIngredientsData,
 ]);
 const handleAutoRestockFromAlert = async (alert) => {
   try {
@@ -19300,7 +19311,7 @@ const shiftActionRecommendation =
 const ingredients =
   activeIngredients.length > 0
     ? activeIngredients
-    : locationIngredientsData || [];
+    : operationalIngredientsData || [];
 
   return ingredients.map((ingredient) => {
     const ingredientName = String(
@@ -19432,7 +19443,7 @@ inventoryLastSeenAt: ingredient.last_seen_at || null,
   operationalSalesData,
   recipeUsageRules,
   uploadComparison,
-  locationIngredientsData,
+  operationalIngredientsData,
 ]);
 /* =========================
    ACTUAL VS EXPECTED USAGE INTELLIGENCE
@@ -19485,9 +19496,10 @@ const operationalUsageVarianceInsight =
 ========================= */
 
 const inventorySourceRows =
-  Array.isArray(inventoryData) && inventoryData.length
-    ? inventoryData
-    : ingredientsData || [];
+  Array.isArray(operationalInventoryData) &&
+  operationalInventoryData.length
+    ? operationalInventoryData
+    : operationalIngredientsData || [];
 const inventoryDepletionData = (inventorySourceRows || []).map((item) => {
   const quantity = Number(
     item.quantity ||
@@ -23603,13 +23615,15 @@ const hasRevenueData =
 const hasOperationalData =
   hasRevenueData ||
   (operationalLaborData || []).length > 0 ||
-  (inventoryData || []).length > 0 ||
+  (operationalInventoryData || []).length > 0 ||
+  (operationalIngredientsData || []).length > 0 ||
   (invoicesData || []).length > 0;
 
 const hasFullRecoveryData =
   hasRevenueData &&
   ((operationalLaborData || []).length > 0 ||
-    (inventoryData || []).length > 0 ||
+    (operationalInventoryData || []).length > 0 ||
+    (operationalIngredientsData || []).length > 0 ||
     (invoicesData || []).length > 0);
 
   const aiRecoveryStatus =
@@ -26773,7 +26787,7 @@ const getVarianceClassification = (ingredientName, variancePercent) => {
 const ingredientVarianceData = useMemo(() => {
   const ingredients =
     uploadComparison?.activeIngredients ||
-    ingredientsData ||
+    operationalIngredientsData ||
     [];
 
   return ingredients.map((ingredient) => {
@@ -26830,7 +26844,7 @@ const ingredientVarianceData = useMemo(() => {
       severity: classification.severity,
     };
   });
-}, [uploadComparison, ingredientsData]);
+}, [uploadComparison, operationalIngredientsData]);
 
 const aiWasteDetection = useMemo(() => {
   return (ingredientVarianceData || [])
@@ -26882,7 +26896,7 @@ const aiWasteDetection = useMemo(() => {
 const inventoryTurnoverData = useMemo(() => {
   const ingredients =
     uploadComparison?.activeIngredients ||
-    ingredientsData ||
+    operationalIngredientsData ||
     [];
 
   return ingredients.map((item) => {
@@ -26927,13 +26941,13 @@ const inventoryTurnoverData = useMemo(() => {
       recommendation,
     };
   });
-}, [uploadComparison, ingredientsData]);
+}, [uploadComparison, operationalIngredientsData]);
 
 
 const spoilageForecastData = useMemo(() => {
   const ingredients =
     uploadComparison?.activeIngredients ||
-    ingredientsData ||
+    operationalIngredientsData ||
     [];
 
   const getDefaultShelfLife = (name = "") => {
@@ -27038,7 +27052,7 @@ const spoilageForecastData = useMemo(() => {
       recommendation,
     };
   });
-}, [uploadComparison, ingredientsData]);
+}, [uploadComparison, operationalIngredientsData]);
 
 const vendorPriceSpikeData = useMemo(() => {
   const invoiceRows =
@@ -27734,9 +27748,9 @@ const recipeCostingData = useMemo(() => {
 ]);
 const inventoryTrendData = useMemo(() => {
   const items =
-    uploadComparison?.activeIngredients ||
-    locationIngredientsData ||
-    [];
+  uploadComparison?.activeIngredients ||
+  operationalIngredientsData ||
+  [];
 
   return items.slice(0, 10).map((item, index) => {
     const name =
@@ -27764,7 +27778,7 @@ const inventoryTrendData = useMemo(() => {
       value,
     };
   });
-}, [uploadComparison, locationIngredientsData]);
+}, [uploadComparison, operationalIngredientsData]);
 
 const alcoholPourVarianceData = useMemo(() => {
 const salesRows =
@@ -29418,10 +29432,10 @@ const handleAcceptInventoryWasteAction = async (item) => {
       return;
     }
 
-    const matchingIngredient = (locationIngredientsData || []).find(
-      (ingredient) =>
-        String(ingredient.id || "") === String(ingredientId)
-    );
+   const matchingIngredient = (operationalIngredientsData || []).find(
+  (ingredient) =>
+    String(ingredient.id || "") === String(ingredientId)
+);
 console.log("INVENTORY WASTE ACTION PAYLOAD:", {
   ingredientId,
   ingredientName,
@@ -29453,27 +29467,39 @@ console.log("INVENTORY WASTE ACTION PAYLOAD:", {
       decisionStatus: "accepted",
 
       implementationStatus: "confirmed",
+baselineData: {
+  ingredient_name: ingredientName,
+  expected_usage: baselineExpectedUsage,
+  actual_usage: baselineActualUsage,
+  excess_usage: baselineExcessUsage,
+  excess_usage_cost: baselineExcessUsageCost,
+  variance_percent: baselineVariancePercent,
+  cost_per_unit: Number(item?.costPerUnit || 0),
 
-      baselineData: {
-        ingredient_name: ingredientName,
-        expected_usage: baselineExpectedUsage,
-        actual_usage: baselineActualUsage,
-        excess_usage: baselineExcessUsage,
-        excess_usage_cost: baselineExcessUsageCost,
-        variance_percent: baselineVariancePercent,
-        cost_per_unit: Number(item?.costPerUnit || 0),
+  location_id:
+    item?.location_id ||
+    item?.locationId ||
+    matchingIngredient?.location_id ||
+    null,
 
-      baseline_upload_id:
-  item?.inventoryUploadId ||
-  matchingIngredient?.upload_id ||
-  null,
+  location_name:
+    item?.location_name ||
+    item?.locationName ||
+    item?.location ||
+    matchingIngredient?.location_name ||
+    matchingIngredient?.location ||
+    (activeLocation !== "all" ? activeLocation : null),
 
-baseline_last_seen_at:
-  item?.inventoryLastSeenAt ||
-  matchingIngredient?.last_seen_at ||
-  null,
-      },
+  baseline_upload_id:
+    item?.inventoryUploadId ||
+    matchingIngredient?.upload_id ||
+    null,
 
+  baseline_last_seen_at:
+    item?.inventoryLastSeenAt ||
+    matchingIngredient?.last_seen_at ||
+    null,
+},
       targetData: {
         target_excess_usage_cost: 0,
         target_variance_percent: 0,
@@ -29773,13 +29799,63 @@ useEffect(() => {
     let verificationChanged = false;
 
     for (const action of pendingInventoryActions) {
-      const matchingIngredient = ingredientsData.find(
-        (ingredient) =>
-          String(ingredient.id || "") ===
-          String(action.entity_id || "")
-      );
+  const actionLocationId = String(
+    action.location_id ||
+      action.baseline_data?.location_id ||
+      action.target_data?.location_id ||
+      ""
+  ).trim();
 
-      if (!matchingIngredient) continue;
+  const actionLocationName = String(
+    action.location_name ||
+      action.baseline_data?.location_name ||
+      action.target_data?.location_name ||
+      ""
+  )
+    .trim()
+    .toLowerCase();
+
+  const actionScopedIngredients = (ingredientsData || []).filter(
+    (ingredient) => {
+      // Historical actions created before location tracking
+      // continue using the authorized canonical ingredient set.
+      if (!actionLocationId && !actionLocationName) {
+        return true;
+      }
+
+      const ingredientLocationId = String(
+        ingredient.location_id || ""
+      ).trim();
+
+      const ingredientLocationName = String(
+        ingredient.location_name ||
+          ingredient.location ||
+          ""
+      )
+        .trim()
+        .toLowerCase();
+
+      if (actionLocationId) {
+        return (
+          Boolean(ingredientLocationId) &&
+          ingredientLocationId === actionLocationId
+        );
+      }
+
+      return (
+        Boolean(ingredientLocationName) &&
+        ingredientLocationName === actionLocationName
+      );
+    }
+  );
+
+  const matchingIngredient = actionScopedIngredients.find(
+    (ingredient) =>
+      String(ingredient.id || "") ===
+      String(action.entity_id || "")
+  );
+
+  if (!matchingIngredient) continue;
 
       const baselineQuantity = Number(
         action.baseline_data?.quantity || 0
@@ -29869,39 +29945,133 @@ if (!implementationConfirmed) {
 const baselineExcessUsageCost = Number(
   action.baseline_data?.excess_usage_cost || 0
 );
+const actionScopedSales = (resolvedSalesData || []).filter((sale) => {
+  // Historical actions created before location tracking
+  // continue using the authorized canonical sales set.
+  if (!actionLocationId && !actionLocationName) {
+    return true;
+  }
 
-const matchingUsageVarianceCandidates = (usageVarianceData || []).filter(
-  (item) =>
-    String(item.ingredientId || "") ===
-      String(action.entity_id || "") ||
-    String(item.ingredientName || "")
+  const saleLocationId = String(
+    sale.location_id || ""
+  ).trim();
+
+  const saleLocationName = String(
+    sale.location_name ||
+      sale.location ||
+      sale.store_name ||
+      sale.store ||
+      sale.restaurant_location ||
+      ""
+  )
+    .trim()
+    .toLowerCase();
+
+  if (actionLocationId && saleLocationId) {
+    return saleLocationId === actionLocationId;
+  }
+
+  if (actionLocationName && saleLocationName) {
+    return saleLocationName === actionLocationName;
+  }
+
+  return false;
+});
+const actionIngredientName = String(
+  action.baseline_data?.ingredient_name ||
+    matchingIngredient.name ||
+    matchingIngredient.ingredient_name ||
+    ""
+)
+  .trim()
+  .toLowerCase();
+
+const actionLinkedRules = (recipeUsageRules || []).filter(
+  (rule) =>
+    String(rule.ingredient || "")
       .trim()
-      .toLowerCase() ===
-      String(
-        action.baseline_data?.ingredient_name ||
-          matchingIngredient.name ||
-          ""
-      )
-        .trim()
-        .toLowerCase()
+      .toLowerCase() === actionIngredientName
 );
 
-const matchingUsageVariance =
-  matchingUsageVarianceCandidates.find(
-    (item) =>
-      Boolean(currentUploadId) &&
-      String(item.inventoryUploadId || "").trim() === currentUploadId
-  ) ||
-  matchingUsageVarianceCandidates.find(
-    (item) =>
-      currentLastSeenAt > 0 &&
-      item.inventoryLastSeenAt &&
-      new Date(item.inventoryLastSeenAt).getTime() === currentLastSeenAt
-  ) ||
-  null;
+let actionExpectedUsage = 0;
+
+actionLinkedRules.forEach((rule) => {
+  const linkedMenuItem = String(
+    rule.menu_item ||
+      rule.menuItem ||
+      ""
+  )
+    .trim()
+    .toLowerCase();
+
+  const quantityUsed = Number(
+    rule.amount_used ||
+      rule.amountUsed ||
+      rule.quantity_used ||
+      0
+  );
+
+  const matchingSales = actionScopedSales.filter((sale) => {
+    const saleItem = String(
+      sale.item_name ||
+        sale.name ||
+        sale.menu_item ||
+        sale["Item Name"] ||
+        ""
+    )
+      .trim()
+      .toLowerCase();
+
+    return saleItem === linkedMenuItem;
+  });
+
+  const totalSold = matchingSales.reduce((sum, sale) => {
+    return (
+      sum +
+      Number(
+        sale.quantity ||
+          sale.qty ||
+          sale.quantity_sold ||
+          sale.units_sold ||
+          1
+      )
+    );
+  }, 0);
+
+  actionExpectedUsage += totalSold * quantityUsed;
+});
+
+const actionActualUsage = Number(
+  matchingIngredient.quantity_used ||
+    matchingIngredient.usage ||
+    matchingIngredient.actual_usage ||
+    matchingIngredient.current_usage ||
+    0
+);
+
+const actionCostPerUnit = Number(
+  matchingIngredient.cost_per_unit ||
+    matchingIngredient.costPerUnit ||
+    matchingIngredient.unit_cost ||
+    matchingIngredient.cost ||
+    action.baseline_data?.cost_per_unit ||
+    0
+);
+
+const actionExcessUsage = Math.max(
+  actionActualUsage - actionExpectedUsage,
+  0
+);
+
+const actionScopedExcessUsageCost =
+  actionExcessUsage > 0 && actionCostPerUnit > 0
+    ? actionExcessUsage * actionCostPerUnit
+    : 0;
+
+
 
 const currentExcessUsageCost = Number(
-  matchingUsageVariance?.excessUsageCost || 0
+  actionScopedExcessUsageCost || 0
 );
 
 const verifiedRecovery =
@@ -29995,6 +30165,8 @@ verifiedRecovery,
   authReady,
   realAppliedActions,
   ingredientsData,
+  resolvedSalesData,
+  recipeUsageRules,
 ]);
 
 const vendorCostInsights = useMemo(() => {
@@ -30913,7 +31085,7 @@ const usageVarianceInsight = useMemo(() => {
 const inventoryWasteIntelligence = useMemo(() => {
   const ingredients =
     uploadComparison?.activeIngredients ||
-    ingredientsData ||
+    operationalIngredientsData ||
     [];
 
   const usageItems =
@@ -30983,7 +31155,7 @@ const inventoryWasteIntelligence = useMemo(() => {
 };
 }, [
   uploadComparison,
-  ingredientsData,
+  operationalIngredientsData,
   usageVarianceData,
   expectedVsActualUsageData,
 ]);
@@ -31319,9 +31491,10 @@ const scoreInventory = (() => {
 
 const scoreWaste = (() => {
   const wasteSignals = Number(aiWasteDetection?.length || 0);
-  const totalItems = Number(
-    locationIngredientsData?.length || inventoryData?.length || 0
-  );
+
+  const totalItems =
+    Number(operationalIngredientsData?.length || 0) +
+    Number(operationalInventoryData?.length || 0);
 
   if (totalItems <= 0) return 0;
 
@@ -31400,7 +31573,7 @@ const consumableKeywords = [
 
 const consumableInventoryRows = (
   uploadComparison?.activeIngredients ||
-  ingredientsData ||
+  operationalIngredientsData ||
   []
 ).filter((item) => {
   const text = `${item.name || ""} ${item.ingredient_name || ""} ${
@@ -31513,11 +31686,13 @@ const hasLaborData =
   operationalLaborData.length > 0;
 
 const hasInventoryData =
-  (inventoryData || []).length > 0;
+  (operationalInventoryData || []).length > 0 ||
+  (operationalIngredientsData || []).length > 0;
 
 const hasWasteData =
   (aiWasteDetection || []).length > 0 ||
-  (inventoryData || []).length > 0;
+  (operationalInventoryData || []).length > 0 ||
+  (operationalIngredientsData || []).length > 0;
 
 const hasVendorData =
   (invoicesData || []).length > 0 ||
@@ -31976,7 +32151,8 @@ const estimatedVendorSavings =
    INVENTORY BURN RATE INTELLIGENCE
 ========================= */
 
-const inventoryBurnRateData = (ingredientsData || []).map((ingredient) => {
+const inventoryBurnRateData = (operationalIngredientsData || []).map(
+  (ingredient) => {
   const name =
     ingredient.name ||
     ingredient.ingredient_name ||
@@ -33599,10 +33775,10 @@ const inventoryHealthScoreData = useMemo(() => {
   const estimatedRisk = Number(inventoryAISummary?.estimatedRisk || 0);
   const revenueLoss = Number(inventoryAISummary?.potentialRevenueLoss || 0);
 
-  const hasInventoryData =
+const hasInventoryData =
   (inventoryDepletionData || []).length > 0 ||
-  (inventoryData || []).length > 0 ||
-  (ingredientsData || []).length > 0;
+  (operationalInventoryData || []).length > 0 ||
+  (operationalIngredientsData || []).length > 0;
 
   if (!hasInventoryData) {
     return {
@@ -33676,8 +33852,8 @@ const inventoryHealthScoreData = useMemo(() => {
   inventoryAISummary,
   inventoryAutopilotEnabled,
   inventoryDepletionData,
-  inventoryData,
-  ingredientsData,
+  operationalInventoryData,
+  operationalIngredientsData,
 ]);
 
 
@@ -34204,11 +34380,10 @@ Recommended focus areas include reducing prime cost pressure, reviewing vendor i
   profitRiskForecastData,
 ]);
 const inventoryExecutiveAlertsFeed = useMemo(() => {
-  const hasInventoryData =
-    (inventoryData || []).length > 0 ||
-    (ingredientsData || []).length > 0 ||
-    (inventoryDepletionData || []).length > 0 ||
-    (locationIngredientsData || []).length > 0;
+const hasInventoryData =
+  (operationalInventoryData || []).length > 0 ||
+  (operationalIngredientsData || []).length > 0 ||
+  (inventoryDepletionData || []).length > 0;
 
   if (!hasInventoryData) {
     return [
@@ -34292,10 +34467,9 @@ const inventoryExecutiveAlertsFeed = useMemo(() => {
   criticalInventoryItems,
   lowInventoryItems,
   inventoryAISummary,
-  inventoryData,
-  ingredientsData,
-  inventoryDepletionData,
-  locationIngredientsData,
+  operationalInventoryData,
+operationalIngredientsData,
+inventoryDepletionData,
 ]);
 const unifiedAIAlertsFeed = useMemo(() => {
   const combined = [
