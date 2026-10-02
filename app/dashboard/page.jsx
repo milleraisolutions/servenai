@@ -1420,6 +1420,50 @@ const resolvedSalesData = resolvedSalesDataRaw.filter((sale) => {
 
 const locationSalesData =
   filterByActiveLocation(resolvedSalesData);
+  const operationalSalesData =
+  activeLocation === "all" || !activeLocation
+    ? resolvedSalesData
+    : locationSalesData;
+    const activeLocationId =
+  activeLocation === "all" || !activeLocation
+    ? null
+    : locations?.find((location) => {
+        const locationName = String(
+          location.location_name ||
+            location.name ||
+            ""
+        )
+          .trim()
+          .toLowerCase();
+
+        return (
+          locationName ===
+          String(activeLocation)
+            .trim()
+            .toLowerCase()
+        );
+      })?.id || null;
+
+const operationalLivePosOrders =
+  activeLocation === "all" || !activeLocation
+    ? livePosOrders || []
+    : activeLocationId
+    ? (livePosOrders || []).filter(
+        (order) =>
+          String(order.location_id || "") ===
+          String(activeLocationId)
+      )
+    : [];
+    const operationalLivePosOrderItems =
+  activeLocation === "all" || !activeLocation
+    ? livePosOrderItems || []
+    : activeLocationId
+    ? (livePosOrderItems || []).filter(
+        (item) =>
+          String(item.location_id || "") ===
+          String(activeLocationId)
+      )
+    : [];
 console.log("POS SALES DATA BEFORE LOCATION FILTER:", salesData?.length || 0);
 console.log(
   "POS SALES DATA AFTER LOCATION FILTER:",
@@ -1441,6 +1485,20 @@ console.log(
   )]
 );
 const locationLaborData = filterByActiveLocation(laborData);
+const operationalLaborData =
+  activeLocation === "all" || !activeLocation
+    ? laborData || []
+    : locationLaborData;
+    const operationalEmployeeShifts =
+  activeLocation === "all" || !activeLocation
+    ? employeeShifts || []
+    : activeLocationId
+    ? (employeeShifts || []).filter(
+        (shift) =>
+          String(shift.location_id || "") ===
+          String(activeLocationId)
+      )
+    : [];
 const locationMenuItemsData = filterByActiveLocation(menuItemsData);
 const locationIngredientsData = filterByActiveLocation(ingredientsData);
 
@@ -3142,10 +3200,8 @@ const getSaleDate = (sale = {}) => {
    💰 REVENUE TRACKER
 ================================= */
 const revenueTracker = useMemo(() => {
-const rawSales = Array.isArray(locationSalesData) && locationSalesData.length
-  ? locationSalesData
-  : Array.isArray(dbSalesRows)
-  ? dbSalesRows
+const rawSales = Array.isArray(operationalSalesData)
+  ? operationalSalesData
   : [];
 
   const safeSales = rawSales
@@ -3245,7 +3301,7 @@ const rawSales = Array.isArray(locationSalesData) && locationSalesData.length
     bestDay,
     recentSales,
   };
-}, [dbSalesRows, locationSalesData, pendingUploadRows]);
+}, [operationalSalesData]);
 
 
     /* ===============================
@@ -3274,16 +3330,8 @@ const revenueTrend = useMemo(() => {
       )
       .sort((a, b) => a.date.getTime() - b.date.getTime());
 
-  const normalizedLocationSales =
-    normalizeSalesRows(locationSalesData);
-
-  const normalizedDatabaseSales =
-    normalizeSalesRows(dbSalesRows);
-
   const safeSales =
-    normalizedLocationSales.length > 0
-      ? normalizedLocationSales
-      : normalizedDatabaseSales;
+  normalizeSalesRows(operationalSalesData);
 
   if (!safeSales.length) {
     return {
@@ -3366,15 +3414,12 @@ const revenueTrend = useMemo(() => {
         ? "down"
         : "flat",
   };
-}, [dbSalesRows, locationSalesData]);
+}, [operationalSalesData]);
 const liveOverviewMetrics = useMemo(() => {
-  const salesRows =
-    Array.isArray(locationSalesData) && locationSalesData.length
-      ? locationSalesData
-      : Array.isArray(dbSalesRows)
-      ? dbSalesRows
-      : [];
-
+ const salesRows =
+  Array.isArray(operationalSalesData)
+    ? operationalSalesData
+    : [];
   const menuRows =
     Array.isArray(locationMenuItemsData) &&
     locationMenuItemsData.length
@@ -3384,10 +3429,8 @@ const liveOverviewMetrics = useMemo(() => {
       : [];
 
 const dedicatedLaborRows =
-  Array.isArray(locationLaborData) && locationLaborData.length
-    ? locationLaborData
-    : Array.isArray(laborData) && laborData.length
-    ? laborData
+  Array.isArray(operationalLaborData)
+    ? operationalLaborData
     : [];
 
 const posLaborRows = (salesRows || []).filter((row) => {
@@ -3563,19 +3606,16 @@ const laborRows =
     laborCostPercentage: liveLaborCostPercentage,
   };
 }, [
-  dbSalesRows,
-  locationSalesData,
+  operationalSalesData,
   menuItemsData,
   locationMenuItemsData,
-  laborData,
-  locationLaborData,
+  operationalLaborData,
 ]);
 const realSalesMetrics = useMemo(() => {
 const rows =
-  Array.isArray(resolvedSalesData)
-    ? resolvedSalesData
+  Array.isArray(operationalSalesData)
+    ? operationalSalesData
     : [];
-
   const cleanRows = rows.filter((row) => {
     const revenue = Number(row.revenue || 0);
     return revenue > 0;
@@ -3651,9 +3691,11 @@ const rows =
     hasDbSales: cleanRows.length > 0,
     hasTodaySales: todayRows.length > 0,
   };
-}, [resolvedSalesData]);
+}, [operationalSalesData]);
 const loadedSalesPeriod = useMemo(() => {
-  const rows = Array.isArray(dbSalesRows) ? dbSalesRows : [];
+const rows = Array.isArray(operationalSalesData)
+  ? operationalSalesData
+  : [];
 
   const validDates = rows
     .map((row) => {
@@ -3716,7 +3758,7 @@ const loadedSalesPeriod = useMemo(() => {
     startKey: toLocalDateKey(startDate),
     endKey: toLocalDateKey(endDate),
   };
-}, [dbSalesRows]);
+}, [operationalSalesData]);
 
 const liveTotalRevenue =
 
@@ -3750,18 +3792,14 @@ const liveScore =
   score || 0;
 const liveLaborIntelligence = useMemo(() => {
   const dedicatedLaborRows =
-    Array.isArray(locationLaborData) && locationLaborData.length
-      ? locationLaborData
-      : Array.isArray(laborData) && laborData.length
-      ? laborData
-      : [];
+  Array.isArray(operationalLaborData)
+    ? operationalLaborData
+    : [];
 
   const salesRows =
-    Array.isArray(locationSalesData) && locationSalesData.length
-      ? locationSalesData
-      : Array.isArray(dbSalesRows)
-      ? dbSalesRows
-      : [];
+  Array.isArray(operationalSalesData)
+    ? operationalSalesData
+    : [];
 
   const cleanNumber = (value) => {
     const numberValue = Number(
@@ -4072,18 +4110,14 @@ const liveLaborIntelligence = useMemo(() => {
       matchedSalesRows.length,
   };
 }, [
-  locationLaborData,
-  laborData,
-  locationSalesData,
-  dbSalesRows,
+  operationalLaborData,
+  operationalSalesData,
 ]);
 const laborDataCoverage = useMemo(() => {
-  const salesRows =
-    Array.isArray(locationSalesData) && locationSalesData.length
-      ? locationSalesData
-      : Array.isArray(dbSalesRows)
-      ? dbSalesRows
-      : [];
+ const salesRows =
+  Array.isArray(operationalSalesData)
+    ? operationalSalesData
+    : [];
 
   const getDateKey = (row) => {
     const rawDate =
@@ -4178,8 +4212,7 @@ const laborDataCoverage = useMemo(() => {
         : "Labor coverage cannot be evaluated until labor data is available.",
   };
 }, [
-  locationSalesData,
-  dbSalesRows,
+  operationalSalesData,
   liveLaborIntelligence,
 ]);
 const revenueInsight = useMemo(() => {
@@ -4838,21 +4871,16 @@ const secondaryButtonStyle = {
 
 
 const safeSalesRows =
-  locationSalesData?.length
-    ? locationSalesData
-    : resolvedSalesData?.length
-    ? resolvedSalesData
+  operationalSalesData?.length
+    ? operationalSalesData
     : pendingUploadRows?.length
     ? pendingUploadRows
     : [];
 
 const revenueChartData = useMemo(() => {
-  const sourceRows =
-    locationSalesData?.length
-      ? locationSalesData
-      : resolvedSalesData?.length
-      ? resolvedSalesData
-      : [];
+  const sourceRows = Array.isArray(operationalSalesData)
+    ? operationalSalesData
+    : [];
 
   const grouped = {};
 
@@ -4883,7 +4911,7 @@ const revenueChartData = useMemo(() => {
       revenue,
     }))
     .sort((a, b) => new Date(a.date) - new Date(b.date));
-}, [locationSalesData, resolvedSalesData]);
+}, [operationalSalesData]);
 
 // Temporary placeholder so old chart references don't crash
 const aiProfitTrendData = [];
@@ -9418,12 +9446,9 @@ const handleImportMenuItems = async (rowsOverride = null) => {
               ])
         );
 
-       const posRows =
-  locationSalesData?.length
-    ? locationSalesData
-    : resolvedSalesData?.length
-    ? resolvedSalesData
-    : [];
+      const posRows = Array.isArray(operationalSalesData)
+  ? operationalSalesData
+  : [];
 
         const matchingPOSRows = (posRows || []).filter((sale) => {
           const saleItemName = String(
@@ -12905,10 +12930,9 @@ const estimatedTotal = currentWeekRevenue + estimatedRest;
 }, [revenueTrend]);
 
 const ingredientUsageFromSales = useMemo(() => {
-  const safeSalesData = Array.isArray(resolvedSalesData)
-    ? resolvedSalesData
+  const safeSalesData = Array.isArray(operationalSalesData)
+    ? operationalSalesData
     : [];
-
   const safeRecipeUsageRules = Array.isArray(recipeUsageRules)
     ? recipeUsageRules
     : [];
@@ -12983,8 +13007,7 @@ console.log("INVENTORY RECIPE USAGE DEBUG:", {
 });
 
 return usageMap;
-  return usageMap;
-}, [resolvedSalesData, recipeUsageRules]);
+}, [operationalSalesData, recipeUsageRules]);
 const inventoryRestockContext = useMemo(() => {
   const ingredients = (uploadComparison?.activeIngredients || []).map((item) => {
  const used =
@@ -13675,59 +13698,30 @@ useEffect(() => {
           location_name: locationName,
         };
       });
+console.log(
+  "POS NORMALIZED COUNT:",
+  normalizedRows.length
+);
 
-      const filteredRows =
-        activeLocation !== "all" && activeLocation
-          ? normalizedRows.filter((row) => {
-              const rowLocation = String(
-                row.location_name ||
-                  row.location ||
-                  ""
-              )
-                .trim()
-                .toLowerCase();
+console.log(
+  "POS NORMALIZED FIRST ROW:",
+  normalizedRows[0]
+);
 
-              const selectedLocation = String(
-                activeLocation
-              )
-                .trim()
-                .toLowerCase();
+console.log(
+  "POS NORMALIZED TOTAL REVENUE:",
+  normalizedRows.reduce(
+    (sum, row) =>
+      sum + Number(row.revenue || 0),
+    0
+  )
+);
 
-              if (!rowLocation) {
-                return true;
-              }
+if (cancelled) return;
 
-              return rowLocation === selectedLocation;
-            })
-          : normalizedRows;
-
-      console.log(
-        "POS NORMALIZED COUNT:",
-        normalizedRows.length
-      );
-
-      console.log(
-        "POS FILTERED COUNT:",
-        filteredRows.length
-      );
-
-      console.log(
-        "POS NORMALIZED FIRST ROW:",
-        filteredRows[0]
-      );
-
-      console.log(
-        "POS NORMALIZED TOTAL REVENUE:",
-        filteredRows.reduce(
-          (sum, row) =>
-            sum + Number(row.revenue || 0),
-          0
-        )
-      );
-
-      if (cancelled) return;
-
-      setDbSalesRows(filteredRows);
+// Keep the canonical POS state owner-wide.
+// activeLocation filtering happens later through operationalSalesData.
+setDbSalesRows(normalizedRows);
     } catch (error) {
       console.error("LOAD SALES ERROR:", error);
 
@@ -13752,7 +13746,6 @@ useEffect(() => {
   dataOwnerId,
   user?.id,
   userProfile?.owner_user_id,
-  activeLocation,
 ]);
 useEffect(() => {
   if (!autopilotEnabled) return;
@@ -17774,14 +17767,14 @@ const isAlcoholItem = (item) => {
     combined.includes(word)
   );
 };
-const alcoholSalesRows = (locationSalesData || []).filter(isAlcoholItem);
+const alcoholSalesRows = (operationalSalesData || []).filter(isAlcoholItem);
 
 const alcoholRevenue = alcoholSalesRows.reduce((sum, item) => {
   return sum + Number(getSaleRevenue(item) || 0);
 }, 0);
 
 const totalSalesRevenueForAlcohol =
-  (locationSalesData || []).reduce((sum, item) => {
+  (operationalSalesData || []).reduce((sum, item) => {
     return sum + Number(getSaleRevenue(item) || 0);
   }, 0) || 0;
 
@@ -18579,7 +18572,7 @@ if (
 
 const laborCostPercent = Number(laborIntelligence?.laborPercent || 0);
 
-const totalLaborCost = (locationLaborData || []).reduce(
+const totalLaborCost = (operationalLaborData || []).reduce(
   (sum, row) =>
     sum +
     Number(
@@ -18747,16 +18740,16 @@ const laborEfficiencyInsight =
 ========================= */
 
 const shiftSalesRows =
-  locationSalesData?.length
-    ? locationSalesData
-    : resolvedSalesData?.length
-    ? resolvedSalesData
+  operationalSalesData?.length
+    ? operationalSalesData
     : pendingUploadRows?.length
     ? pendingUploadRows
     : [];
 
 const shiftLaborRows =
-  locationLaborData?.length ? locationLaborData : laborData || [];
+  Array.isArray(operationalLaborData)
+    ? operationalLaborData
+    : [];
 
 const totalShiftRevenue = shiftSalesRows.reduce(
   (sum, sale) =>
@@ -19296,7 +19289,10 @@ const shiftActionRecommendation =
     ? `Protect ${topShift.shift} by keeping top-selling items stocked and staffing coverage strong.`
     : "Upload POS and labor data to generate AI shift recommendations.";
     const usageVarianceData = useMemo(() => {
- const sales = resolvedSalesData || [];
+  const sales = Array.isArray(operationalSalesData)
+    ? operationalSalesData
+    : [];
+
   const rules = recipeUsageRules || [];
   const activeIngredients =
   uploadComparison?.activeIngredients || [];
@@ -19433,7 +19429,7 @@ inventoryLastSeenAt: ingredient.last_seen_at || null,
 };
   });
 }, [
-  resolvedSalesData,
+  operationalSalesData,
   recipeUsageRules,
   uploadComparison,
   locationIngredientsData,
@@ -20171,25 +20167,22 @@ useEffect(() => {
       return;
     }
 
-    const salesRows =
-      Array.isArray(dbSalesRows) && dbSalesRows.length
-        ? dbSalesRows
-        : Array.isArray(locationSalesData) &&
-          locationSalesData.length
-        ? locationSalesData
-        : [];
+const canonicalSalesRows =
+  Array.isArray(resolvedSalesData)
+    ? resolvedSalesData
+    : [];
 
-    const laborRows =
-      Array.isArray(locationLaborData) &&
-      locationLaborData.length
-        ? locationLaborData
-        : Array.isArray(laborData)
-        ? laborData
-        : [];
+const canonicalLaborRows =
+  Array.isArray(laborData)
+    ? laborData
+    : [];
 
-    if (!salesRows.length || !laborRows.length) {
-      return;
-    }
+if (
+  !canonicalSalesRows.length ||
+  !canonicalLaborRows.length
+) {
+  return;
+}
 
     const pendingLaborActions =
       realAppliedActions.filter((action) => {
@@ -20251,27 +20244,112 @@ console.log("LABOR VERIFIER PENDING ACTIONS:", {
     }
 
     let verificationChanged = false;
+for (const action of pendingLaborActions) {
+  const appliedAt =
+    action.decided_at ||
+    action.applied_at ||
+    action.created_at ||
+    null;
 
-    for (const action of pendingLaborActions) {
-      const appliedAt =
-        action.decided_at ||
-        action.applied_at ||
-        action.created_at ||
-        null;
+  if (!appliedAt) {
+    continue;
+  }
 
-      if (!appliedAt) {
-        continue;
+  const actionLocationId = String(
+    action.location_id || ""
+  ).trim();
+
+  const actionLocationName = String(
+    action.location_name || ""
+  )
+    .trim()
+    .toLowerCase();
+
+  const matchesActionLocation = (row) => {
+    /*
+      Historical actions created before location tracking
+      may not have a persisted location. In that case,
+      preserve the authorized canonical evidence set.
+    */
+    if (
+      !actionLocationId &&
+      !actionLocationName
+    ) {
+      return true;
+    }
+
+    const rowLocationId = String(
+      row.location_id || ""
+    ).trim();
+
+    const rowLocationName = String(
+      row.location_name ||
+        row.location ||
+        row.store_name ||
+        row.store ||
+        ""
+    )
+      .trim()
+      .toLowerCase();
+
+    if (
+      actionLocationId &&
+      rowLocationId &&
+      rowLocationId === actionLocationId
+    ) {
+      return true;
+    }
+
+    if (
+      actionLocationName &&
+      rowLocationName &&
+      rowLocationName === actionLocationName
+    ) {
+      return true;
+    }
+
+    return false;
+  };
+
+  const actionSalesRows =
+    canonicalSalesRows.filter(
+      matchesActionLocation
+    );
+
+  const actionLaborRows =
+    canonicalLaborRows.filter(
+      matchesActionLocation
+    );
+
+  if (
+    !actionSalesRows.length ||
+    !actionLaborRows.length
+  ) {
+    console.log(
+      "LABOR VERIFIER SKIPPED: missing action-location evidence",
+      {
+        actionId: action.id,
+        actionLocationId:
+          action.location_id || null,
+        actionLocationName:
+          action.location_name || null,
+        salesRows:
+          actionSalesRows.length,
+        laborRows:
+          actionLaborRows.length,
       }
+    );
 
+    continue;
+  }
 
-
-const verification =
-  calculateLaborRecoveryVerification({
-    appliedAt,
-    salesRows,
-    laborRows,
-    minimumMeasurementDays: 7,
-  });
+  const verification =
+    calculateLaborRecoveryVerification({
+      appliedAt,
+      salesRows: actionSalesRows,
+      laborRows: actionLaborRows,
+      minimumMeasurementDays: 7,
+    });
 
       console.log(
         "LABOR RECOVERY MEASUREMENT:",
@@ -20510,9 +20588,7 @@ if (actionUpdateError) {
 }, [
   authReady,
   realAppliedActions,
-  dbSalesRows,
-  locationSalesData,
-  locationLaborData,
+  resolvedSalesData,
   laborData,
 ]);
 
@@ -21487,23 +21563,22 @@ useEffect(() => {
 
     if (!verifiedLaborActions.length) return;
 
-    const salesRows =
-      Array.isArray(dbSalesRows) && dbSalesRows.length
-        ? dbSalesRows
-        : Array.isArray(locationSalesData) &&
-          locationSalesData.length
-        ? locationSalesData
-        : [];
+   const canonicalSalesRows =
+  Array.isArray(resolvedSalesData)
+    ? resolvedSalesData
+    : [];
 
-    const laborRows =
-      Array.isArray(locationLaborData) &&
-      locationLaborData.length
-        ? locationLaborData
-        : Array.isArray(laborData)
-        ? laborData
-        : [];
+const canonicalLaborRows =
+  Array.isArray(laborData)
+    ? laborData
+    : [];
 
-    if (!salesRows.length || !laborRows.length) return;
+if (
+  !canonicalSalesRows.length ||
+  !canonicalLaborRows.length
+) {
+  return;
+}
 const parseLaborRecoveryDate = (value) => {
   if (!value) return null;
 
@@ -21581,45 +21656,145 @@ const getLaborRecoverySaleDate = (row = {}) => {
 
       return hours * rate;
     };
-
-    const validSalesDates = salesRows
-  .map((row) => getLaborRecoverySaleDate(row))
-      .filter(Boolean);
-
-    const validLaborDates = laborRows
-      .map((row) => getLaborDate(row))
-      .filter(Boolean);
-
-    if (!validSalesDates.length || !validLaborDates.length) {
-      return;
-    }
-
-    const latestSalesDate = new Date(
-      Math.max(...validSalesDates.map((date) => date.getTime()))
-    );
-
-    const latestLaborDate = new Date(
-      Math.max(...validLaborDates.map((date) => date.getTime()))
-    );
-
-    /*
-      Recovery can only be measured through the latest date
-      where both sales and labor data are available.
-    */
-    const latestSharedDate = new Date(
-      Math.min(
-        latestSalesDate.getTime(),
-        latestLaborDate.getTime()
-      )
-    );
-
- latestSharedDate.setHours(23, 59, 59, 999);
-
 let anyRecoveryChanged = false;
-
 for (const action of verifiedLaborActions) {
   let recoveryChanged = false;
-      const baselineLaborRate = Number(
+
+  const actionLocationId = String(
+    action.location_id || ""
+  ).trim();
+
+  const actionLocationName = String(
+    action.location_name || ""
+  )
+    .trim()
+    .toLowerCase();
+
+  const matchesActionLocation = (row) => {
+    // Preserve historical actions created before
+    // action-level location tracking existed.
+    if (
+      !actionLocationId &&
+      !actionLocationName
+    ) {
+      return true;
+    }
+
+    const rowLocationId = String(
+      row.location_id || ""
+    ).trim();
+
+    const rowLocationName = String(
+      row.location_name ||
+        row.location ||
+        row.store_name ||
+        row.store ||
+        ""
+    )
+      .trim()
+      .toLowerCase();
+
+    if (
+      actionLocationId &&
+      rowLocationId &&
+      rowLocationId === actionLocationId
+    ) {
+      return true;
+    }
+
+    if (
+      actionLocationName &&
+      rowLocationName &&
+      rowLocationName === actionLocationName
+    ) {
+      return true;
+    }
+
+    return false;
+  };
+
+  const actionSalesRows =
+    canonicalSalesRows.filter(
+      matchesActionLocation
+    );
+
+  const actionLaborRows =
+    canonicalLaborRows.filter(
+      matchesActionLocation
+    );
+
+  if (
+    !actionSalesRows.length ||
+    !actionLaborRows.length
+  ) {
+    console.log(
+      "ONGOING LABOR RECOVERY SKIPPED: missing action-location evidence",
+      {
+        actionId: action.id,
+        actionLocationId:
+          action.location_id || null,
+        actionLocationName:
+          action.location_name || null,
+        salesRows:
+          actionSalesRows.length,
+        laborRows:
+          actionLaborRows.length,
+      }
+    );
+
+    continue;
+  }
+const validSalesDates =
+  actionSalesRows
+    .map((row) =>
+      getLaborRecoverySaleDate(row)
+    )
+    .filter(Boolean);
+
+const validLaborDates =
+  actionLaborRows
+    .map((row) =>
+      getLaborDate(row)
+    )
+    .filter(Boolean);
+
+if (
+  !validSalesDates.length ||
+  !validLaborDates.length
+) {
+  continue;
+}
+
+const latestSalesDate = new Date(
+  Math.max(
+    ...validSalesDates.map(
+      (date) => date.getTime()
+    )
+  )
+);
+
+const latestLaborDate = new Date(
+  Math.max(
+    ...validLaborDates.map(
+      (date) => date.getTime()
+    )
+  )
+);
+
+const latestSharedDate = new Date(
+  Math.min(
+    latestSalesDate.getTime(),
+    latestLaborDate.getTime()
+  )
+);
+
+latestSharedDate.setHours(
+  23,
+  59,
+  59,
+  999
+);
+  const baselineLaborRate = Number(
         action?.target_data?.baseline_metrics?.laborRate ||
           0
       );
@@ -21703,7 +21878,7 @@ for (const action of verifiedLaborActions) {
           break;
         }
 
-        const periodSales = salesRows.filter(
+       const periodSales = actionSalesRows.filter(
           (row) => {
            const date = getLaborRecoverySaleDate(row);
 
@@ -21715,7 +21890,7 @@ for (const action of verifiedLaborActions) {
           }
         );
 
-        const periodLabor = laborRows.filter(
+       const periodLabor = actionLaborRows.filter(
           (row) => {
             const date = getLaborDate(row);
 
@@ -21967,10 +22142,10 @@ if (anyRecoveryChanged) {
 
   trackOngoingVerifiedLaborRecovery();
 }, [
+  authReady,
+  realAppliedActions,
   resolvedSalesData,
-  recipeUsageRules,
-  uploadComparison,
-  locationIngredientsData,
+  laborData,
 ]);
 
 const operationalEstimatedWasteRecovery = Math.round(
@@ -23421,19 +23596,19 @@ const servenPerformanceSummary = {
 .sort((a, b) => b.value - a.value)
 .filter((item) => item.value > 0);
 const hasRevenueData =
-  (resolvedSalesData || []).length > 0 ||
+  (operationalSalesData || []).length > 0 ||
   Number(liveTotalRevenue || 0) > 0 ||
   Number(realSalesMetrics?.totalRevenueFromDb || 0) > 0;
 
 const hasOperationalData =
   hasRevenueData ||
-  (laborData || []).length > 0 ||
+  (operationalLaborData || []).length > 0 ||
   (inventoryData || []).length > 0 ||
   (invoicesData || []).length > 0;
 
 const hasFullRecoveryData =
   hasRevenueData &&
-  ((laborData || []).length > 0 ||
+  ((operationalLaborData || []).length > 0 ||
     (inventoryData || []).length > 0 ||
     (invoicesData || []).length > 0);
 
@@ -25970,15 +26145,16 @@ const laborRiskStatus =
 
 const dailyLaborEfficiency = useMemo(() => {
   const salesRows =
-  locationSalesData?.length
-    ? locationSalesData
-    : resolvedSalesData?.length
-    ? resolvedSalesData
+  operationalSalesData?.length
+    ? operationalSalesData
     : pendingUploadRows?.length
     ? pendingUploadRows
     : [];
 
-  const laborRows = laborData || [];
+const laborRows =
+  Array.isArray(operationalLaborData)
+    ? operationalLaborData
+    : [];
 
   const salesByDate = {};
   const laborByDate = {};
@@ -26054,10 +26230,9 @@ const dailyLaborEfficiency = useMemo(() => {
     };
   });
 }, [
-  locationSalesData,
-  resolvedSalesData,
+  operationalSalesData,
   pendingUploadRows,
-  laborData,
+  operationalLaborData,
 ]);
 const calculateLaborRecoveryVerification = ({
   appliedAt,
@@ -26336,16 +26511,17 @@ const measurementStart = new Date(
   };
 };
 const shiftLaborIntelligence = useMemo(() => {
- const salesRows =
-  locationSalesData?.length
-    ? locationSalesData
-    : resolvedSalesData?.length
-    ? resolvedSalesData
+const salesRows =
+  operationalSalesData?.length
+    ? operationalSalesData
     : pendingUploadRows?.length
     ? pendingUploadRows
     : [];
 
-  const laborRows = laborData || [];
+  const laborRows =
+  Array.isArray(operationalLaborData)
+    ? operationalLaborData
+    : [];
 
   const getShiftName = (row = {}) => {
     const rawShift =
@@ -26498,10 +26674,9 @@ const shiftLaborIntelligence = useMemo(() => {
     };
   });
 }, [
-  locationSalesData,
-  resolvedSalesData,
+  operationalSalesData,
   pendingUploadRows,
-  laborData,
+  operationalLaborData,
 ]);
 
 const primeCostPercentage =
@@ -27592,11 +27767,9 @@ const inventoryTrendData = useMemo(() => {
 }, [uploadComparison, locationIngredientsData]);
 
 const alcoholPourVarianceData = useMemo(() => {
-  const salesRows =
-  locationSalesData?.length
-    ? locationSalesData
-    : resolvedSalesData?.length
-    ? resolvedSalesData
+const salesRows =
+  operationalSalesData?.length
+    ? operationalSalesData
     : pendingUploadRows?.length
     ? pendingUploadRows
     : [];
@@ -27707,8 +27880,7 @@ const alcoholPourVarianceData = useMemo(() => {
     recommendation,
   };
 }, [
-  locationSalesData,
-  resolvedSalesData,
+  operationalSalesData,
   pendingUploadRows,
   uploadComparison,
   ingredientsData,
@@ -28825,14 +28997,13 @@ const isServenAdmin =
 
 
 const expectedVsActualUsageData = useMemo(() => {
-  const rules = recipeUsageRules || [];
-  const salesRows =
-  locationSalesData?.length
-    ? locationSalesData
-    : resolvedSalesData?.length
-    ? resolvedSalesData
-    : [];
-  const ingredients = locationIngredientsData || ingredientsData || [];
+ const rules = recipeUsageRules || [];
+
+const salesRows = Array.isArray(operationalSalesData)
+  ? operationalSalesData
+  : [];
+
+const ingredients = locationIngredientsData || ingredientsData || [];
 
   return rules.map((rule) => {
     const menuItemName = String(rule.menu_item || "").toLowerCase().trim();
@@ -28896,8 +29067,7 @@ const expectedVsActualUsageData = useMemo(() => {
   });
 }, [
   recipeUsageRules,
-  locationSalesData,
- resolvedSalesData,
+  operationalSalesData,
   locationIngredientsData,
   ingredientsData,
 ]);
@@ -29025,12 +29195,9 @@ const posMenuProfitabilityData = useMemo(() => {
       .trim()
       .toLowerCase();
 
-const salesRows =
-  locationSalesData?.length > 0
-    ? locationSalesData
-    : resolvedSalesData?.length > 0
-    ? resolvedSalesData
-    : [];
+const salesRows = Array.isArray(operationalSalesData)
+  ? operationalSalesData
+  : [];
 
   const recipeRows = recipeCostingData || [];
 
@@ -29219,8 +29386,7 @@ const salesRows =
         Number(a.revenue || 0)
     );
 }, [
-  locationSalesData,
-  resolvedSalesData,
+  operationalSalesData,
   recipeCostingData,
 ]);
 console.log("RECIPE COSTING DATA:", recipeCostingData);
@@ -30089,12 +30255,9 @@ const operationalAlerts = useMemo(() => {
 ]);
 
 const forecastingInsights = useMemo(() => {
-const sales =
-  locationSalesData?.length
-    ? locationSalesData
-    : resolvedSalesData?.length
-    ? resolvedSalesData
-    : [];
+const sales = Array.isArray(operationalSalesData)
+  ? operationalSalesData
+  : [];
 
   if (!sales.length) return [];
 
@@ -30188,8 +30351,7 @@ const sales =
     },
   ];
 }, [
-  locationSalesData,
-  resolvedSalesData,
+  operationalSalesData,
   shiftOperationalData,
   recipeCostingData,
 ]);
@@ -30997,12 +31159,9 @@ const liveMonitoringFeed = useMemo(() => {
 
 
 const revenueForecastChartData = useMemo(() => {
- const sales =
-  locationSalesData?.length
-    ? locationSalesData
-    : resolvedSalesData?.length
-    ? resolvedSalesData
-    : [];
+ const sales = Array.isArray(operationalSalesData)
+  ? operationalSalesData
+  : [];
 
   if (!sales.length) return [];
 
@@ -31037,7 +31196,7 @@ const revenueForecastChartData = useMemo(() => {
   }));
 
   return [...actualRows, ...forecastRows];
-}, [locationSalesData, resolvedSalesData]);
+}, [operationalSalesData]);
 
 const primeCostForecastChartData = useMemo(() => {
  const basePrimeCost = Number(primeCostPercentage || 0);
@@ -31189,7 +31348,7 @@ const scoreVendor = (() => {
 const scoreRevenue = (() => {
   const hasRevenueData =
     Number(liveTotalRevenue || 0) > 0 ||
-    (resolvedSalesData || []).length > 0;
+    (operationalSalesData || []).length > 0;
 
   if (!hasRevenueData) {
     return 0;
@@ -31347,11 +31506,11 @@ const consumablesSummary = (() => {
 
 const hasFinancialData =
   Number(liveTotalRevenue || 0) > 0 ||
-  (resolvedSalesData || []).length > 0;
+  (operationalSalesData || []).length > 0;
 
 const hasLaborData =
-  (laborData || []).length > 0 ||
-  (employeeShifts || []).length > 0;
+  Array.isArray(operationalLaborData) &&
+  operationalLaborData.length > 0;
 
 const hasInventoryData =
   (inventoryData || []).length > 0;
@@ -31370,7 +31529,7 @@ const hasMarginData =
 
 const hasShiftData =
   (shiftOperationalData || []).length > 0 ||
-  (employeeShifts || []).length > 0;
+  (operationalEmployeeShifts || []).length > 0;
 
 const categoryScores = {
   financialHealth: clamp(
@@ -32260,14 +32419,9 @@ const totalEstimatedWasteRecovery = wasteRecoveryPlan.reduce(
   0
 );
 
-const beverageSalesData =
-  alcoholSalesRows?.length
-    ? alcoholSalesRows
-    : locationSalesData?.length
-    ? locationSalesData
-    : resolvedSalesData?.length
-    ? resolvedSalesData
-    : [];
+const beverageSalesData = Array.isArray(alcoholSalesRows)
+  ? alcoholSalesRows
+  : [];
 
 const beverageInventoryData =
   inventoryData ||
@@ -32290,12 +32444,9 @@ const beverageRestockData = useMemo(() => {
   ingredientsData ||
   [];
 
- const beverageSales =
-  beverageSalesData?.length
-    ? beverageSalesData
-    : resolvedSalesData?.length
-    ? resolvedSalesData
-    : [];
+const beverageSales = Array.isArray(beverageSalesData)
+  ? beverageSalesData
+  : [];
 
   return beverageItems.map((item, index) => {
     const name =
@@ -32368,7 +32519,6 @@ const avgDailyUsage =
   inventoryData,
   ingredientsData,
   beverageSalesData,
-  resolvedSalesData,
 ]);
 
 const beverageRestockInsight = useMemo(() => {
@@ -32500,14 +32650,9 @@ const kegIntelligenceInsight = useMemo(() => {
 
 
 const happyHourProfitabilityData = useMemo(() => {
- const beverageSales =
-  alcoholSalesRows?.length
-    ? alcoholSalesRows
-    : locationSalesData?.length
-    ? locationSalesData
-    : resolvedSalesData?.length
-    ? resolvedSalesData
-    : [];
+ const beverageSales = Array.isArray(alcoholSalesRows)
+  ? alcoholSalesRows
+  : [];
 
   const happyHourSales = beverageSales.filter((sale) => {
     const saleHour = new Date(
@@ -32581,8 +32726,6 @@ const happyHourProfitabilityData = useMemo(() => {
   };
 }, [
   alcoholSalesRows,
-  locationSalesData,
-  resolvedSalesData,
 ]);
 
 const cocktailRecipeCostingData = useMemo(() => {
@@ -32671,16 +32814,9 @@ const cocktailRecipeCostingInsight = useMemo(() => {
 }, [cocktailRecipeCostingData]);
 
 const shiftLevelBeverageData = useMemo(() => {
- const rows =
-  beverageSalesData?.length
-    ? beverageSalesData
-    : alcoholSalesRows?.length
-    ? alcoholSalesRows
-    : locationSalesData?.length
-    ? locationSalesData
-    : resolvedSalesData?.length
-    ? resolvedSalesData
-    : [];
+const rows = Array.isArray(beverageSalesData)
+  ? beverageSalesData
+  : [];
 
   const shifts = {
     Lunch: {
@@ -32768,9 +32904,6 @@ const shiftLevelBeverageData = useMemo(() => {
   });
 }, [
   beverageSalesData,
-  alcoholSalesRows,
-  locationSalesData,
-  resolvedSalesData,
 ]);
 
 const beverageHealthScoreData = useMemo(() => {
@@ -33309,9 +33442,9 @@ const laborAlertsFeed = useMemo(() => {
 
 const overtimeRiskData = useMemo(() => {
   const rows =
-  locationLaborData?.length
-    ? locationLaborData
-    : laborData || [];
+  Array.isArray(operationalLaborData)
+    ? operationalLaborData
+    : [];
 
   const overtimeRows = rows
     .map((row, index) => {
@@ -33370,7 +33503,7 @@ const overtimeRiskData = useMemo(() => {
       Number(b.estimatedOvertimeCost || 0) -
       Number(a.estimatedOvertimeCost || 0)
   );
-}, [laborData, locationLaborData]);
+}, [operationalLaborData]);
 
 const laborForecastingData = useMemo(() => {
   const shifts = shiftOperationalData || [];
@@ -37443,10 +37576,9 @@ const activeLocationRecord = useMemo(() => {
 ========================= */
 
 const tableTurnIntelligence = useMemo(() => {
-  const salesRows =
-    locationSalesData?.length > 0
-      ? locationSalesData
-      : resolvedSalesData || [];
+  const salesRows = Array.isArray(operationalSalesData)
+  ? operationalSalesData
+  : [];
 
   const targetTurnMinutes = 60;
 
@@ -37455,7 +37587,7 @@ const tableTurnIntelligence = useMemo(() => {
    * This is not yet a true seated-to-reset table turn.
    * It measures opened_at to closed_at/completed_at.
    */
-  const measuredCycles = (livePosOrders || [])
+ const measuredCycles = (operationalLivePosOrders || [])
     .map((order) => {
       const startValue = order.opened_at;
 
@@ -37564,27 +37696,36 @@ const tableTurnIntelligence = useMemo(() => {
    * Used only when measured POS timestamps
    * are not available.
    */
-  const hasSalesData =
-    salesRows.length > 0 &&
-    Number(liveTotalRevenue || 0) > 0;
+ const totalRevenue = salesRows.reduce(
+  (sum, row) =>
+    sum +
+    Number(
+      row.revenue ??
+        row.total_revenue ??
+        row.net_sales ??
+        row.sales_amount ??
+        row.amount ??
+        0
+    ),
+  0
+);
 
-  const totalRevenue =
-    Number(liveTotalRevenue || 0);
+const totalOrders = salesRows.reduce(
+  (sum, row) =>
+    sum +
+    Number(
+      row.orders_count ??
+        row.order_count ??
+        row.orders ??
+        row.transactions ??
+        0
+    ),
+  0
+);
 
-  const totalOrders =
-    Number(liveTotalOrders || 0) ||
-    salesRows.reduce(
-      (sum, row) =>
-        sum +
-        Number(
-          row.orders_count ||
-            row.order_count ||
-            row.orders ||
-            row.transactions ||
-            0
-        ),
-      0
-    );
+const hasSalesData =
+  salesRows.length > 0 &&
+  totalRevenue > 0;
 
   const estimatedAverageCheck =
     totalOrders > 0
@@ -37770,11 +37911,8 @@ const tableTurnIntelligence = useMemo(() => {
         : "Waiting for live POS or uploaded sales data.",
   };
 }, [
-  livePosOrders,
-  locationSalesData,
-  resolvedSalesData,
-  liveTotalRevenue,
-  liveTotalOrders,
+  operationalLivePosOrders,
+  operationalSalesData,
   totalLaborHours,
   topShift,
   mostLaborHeavyShift,
@@ -37980,9 +38118,9 @@ const restaurantCapacityEngine = useMemo(() => {
 ========================= */
 
 const peakHourCongestionEngine = useMemo(() => {
-  const orders = Array.isArray(livePosOrders)
-    ? livePosOrders
-    : [];
+ const orders = Array.isArray(operationalLivePosOrders)
+  ? operationalLivePosOrders
+  : [];
 
   const targetTurnMinutes = Number(
     restaurantCapacityEngine?.targetTurnMinutes ||
@@ -38473,7 +38611,7 @@ const peakHourCongestionEngine = useMemo(() => {
     recommendation,
   };
 }, [
-  livePosOrders,
+  operationalLivePosOrders,
   tableTurnIntelligence,
   restaurantCapacityEngine,
 ]);
@@ -38482,9 +38620,9 @@ const peakHourCongestionEngine = useMemo(() => {
 ========================= */
 
 const serverBottleneckEngine = useMemo(() => {
-  const orders = Array.isArray(livePosOrders)
-    ? livePosOrders
-    : [];
+ const orders = Array.isArray(operationalLivePosOrders)
+  ? operationalLivePosOrders
+  : [];
 
   const targetTurnMinutes = Number(
     restaurantCapacityEngine?.targetTurnMinutes ||
@@ -38945,7 +39083,7 @@ const serverBottleneckEngine = useMemo(() => {
     recommendation,
   };
 }, [
-  livePosOrders,
+ operationalLivePosOrders,
   tableTurnIntelligence,
   restaurantCapacityEngine,
   peakHourCongestionEngine,
@@ -38956,9 +39094,9 @@ const serverBottleneckEngine = useMemo(() => {
 ========================= */
 
 const tableUtilizationEngine = useMemo(() => {
-  const orders = Array.isArray(livePosOrders)
-    ? livePosOrders
-    : [];
+  const orders = Array.isArray(operationalLivePosOrders)
+  ? operationalLivePosOrders
+  : [];
 
   const targetTurnMinutes = Number(
     restaurantCapacityEngine?.targetTurnMinutes ||
@@ -39509,12 +39647,12 @@ const tableUtilizationEngine = useMemo(() => {
       "This analysis measures completed POS order cycles by table. True table-mix opportunity requires configured seat capacity for each table.",
   };
 }, [
-  livePosOrders,
+  operationalLivePosOrders,
   tableTurnIntelligence,
   restaurantCapacityEngine,
 ]);
 const kitchenBottleneckEngine = useMemo(() => {
-  const validItems = (livePosOrderItems || [])
+  const validItems = (operationalLivePosOrderItems || [])
     .map((item) => {
       const sentAt =
         item.sent_to_kitchen_at || null;
@@ -39985,16 +40123,16 @@ const kitchenBottleneckEngine = useMemo(() => {
     measuredItems: validItems,
   };
 }, [
-  livePosOrderItems,
+ operationalLivePosOrderItems,
 ]);
 const serviceSpeedIntelligence = useMemo(() => {
-  const orders = Array.isArray(livePosOrders)
-    ? livePosOrders
-    : [];
+ const orders = Array.isArray(operationalLivePosOrders)
+  ? operationalLivePosOrders
+  : [];
 
-  const items = Array.isArray(livePosOrderItems)
-    ? livePosOrderItems
-    : [];
+const items = Array.isArray(operationalLivePosOrderItems)
+  ? operationalLivePosOrderItems
+  : [];
 
   const completedOrders = orders.filter((order) => {
     const openedAt = order.opened_at;
@@ -40313,8 +40451,8 @@ const serviceSpeedIntelligence = useMemo(() => {
     recommendation,
   };
 }, [
-  livePosOrders,
-  livePosOrderItems,
+ operationalLivePosOrders,
+operationalLivePosOrderItems,
   tableTurnIntelligence,
   restaurantCapacityEngine,
   kitchenBottleneckEngine,
@@ -40803,7 +40941,10 @@ const multiLocationIntelligence = useMemo(() => {
       ? resolvedSalesData
       : [];
 
-  const laborRows = laborData || [];
+  const laborRows =
+  Array.isArray(operationalLaborData)
+    ? operationalLaborData
+    : [];
   const inventoryRows = ingredientsData || [];
   const invoiceRows = invoicesData || [];
 
@@ -51109,12 +51250,9 @@ const executiveHealthLabel =
     : "Critical";
 
 const peakDiningHour = (() => {
- const rows =
-  locationSalesData?.length
-    ? locationSalesData
-    : resolvedSalesData?.length
-    ? resolvedSalesData
-    : [];
+const rows = Array.isArray(operationalSalesData)
+  ? operationalSalesData
+  : [];
 
   const hourCounts = {};
 
@@ -51155,12 +51293,9 @@ const peakDiningHour = (() => {
 })();
 
 const peakDiningDay = (() => {
-  const rows =
-    locationSalesData?.length
-      ? locationSalesData
-      : resolvedSalesData?.length
-      ? resolvedSalesData
-      : [];
+  const rows = Array.isArray(operationalSalesData)
+  ? operationalSalesData
+  : [];
 
   const dayCounts = {};
 
@@ -51187,12 +51322,9 @@ const peakDiningDay = (() => {
 })();
 
 const topCustomerSegment = (() => {
-  const rows =
-    locationSalesData?.length
-      ? locationSalesData
-      : resolvedSalesData?.length
-      ? resolvedSalesData
-      : [];
+  const rows = Array.isArray(operationalSalesData)
+  ? operationalSalesData
+  : [];
 
   const segmentCounts = {};
 
@@ -51215,12 +51347,9 @@ const topCustomerSegment = (() => {
 })();
 
 const repeatVisitRate = (() => {
-  const rows =
-    locationSalesData?.length
-      ? locationSalesData
-      : resolvedSalesData?.length
-      ? resolvedSalesData
-      : [];
+  const rows = Array.isArray(operationalSalesData)
+  ? operationalSalesData
+  : [];
 
   const guestVisits = {};
 
@@ -106677,11 +106806,15 @@ maxWidth: "100%",
       ? laborEfficiencyInsight
       : "Upload labor data to detect overstaffing risk.";
 
-  const safeLaborData =
-    typeof laborData !== "undefined" ? laborData || [] : [];
+ const safeLaborData =
+  Array.isArray(operationalLaborData)
+    ? operationalLaborData
+    : [];
 
-  const safeEmployeeShifts =
-    typeof employeeShifts !== "undefined" ? employeeShifts || [] : [];
+const safeEmployeeShifts =
+  Array.isArray(operationalEmployeeShifts)
+    ? operationalEmployeeShifts
+    : [];
 
 const hasLaborData =
   safeLaborData.length > 0 ||
@@ -107272,12 +107405,15 @@ Number(safeEffectiveLaborCostPercent || 0) <= 35 && {
 
     const safeTotalLaborHours =
       typeof totalLaborHours !== "undefined" ? totalLaborHours : null;
+const safeLaborData =
+  Array.isArray(operationalLaborData)
+    ? operationalLaborData
+    : [];
 
-    const safeLaborData =
-      typeof laborData !== "undefined" ? laborData || [] : [];
-
-    const safeEmployeeShifts =
-      typeof employeeShifts !== "undefined" ? employeeShifts || [] : [];
+const safeEmployeeShifts =
+  Array.isArray(operationalEmployeeShifts)
+    ? operationalEmployeeShifts
+    : [];
 
     const safeLaborEfficiencyStatus =
       typeof laborEfficiencyStatus !== "undefined"
@@ -108325,10 +108461,14 @@ Number(safeEffectiveLaborCostPercent || 0) <= 35 && {
   >
     {(() => {
       const safeLaborData =
-        typeof laborData !== "undefined" ? laborData || [] : [];
+  Array.isArray(operationalLaborData)
+    ? operationalLaborData
+    : [];
 
-      const safeEmployeeShifts =
-        typeof employeeShifts !== "undefined" ? employeeShifts || [] : [];
+     const safeEmployeeShifts =
+  Array.isArray(operationalEmployeeShifts)
+    ? operationalEmployeeShifts
+    : [];
 
       const safeEmployees =
         typeof employees !== "undefined" ? employees || [] : [];
@@ -108500,8 +108640,10 @@ Number(safeEffectiveLaborCostPercent || 0) <= 35 && {
   }}
 >
   {(() => {
-    const safeEmployeeShifts =
-      typeof employeeShifts !== "undefined" ? employeeShifts || [] : [];
+   const safeEmployeeShifts =
+  Array.isArray(operationalEmployeeShifts)
+    ? operationalEmployeeShifts
+    : [];
 
     const safeEmployees =
       typeof employees !== "undefined" ? employees || [] : [];
