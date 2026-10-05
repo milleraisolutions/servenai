@@ -1502,7 +1502,30 @@ const operationalLaborData =
 const locationMenuItemsData = filterByActiveLocation(menuItemsData);
 const locationIngredientsData = filterByActiveLocation(ingredientsData);
 const locationInventoryData = filterByActiveLocation(inventoryData);
+const operationalMenuItemsData =
+  activeLocation === "all" || !activeLocation
+    ? menuItemsData || []
+    : locationMenuItemsData;
 
+    const locationRecipes = filterByActiveLocation(recipes);
+const locationRecipeIngredients = filterByActiveLocation(recipeIngredients);
+
+const operationalRecipes =
+  activeLocation === "all" || !activeLocation
+    ? recipes || []
+    : locationRecipes;
+
+const operationalRecipeIngredients =
+  activeLocation === "all" || !activeLocation
+    ? recipeIngredients || []
+    : locationRecipeIngredients;
+    const locationRecipeUsageRules =
+  filterByActiveLocation(recipeUsageRules);
+
+const operationalRecipeUsageRules =
+  activeLocation === "all" || !activeLocation
+    ? recipeUsageRules || []
+    : locationRecipeUsageRules;
 const operationalIngredientsData =
   activeLocation === "all" || !activeLocation
     ? ingredientsData || []
@@ -3431,13 +3454,10 @@ const liveOverviewMetrics = useMemo(() => {
   Array.isArray(operationalSalesData)
     ? operationalSalesData
     : [];
-  const menuRows =
-    Array.isArray(locationMenuItemsData) &&
-    locationMenuItemsData.length
-      ? locationMenuItemsData
-      : Array.isArray(menuItemsData)
-      ? menuItemsData
-      : [];
+ const menuRows =
+  Array.isArray(operationalMenuItemsData)
+    ? operationalMenuItemsData
+    : [];
 
 const dedicatedLaborRows =
   Array.isArray(operationalLaborData)
@@ -3618,8 +3638,7 @@ const laborRows =
   };
 }, [
   operationalSalesData,
-  menuItemsData,
-  locationMenuItemsData,
+  operationalMenuItemsData,
   operationalLaborData,
 ]);
 const realSalesMetrics = useMemo(() => {
@@ -4997,7 +5016,7 @@ const laborRevenueChartData = useMemo(() => {
 }, [revenueTrend, laborCostPercentage]);
 
 const profitLeakageChartData = useMemo(() => {
-  const source = menuItemsData || [];
+ const source = operationalMenuItemsData || [];
 
   return source
     .map((item) => {
@@ -5032,7 +5051,7 @@ const profitLeakageChartData = useMemo(() => {
     .filter((item) => item.loss > 0)
     .sort((a, b) => b.loss - a.loss)
     .slice(0, 8);
-}, [menuItemsData]);
+}, [operationalMenuItemsData]);
 console.log("profitLeaks:", profitLeaks);
 console.log("fixSuggestions:", fixSuggestions);
 console.log("profitLeakageChartData:", profitLeakageChartData);
@@ -12490,17 +12509,29 @@ const loadUploadComparison = async () => {
 
     if (!ownerId) return;
 
-    const { data: menuItems } = await supabase
-      .from("menu_items")
-      .select("*")
-      .eq("user_id", ownerId)
-      .order("last_seen_at", { ascending: false });
+   let menuItemsQuery = supabase
+  .from("menu_items")
+  .select("*")
+  .eq("user_id", ownerId);
 
-    const { data: ingredients } = await supabase
-      .from("ingredients")
-      .select("*")
-     .eq("user_id", ownerId)
-      .order("last_seen_at", { ascending: false });
+menuItemsQuery = applyLocationFilter(menuItemsQuery);
+
+const { data: menuItems } = await menuItemsQuery.order(
+  "last_seen_at",
+  { ascending: false }
+);
+
+let ingredientsQuery = supabase
+  .from("ingredients")
+  .select("*")
+  .eq("user_id", ownerId);
+
+ingredientsQuery = applyLocationFilter(ingredientsQuery);
+
+const { data: ingredients } = await ingredientsQuery.order(
+  "last_seen_at",
+  { ascending: false }
+);
 
     const activeMenuItems = (menuItems || []).filter((i) => i.is_active);
     const inactiveMenuItems = (menuItems || []).filter(
@@ -12563,8 +12594,18 @@ setUploadComparison({
   }
 };
 useEffect(() => {
+  if (!authReady) return;
+
   loadUploadComparison();
-}, []);
+}, [
+  authReady,
+  dataOwnerId,
+  authenticatedUserId,
+  userProfile?.owner_user_id,
+  user?.id,
+  shouldFilterByLocation,
+  assignedLocation,
+]);
 const miniChangeListStyle = {
   padding: "14px",
   borderRadius: "16px",
@@ -12944,9 +12985,11 @@ const ingredientUsageFromSales = useMemo(() => {
   const safeSalesData = Array.isArray(operationalSalesData)
     ? operationalSalesData
     : [];
-  const safeRecipeUsageRules = Array.isArray(recipeUsageRules)
-    ? recipeUsageRules
-    : [];
+  const safeRecipeUsageRules = Array.isArray(
+  operationalRecipeUsageRules
+)
+  ? operationalRecipeUsageRules
+  : [];
 
   if (!safeSalesData.length || !safeRecipeUsageRules.length) return {};
 
@@ -13018,7 +13061,7 @@ console.log("INVENTORY RECIPE USAGE DEBUG:", {
 });
 
 return usageMap;
-}, [operationalSalesData, recipeUsageRules]);
+}, [operationalSalesData, operationalRecipeUsageRules]);
 const inventoryRestockContext = useMemo(() => {
   const ingredients = (uploadComparison?.activeIngredients || []).map((item) => {
  const used =
@@ -15623,13 +15666,13 @@ const normalizeName = (value) =>
     .trim()
     .replace(/\s+/g, " ");
 
-const expectedIngredientUsage = (recipeUsageRules || [])
+const expectedIngredientUsage = (operationalRecipeUsageRules || [])
   .map((rule) => {
     const menuItemName = normalizeName(
       rule.menuItem || rule.menu_item || rule.itemName || rule.item_name
     );
 
-    const matchingMenuItem = (menuItemsData || []).find((item) => {
+   const matchingMenuItem = (operationalMenuItemsData || []).find((item) => {
       const itemName = normalizeName(
         item.name || item.item_name || item.menu_item || item.menuItem
       );
@@ -15780,7 +15823,7 @@ const shiftWasteInventoryAlerts = (shiftWasteAlerts || []).map((shift) => ({
       : "Monitor this shift for unusual waste or comp patterns.",
   priority: shift.riskPercent >= 5 ? "High" : "Medium",
 }));
-const expectedUsageItems = (menuItemsData || []).map((item) => {
+const expectedUsageItems = (operationalMenuItemsData || []).map((item) => {
   const quantitySold = Number(item.quantity_sold || item.qty_sold || 0);
   const recipeCost = Number(item.cost || item.recipe_cost || 0);
   const price = Number(item.price || 0);
@@ -16181,14 +16224,60 @@ useEffect(() => {
 
     let verificationChanged = false;
 
-    for (const action of pendingMenuActions) {
-      const matchingMenuItem = menuItemsData.find(
-        (menuItem) =>
-          String(menuItem.id || "") ===
-          String(action.entity_id || "")
-      );
+   for (const action of pendingMenuActions) {
+  const actionLocationId = String(
+    action.location_id ||
+      action.baseline_data?.location_id ||
+      ""
+  ).trim();
 
-      if (!matchingMenuItem) continue;
+  const actionLocationName = String(
+    action.location_name ||
+      action.baseline_data?.location_name ||
+      ""
+  )
+    .trim()
+    .toLowerCase();
+
+  const actionScopedMenuItems = (menuItemsData || []).filter(
+    (menuItem) => {
+      // Historical actions created before location tracking
+      // continue using the authorized canonical menu set.
+      if (!actionLocationId && !actionLocationName) {
+        return true;
+      }
+
+      const menuItemLocationId = String(
+        menuItem.location_id || ""
+      ).trim();
+
+      const menuItemLocationName = String(
+        menuItem.location_name ||
+          menuItem.location ||
+          ""
+      )
+        .trim()
+        .toLowerCase();
+
+      if (actionLocationId && menuItemLocationId) {
+        return menuItemLocationId === actionLocationId;
+      }
+
+      if (actionLocationName && menuItemLocationName) {
+        return menuItemLocationName === actionLocationName;
+      }
+
+      return false;
+    }
+  );
+
+  const matchingMenuItem = actionScopedMenuItems.find(
+    (menuItem) =>
+      String(menuItem.id || "") ===
+      String(action.entity_id || "")
+  );
+
+  if (!matchingMenuItem) continue;
 const verification =
   getVerifiedMenuRecovery(
     matchingMenuItem,
@@ -16561,30 +16650,75 @@ useEffect(() => {
       ) {
         continue;
       }
+const actionLocationId = String(
+  action.location_id ||
+    baselineData.location_id ||
+    ""
+).trim();
 
-      const matchingMenuItem = (
-        menuItemsData || []
-      ).find((item) => {
-        const sameId =
-          action.entity_id &&
-          item?.id &&
-          String(item.id) ===
-            String(action.entity_id);
+const actionLocationName = String(
+  action.location_name ||
+    baselineData.location_name ||
+    ""
+)
+  .trim()
+  .toLowerCase();
 
-        const itemName = String(
-          item?.name ||
-            item?.item_name ||
-            ""
-        )
-          .trim()
-          .toLowerCase();
+const actionScopedMenuItems = (menuItemsData || []).filter(
+  (item) => {
+    // Historical actions created before location tracking
+    // continue using the authorized canonical menu set.
+    if (!actionLocationId && !actionLocationName) {
+      return true;
+    }
 
-        const sameName =
-          baselineItemName &&
-          itemName === baselineItemName;
+    const itemLocationId = String(
+      item?.location_id || ""
+    ).trim();
 
-        return sameId || sameName;
-      });
+    const itemLocationName = String(
+      item?.location_name ||
+        item?.location ||
+        ""
+    )
+      .trim()
+      .toLowerCase();
+
+    if (actionLocationId && itemLocationId) {
+      return itemLocationId === actionLocationId;
+    }
+
+    if (actionLocationName && itemLocationName) {
+      return itemLocationName === actionLocationName;
+    }
+
+    return false;
+  }
+);
+
+const matchingMenuItem = actionScopedMenuItems.find(
+  (item) => {
+    const sameId =
+      action.entity_id &&
+      item?.id &&
+      String(item.id) ===
+        String(action.entity_id);
+
+    const itemName = String(
+      item?.name ||
+        item?.item_name ||
+        ""
+    )
+      .trim()
+      .toLowerCase();
+
+    const sameName =
+      baselineItemName &&
+      itemName === baselineItemName;
+
+    return sameId || sameName;
+  }
+);
 
       if (!matchingMenuItem?.id) {
         continue;
@@ -18494,7 +18628,7 @@ const laborOveragePercent = Math.max(
 /* 🍽️ MENU PRICING INTELLIGENCE */
 /* ========================= */
 
-const menuPricingOpportunities = (menuItemsData || [])
+const menuPricingOpportunities = (operationalMenuItemsData || [])
   .map((item) => {
     const price = Number(item.price || item.menu_price || item.selling_price || 0);
     const cost = Number(item.cost || item.food_cost || item.unit_cost || 0);
@@ -19304,7 +19438,7 @@ const shiftActionRecommendation =
     ? operationalSalesData
     : [];
 
-  const rules = recipeUsageRules || [];
+  const rules = operationalRecipeUsageRules || [];
   const activeIngredients =
   uploadComparison?.activeIngredients || [];
 
@@ -19441,7 +19575,7 @@ inventoryLastSeenAt: ingredient.last_seen_at || null,
   });
 }, [
   operationalSalesData,
-  recipeUsageRules,
+  operationalRecipeUsageRules,
   uploadComparison,
   operationalIngredientsData,
 ]);
@@ -19667,7 +19801,7 @@ const inventoryReorderAlerts =
    MENU ENGINEERING INTELLIGENCE
 ========================= */
 
-const menuEngineeringData = (menuItemsData || []).map(
+const menuEngineeringData = (operationalMenuItemsData || []).map(
   (item) => {
     const revenue =
       Number(
@@ -23884,10 +24018,7 @@ if (
   });
 }
 
-const menuProfitRows = (locationMenuItemsData?.length
-  ? locationMenuItemsData
-  : menuItemsData || []
-).map((item) => {
+const menuProfitRows = (operationalMenuItemsData || []).map((item) => {
   const price = Number(item.price || item.menu_price || 0);
   const cost = Number(item.cost || item.recipe_cost || item.food_cost || 0);
   const profit = price - cost;
@@ -27373,15 +27504,15 @@ const convertRecipeQuantityToIngredientUnit = (
   return null;
 };
 const recipeCostingData = useMemo(() => {
-  const rules = recipeUsageRules || [];
+  const rules = operationalRecipeUsageRules || [];
 
   const ingredients =
     uploadComparison?.activeIngredients ||
-    locationIngredientsData ||
+    operationalIngredientsData ||
     [];
 
-  const menuItems = locationMenuItemsData || [];
-  const importedRecipes = recipes || [];
+  const menuItems = operationalMenuItemsData || [];
+  const importedRecipes = operationalRecipes || [];
 
   // =========================================================
   // BUILD ONE UNIFIED MENU / RECIPE LIST
@@ -27740,11 +27871,11 @@ const recipeCostingData = useMemo(() => {
     };
   });
 }, [
-  recipeUsageRules,
+  operationalRecipeUsageRules,
   uploadComparison,
-  locationIngredientsData,
-  locationMenuItemsData,
-  recipes,
+  operationalIngredientsData,
+  operationalMenuItemsData,
+  operationalRecipes,
 ]);
 const inventoryTrendData = useMemo(() => {
   const items =
@@ -29011,13 +29142,13 @@ const isServenAdmin =
 
 
 const expectedVsActualUsageData = useMemo(() => {
- const rules = recipeUsageRules || [];
+  const rules = operationalRecipeUsageRules || [];
 
-const salesRows = Array.isArray(operationalSalesData)
-  ? operationalSalesData
-  : [];
+  const salesRows = Array.isArray(operationalSalesData)
+    ? operationalSalesData
+    : [];
 
-const ingredients = locationIngredientsData || ingredientsData || [];
+  const ingredients = operationalIngredientsData || [];
 
   return rules.map((rule) => {
     const menuItemName = String(rule.menu_item || "").toLowerCase().trim();
@@ -29037,8 +29168,15 @@ const ingredients = locationIngredientsData || ingredientsData || [];
         return sum + Number(sale.quantity || sale.qty || sale.orders_count || 1);
       }, 0);
 
-    const expectedUsage =
-      totalSold * Number(rule.quantity_used || 0);
+   const amountUsed = Number(
+  rule.amount_used ||
+    rule.amountUsed ||
+    rule.quantity_used ||
+    0
+);
+
+const expectedUsage =
+  totalSold * amountUsed;
 
     const matchingIngredient = ingredients.find((ing) => {
       const ingName =
@@ -29080,10 +29218,9 @@ const ingredients = locationIngredientsData || ingredientsData || [];
     };
   });
 }, [
-  recipeUsageRules,
+  operationalRecipeUsageRules,
   operationalSalesData,
-  locationIngredientsData,
-  ingredientsData,
+  operationalIngredientsData,
 ]);
 
 const saveRecipeRule = async () => {
@@ -29168,11 +29305,17 @@ const fetchRecipeUsageRules = async () => {
       return;
     }
 
-    const { data, error } = await supabase
-      .from("recipe_usage_rules")
-      .select("*")
-      .eq("user_id", ownerId)
-      .order("created_at", { ascending: false });
+let recipeUsageRulesQuery = supabase
+  .from("recipe_usage_rules")
+  .select("*")
+  .eq("user_id", ownerId);
+
+recipeUsageRulesQuery = applyLocationFilter(recipeUsageRulesQuery);
+
+const { data, error } = await recipeUsageRulesQuery.order(
+  "created_at",
+  { ascending: false }
+);
 
     if (error) throw error;
 
@@ -29195,7 +29338,6 @@ useEffect(() => {
   authenticatedUserId,
   user?.id,
   userProfile?.owner_user_id,
-  activeLocation,
 ]);
 
 /* =========================
@@ -29986,12 +30128,43 @@ const actionIngredientName = String(
   .trim()
   .toLowerCase();
 
-const actionLinkedRules = (recipeUsageRules || []).filter(
-  (rule) =>
-    String(rule.ingredient || "")
-      .trim()
-      .toLowerCase() === actionIngredientName
-);
+const actionLinkedRules = (recipeUsageRules || []).filter((rule) => {
+  const ruleIngredientName = String(rule.ingredient || "")
+    .trim()
+    .toLowerCase();
+
+  if (ruleIngredientName !== actionIngredientName) {
+    return false;
+  }
+
+  // Historical actions created before location tracking
+  // continue using the authorized canonical recipe-rule set.
+  if (!actionLocationId && !actionLocationName) {
+    return true;
+  }
+
+  const ruleLocationId = String(
+    rule.location_id || ""
+  ).trim();
+
+  const ruleLocationName = String(
+    rule.location_name ||
+      rule.location ||
+      ""
+  )
+    .trim()
+    .toLowerCase();
+
+  if (actionLocationId && ruleLocationId) {
+    return ruleLocationId === actionLocationId;
+  }
+
+  if (actionLocationName && ruleLocationName) {
+    return ruleLocationName === actionLocationName;
+  }
+
+  return false;
+});
 
 let actionExpectedUsage = 0;
 
@@ -31697,9 +31870,8 @@ const hasWasteData =
 const hasVendorData =
   (invoicesData || []).length > 0 ||
   (ingredientsData || []).length > 0;
-
 const hasMarginData =
-  (menuItemsData || []).length > 0 ||
+  (operationalMenuItemsData || []).length > 0 ||
   Number(liveAvgMargin || 0) > 0;
 
 const hasShiftData =
@@ -45276,7 +45448,6 @@ useEffect(() => {
   dataOwnerId,
   user?.id,
   userProfile?.owner_user_id,
-  activeLocation,
 ]);
 const handleRecipeUpload = async (event) => {
   try {
@@ -105080,10 +105251,10 @@ const safeOpportunities =
   <>
     {(() => {
       const usageData = expectedVsActualUsageData || [];
-      const rulesList = recipeUsageRules || [];
-      const intelligenceList = processedUsageIntelligence || [];
-      const safeRecipes = recipes || [];
-      const safeRecipeIngredients = recipeIngredients || [];
+ const rulesList = operationalRecipeUsageRules || [];
+const intelligenceList = processedUsageIntelligence || [];
+const safeRecipes = operationalRecipes || [];
+const safeRecipeIngredients = operationalRecipeIngredients || [];
 const safeInventoryWaste =
   typeof inventoryWasteIntelligence !== "undefined"
     ? inventoryWasteIntelligence || {}
@@ -110503,11 +110674,29 @@ baselineData: {
   baseline_upload_id:
     item.upload_id || null,
 
-  baseline_last_seen_at:
-    item.last_seen_at || null,
+ baseline_last_seen_at:
+  item.last_seen_at || null,
 
-  item_name:
-    item.name || null,
+item_name:
+  item.name ||
+  item.item_name ||
+  null,
+
+location_id:
+  item.location_id || null,
+
+location_name:
+  item.location_name ||
+  item.location ||
+  null,
+
+location_id:
+  item.location_id || null,
+
+location_name:
+  item.location_name ||
+  item.location ||
+  null,
 },
 
       targetData: null,
