@@ -1537,6 +1537,10 @@ const operationalInventoryData =
     : locationInventoryData;
 
 const locationInvoicesData = filterByActiveLocation(invoicesData);
+const operationalInvoicesData =
+  activeLocation === "all" || !activeLocation
+    ? invoicesData || []
+    : locationInvoicesData;
 console.log("DB POS ROWS:", dbSalesRows?.length || 0);
 console.log("HOOK POS ROWS:", salesData?.length || 0);
 console.log(
@@ -20863,7 +20867,39 @@ useEffect(() => {
         Invoice chronology comes from invoice_uploads,
         never invoice_line_items.created_at.
       */
-      const futureInvoiceItems = invoicesData
+           const actionScopedInvoiceItems = (invoicesData || []).filter(
+        (invoiceItem) => {
+          // Historical actions created before location tracking
+          // continue using the authorized canonical invoice set.
+          if (!actionLocationId && !actionLocationName) {
+            return true;
+          }
+
+          const itemLocationId = String(
+            invoiceItem.location_id || ""
+          ).trim();
+
+          const itemLocationName = String(
+            invoiceItem.location_name ||
+              invoiceItem.location ||
+              ""
+          )
+            .trim()
+            .toLowerCase();
+
+          if (actionLocationId && itemLocationId) {
+            return itemLocationId === actionLocationId;
+          }
+
+          if (actionLocationName && itemLocationName) {
+            return itemLocationName === actionLocationName;
+          }
+
+          return false;
+        }
+      );
+
+      const futureInvoiceItems = actionScopedInvoiceItems
         .map((invoiceItem) => {
           const parentInvoice =
             invoiceUploadById.get(
@@ -21288,7 +21324,57 @@ useEffect(() => {
 
       const baselineData =
         action.baseline_data || {};
+const actionLocationId = String(
+  action.location_id ||
+    baselineData.location_id ||
+    ""
+).trim();
 
+const actionLocationName = String(
+  action.location_name ||
+    baselineData.location_name ||
+    ""
+)
+  .trim()
+  .toLowerCase();
+
+const actionScopedInvoices = (invoicesData || []).filter(
+  (invoiceItem) => {
+    // Preserve historical actions created before
+    // action-level location tracking existed.
+    if (!actionLocationId && !actionLocationName) {
+      return true;
+    }
+
+    const invoiceLocationId = String(
+      invoiceItem.location_id || ""
+    ).trim();
+
+    const invoiceLocationName = String(
+      invoiceItem.location_name ||
+        invoiceItem.location ||
+        ""
+    )
+      .trim()
+      .toLowerCase();
+
+    if (
+      actionLocationId &&
+      invoiceLocationId
+    ) {
+      return invoiceLocationId === actionLocationId;
+    }
+
+    if (
+      actionLocationName &&
+      invoiceLocationName
+    ) {
+      return invoiceLocationName === actionLocationName;
+    }
+
+    return false;
+  }
+);
       const supplierName = String(
         baselineData.supplier_name || ""
       )
@@ -21356,7 +21442,7 @@ useEffect(() => {
         Gather every invoice after the original spike
         for this exact supplier + item.
       */
-      const futureInvoiceItems = invoicesData
+      const futureInvoiceItems = actionScopedInvoices
         .map((invoiceItem) => {
           const parentInvoice =
             invoiceUploadById.get(
@@ -22320,7 +22406,7 @@ const executiveInvoiceRecoveryOpportunity = (() => {
 
   const grouped = {};
 
-  (invoicesData || []).forEach((row) => {
+(operationalInvoicesData || []).forEach((row) => {
     const itemName =
       row.item_name ||
       row.item ||
@@ -23751,14 +23837,14 @@ const hasOperationalData =
   (operationalLaborData || []).length > 0 ||
   (operationalInventoryData || []).length > 0 ||
   (operationalIngredientsData || []).length > 0 ||
-  (invoicesData || []).length > 0;
+  (operationalInvoicesData || []).length > 0;
 
 const hasFullRecoveryData =
   hasRevenueData &&
   ((operationalLaborData || []).length > 0 ||
     (operationalInventoryData || []).length > 0 ||
     (operationalIngredientsData || []).length > 0 ||
-    (invoicesData || []).length > 0);
+    (operationalInvoicesData || []).length > 0);
 
   const aiRecoveryStatus =
   totalAIRecoveryOpportunity <= 0
@@ -27186,10 +27272,9 @@ const spoilageForecastData = useMemo(() => {
 }, [uploadComparison, operationalIngredientsData]);
 
 const vendorPriceSpikeData = useMemo(() => {
-  const invoiceRows =
-    invoicesData ||
-    invoiceData ||
-    [];
+const invoiceRows =
+  operationalInvoicesData ||
+  [];
 
   /*
     Vendor price chronology must use the actual invoice date,
@@ -27373,7 +27458,7 @@ const latest = sorted[sorted.length - 1];
     })
     .filter((item) => item.latestCost > 0)
     .sort((a, b) => b.priceChange - a.priceChange);
-}, [invoicesData, invoiceUploads]);
+}, [operationalInvoicesData, invoiceUploads]);
 const invoiceRecoveryOpportunity = (vendorPriceSpikeData || []).reduce(
   (sum, item) => {
     const previousCost = Number(item.previousCost || 0);
@@ -30343,7 +30428,7 @@ verifiedRecovery,
 ]);
 
 const vendorCostInsights = useMemo(() => {
-  const invoices = invoicesData || [];
+  const invoices = operationalInvoicesData || [];
 
   const grouped = {};
 
@@ -30413,7 +30498,7 @@ const vendorCostInsights = useMemo(() => {
       status,
     };
   });
-}, [invoicesData]);
+}, [operationalInvoicesData]);
 
 const staffingRecommendations = useMemo(() => {
   return (shiftOperationalData || []).map((shift) => {
@@ -31677,7 +31762,7 @@ const scoreWaste = (() => {
 const scoreVendor = (() => {
   const hasVendorScoreData =
     (vendorPriceSpikeData || []).length > 0 ||
-    (invoicesData || []).length > 0 ||
+    (operationalInvoicesData || []).length > 0 ||
     (ingredientsData || []).length > 0;
 
   if (!hasVendorScoreData) {
@@ -31868,7 +31953,7 @@ const hasWasteData =
   (operationalIngredientsData || []).length > 0;
 
 const hasVendorData =
-  (invoicesData || []).length > 0 ||
+  (operationalInvoicesData || []).length > 0 ||
   (ingredientsData || []).length > 0;
 const hasMarginData =
   (operationalMenuItemsData || []).length > 0 ||
@@ -35697,7 +35782,19 @@ useEffect(() => {
     for (const action of pendingBeverageActions) {
       const baselineData =
         action.baseline_data || {};
+      const actionLocationId = String(
+        action.location_id ||
+          baselineData.location_id ||
+          ""
+      ).trim();
 
+      const actionLocationName = String(
+        action.location_name ||
+          baselineData.location_name ||
+          ""
+      )
+        .trim()
+        .toLowerCase();
       const baselineUploadId = String(
         baselineData.baseline_upload_id || ""
       ).trim();
@@ -51473,7 +51570,7 @@ const modeledSystemsCount = [
   totalLaborCost > 0,
   inventoryDepletionData?.length > 0,
   menuItemsData?.length > 0,
-  invoicesData?.length > 0,
+ operationalInvoicesData?.length > 0,
 ].filter(Boolean).length;
 console.log("FORECAST CONFIDENCE DEBUG:", {
   realForecastConfidence,
@@ -100060,14 +100157,18 @@ if (!res.ok) {
   ...((typeof restockLogs !== "undefined" && Array.isArray(restockLogs))
     ? restockLogs
     : []),
-  ...((typeof invoicesData !== "undefined" && Array.isArray(invoicesData))
-    ? invoicesData
-    : []),
+...((typeof operationalInvoicesData !== "undefined" &&
+  Array.isArray(operationalInvoicesData))
+  ? operationalInvoicesData
+  : []),
 ];
 
 const invoiceRows =
-  typeof invoiceUploads !== "undefined" && Array.isArray(invoiceUploads)
-    ? invoiceUploads
+  typeof invoiceUploads !== "undefined" &&
+  Array.isArray(invoiceUploads)
+    ? activeLocation === "all" || !activeLocation
+      ? invoiceUploads
+      : filterByActiveLocation(invoiceUploads)
     : [];
 
 const activityRows = [
@@ -100967,7 +101068,9 @@ const purchaseRows =
 const invoiceRows =
   typeof invoiceUploads !== "undefined" &&
   Array.isArray(invoiceUploads)
-    ? invoiceUploads
+    ? activeLocation === "all" || !activeLocation
+      ? invoiceUploads
+      : filterByActiveLocation(invoiceUploads)
     : [];
       const getVendor = (row) =>
         row.vendor ||
