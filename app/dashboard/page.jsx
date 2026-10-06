@@ -1541,6 +1541,21 @@ const operationalInvoicesData =
   activeLocation === "all" || !activeLocation
     ? invoicesData || []
     : locationInvoicesData;
+    const locationBeverageItems =
+  filterByActiveLocation(beverageItems);
+
+const operationalBeverageItems =
+  activeLocation === "all" || !activeLocation
+    ? beverageItems || []
+    : locationBeverageItems;
+
+const locationBeverageUsage =
+  filterByActiveLocation(beverageUsage);
+
+const operationalBeverageUsage =
+  activeLocation === "all" || !activeLocation
+    ? beverageUsage || []
+    : locationBeverageUsage;
 console.log("DB POS ROWS:", dbSalesRows?.length || 0);
 console.log("HOOK POS ROWS:", salesData?.length || 0);
 console.log(
@@ -32857,8 +32872,8 @@ const beverageSalesData = Array.isArray(alcoholSalesRows)
   : [];
 
 const beverageInventoryData =
-  inventoryData ||
-  ingredientsData ||
+  operationalInventoryData ||
+  operationalIngredientsData ||
   [];
 
 const alcoholInventoryData =
@@ -32868,13 +32883,13 @@ const kegInventoryData =
   beverageInventoryData || [];
 
 const bartenderShiftData =
-  laborData || [];
+  operationalLaborData || [];
 
 
 const beverageRestockData = useMemo(() => {
   const beverageItems =
-  inventoryData ||
-  ingredientsData ||
+  operationalInventoryData ||
+  operationalIngredientsData ||
   [];
 
 const beverageSales = Array.isArray(beverageSalesData)
@@ -32949,8 +32964,8 @@ const avgDailyUsage =
     };
   });
 }, [
-  inventoryData,
-  ingredientsData,
+  operationalInventoryData,
+  operationalIngredientsData,
   beverageSalesData,
 ]);
 
@@ -32986,10 +33001,7 @@ const beverageRestockInsight = useMemo(() => {
 
 const kegIntelligenceData = useMemo(() => {
  const kegs =
-  kegInventoryData ||
-  inventoryData ||
-  ingredientsData ||
-  [];
+  kegInventoryData || [];
 
   return kegs.map((keg, index) => {
     const name =
@@ -33044,8 +33056,6 @@ const kegIntelligenceData = useMemo(() => {
   });
 }, [
   kegInventoryData,
-  inventoryData,
-  ingredientsData,
 ]);
 
 const kegIntelligenceInsight = useMemo(() => {
@@ -33162,8 +33172,8 @@ const happyHourProfitabilityData = useMemo(() => {
 ]);
 
 const cocktailRecipeCostingData = useMemo(() => {
-  const menuItems = menuItemsData || [];
-  const ingredients = beverageInventoryData || inventoryData || ingredientsData || [];
+  const menuItems =
+    operationalMenuItemsData || [];
 
   return menuItems
     .filter((item) => {
@@ -33214,7 +33224,9 @@ const cocktailRecipeCostingData = useMemo(() => {
         status,
       };
     });
-}, [menuItemsData, beverageInventoryData, inventoryData, ingredientsData]);
+}, [
+  operationalMenuItemsData,
+]);
 
 const cocktailRecipeCostingInsight = useMemo(() => {
   const items = cocktailRecipeCostingData || [];
@@ -33461,11 +33473,11 @@ let score = 100;
 
 const beverageAlertsFeed = useMemo(() => {
   const hasBeverageData =
-    (beverageItems || []).length > 0 ||
-    (beverageUsage || []).length > 0 ||
-    (beverageSalesData || []).length > 0 ||
-    (alcoholInventoryData || []).length > 0 ||
-    (shiftLevelBeverageData || []).length > 0;
+  (operationalBeverageItems || []).length > 0 ||
+  (operationalBeverageUsage || []).length > 0 ||
+  (beverageSalesData || []).length > 0 ||
+  (alcoholInventoryData || []).length > 0 ||
+  (shiftLevelBeverageData || []).length > 0;
 
   if (!hasBeverageData) {
     return [
@@ -33566,8 +33578,8 @@ beverageRestockData,
 kegIntelligenceData,
 bartenderVarianceData,
 happyHourProfitabilityData,
-beverageItems,
-beverageUsage,
+operationalBeverageItems,
+operationalBeverageUsage,
 beverageSalesData,
 alcoholInventoryData,
 shiftLevelBeverageData,
@@ -35209,7 +35221,9 @@ const isBeverageRow = (row = {}) => {
   return beverageKeywords.some((word) => text.includes(word));
 };
 
-const advancedAlcoholSalesRows = (locationSalesData || []).filter(isBeverageRow);
+const advancedAlcoholSalesRows = (operationalSalesData || []).filter(
+  isBeverageRow
+);
 
 const advancedBeverageRevenue = advancedAlcoholSalesRows.reduce(
   (sum, row) =>
@@ -35235,7 +35249,10 @@ const beverageRevenuePercent =
 // Dollar exposure uses actual bottle cost / bottle size.
 // =========================
 
-const beverageUsageRecoveryData = useMemo(() => {
+const buildBeverageUsageRecoveryData = (
+  sourceBeverageItems = [],
+  sourceBeverageUsage = []
+) => {
   const normalizeBeverageName = (value) =>
     String(value || "")
       .trim()
@@ -35244,7 +35261,7 @@ const beverageUsageRecoveryData = useMemo(() => {
 
   const itemByName = new Map();
 
-  (beverageItems || []).forEach((item) => {
+  (sourceBeverageItems || []).forEach((item) => {
     const normalizedName = normalizeBeverageName(
       item.beverage_name ||
         item.name ||
@@ -35254,15 +35271,21 @@ const beverageUsageRecoveryData = useMemo(() => {
 
     if (!normalizedName) return;
 
-    const bottleSizeOz = Number(item.bottle_size_oz || 0);
-    const costPerBottle = Number(item.cost_per_bottle || 0);
+    const bottleSizeOz = Number(
+      item.bottle_size_oz || 0
+    );
+
+    const costPerBottle = Number(
+      item.cost_per_bottle || 0
+    );
 
     const costPerOz =
       bottleSizeOz > 0 && costPerBottle > 0
         ? costPerBottle / bottleSizeOz
         : 0;
 
-    const existingItem = itemByName.get(normalizedName);
+    const existingItem =
+      itemByName.get(normalizedName);
 
     const currentCreatedAt = new Date(
       item.created_at || 0
@@ -35283,99 +35306,128 @@ const beverageUsageRecoveryData = useMemo(() => {
     }
   });
 
-  const groupedByPeriodAndBeverage = new Map();
+  const groupedByPeriodAndBeverage =
+    new Map();
 
-  (beverageUsage || []).forEach((usageRow) => {
-    const normalizedName = normalizeBeverageName(
-      usageRow.beverage_name ||
-        usageRow.name ||
-        usageRow.item_name ||
-        usageRow.product
-    );
-
-    const uploadId = String(
-      usageRow.upload_id || ""
-    ).trim();
-
-    if (!normalizedName || !uploadId) return;
-
-    const matchingItem = itemByName.get(normalizedName);
-
-    const bottleSizeOz = Number(
-      matchingItem?.bottle_size_oz || 0
-    );
-
-    const costPerBottle = Number(
-      matchingItem?.cost_per_bottle || 0
-    );
-
-    const costPerOz =
-      bottleSizeOz > 0 && costPerBottle > 0
-        ? costPerBottle / bottleSizeOz
-        : 0;
-
-    const expectedOz = Number(
-      usageRow.expected_oz || 0
-    );
-
-    const actualOz = Number(
-      usageRow.actual_oz || 0
-    );
-
-    const wasteOz = Number(
-      usageRow.waste_oz || 0
-    );
-
-    const compsOz = Number(
-      usageRow.comps_oz || 0
-    );
-
-    const groupKey = `${uploadId}::${normalizedName}`;
-
-    const existing =
-      groupedByPeriodAndBeverage.get(groupKey) || {
-        uploadId,
-        beverageName:
+  (sourceBeverageUsage || []).forEach(
+    (usageRow) => {
+      const normalizedName =
+        normalizeBeverageName(
           usageRow.beverage_name ||
-          matchingItem?.beverage_name ||
+            usageRow.name ||
+            usageRow.item_name ||
+            usageRow.product
+        );
+
+      const uploadId = String(
+        usageRow.upload_id || ""
+      ).trim();
+
+      if (!normalizedName || !uploadId) {
+        return;
+      }
+
+      const matchingItem =
+        itemByName.get(normalizedName);
+
+      const bottleSizeOz = Number(
+        matchingItem?.bottle_size_oz || 0
+      );
+
+      const costPerBottle = Number(
+        matchingItem?.cost_per_bottle || 0
+      );
+
+      const costPerOz =
+        bottleSizeOz > 0 && costPerBottle > 0
+          ? costPerBottle / bottleSizeOz
+          : 0;
+
+      const expectedOz = Number(
+        usageRow.expected_oz || 0
+      );
+
+      const actualOz = Number(
+        usageRow.actual_oz || 0
+      );
+
+      const wasteOz = Number(
+        usageRow.waste_oz || 0
+      );
+
+      const compsOz = Number(
+        usageRow.comps_oz || 0
+      );
+
+      const groupKey =
+        `${uploadId}::${normalizedName}`;
+
+      const existing =
+        groupedByPeriodAndBeverage.get(
+          groupKey
+        ) || {
+          uploadId,
+
+          beverageName:
+            usageRow.beverage_name ||
+            matchingItem?.beverage_name ||
+            normalizedName,
+
           normalizedName,
-        normalizedName,
-        usageDate: usageRow.usage_date || null,
-        locationName:
-          usageRow.location_name ||
-          matchingItem?.location_name ||
-          null,
-        expectedOz: 0,
-        actualOz: 0,
-        wasteOz: 0,
-        compsOz: 0,
-        bottleSizeOz,
-        costPerBottle,
-        costPerOz,
-        matchedBeverageItem: Boolean(matchingItem),
-      };
 
-    existing.expectedOz += expectedOz;
-    existing.actualOz += actualOz;
-    existing.wasteOz += wasteOz;
-    existing.compsOz += compsOz;
+          usageDate:
+            usageRow.usage_date || null,
 
-    if (
-      usageRow.usage_date &&
-      (
-        !existing.usageDate ||
-        new Date(usageRow.usage_date).getTime() >
-          new Date(existing.usageDate).getTime()
-      )
-    ) {
-      existing.usageDate = usageRow.usage_date;
+          locationName:
+            usageRow.location_name ||
+            matchingItem?.location_name ||
+            null,
+
+          locationId:
+            usageRow.location_id ||
+            matchingItem?.location_id ||
+            null,
+
+          expectedOz: 0,
+          actualOz: 0,
+          wasteOz: 0,
+          compsOz: 0,
+
+          bottleSizeOz,
+          costPerBottle,
+          costPerOz,
+
+          matchedBeverageItem:
+            Boolean(matchingItem),
+        };
+
+      existing.expectedOz += expectedOz;
+      existing.actualOz += actualOz;
+      existing.wasteOz += wasteOz;
+      existing.compsOz += compsOz;
+
+      if (
+        usageRow.usage_date &&
+        (
+          !existing.usageDate ||
+          new Date(
+            usageRow.usage_date
+          ).getTime() >
+            new Date(
+              existing.usageDate
+            ).getTime()
+        )
+      ) {
+        existing.usageDate =
+          usageRow.usage_date;
+      }
+
+      groupedByPeriodAndBeverage.set(
+        groupKey,
+        existing
+      );
     }
-
-    groupedByPeriodAndBeverage.set(
-      groupKey,
-      existing
-    );
-  });
+  );
 
   return Array.from(
     groupedByPeriodAndBeverage.values()
@@ -35385,14 +35437,19 @@ const beverageUsageRecoveryData = useMemo(() => {
         Number(item.actualOz || 0) -
         Number(item.expectedOz || 0);
 
-      const excessOz = Math.max(0, varianceOz);
+      const excessOz =
+        Math.max(0, varianceOz);
 
       const variancePercent =
         Number(item.expectedOz || 0) > 0
           ? Number(
               (
-                (varianceOz /
-                  Number(item.expectedOz || 0)) *
+                (
+                  varianceOz /
+                  Number(
+                    item.expectedOz || 0
+                  )
+                ) *
                 100
               ).toFixed(1)
             )
@@ -35403,7 +35460,9 @@ const beverageUsageRecoveryData = useMemo(() => {
           ? Number(
               (
                 excessOz *
-                Number(item.costPerOz || 0)
+                Number(
+                  item.costPerOz || 0
+                )
               ).toFixed(2)
             )
           : 0;
@@ -35414,6 +35473,7 @@ const beverageUsageRecoveryData = useMemo(() => {
         excessOz,
         variancePercent,
         excessUsageCost,
+
         hasCostEvidence:
           Number(item.costPerOz || 0) > 0,
       };
@@ -35429,7 +35489,33 @@ const beverageUsageRecoveryData = useMemo(() => {
 
       return bDate - aDate;
     });
-}, [beverageItems, beverageUsage]);
+};
+
+const beverageUsageRecoveryData =
+  useMemo(
+    () =>
+      buildBeverageUsageRecoveryData(
+        operationalBeverageItems,
+        operationalBeverageUsage
+      ),
+    [
+      operationalBeverageItems,
+      operationalBeverageUsage,
+    ]
+  );
+
+const canonicalBeverageUsageRecoveryData =
+  useMemo(
+    () =>
+      buildBeverageUsageRecoveryData(
+        beverageItems,
+        beverageUsage
+      ),
+    [
+      beverageItems,
+      beverageUsage,
+    ]
+  );
 // =========================
 // CURRENT BEVERAGE USAGE PERIOD
 // Determines the newest real beverage usage evidence period.
@@ -35719,8 +35805,8 @@ useEffect(() => {
     if (
       !Array.isArray(realAppliedActions) ||
       !realAppliedActions.length ||
-      !Array.isArray(beverageUsageRecoveryData) ||
-      !beverageUsageRecoveryData.length
+      !Array.isArray(canonicalBeverageUsageRecoveryData) ||
+!canonicalBeverageUsageRecoveryData.length
     ) {
       return;
     }
@@ -35841,9 +35927,9 @@ useEffect(() => {
         period can verify the accepted fix.
       */
 
-      const futureCandidates = (
-        beverageUsageRecoveryData || []
-      ).filter((item) => {
+     const futureCandidates = (
+  canonicalBeverageUsageRecoveryData || []
+).filter((item) => {
         const itemName =
           normalizeBeverageName(
             item?.beverageName ||
@@ -35861,24 +35947,38 @@ useEffect(() => {
         const differentPeriod =
           Boolean(itemUploadId) &&
           itemUploadId !== baselineUploadId;
+const itemLocationId = String(
+  item?.locationId || ""
+).trim();
 
-        const baselineLocation =
-          String(
-            baselineData.location_name || ""
-          )
-            .trim()
-            .toLowerCase();
+const itemLocationName = String(
+  item?.locationName || ""
+)
+  .trim()
+  .toLowerCase();
 
-        const itemLocation =
-          String(item?.locationName || "")
-            .trim()
-            .toLowerCase();
+const sameLocation = (() => {
+  // Backward compatibility for older actions
+  // that were saved before location tracking.
+  if (!actionLocationId && !actionLocationName) {
+    return true;
+  }
 
-        const sameLocation =
-          !baselineLocation ||
-          !itemLocation ||
-          baselineLocation === itemLocation;
+  // Prefer canonical location IDs whenever
+  // both the action and evidence have them.
+  if (actionLocationId && itemLocationId) {
+    return itemLocationId === actionLocationId;
+  }
 
+  // Fall back to normalized location names.
+  if (actionLocationName && itemLocationName) {
+    return itemLocationName === actionLocationName;
+  }
+
+  // A location-specific action must not be
+  // verified by evidence with no usable location.
+  return false;
+})();
         return (
           sameBeverage &&
           differentPeriod &&
@@ -36182,7 +36282,7 @@ useEffect(() => {
 }, [
   authReady,
   realAppliedActions,
-  beverageUsageRecoveryData,
+  canonicalBeverageUsageRecoveryData,
 ]);
 
 /*
@@ -36205,10 +36305,10 @@ useEffect(() => {
       if (
         !Array.isArray(realAppliedActions) ||
         !realAppliedActions.length ||
-        !Array.isArray(
-          beverageUsageRecoveryData
-        ) ||
-        !beverageUsageRecoveryData.length
+       !Array.isArray(
+  canonicalBeverageUsageRecoveryData
+) ||
+!canonicalBeverageUsageRecoveryData.length
       ) {
         return;
       }
@@ -36258,6 +36358,19 @@ useEffect(() => {
         const baselineData =
           action.baseline_data || {};
 
+          const actionLocationId = String(
+  action.location_id ||
+    baselineData.location_id ||
+    ""
+).trim();
+
+const actionLocationName = String(
+  action.location_name ||
+    baselineData.location_name ||
+    ""
+)
+  .trim()
+  .toLowerCase();
         const baselineUploadId = String(
           baselineData.baseline_upload_id ||
             ""
@@ -36334,8 +36447,8 @@ useEffect(() => {
           );
 
         const futurePeriods = (
-          beverageUsageRecoveryData || []
-        )
+  canonicalBeverageUsageRecoveryData || []
+)
           .filter((item) => {
             const itemName =
               normalizeBeverageName(
@@ -36348,17 +36461,37 @@ useEffect(() => {
               item?.uploadId || ""
             ).trim();
 
-            const itemLocation = String(
-              item?.locationName || ""
-            )
-              .trim()
-              .toLowerCase();
+          const itemLocationId = String(
+  item?.locationId || ""
+).trim();
 
-            const sameLocation =
-              !baselineLocation ||
-              !itemLocation ||
-              baselineLocation ===
-                itemLocation;
+const itemLocationName = String(
+  item?.locationName || ""
+)
+  .trim()
+  .toLowerCase();
+
+const sameLocation = (() => {
+  // Backward compatibility for older actions
+  // saved before location tracking.
+  if (!actionLocationId && !actionLocationName) {
+    return true;
+  }
+
+  // Prefer canonical location IDs.
+  if (actionLocationId && itemLocationId) {
+    return itemLocationId === actionLocationId;
+  }
+
+  // Fall back to normalized location names.
+  if (actionLocationName && itemLocationName) {
+    return itemLocationName === actionLocationName;
+  }
+
+  // Never verify a location-specific action
+  // against evidence with no usable location.
+  return false;
+})();
 
             return (
               itemName ===
@@ -36758,7 +36891,7 @@ useEffect(() => {
 }, [
   authReady,
   realAppliedActions,
-  beverageUsageRecoveryData,
+  canonicalBeverageUsageRecoveryData,
 ]);
 const ouncePourVarianceData = (locationIngredientsData || [])
   .filter(isBeverageRow)
@@ -47957,24 +48090,32 @@ useEffect(() => {
         resolvedUserId
       );
 
-      const [itemsResult, usageResult] =
-        await Promise.all([
-          supabase
-            .from("beverage_items")
-            .select("*")
-            .eq("user_id", resolvedUserId)
-            .order("created_at", {
-              ascending: false,
-            }),
+     let beverageItemsQuery = supabase
+  .from("beverage_items")
+  .select("*")
+  .eq("user_id", resolvedUserId);
 
-          supabase
-            .from("beverage_usage")
-            .select("*")
-            .eq("user_id", resolvedUserId)
-            .order("usage_date", {
-              ascending: false,
-            }),
-        ]);
+let beverageUsageQuery = supabase
+  .from("beverage_usage")
+  .select("*")
+  .eq("user_id", resolvedUserId);
+
+beverageItemsQuery =
+  applyLocationFilter(beverageItemsQuery);
+
+beverageUsageQuery =
+  applyLocationFilter(beverageUsageQuery);
+
+const [itemsResult, usageResult] =
+  await Promise.all([
+    beverageItemsQuery.order("created_at", {
+      ascending: false,
+    }),
+
+    beverageUsageQuery.order("usage_date", {
+      ascending: false,
+    }),
+  ]);
 
       if (cancelled) return;
 
@@ -48018,7 +48159,12 @@ useEffect(() => {
   return () => {
     cancelled = true;
   };
-}, [user?.id, dataOwnerId]);
+}, [
+  user?.id,
+  dataOwnerId,
+  shouldFilterByLocation,
+  assignedLocation,
+]);
 const handleBatchPrepUpload = async (event) => {
   selectedUploadTypeRef.current = "batch_prep";
   setUploadType("batch_prep");
