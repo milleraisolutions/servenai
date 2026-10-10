@@ -1415,7 +1415,11 @@ const resolvedSalesData = resolvedSalesDataRaw.filter((sale) => {
   const isProviderDeleted =
     Boolean(sale?.provider_deleted_at);
 
-  return !isVoided && !isProviderDeleted;
+  const isTestData =
+    sale?.is_test_data === true ||
+    String(sale?.is_test_data || "").toLowerCase() === "true";
+
+  return !isVoided && !isProviderDeleted && !isTestData;
 });
 
 const locationSalesData =
@@ -1424,6 +1428,57 @@ const locationSalesData =
   activeLocation === "all" || !activeLocation
     ? resolvedSalesData
     : locationSalesData;
+    const verifiedMenuPosEvidence = resolvedSalesData.filter((sale) => {
+  const granularity = String(
+    sale?.record_granularity || ""
+  ).trim().toLowerCase();
+
+  const itemName = String(
+    sale?.name || ""
+  ).trim();
+
+  const quantity = Number(sale?.quantity);
+
+  const revenue = Number(sale?.revenue);
+
+  const saleDate = String(
+    sale?.sale_date || ""
+  ).trim();
+
+  const hasValidDate =
+    /^\d{4}-\d{2}-\d{2}$/.test(saleDate) &&
+    !Number.isNaN(Date.parse(`${saleDate}T00:00:00Z`));
+
+  const hasKnownSource = Boolean(
+    String(sale?.source_name || "").trim()
+  );
+const hasDatabaseIdentity = Boolean(
+  String(sale?.id || "").trim()
+);
+
+const hasProviderIdentity =
+  Boolean(String(sale?.connection_id || "").trim()) &&
+  Boolean(String(sale?.external_id || "").trim());
+
+const hasManualUploadIdentity = Boolean(
+  String(sale?.upload_id || "").trim()
+);
+
+const hasTraceableIdentity =
+  hasDatabaseIdentity &&
+  (hasProviderIdentity || hasManualUploadIdentity);
+  return (
+    granularity === "line_item" &&
+    itemName.length > 0 &&
+    Number.isFinite(quantity) &&
+    quantity > 0 &&
+    Number.isFinite(revenue) &&
+    revenue > 0 &&
+  hasValidDate &&
+hasKnownSource &&
+hasTraceableIdentity
+  );
+});
     const activeLocationId =
   activeLocation === "all" || !activeLocation
     ? null
@@ -3810,21 +3865,22 @@ const rows = Array.isArray(operationalSalesData)
 }, [operationalSalesData]);
 
 const liveTotalRevenue =
-
-  Number(realSalesMetrics?.totalRevenueFromDb || 0) > 0
+  realSalesMetrics?.hasDbSales
     ? Number(realSalesMetrics.totalRevenueFromDb || 0)
     : Number(revenueTracker?.totalRevenue || totalRevenue || 0);
 
 const liveMomentumPercent =
-  Number(revenueTrend?.growthPercent || momentumPercent || 0);
+  realSalesMetrics?.hasDbSales
+    ? Number(revenueTrend?.growthPercent || 0)
+    : Number(momentumPercent || 0);
 
 const liveTotalOrders =
-  Number(realSalesMetrics?.totalOrdersFromDb || 0) > 0
+  realSalesMetrics?.hasDbSales
     ? Number(realSalesMetrics.totalOrdersFromDb || 0)
     : Number(totalOrders || revenueTracker?.recentSales?.length || 0);
 
 const liveAOV =
-  Number(realSalesMetrics?.averageOrderValueFromDb || 0) > 0
+  realSalesMetrics?.hasDbSales
     ? Number(realSalesMetrics.averageOrderValueFromDb || 0)
     : liveTotalOrders > 0
     ? liveTotalRevenue / liveTotalOrders
@@ -8025,6 +8081,112 @@ const normalizePosRows = ({
 
   return incomingRows
     .map((row) => {
+      const rawRecordGranularity =
+  row.record_granularity ??
+  row.recordGranularity ??
+  row.sales_granularity ??
+  row.salesGranularity ??
+  null;
+
+const normalizedRecordGranularity =
+  rawRecordGranularity !== null &&
+  rawRecordGranularity !== undefined
+    ? String(rawRecordGranularity).trim().toLowerCase()
+    : null;
+
+const allowedRecordGranularities = [
+  "daily_summary",
+  "item_summary",
+  "order",
+  "line_item",
+];
+
+const hasExplicitGranularity =
+  allowedRecordGranularities.includes(normalizedRecordGranularity);
+
+const hasItemIdentity = [
+  "name",
+  "Name",
+  "item_name",
+  "Item Name",
+  "menu_item",
+  "Menu Item",
+  "product",
+  "Product",
+  "item",
+  "Item",
+].some((key) => String(row[key] ?? "").trim() !== "");
+
+const hasItemQuantity = [
+  "quantity",
+  "Quantity",
+  "quantity_sold",
+  "Quantity Sold",
+  "qty_sold",
+  "Qty Sold",
+  "qty",
+  "Qty",
+].some((key) => String(row[key] ?? "").trim() !== "");
+
+const hasDailySummaryStructure =
+  !hasItemIdentity &&
+  !hasItemQuantity &&
+  !(
+    row.transaction_id ||
+    row.transactionId ||
+    row.order_id ||
+    row.orderId ||
+    row.external_id ||
+    row.externalId
+  );
+
+const hasSalesDate = [
+  "sale_date",
+  "saleDate",
+  "business_date",
+  "businessDate",
+].some((key) => String(row[key] ?? "").trim() !== "");
+
+const hasRevenue = [
+  "revenue",
+  "Revenue",
+  "total_revenue",
+  "totalRevenue",
+].some((key) => String(row[key] ?? "").trim() !== "");
+
+const hasTransactionIdentity = [
+  "transaction_id",
+  "transactionId",
+  "order_id",
+  "orderId",
+  "external_id",
+  "externalId",
+  "check_id",
+  "checkId",
+  "ticket_id",
+  "ticketId",
+].some((key) => String(row[key] ?? "").trim() !== "");
+
+const hasItemSummaryStructure =
+  hasItemIdentity &&
+  hasItemQuantity &&
+  hasSalesDate &&
+  hasRevenue &&
+  !hasTransactionIdentity;
+
+const recordGranularity = hasExplicitGranularity
+  ? normalizedRecordGranularity
+  : hasItemSummaryStructure
+  ? "item_summary"
+  : hasDailySummaryStructure && hasSalesDate && hasRevenue
+  ? "daily_summary"
+  : null;
+
+// Never infer line_item from name and quantity alone.
+// An item sales summary may contain those same fields.
+//
+// Unknown records remain unclassified until their
+// source and measurement granularity are confirmed.
       const rawExternalId =
   row.external_id ||
   row.externalId ||
@@ -8206,6 +8368,19 @@ const providerUpdatedAt =
         row.Product ||
         null;
 
+        const rawCategory =
+  row.category ??
+  row.Category ??
+  row.item_category ??
+  row.itemCategory ??
+  row["Item Category"] ??
+  row.menu_category ??
+  row.menuCategory ??
+  row["Menu Category"] ??
+  row.product_category ??
+  row["Product Category"] ??
+  null;
+
       const rawQuantity =
         row.quantity ??
         row.Quantity ??
@@ -8258,6 +8433,16 @@ const providerUpdatedAt =
      const parsedDate = rawDate ? new Date(rawDate) : null;
 
 const providedFields = {
+  record_granularity:
+    [
+      "record_granularity",
+      "recordGranularity",
+      "sales_granularity",
+      "salesGranularity",
+    ].some((key) =>
+      Object.prototype.hasOwnProperty.call(row, key)
+    ),
+
   sale_date:
     rawDate !== null &&
     rawDate !== undefined &&
@@ -8345,6 +8530,22 @@ const providedFields = {
       Object.prototype.hasOwnProperty.call(row, key)
     ),
 
+      category:
+    [
+      "category",
+      "Category",
+      "item_category",
+      "itemCategory",
+      "Item Category",
+      "menu_category",
+      "menuCategory",
+      "Menu Category",
+      "product_category",
+      "Product Category",
+    ].some((key) =>
+      Object.prototype.hasOwnProperty.call(row, key)
+    ),
+
   quantity:
     [
       "quantity",
@@ -8427,12 +8628,19 @@ return {
         labor: Number(
           String(rawLabor).replace(/[$,]/g, "") || 0
         ),
+        record_granularity: recordGranularity,
+name: rawName,
 
-        name: rawName,
+category:
 
-        quantity: Number(
-          String(rawQuantity).replace(/[,]/g, "") || 0
-        ),
+  rawCategory !== null &&
+  String(rawCategory).trim() !== ""
+    ? String(rawCategory).trim()
+    : null,
+
+quantity: Number(
+  String(rawQuantity).replace(/[,]/g, "") || 0
+),
 
         shift: rawShift || null,
         order_time: rawTime || null,
@@ -8617,8 +8825,8 @@ if (providerRows.length > 0) {
     error: existingProviderSalesError,
   } = await supabase
     .from("sales")
- .select(
-  "id, user_id, connection_id, external_id, external_id_type, location_id, upload_id, sale_date, revenue, orders_count, labor, name, quantity, shift, order_time, location_name, source_name, provider_updated_at, provider_status, is_voided, provider_deleted_at"
+.select(
+  "id, user_id, connection_id, external_id, external_id_type, location_id, upload_id, sale_date, revenue, orders_count, labor, name, category, record_granularity, quantity, shift, order_time, location_name, source_name, provider_updated_at, provider_status, is_voided, provider_deleted_at"
 )
     .eq("user_id", ownerId)
     .in("connection_id", connectionIds)
@@ -8782,6 +8990,20 @@ name:
   incoming._provided_fields?.name
     ? incoming.name
     : existing.name,
+
+category:
+  incoming._provided_fields?.category
+    ? incoming.category
+    : existing.category,
+
+    record_granularity:
+  incoming._provided_fields?.record_granularity ||
+  (
+    incoming.record_granularity &&
+    !existing.record_granularity
+  )
+    ? incoming.record_granularity
+    : existing.record_granularity,
 
 quantity:
   incoming._provided_fields?.quantity
@@ -14158,8 +14380,21 @@ const campaignSales = locationSalesData.filter((sale) => {
     0
   );
 
-  const orders = campaignSales.length;
-  const avgOrderValue = orders > 0 ? revenue / orders : 0;
+  const orders = campaignSales.reduce((sum, sale) => {
+  const count = Number(
+    sale.orders_count ??
+    sale.orders ??
+    sale.order_count ??
+    sale.check_count ??
+    sale.ticket_count ??
+    sale.transactions ??
+    0
+  );
+
+  return sum + (Number.isFinite(count) && count > 0 ? count : 0);
+}, 0);
+
+const avgOrderValue = orders > 0 ? revenue / orders : 0;
 
   return {
     revenue,
@@ -14214,8 +14449,27 @@ const campaignSales = locationSalesData.filter((sale) => {
     0
   );
 
-  const beforeOrders = baselineSales.length;
-  const afterOrders = campaignSales.length;
+  const getReportedCampaignOrders = (rows = []) =>
+  rows.reduce((sum, sale) => {
+    const count = Number(
+      sale.orders_count ??
+      sale.orders ??
+      sale.order_count ??
+      sale.check_count ??
+      sale.ticket_count ??
+      sale.transactions ??
+      0
+    );
+
+    return sum + (
+      Number.isFinite(count) && count > 0
+        ? count
+        : 0
+    );
+  }, 0);
+
+const beforeOrders = getReportedCampaignOrders(baselineSales);
+const afterOrders = getReportedCampaignOrders(campaignSales);
 
   const liftAmount = afterRevenue - beforeRevenue;
   const liftPercent =
@@ -16595,6 +16849,12 @@ useEffect(() => {
   const trackOngoingVerifiedMenuRecovery = async () => {
     if (!authReady) return;
 
+    // Require an explicit sales measurement period before
+    // recording additional billable menu recovery.
+    // Current menu imports do not establish that period.
+    // Keep the existing verified history unchanged.
+    return;
+
     const verifiedMenuActions = (
       realAppliedActions || []
     ).filter((action) => {
@@ -18750,8 +19010,11 @@ const totalLaborCost = (operationalLaborData || []).reduce(
   0
 );
 const effectiveFoodCostPercent =
-  Number(liveOverviewMetrics?.foodCostPercentage || 0) ||
-  Number(foodCostPercentage || 0);
+  (operationalMenuItemsData || []).length > 0
+    ? Number(
+        liveOverviewMetrics?.foodCostPercentage || 0
+      )
+    : Number(foodCostPercentage || 0);
 
 const laborRevenueBase =
   Number(liveLaborIntelligence?.laborRevenueBase || 0);
@@ -19980,17 +20243,74 @@ const invoiceMatchRate =
 /* =========================
    POUR VARIANCE INTELLIGENCE
 ========================= */
+const alcoholInventoryRows =
+  uploadComparison?.activeIngredients ||
+  operationalIngredientsData ||
+  [];
 
-const expectedAlcoholUsage =
-  Number(alcoholRevenue || 0) *
-  0.18;
+const alcoholKeywordsForVariance = [
+  "vodka",
+  "tequila",
+  "bourbon",
+  "whiskey",
+  "rum",
+  "gin",
+  "mezcal",
+  "liquor",
+  "wine",
+  "beer",
+  "draft",
+  "cocktail",
+  "margarita",
+  "martini",
+];
+
+const alcoholInventoryRowsForVariance =
+  alcoholInventoryRows.filter((item) => {
+    const name = String(
+      item.name ||
+        item.ingredient_name ||
+        item.item_name ||
+        ""
+    ).toLowerCase();
+
+    return alcoholKeywordsForVariance.some((word) =>
+      name.includes(word)
+    );
+  });
+
+const expectedAlcoholUsage = (alcoholSalesRows || []).reduce(
+  (sum, sale) => {
+    const quantity = Number(
+      sale.quantity ||
+        sale.qty ||
+        sale.Quantity ||
+        sale["Quantity Sold"] ||
+        1
+    );
+
+    return sum + quantity * 1.5;
+  },
+  0
+);
 
 const actualAlcoholUsage =
-  expectedAlcoholUsage;
+  alcoholInventoryRowsForVariance.reduce((sum, item) => {
+    return (
+      sum +
+      Number(
+        item.actual_usage ||
+          item.actualUsage ||
+          item.inventory_depletion ||
+          item.quantity_used ||
+          item.used ||
+          0
+      )
+    );
+  }, 0);
 
 const alcoholVarianceValue =
-  actualAlcoholUsage -
-  expectedAlcoholUsage;
+  actualAlcoholUsage - expectedAlcoholUsage;
 
 const alcoholVariancePercent =
   expectedAlcoholUsage > 0
@@ -22533,11 +22853,12 @@ const executiveInvoiceRecoveryOpportunity = (() => {
 })();
 const healthyMarginTarget = 20;
 
-const effectiveProfitMargin = Number(
-  liveOverviewMetrics?.averageMargin ||
-    avgMargin ||
-    0
-);
+const effectiveProfitMargin =
+  (operationalMenuItemsData || []).length > 0
+    ? Number(
+        liveOverviewMetrics?.averageMargin || 0
+      )
+    : Number(avgMargin || 0);
 
 const estimatedMarginRecovery =
   effectiveProfitMargin > 0 &&
@@ -22551,10 +22872,8 @@ const estimatedMarginRecovery =
 const totalAIRecoveryOpportunity =
   estimatedFoodRecovery +
   estimatedLaborRecovery +
-  estimatedMarginRecovery +
   operationalEstimatedWasteRecovery +
   estimatedAlcoholRecovery +
-  Number(shelfLifeLoss || 0) +
   Number(executiveInvoiceRecoveryOpportunity || 0);
   
   const loadedPeriodOpportunity =
@@ -22984,14 +23303,7 @@ return {
       opportunity: estimatedLaborRecovery,
     }),
 
-    buildCategory({
-      icon: "📈",
-      label: "Margin",
-      route: "analytics",
-      action:
-        "Review menu pricing, product mix, discounts, and low-margin items.",
-      opportunity: estimatedMarginRecovery,
-    }),
+   
 
     buildCategory({
       icon: "📦",
@@ -23036,7 +23348,7 @@ return {
   inventoryVerifiedRecovery,
   vendorVerifiedRecovery,
   menuVerifiedRecovery,
-  estimatedLaborRecovery,
+ 
   operationalEstimatedWasteRecovery,
   estimatedMarginRecovery,
   estimatedFoodRecovery,
@@ -23436,7 +23748,18 @@ const highestROIActions = useMemo(() => {
       description:
         "Reduce overpouring and improve beverage margins.",
     },
-
+{
+  title: "Control Vendor Cost Inflation",
+  category: "Vendor",
+  route: "inventory",
+  opportunity: Number(
+    executiveInvoiceRecoveryOpportunity || 0
+  ),
+  effort: "Low",
+  timeframe: "Immediate",
+  description:
+    "Review supplier price increases and recent invoice cost changes.",
+},
   ];
 const getEffortScore = (effort) => {
   if (effort === "Low") return 30;
@@ -23482,6 +23805,7 @@ const maxOpportunity = Math.max(
   estimatedFoodRecovery,
   operationalEstimatedWasteRecovery,
   estimatedAlcoholRecovery,
+  executiveInvoiceRecoveryOpportunity,
   effectiveLaborCostPercent,
 ]);
 const executiveLaborScore = useMemo(() => {
@@ -28013,15 +28337,13 @@ const inventoryTrendData = useMemo(() => {
 
 const alcoholPourVarianceData = useMemo(() => {
 const salesRows =
-  operationalSalesData?.length
+  Array.isArray(operationalSalesData)
     ? operationalSalesData
-    : pendingUploadRows?.length
-    ? pendingUploadRows
     : [];
-  const inventoryItems =
-    uploadComparison?.activeIngredients ||
-    ingredientsData ||
-    [];
+ const inventoryItems =
+  uploadComparison?.activeIngredients ||
+  operationalIngredientsData ||
+  [];
 
   const alcoholKeywords = [
     "vodka",
@@ -28126,9 +28448,8 @@ const salesRows =
   };
 }, [
   operationalSalesData,
-  pendingUploadRows,
   uploadComparison,
-  ingredientsData,
+  operationalIngredientsData,
 ]);
 const laborPercentage =
   totalRevenue > 0
@@ -31730,25 +32051,31 @@ const clampScore = (value) => {
 const aiHealthEngine = useMemo(() => {
   
 const scorePrimeCost = (() => {
-  const value = Number(livePrimeCost || primeCostPercentage || 0);
+  const value =
+    Number(effectiveFoodCostPercent || 0) +
+    Number(liveLaborIntelligence?.laborPercent || 0);
   if (!value) return 0;
   return clampScore(100 - Math.max(0, value - 55) * 4);
 })();
 
 const scoreLabor = (() => {
-  const value = Number(liveLaborIntelligence?.laborPercent || laborPercentage || 0);
+  const value = Number(
+    liveLaborIntelligence?.laborPercent || 0
+  );
   if (!value) return 0;
   return clampScore(100 - Math.abs(value - 25) * 4);
 })();
 
 const scoreFoodCost = (() => {
-  const value = Number(liveFoodCostPercentage || foodCostPercentage || 0);
+  const value = Number(effectiveFoodCostPercent || 0);
   if (!value) return 0;
   return clampScore(100 - Math.max(0, value - 28) * 4);
 })();
 
 const scoreMargin = (() => {
-  const value = Number(liveAvgMargin || avgMargin || 0);
+  const value = Number(
+    effectiveProfitMargin || 0
+  );
   if (!value) return 0;
   return clampScore(value * 1.25);
 })();
@@ -31777,8 +32104,7 @@ const scoreWaste = (() => {
 const scoreVendor = (() => {
   const hasVendorScoreData =
     (vendorPriceSpikeData || []).length > 0 ||
-    (operationalInvoicesData || []).length > 0 ||
-    (ingredientsData || []).length > 0;
+    (operationalInvoicesData || []).length > 0;
 
   if (!hasVendorScoreData) {
     return 0;
@@ -31845,9 +32171,7 @@ const consumableKeywords = [
 ];
 
 const consumableInventoryRows = (
-  uploadComparison?.activeIngredients ||
-  operationalIngredientsData ||
-  []
+  operationalIngredientsData || []
 ).filter((item) => {
   const text = `${item.name || ""} ${item.ingredient_name || ""} ${
     item.category || ""
@@ -31968,11 +32292,10 @@ const hasWasteData =
   (operationalIngredientsData || []).length > 0;
 
 const hasVendorData =
-  (operationalInvoicesData || []).length > 0 ||
-  (ingredientsData || []).length > 0;
+  (operationalInvoicesData || []).length > 0;
+
 const hasMarginData =
-  (operationalMenuItemsData || []).length > 0 ||
-  Number(liveAvgMargin || 0) > 0;
+  (operationalMenuItemsData || []).length > 0;
 
 const hasShiftData =
   (shiftOperationalData || []).length > 0 ||
@@ -32157,8 +32480,9 @@ currentScore,
   trend,
   primaryRisk,
 });
-  return {
+ return {
   overallScore,
+  hasHealthData: totalHealthWeight > 0,
   grade,
   statusColor,
   currentScore,
@@ -32176,17 +32500,19 @@ currentScore,
   Number(consumablesEstimatedLeakage || 0),
 };
 }, [
-  livePrimeCost,
-  primeCostPercentage,
+  effectiveFoodCostPercent,
+  effectiveProfitMargin,
   liveLaborIntelligence,
-  laborPercentage,
-  liveFoodCostPercentage,
-  foodCostPercentage,
-  liveAvgMargin,
-  avgMargin,
   criticalInventoryItems,
+  inventoryDepletionData,
   aiWasteDetection,
   vendorPriceSpikeData,
+  operationalInvoicesData,
+  operationalIngredientsData,
+  operationalInventoryData,
+  operationalSalesData,
+  uploadComparison,
+  liveTotalOrders,
   liveMomentumPercent,
 ]);
 const safeRestaurantHealthScore = Number(aiHealthEngine?.overallScore || 0);
@@ -35214,11 +35540,87 @@ const beverageKeywords = [
 ];
 
 const isBeverageRow = (row = {}) => {
-  const text = `${row.name || ""} ${row.item_name || ""} ${row.product || ""} ${
-    row.category || ""
-  } ${row.menu_item || ""}`.toLowerCase();
+  const category = String(row.category || "")
+    .trim()
+    .toLowerCase();
 
-  return beverageKeywords.some((word) => text.includes(word));
+  const itemName = String(
+    row.name ||
+      row.item_name ||
+      row.menu_item ||
+      row.product ||
+      ""
+  )
+    .trim()
+    .toLowerCase();
+
+  const beverageCategories = [
+    "beverage",
+    "drink",
+    "beer",
+    "wine",
+    "liquor",
+    "spirits",
+    "cocktail",
+    "bar",
+    "soft drink",
+    "soda",
+    "juice",
+    "coffee",
+    "tea",
+    "water",
+  ];
+
+  const nonBeverageCategories = [
+    "food",
+    "appetizer",
+    "entree",
+    "entrée",
+    "main course",
+    "side",
+    "dessert",
+    "seafood",
+    "steak",
+    "burger",
+    "sandwich",
+  ];
+
+  if (category) {
+    if (
+      nonBeverageCategories.some((word) =>
+        category.includes(word)
+      )
+    ) {
+      return false;
+    }
+
+    return beverageCategories.some((word) =>
+      category.includes(word)
+    );
+  }
+
+  if (!itemName) return false;
+
+  const foodDescriptions = [
+    "beer battered",
+    "beer-battered",
+    "wine sauce",
+    "wine reduction",
+    "bourbon glazed",
+    "bourbon-glazed",
+  ];
+
+  if (
+    foodDescriptions.some((word) =>
+      itemName.includes(word)
+    )
+  ) {
+    return false;
+  }
+
+  return beverageKeywords.some((word) =>
+    itemName.includes(word)
+  );
 };
 
 const advancedAlcoholSalesRows = (operationalSalesData || []).filter(
@@ -35226,16 +35628,17 @@ const advancedAlcoholSalesRows = (operationalSalesData || []).filter(
 );
 
 const advancedBeverageRevenue = advancedAlcoholSalesRows.reduce(
-  (sum, row) =>
-    sum +
-    Number(
-      row.revenue ||
-        row.total ||
-        row.amount ||
-        row.sales ||
-        row.price ||
+  (sum, row) => {
+    const revenue = Number(
+      row.revenue ??
+        row.total ??
+        row.amount ??
+        row.sales ??
         0
-    ),
+    );
+
+    return sum + (Number.isFinite(revenue) ? revenue : 0);
+  },
   0
 );
 
@@ -37250,15 +37653,16 @@ const aiHealthInsight = (() => {
 ========================= */
 
 const operationalMemoryEvents = useMemo(() => {
-  const events = [];
-  const hasOperationalData =
-    liveTotalRevenue > 0 ||
-    laborData.length > 0 ||
-    inventoryData.length > 0 ||
-    menuItemsData.length > 0 ||
-    ingredientsData.length > 0 ||
-    beverageItems.length > 0 ||
-    supplierAlerts.length > 0;
+ const events = [];
+
+const hasOperationalData =
+  (operationalSalesData || []).length > 0 ||
+  (operationalLaborData || []).length > 0 ||
+  (operationalInventoryData || []).length > 0 ||
+  (operationalIngredientsData || []).length > 0 ||
+  (operationalMenuItemsData || []).length > 0 ||
+  (operationalBeverageItems || []).length > 0 ||
+  (operationalInvoicesData || []).length > 0;
 
   if (!hasOperationalData) {
     return [];
@@ -37275,12 +37679,12 @@ const operationalMemoryEvents = useMemo(() => {
     });
   }
 
-  if (Number(foodCostPercentage || 0) > 32) {
+  if (Number(effectiveFoodCostPercent || 0) > 32) {
     events.push({
       type: "Food Cost",
       severity: "High",
       title: "Food cost exceeded target",
-      message: `Food cost is currently ${Number(foodCostPercentage || 0).toFixed(
+      message: `Food cost is currently ${Number(effectiveFoodCostPercent || 0).toFixed(
         1
       )}%, above the 32% target.`,
      impact: Number(operationalEstimatedWasteRecovery || 0),
@@ -37313,27 +37717,31 @@ const operationalMemoryEvents = useMemo(() => {
     });
   }
 
-  if (supplierAlerts?.length > 0) {
-    events.push({
-      type: "Vendor",
-      severity: "Watch",
-      title: "Supplier cost movement detected",
-      message: `${supplierAlerts.length} supplier alert(s) detected from invoice intelligence.`,
-      impact: Number(invoiceRecoveryOpportunity || 0),
-    });
-  }
+if (Number(invoiceRecoveryOpportunity || 0) > 0) {
+  events.push({
+    type: "Vendor",
+    severity: "Watch",
+    title: "Supplier cost movement detected",
+    message:
+      "Invoice intelligence detected supplier cost increases that may affect restaurant profitability.",
+    impact: Number(invoiceRecoveryOpportunity || 0),
+  });
+}
 
-  if (restaurantHealthScore < 70) {
-    events.push({
-      type: "Health",
-      severity: "Critical",
-      title: "Restaurant health dropped below target",
-      message: `Operational health is currently ${
-  aiHealthEngine?.overallScore || restaurantHealthScore || 0
-}/100.`,
+  if (
+  aiHealthEngine?.hasHealthData === true &&
+  Number(aiHealthEngine?.overallScore ?? 0) < 70
+) {
+  events.push({
+    type: "Health",
+    severity: "Critical",
+    title: "Restaurant health below target",
+    message: `Operational health is currently ${Number(
+      aiHealthEngine?.overallScore ?? 0
+    )}/100.`,
     impact: 0,
-    });
-  }
+  });
+}
 
   if (appliedFixes?.length > 0 || appliedAIFixes?.length > 0) {
     events.push({
@@ -37344,7 +37752,10 @@ const operationalMemoryEvents = useMemo(() => {
       impact: Number(totalVerifiedRecovery || 0),
     });
   }
-if (Number(aiHealthEngine?.categoryScores?.consumablesHealth ?? 0) < 75) {
+if (
+  Number(aiHealthEngine?.categoryScores?.consumablesHealth ?? 0) > 0 &&
+  Number(aiHealthEngine?.categoryScores?.consumablesHealth ?? 0) < 75
+) {
   events.push({
     type: "Consumables",
     severity: "High",
@@ -37365,11 +37776,11 @@ if (Number(aiHealthEngine?.categoryScores?.consumablesHealth ?? 0) < 75) {
     .sort((a, b) => Number(b.impact || 0) - Number(a.impact || 0));
 }, [
   liveMomentumPercent,
-  foodCostPercentage,
+ effectiveFoodCostPercent,
   operationalEstimatedWasteRecovery,
   liveLaborIntelligence,
   criticalOunceVariance,
-  supplierAlerts,
+  invoiceRecoveryOpportunity,
   restaurantHealthScore,
   appliedFixes,
   appliedAIFixes,
@@ -37434,10 +37845,10 @@ const crossSystemSignals = useMemo(() => {
     });
   }
 
-  if (
-    Number(foodCostPercentage || 0) > 32 &&
-    Number(liveAvgMargin || 0) < 60
-  ) {
+ if (
+  Number(effectiveFoodCostPercent || 0) > 32 &&
+  Number(effectiveProfitMargin || 0) < 60
+) {
     signals.push({
       title: "Food Cost Is Compressing Menu Margin",
       category: "Food Cost + Margin",
@@ -37448,10 +37859,10 @@ const crossSystemSignals = useMemo(() => {
     });
   }
 
-  if (
-    supplierAlerts?.length > 0 &&
-    Number(foodCostPercentage || 0) > 32
-  ) {
+ if (
+  Number(invoiceRecoveryOpportunity || 0) > 0 &&
+  Number(effectiveFoodCostPercent || 0) > 32
+) {
     signals.push({
       title: "Supplier Movement May Be Driving Food Cost Risk",
       category: "Vendor + Food Cost",
@@ -37495,9 +37906,10 @@ const crossSystemSignals = useMemo(() => {
   }
 
   if (
-    operationalMemoryRiskCount > 1 &&
-    Number(aiHealthEngine?.overallScore || restaurantHealthScore || 0) < 75
-  ) {
+  operationalMemoryRiskCount > 1 &&
+  aiHealthEngine?.hasHealthData === true &&
+  Number(aiHealthEngine?.overallScore ?? 0) < 75
+) {
     signals.push({
       title: "Multiple Risk Memories Are Pulling Down Health Score",
       category: "Memory + Health",
@@ -37508,8 +37920,9 @@ const crossSystemSignals = useMemo(() => {
     });
   }
 if (
+  Number(aiHealthEngine?.categoryScores?.consumablesHealth ?? 0) > 0 &&
   Number(aiHealthEngine?.categoryScores?.consumablesHealth ?? 0) < 75 &&
-  Number(foodCostPercentage || 0) > 32
+  Number(effectiveFoodCostPercent || 0) > 32
 ) {
   signals.push({
     title: "Consumables Waste May Be Driving Food Cost Pressure",
@@ -37526,10 +37939,10 @@ if (
 }, [
   liveLaborIntelligence,
   liveMomentumPercent,
-  foodCostPercentage,
-  liveAvgMargin,
+  effectiveFoodCostPercent,
+effectiveProfitMargin,
   operationalEstimatedWasteRecovery,
-  supplierAlerts,
+  invoiceRecoveryOpportunity,
   criticalOunceVariance,
   happyHourBeverageStatus,
   advancedBeverageRevenue,
@@ -37698,14 +38111,14 @@ const predictiveRiskSignals = useMemo(() => {
     });
   }
 
-  if (Number(foodCostPercentage || 0) > 34) {
-    risks.push({
-      title: "Food Cost Escalation Risk",
-      level: "High",
-      message: "Food cost is trending above healthy operating range.",
-      forecast: "Next 14–30 days",
-    });
-  }
+ if (Number(effectiveFoodCostPercent || 0) > 34) {
+  risks.push({
+    title: "Food Cost Escalation Risk",
+    level: "High",
+    message: "Food cost is trending above healthy operating range.",
+    forecast: "Next 14â€“30 days",
+  });
+}
 
   if (Number(liveLaborIntelligence?.laborPercent || 0) > 32) {
     risks.push({
@@ -37733,7 +38146,10 @@ const predictiveRiskSignals = useMemo(() => {
       forecast: "Immediate review",
     });
   }
-if (Number(aiHealthEngine?.categoryScores?.consumablesHealth ?? 0) < 75) {
+if (
+  Number(aiHealthEngine?.categoryScores?.consumablesHealth ?? 0) > 0 &&
+  Number(aiHealthEngine?.categoryScores?.consumablesHealth ?? 0) < 75
+) {
   risks.push({
     title: "Consumables Leakage Risk",
     level:
@@ -37753,7 +38169,7 @@ if (Number(aiHealthEngine?.categoryScores?.consumablesHealth ?? 0) < 75) {
   return risks;
 }, [
   liveMomentumPercent,
-  foodCostPercentage,
+  effectiveFoodCostPercent,
   liveLaborIntelligence,
   criticalOunceVariance,
   crossSystemCriticalCount,
@@ -37812,22 +38228,22 @@ const executiveActionQueue = useMemo(() => {
     });
   }
 
-  if (Number(foodCostPercentage || 0) > 32) {
-    actions.push({
-      title: "Review Food Cost & Recipes",
-      department: "Food Cost",
-      priority: "High",
-      reason: `Food cost is currently ${Number(foodCostPercentage || 0).toFixed(
-        1
-      )}%, above target.`,
-      impact: Number(operationalEstimatedWasteRecovery || 0),
-    });
-  }
-if (Number(aiHealthEngine?.categoryScores?.consumablesHealth ?? 0) < 75) {
+ if (Number(effectiveFoodCostPercent || 0) > 32) {
   actions.push({
-    impact: Number(
-  aiHealthEngine?.consumablesEstimatedLeakage || 0
-),
+    title: "Review Food Cost & Recipes",
+    department: "Food Cost",
+    priority: "High",
+    reason: `Food cost is currently ${Number(
+      effectiveFoodCostPercent || 0
+    ).toFixed(1)}%, above target.`,
+    impact: Number(operationalEstimatedWasteRecovery || 0),
+  });
+}if (
+  Number(aiHealthEngine?.categoryScores?.consumablesHealth ?? 0) > 0 &&
+  Number(aiHealthEngine?.categoryScores?.consumablesHealth ?? 0) < 75
+) {
+  actions.push({
+    title: "Review Consumables Usage Variance",
     department: "Consumables",
     priority:
       Number(aiHealthEngine?.categoryScores?.consumablesHealth ?? 0) < 60
@@ -37836,8 +38252,8 @@ if (Number(aiHealthEngine?.categoryScores?.consumablesHealth ?? 0) < 75) {
     reason:
       "Consumables show unusual estimated usage variance. Review oil, garnish, berries, citrus, herbs, and prep loss.",
     impact: Number(
-  aiHealthEngine?.consumablesEstimatedLeakage || 0
-),
+      aiHealthEngine?.consumablesEstimatedLeakage || 0
+    ),
   });
 }
   return actions
@@ -37849,7 +38265,7 @@ if (Number(aiHealthEngine?.categoryScores?.consumablesHealth ?? 0) < 75) {
   predictiveRiskSignals,
   operationalMemoryEvents,
   criticalOunceVariance,
-  foodCostPercentage,
+  effectiveFoodCostPercent,
   operationalEstimatedWasteRecovery,
   crossSystemRiskValue,
   aiHealthEngine,
@@ -37886,10 +38302,10 @@ const multiLocationSummary =
 const autonomousAIRecommendations = useMemo(() => {
   const recommendations = [];
 
-  if (
-    Number(foodCostPercentage || 0) > 32 &&
-    Number(liveAvgMargin || 0) < 60
-  ) {
+if (
+  Number(effectiveFoodCostPercent || 0) > 32 &&
+  Number(effectiveProfitMargin || 0) < 60
+) {
     recommendations.push({
       title: "Optimize High Food Cost Menu Items",
       category: "Food Cost",
@@ -37934,9 +38350,10 @@ const autonomousAIRecommendations = useMemo(() => {
     });
   }
 
-  if (
-    Number(aiHealthEngine?.categoryScores?.consumablesHealth ?? 0) < 75
-  ) {
+if (
+  Number(aiHealthEngine?.categoryScores?.consumablesHealth ?? 0) > 0 &&
+  Number(aiHealthEngine?.categoryScores?.consumablesHealth ?? 0) < 75
+) {
     recommendations.push({
       impact: Number(
   aiHealthEngine?.consumablesEstimatedLeakage || 0
@@ -37951,7 +38368,7 @@ const autonomousAIRecommendations = useMemo(() => {
     });
   }
 
-  if (supplierAlerts?.length > 0) {
+  if (Number(invoiceRecoveryOpportunity || 0) > 0) {
     recommendations.push({
       title: "Audit Vendor Cost Increases",
       category: "Vendor",
@@ -37966,28 +38383,27 @@ const autonomousAIRecommendations = useMemo(() => {
     .sort((a, b) => Number(b.impact || 0) - Number(a.impact || 0))
     .slice(0, 6);
 }, [
-  foodCostPercentage,
-  liveAvgMargin,
-operationalEstimatedWasteRecovery,
+  effectiveFoodCostPercent,
+  effectiveProfitMargin,
+  operationalEstimatedWasteRecovery,
   liveLaborIntelligence,
   liveMomentumPercent,
   criticalOunceVariance,
-  supplierAlerts,
+  invoiceRecoveryOpportunity,
   aiHealthEngine,
 ]);
 
 const aiFinancialCommand = useMemo(() => {
   const primeCost =
-    Number(foodCostPercentage || 0) +
+    Number(effectiveFoodCostPercent || 0) +
     Number(liveLaborIntelligence?.laborPercent || 0);
 
-
   const marginPressureLevel =
-    Number(liveAvgMargin || 0) >= 70
+    Number(effectiveProfitMargin || 0) >= 70
       ? "Low"
-      : Number(liveAvgMargin || 0) >= 60
+      : Number(effectiveProfitMargin || 0) >= 60
       ? "Moderate"
-      : Number(liveAvgMargin || 0) >= 50
+      : Number(effectiveProfitMargin || 0) >= 50
       ? "Elevated"
       : "Critical";
 
@@ -38007,28 +38423,28 @@ const aiFinancialCommand = useMemo(() => {
       Math.round(
         100 -
           primeCost * 0.7 -
-          Number(foodCostPercentage || 0) * 0.25 +
-          Number(liveAvgMargin || 0) * 0.45
+          Number(effectiveFoodCostPercent || 0) * 0.25 +
+          Number(effectiveProfitMargin || 0) * 0.45
       )
     )
   );
 
-return {
-  primeCost,
-  marginPressureLevel,
-  cashFlowRisk,
-  operationalProfitabilityScore,
-};
+  return {
+    primeCost,
+    marginPressureLevel,
+    cashFlowRisk,
+    operationalProfitabilityScore,
+  };
 }, [
-  foodCostPercentage,
+  effectiveFoodCostPercent,
   liveLaborIntelligence,
-  liveAvgMargin,
+  effectiveProfitMargin,
 ]);
 const executiveBenchmarkingData = useMemo(() => {
   const primeCost = Number(aiFinancialCommand?.primeCost || 0);
   const laborPercent = Number(liveLaborIntelligence?.laborPercent || 0);
-  const foodCost = Number(foodCostPercentage || 0);
-  const margin = Number(liveAvgMargin || 0);
+ const foodCost = Number(effectiveFoodCostPercent || 0);
+const margin = Number(effectiveProfitMargin || 0);
   const aiHealth = Number(aiHealthEngine?.overallScore || 0);
 
   const benchmarks = [
@@ -38068,16 +38484,16 @@ const executiveBenchmarkingData = useMemo(() => {
 }, [
   aiFinancialCommand,
   liveLaborIntelligence,
-  foodCostPercentage,
-  liveAvgMargin,
+  effectiveFoodCostPercent,
+  effectiveProfitMargin,
   aiHealthEngine,
 ]);
 
 const restaurantDigitalTwin = useMemo(() => {
-  const revenue = Number(liveTotalRevenue || totalRevenue || 0);
+ const revenue = Number(liveTotalRevenue || 0);
   const orders = Number(liveTotalOrders || 0);
   const laborPercent = Number(liveLaborIntelligence?.laborPercent || 0);
-  const foodCost = Number(foodCostPercentage || 0);
+ const foodCost = Number(effectiveFoodCostPercent || 0);
   const primeCost = Number(aiFinancialCommand?.primeCost || 0);
   const aiHealth = Number(aiHealthEngine?.overallScore || 0);
   const alertCount = Number(crossSystemSignals?.length || 0);
@@ -38113,10 +38529,9 @@ const restaurantDigitalTwin = useMemo(() => {
   };
 }, [
   liveTotalRevenue,
-  totalRevenue,
   liveTotalOrders,
   liveLaborIntelligence,
-  foodCostPercentage,
+  effectiveFoodCostPercent,
   aiFinancialCommand,
   aiHealthEngine,
   crossSystemSignals,
@@ -41836,19 +42251,23 @@ const executiveDailyBriefing = useMemo(() => {
   const recoveryOpportunity =
   autonomousProfitRecoveryEngine?.currentRecoveryOpportunity || 0;
 
-  const aiHealth =
-    aiHealthEngine?.overallScore ||
-    restaurantHealthScore ||
-    0;
+  const hasValidHealthData =
+  aiHealthEngine?.hasHealthData === true;
 
-  const summary =
-    aiHealth >= 85
-      ? "Restaurant operations are performing strongly with stable operational conditions."
-      : aiHealth >= 70
-      ? "Restaurant operations remain stable but emerging pressure is developing."
-      : aiHealth >= 60
-      ? "AI systems are detecting meaningful operational instability across key areas."
-      : "Critical operational instability detected across the business.";
+const aiHealth = Number(
+  aiHealthEngine?.overallScore ?? 0
+);
+
+const summary =
+  !hasValidHealthData
+    ? "Awaiting operational data. Connect or upload restaurant data to activate AI health intelligence."
+    : aiHealth >= 85
+    ? "Restaurant operations are performing strongly with stable operational conditions."
+    : aiHealth >= 70
+    ? "Restaurant operations remain stable but emerging pressure is developing."
+    : aiHealth >= 60
+    ? "AI systems are detecting meaningful operational instability across key areas."
+    : "Critical operational instability detected across the business.";
 
   return {
     aiHealth,
@@ -49999,73 +50418,138 @@ const aiBenchmarks = {
 };
 
 const benchmarkScores = [
-  {
-    label: "Food Cost",
-    actual: `${Number(foodCostPercentage || 0).toFixed(1)}%`,
-    target: `${aiBenchmarks.foodCostTarget}%`,
-    status:
-      Number(foodCostPercentage || 0) <= aiBenchmarks.foodCostTarget
-        ? "Healthy"
-        : "Above Target",
-  },
-  {
-  label: "Consumables",
- actual: `$${Number(
-  100 -
-    Number(aiHealthEngine?.categoryScores?.consumablesHealth ?? 0)
-).toLocaleString()}`,
-  target: "$0 leakage",
+ {
+  label: "Food Cost",
+  actual:
+    (operationalMenuItemsData || []).length > 0
+      ? `${Number(effectiveFoodCostPercent || 0).toFixed(1)}%`
+      : "Awaiting Data",
+  target: `${aiBenchmarks.foodCostTarget}%`,
   status:
-    Number(aiHealthEngine?.categoryScores?.consumablesHealth ?? 0) >= 90
+    (operationalMenuItemsData || []).length === 0
+      ? "Awaiting Data"
+      : Number(effectiveFoodCostPercent || 0) <=
+        aiBenchmarks.foodCostTarget
       ? "Healthy"
-      : Number(
-    aiHealthEngine?.consumablesEstimatedLeakage || 0
-  ) <= 500
-      ? "Watch"
       : "Above Target",
 },
   {
-    label: "Labor Cost",
-    actual: `${Number(liveLaborIntelligence?.laborPercent || 0).toFixed(1)}%`,
-    target: `${aiBenchmarks.laborTarget}%`,
-    status:
-      Number(liveLaborIntelligence?.laborPercent || 0) <= aiBenchmarks.laborTarget
-        ? "Healthy"
-        : "Above Target",
-  },
+  label: "Consumables",
+  actual:
+    (aiHealthEngine?.consumablesIntelligenceData || []).length > 0
+      ? `$${Number(
+          aiHealthEngine?.consumablesEstimatedLeakage ?? 0
+        ).toLocaleString()} estimated`
+      : "Awaiting Data",
+  target: "$0 estimated leakage",
+  status:
+    (aiHealthEngine?.consumablesIntelligenceData || []).length === 0
+      ? "Awaiting Data"
+      : Number(aiHealthEngine?.consumablesEstimatedLeakage ?? 0) <= 0
+      ? "Healthy"
+      : Number(aiHealthEngine?.consumablesEstimatedLeakage ?? 0) <= 500
+      ? "Watch"
+      : "Above Target",
+},
+ {
+  label: "Labor Cost",
+  actual:
+    (operationalLaborData || []).length > 0 &&
+    (operationalSalesData || []).length > 0
+      ? `${Number(liveLaborIntelligence?.laborPercent ?? 0).toFixed(1)}%`
+      : "Awaiting Data",
+  target: `${aiBenchmarks.laborTarget}%`,
+  status:
+    (operationalLaborData || []).length === 0 ||
+    (operationalSalesData || []).length === 0
+      ? "Awaiting Data"
+      : Number(liveLaborIntelligence?.laborPercent ?? 0) <=
+        aiBenchmarks.laborTarget
+      ? "Healthy"
+      : "Above Target",
+},
   {
-    label: "Menu Margin",
-    actual: `${Number(liveAvgMargin || 0).toFixed(1)}%`,
-    target: `${aiBenchmarks.marginTarget}%`,
-    status:
-      Number(liveAvgMargin || 0) >= aiBenchmarks.marginTarget
-        ? "Healthy"
-        : "Below Target",
-  },
-  {
-    label: "Beverage Mix",
-    actual: `${Number(beverageRevenuePercent || 0).toFixed(1)}%`,
-    target: `${aiBenchmarks.beverageRevenueTarget}%`,
-    status:
-      Number(beverageRevenuePercent || 0) >= aiBenchmarks.beverageRevenueTarget
-        ? "Healthy"
-        : "Low Mix",
-  },
-  {
-    label: "AI Health",
-    actual: `${Number(aiHealthEngine?.overallScore || restaurantHealthScore || 0)}/100`,
-target: `${aiBenchmarks.healthTarget}/100`,
-status:
-  Number(aiHealthEngine?.overallScore || restaurantHealthScore || 0) >=
-      aiBenchmarks.healthTarget
-        ? "Healthy"
-        : "Needs Work",
-  },
+  label: "Menu Margin",
+  actual:
+    (operationalMenuItemsData || []).length > 0
+      ? `${Number(effectiveProfitMargin ?? 0).toFixed(1)}%`
+      : "Awaiting Data",
+  target: `${aiBenchmarks.marginTarget}%`,
+  status:
+    (operationalMenuItemsData || []).length === 0
+      ? "Awaiting Data"
+      : Number(effectiveProfitMargin ?? 0) >=
+        aiBenchmarks.marginTarget
+      ? "Healthy"
+      : "Below Target",
+},
+{
+  label: "Beverage Mix",
+  actual:
+    (operationalSalesData || []).length > 0 &&
+    (operationalSalesData || []).every(
+      (row) =>
+        String(
+          row.category ||
+            row.name ||
+            row.item_name ||
+            row.menu_item ||
+            ""
+        ).trim() !== ""
+    ) &&
+    Number(liveTotalRevenue || 0) > 0
+      ? `${Number(beverageRevenuePercent ?? 0).toFixed(1)}%`
+      : "Awaiting Data",
+  target: `${aiBenchmarks.beverageRevenueTarget}%`,
+  status:
+    (operationalSalesData || []).length === 0 ||
+    !(operationalSalesData || []).every(
+      (row) =>
+        String(
+          row.category ||
+            row.name ||
+            row.item_name ||
+            row.menu_item ||
+            ""
+        ).trim() !== ""
+    ) ||
+    Number(liveTotalRevenue || 0) <= 0
+      ? "Awaiting Data"
+      : Number(beverageRevenuePercent ?? 0) >=
+        aiBenchmarks.beverageRevenueTarget
+      ? "Healthy"
+      : "Low Mix",
+},
+ {
+  label: "AI Health",
+  actual:
+    aiHealthEngine?.hasHealthData === true
+      ? `${Number(aiHealthEngine?.overallScore ?? 0)}/100`
+      : "Awaiting Data",
+  target: `${aiBenchmarks.healthTarget}/100`,
+  status:
+    aiHealthEngine?.hasHealthData !== true
+      ? "Awaiting Data"
+      : Number(aiHealthEngine?.overallScore ?? 0) >=
+        aiBenchmarks.healthTarget
+      ? "Healthy"
+      : "Needs Work",
+},
 ];
 
-const benchmarkSummary = benchmarkScores.some((item) => item.status !== "Healthy")
+const benchmarkHasIssues = benchmarkScores.some(
+  (item) => item.status !== "Healthy" && item.status !== "Awaiting Data"
+);
+
+const benchmarkHasValidData = benchmarkScores.some(
+  (item) => item.status !== "Awaiting Data"
+);
+
+const benchmarkSummary = !benchmarkHasValidData
+  ? "Awaiting operational data to evaluate restaurant performance against benchmarks."
+  : benchmarkHasIssues
   ? "AI benchmarking found operating areas outside healthy restaurant targets."
-  : "Restaurant performance is currently aligned with healthy benchmark targets.";
+  : "Available operational benchmarks are currently within healthy restaurant targets.";
 
 const gmPriorities = useMemo(() => {
   const priorities = [];
