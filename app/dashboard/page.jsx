@@ -8714,7 +8714,31 @@ const ingestNormalizedPosRows = async ({
   if (!Array.isArray(normalizedRows) || !normalizedRows.length) {
     throw new Error("POS ingestion requires normalized sales rows.");
   }
+// Prevent duplicate manual POS file imports.
+// Connected POS integrations retain their existing
+// transaction-level synchronization behavior.
+if (!connectionId && sourceName === "Manual Upload") {
+  const { data: existingUploads, error: duplicateCheckError } =
+    await supabase
+      .from("uploads")
+      .select("id, file_name, row_count")
+      .eq("user_id", ownerId)
+      .eq("upload_type", "pos")
+      .eq("file_name", fileName)
+      .eq("row_count", normalizedRows.length)
+      .limit(1);
 
+  if (duplicateCheckError) {
+    throw duplicateCheckError;
+  }
+
+  if (existingUploads?.length > 0) {
+    throw new Error(
+      "This POS file appears to have already been imported. " +
+      "Please review existing imports before uploading it again."
+    );
+  }
+}
   const uploadPayload = {
     user_id: ownerId,
     file_name: fileName || "POS Upload",
