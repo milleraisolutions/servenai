@@ -745,6 +745,7 @@ const [mapping, setMapping] = useState({
 const [menuActionSelections, setMenuActionSelections] = useState({});
 const [message, setMessage] = useState("");
 const [uploadedFileName, setUploadedFileName] = useState("");
+const posUploadFileNameRef = useRef("");
 const [uploadType, setUploadType] = useState("pos");
 const [menuItemsData, setMenuItemsData] = useState([]);
 const [ingredientsData, setIngredientsData] = useState([]);
@@ -7648,6 +7649,8 @@ if (!activeUploadType || activeUploadType === "unknown") {
 });
 
  if (activeUploadType === "pos") {
+  posUploadFileNameRef.current = file.name;
+setUploadedFileName(file.name);
   console.log("POS BLOCK HIT");
 console.log("SAFE ROW COUNT:", safeRows.length);
 console.log("FIRST ROW:", safeRows[0]);
@@ -9150,6 +9153,15 @@ console.log("POS INGEST SALES ROWS:", {
 let salesInsertError = null;
 
 if (salesRowsToInsert.length > 0) {
+  console.log(
+  "POS FINAL INSERT CLASSIFICATION:",
+  salesRowsToInsert.map((row) => ({
+    sale_date: row.sale_date,
+    name: row.name,
+    record_granularity: row.record_granularity,
+    upload_id: row.upload_id,
+  }))
+);
   const {
     data,
     error,
@@ -9274,10 +9286,11 @@ if (!posOwnerId) {
     } = await ingestNormalizedPosRows({
       ownerId: posOwnerId,
       normalizedRows: salesRows,
-      fileName:
-        uploadedFileName ||
-        pendingUploadSummary?.fileName ||
-        "POS Upload",
+     fileName:
+  posUploadFileNameRef.current ||
+  pendingUploadSummary?.fileName ||
+  uploadedFileName ||
+  "POS Upload",
       sourceName:
         selectedDataSource ||
         "Manual Upload",
