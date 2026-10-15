@@ -8854,9 +8854,10 @@ if (!posOwnerId) {
   pendingUploadSummary?.fileName ||
   uploadedFileName ||
   "POS Upload",
-      sourceName:
-        selectedDataSource ||
-        "Manual Upload",
+      // This handler imports a user-uploaded POS file.
+// The selected POS vendor is not a live connection.
+sourceName: "Manual Upload",
+connectionId: null,
       locationId:
         selectedUploadLocationId || null,
     });
