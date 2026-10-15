@@ -8,6 +8,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import ErrorBoundary from "../components/ErrorBoundary";
 import { supabase } from "../lib/supabaseClient";
 import { useRouter } from "next/navigation";
+import { normalizePosRows } from "../../lib/pos/normalizePosRows";
 import {
   ResponsiveContainer,
   LineChart,
@@ -763,7 +764,7 @@ const [dbSalesRows, setDbSalesRows] = useState([]);
 
 const [aiLiveStatus, setAiLiveStatus] = useState("AI monitoring quietly");
 const [autopilotActivity, setAutopilotActivity] = useState([]);
-const [aiRecoveredProfit, setAiRecoveredProfit] = useState(0);
+
 const [loadingUser, setLoadingUser] = useState(true);
 const [userProfile, setUserProfile] = useState(null);
 const [uploadError, setUploadError] = useState("");
@@ -6830,8 +6831,8 @@ applyingAIActionKeysRef.current.add(actionKey);
 let duplicateQuery = supabase
   .from("ai_applied_actions")
   .select(
-    "id, action_name, recovery_category, entity_type, entity_id, action_type, status, implementation_status, verification_status, location_id"
-  )
+  "id, action_name, recovery_category, entity_type, entity_id, action_type, status, implementation_status, verification_status, location_id, baseline_data, target_data"
+)
   .eq("user_id", user.id)
   .eq("action_name", String(actionName || "").trim())
   .or("verification_status.neq.verified,verification_status.is.null");
@@ -6925,8 +6926,11 @@ if (existingActions?.length) {
 
         impact_value: Number(impactValue || 0),
 
-        baseline_data: baselineData || null,
-        target_data: targetData || null,
+      baseline_data:
+  existingAction.baseline_data ?? baselineData ?? null,
+
+target_data:
+  targetData ?? existingAction.target_data ?? null,
       })
       .eq("id", existingAction.id)
       .eq("user_id", user.id)
@@ -8070,636 +8074,7 @@ e.target.value = "";
 
 console.log("TRACE AFTER HANDLE FILE UPLOAD");
 console.log("TRACE BEFORE IMPORT MAPPED SALES");
-const normalizePosRows = ({
-  incomingRows = [],
-  ownerId,
-  sourceName = "Manual Upload",
-  locationId = null,
-  connectionId = null,
-  externalIdType = null,
-}) => {
-  if (!ownerId || !Array.isArray(incomingRows)) {
-    return [];
-  }
 
-  return incomingRows
-    .map((row) => {
-      const rawRecordGranularity =
-  row.record_granularity ??
-  row.recordGranularity ??
-  row.sales_granularity ??
-  row.salesGranularity ??
-  null;
-
-const normalizedRecordGranularity =
-  rawRecordGranularity !== null &&
-  rawRecordGranularity !== undefined
-    ? String(rawRecordGranularity).trim().toLowerCase()
-    : null;
-
-const allowedRecordGranularities = [
-  "daily_summary",
-  "item_summary",
-  "order",
-  "line_item",
-];
-
-const hasExplicitGranularity =
-  allowedRecordGranularities.includes(normalizedRecordGranularity);
-
-const hasItemIdentity = [
-  "name",
-  "Name",
-  "item_name",
-  "Item Name",
-  "menu_item",
-  "Menu Item",
-  "product",
-  "Product",
-  "item",
-  "Item",
-].some((key) => String(row[key] ?? "").trim() !== "");
-
-const hasItemQuantity = [
-  "quantity",
-  "Quantity",
-  "quantity_sold",
-  "Quantity Sold",
-  "qty_sold",
-  "Qty Sold",
-  "qty",
-  "Qty",
-].some((key) => String(row[key] ?? "").trim() !== "");
-
-const hasDailySummaryStructure =
-  !hasItemIdentity &&
-  !hasItemQuantity &&
-  !(
-    row.transaction_id ||
-    row.transactionId ||
-    row.order_id ||
-    row.orderId ||
-    row.external_id ||
-    row.externalId
-  );
-
-const hasSalesDate = [
-  "sale_date",
-  "saleDate",
-  "business_date",
-  "businessDate",
-].some((key) => String(row[key] ?? "").trim() !== "");
-
-const hasRevenue = [
-  "revenue",
-  "Revenue",
-  "total_revenue",
-  "totalRevenue",
-].some((key) => String(row[key] ?? "").trim() !== "");
-
-const hasTransactionIdentity = [
-  "transaction_id",
-  "transactionId",
-  "order_id",
-  "orderId",
-  "external_id",
-  "externalId",
-  "check_id",
-  "checkId",
-  "ticket_id",
-  "ticketId",
-].some((key) => String(row[key] ?? "").trim() !== "");
-
-const hasItemSummaryStructure =
-  hasItemIdentity &&
-  hasItemQuantity &&
-  hasSalesDate &&
-  hasRevenue &&
-  !hasTransactionIdentity;
-
-const recordGranularity = hasExplicitGranularity
-  ? normalizedRecordGranularity
-  : hasItemSummaryStructure
-  ? "item_summary"
-  : hasDailySummaryStructure && hasSalesDate && hasRevenue
-  ? "daily_summary"
-  : null;
-
-// Never infer line_item from name and quantity alone.
-// An item sales summary may contain those same fields.
-//
-// Unknown records remain unclassified until their
-// source and measurement granularity are confirmed.
-      const rawExternalId =
-  row.external_id ||
-  row.externalId ||
-  row.transaction_id ||
-  row.transactionId ||
-  row.order_id ||
-  row.orderId ||
-  row.check_id ||
-  row.checkId ||
-  row.ticket_id ||
-  row.ticketId ||
-  null;
-
-const rawExternalIdType =
-  row.external_id_type ||
-  row.externalIdType ||
-  externalIdType ||
-  null;
-  const rawProviderUpdatedAt =
-  row.provider_updated_at ||
-  row.providerUpdatedAt ||
-  row.updated_at ||
-  row.updatedAt ||
-  row.modified_at ||
-  row.modifiedAt ||
-  row.last_modified_at ||
-  row.lastModifiedAt ||
-  null;
-const rawProviderStatus =
-  row.provider_status ||
-  row.providerStatus ||
-  row.status ||
-  row.order_status ||
-  row.orderStatus ||
-  row.payment_status ||
-  row.paymentStatus ||
-  null;
-
-const normalizedProviderStatus = rawProviderStatus
-  ? String(rawProviderStatus).trim().toLowerCase()
-  : null;
-
-const rawIsVoided =
-  row.is_voided ??
-  row.isVoided ??
-  row.voided ??
-  row.is_canceled ??
-  row.isCanceled ??
-  row.canceled ??
-  row.cancelled ??
-  null;
-
-const statusIndicatesVoid = [
-  "void",
-  "voided",
-  "cancelled",
-  "canceled",
-].includes(normalizedProviderStatus);
-
-const hasExplicitVoidSignal =
-  rawIsVoided !== null &&
-  rawIsVoided !== undefined &&
-  String(rawIsVoided).trim() !== "";
-
-const explicitVoidValue =
-  rawIsVoided === true ||
-  String(rawIsVoided).toLowerCase() === "true" ||
-  String(rawIsVoided) === "1";
-
-const isVoided =
-  statusIndicatesVoid
-    ? true
-    : hasExplicitVoidSignal
-    ? explicitVoidValue
-    : null;
-
-const rawProviderDeletedAt =
-  row.provider_deleted_at ||
-  row.providerDeletedAt ||
-  row.deleted_at ||
-  row.deletedAt ||
-  null;
-
-const parsedProviderDeletedAt = rawProviderDeletedAt
-  ? new Date(rawProviderDeletedAt)
-  : null;
-
-const providerDeletedAt =
-  parsedProviderDeletedAt &&
-  !Number.isNaN(parsedProviderDeletedAt.getTime())
-    ? parsedProviderDeletedAt.toISOString()
-    : null;
-const parsedProviderUpdatedAt = rawProviderUpdatedAt
-  ? new Date(rawProviderUpdatedAt)
-  : null;
-
-const providerUpdatedAt =
-  parsedProviderUpdatedAt &&
-  !Number.isNaN(parsedProviderUpdatedAt.getTime())
-    ? parsedProviderUpdatedAt.toISOString()
-    : null;
-      const rawDate =
-        row.sale_date ||
-        row.date ||
-        row.Date ||
-        row["Sale Date"] ||
-        row["Business Date"] ||
-        row.day ||
-        row.Day ||
-        null;
-
-      const rawRevenue =
-        row.revenue ||
-        row.Revenue ||
-        row.sales ||
-        row.Sales ||
-        row.total_sales ||
-        row.totalSales ||
-        row["Total Sales"] ||
-        row.net_sales ||
-        row.netSales ||
-        row["Net Sales"] ||
-        row.gross_sales ||
-        row.grossSales ||
-        row["Gross Sales"] ||
-        row.amount ||
-        row.Amount ||
-        row.total ||
-        row.Total ||
-        0;
-
-      const rawOrders =
-        row.orders_count ||
-        row.ordersCount ||
-        row.orders ||
-        row.Orders ||
-        row.order_count ||
-        row["Order Count"] ||
-        row.check_count ||
-        row["Check Count"] ||
-        row.ticket_count ||
-        row["Ticket Count"] ||
-        row.transactions ||
-        row.Transactions ||
-        row["Guest Count"] ||
-        row.guests ||
-        row.Guests ||
-        0;
-
-      const rawLabor =
-        row.labor ??
-        row.labor_cost ??
-        row.Labor ??
-        row["Labor Cost"] ??
-        row.total_labor ??
-        row.total_labor_cost ??
-        row["Total Labor"] ??
-        row["Total Labor Cost"] ??
-        row.payroll ??
-        row.Payroll ??
-        row.wages ??
-        row.Wages ??
-        row.total_pay ??
-        row["Total Pay"] ??
-        row.gross_pay ??
-        row["Gross Pay"] ??
-        0;
-
-      const rawName =
-        row.name ||
-        row.Name ||
-        row.item ||
-        row.Item ||
-        row.item_name ||
-        row["Item Name"] ||
-        row.menu_item ||
-        row["Menu Item"] ||
-        row.product ||
-        row.Product ||
-        null;
-
-        const rawCategory =
-  row.category ??
-  row.Category ??
-  row.item_category ??
-  row.itemCategory ??
-  row["Item Category"] ??
-  row.menu_category ??
-  row.menuCategory ??
-  row["Menu Category"] ??
-  row.product_category ??
-  row["Product Category"] ??
-  null;
-
-      const rawQuantity =
-        row.quantity ??
-        row.Quantity ??
-        row.quantity_sold ??
-        row["Quantity Sold"] ??
-        row.qty_sold ??
-        row["Qty Sold"] ??
-        row.qty ??
-        row.Qty ??
-        0;
-
-      const rawShift =
-        row.shift ||
-        row.Shift ||
-        row.daypart ||
-        row.Daypart ||
-        row["Day Part"] ||
-        row.meal_period ||
-        row["Meal Period"] ||
-        row.service_period ||
-        row["Service Period"] ||
-        "";
-
-      const rawTime =
-        row.time ||
-        row.Time ||
-        row.order_time ||
-        row["Order Time"] ||
-        row.check_time ||
-        row["Check Time"] ||
-        row.closed_time ||
-        row["Closed Time"] ||
-        row.opened_time ||
-        row["Opened Time"] ||
-        row.hour ||
-        row.Hour ||
-        "";
-
-      const rawLocation =
-        row.location ||
-        row.Location ||
-        row.store ||
-        row.Store ||
-        row.restaurant ||
-        row.Restaurant ||
-        row.location_name ||
-        row["Location Name"] ||
-        null;
-
-     const parsedDate = rawDate ? new Date(rawDate) : null;
-
-const providedFields = {
-  record_granularity:
-    [
-      "record_granularity",
-      "recordGranularity",
-      "sales_granularity",
-      "salesGranularity",
-    ].some((key) =>
-      Object.prototype.hasOwnProperty.call(row, key)
-    ),
-
-  sale_date:
-    rawDate !== null &&
-    rawDate !== undefined &&
-    String(rawDate).trim() !== "",
-
-  revenue:
-    [
-      "revenue",
-      "Revenue",
-      "sales",
-      "Sales",
-      "total_sales",
-      "totalSales",
-      "Total Sales",
-      "net_sales",
-      "netSales",
-      "Net Sales",
-      "gross_sales",
-      "grossSales",
-      "Gross Sales",
-      "amount",
-      "Amount",
-      "total",
-      "Total",
-    ].some((key) =>
-      Object.prototype.hasOwnProperty.call(row, key)
-    ),
-
-  orders_count:
-    [
-      "orders_count",
-      "ordersCount",
-      "orders",
-      "Orders",
-      "order_count",
-      "Order Count",
-      "check_count",
-      "Check Count",
-      "ticket_count",
-      "Ticket Count",
-      "transactions",
-      "Transactions",
-      "Guest Count",
-      "guests",
-      "Guests",
-    ].some((key) =>
-      Object.prototype.hasOwnProperty.call(row, key)
-    ),
-
-  labor:
-    [
-      "labor",
-      "labor_cost",
-      "Labor",
-      "Labor Cost",
-      "total_labor",
-      "total_labor_cost",
-      "Total Labor",
-      "Total Labor Cost",
-      "payroll",
-      "Payroll",
-      "wages",
-      "Wages",
-      "total_pay",
-      "Total Pay",
-      "gross_pay",
-      "Gross Pay",
-    ].some((key) =>
-      Object.prototype.hasOwnProperty.call(row, key)
-    ),
-
-  name:
-    [
-      "name",
-      "Name",
-      "item",
-      "Item",
-      "item_name",
-      "Item Name",
-      "menu_item",
-      "Menu Item",
-      "product",
-      "Product",
-    ].some((key) =>
-      Object.prototype.hasOwnProperty.call(row, key)
-    ),
-
-      category:
-    [
-      "category",
-      "Category",
-      "item_category",
-      "itemCategory",
-      "Item Category",
-      "menu_category",
-      "menuCategory",
-      "Menu Category",
-      "product_category",
-      "Product Category",
-    ].some((key) =>
-      Object.prototype.hasOwnProperty.call(row, key)
-    ),
-
-  quantity:
-    [
-      "quantity",
-      "Quantity",
-      "quantity_sold",
-      "Quantity Sold",
-      "qty_sold",
-      "Qty Sold",
-      "qty",
-      "Qty",
-    ].some((key) =>
-      Object.prototype.hasOwnProperty.call(row, key)
-    ),
-
-  shift:
-    [
-      "shift",
-      "Shift",
-      "daypart",
-      "Daypart",
-      "Day Part",
-      "meal_period",
-      "Meal Period",
-      "service_period",
-      "Service Period",
-    ].some((key) =>
-      Object.prototype.hasOwnProperty.call(row, key)
-    ),
-
-  order_time:
-    [
-      "time",
-      "Time",
-      "order_time",
-      "Order Time",
-      "check_time",
-      "Check Time",
-      "closed_time",
-      "Closed Time",
-      "opened_time",
-      "Opened Time",
-      "hour",
-      "Hour",
-    ].some((key) =>
-      Object.prototype.hasOwnProperty.call(row, key)
-    ),
-
-  location_name:
-    [
-      "location",
-      "Location",
-      "store",
-      "Store",
-      "restaurant",
-      "Restaurant",
-      "location_name",
-      "Location Name",
-    ].some((key) =>
-      Object.prototype.hasOwnProperty.call(row, key)
-    ),
-};
-
-return {
-        user_id: ownerId,
-
-        sale_date:
-          parsedDate &&
-          !Number.isNaN(parsedDate.getTime())
-            ? parsedDate.toISOString().slice(0, 10)
-            : null,
-
-        revenue: Number(
-          String(rawRevenue).replace(/[$,]/g, "") || 0
-        ),
-
-        orders_count: Number(
-          String(rawOrders).replace(/[,]/g, "") || 0
-        ),
-
-        labor: Number(
-          String(rawLabor).replace(/[$,]/g, "") || 0
-        ),
-        record_granularity: recordGranularity,
-name: rawName,
-
-category:
-
-  rawCategory !== null &&
-  String(rawCategory).trim() !== ""
-    ? String(rawCategory).trim()
-    : null,
-
-quantity: Number(
-  String(rawQuantity).replace(/[,]/g, "") || 0
-),
-
-        shift: rawShift || null,
-        order_time: rawTime || null,
-        location_name: rawLocation,
-
-      source_name: sourceName || "Manual Upload",
-location_id: locationId || null,
-connection_id: connectionId || null,
-
-external_id:
-  rawExternalId !== null &&
-  rawExternalId !== undefined &&
-  String(rawExternalId).trim() !== ""
-    ? String(rawExternalId).trim()
-    : null,
-
-external_id_type:
-  rawExternalIdType !== null &&
-  rawExternalIdType !== undefined &&
-  String(rawExternalIdType).trim() !== ""
-    ? String(rawExternalIdType).trim()
-    : null,
-
-provider_updated_at: providerUpdatedAt,
-provider_status: normalizedProviderStatus,
-is_voided: isVoided,
-provider_deleted_at: providerDeletedAt,
-
-_provided_fields: providedFields,
-};
-    }).filter((row) => {
-  const hasValidSaleDate = Boolean(row.sale_date);
-  const hasFiniteRevenue = Number.isFinite(row.revenue);
-
-  const hasProviderIdentity =
-    Boolean(row.connection_id) &&
-    Boolean(row.external_id);
-
-  const isProviderLifecycleRow =
-    hasProviderIdentity &&
-    (
-      row.is_voided === true ||
-      Boolean(row.provider_deleted_at)
-    );
-
-  const isValidOperationalSale =
-    hasValidSaleDate &&
-    hasFiniteRevenue &&
-    row.revenue > 0;
-
-  return (
-    isValidOperationalSale ||
-    isProviderLifecycleRow
-  );
-});
-};
 
 
 const ingestNormalizedPosRows = async ({
@@ -8717,6 +8092,30 @@ const ingestNormalizedPosRows = async ({
   if (!Array.isArray(normalizedRows) || !normalizedRows.length) {
     throw new Error("POS ingestion requires normalized sales rows.");
   }
+
+
+  // Reject incomplete connected POS records before creating
+// an upload record or writing any sales data.
+const incompleteProviderRowsBeforeInsert = normalizedRows.filter(
+  (row) => {
+    const effectiveConnectionId =
+      row.connection_id || connectionId || null;
+
+    const effectiveExternalId =
+      row.external_id !== null &&
+      row.external_id !== undefined
+        ? String(row.external_id).trim()
+        : "";
+
+    return effectiveConnectionId && !effectiveExternalId;
+  }
+);
+
+if (incompleteProviderRowsBeforeInsert.length > 0) {
+  throw new Error(
+    `${incompleteProviderRowsBeforeInsert.length} connected POS record(s) are missing unique external IDs. Import stopped before database writes.`
+  );
+}
 // Prevent duplicate manual POS file imports.
 // Connected POS integrations retain their existing
 // transaction-level synchronization behavior.
@@ -8749,6 +8148,106 @@ if (!connectionId && sourceName === "Manual Upload") {
       "Please review existing imports before uploading it again."
     );
   }
+}
+
+
+// Atomic manual POS ingestion compatibility check.
+// Do not route records through the RPC until every
+// required sales field is supported by its schema.
+const manualPosRowsForAtomicImport =
+  !connectionId &&
+  sourceName === "Manual Upload" &&
+  normalizedRows.every((row) => !row.connection_id);
+
+const atomicManualPosUnsupportedFields = [
+  "connection_id",
+  "external_id",
+  "external_id_type",
+  "provider_updated_at",
+  "provider_status",
+  "provider_deleted_at",
+  "last_synced_at",
+];
+
+const manualPosAtomicCompatible =
+  manualPosRowsForAtomicImport &&
+  normalizedRows.every((row) =>
+    atomicManualPosUnsupportedFields.every(
+      (field) =>
+        row[field] === null ||
+        row[field] === undefined
+    )
+  );
+
+console.log("POS ATOMIC MANUAL COMPATIBILITY:", {
+  eligible: manualPosRowsForAtomicImport,
+  compatible: manualPosAtomicCompatible,
+  rowCount: normalizedRows.length,
+});
+
+
+// Manual POS uploads use one atomic database transaction.
+// Connected POS records continue through provider reconciliation.
+if (manualPosRowsForAtomicImport) {
+  if (!manualPosAtomicCompatible) {
+    throw new Error(
+      "Manual POS import contains fields unsupported by atomic ingestion. Import stopped before database writes."
+    );
+  }
+
+  const atomicSalesRows = normalizedRows.map((row) => ({
+    name: row.name ?? null,
+    category: row.category ?? null,
+    quantity: row.quantity ?? null,
+    revenue: row.revenue,
+    sale_date: row.sale_date,
+    orders_count: row.orders_count ?? 0,
+    labor: row.labor ?? 0,
+    location_id: row.location_id || locationId || null,
+    location_name: row.location_name ?? null,
+    order_time: row.order_time ?? null,
+    shift: row.shift ?? null,
+    record_granularity: row.record_granularity ?? null,
+    is_test_data: row.is_test_data === true,
+    is_voided: row.is_voided === true,
+  }));
+
+  const { data: atomicResult, error: atomicError } =
+    await supabase.rpc("ingest_pos_upload_atomic", {
+      p_file_name: fileName || "POS Upload",
+      p_source_name: "Manual Upload",
+      p_location_id: locationId || null,
+      p_sales_rows: atomicSalesRows,
+    });
+
+  if (atomicError) {
+    console.error("POS ATOMIC IMPORT FAILED:", atomicError);
+    throw atomicError;
+  }
+
+  const uploadedFileRow = atomicResult?.uploadedFileRow;
+  const insertedSales = atomicResult?.insertedSales;
+
+  if (
+    !uploadedFileRow?.id ||
+    !Array.isArray(insertedSales) ||
+    insertedSales.length !== atomicSalesRows.length
+  ) {
+    throw new Error(
+      "Atomic POS import returned an unexpected result. Check database records before retrying."
+    );
+  }
+
+  console.log("POS ATOMIC MANUAL IMPORT COMPLETE:", {
+    uploadId: uploadedFileRow.id,
+    insertedCount: insertedSales.length,
+  });
+
+  return {
+    uploadedFileRow,
+    insertedSales,
+    finalSalesRows: insertedSales,
+  };
 }
   const uploadPayload = {
     user_id: ownerId,
@@ -8830,10 +8329,23 @@ const providerRows = finalSalesRows.filter(
 );
 
 const manualRows = finalSalesRows.filter(
-  (row) =>
-    !row.connection_id ||
-    !row.external_id
+  (row) => !row.connection_id
 );
+
+const incompleteProviderRows = finalSalesRows.filter(
+  (row) => row.connection_id && !row.external_id
+);
+
+if (incompleteProviderRows.length > 0) {
+  console.warn(
+    "POS INGEST REJECTED PROVIDER ROWS WITHOUT UNIQUE EXTERNAL IDS:",
+    incompleteProviderRows.length
+  );
+
+  throw new Error(
+    `${incompleteProviderRows.length} connected POS record(s) are missing unique external IDs. Import stopped to prevent duplicate sales.`
+  );
+}
 let providerRowsToInsert = providerRows;
 const providerRowsToUpdate = [];
 const staleProviderRowsSeen = [];
@@ -9170,16 +8682,50 @@ if (salesRowsToInsert.length > 0) {
     upload_id: row.upload_id,
   }))
 );
-  const {
-    data,
-    error,
-  } = await supabase
-    .from("sales")
-    .insert(salesRowsToInsert)
-    .select("*");
+  const manualSalesToInsert = salesRowsToInsert.filter(
+    (row) => !row.connection_id || !row.external_id
+  );
 
-  insertedSales = data || [];
-  salesInsertError = error;
+  const providerSalesToInsert = salesRowsToInsert.filter(
+    (row) => row.connection_id && row.external_id
+  );
+
+  // Manual POS imports retain their existing insertion behavior.
+  if (manualSalesToInsert.length > 0) {
+    const { data, error } = await supabase
+      .from("sales")
+      .insert(manualSalesToInsert)
+      .select("*");
+
+    if (error) {
+      salesInsertError = error;
+    } else {
+      insertedSales.push(...(data || []));
+    }
+  }
+
+  // Provider conflicts must never overwrite existing transactions.
+  // A conflict requires reconciliation, not an unconditional upsert.
+  if (!salesInsertError && providerSalesToInsert.length > 0) {
+    const { data, error } = await supabase
+      .from("sales")
+      .insert(providerSalesToInsert)
+      .select("*");
+
+    if (error) {
+      salesInsertError = error;
+
+      if (error.code === "23505") {
+        console.warn(
+          "POS PROVIDER CONFLICT: Transaction already exists. " +
+          "Reconciliation required before marking ingestion successful.",
+          error
+        );
+      }
+    } else {
+      insertedSales.push(...(data || []));
+    }
+  }
 }
 
   if (salesInsertError) {
@@ -9208,7 +8754,16 @@ if (salesRowsToInsert.length > 0) {
 
     throw salesInsertError;
   }
+const expectedInsertedCount = salesRowsToInsert.length;
 
+if (
+  !salesInsertError &&
+  insertedSales.length !== expectedInsertedCount
+) {
+  throw new Error(
+    `POS ingestion incomplete: expected ${expectedInsertedCount} inserted sales records, but received ${insertedSales.length}.`
+  );
+}
   return {
     uploadedFileRow,
     insertedSales: insertedSales || [],
@@ -9468,26 +9023,40 @@ const syncMenuItemsWithHistory = async ({
         : price > 0
         ? ((price - cost) / price) * 100
         : 0;
+if (existing) {
+  const existingPrice = Number(existing.price || 0);
+  const existingCost = Number(existing.cost || 0);
+  const existingMargin = Number(existing.margin || 0);
+  const existingQuantitySold = Number(
+    existing.quantity_sold || 0
+  );
 
-    if (existing) {
-      const { data: updatedRows, error } =
-        await supabase
-          .from("menu_items")
-          .update({
-            previous_price: Number(
-              existing.price || 0
-            ),
-            previous_cost: Number(
-              existing.cost || 0
-            ),
-            previous_margin: Number(
-              existing.margin || 0
-            ),
-            previous_quantity_sold: Number(
-              existing.quantity_sold || 0
-            ),
+  const priceChanged =
+    existingPrice > 0 &&
+    price > 0 &&
+    Math.abs(price - existingPrice) > 0.01;
 
-            price,
+  const { data: updatedRows, error } =
+    await supabase
+      .from("menu_items")
+      .update({
+        previous_price: priceChanged
+          ? existingPrice
+          : Number(existing.previous_price || 0),
+
+        previous_cost: priceChanged
+          ? existingCost
+          : Number(existing.previous_cost || 0),
+
+        previous_margin: priceChanged
+          ? existingMargin
+          : Number(existing.previous_margin || 0),
+
+        previous_quantity_sold: priceChanged
+          ? existingQuantitySold
+          : Number(existing.previous_quantity_sold || 0),
+
+        price,
             cost,
             quantity_sold: quantitySold,
             revenue,
@@ -14121,17 +13690,9 @@ console.log("AUTOPILOT ACTIONS:", actions);
   // prevent duplicate applying
   if (appliedFixes.includes(actionTitle)) return;
 
-  // simulate applying fix
-  setAppliedFixes((prev) => [...prev, actionTitle]);
-setAiRecoveredProfit(
-  (prev) =>
-    prev +
-    Number(
-      topAction.estimatedImpact ??
-        topAction.impact ??
-        0
-    )
-);
+// Record the Autopilot action locally.
+// Estimated impact is not verified recovered profit.
+setAppliedFixes((prev) => [...prev, actionTitle]);
   // 🔥 THIS IS YOUR NEW PART (activity tracking)
   setAutopilotActivity((prev) => [
     {
@@ -16479,7 +16040,7 @@ previousQuantitySold,
 postChangeQuantitySold,
   };
 };
-const verifiedMenuRecoverySummary = useMemo(() => {
+const estimatedMenuRecoverySummary = useMemo(() => {
   const items = menuItemsData || [];
 
   const verifiedItems = items
@@ -16507,7 +16068,14 @@ const verifiedMenuRecoverySummary = useMemo(() => {
 useEffect(() => {
   const verifyAppliedMenuRecoveries = async () => {
     if (!authReady) return;
-
+    // SAFETY GUARD:
+    // Menu uploads alone do not prove post-implementation
+    // POS sales or billable recovered profit.
+    //
+    // Preserve existing actions and recovery history.
+    // Resume automatic verification only after genuine
+    // POS transaction evidence is connected.
+    return;
     if (
       !Array.isArray(realAppliedActions) ||
       !realAppliedActions.length ||
@@ -16839,7 +16407,6 @@ const { error } = await supabase
   .from("ai_applied_actions")
   .update({
     implementation_status: "confirmed",
-    implemented_at: verificationTimestamp,
 
     verification_status: "verified",
     verified_recovery: Number(
