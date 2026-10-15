@@ -8116,7 +8116,7 @@ if (incompleteProviderRowsBeforeInsert.length > 0) {
     `${incompleteProviderRowsBeforeInsert.length} connected POS record(s) are missing unique external IDs. Import stopped before database writes.`
   );
 }
-// Prevent duplicate manual POS file imports.
+
 // Connected POS integrations retain their existing
 // transaction-level synchronization behavior.
 console.log("POS DUPLICATE GUARD INPUT:", {
