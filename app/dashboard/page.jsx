@@ -35929,9 +35929,20 @@ useEffect(() => {
         const sameBeverage =
           itemName === baselineBeverageName;
 
-        const differentPeriod =
-          Boolean(itemUploadId) &&
-          itemUploadId !== baselineUploadId;
+        const baselineUsageDate = String(
+  baselineData.baseline_usage_date || ""
+).slice(0, 10);
+
+const measuredUsageDate = String(
+  item?.usageDate || ""
+).slice(0, 10);
+
+const differentPeriod =
+  Boolean(itemUploadId) &&
+  itemUploadId !== baselineUploadId &&
+  Boolean(baselineUsageDate) &&
+  Boolean(measuredUsageDate) &&
+  measuredUsageDate > baselineUsageDate;
 const itemLocationId = String(
   item?.locationId || ""
 ).trim();
@@ -36061,6 +36072,34 @@ const sameLocation = (() => {
           /[^0-9A-Za-z]/g,
           "_"
         )}`;
+        const {
+  data: existingInitialBeveragePeriods,
+  error: initialPeriodCheckError,
+} = await supabase
+  .from("verified_recovery_ledger")
+  .select("id")
+  .eq("action_id", action.id)
+  .eq("status", "verified")
+  .eq("period_start", evidenceDate)
+  .eq("period_end", evidenceDate)
+  .limit(1);
+
+if (initialPeriodCheckError) {
+  console.error(
+    "INITIAL BEVERAGE PERIOD CHECK ERROR:",
+    initialPeriodCheckError
+  );
+  continue;
+}
+
+if ((existingInitialBeveragePeriods || []).length > 0) {
+  console.log(
+    "INITIAL BEVERAGE PERIOD ALREADY VERIFIED:",
+    action.id,
+    evidenceDate
+  );
+  continue;
+}
 
       /*
         ==========================================
@@ -36177,14 +36216,24 @@ const sameLocation = (() => {
           }
         );
 
-      if (beverageLedgerError) {
-        console.error(
-          "BEVERAGE RECOVERY LEDGER ERROR:",
-          beverageLedgerError
-        );
+     if (beverageLedgerError) {
+  if (beverageLedgerError.code === "23505") {
+    console.warn(
+      "BEVERAGE RECOVERY DUPLICATE PERIOD BLOCKED:",
+      action.id,
+      evidenceDate
+    );
 
-        continue;
-      }
+    continue;
+  }
+
+  console.error(
+    "BEVERAGE RECOVERY LEDGER ERROR:",
+    beverageLedgerError
+  );
+
+  continue;
+}
 
       const { error: actionUpdateError } =
         await supabase
@@ -36431,6 +36480,16 @@ const actionLocationName = String(
               .filter(Boolean)
           );
 
+          const alreadyVerifiedBeveragePeriods = new Set(
+  (existingLedgerRows || [])
+    .filter((row) =>
+      row?.period_start &&
+      row?.period_end
+    )
+    .map((row) =>
+      `${String(row.period_start).slice(0, 10)}|${String(row.period_end).slice(0, 10)}`
+    )
+);
         const futurePeriods = (
   canonicalBeverageUsageRecoveryData || []
 )
@@ -36514,7 +36573,28 @@ const sameLocation = (() => {
           const currentUploadId = String(
             currentEvidence.uploadId || ""
           ).trim();
+const currentEvidenceDate = String(
+  currentEvidence.usageDate || ""
+).slice(0, 10);
 
+const baselineEvidenceDate = String(
+  baselineData.baseline_usage_date || ""
+).slice(0, 10);
+
+if (
+  !/^\d{4}-\d{2}-\d{2}$/.test(currentEvidenceDate) ||
+  !/^\d{4}-\d{2}-\d{2}$/.test(baselineEvidenceDate) ||
+  currentEvidenceDate <= baselineEvidenceDate
+) {
+  continue;
+}
+
+const currentPeriodKey =
+  `${currentEvidenceDate}|${currentEvidenceDate}`;
+
+if (alreadyVerifiedBeveragePeriods.has(currentPeriodKey)) {
+  continue;
+}
           const currentExpectedOz = Number(
             currentEvidence.expectedOz || 0
           );
@@ -36709,13 +36789,23 @@ const sameLocation = (() => {
             );
 
           if (ledgerInsertError) {
-            console.error(
-              "ONGOING BEVERAGE LEDGER INSERT ERROR:",
-              ledgerInsertError
-            );
+  if (ledgerInsertError.code === "23505") {
+    console.warn(
+      "ONGOING BEVERAGE DUPLICATE PERIOD BLOCKED:",
+      action.id,
+      evidenceDate
+    );
 
-            continue;
-          }
+    continue;
+  }
+
+  console.error(
+    "ONGOING BEVERAGE LEDGER INSERT ERROR:",
+    ledgerInsertError
+  );
+
+  continue;
+}
 
           /*
             Add this period to our local evidence
@@ -36723,11 +36813,15 @@ const sameLocation = (() => {
             cannot process it twice.
           */
 
-          alreadyMeasuredUploadIds.add(
-            currentUploadId
-          );
+         alreadyMeasuredUploadIds.add(
+  currentUploadId
+);
 
-          existingLedgerRows.push({
+alreadyVerifiedBeveragePeriods.add(
+  currentPeriodKey
+);
+
+existingLedgerRows.push({
             period_start: evidenceDate,
             period_end: evidenceDate,
             verification_method:
