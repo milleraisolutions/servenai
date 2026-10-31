@@ -59,6 +59,47 @@ async function getAuthenticatedOwner(req) {
     throw forbiddenError;
   }
 
+  // ========================================
+  // VERIFY ACTIVE PLATFORM ADMINISTRATOR
+  // ========================================
+
+  const supabaseUser = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    {
+      global: {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      },
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+    }
+  );
+
+  const {
+    data: isPlatformAdmin,
+    error: adminError,
+  } = await supabaseUser.rpc(
+    "is_serven_platform_admin"
+  );
+
+  if (adminError || isPlatformAdmin !== true) {
+    console.error(
+      "Recovery ledger sync administrator authorization denied:",
+      adminError?.message || "Not a platform administrator"
+    );
+
+    const forbiddenError = new Error(
+      "You are not authorized to synchronize recovery ledgers."
+    );
+
+    forbiddenError.status = 403;
+    throw forbiddenError;
+  }
+
   return user;
 }
 
@@ -573,13 +614,16 @@ export async function POST(req) {
           "status",
           "open"
         )
-        .is(
+                .is(
           "locked_at",
           null
         )
+        .eq(
+          "updated_at",
+          existingLedger.updated_at
+        )
         .select("*")
         .maybeSingle();
-
       if (updateError) {
         throw updateError;
       }
