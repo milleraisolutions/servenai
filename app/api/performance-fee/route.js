@@ -74,7 +74,17 @@ async function getAuthenticatedOwner(req) {
     authError.status = 401;
     throw authError;
   }
+const PLATFORM_ADMIN_USER_ID =
+  "908d0bc7-6792-425b-abdb-476cd4612a71";
 
+if (user.id !== PLATFORM_ADMIN_USER_ID) {
+  const forbiddenError = new Error(
+    "You are not authorized to create performance fee requests."
+  );
+
+  forbiddenError.status = 403;
+  throw forbiddenError;
+}
   const supabaseUser = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
