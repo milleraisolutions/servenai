@@ -75,19 +75,42 @@ async function getAuthenticatedOwner(req) {
     throw authError;
   }
 
-  const SERVEN_OWNER_USER_ID =
-    "908d0bc7-6792-425b-abdb-476cd4612a71";
-
-  if (
-    user.id !== SERVEN_OWNER_USER_ID
-  ) {
-    const forbiddenError = new Error(
-      "You are not authorized to create performance fee requests."
-    );
-
-    forbiddenError.status = 403;
-    throw forbiddenError;
+  const supabaseUser = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  {
+    global: {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
   }
+);
+
+const {
+  data: isPlatformAdmin,
+  error: adminError,
+} = await supabaseUser.rpc(
+  "is_serven_platform_admin"
+);
+
+if (adminError || isPlatformAdmin !== true) {
+  console.error(
+    "Performance fee administrator authorization denied:",
+    adminError?.message || "Not a platform administrator"
+  );
+
+  const forbiddenError = new Error(
+    "You are not authorized to create performance fee requests."
+  );
+
+  forbiddenError.status = 403;
+  throw forbiddenError;
+}
 
   return user;
 }
