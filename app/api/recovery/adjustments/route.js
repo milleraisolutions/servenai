@@ -54,6 +54,47 @@ async function getAuthenticatedOwner(req) {
     forbiddenError.status = 403;
     throw forbiddenError;
   }
+  // VERIFY ACTIVE SERVEN PLATFORM ADMINISTRATOR
+  const supabaseUser = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    {
+      global: {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      },
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+    }
+  );
+
+  const {
+    data: isPlatformAdmin,
+    error: adminError,
+  } = await supabaseUser.rpc(
+    "is_serven_platform_admin"
+  );
+
+  if (
+    adminError ||
+    isPlatformAdmin !== true
+  ) {
+    console.error(
+      "Recovery adjustment administrator authorization denied:",
+      adminError?.message ||
+        "Not an active platform administrator"
+    );
+
+    const forbiddenError = new Error(
+      "You are not authorized to create recovery adjustments."
+    );
+
+    forbiddenError.status = 403;
+    throw forbiddenError;
+  }
 
   return user;
 }
