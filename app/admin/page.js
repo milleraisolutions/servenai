@@ -6,11 +6,7 @@ import { useRouter } from "next/navigation";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
 import OwnerLeadsPanel from "../dashboard/components/OwnerLeadsPanel";
-const OWNER_EMAILS = [
-  "antoinemiller@servenai.com",
-  "milleraisolutions21@gmail.com",
-  "millerantoine2137@gmail.com",
-];
+
 
 export default function AdminPage() {
   const router = useRouter();
@@ -71,9 +67,7 @@ const [newProspect, setNewProspect] = useState({
   // New State for your real Supabase demo_leads table
   const [demoLeads, setDemoLeads] = useState([]);
 
-  const isOwner = OWNER_EMAILS.includes(
-    String(currentUser?.email || "").toLowerCase()
-  );
+ const isOwner = Boolean(currentUser);
 
   // Initial access check
   useEffect(() => {
@@ -117,16 +111,24 @@ const [newProspect, setNewProspect] = useState({
       return;
     }
 
-    if (!OWNER_EMAILS.includes(String(user?.email || "").toLowerCase())) {
-      router.push("/dashboard");
-      return;
-    }
+ const { data: isPlatformAdmin, error: adminError } =
+  await supabase.rpc("is_serven_platform_admin");
 
-    setCurrentUser(user);
-    await fetchCustomers();
-  };
+if (adminError || isPlatformAdmin !== true) {
+  console.error(
+    "SerVen admin authorization denied:",
+    adminError?.message || "Not a platform administrator"
+  );
 
-  const fetchCustomers = async () => {
+  router.push("/dashboard");
+  return;
+}
+
+setCurrentUser(user);
+await fetchCustomers();
+};
+
+const fetchCustomers = async () => {
     setLoading(true);
     setErrorMessage("");
 
