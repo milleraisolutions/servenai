@@ -54,6 +54,51 @@ async function getAuthenticatedOwner(req) {
     throw forbiddenError;
   }
 
+  // ========================================
+  // VERIFY ACTIVE PLATFORM ADMINISTRATOR
+  // ========================================
+
+  const supabaseUser = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    {
+      global: {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      },
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+    }
+  );
+
+  const {
+    data: isPlatformAdmin,
+    error: adminError,
+  } = await supabaseUser.rpc(
+    "is_serven_platform_admin"
+  );
+
+  if (
+    adminError ||
+    isPlatformAdmin !== true
+  ) {
+    console.error(
+      "Labor recovery administrator authorization denied:",
+      adminError?.message ||
+        "Not an active platform administrator"
+    );
+
+    const forbiddenError = new Error(
+      "You are not authorized to run recovery verification."
+    );
+
+    forbiddenError.status = 403;
+    throw forbiddenError;
+  }
+
   return user;
 }
 
@@ -1099,15 +1144,33 @@ export async function POST(req) {
         .update(
           verificationPayload
         )
-        .eq(
+              .eq(
           "id",
           existingVerification.id
         )
+        .eq("user_id", userId)
+        .eq("location_id", locationId)
+        .eq("action_id", actionId)
+        .neq("verification_status", "verified")
         .select()
-        .single();
+        .maybeSingle();
 
       if (updateVerificationError) {
         throw updateVerificationError;
+      }
+
+      if (!updatedVerification) {
+        return NextResponse.json(
+          {
+            success: false,
+            status: "verification_conflict",
+            verifiedRecovery: 0,
+            billable: false,
+            message:
+              "The verification record changed during measurement. No financial record was overwritten. Refresh and retry.",
+          },
+          { status: 409 }
+        );
       }
 
       verificationRecord =
@@ -1139,6 +1202,7 @@ export async function POST(req) {
     // ========================================
 
     const {
+      data: updatedAction,
       error: actionStatusError,
     } = await supabaseAdmin
       .from("ai_applied_actions")
@@ -1155,12 +1219,26 @@ export async function POST(req) {
           null,
       })
       .eq("id", actionId)
-      .eq("user_id", userId);
+      .eq("user_id", userId)
+      .neq("verification_status", "verified")
+      .select("id")
+      .maybeSingle();
 
     if (actionStatusError) {
       throw actionStatusError;
     }
-
+    if (!updatedAction) {
+      return NextResponse.json(
+        {
+          success: false,
+          status: "action_verification_conflict",
+          billable: false,
+          message:
+            "The AI action was not updated because its verification status changed or it is no longer available. Refresh and retry.",
+        },
+        { status: 409 }
+      );
+    }
     // ========================================
     // CALCULATED + SAVED
     //
