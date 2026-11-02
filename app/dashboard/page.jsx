@@ -37082,12 +37082,41 @@ existingLedgerRows.push({
             .toFixed(2)
         );
 
-        if (lifetimeRecovery <= 0) {
-          continue;
-        }
+       if (lifetimeRecovery <= 0) {
+  continue;
+}
 
-        const latestEvidence = [
-          ...futurePeriods,
+/*
+  Avoid updating an already-synchronized action.
+
+  The ledger remains the source of truth.
+  Only update the action when its verified
+  recovery amount or verification state changes.
+*/
+
+const savedLifetimeRecovery = Number(
+  action.verified_recovery || 0
+);
+
+const recoveryAmountUnchanged =
+  Math.abs(
+    savedLifetimeRecovery - lifetimeRecovery
+  ) < 0.005;
+
+const verificationAlreadyCurrent =
+  action.verification_status === "verified" &&
+  action.implementation_status === "confirmed" &&
+  action.status === "verified";
+
+if (
+  recoveryAmountUnchanged &&
+  verificationAlreadyCurrent
+) {
+  continue;
+}
+
+const latestEvidence = [
+  ...futurePeriods,
         ].sort((a, b) => {
           const aTime = a?.usageDate
             ? new Date(
