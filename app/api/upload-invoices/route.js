@@ -93,10 +93,7 @@ function parseInvoiceText(text) {
     .replace(/[ \t]+/g, " ")
     .trim();
 
-  console.log(
-    "RAW INVOICE TEXT FOR PARSER:",
-    rawText.slice(0, 3000)
-  );
+ 
 
   const lines = rawText
     .split(/\n+/)
@@ -265,9 +262,7 @@ itemName = itemName
     });
   }
 
-  console.log("PARSED SUPPLIER:", supplierName);
-  console.log("PARSED INVOICE DATE:", invoiceDate);
-  console.log("FINAL PARSED INVOICE ITEMS:", items);
+ 
   console.log("FINAL PARSED ITEM COUNT:", items.length);
 
   return {
@@ -327,17 +322,30 @@ async function safelyRemoveStorageFile(
   supabase,
   filePath
 ) {
-  if (!filePath) return;
+  if (!filePath) return true; // No stored PDF exists to remove.
 
-  const { error } = await supabase.storage
-    .from("invoice-pdfs")
-    .remove([filePath]);
+  try {
+    const { error } = await supabase.storage
+      .from("invoice-pdfs")
+      .remove([filePath]);
 
-  if (error) {
+    if (error) {
+      console.error(
+        "Failed to remove invoice storage file:",
+        error.message
+      );
+
+      return false;
+    }
+
+    return true;
+  } catch (error) {
     console.error(
-      "Failed to remove invoice storage file:",
-      error
+      "Invoice storage cleanup crashed:",
+      error?.message || "Unknown error."
     );
+
+    return false;
   }
 }
 
@@ -345,21 +353,84 @@ async function safelyDeleteUploadRow(
   supabase,
   uploadId
 ) {
-  if (!uploadId) return;
+  if (!uploadId) return true; // No upload record exists to remove.
 
-  const { error } = await supabase
-    .from("uploads")
-    .delete()
-    .eq("id", uploadId);
+  try {
+    const { data, error } = await supabase
+      .from("uploads")
+      .delete()
+      .eq("id", uploadId)
+      .select("id");
 
-  if (error) {
+    if (error) {
+      console.error(
+        "Failed to remove uploads row:",
+        error.message
+      );
+
+      return false;
+    }
+
+    if (!data?.length) {
+      console.error(
+        "Upload cleanup did not delete a record:",
+        uploadId
+      );
+
+      return false;
+    }
+
+    return true;
+  } catch (error) {
     console.error(
-      "Failed to remove uploads row:",
-      error
+      "Upload database cleanup crashed:",
+      error?.message || "Unknown error."
     );
+
+    return false;
   }
 }
+async function safelyDeleteInvoiceRow(
+  supabase,
+  invoiceId,
+  restaurantOwnerId
+) {
+  if (!invoiceId || !restaurantOwnerId) {
+    return false;
+  }
 
+  try {
+    const { data, error } = await supabase
+      .from("invoice_uploads")
+      .delete()
+      .eq("id", invoiceId)
+      .eq("user_id", restaurantOwnerId)
+      .select("id");
+
+    if (error) {
+      console.error(
+        "Failed to remove incomplete invoice:",
+        error.message
+      );
+      return false;
+    }
+
+    if (!data?.length) {
+      console.error(
+        "Incomplete invoice cleanup did not delete a record."
+      );
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error(
+      "Incomplete invoice cleanup crashed:",
+      error?.message || "Unknown error."
+    );
+    return false;
+  }
+}
 /* ======================================================
    PDF-PARSE COMPATIBILITY
 ====================================================== */
@@ -407,16 +478,13 @@ async function extractPdfText(buffer, fileName) {
       : String(result?.text || "");
 
     console.log("UNPDF TEXT LENGTH:", text.length);
-    console.log("UNPDF TEXT SAMPLE:", text.slice(0, 1500));
+    
 
     return text;
   } catch (error) {
-    console.error("UNPDF EXTRACTION FAILED");
-console.error(error);
-console.error("MESSAGE:", error?.message);
-console.error("STACK:", error?.stack);
-console.error("NAME:", error?.name);
-console.error("FULL ERROR:", JSON.stringify(error, null, 2));
+   console.error("Invoice PDF text extraction failed:", {
+  errorType: error?.name || "UnknownError",
+});
 
     throw new Error(
       `Could not extract PDF text from ${fileName}: ${
@@ -486,9 +554,11 @@ if (itemNames.length) {
 
   if (historyError) {
     console.warn(
-      "Invoice price history lookup failed:",
-      historyError
-    );
+  "Invoice price history lookup failed:",
+  {
+    errorCode: historyError?.code || "UNKNOWN",
+  }
+);
   } else {
     historicalItems = (historyData || []).filter(
       (historicalItem) =>
@@ -661,21 +731,20 @@ for (const item of parsedInvoice.items) {
       .from("invoice_line_items")
       .insert(rowsToInsert)
       .select();
+if (lineItemError) {
+ console.error(
+  "Invoice line-item database insert failed:",
+  {
+    errorCode: lineItemError?.code || "UNKNOWN",
+  }
+);
 
-    if (lineItemError) {
-      console.error(
-        "Invoice parent saved, but line items failed:",
-        lineItemError
-      );
-
-      return {
-        insertedItems: [],
-        alerts,
-        warning:
-          `Invoice saved, but line items failed: ` +
-          lineItemError.message,
-      };
-    }
+  throw new Error(
+    `Invoice line-item database insert failed: ${
+      lineItemError.message
+    }`
+  );
+}
 /*
   Rebuild vendor price history after every successful invoice import.
 
@@ -712,9 +781,11 @@ try {
 
   if (supplierHistoryError) {
     console.warn(
-      "Vendor price history rebuild lookup failed:",
-      supplierHistoryError
-    );
+  "Vendor price history rebuild lookup failed:",
+  {
+    errorCode: supplierHistoryError?.code || "UNKNOWN",
+  }
+);
   } else {
     const normalizedCurrentSupplier = String(
       parsedInvoice.supplierName || "Unknown Supplier"
@@ -815,20 +886,23 @@ try {
           .eq("user_id", user.id);
 
         if (historyUpdateError) {
-          console.warn(
-            "Vendor price history rebuild update failed:",
-            currentRow.id,
-            historyUpdateError
-          );
+         console.warn(
+  "Vendor price history rebuild update failed:",
+  {
+    errorCode: historyUpdateError?.code || "UNKNOWN",
+  }
+);
         }
       }
     }
   }
 } catch (historyRebuildError) {
-  console.warn(
-    "Vendor price history rebuild crashed:",
-    historyRebuildError
-  );
+ console.warn(
+  "Vendor price history rebuild failed:",
+  {
+    errorType: historyRebuildError?.name || "UnknownError",
+  }
+);
 }
 /*
   Synchronize canonical ingredient costs from invoice evidence.
@@ -1024,10 +1098,9 @@ try {
         ingredientByName.get(normalizedItemName);
 
       if (!matchingIngredient) {
-        console.log(
-          "Invoice ingredient cost sync skipped - no canonical ingredient:",
-          insertedItem.item_name
-        );
+       console.log(
+  "Invoice ingredient cost sync skipped - no canonical ingredient match."
+);
         continue;
       }
 
@@ -1062,11 +1135,12 @@ try {
         );
 
       if (latestEvidenceError) {
-        console.warn(
-          "Invoice ingredient latest-cost lookup failed:",
-          insertedItem.item_name,
-          latestEvidenceError
-        );
+       console.warn(
+  "Invoice ingredient latest-cost lookup failed:",
+  {
+    errorCode: latestEvidenceError?.code || "UNKNOWN",
+  }
+);
         continue;
       }
 
@@ -1097,10 +1171,9 @@ try {
         authoritative newest invoice for the item.
       */
       if (newestEvidence.id !== insertedItem.id) {
-        console.log(
-          "Invoice ingredient cost sync skipped - newer invoice already exists:",
-          insertedItem.item_name
-        );
+       console.log(
+  "Invoice ingredient cost sync skipped - newer invoice evidence already exists."
+);
         continue;
       }
 
@@ -1114,12 +1187,9 @@ try {
         convertedCost == null ||
         !Number.isFinite(convertedCost)
       ) {
-        console.warn(
-          "Invoice ingredient cost sync skipped - incompatible units:",
-          insertedItem.item_name,
-          newestEvidence.unit,
-          matchingIngredient.unit
-        );
+       console.warn(
+  "Invoice ingredient cost sync skipped - incompatible measurement units."
+);
         continue;
       }
 
@@ -1160,26 +1230,16 @@ try {
         .eq("user_id", user.id);
 
       if (ingredientUpdateError) {
-        console.error(
-          "Invoice ingredient cost sync update failed:",
-          insertedItem.item_name,
-          ingredientUpdateError
-        );
+       console.error(
+  "Invoice ingredient cost sync update failed:",
+  {
+    errorCode: ingredientUpdateError?.code || "UNKNOWN",
+  }
+);
         continue;
       }
 
-      console.log(
-        "INVOICE INGREDIENT COST SYNC:",
-        {
-          ingredient: matchingIngredient.name,
-          previousCost,
-          newCost: convertedCost,
-          quantity: ingredientQuantity,
-          previousTotalCost,
-          newTotalCost: nextTotalCost,
-          invoiceDate: parsedInvoice.invoiceDate,
-        }
-      );
+      
 
       /*
         Keep the in-memory ingredient representation current
@@ -1209,20 +1269,14 @@ try {
       alerts,
       warning: null,
     };
-  } catch (error) {
-    console.error(
-      "Invoice line-item processing crashed:",
-      error
-    );
+ } catch (error) {
+  console.error(
+    "Invoice line-item processing crashed:",
+    error?.message || "Unknown error"
+  );
 
-    return {
-      insertedItems: [],
-      alerts: [],
-      warning:
-        `Invoice saved, but line-item processing failed: ` +
-        `${error?.message || "Unknown error"}`,
-    };
-  }
+  throw error;
+}
 }
 
 /* ======================================================
@@ -1282,7 +1336,74 @@ export async function POST(req) {
         { status: 401 }
       );
     }
+// Verify the authenticated restaurant account.
+const { data: uploaderProfile, error: profileError } =
+  await supabase
+    .from("users")
+    .select(
+  "id, role, account_type, status, employment_status, removed_at, owner_user_id"
+)
+    .eq("id", user.id)
+    .maybeSingle();
 
+if (
+  profileError ||
+  !uploaderProfile ||
+  uploaderProfile.account_type !== "restaurant" ||
+  uploaderProfile.status !== "active" ||
+  uploaderProfile.removed_at !== null ||
+  (
+    uploaderProfile.owner_user_id !== null &&
+    (
+      uploaderProfile.employment_status !== "active" ||
+      ![
+        "gm",
+        "general_manager",
+        "kitchen_manager",
+        "regional_director"
+      ].includes(uploaderProfile.role)
+    )
+  )
+) {
+  return NextResponse.json(
+    {
+      success: false,
+      error: "Active restaurant account required.",
+    },
+    { status: 403 }
+  );
+}
+
+// Resolve the restaurant owner on the server.
+// Never accept the owner ID directly from the browser.
+const restaurantOwnerId =
+  uploaderProfile.owner_user_id || user.id;
+
+// Confirm that the resolved owner is an active restaurant account.
+const { data: restaurantOwner, error: ownerError } =
+  await supabase
+    .from("users")
+    .select("id, role, account_type, status, removed_at, owner_user_id")
+    .eq("id", restaurantOwnerId)
+    .maybeSingle();
+
+if (
+  ownerError ||
+  !restaurantOwner ||
+  restaurantOwner.account_type !== "restaurant" ||
+  restaurantOwner.status !== "active" ||
+  restaurantOwner.removed_at !== null ||
+restaurantOwner.owner_user_id !== null ||
+!["owner", "executive"].includes(restaurantOwner.role)
+) {
+  return NextResponse.json(
+    {
+      success: false,
+      error: "Valid restaurant ownership required.",
+    },
+    { status: 403 }
+  );
+}
     const formData = await req.formData();
 
     const files = formData
@@ -1304,9 +1425,41 @@ export async function POST(req) {
         { status: 400 }
       );
     }
+// Limit the number of invoices processed per request.
+const MAX_INVOICE_FILES = 10;
 
+if (files.length > MAX_INVOICE_FILES) {
+  return NextResponse.json(
+    {
+      success: false,
+      error:
+        `You can upload a maximum of ${MAX_INVOICE_FILES} invoices at once.`,
+    },
+    { status: 413 }
+  );
+}
     
+// Maximum combined invoice file size: 50 MB.
+const MAX_TOTAL_INVOICE_SIZE = 50 * 1024 * 1024;
 
+const totalInvoiceSize = files.reduce(
+  (total, file) => total + Number(file.size || 0),
+  0
+);
+
+if (
+  !Number.isFinite(totalInvoiceSize) ||
+  totalInvoiceSize > MAX_TOTAL_INVOICE_SIZE
+) {
+  return NextResponse.json(
+    {
+      success: false,
+      error:
+        "Combined invoice uploads cannot exceed 50 MB.",
+    },
+    { status: 413 }
+  );
+}
     const createdUploadRows = [];
     const createdInvoiceRows = [];
     const createdLineItems = [];
@@ -1314,10 +1467,12 @@ export async function POST(req) {
     const warnings = [];
     const failures = [];
 
-    for (const file of files) {
-      let uploadRow = null;
-      let filePath = null;
-      let invoiceWasSaved = false;
+  for (const file of files) {
+  let uploadRow = null;
+  let invoiceRowId = null;
+  let filePath = null;
+  let invoiceWasSaved = false;
+  let lineItemsWereSaved = false;
 
       try {
         const fileName =
@@ -1329,23 +1484,68 @@ export async function POST(req) {
             .toLowerCase()
             .endsWith(".pdf");
 
-        if (!isPdf) {
-          throw new Error(
-            `${fileName} must be a PDF.`
-          );
-        }
+   if (!isPdf) {
+  const validationError = new Error(
+    "Only PDF invoice files are supported."
+  );
 
-        const bytes =
-          await file.arrayBuffer();
+  validationError.code = "INVALID_INVOICE_FILE_TYPE";
 
-        const buffer =
-          Buffer.from(bytes);
+  throw validationError;
+}
 
-        if (!buffer.length) {
-          throw new Error(
-            `${fileName} is empty.`
-          );
-        }
+// Maximum individual invoice PDF size: 10 MB.
+const MAX_INVOICE_FILE_SIZE = 10 * 1024 * 1024;
+
+if (
+  !Number.isFinite(file.size) ||
+  file.size <= 0
+) {
+  const validationError = new Error(
+    "Invoice PDF is empty or has an invalid file size."
+  );
+
+  validationError.code = "INVALID_INVOICE_FILE_SIZE";
+
+  throw validationError;
+}
+
+if (file.size > MAX_INVOICE_FILE_SIZE) {
+  const validationError = new Error(
+    "Invoice PDF exceeds the 10 MB file size limit."
+  );
+
+  validationError.code = "INVOICE_FILE_TOO_LARGE";
+
+  throw validationError;
+}
+
+const bytes =
+  await file.arrayBuffer();
+
+     const buffer =
+  Buffer.from(bytes);
+
+if (!buffer.length) {
+  throw new Error(
+    `${fileName} is empty.`
+  );
+}
+
+// Verify the file begins with the standard PDF signature.
+const pdfSignature = buffer
+  .subarray(0, 5)
+  .toString("ascii");
+
+if (pdfSignature !== "%PDF-") {
+  const validationError = new Error(
+    "The uploaded file is not a valid PDF."
+  );
+
+  validationError.code = "INVALID_PDF_SIGNATURE";
+
+  throw validationError;
+}
 
         let text = "";
 
@@ -1385,10 +1585,7 @@ export async function POST(req) {
           text.length
         );
 
-        console.log(
-          "PDF TEXT SAMPLE:",
-          text.slice(0, 1500)
-        );
+     
 
         const parsedInvoice =
           parseInvoiceText(text);
@@ -1403,10 +1600,7 @@ if (!parsedInvoice.items.length) {
     `PDF text was extracted from ${fileName}, but no invoice line items were recognized.`
   );
 }
-        console.log(
-          "PARSED INVOICE:",
-          parsedInvoice
-        );
+       
 
         console.log(
           "PARSED ITEM COUNT:",
@@ -1420,9 +1614,9 @@ if (!parsedInvoice.items.length) {
           data: newUploadRow,
           error: uploadError,
         } = await supabase
-          .from("uploads")
-          .insert({
-            user_id: user.id,
+         .from("uploads")
+.insert({
+  user_id: restaurantOwnerId,
             file_name: fileName,
             source_name:
               "invoice_upload",
@@ -1442,9 +1636,6 @@ if (!parsedInvoice.items.length) {
         }
 
         uploadRow = newUploadRow;
-        createdUploadRows.push(
-          uploadRow
-        );
 
         /*
           Save the original PDF.
@@ -1498,8 +1689,8 @@ if (!parsedInvoice.items.length) {
           The upload_id relationship is required
           for reliable deletion and data cleanup.
         */
-        const invoicePayload = {
-          user_id: user.id,
+       const invoicePayload = {
+  user_id: restaurantOwnerId,
           upload_id: uploadRow.id,
           supplier_name:
             parsedInvoice.supplierName ||
@@ -1513,10 +1704,7 @@ if (!parsedInvoice.items.length) {
             filePath,
         };
 
-        console.log(
-          "INSERTING INVOICE_UPLOADS:",
-          invoicePayload
-        );
+       
 
         const {
           data: invoiceRow,
@@ -1533,26 +1721,40 @@ if (!parsedInvoice.items.length) {
           );
         }
 
-        invoiceWasSaved = true;
+        invoiceRowId = invoiceRow.id;
+invoiceWasSaved = true;
 
-        createdInvoiceRows.push(
-          invoiceRow
-        );
 
         /*
           Save the individual invoice rows.
         */
         const lineItemResult =
-          await insertInvoiceLineItems({
-            supabase,
-            user,
-            file,
-            parsedInvoice,
-            invoiceRow,
-            uploadRow,
-          });
+  await insertInvoiceLineItems({
+    supabase,
+    user: {
+      ...user,
+      id: restaurantOwnerId,
+    },
+    file,
+    parsedInvoice,
+    invoiceRow,
+    uploadRow,
+  });
 
-        const finalRowCount =
+if (
+  lineItemResult.insertedItems.length !==
+  parsedInvoice.items.length
+) {
+  throw new Error(
+    "Invoice line-item count does not match the parsed invoice."
+  );
+}
+
+lineItemsWereSaved = true;
+// Record success only after invoice line items are saved.
+createdUploadRows.push(uploadRow);
+createdInvoiceRows.push(invoiceRow);
+const finalRowCount =
           lineItemResult.insertedItems
             .length ||
           parsedInvoice.items.length ||
@@ -1615,51 +1817,135 @@ if (!parsedInvoice.items.length) {
           });
         }
       } catch (fileError) {
-        console.error(
-          `Invoice processing failed for ${file?.name}:`,
-          {
-            message:
-              fileError?.message,
-            details:
-              fileError?.details,
-            hint:
-              fileError?.hint,
-            code:
-              fileError?.code,
-            stack:
-              fileError?.stack,
-          }
-        );
+        console.error("Invoice processing failed:", {
+  errorCode: fileError?.code || "UNKNOWN",
+  errorType: fileError?.name || "UnknownError",
+});
 
-        failures.push({
-          fileName:
-            file?.name ||
-            "Unknown file",
-          error:
-            fileError?.message ||
-            "Invoice processing failed.",
-        });
+if (lineItemsWereSaved) {
+  warnings.push({
+    fileName: file?.name || "Unknown file",
+    message:
+      "Invoice and line items were saved, but a later processing step failed. Please contact support if the issue persists.",
+  });
+} else {
+const safeErrorMessage =
+  fileError?.code === "INVALID_INVOICE_FILE_TYPE"
+    ? "Only PDF invoice files are supported."
+    : fileError?.code === "INVOICE_FILE_TOO_LARGE"
+      ? "Invoice PDF exceeds the 10 MB file size limit."
+      : fileError?.code === "INVALID_INVOICE_FILE_SIZE"
+        ? "Invoice PDF is empty or has an invalid file size."
+        : fileError?.code === "INVALID_PDF_SIGNATURE"
+          ? "The uploaded file is not a valid PDF."
+          : "Invoice processing failed. Please verify the PDF and try again.";
 
-        /*
-          If the invoice parent was never saved,
-          clean up the orphan upload and PDF.
-        */
-        if (!invoiceWasSaved) {
-          await safelyRemoveStorageFile(
-            supabase,
-            filePath
-          );
+  failures.push({
+    fileName: file?.name || "Unknown file",
+    error: safeErrorMessage,
+  });
+}
+// Remove failed invoices from the successful response.
+if (!lineItemsWereSaved) {
+  if (invoiceRowId) {
+    const invoiceIndex = createdInvoiceRows.findIndex(
+      (row) => row.id === invoiceRowId
+    );
 
-          await safelyDeleteUploadRow(
-            supabase,
-            uploadRow?.id
-          );
-        }
-      }
+    if (invoiceIndex !== -1) {
+      createdInvoiceRows.splice(invoiceIndex, 1);
     }
+  }
 
-    const uploadedCount =
-      createdInvoiceRows.length;
+  if (uploadRow?.id) {
+    const uploadIndex = createdUploadRows.findIndex(
+      (row) => row.id === uploadRow.id
+    );
+
+    if (uploadIndex !== -1) {
+      createdUploadRows.splice(uploadIndex, 1);
+    }
+  }
+}
+       /*
+  If invoice line items were not successfully saved,
+  clean up the newly created invoice parent,
+  its associated upload record, and stored PDF.
+
+  Never delete an invoice after its line items
+  have been successfully persisted.
+*/
+  if (!lineItemsWereSaved) {
+  // Delete only the invoice created by this upload attempt.
+  // Its line items are removed by the database cascade.
+let canRemoveInvoiceArtifacts = !invoiceRowId;
+
+if (invoiceRowId) {
+  const invoiceDeleted = await safelyDeleteInvoiceRow(
+    supabase,
+    invoiceRowId,
+    restaurantOwnerId
+  );
+
+  canRemoveInvoiceArtifacts = invoiceDeleted;
+
+if (!invoiceDeleted) {
+  console.error(
+    "Incomplete invoice requires cleanup review. Preserving PDF and upload record:",
+    invoiceRowId
+  );
+
+  warnings.push({
+    fileName: file?.name || "Unknown file",
+    message:
+      "Incomplete invoice cleanup could not be confirmed. " +
+      "The associated PDF and upload record were preserved " +
+      "for administrator review.",
+  });
+}
+}
+  // Remove the associated PDF and upload tracking record.
+  if (canRemoveInvoiceArtifacts) {
+  const cleanupResults = await Promise.allSettled([
+    safelyRemoveStorageFile(
+      supabase,
+      filePath
+    ),
+    safelyDeleteUploadRow(
+      supabase,
+      uploadRow?.id
+    ),
+  ]);
+
+ cleanupResults.forEach((result, index) => {
+  const cleanupType =
+    index === 0 ? "Invoice PDF" : "Invoice upload record";
+
+  const cleanupFailed =
+    result.status === "rejected" ||
+    (result.status === "fulfilled" && result.value === false);
+
+  if (cleanupFailed) {
+    console.error(
+      `${cleanupType} cleanup was unsuccessful:`,
+      result.status === "rejected"
+        ? result.reason?.message || "Unknown error."
+        : "Deletion was not confirmed."
+    );
+
+    warnings.push({
+      fileName: file?.name || "Unknown file",
+      message: `${cleanupType} cleanup could not be confirmed. Administrator review may be required.`,
+    });
+  }
+});
+  } // End artifact cleanup condition
+  } // End incomplete invoice condition
+  } // End catch(fileError)
+  } // End file processing loop
+
+  const uploadedCount =
+    createdInvoiceRows.length;
 
     const success =
       uploadedCount > 0;
@@ -1694,25 +1980,18 @@ if (!parsedInvoice.items.length) {
         status: success ? 200 : 500,
       }
     );
-  } catch (error) {
-    console.error(
-      "INVOICE UPLOAD ROUTE FAILED:",
-      {
-        message: error?.message,
-        details: error?.details,
-        hint: error?.hint,
-        code: error?.code,
-        stack: error?.stack,
-      }
-    );
+    } catch (error) {
+    console.error("Invoice upload request failed:", {
+      errorCode: error?.code || "UNKNOWN",
+      errorType: error?.name || "UnknownError",
+    });
 
     return NextResponse.json(
       {
         success: false,
         uploadedCount: 0,
         error:
-          error?.message ||
-          "Failed to process invoices.",
+          "An unexpected error occurred while processing invoices. Please try again or contact support.",
       },
       { status: 500 }
     );

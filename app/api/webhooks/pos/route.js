@@ -262,7 +262,27 @@ integration_connection_id: connectionId || null,
 export async function POST(request) {
   let webhookEventRowId = null;
 
+  // Unique identifier for this webhook processing attempt.
+  // Used by database claim, completion, and failure functions.
+  const processingClaimToken = crypto.randomUUID();
+
   try {
+    // ========================================
+// GENERIC POS TEST WEBHOOK ENVIRONMENT GATE
+// ========================================
+
+// This endpoint currently supports only Serven's
+// generic test integration, not production POS providers.
+if (process.env.NODE_ENV === "production") {
+  return NextResponse.json(
+    {
+      success: false,
+      error:
+        "Generic POS test webhooks are disabled in production.",
+    },
+    { status: 403 }
+  );
+}
     const suppliedSecret =
       request.headers.get("x-serven-webhook-secret");
 
@@ -373,43 +393,105 @@ export async function POST(request) {
       throw existingEventError;
     }
 
-    if (existingEvent) {
-      return NextResponse.json({
-        success: true,
-        duplicate: true,
-        message:
-          "Webhook event was already received.",
-        eventId,
-        processingStatus:
-          existingEvent.processing_status,
-      });
-    }
+ if (existingEvent) {
+  const existingStatus = String(
+    existingEvent.processing_status || ""
+  ).toLowerCase();
 
-    const {
-      data: webhookEvent,
-      error: webhookInsertError,
-    } = await supabaseAdmin
-      .from("pos_webhook_events")
-      .insert({
+  if (existingStatus === "processed") {
+    return NextResponse.json({
+      success: true,
+      duplicate: true,
+      message: "Webhook event was already processed.",
+      eventId,
+      processingStatus: existingStatus,
+    });
+  }
+
+  // Reuse the existing event for a retry.
+  // The database claim function determines whether
+  // this processing attempt is allowed.
+  webhookEventRowId = existingEvent.id;
+}
+
+ if (!existingEvent) {
+  const {
+    data: webhookEvent,
+    error: webhookInsertError,
+  } = await supabaseAdmin
+    .from("pos_webhook_events")
+    .upsert(
+      {
         provider: "generic",
         external_event_id: eventId,
         event_type: eventType,
         user_id: connection.user_id,
-        integration_connection_id:
-          connection.id,
+        integration_connection_id: connection.id,
         processing_status: "received",
         payload: body,
-      })
+      },
+      {
+        onConflict: "provider,external_event_id",
+        ignoreDuplicates: true,
+      }
+    )
+    .select("id")
+    .maybeSingle();
+
+  if (webhookInsertError) {
+    throw webhookInsertError;
+  }
+
+  if (webhookEvent?.id) {
+    webhookEventRowId = webhookEvent.id;
+  } else {
+    // Another request inserted the same event first.
+    const {
+      data: concurrentEvent,
+      error: concurrentEventError,
+    } = await supabaseAdmin
+      .from("pos_webhook_events")
       .select("id")
+      .eq("provider", "generic")
+      .eq("external_event_id", eventId)
       .single();
 
-    if (webhookInsertError) {
-      throw webhookInsertError;
+    if (concurrentEventError || !concurrentEvent) {
+      throw concurrentEventError ||
+        new Error("Unable to retrieve existing POS webhook event.");
     }
 
-    webhookEventRowId = webhookEvent.id;
+    webhookEventRowId = concurrentEvent.id;
+  }
+}
 
-    const order = body.order || body.data || {};
+// Atomically claim this event before processing its order.
+const { data: eventClaimed, error: claimError } =
+  await supabaseAdmin.rpc("claim_pos_webhook_event", {
+    p_event_id: webhookEventRowId,
+    p_claim_token: processingClaimToken,
+  });
+
+if (claimError) {
+  throw claimError;
+}
+if (eventClaimed !== true) {
+  return NextResponse.json(
+    {
+      success: false,
+      duplicate: true,
+      message:
+        "POS webhook event is already being processed or is not eligible for a new claim.",
+      eventId,
+      processingStatus: "claim_rejected",
+    },
+    {
+      status: 409,
+    }
+  );
+}
+
+const order = body.order || body.data || {};
 
     const externalOrderId = String(
       order.external_order_id ||
@@ -669,42 +751,47 @@ export async function POST(request) {
         error: itemUpsertError,
       } = await supabaseAdmin
         .from("pos_order_items")
-        .upsert(normalizedItems, {
-          onConflict:
-            "provider,external_line_item_id,user_id",
-        })
+       .upsert(normalizedItems, {
+  onConflict:
+    "user_id,provider,pos_order_id,external_line_item_id",
+})
         .select("id");
 
       if (itemUpsertError) {
         throw itemUpsertError;
       }
 
-      savedItemCount =
-        savedItems?.length || 0;
-        await syncIntegratedMenuItemHistory({
-  supabaseAdmin,
-  userId: connection.user_id,
-  connectionId: connection.id,
-  locationId: connection.location_id || null,
-  incomingItems: normalizedItems,
-});
+     savedItemCount =
+  savedItems?.length || 0;
+
+// Menu-item financial totals must be derived from
+// reconciled POS transactions, not incremented
+// on every webhook event.
+//
+// Preserve the operational POS line items.
+// Do not mutate cumulative menu sales here.
     }
 
-    const {
-      error: processedEventError,
-    } = await supabaseAdmin
-      .from("pos_webhook_events")
-      .update({
-        processing_status: "processed",
-        processing_error: null,
-        processed_at:
-          new Date().toISOString(),
-      })
-      .eq("id", webhookEventRowId);
+ const {
+  data: eventCompleted,
+  error: processedEventError,
+} = await supabaseAdmin.rpc(
+  "complete_pos_webhook_event",
+  {
+    p_event_id: webhookEventRowId,
+    p_claim_token: processingClaimToken,
+  }
+);
 
-    if (processedEventError) {
-      throw processedEventError;
-    }
+if (processedEventError) {
+  throw processedEventError;
+}
+
+if (eventCompleted !== true) {
+  throw new Error(
+    "POS webhook completion rejected: processing claim is no longer valid."
+  );
+}
 
     await supabaseAdmin
       .from("integration_connections")
@@ -734,19 +821,33 @@ export async function POST(request) {
       error
     );
 
-    if (webhookEventRowId) {
-      await supabaseAdmin
-        .from("pos_webhook_events")
-        .update({
-          processing_status: "failed",
-          processing_error:
-            error?.message ||
-            "Unknown processing error",
-          processed_at:
-            new Date().toISOString(),
-        })
-        .eq("id", webhookEventRowId);
+  if (webhookEventRowId) {
+  const {
+    data: eventFailed,
+    error: failureUpdateError,
+  } = await supabaseAdmin.rpc(
+    "fail_pos_webhook_event",
+    {
+      p_event_id: webhookEventRowId,
+      p_claim_token: processingClaimToken,
+      p_error:
+        error?.message ||
+        "Unknown processing error",
     }
+  );
+
+  if (failureUpdateError) {
+    console.error(
+      "POS WEBHOOK FAILURE STATUS UPDATE ERROR:",
+      failureUpdateError
+    );
+  } else if (eventFailed !== true) {
+    console.warn(
+      "POS WEBHOOK FAILURE STATUS NOT UPDATED: claim no longer valid.",
+      webhookEventRowId
+    );
+  }
+}
 
     return NextResponse.json(
       {

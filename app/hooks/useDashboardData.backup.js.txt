@@ -1,0 +1,236 @@
+"use client";
+
+import { useEffect, useState, useMemo } from "react";
+import { supabase } from "../lib/supabaseClient";
+import { calculateDashboardAI } from "../lib/ai/aiEngine";
+
+export default function useDashboardData() {
+  /* ===============================
+     BASE DATA (NO LOOPS)
+  =============================== */
+
+  const [salesData, setSalesData] = useState([]);
+  const normalizeDashboardSales = (rows) => {
+  return (Array.isArray(rows) ? rows : [])
+    .filter((sale) => {
+      const isVoided =
+        sale?.is_voided === true ||
+        String(sale?.is_voided || "").toLowerCase() === "true";
+
+      const isDeleted = Boolean(sale?.provider_deleted_at);
+
+      const isTestData =
+        sale?.is_test_data === true ||
+        String(sale?.is_test_data || "").toLowerCase() === "true";
+
+      const isConnected =
+        Boolean(sale?.connection_id) ||
+        Boolean(sale?.integration_connection_id);
+
+      const status = String(
+        sale?.provider_status || ""
+      ).trim().toLowerCase();
+
+      const isCanceled =
+        isConnected &&
+        [
+          "void",
+          "voided",
+          "cancelled",
+          "canceled",
+          "deleted",
+        ].includes(status);
+
+      return (
+        !isVoided &&
+        !isDeleted &&
+        !isTestData &&
+        !isCanceled
+      );
+    })
+    .map((sale) => ({
+      ...sale,
+      date: sale.date || sale.sale_date || null,
+      orders:
+        sale.orders_count ??
+        sale.orders ??
+        sale.order_count ??
+        sale.total_orders ??
+        sale.transactions ??
+        sale.tickets ??
+        0,
+    }));
+};
+  const [inventoryItems, setInventoryItems] = useState([]);
+  const [plan, setPlan] = useState("starter");
+  const [businessType, setBusinessType] = useState("restaurant");
+
+  const [ui, setUI] = useState({
+    categoryFilter: "all",
+    timeFilter: "today",
+  });
+
+  const [loading, setLoading] = useState(true);
+const [menuItems, setMenuItems] = useState([]);
+
+useEffect(() => {
+  const fetchMenuItems = async () => {
+    const { data, error } = await supabase
+      .from("menu_items")
+      .select("*");
+
+    if (!error) setMenuItems(data || []);
+  };
+
+  fetchMenuItems();
+}, []);
+  /* ===============================
+     LOAD DATA (ONCE ONLY)
+  =============================== */
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+
+        const { data: menu } = await supabase
+          .from("menu_items")
+          .select("*");
+
+        const { data: sales } = await supabase
+          .from("sales")
+          .select("*")
+          .order("date", { ascending: true });
+
+        const { data: inventory } = await supabase
+          .from("inventory_purchases")
+          .select("*")
+          .order("received_date", { ascending: false });
+
+        const { data: user } = await supabase
+          .from("users")
+          .select("plan, business_type")
+          .single();
+
+        setMenuItems(menu || []);
+        setSalesData(sales || []);
+        setInventoryItems(inventory || []);
+        setPlan(user?.plan || "starter");
+        setBusinessType(user?.business_type || "restaurant");
+      } catch (err) {
+        console.error("Dashboard load error:", err);
+      }
+
+      setLoading(false);
+    };
+
+    loadData();
+  }, []);
+
+  /* ===============================
+     AI CALC (NO STATE = NO LOOP)
+  =============================== */
+  const aiData = useMemo(() => {
+    return calculateDashboardAI({
+      menuItems,
+      salesData,
+      inventoryItems,
+      categoryFilter: ui.categoryFilter,
+      timeFilter: ui.timeFilter,
+      businessType,
+    });
+  }, [
+    menuItems,
+    salesData,
+    inventoryItems,
+    ui.categoryFilter,
+    ui.timeFilter,
+    businessType,
+  ]);
+
+  /* ===============================
+     STARTER KPI HELPERS
+  =============================== */
+  const totalOrders = useMemo(() => {
+    return (salesData || []).reduce((sum, item) => {
+      return (
+        sum +
+        Number(
+          item.orders ||
+            item.order_count ||
+            item.total_orders ||
+            item.transactions ||
+            item.tickets ||
+            0
+        )
+      );
+    }, 0);
+  }, [salesData]);
+
+  const aov = useMemo(() => {
+    const revenue = Number(aiData?.totalRevenue || 0);
+    return totalOrders > 0 ? revenue / totalOrders : 0;
+  }, [aiData?.totalRevenue, totalOrders]);
+
+  /* ===============================
+     UI HANDLERS
+  =============================== */
+  const setCategoryFilter = (value) => {
+    setUI((prev) => ({ ...prev, categoryFilter: value }));
+  };
+
+  const setTimeFilter = (value) => {
+    setUI((prev) => ({ ...prev, timeFilter: value }));
+  };
+
+  const refreshData = async () => {
+    try {
+      setLoading(true);
+
+      const { data: menu } = await supabase
+        .from("menu_items")
+        .select("*");
+
+      const { data: sales } = await supabase
+        .from("sales")
+        .select("*")
+        .order("date", { ascending: true });
+
+      const { data: inventory } = await supabase
+        .from("inventory_purchases")
+        .select("*")
+        .order("received_date", { ascending: false });
+
+      const { data: user } = await supabase
+        .from("users")
+        .select("plan, business_type")
+        .single();
+
+      setMenuItems(menu || []);
+      setSalesData(sales || []);
+      setInventoryItems(inventory || []);
+      setPlan(user?.plan || "starter");
+      setBusinessType(user?.business_type || "restaurant");
+    } catch (err) {
+      console.error("Refresh error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /* ===============================
+     RETURN CLEAN DATA
+  =============================== */
+  return {
+    ...aiData,
+    plan,
+    businessType,
+    aov,
+    totalOrders,
+    categoryFilter: ui.categoryFilter,
+    timeFilter: ui.timeFilter,
+    setCategoryFilter,
+    setTimeFilter,
+    refreshData,
+    loading,
+  };
+}

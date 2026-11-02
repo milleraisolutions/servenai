@@ -170,27 +170,8 @@ if (error) throw error;
 const newUser = data?.user;
 
 if (newUser) {
-  const { error: userInsertError } = await supabase
-    .from("users")
-    .upsert(
-      [
-        {
-          id: newUser.id,
-          email: email,
-          restaurant_name: restaurantName,
-          business_type: businessType,
-          size: size,
-          plan: getRecommendedPlan(size),
-          role: "executive",
-          status: "lead",
-        },
-      ],
-      { onConflict: "id" }
-    );
-
-  if (userInsertError) {
-    console.error("USER INSERT ERROR:", userInsertError);
-  }
+  // The auth.users trigger creates the account profile.
+  // The browser must not assign roles, plans, or account status.
 
   await saveLeadToSupabase({
     userId: newUser.id,

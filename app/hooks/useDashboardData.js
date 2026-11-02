@@ -1,18 +1,70 @@
+
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { calculateDashboardAI } from "../lib/ai/aiEngine";
 
-export default function useDashboardData() {
-  /* ===============================
-     BASE DATA (NO LOOPS)
-  =============================== */
+const normalizeDashboardSales = (rows) => {
+  return (Array.isArray(rows) ? rows : [])
+    .filter((sale) => {
+      const isVoided =
+        sale?.is_voided === true ||
+        String(sale?.is_voided ?? "").toLowerCase() === "true";
 
-  const [salesData, setSalesData] = useState([]);
-  const [inventoryItems, setInventoryItems] = useState([]);
-  const [plan, setPlan] = useState("starter");
-  const [businessType, setBusinessType] = useState("restaurant");
+      const isDeleted = Boolean(sale?.provider_deleted_at);
+
+      const isTestData =
+        sale?.is_test_data === true ||
+        String(sale?.is_test_data ?? "").toLowerCase() === "true";
+
+      const isConnected =
+        Boolean(sale?.connection_id) ||
+        Boolean(sale?.integration_connection_id);
+
+      const status = String(
+        sale?.provider_status ?? ""
+      ).trim().toLowerCase();
+
+      const isCanceled =
+        isConnected &&
+        [
+          "void",
+          "voided",
+          "cancelled",
+          "canceled",
+          "deleted",
+        ].includes(status);
+
+      return !isVoided && !isDeleted && !isTestData && !isCanceled;
+    })
+    .map((sale) => ({
+      ...sale,
+      date: sale.sale_date || sale.date || null,
+      orders:
+        sale.orders_count ??
+        sale.orders ??
+        sale.order_count ??
+        sale.total_orders ??
+        sale.transactions ??
+        sale.tickets ??
+        0,
+    }));
+};
+
+export default function useDashboardData({
+  dataOwnerId = null,
+  authenticatedUserId = null,
+  loadingUser = true,
+} = {}) {
+  const [dashboardState, setDashboardState] = useState({
+    ownerId: null,
+    salesData: [],
+    inventoryItems: [],
+    menuItems: [],
+    plan: "starter",
+    businessType: "restaurant",
+  });
 
   const [ui, setUI] = useState({
     categoryFilter: "all",
@@ -20,64 +72,157 @@ export default function useDashboardData() {
   });
 
   const [loading, setLoading] = useState(true);
-const [menuItems, setMenuItems] = useState([]);
 
-useEffect(() => {
-  const fetchMenuItems = async () => {
-    const { data, error } = await supabase
-      .from("menu_items")
-      .select("*");
+  const requestIdRef = useRef(0);
+  const currentIdentityRef = useRef("");
 
-    if (!error) setMenuItems(data || []);
-  };
+  const ownerId = String(dataOwnerId || "").trim();
+  const authId = String(authenticatedUserId || "").trim();
 
-  fetchMenuItems();
-}, []);
-  /* ===============================
-     LOAD DATA (ONCE ONLY)
-  =============================== */
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        setLoading(true);
+  const identityKey =
+    !loadingUser && ownerId && authId
+      ? `${authId}:${ownerId}`
+      : "";
 
-        const { data: menu } = await supabase
-          .from("menu_items")
-          .select("*");
+  // Updated during render so requests from a previous account
+  // cannot commit results after the identity changes.
+  currentIdentityRef.current = identityKey;
 
-        const { data: sales } = await supabase
-          .from("sales")
-          .select("*")
-          .order("date", { ascending: true });
+  const dataIsCurrent =
+    Boolean(identityKey) &&
+    dashboardState.ownerId === identityKey;
 
-        const { data: inventory } = await supabase
-          .from("inventory_purchases")
-          .select("*")
-          .order("received_date", { ascending: false });
+  const salesData = dataIsCurrent
+    ? dashboardState.salesData
+    : [];
 
-        const { data: user } = await supabase
-          .from("users")
-          .select("plan, business_type")
-          .single();
+  const menuItems = dataIsCurrent
+    ? dashboardState.menuItems
+    : [];
 
-        setMenuItems(menu || []);
-        setSalesData(sales || []);
-        setInventoryItems(inventory || []);
-        setPlan(user?.plan || "starter");
-        setBusinessType(user?.business_type || "restaurant");
-      } catch (err) {
-        console.error("Dashboard load error:", err);
+  const inventoryItems = dataIsCurrent
+    ? dashboardState.inventoryItems
+    : [];
+
+  const plan = dataIsCurrent
+    ? dashboardState.plan
+    : "starter";
+
+  const businessType = dataIsCurrent
+    ? dashboardState.businessType
+    : "restaurant";
+
+  const loadDashboardData = useCallback(async () => {
+    const requestId = ++requestIdRef.current;
+    const requestedIdentity = identityKey;
+
+    const isCurrentRequest = () =>
+      requestId === requestIdRef.current &&
+      requestedIdentity === currentIdentityRef.current;
+
+    if (!requestedIdentity) {
+      setDashboardState({
+        ownerId: null,
+        salesData: [],
+        inventoryItems: [],
+        menuItems: [],
+        plan: "starter",
+        businessType: "restaurant",
+      });
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const {
+        data: { user: authenticatedUser },
+        error: authError,
+      } = await supabase.auth.getUser();
+
+      if (!isCurrentRequest()) return;
+
+      if (authError) throw authError;
+
+      if (authenticatedUser?.id !== authId) {
+        throw new Error("Authenticated account changed during dashboard load.");
       }
 
-      setLoading(false);
+      const [
+        menuResult,
+        salesResult,
+        inventoryResult,
+        profileResult,
+      ] = await Promise.all([
+        supabase
+          .from("menu_items")
+          .select("*")
+          .eq("user_id", ownerId),
+
+        supabase
+          .from("sales")
+          .select("*")
+          .eq("user_id", ownerId)
+          .order("sale_date", { ascending: true }),
+
+        supabase
+          .from("inventory_purchases")
+          .select("*")
+          .eq("user_id", ownerId)
+          .order("received_date", { ascending: false }),
+
+        supabase
+          .from("users")
+          .select("plan, business_type")
+          .eq("id", authId)
+          .maybeSingle(),
+      ]);
+
+      if (!isCurrentRequest()) return;
+
+      if (menuResult.error) throw menuResult.error;
+      if (salesResult.error) throw salesResult.error;
+      if (inventoryResult.error) throw inventoryResult.error;
+      if (profileResult.error) throw profileResult.error;
+
+      setDashboardState({
+        ownerId: requestedIdentity,
+        menuItems: menuResult.data || [],
+        salesData: normalizeDashboardSales(salesResult.data),
+        inventoryItems: inventoryResult.data || [],
+        plan: profileResult.data?.plan || "starter",
+        businessType:
+          profileResult.data?.business_type || "restaurant",
+      });
+    } catch (error) {
+      if (isCurrentRequest()) {
+        console.error("Dashboard data load error:", error);
+
+        setDashboardState({
+          ownerId: requestedIdentity,
+          salesData: [],
+          inventoryItems: [],
+          menuItems: [],
+          plan: "starter",
+          businessType: "restaurant",
+        });
+      }
+    } finally {
+      if (isCurrentRequest()) {
+        setLoading(false);
+      }
+    }
+  }, [identityKey, ownerId, authId]);
+
+  useEffect(() => {
+    loadDashboardData();
+
+    return () => {
+      ++requestIdRef.current;
     };
+  }, [loadDashboardData]);
 
-    loadData();
-  }, []);
-
-  /* ===============================
-     AI CALC (NO STATE = NO LOOP)
-  =============================== */
   const aiData = useMemo(() => {
     return calculateDashboardAI({
       menuItems,
@@ -96,79 +241,49 @@ useEffect(() => {
     businessType,
   ]);
 
-  /* ===============================
-     STARTER KPI HELPERS
-  =============================== */
   const totalOrders = useMemo(() => {
-    return (salesData || []).reduce((sum, item) => {
-      return (
-        sum +
-        Number(
-          item.orders ||
-            item.order_count ||
-            item.total_orders ||
-            item.transactions ||
-            item.tickets ||
-            0
-        )
+    return salesData.reduce((sum, item) => {
+      const count = Number(
+        item.orders_count ??
+        item.orders ??
+        item.order_count ??
+        item.total_orders ??
+        item.transactions ??
+        item.tickets ??
+        0
       );
+
+      return sum +
+        (Number.isFinite(count) && count > 0 ? count : 0);
     }, 0);
   }, [salesData]);
 
   const aov = useMemo(() => {
     const revenue = Number(aiData?.totalRevenue || 0);
-    return totalOrders > 0 ? revenue / totalOrders : 0;
+
+    return totalOrders > 0
+      ? revenue / totalOrders
+      : 0;
   }, [aiData?.totalRevenue, totalOrders]);
 
-  /* ===============================
-     UI HANDLERS
-  =============================== */
   const setCategoryFilter = (value) => {
-    setUI((prev) => ({ ...prev, categoryFilter: value }));
+    setUI((previous) => ({
+      ...previous,
+      categoryFilter: value,
+    }));
   };
 
   const setTimeFilter = (value) => {
-    setUI((prev) => ({ ...prev, timeFilter: value }));
+    setUI((previous) => ({
+      ...previous,
+      timeFilter: value,
+    }));
   };
 
-  const refreshData = async () => {
-    try {
-      setLoading(true);
+  const refreshData = useCallback(async () => {
+    await loadDashboardData();
+  }, [loadDashboardData]);
 
-      const { data: menu } = await supabase
-        .from("menu_items")
-        .select("*");
-
-      const { data: sales } = await supabase
-        .from("sales")
-        .select("*")
-        .order("date", { ascending: true });
-
-      const { data: inventory } = await supabase
-        .from("inventory_purchases")
-        .select("*")
-        .order("received_date", { ascending: false });
-
-      const { data: user } = await supabase
-        .from("users")
-        .select("plan, business_type")
-        .single();
-
-      setMenuItems(menu || []);
-      setSalesData(sales || []);
-      setInventoryItems(inventory || []);
-      setPlan(user?.plan || "starter");
-      setBusinessType(user?.business_type || "restaurant");
-    } catch (err) {
-      console.error("Refresh error:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  /* ===============================
-     RETURN CLEAN DATA
-  =============================== */
   return {
     ...aiData,
     plan,
@@ -180,6 +295,6 @@ useEffect(() => {
     setCategoryFilter,
     setTimeFilter,
     refreshData,
-    loading,
+    loading: loading || !dataIsCurrent,
   };
 }

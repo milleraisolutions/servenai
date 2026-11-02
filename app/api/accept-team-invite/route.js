@@ -1,163 +1,109 @@
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
-
 export async function POST(req) {
   try {
-    const { inviteId, userId } = await req.json();
+    const { inviteId } = await req.json();
 
-    const { data: invite, error: inviteError } = await supabaseAdmin
-      .from("team_invites")
-      .select("*")
-      .eq("id", inviteId)
-      .eq("status", "pending")
-      .maybeSingle();
-
-    if (inviteError || !invite) {
+    if (
+      typeof inviteId !== "string" ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        inviteId
+      )
+    ) {
       return Response.json(
-        { success: false, error: "Invite not found or expired." },
-        { status: 404 }
+        {
+          success: false,
+          error: "A valid invitation ID is required.",
+        },
+        { status: 400 }
       );
     }
 
-    const { error: profileError } = await supabaseAdmin.from("users").upsert([
-      {
-        id: userId,
-        email: invite.email,
-        role: invite.role,
-        owner_user_id: invite.owner_user_id,
-        location_name: invite.location_name,
-        plan: "team",
-      },
-    ]);
+    const authorizationHeader =
+      req.headers.get("authorization") || "";
 
-    if (profileError) {
+    const accessToken = authorizationHeader.startsWith("Bearer ")
+      ? authorizationHeader.slice(7).trim()
+      : "";
+
+    if (!accessToken) {
       return Response.json(
-        { success: false, error: profileError.message },
-        { status: 500 }
-      );
-    }
-// ========================================
-// SYNC MULTI-LOCATION ASSIGNMENTS
-// ========================================
-
-const inviteLocationIds = Array.isArray(invite.location_ids)
-  ? invite.location_ids.filter(Boolean)
-  : [];
-
-// Always clear existing assignments first so
-// re-invites / role changes cannot leave stale access behind.
-const {
-  error: assignmentDeleteError,
-} = await supabaseAdmin
-  .from("user_location_assignments")
-  .delete()
-  .eq("user_id", userId);
-
-if (assignmentDeleteError) {
-  return Response.json(
-    {
-      success: false,
-      error: assignmentDeleteError.message,
-    },
-    { status: 500 }
-  );
-}
-
-if (
-  invite.role === "regional_director" &&
-  inviteLocationIds.length > 0
-) {
-  // Validate that every selected location belongs
-  // to the owner who issued the invite.
-  const {
-    data: validLocations,
-    error: locationValidationError,
-  } = await supabaseAdmin
-    .from("locations")
-    .select("id")
-    .eq("user_id", invite.owner_user_id)
-    .in("id", inviteLocationIds);
-
-  if (locationValidationError) {
-    return Response.json(
-      {
-        success: false,
-        error: locationValidationError.message,
-      },
-      { status: 500 }
-    );
-  }
-
-  const validLocationIds = new Set(
-    (validLocations || []).map((location) =>
-      String(location.id)
-    )
-  );
-
-  const invalidLocationIds = inviteLocationIds.filter(
-    (locationId) =>
-      !validLocationIds.has(String(locationId))
-  );
-
-  if (invalidLocationIds.length > 0) {
-    return Response.json(
-      {
-        success: false,
-        error:
-          "One or more assigned locations do not belong to this restaurant account.",
-      },
-      { status: 400 }
-    );
-  }
-
-  const assignmentRows = inviteLocationIds.map(
-    (locationId) => ({
-      user_id: userId,
-      owner_user_id: invite.owner_user_id,
-      location_id: locationId,
-      role: invite.role,
-    })
-  );
-
-  const {
-    error: assignmentInsertError,
-  } = await supabaseAdmin
-    .from("user_location_assignments")
-    .insert(assignmentRows);
-
-  if (assignmentInsertError) {
-    return Response.json(
-      {
-        success: false,
-        error: assignmentInsertError.message,
-      },
-      { status: 500 }
-    );
-  }
-}
-    const { error: updateError } = await supabaseAdmin
-      .from("team_invites")
-      .update({
-        status: "accepted",
-        accepted_user_id: userId,
-      })
-      .eq("id", invite.id);
-
-    if (updateError) {
-      return Response.json(
-        { success: false, error: updateError.message },
-        { status: 500 }
+        {
+          success: false,
+          error: "You must be signed in to accept this invitation.",
+        },
+        { status: 401 }
       );
     }
 
-    return Response.json({ success: true });
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      {
+        global: {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        },
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+        },
+      }
+    );
+
+    // Confirm the token belongs to a real authenticated user.
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser(accessToken);
+
+    if (authError || !user?.id) {
+      return Response.json(
+        {
+          success: false,
+          error: "Your session is invalid or expired.",
+        },
+        { status: 401 }
+      );
+    }
+
+    // PostgreSQL validates the invitation, verified email,
+    // existing profile, company ownership, and location IDs.
+    // All database changes happen in one transaction.
+    const { error: acceptanceError } = await supabase.rpc(
+      "accept_team_invite_secure",
+      {
+        p_invite_id: inviteId,
+      }
+    );
+
+    if (acceptanceError) {
+      console.error(
+        "SECURE TEAM INVITE ACCEPTANCE ERROR:",
+        acceptanceError
+      );
+
+      return Response.json(
+        {
+          success: false,
+          error: acceptanceError.message,
+        },
+        { status: 400 }
+      );
+    }
+
+    return Response.json({
+      success: true,
+    });
   } catch (error) {
+    console.error("TEAM INVITE API ERROR:", error);
+
     return Response.json(
-      { success: false, error: error.message },
+      {
+        success: false,
+        error: "Unable to process the invitation.",
+      },
       { status: 500 }
     );
   }

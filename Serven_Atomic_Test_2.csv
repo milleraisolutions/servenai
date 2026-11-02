@@ -1,0 +1,2 @@
+﻿sale_date,name,category,revenue,quantity,orders_count,labor,record_granularity,is_test_data
+2026-10-15,SERVEN_ATOMIC_TEST_2,Testing,185,2,1,35,item_summary,true

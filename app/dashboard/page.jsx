@@ -948,6 +948,9 @@ const isCorporateAdminRole =
 const isRegionalDirectorRole =
   userRole === "regional_director";
 
+const isAreaDirectorRole =
+  userRole === "area_director";
+
 const isFinanceRole =
   userRole === "finance" ||
   userRole === "cfo";
@@ -974,7 +977,9 @@ const isOwner =
   isRestaurantOwnerRole ||
   isServenOwner;
 
-const dataOwnerId = userProfile?.owner_user_id || user?.id || null;
+const dataOwnerId = loadingUser
+  ? null
+  : userProfile?.owner_user_id || user?.id || null;
 const assignedLocation = userProfile?.location_name || null;
 
 const isManager =
@@ -994,6 +999,7 @@ const canSeeOwnerDashboard =
 const canSeeLeadershipDashboard =
   canSeeOwnerDashboard ||
   isRegionalDirectorRole ||
+  isAreaDirectorRole ||
   isFinanceRole ||
   isMarketingRole ||
   isCIORole ||
@@ -1048,6 +1054,7 @@ const hasTeamAccess = [
   "executive",
   "corporate_admin",
   "regional_director",
+  "area_director",
   "gm",
   "general_manager",
   "store_manager",
@@ -1179,7 +1186,7 @@ const [generatedOpportunities, setGeneratedOpportunities] = useState([]);
 
   /* 🔹 SYSTEM */
   const [websitePromo, setWebsitePromo] = useState(null);
-  
+
   const [autoTriggersEnabled, setAutoTriggersEnabled] = useState(false);
   const [triggeredCampaigns, setTriggeredCampaigns] = useState([]);
   const [selectedSegment, setSelectedSegment] = useState("all");
@@ -1200,7 +1207,7 @@ const [expandedAIAction, setExpandedAIAction] = useState(null);
     "Your margins can improve by optimizing pricing."
   );
 const latestAiAction = aiHistory?.length ? aiHistory[0] : null;
- 
+
   const [appliedFixes, setAppliedFixes] = useState([]);
   const [activeTab, setActiveTab] = useState("overview");
   const [activeOverviewTab, setActiveOverviewTab] = useState("executive");
@@ -1272,7 +1279,11 @@ laborCostPercentage,
   shelfLifeLoss,
   shelfLifeInsight,
   totalOrders,
-} = useDashboardData();
+} = useDashboardData({
+  dataOwnerId,
+  authenticatedUserId: user?.id || null,
+  loadingUser,
+});
 
 const activeBenchmarks = {
   foodCost: {
@@ -1377,29 +1388,62 @@ const filterByActiveLocation = (rows = []) => {
     return rows || [];
   }
 
+  const selectedLocation = (locations || []).find((location) => {
+    const locationName = String(
+      location.location_name || location.name || ""
+    )
+      .trim()
+      .toLowerCase();
+
+    return (
+      locationName ===
+      String(activeLocation).trim().toLowerCase()
+    );
+  });
+
+  if (!selectedLocation?.id) {
+    return [];
+  }
+
+  const selectedId = String(selectedLocation.id)
+    .trim()
+    .toLowerCase();
+
+  const selectedName = String(
+    selectedLocation.location_name ||
+      selectedLocation.name ||
+      ""
+  )
+    .trim()
+    .toLowerCase();
+
   return (rows || []).filter((row) => {
-    const rawLocation =
-      row.location ||
-      row.location_name ||
-      row.store ||
-      row.store_name ||
-      row.restaurant_location ||
-      "";
-
-    const normalizedRowLocation = String(rawLocation)
+    const rowLocationId = String(
+      row.location_id || ""
+    )
       .trim()
       .toLowerCase();
 
-    const normalizedActiveLocation = String(activeLocation)
-      .trim()
-      .toLowerCase();
-
-    // Keep older rows that were uploaded before location tracking existed.
-    if (!normalizedRowLocation) {
-      return true;
+    if (rowLocationId) {
+      return rowLocationId === selectedId;
     }
 
-    return normalizedRowLocation === normalizedActiveLocation;
+    const rowLocationName = String(
+      row.location ||
+        row.location_name ||
+        row.store ||
+        row.store_name ||
+        row.restaurant_location ||
+        ""
+    )
+      .trim()
+      .toLowerCase();
+
+    if (!rowLocationName) {
+      return false;
+    }
+
+    return rowLocationName === selectedName;
   });
 };
 const resolvedSalesDataRaw =
@@ -1421,7 +1465,32 @@ const resolvedSalesData = resolvedSalesDataRaw.filter((sale) => {
     sale?.is_test_data === true ||
     String(sale?.is_test_data || "").toLowerCase() === "true";
 
-  return !isVoided && !isProviderDeleted && !isTestData;
+  const isProviderConnected =
+    Boolean(sale?.connection_id) ||
+    Boolean(sale?.integration_connection_id);
+
+  const providerStatus = String(
+    sale?.provider_status || ""
+  )
+    .trim()
+    .toLowerCase();
+
+  const isProviderCanceled =
+    isProviderConnected &&
+    [
+      "void",
+      "voided",
+      "cancelled",
+      "canceled",
+      "deleted"
+    ].includes(providerStatus);
+
+  return (
+    !isVoided &&
+    !isProviderDeleted &&
+    !isTestData &&
+    !isProviderCanceled
+  );
 });
 
 const locationSalesData =
@@ -1635,7 +1704,7 @@ const handleInvoiceFileChange = (event) => {
 
   const file = files[0];
   console.log("Selected Invoice Metadata:", { name: file.name, size: file.size, type: file.type });
-  
+
   setSelectedInvoiceFile(file);
   setMessage(`File loaded: "${file.name}". Ready to import.`);
 };
@@ -2592,7 +2661,7 @@ const saveCampaignToSupabase = async (campaignToSave) => {
 
     if (error) throw error;
 
-    
+
     return data;
   } catch (err) {
   console.error("Campaign save failed:", err);
@@ -2712,12 +2781,12 @@ setSavedCampaigns((prev) => [
     recommendation: rec.suggestion,
   });
 
-  
+
   pushActivity(
     `Auto-launched campaign from ${rec.item} price increase`,
     "launch"
   );
- 
+
 };
   const shelfLifeCopy = {
   coffee: {
@@ -2972,11 +3041,11 @@ const handleGeneratePromotions = () => {
 
   setGeneratedPromotions(generated);
 
-  
+
 
   pushActivity("Generated new campaign copy", "generate");
 
-  
+
 };
  function optimizeCampaignAI(campaign, performance, businessType) {
   const ctr = performance.impressions
@@ -3183,7 +3252,7 @@ const handleSaveCampaign = async (campaign) => {
 
     if (!user?.id) {
       setSavedMessage("You must be logged in");
-      
+
       router.push("/login");
       return;
     }
@@ -3245,7 +3314,7 @@ const handleSaveCampaign = async (campaign) => {
 ]);
    setSavedMessage("Campaign saved");
     pushActivity(`Saved ${campaignToSave.channel} campaign draft`, "save");
-    
+
   } catch (error) {
     console.error("Save campaign error FULL:", error);
     console.error("Message:", error?.message);
@@ -3254,7 +3323,7 @@ const handleSaveCampaign = async (campaign) => {
     console.error("Code:", error?.code);
 
     setSavedMessage(error?.message || "Failed to save campaign");
-   
+
   }
 };
 
@@ -3271,9 +3340,9 @@ const handleSaveCampaign = async (campaign) => {
 };
 
     setSavedCampaigns((prev) => [newCampaign, ...prev]);
-   
+
     pushActivity(`Saved ${channel} campaign draft`, "save");
-    
+
   };
   const getSaleRevenue = (sale = {}) => {
   return Number(
@@ -3722,10 +3791,47 @@ const rows =
   Array.isArray(operationalSalesData)
     ? operationalSalesData
     : [];
-  const cleanRows = rows.filter((row) => {
-    const revenue = Number(row.revenue || 0);
+ const cleanRows = rows.filter((row) => {
+  const revenue = Number(row.revenue || 0);
+
+  const isProviderConnected =
+    Boolean(row.connection_id) ||
+    Boolean(row.integration_connection_id);
+
+  // Preserve existing manual POS upload behavior.
+  if (!isProviderConnected) {
     return revenue > 0;
-  });
+  }
+
+  const isVoided =
+    row.is_voided === true ||
+    String(row.is_voided).toLowerCase() === "true";
+
+  const isProviderDeleted =
+    Boolean(row.provider_deleted_at);
+
+  const providerStatus = String(
+    row.provider_status || ""
+  )
+    .trim()
+    .toLowerCase();
+
+  const isCanceled =
+    [
+      "void",
+      "voided",
+      "cancelled",
+      "canceled",
+      "deleted"
+    ].includes(providerStatus);
+
+  return (
+    revenue > 0 &&
+    !isVoided &&
+    !isProviderDeleted &&
+    !isCanceled
+  );
+});
 
   const totalRevenueFromDb = cleanRows.reduce(
     (sum, row) => sum + Number(row.revenue || 0),
@@ -3865,11 +3971,23 @@ const rows = Array.isArray(operationalSalesData)
     endKey: toLocalDateKey(endDate),
   };
 }, [operationalSalesData]);
+const hasConnectedPosSales = (
+  Array.isArray(resolvedSalesDataRaw)
+    ? resolvedSalesDataRaw
+    : []
+).some(
+  (sale) =>
+    Boolean(sale?.connection_id) ||
+    Boolean(sale?.integration_connection_id)
+);
 
+const hasAuthoritativeSales =
+  realSalesMetrics?.hasDbSales ||
+  hasConnectedPosSales;
 const liveTotalRevenue =
-  realSalesMetrics?.hasDbSales
-    ? Number(realSalesMetrics.totalRevenueFromDb || 0)
-    : Number(revenueTracker?.totalRevenue || totalRevenue || 0);
+  hasAuthoritativeSales
+    ? Number(realSalesMetrics.totalRevenueFromDb ?? 0)
+    : Number(revenueTracker?.totalRevenue ?? 0);
 
 const liveMomentumPercent =
   realSalesMetrics?.hasDbSales
@@ -3877,16 +3995,29 @@ const liveMomentumPercent =
     : Number(momentumPercent || 0);
 
 const liveTotalOrders =
-  realSalesMetrics?.hasDbSales
-    ? Number(realSalesMetrics.totalOrdersFromDb || 0)
-    : Number(totalOrders || revenueTracker?.recentSales?.length || 0);
+  hasAuthoritativeSales
+    ? Number(realSalesMetrics.totalOrdersFromDb ?? 0)
+    : Number(
+        (operationalSalesData || []).reduce(
+          (sum, row) =>
+            sum +
+            Number(
+              row.orders_count ??
+              row.orders ??
+              row.order_count ??
+              row.check_count ??
+              row.ticket_count ??
+              row.transactions ??
+              0
+            ),
+          0
+        )
+      );
 
 const liveAOV =
-  realSalesMetrics?.hasDbSales
-    ? Number(realSalesMetrics.averageOrderValueFromDb || 0)
-    : liveTotalOrders > 0
+  liveTotalOrders > 0
     ? liveTotalRevenue / liveTotalOrders
-    : Number(aov || 0);
+    : 0;
 
 const livePeakHours = peakHours || "N/A";
 const liveAvgMargin =
@@ -4716,7 +4847,7 @@ const handleLaunchCampaign = async (campaign) => {
 
     if (!user) {
       setSavedMessage("User not found");
-  
+
       return;
     }
 
@@ -5367,7 +5498,7 @@ setTopAiActions(
     ).replace(/[^0-9.-]/g, "")
   ) || 0;
 
-   
+
         setAppliedFixes((prev) => [...prev, actionKey]);
 
        const savedAction = await saveAppliedAIAction({
@@ -5464,7 +5595,7 @@ useEffect(() => {
       String(nextAction.impact || "").replace(/[^0-9]/g, "")
     );
 
-   
+
 
     setAppliedFixes((prev) =>
       prev.includes(nextAction.title)
@@ -6238,7 +6369,7 @@ const impactText =
     ? ` → +$${value.toFixed(0)} estimated impact`
     : "";
 
- 
+
 
   setAppliedFixes((prev) =>
     prev.includes(nextAction.name) ? prev : [...prev, nextAction.name]
@@ -6536,135 +6667,141 @@ const updateClientAlertStatus = async (alertId, status) => {
 console.log("DASHBOARD COMPONENT RENDERED");
 
 useEffect(() => {
-  const fetchUserProfile = async (authUser, label = "PROFILE") => {
-    if (!authUser?.email) {
-      setUserProfile(null);
-      return;
-    }
+  let active = true;
+  let profileRequestId = 0;
+  const pendingTimers = new Set();
 
-    const cleanEmail = String(authUser.email).trim().toLowerCase();
+  const cacheAuthSession = (session) => {
+    const safeSession = session || null;
 
-    const { data: profileRows, error: profileError } = await supabase
-      .from("users")
-      .select("*")
-      .ilike("email", cleanEmail)
-      .limit(1);
+    setAuthSession(safeSession);
+    authSessionRef.current = safeSession;
+    accessTokenRef.current = safeSession?.access_token || "";
 
-    if (profileError) {
-      console.error(`${label} FETCH FAILED:`, profileError);
-      setUserProfile(null);
-      return;
-    }
-
-    console.log(`${label} ROWS:`, profileRows);
-
-    const profileData = profileRows?.[0] || null;
-
-    if (!profileData) {
-      console.error("NO USER PROFILE FOUND FOR:", cleanEmail);
-      setUserProfile(null);
-      return;
-    }
-
-    console.log(`${label} DATA:`, profileData);
-    setUserProfile(profileData);
+    return safeSession;
   };
 
-const cacheAuthSession = (session) => {
-  const safeSession = session || null;
+  const fetchUserProfile = async (authUser, label = "PROFILE") => {
+    const requestId = ++profileRequestId;
 
-  setAuthSession(safeSession);
-  authSessionRef.current = safeSession;
-  accessTokenRef.current =
-    safeSession?.access_token || "";
+    if (!authUser?.id) {
+      if (!active) return;
 
-  return safeSession;
-};
-
-const loadUser = async () => {
-  try {
-    const {
-      data: { session },
-      error: sessionError,
-    } = await supabase.auth.getSession();
-
-    if (sessionError) {
-      console.error(
-        "Failed to load session:",
-        sessionError
-      );
-
-      cacheAuthSession(null);
-      setUser(null);
       setUserProfile(null);
+      setStatusPlan("");
+      setLoadingUser(false);
       return;
     }
 
-    const cachedSession =
-      cacheAuthSession(session);
+    setLoadingUser(true);
 
-  const authUser =
-  cachedSession?.user || null;
+    const { data, error } = await supabase
+      .from("users")
+      .select("*")
+      .eq("id", authUser.id)
+      .maybeSingle();
 
-console.log("AUTH USER:", authUser);
+    if (!active || requestId !== profileRequestId) {
+      return;
+    }
 
-setUser(authUser);
-setAuthenticatedUserId(authUser?.id || null);
-setAuthReady(true);
+    if (error) {
+      console.error(`${label} FETCH FAILED:`, error);
+      setUserProfile(null);
+      setStatusPlan("");
+      setLoadingUser(false);
+      return;
+    }
 
-    await fetchUserProfile(
-      authUser,
-      "PROFILE"
-    );
-  } catch (err) {
-    console.error(
-      "Failed to get current user:",
-      err
-    );
+    if (!data) {
+      console.error(
+        "NO USER PROFILE FOUND FOR AUTH ID:",
+        authUser.id
+      );
+    }
 
-    cacheAuthSession(null);
-    setUser(null);
-    setUserProfile(null);
-  }
-};
+    console.log(`${label} DATA:`, data);
 
-loadUser();
+    setUserProfile(data || null);
+    setStatusPlan(data?.plan || "");
+    setLoadingUser(false);
+  };
 
-const {
-  data: { subscription },
-} = supabase.auth.onAuthStateChange(
-  (_event, session) => {
-    const cachedSession =
-      cacheAuthSession(session);
+  const applyAuthSession = (session, label) => {
+    if (!active) return;
 
-    const authUser =
-      cachedSession?.user || null;
+    const cachedSession = cacheAuthSession(session);
+    const authUser = cachedSession?.user || null;
 
-    console.log(
-      "AUTH STATE CHANGED:",
-      authUser
-    );
+    // Invalidate any earlier profile request.
+    ++profileRequestId;
 
     setUser(authUser);
-setAuthenticatedUserId(authUser?.id || null);
-setAuthReady(true);
+    setAuthenticatedUserId(authUser?.id || null);
+    setAuthReady(true);
 
-/*
- * Run profile loading outside the synchronous
-     * auth callback so it does not hold the auth lock.
-     */
-    setTimeout(() => {
-      fetchUserProfile(
-        authUser,
-        "PROFILE AFTER AUTH CHANGE"
-      );
+    // Never retain another account's profile during a switch.
+    setUserProfile(null);
+    setStatusPlan("");
+    setLoadingUser(Boolean(authUser?.id));
+
+    // Defer Supabase queries outside the auth callback.
+    const timer = setTimeout(() => {
+      pendingTimers.delete(timer);
+
+      if (!active) return;
+
+      fetchUserProfile(authUser, label);
     }, 0);
-  }
-);
 
-return () => {
-  subscription?.unsubscribe();
-};
+    pendingTimers.add(timer);
+  };
+
+  const loadUser = async () => {
+    try {
+      const {
+        data: { session },
+        error,
+      } = await supabase.auth.getSession();
+
+      if (!active) return;
+
+      if (error) {
+        console.error("Failed to load session:", error);
+        applyAuthSession(null, "INITIAL PROFILE");
+        return;
+      }
+
+      applyAuthSession(session, "INITIAL PROFILE");
+    } catch (error) {
+      if (!active) return;
+
+      console.error("Failed to get current user:", error);
+      applyAuthSession(null, "INITIAL PROFILE");
+    }
+  };
+
+  const {
+    data: { subscription },
+  } = supabase.auth.onAuthStateChange((_event, session) => {
+    if (!active) return;
+
+    console.log("AUTH STATE CHANGED:", session?.user || null);
+
+    applyAuthSession(session, "PROFILE AFTER AUTH CHANGE");
+  });
+
+  loadUser();
+
+  return () => {
+    active = false;
+    ++profileRequestId;
+
+    pendingTimers.forEach((timer) => clearTimeout(timer));
+    pendingTimers.clear();
+
+    subscription?.unsubscribe();
+  };
 }, []);
 useEffect(() => {
   if (!(user?.id && isOwner)) {
@@ -6777,6 +6914,7 @@ const saveAppliedAIAction = async ({
   recoveryCategory = null,
   entityType = null,
   entityId = null,
+    explicitLocationId = undefined,
 
   // Action attribution
   actionType = null,
@@ -6800,7 +6938,18 @@ const saveAppliedAIAction = async ({
     const user = session?.user;
 
     if (!user?.id) return null;
-const actionLocation = getActiveConnectionLocation();
+const actionLocation =
+  explicitLocationId !== undefined
+    ? (locations || [])
+        .filter(
+          (location) =>
+            String(location.id) === String(explicitLocationId)
+        )
+        .map((location) => ({
+          id: location.id,
+          name: location.location_name || location.name || null,
+        }))[0] || null
+    : getActiveConnectionLocation();
 
 const baselineUploadIdForAction = String(
   baselineData?.baseline_upload_id || ""
@@ -7528,7 +7677,7 @@ if (selectedType === "pos") {
   setSelectedPosFile(file);
 }
   try {
-    
+
   let activeUploadType = selectedUploadTypeRef.current || uploadType;
 
     let dataRows = [];
@@ -7577,28 +7726,33 @@ if (selectedType === "pos") {
         });
       }
     } else {
-      const text = await file.text();
-      const lines = text.split(/\r?\n/).filter((line) => line.trim() !== "");
+  const text = await file.text();
 
-      if (!lines.length) {
-        setMessage("The selected file is empty.");
-        return;
-      }
+  const parsed = Papa.parse(text, {
+    header: true,
+    skipEmptyLines: "greedy",
+    transformHeader: (header) =>
+      String(header || "").replace(/^\uFEFF/, "").trim(),
+    transform: (value) =>
+      typeof value === "string" ? value.trim() : value,
+  });
 
-      const headers = lines[0].split(",").map((h) => h.trim());
+  if (parsed.errors?.length) {
+    console.error("SERVEN CSV PARSE ERRORS:", parsed.errors);
 
-      dataRows = lines.slice(1).map((line) => {
-        const values = line.split(",").map((v) => v.trim());
-        const row = {};
+    setMessage(
+      "The CSV file contains formatting errors. Please check the file and try again."
+    );
+    return;
+  }
 
-        headers.forEach((header, index) => {
-          row[header] = values[index] || "";
-        });
+  dataRows = parsed.data || [];
 
-        return row;
-      });
-    }
-
+  if (!dataRows.length) {
+    setMessage("The selected CSV file contains no data rows.");
+    return;
+  }
+}
     const safeRows = dataRows.filter((row) =>
       Object.values(row).some((value) => String(value || "").trim() !== "")
     );
@@ -12013,7 +12167,7 @@ const invoiceOwnerId =
       return fallback;
     };
 
-    
+
 
    const supplierName =  getValue(rows[0], ["Vendor", "vendor", "Supplier", "supplier"]);
     const invoiceDate = getValue(rows[0], ["Invoice Date", "invoice_date"]);
@@ -12140,7 +12294,7 @@ const runRealProfitEngine = async () => {
       return data;
     }
 
-  
+
 
     const fallbackData = {
   actions: [],
@@ -12994,19 +13148,65 @@ const handleAutoRestockFromAlert = async (alert) => {
       unit,
       alert,
     });
-const { data: ingredientRow, error: ingredientFetchError } = await supabase
+const ingredientId = alert?.ingredientId;
+const alertLocationId = alert?.locationId;
+
+if (!ingredientId) {
+  setInventoryAutopilotStatus(
+    "Restock skipped — ingredient ID is missing."
+  );
+  return false;
+}
+
+let ingredientQuery = supabase
   .from("ingredients")
- .select("id, quantity, upload_id, last_seen_at")
-  .eq("user_id", dataOwnerId || user.id)
-  .ilike("name", ingredientName)
-  .maybeSingle();
+  .select("id, quantity, upload_id, last_seen_at, location_id")
+  .eq("id", ingredientId)
+  .eq("user_id", dataOwnerId || user.id);
+
+if (alertLocationId) {
+  ingredientQuery = ingredientQuery.eq(
+    "location_id",
+    alertLocationId
+  );
+}
+
+const { data: ingredientRow, error: ingredientFetchError } =
+  await ingredientQuery.maybeSingle();
 
 if (ingredientFetchError || !ingredientRow) {
   console.error("Ingredient not found for auto restock:", ingredientFetchError);
   setInventoryAutopilotStatus(`Ingredient not found: ${ingredientName}`);
   return false;
 }
+if (activeLocation !== "all" && activeLocation) {
+  const selectedLocation = (locations || []).find(
+    (location) =>
+      String(location.location_name || location.name || "")
+        .trim()
+        .toLowerCase() ===
+      String(activeLocation).trim().toLowerCase()
+  );
 
+  const selectedLocationId = selectedLocation?.id
+    ? String(selectedLocation.id).trim().toLowerCase()
+    : null;
+
+  const ingredientLocationId = ingredientRow.location_id
+    ? String(ingredientRow.location_id).trim().toLowerCase()
+    : null;
+
+  if (
+    !selectedLocationId ||
+    !ingredientLocationId ||
+    selectedLocationId !== ingredientLocationId
+  ) {
+    setInventoryAutopilotStatus(
+      "Restock blocked — ingredient does not match the selected restaurant."
+    );
+    return false;
+  }
+}
 const newQuantity =
   Number(ingredientRow.quantity || 0) + Number(suggestedQuantity || 0);
   const matchingUsageVariance = (usageVarianceData || []).find(
@@ -13038,11 +13238,38 @@ const baselineExcessUsageCost = Number(
 const baselineVariancePercent = Number(
   matchingUsageVariance?.variancePercent || 0
 );
+
+// Update the exact ingredient before recording the AI action.
+let ingredientUpdateQuery = supabase
+  .from("ingredients")
+  .update({
+    quantity: newQuantity,
+    last_seen_at: new Date().toISOString(),
+  })
+  .eq("id", ingredientRow.id)
+  .eq("user_id", dataOwnerId || user.id)
+  .eq("quantity", ingredientRow.quantity);
+
+if (ingredientRow.location_id) {
+  ingredientUpdateQuery = ingredientUpdateQuery.eq(
+    "location_id",
+    ingredientRow.location_id
+  );
+}
+
+const { data: updatedIngredientRows, error: ingredientUpdateError } =
+  await ingredientUpdateQuery.select("id");
+
+if (ingredientUpdateError || !updatedIngredientRows?.length) {
+  console.error("Auto restock update failed:", ingredientUpdateError);
+  setInventoryAutopilotStatus("Auto restock failed");
+  return false;
+}
 const savedInventoryAction = await saveAppliedAIAction({
   actionName: `AI restock for ${ingredientName}`,
   actionDescription:
     `Operator accepted Serven's inventory restock recommendation for ${ingredientName}.`,
-
+  explicitLocationId: ingredientRow.location_id ?? null,
 impactValue: Number(
   baselineExcessUsageCost ||
     alert?.estimatedImpact ||
@@ -13125,27 +13352,28 @@ if (!savedInventoryAction?.id) {
   );
   return false;
 }
-const { error: ingredientUpdateError } = await supabase
-  .from("ingredients")
-  .update({
-    quantity: newQuantity,
-    last_seen_at: new Date().toISOString(),
-  })
-  .eq("id", ingredientRow.id);
 
-if (ingredientUpdateError) {
-  console.error("Auto restock update failed:", ingredientUpdateError);
-  setInventoryAutopilotStatus("Auto restock failed");
+const { error: restockLogError } = await supabase
+  .from("inventory_restock_logs")
+  .insert({
+    user_id: dataOwnerId || user.id,
+    ingredient_id: ingredientRow.id,
+    location_id: ingredientRow.location_id ?? null,
+    ingredient_name: ingredientName,
+    quantity_added: suggestedQuantity,
+    cost_per_unit: Number(alert?.costPerUnit || 0),
+    restock_type: "ai_restock",
+  });
+
+if (restockLogError) {
+  console.error("AI restock history save failed:", restockLogError);
+
+  setInventoryAutopilotStatus(
+    `Inventory updated for ${ingredientName}, but restock history failed to save.`
+  );
+
   return false;
 }
-
-await supabase.from("inventory_restock_logs").insert({
-  user_id: dataOwnerId || user.id,
-  ingredient_name: ingredientName,
-  quantity_added: suggestedQuantity,
-  restock_type: "ai_restock",
-});
-
 setInventoryAutopilotStatus(`${ingredientName} restocked successfully`);
 return true;
   } catch (error) {
@@ -13857,7 +14085,7 @@ const buildProfitDrivenCampaign = () => {
       timing: "This Week",
       goal: "Promote High-Margin Items",
       channel: "Email",
-      
+
       cost: "200",
     };
   }
@@ -13870,7 +14098,7 @@ const buildProfitDrivenCampaign = () => {
       timing: "Next 7 Days",
       goal: "Increase Traffic",
       channel: "SMS",
-     
+
       cost: "125",
     };
   }
@@ -13883,7 +14111,7 @@ const buildProfitDrivenCampaign = () => {
       timing: "This Week",
       goal: "Increase Repeat Visits",
       channel: "SMS",
-     
+
       cost: "175",
     };
   }
@@ -13908,11 +14136,11 @@ const buildProfitDrivenCampaign = () => {
   );
 
   setGeneratedPromotions(generated);
- 
 
-  
 
-  
+
+
+
 
   return smartCampaign;
 };
@@ -14920,6 +15148,8 @@ const inventoryAlerts = useMemo(() => {
     if (item.daysOnHand <= 2) {
     alerts.push({
   type: "critical",
+  ingredientId: item.id ?? null,
+locationId: item.location_id ?? null,
   message: `${item.name} will run out in ${item.daysOnHand.toFixed(1)} days`,
   suggestion: `Suggested order: ${Math.ceil(
     Math.max(Number(item.maxQuantity || 0) - Number(item.quantity || 0), 0)
@@ -15103,7 +15333,7 @@ const inventoryAISummary = useMemo(() => {
   return {
     criticalCount,
     usageCount,
-   
+
     recommendation,
     message:
       criticalCount > 0
@@ -15433,31 +15663,7 @@ const activateClient = async (lead) => {
     alert("Activation failed");
   }
 };
-useEffect(() => {
-  const loadUserProfile = async () => {
-    if (!user?.id) return;
 
-    const { data, error } = await supabase
-      .from("users")
-      .select("*")
-      .eq("id", user.id)
-      .maybeSingle();
-
-    if (error) {
-      console.error("USER PROFILE LOAD ERROR:", error);
-      setUserProfile(null);
-      setStatusPlan("");
-      return;
-    }
-
-    console.log("LOADED USER PROFILE:", data);
-
-    setUserProfile(data || null);
-    setStatusPlan(data?.plan || "");
-  };
-
-  loadUserProfile();
-}, [user?.id]);
 
 
 
@@ -15651,7 +15857,7 @@ const shiftWasteAlerts = shiftWasteSummary
   .filter((item) => item.riskPercent >= 3 || item.riskAmount >= 100)
   .sort((a, b) => b.riskPercent - a.riskPercent)
   .slice(0, 3);
-  
+
 const shiftWasteInventoryAlerts = (shiftWasteAlerts || []).map((shift) => ({
   type: "critical",
   title: `${shift.shift} waste risk`,
@@ -15735,7 +15941,7 @@ const suspiciousMenuItems = expectedUsageItems
   )
   .sort((a, b) => a.margin - b.margin)
   .slice(0, 5);
-  
+
 if (usageVariancePercent >= 15) {
   possibleWasteSignals.push(
     "Possible over-portioning detected"
@@ -17035,7 +17241,7 @@ const totalAICriticalImpact =
   Number(estimatedTotalRecovery || 0);
 
 const overallAIConfidence = 92;
-  
+
 const aiRiskBreakdown = [
   {
     label: "Food Cost Variance",
@@ -17950,7 +18156,7 @@ const beverageRiskInsight =
     : "Strong beverage margin profile detected.";
 
 
-    
+
 /* =========================
    AI AUTOPILOT CAMPAIGN ENGINE
 ========================= */
@@ -18088,7 +18294,7 @@ if (shouldShowLoading) {
 
 useEffect(() => {
   let cancelled = false;
-  
+
 
   const loadInvoices = async () => {
   if (!dataOwnerId || cancelled) return;
@@ -22286,7 +22492,7 @@ anyRecoveryChanged = true;
 if (anyRecoveryChanged) {
   await loadRealAppliedActions();
 }
-    
+
   };
 
   trackOngoingVerifiedLaborRecovery();
@@ -22457,7 +22663,7 @@ const totalAIRecoveryOpportunity =
   operationalEstimatedWasteRecovery +
   estimatedAlcoholRecovery +
   Number(executiveInvoiceRecoveryOpportunity || 0);
-  
+
   const loadedPeriodOpportunity =
   Number(totalAIRecoveryOpportunity || 0);
   const verifiedRecoverySummary = useMemo(() => {
@@ -22807,7 +23013,7 @@ const profitRecoverySummary = useMemo(() => {
   const estimatedRecoverable = Number(totalAIRecoveryOpportunity || 0);
   const verifiedRecovered = Number(verifiedRecoveredProfit || 0);
 
-  
+
 
 const getCategoryRecovered = (categoryLabel) => {
   const targetCategory = String(categoryLabel || "")
@@ -22885,7 +23091,7 @@ return {
       opportunity: estimatedLaborRecovery,
     }),
 
-   
+
 
     buildCategory({
       icon: "📦",
@@ -22930,7 +23136,7 @@ return {
   inventoryVerifiedRecovery,
   vendorVerifiedRecovery,
   menuVerifiedRecovery,
- 
+
   operationalEstimatedWasteRecovery,
   estimatedMarginRecovery,
   estimatedFoodRecovery,
@@ -25354,7 +25560,7 @@ const resolvedLaborLocation =
       // Numeric parsing macros
       const hours = Number(row.hours_worked || row.hoursWorked || row.hours || row.Hours || row["Hours Worked"] || row.total_hours || row["Total Hours"] || 0);
       const rate = Number(row.hourly_rate || row.hourlyRate || row.rate || row.Rate || row["Hourly Rate"] || row.pay_rate || row["Pay Rate"] || 0);
-      
+
       const explicitCost = Number(row.labor_cost || row.laborCost || row.cost || row.Cost || row["Labor Cost"] || row.payroll || row["Payroll Cost"] || row.wages || row.Wages || 0);
       const calculatedCost = explicitCost || (hours * rate);
 
@@ -25564,7 +25770,7 @@ console.log(
 );
     // 5. Structure State Manifest Update
     // 5. Reload the permanent labor records from Supabase
-    
+
 let refreshedLaborRows = [];
 let refreshError = null;
 
@@ -26186,7 +26392,7 @@ const handleImportInventory = async () => {
       await supabase.from("uploads").delete().eq("id", uploadRow.id);
       throw insertError;
     }
-  
+
 
 const normalizedEvidenceRows =
   normalizeInventoryEvidenceRows({
@@ -28519,7 +28725,7 @@ const allowedTabsByRole = {
     "operations",
     "recipes",
     "beverage",
-  
+
     "marketing",
     "kitchen_manager",
   ],
@@ -28535,7 +28741,7 @@ const allowedTabsByRole = {
     "operations",
     "recipes",
     "beverage",
-    
+
     "marketing",
     "kitchen_manager",
   ],
@@ -28604,7 +28810,7 @@ const sidebarTabs = isKitchenManagerRole
       { key: "recipes", label: "Recipes", icon: "📋" },
       { key: "operations", label: "Operations", icon: "⚙️" },
       { key: "beverage", label: "Beverage", icon: "🍸" },
-      
+
       { key: "kitchen_manager", label: "Kitchen", icon: "🍳" },
     ]
 
@@ -28645,7 +28851,7 @@ console.log("SIDEBAR DEBUG", {
   sidebarLength: sidebarTabs.length,
   sidebarTabs,
 });
- 
+
 const deleteLead = async (leadId) => {
   if (!leadId) return;
 
@@ -28681,7 +28887,7 @@ const deleteLead = async (leadId) => {
     (prev || []).filter((lead) => lead.id !== leadId)
   );
 
-  
+
 };
 const loadClientImports = async () => {
   const requestId = importsRequestIdRef.current + 1;
@@ -31631,7 +31837,7 @@ const clampScore = (value) => {
   return Math.max(0, Math.min(100, Math.round(Number(value || 0))));
 };
 const aiHealthEngine = useMemo(() => {
-  
+
 const scorePrimeCost = (() => {
   const value =
     Number(effectiveFoodCostPercent || 0) +
@@ -32109,7 +32315,7 @@ const aiOptimizationStatus =
     : Number(restaurantAIHealthScore || 0) >= 60
     ? "Needs Review"
     : "Critical";
-   
+
 const restaurantHealthGrade =
   aiHealthEngine?.grade || (safeRestaurantHealthScore > 0 ? "Stable" : "Waiting for data");
 const restaurantHealthColor = aiHealthEngine?.statusColor || "#94a3b8";
@@ -33458,7 +33664,7 @@ const beverageAlertsFeed = useMemo(() => {
     });
 
   if (happyHourProfitabilityData?.status === "Margin Leak") {
-   
+
   if (hasFullRecoveryData) {
   alerts.push({
     title: "Happy hour margin leak",
@@ -42026,7 +42232,7 @@ estimatedImpact:
 });
 });
 
- 
+
 
   if (executiveActionQueue?.[0]) {
     notifications.push({
@@ -48404,7 +48610,7 @@ useEffect(() => {
 
   loadAuditLogs();
 
-  
+
 }, [dataOwnerId]);
 const handleBeverageUpload = async (event) => {
   console.log("BEVERAGE UPLOAD FIRED");
@@ -49198,7 +49404,7 @@ const beverageUsageLocationName =
 
 const safeNumber = (value) => {
 
-          
+
             if (
               value === null ||
               value === undefined ||
@@ -49576,7 +49782,13 @@ const handleLocationUpload = async (event) => {
       alert("You must be logged in to upload locations.");
       return;
     }
+const locationOwnerId =
+  userProfile?.owner_user_id || dataOwnerId;
 
+if (!locationOwnerId) {
+  setMessage("Restaurant owner account could not be identified.");
+  return;
+}
    const extension = String(file.name || "")
   .split(".")
   .pop()
@@ -49684,7 +49896,7 @@ const { data: createdUploadRow, error: uploadError } =
     .from("uploads")
     .insert([
       {
-        user_id: currentUser.id,
+        user_id: locationOwnerId,
         file_name: fileName,
         source_name: "location_upload",
         row_count: rows.length,
@@ -49705,7 +49917,7 @@ console.log("LOCATION UPLOAD ERROR:", uploadError);
 if (uploadError) throw uploadError;
 
 const locationsToInsert = rows.map((row) => ({
-  user_id: currentUser.id,
+  user_id: locationOwnerId,
   upload_id: uploadRow.id,
   file_name: fileName,
 
@@ -51070,7 +51282,7 @@ console.log("INVITE FORM STATE:", {
     setSendingInvite(false);
     return;
   }
-const inviteToken = crypto.randomUUID();
+
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -51082,7 +51294,8 @@ const inviteToken = crypto.randomUUID();
   }
 console.log("INVITE EMAIL:", inviteEmail);
 const isRegionalDirector =
-  inviteRole === "regional_director";
+  inviteRole === "regional_director" ||
+  inviteRole === "area_director";
 
 if (
   isRegionalDirector &&
@@ -51107,35 +51320,19 @@ if (
   return;
 }
 
-const { error } = await supabase
-  .from("team_invites")
-  .insert([
-    {
-      owner_user_id: user.id,
-
-      name: inviteName.trim(),
-
-      email: inviteEmail
-        .trim()
-        .toLowerCase(),
-
-      role: inviteRole,
-
-      location_name:
-        isRegionalDirector
-          ? null
-          : inviteLocation.trim() || null,
-
-      location_ids:
-        isRegionalDirector
-          ? inviteLocationIds
-          : [],
-
-      status: "pending",
-
-      invite_token: inviteToken,
-    },
-  ]);
+const { data: createdInviteId, error } = await supabase.rpc(
+  "create_team_invite_secure",
+  {
+    p_name: inviteName.trim(),
+    p_email: inviteEmail.trim().toLowerCase(),
+    p_role: inviteRole,
+    p_location_ids: isRegionalDirector
+      ? inviteLocationIds
+      : inviteRole === "gm" || inviteRole === "kitchen_manager"
+        ? [inviteLocation]
+        : [],
+  }
+);
 
   if (error) {
     console.error("Team invite failed:", error);
@@ -51144,19 +51341,32 @@ const { error } = await supabase
     return;
   }
 
+const {
+  data: { session },
+  error: sessionError,
+} = await supabase.auth.getSession();
+
+if (sessionError || !session?.access_token) {
+  alert("Your session has expired. Please sign in again.");
+  setSendingInvite(false);
+  return;
+}
+
+if (!createdInviteId) {
+  alert("Invitation could not be created.");
+  setSendingInvite(false);
+  return;
+}
+
 const inviteEmailResponse = await fetch("/api/send-team-invite", {
   method: "POST",
   headers: {
     "Content-Type": "application/json",
+    Authorization: `Bearer ${session.access_token}`,
   },
-
   body: JSON.stringify({
-    inviteEmail,
-    inviteName,
-    inviteRole,
-    inviteLocation,
-    inviteToken,
-  }),
+  inviteId: createdInviteId,
+}),
 });
 
 const inviteEmailResult = await inviteEmailResponse.json();
@@ -51187,7 +51397,7 @@ if (
 await logAuditEvent({
   action: "created_team_invite",
   entityType: "team_invite",
-  entityId: inviteToken,
+entityId: createdInviteId,
   details: `Invited ${inviteEmail.trim().toLowerCase()} as ${inviteRole}${
     inviteLocation.trim() ? ` for ${inviteLocation.trim()}` : ""
   }.`,
@@ -51260,44 +51470,77 @@ const loadTeamInvites = async () => {
 };
 
 const handleUpdateTeamInviteStatus = async (inviteId, newStatus) => {
-  const { error } = await supabase
-    .from("team_invites")
-    .update({ status: newStatus })
-    .eq("id", inviteId);
+  try {
+    if (newStatus !== "revoked") {
+      alert("This invitation status change is not supported.");
+      return;
+    }
 
-  if (error) {
-    console.error("Team invite status update failed:", error);
-    alert(error.message);
-    return;
+    const { data, error } = await supabase.rpc(
+      "revoke_team_invite_secure",
+      {
+        p_invite_id: inviteId,
+      }
+    );
+
+    if (error) {
+      console.error("Team invite revoke failed:", error);
+      alert(error.message || "Could not revoke invitation.");
+      return;
+    }
+
+    if (data !== true) {
+      alert("The invitation could not be revoked.");
+      return;
+    }
+
+    await loadTeamInvites();
+  } catch (error) {
+    console.error("Team invite revoke failed:", error);
+
+    alert(
+      error?.message ||
+        "An unexpected error occurred while revoking the invitation."
+    );
   }
-
-  await loadTeamInvites();
 };
 const handleDeleteTeamInvite = async (inviteId) => {
-  console.log("DELETE TEAM INVITE:", inviteId);
-
   const confirmed = window.confirm(
     "Permanently delete this team invite?"
   );
 
   if (!confirmed) return;
 
-  const { data, error } = await supabase
-    .from("team_invites")
-    .delete()
-    .eq("id", inviteId)
-    .select();
+  try {
+    const { data, error } = await supabase.rpc(
+      "delete_team_invite_secure",
+      {
+        p_invite_id: inviteId,
+      }
+    );
 
-  console.log("TEAM INVITE DELETE RESULT:", data);
-  console.log("TEAM INVITE DELETE ERROR:", error);
+    if (error) {
+      console.error("Team invite delete failed:", error);
+      alert(error.message || "Could not delete invitation.");
+      return;
+    }
 
-  if (error) {
+    if (data !== true) {
+      alert("The invitation could not be deleted.");
+      return;
+    }
+
+    await loadTeamInvites();
+
+    alert("Invitation deleted successfully.");
+  } catch (error) {
     console.error("Team invite delete failed:", error);
-    alert(error.message);
-    return;
-  }
 
-  await loadTeamInvites();
+    alert(
+      error?.message ||
+        "An unexpected error occurred while deleting the invitation."
+    );
+  }
 };
 
 const handleResendTeamInvite = async (member) => {
@@ -51307,81 +51550,55 @@ const handleResendTeamInvite = async (member) => {
       return;
     }
 
-    const newInviteToken = crypto.randomUUID();
-
     const {
-      data: updatedInvite,
-      error: updateInviteError,
-    } = await supabase
-      .from("team_invites")
-      .update({
-        invite_token: newInviteToken,
-        status: "pending",
-      })
-      .eq("id", member.id)
-      .select()
-      .single();
+      data: { session: resendSession },
+      error: resendSessionError,
+    } = await supabase.auth.getSession();
 
-    console.log(
-      "TEAM INVITE RESEND UPDATE RESULT:",
-      updatedInvite
-    );
+    if (resendSessionError || !resendSession?.access_token) {
+      alert("Your session has expired. Please sign in again.");
+      return;
+    }
 
-    console.log(
-      "TEAM INVITE RESEND UPDATE ERROR:",
-      updateInviteError
-    );
+    // Rotate the invitation token securely in Supabase.
+    const {
+      data: resendInviteId,
+      error: resendInviteError,
+    } = await supabase.rpc("resend_team_invite_secure", {
+      p_invite_id: member.id,
+    });
 
-    if (updateInviteError) {
+    if (resendInviteError || !resendInviteId) {
+      console.error(
+        "TEAM INVITE RESEND RPC ERROR:",
+        resendInviteError
+      );
+
       alert(
-        updateInviteError.message ||
-          "The invite could not be reset for resending."
+        resendInviteError?.message ||
+          "The invitation could not be prepared for resending."
       );
       return;
     }
 
-    const response = await fetch(
-      "/api/send-team-invite",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-
-        body: JSON.stringify({
-          inviteEmail: updatedInvite.email,
-          inviteName: updatedInvite.name || "",
-          inviteRole: updatedInvite.role || "",
-          inviteLocation:
-            updatedInvite.location_name || "",
-          inviteToken: newInviteToken,
-        }),
-      }
-    );
+    // Resend delivers the email using the stored invitation.
+    const response = await fetch("/api/send-team-invite", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${resendSession.access_token}`,
+      },
+      body: JSON.stringify({
+        inviteId: resendInviteId,
+      }),
+    });
 
     const result = await response.json();
 
-    console.log(
-      "TEAM INVITE RESEND RESULT:",
-      result
-    );
+    console.log("TEAM INVITE RESEND RESULT:", result);
 
     if (!response.ok || !result?.success) {
-      console.error(
-        "TEAM INVITE RESEND EMAIL FAILED:",
-        result
-      );
-
-      // Put it back into revoked state if this
-      // was originally revoked and the email send failed.
-      if (member.status === "revoked") {
-        await supabase
-          .from("team_invites")
-          .update({
-            status: "revoked",
-          })
-          .eq("id", member.id);
-      }
+      console.error("TEAM INVITE RESEND EMAIL FAILED:", result);
 
       alert(
         result?.error ||
@@ -51398,10 +51615,7 @@ const handleResendTeamInvite = async (member) => {
       "Invitation resent successfully. A new invite link was created."
     );
   } catch (error) {
-    console.error(
-      "TEAM INVITE RESEND FAILED:",
-      error
-    );
+    console.error("TEAM INVITE RESEND FAILED:", error);
 
     alert(
       error?.message ||
@@ -54372,37 +54586,82 @@ if (existingConnectionError) {
   return;
 }
 
-    if (existingConnection) {
-      setMessage(`${provider} is already connected.`);
-      await loadRestaurantConnections();
-      return;
-    }
+if (existingConnection) {
+  const currentStatus = String(
+    existingConnection.status || ""
+  ).toLowerCase();
 
-    const { error } = await supabase
-      .from("restaurant_connections")
-  .insert({
-  user_id: ownerId,
-  location_id: connectionLocation.id || null,
-  provider: normalizedProvider,
-  category,
-  status: "connected",
-  connection_type: "manual",
-  last_sync_status: "awaiting_initial_sync",
+  // Disconnected records must reach the server so the
+  // existing connection can be safely reset to pending.
+  if (currentStatus !== "disconnected") {
+    setMessage(
+      currentStatus === "connected"
+        ? `${provider} already has a connection record. Provider authorization has not been verified.`
+        : `${provider} connection request already exists. Current status: ${currentStatus || "unknown"}.`
+    );
 
-  metadata: {
-    location_name: connectionLocation.name || null,
-    connection_source: "connected_data",
+    await loadRestaurantConnections();
+    return;
+  }
+}
+
+const {
+  data: { session },
+  error: sessionError,
+} = await supabase.auth.getSession();
+
+if (sessionError || !session?.access_token) {
+  setMessage("Your session expired. Please log in again.");
+  return;
+}
+
+const {
+  data: { session: inviteResendSession },
+  error: inviteResendSessionError,
+} = await supabase.auth.getSession();
+
+if (inviteResendSessionError || !inviteResendSession?.access_token) {
+  alert("Your session has expired. Please sign in again.");
+  return;
+}
+
+const response = await fetch("/api/send-team-invite", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${inviteResendSession.access_token}`,
   },
+  body: JSON.stringify({
+    inviteId: updatedInvite.id,
+  }),
 });
 
-    if (error) {
-      console.error("CONNECT INTEGRATION ERROR:", error);
-      setMessage(`Could not connect ${provider}.`);
-      return;
-    }
+const result = await response.json();
 
-    setMessage(`${provider} connected.`);
-    await loadRestaurantConnections();
+if (!response.ok || !result.success) {
+  console.error("CONNECT INTEGRATION ERROR:", result);
+  setMessage(
+    result.error || `Could not connect ${provider}.`
+  );
+  return;
+}
+
+if (result.alreadyExists) {
+  setMessage(
+    `${provider} connection request already exists. Current status: ${
+      result.status || "unknown"
+    }.`
+  );
+  await loadRestaurantConnections();
+  return;
+}
+
+ setMessage(
+  result.reconnected
+    ? `${provider} reconnection requested. Fresh provider authorization is required before synchronization can begin.`
+    : `${provider} connection requested. Provider authorization is required before synchronization can begin.`
+);
+await loadRestaurantConnections();
   } catch (error) {
     console.error("CONNECT SYSTEM ERROR:", error);
     setMessage(`Could not connect ${provider}.`);
@@ -54423,16 +54682,41 @@ const handleDisconnectRestaurantSystem = async (provider) => {
 
     if (!confirmed) return;
 
-    const { error } = await supabase
-      .from("restaurant_connections")
-      .delete()
-      .eq("id", connection.id);
 
-    if (error) {
-      console.error("DISCONNECT INTEGRATION ERROR:", error);
-      setMessage(`Could not disconnect ${provider}.`);
-      return;
-    }
+const {
+  data: { session },
+  error: sessionError,
+} = await supabase.auth.getSession();
+
+if (sessionError || !session?.access_token) {
+  setMessage("Your session expired. Please log in again.");
+  return;
+}
+
+const response = await fetch(
+  "/api/integrations/disconnect-connection",
+  {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify({
+      connectionId: connection.id,
+    }),
+  }
+);
+
+const result = await response.json();
+
+if (!response.ok || !result.success) {
+  console.error("DISCONNECT INTEGRATION ERROR:", result);
+  setMessage(
+    result.error || `Could not disconnect ${provider}.`
+  );
+  return;
+}
+
 
     setMessage(`${provider} disconnected.`);
 
@@ -54577,38 +54861,34 @@ const handleSyncRestaurantSystem = async (provider) => {
   try {
     const connection = getConnectionStatus(provider);
 
-    if (!connection?.id) {
-      setMessage(`${provider} must be connected before syncing.`);
-      return;
-    }
+   if (!connection?.id) {
+  setMessage(`${provider} must be connected before syncing.`);
+  return;
+}
 
-    /*
-     * IMPORTANT:
-     * Do not mark last_sync_at yet.
-     *
-     * last_sync_at should only change after a real provider
-     * API sync successfully completes.
-     */
+const connectionStatus = String(
+  connection.status || ""
+)
+  .trim()
+  .toLowerCase();
 
-    const { error } = await supabase
-     .from("restaurant_connections")
-      .update({
-        last_sync_status: "sync_pending",
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", connection.id);
+const authorizationVerified =
+  connectionStatus === "connected" &&
+  connection.connection_type !== "manual" &&
+  connection.metadata?.authorization_verified === true;
 
-    if (error) {
-      console.error("SYNC REQUEST ERROR:", error);
-      setMessage(`Could not start ${provider} sync.`);
-      return;
-    }
-
-    setMessage(
-      `${provider} sync is ready for provider API connection.`
-    );
-
-    await loadRestaurantConnections();
+if (!authorizationVerified) {
+  setMessage(
+    `${provider} requires verified provider authorization before synchronization can begin.`
+  );
+  return;
+}
+// A synchronization request must be processed by a trusted
+// server endpoint that actually starts a provider sync job.
+// Do not write a misleading sync_pending status from the browser.
+setMessage(
+  `${provider} authorization is verified, but automatic synchronization is not yet configured. No sync was started.`
+);
   } catch (error) {
     console.error("SYNC SYSTEM ERROR:", error);
     setMessage(`Could not start ${provider} sync.`);
@@ -54689,8 +54969,12 @@ const connectionLocationName =
     connection?.last_sync_status || ""
   ).toLowerCase();
 
-  const isConnected =
-    connectionStatus === "connected";
+  const authorizationVerified =
+  connectionStatus === "connected" &&
+  connection?.connection_type !== "manual" &&
+  connection?.metadata?.authorization_verified === true;
+
+const isConnected = authorizationVerified;
 
   const isSyncPending =
     syncStatus === "sync_pending";
@@ -54735,9 +55019,13 @@ const connectionLocationName =
     padding: "5px 10px",
     borderRadius: "999px",
     background:
-      connectionStatus === "connected"
-        ? "rgba(34,197,94,0.12)"
-        : syncStatus === "sync_pending"
+     authorizationVerified
+  ? "rgba(34,197,94,0.12)"
+ : connectionStatus === "pending"
+  ? "rgba(245,158,11,0.12)"
+: connectionStatus === "connected" && !authorizationVerified
+  ? "rgba(249,115,22,0.12)"
+: syncStatus === "sync_pending"
         ? "rgba(245,158,11,0.12)"
         : syncStatus === "failed"
         ? "rgba(239,68,68,0.12)"
@@ -54746,9 +55034,13 @@ const connectionLocationName =
         : "rgba(148,163,184,0.08)",
 
     color:
-      connectionStatus === "connected"
-        ? "#86efac"
-        : syncStatus === "sync_pending"
+    authorizationVerified
+  ? "#86efac"
+  : connectionStatus === "pending"
+  ? "#fbbf24"
+: connectionStatus === "connected" && !authorizationVerified
+  ? "#fb923c"
+: syncStatus === "sync_pending"
         ? "#fbbf24"
         : syncStatus === "failed"
         ? "#f87171"
@@ -54760,9 +55052,13 @@ const connectionLocationName =
     fontWeight: "900",
   }}
 >
-  {connectionStatus === "connected"
-    ? "Connected ✓"
-    : syncStatus === "sync_pending"
+  {authorizationVerified
+  ? "Connected"
+  : connectionStatus === "pending"
+  ? "Authorization Pending"
+: connectionStatus === "connected" && !authorizationVerified
+  ? "Authorization Required"
+: syncStatus === "sync_pending"
     ? "Sync Pending"
     : syncStatus === "failed"
     ? "Sync Failed"
@@ -54772,7 +55068,7 @@ const connectionLocationName =
 </div>
         </div>
 
-       
+
       </div>{/* CONNECTION DETAILS */}
 {isConnected && (
   <div
@@ -54918,29 +55214,56 @@ const connectionLocationName =
           gap: "8px",
           flexWrap: "wrap",
         }}
+      >{!isConnected ? (
+  <>
+    <button
+      type="button"
+      disabled={Boolean(connection?.id)}
+      onClick={() =>
+        handleConnectRestaurantSystem(provider, category)
+      }
+      style={{
+        padding: "8px 12px",
+        borderRadius: "10px",
+        border: "none",
+        background: connection?.id
+          ? "rgba(245,158,11,0.12)"
+          : "linear-gradient(135deg,#6D3DF5,#8b5cf6)",
+        color: connection?.id ? "#fbbf24" : "white",
+        fontWeight: "900",
+        cursor: connection?.id ? "not-allowed" : "pointer",
+      }}
+    >
+      {connectionStatus === "pending"
+        ? "Authorization Pending"
+        : connection?.id
+        ? "Authorization Required"
+        : "Connect"}
+    </button>
+
+    {connection?.id && (
+      <button
+        type="button"
+        onClick={() =>
+          handleDisconnectRestaurantSystem(provider)
+        }
+        style={{
+          padding: "8px 12px",
+          borderRadius: "10px",
+          border: "1px solid rgba(248,113,113,0.22)",
+          background: "rgba(239,68,68,0.08)",
+          color: "#fca5a5",
+          fontWeight: "900",
+          cursor: "pointer",
+        }}
       >
-        {!isConnected ? (
-          <button
-            type="button"
-            onClick={() =>
-              handleConnectRestaurantSystem(
-                provider,
-                category
-              )
-            }
-            style={{
-              padding: "8px 12px",
-              borderRadius: "10px",
-              border: "none",
-              background:
-                "linear-gradient(135deg,#6D3DF5,#8b5cf6)",
-              color: "white",
-              fontWeight: "900",
-              cursor: "pointer",
-            }}
-          >
-            Connect
-          </button>
+        {connectionStatus === "pending"
+          ? "Cancel Request"
+          : "Remove Connection"}
+      </button>
+    )}
+  </>
+
         ) : (
           <>
             <button
@@ -57189,7 +57512,7 @@ need to add historical restaurant data.
             new Date(b.created_at || 0) -
             new Date(a.created_at || 0)
         )
-        
+
         .map((item, index) => (
           <div
             key={item.id || index}
@@ -57281,13 +57604,13 @@ need to add historical restaurant data.
   type="button"
  onClick={async () => {
 
-   
+
   console.log("RECENT IMPORT DELETE ITEM:", item);
   console.log("CALLING HANDLE DELETE WITH ID:", item?.id);
 console.log("DELETE BUTTON ITEM:", item);
 console.log("DELETE BUTTON ID:", item?.id);
   try {
-    
+
    await handleDeleteUpload(item?.id);
     console.log("HANDLE DELETE FINISHED");
   } catch (error) {
@@ -57311,12 +57634,12 @@ console.log("DELETE BUTTON ID:", item?.id);
   </div>
 )}
           </div>
-          
+
         ))}
     </div>
   )}
 </div>
-     
+
  {/* UPLOAD SUMMARY + CONFIRM */}
 {pendingUploadSummary && !usesDedicatedUploadCard && (
   <div
@@ -57456,7 +57779,7 @@ selectedHandler();
     needed to improve Serven accuracy.
   </div>
 <div style={{ marginTop: "14px", display: "grid", gap: "10px" }}>
-  
+
   {uploadChecklist.map((item) => (
     <div
       key={item.label}
@@ -57594,7 +57917,7 @@ selectedHandler();
     </div>
   </div>
 </div>
- 
+
     </div>
 )}
 
@@ -57604,7 +57927,7 @@ selectedHandler();
         );
       })}
     </div>
-   
+
 
   </div>
 )}
@@ -57613,6 +57936,70 @@ selectedHandler();
 {/* ================================ */}
 {activeTab === "overview" && (
   <>
+  {/* RESTAURANT OWNER LOCATION SELECTOR */}
+{isOwnerRole && (
+  <div
+    style={{
+      marginBottom: "20px",
+      padding: "18px",
+      borderRadius: "18px",
+      background: "rgba(15,23,42,0.85)",
+      border: "1px solid rgba(129,140,248,0.25)",
+    }}
+  >
+    <div
+      style={{
+        color: "#a5b4fc",
+        fontSize: "11px",
+        fontWeight: "900",
+        textTransform: "uppercase",
+        letterSpacing: "0.08em",
+        marginBottom: "10px",
+      }}
+    >
+      Restaurant Location
+    </div>
+
+    <select
+      value={activeLocation}
+      onChange={(e) => setActiveLocation(e.target.value)}
+      style={{
+        width: "100%",
+        maxWidth: "420px",
+        padding: "12px 14px",
+        borderRadius: "12px",
+        background: "#0f172a",
+        color: "white",
+        border: "1px solid rgba(148,163,184,0.25)",
+        fontSize: "13px",
+        fontWeight: "700",
+        cursor: "pointer",
+      }}
+    >
+      <option value="all">
+        All Locations — Company Overview
+      </option>
+
+      {(locations || [])
+        .filter((location) => location.id)
+        .map((location) => {
+          const locationName =
+            location.location_name ||
+            location.name ||
+            "Unnamed Restaurant";
+
+          return (
+            <option
+              key={location.id}
+              value={locationName}
+            >
+              {locationName}
+            </option>
+          );
+        })}
+    </select>
+  </div>
+)}
   <div
   style={{
     display: "flex",
@@ -57789,7 +58176,7 @@ selectedHandler();
       {Number(
         servenPerformanceSummary.potentialRecovery || 0
       ).toLocaleString()}
-    
+
     </div>
 
     <div
@@ -58736,7 +59123,7 @@ selectedHandler();
     ))}
   </div>
 
-  
+
   <button
     type="button"
     onClick={() => setActiveTab("profit_recovery")}
@@ -58823,7 +59210,7 @@ selectedHandler();
 </div>
   </>
 )}
- 
+
 
 {activeOverviewTab === "executive" && (
   <>
@@ -59209,7 +59596,7 @@ subtitle="Estimated opportunity for the loaded data period"
 
 
 
- 
+
 
 
 {uploadError && (
@@ -59313,7 +59700,7 @@ foodCostPercentage={
   realProfitLoading={realProfitLoading}
   realProfitEngine={realProfitEngine}
   appliedFixes={appliedFixes}
-  
+
   setMessage={setMessage}
   setAppliedFixes={setAppliedFixes}
 />
@@ -59773,7 +60160,7 @@ borderRadius: "14px",
       ) || "Recovery Action";
 
   return (
-        
+
           <div
             key={activity.id}
             style={{
@@ -63125,7 +63512,7 @@ Restaurant AI Health is currently rated{" "}
   ? `${Number(
       aiHealthEngine?.overallScore ||
         restaurantHealthScore ||
-        
+
         liveScore ||
         0
     )}/100`
@@ -63385,7 +63772,7 @@ Restaurant AI Health is currently rated{" "}
   marginBottom: "26px",
 }}
 >
-  
+
  <GlassCard
   title="Revenue Intelligence"
   value={`$${Number(liveTotalRevenue || 0).toLocaleString()}`}
@@ -63707,7 +64094,7 @@ Restaurant AI Health is currently rated{" "}
   subtitle="Recovery verified from operational evidence"
 />
 </div>
- 
+
 
  {/* SECOND KPI STRIP */}
 <div
@@ -64988,7 +65375,7 @@ Restaurant AI Health is currently rated{" "}
     </div>
   </div>
 )}
-   
+
 
     {/* ALERTS */}
     <div style={liveAlertContainer}>
@@ -65010,13 +65397,13 @@ Restaurant AI Health is currently rated{" "}
       ))}
     </div>
 
-   
+
   </>
 )}
 {activeTab === "multi_location" && (
   <>
   {/* ENTERPRISE COMMAND CENTER HEADER */}
- 
+
 <div
   style={{
     marginBottom: "20px",
@@ -65171,7 +65558,7 @@ Restaurant AI Health is currently rated{" "}
       ))}
     </div>
   </div>
-       
+
 
 {/* EXECUTIVE LOCATION RANKING */}
 
@@ -65233,7 +65620,7 @@ Restaurant AI Health is currently rated{" "}
 })}
 </div>
 </div>
- 
+
 
    {/* ENTERPRISE SUB NAV */}
 <div
@@ -65456,7 +65843,7 @@ Restaurant AI Health is currently rated{" "}
         (locationPerformanceData || []).length
           ? locationPerformanceData
           : [
-           
+
             ]
       }
       margin={{ top: 10, right: 24, left: 0, bottom: 24 }}
@@ -65758,7 +66145,7 @@ Restaurant AI Health is currently rated{" "}
     {((locationPerformanceData || []).length
       ? locationPerformanceData
       : [
-          
+
         ]
     ).map((location, index) => {
      const score = Number(location.score || location.healthScore || 0);
@@ -69394,7 +69781,7 @@ Restaurant AI Health is currently rated{" "}
     ? `${Number(kitchenSpeedScore || 0)}/100`
     : "Awaiting Data"}
 </h3>
-  
+
 
   <p style={{ color: "#94a3b8", fontSize: "14px" }}>
     Average cook time: {avgCookTime.toFixed(1)} minutes
@@ -71188,7 +71575,7 @@ gridColumn: "1 / -1",
   const lastRev = Number(summary.lastWeekRevenue || 0);
   const margin = Number(summary.marginNow || 0);
   const foodCost = Number(summary.foodCostNow || 0);
-  
+
   const isPositive = revDelta >= 0;
 
   return (
@@ -71530,7 +71917,7 @@ gridColumn: "1 / -1",
         {risks.map((risk, index) => {
           // 🛡️ Fixed Logic Block: Ensuring all UI styling properties exist safely
           const severity = String(risk?.severity || "low").toLowerCase();
-          
+
           let tone = {
             bg: "rgba(34,197,94,0.06)",
             border: "1px solid rgba(34,197,94,0.14)",
@@ -71748,7 +72135,7 @@ gridColumn: "1 / -1",
         {opportunities.map((opportunity, index) => {
           // Normalize priority syntax string safely
           const priority = String(opportunity?.priority || "low").toLowerCase();
-          
+
           // 🛡️ Bulletproof UI Config Mapping to handle theme presentation locally
           let tone = {
             bg: "rgba(148,163,184,0.06)",
@@ -72091,7 +72478,7 @@ gridColumn: "1 / -1",
 )}
   {analyticsView === "menu" && (
   <>
-  
+
 {/* MENU MIX / SALES DISTRIBUTION */}
 <div
   style={{
@@ -72620,7 +73007,7 @@ gridColumn: "1 / -1",
   )}
   {analyticsView === "cost" && (
   <>
-  
+
    {/* 💰 PRIME COST FORECAST TREND */}
 
 {hasProAccess && (
@@ -73192,9 +73579,9 @@ gridColumn: "1 / -1",
       overflow: "visible",
     }}
   >
-  
+
   {/* STAFF PLANNING SIGNALS */}
-  
+
   <div
   style={{
     position: "relative",
@@ -74280,7 +74667,7 @@ gridColumn: "1 / -1",
   )}
   {analyticsView === "vendor" && (
   <>
-  
+
 {/* =========================
    🧾 VENDOR INTELLIGENCE
 ========================= */}
@@ -74732,7 +75119,7 @@ gridColumn: "1 / -1",
   )}
   {analyticsView === "inventory" && (
   <>
-   
+
 {/* =========================
    📦 INVENTORY BURN RATE INTELLIGENCE
 ========================= */}
@@ -75126,7 +75513,7 @@ gridColumn: "1 / -1",
   </div>
 )}
 
-   
+
 {/* =========================
    🚨 INVENTORY RISK ALERTS
 ========================= */}
@@ -75435,7 +75822,7 @@ gridColumn: "1 / -1",
   </div>
 )}
 
-    
+
 {/* =========================
    🔮 PREDICTIVE RESTOCK INTELLIGENCE
 ========================= */}
@@ -75576,7 +75963,7 @@ gridColumn: "1 / -1",
   </div>
 )}
 
-    
+
 {/* INVENTORY FORECASTING */}
 
 <div
@@ -75924,7 +76311,7 @@ gridColumn: "1 / -1",
     )}
   </div>
 </div>
-   
+
   </>
 )}
  {analyticsView === "forecast" && (
@@ -76474,9 +76861,9 @@ have been applied.
     </div>
   </div>
 </div>
-  
+
   {/* DEMAND FORECASTING */}
-  
+
   <div
     style={{
       position: "relative",
@@ -76953,7 +77340,7 @@ minWidth: 0,
 {/* 📈 REVENUE PERFORMANCE */}
 {(() => {
   const timelineData = revenueLiftTimeline || [];
- 
+
   const currentRevenue = Number(totalRevenue || liveTotalRevenue || 0);
 
   const chartData =
@@ -77044,7 +77431,7 @@ mixing estimated AI impact into realized revenue.
           </p>
         </div>
 
-        
+
       </div>
 
       <div
@@ -77189,7 +77576,7 @@ revenue performance view.
     position: "relative",
   }}
 >
-  
+
   <div
     style={{
       display: "flex",
@@ -77265,7 +77652,7 @@ revenue performance view.
     </div>
   </div>
 
-  
+
   <div
     style={{
       display: "flex",
@@ -77308,7 +77695,7 @@ revenue performance view.
     })}
   </div>
 
-  
+
   <div
     style={{
       display: "grid",
@@ -77414,7 +77801,7 @@ revenue performance view.
     </div>
   </div>
 
-  
+
   <div
     style={{
       marginTop: "22px",
@@ -77481,7 +77868,7 @@ Recovered profit is based on saved AI action impact.
  </div> 
   )}
 </div>
-  
+
 )}
  {activeTab === "ai" && (
   <>
@@ -77499,7 +77886,7 @@ Recovered profit is based on saved AI action impact.
         boxSizing: "border-box",
       }}
     >
-       
+
           <div style={{ marginBottom: "14px" }}>
             <h3
               style={{
@@ -77583,7 +77970,7 @@ Recovered profit is based on saved AI action impact.
   ? `${Number(
       aiHealthEngine?.overallScore ||
         restaurantHealthScore ||
-        
+
         liveScore ||
         0
     )}/100`
@@ -78096,7 +78483,7 @@ Recovered profit is based on saved AI action impact.
     >
       {(aiSmartNotifications || []).length > 0 ? (
         aiSmartNotifications.map((note, index) => {
-  
+
 
   return (
          <div
@@ -78366,7 +78753,7 @@ Recovered profit is based on saved AI action impact.
     >
       {buttonLabel} →
     </button>
-    
+
   );
 })()}
                    </div>
@@ -80971,7 +81358,7 @@ Recovered profit is based on saved AI action impact.
   ? `${Number(
       aiHealthEngine?.overallScore ||
         restaurantHealthScore ||
-        
+
         liveScore ||
         0
     )}/100`
@@ -84617,7 +85004,7 @@ value: `$${Number(totalAIRecoveryOpportunity || 0).toLocaleString()}`,
   </div>
 )}
 
-       
+
 {/* ✅ AI RESOLUTION TRACKING */}
 {hasProAccess && (
   <div
@@ -85761,7 +86148,7 @@ value: `$${Number(totalAIRecoveryOpportunity || 0).toLocaleString()}`,
 </div>
   </div>
 )}
-     
+
 {/* 🔮 AI FORECASTING & PREDICTIVE INTELLIGENCE */}
 
 
@@ -85953,12 +86340,17 @@ value: `$${Number(totalAIRecoveryOpportunity || 0).toLocaleString()}`,
   <option value="restaurant_owner">Restaurant Owner</option>
   <option value="corporate_admin">Corporate Admin</option>
   <option value="regional_director">Regional Director</option>
+  <option value="area_director">Area Director</option>
   <option value="gm">General Manager</option>
   <option value="kitchen_manager">Kitchen Manager</option>
   <option value="finance">Finance</option>
 </select>
 
-{inviteRole === "regional_director" ? (
+{(
+  inviteRole === "regional_director" ||
+  inviteRole === "area_director"
+) ? (
+
   <div
     style={{
       gridColumn: isMobile ? "auto" : "1 / -1",
@@ -86145,7 +86537,7 @@ value: `$${Number(totalAIRecoveryOpportunity || 0).toLocaleString()}`,
     )}
   </div>
 </div>
-   
+
 
     <div
       style={{
@@ -86177,13 +86569,13 @@ value: `$${Number(totalAIRecoveryOpportunity || 0).toLocaleString()}`,
         "";
 
       return (
-        <option
-          key={location.id}
-          value={locationName}
-        >
-          {locationName}
-        </option>
-      );
+  <option
+    key={location.id}
+    value={location.id}
+  >
+    {locationName}
+  </option>
+);
     })}
   </select>
 ) : (
@@ -89424,7 +89816,7 @@ role: "Executive visibility & AI intelligence",
       fontWeight: "950",
     }}
   >
-    Connected operational systems
+    Operational data systems
   </h3>
 
   <div
@@ -89434,35 +89826,37 @@ role: "Executive visibility & AI intelligence",
       marginTop: "18px",
     }}
   >
-    {[
-      {
-        title: "POS Integration",
-        detail: "Sales & transaction intelligence",
-        status: "Connected",
-        color: "#4ade80",
-      },
 
-      {
-        title: "Labor System",
-        detail: "Scheduling & payroll synchronization",
-        status: "Active",
-        color: "#60a5fa",
-      },
+      {[
+  {
+    title: "POS Integration",
+    detail: "Sales & transaction intelligence",
+    status: "Not Verified",
+    color: "#94a3b8",
+  },
 
-      {
-        title: "Inventory Tracking",
-        detail: "Ingredient & depletion monitoring",
-        status: "Monitoring",
-        color: "#fbbf24",
-      },
+  {
+    title: "Labor System",
+    detail: "Scheduling & payroll synchronization",
+    status: "Not Verified",
+    color: "#94a3b8",
+  },
 
-      {
-        title: "Invoice Processing",
-        detail: "Vendor & purchasing intelligence",
-        status: "Connected",
-        color: "#c084fc",
-      },
-    ].map((system) => (
+  {
+    title: "Inventory Tracking",
+    detail: "Ingredient & depletion monitoring",
+    status: "Not Verified",
+    color: "#94a3b8",
+  },
+
+  {
+    title: "Invoice Processing",
+    detail: "Vendor & purchasing intelligence",
+    status: "Not Verified",
+    color: "#94a3b8",
+  },
+].map((system) => (
+
       <div
         key={system.title}
         style={{
@@ -90389,7 +90783,7 @@ role: "Executive visibility & AI intelligence",
       : "Awaiting Data",
   subtext: "Potential opportunity identified",
 },
-         
+
           {
             label: "Verified Recovered",
             value: `$${profitRecoverySummary.verifiedRecovered.toLocaleString()}`,
@@ -90761,7 +91155,7 @@ role: "Executive visibility & AI intelligence",
       ) || "Recovery Action";
 
   return (
-        
+
           <div
             key={activity.id}
             style={{
@@ -91679,7 +92073,7 @@ and expected time to impact.
     </div>
   )}
 </div>
-    
+
     {/* RECOVERY COACH */}
 <div
   style={{
@@ -93869,7 +94263,7 @@ const nextAction =
     subtext="Supplier cost pressure for the loaded data period"
   />
 
- 
+
 </div>
 {(!vendorCostInsights || vendorCostInsights.length === 0) && (
   <div
@@ -94157,7 +94551,7 @@ const nextAction =
     minWidth: 0,
   }}
 >
-  
+
 {/* LEFT SIDE */}
 <div
   style={{
@@ -97645,7 +98039,7 @@ margin: "0",
       );
     })()}
 
-  
+
 
 
     {/* ========================= */}
@@ -98207,7 +98601,7 @@ margin: "0",
             </div>
           ))}
         </div>
-     
+
       </div>
     )}
 {(() => {
@@ -98658,7 +99052,7 @@ if (!res.ok) {
   type="button"
   onClick={async () => {
     try {
-   
+
       if (!isValidUUID(campaign?.id)) {
         setSavedMessage("Campaign must be saved first");
         setTimeout(() => setSavedMessage(""), 2500);
@@ -98686,13 +99080,13 @@ if (!res.ok) {
       pushActivity(`✅ ${campaign.name} marked completed`, "complete");
 
       setSavedMessage("Campaign marked completed");
-      
+
     } 
-    
+
     catch (error) {
       console.error("Complete error:", error);
       setSavedMessage(error?.message || "Failed to update campaign");
-      
+
     }
   }}
   style={secondaryButtonStyle}
@@ -98812,7 +99206,7 @@ if (!res.ok) {
 </div>
                       </div>
                     </div>
-               
+
                   </div>
                 </div>
               );
@@ -98826,7 +99220,7 @@ if (!res.ok) {
 
 
 
-  
+
 
 {activeTab === "inventory" && (
   <>
@@ -102662,7 +103056,7 @@ const invoiceRows =
         0
       );
 
-    
+
 
       const wasteRiskLevel =
         deadStockRows.length > 0 || alerts.some((a) => a.priority === "Critical")
@@ -103292,11 +103686,11 @@ const invoiceRows =
               </div>
             )}
           </div>
-          
+
         </>
       );
     })()}
-    
+
 {/* 📦 EXPECTED VS ACTUAL USAGE INTELLIGENCE */}
 
 {hasProAccess && (
@@ -103764,7 +104158,7 @@ const hasNewUnresolvedIssue =
   </div>
 )}
   </>
-  
+
 )}
 {inventoryView === "forecast" && (
   <>
@@ -109652,7 +110046,7 @@ const safeEmployeeShifts =
   })()}
 </div>
 
-    
+
   </>
 )}
 {laborView === "ai" && (
@@ -110291,7 +110685,7 @@ const safeEmployeeShifts =
   })()}
 </div>
 
-    
+
   </>
 )}
 </div>
@@ -112011,7 +112405,7 @@ sub: "items with recipe rules or uploaded cost",
 })}
     </div>
   </div>
-  
+
 ) : (
   <div
     style={{
@@ -112119,7 +112513,7 @@ maxWidth: "calc(100% - 28px)",
   }}
 >
   {hasGrowthAccess ? (
-  
+
   <>
 {/* EXPECTED USAGE ENGINE */}
 <div
@@ -113176,7 +113570,7 @@ maxWidth: "calc(100% - 28px)",
     overflow: "visible",
   }}
 >
-  
+
     <BarChart data={inventoryTrendData}>
       <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.16)" />
 
@@ -113204,7 +113598,7 @@ maxWidth: "calc(100% - 28px)",
       <Bar dataKey="quantity" name="Quantity" fill="#22c55e" />
       <Bar dataKey="usageRate" name="Daily Usage" fill="#3b82f6" />
     </BarChart>
-  
+
 </div>
   ) : (
     <div style={{ color: "#94a3b8", fontSize: "14px", marginTop: "14px" }}>
@@ -113213,7 +113607,7 @@ maxWidth: "calc(100% - 28px)",
   )}
 </div>
   </>
-  
+
 ) : (
   <div
     style={{
@@ -114327,7 +114721,7 @@ maxWidth: "calc(100% - 28px)",
 
 
   {activeTab === "beverage" && (
-    
+
   <div
     style={{
       width: "calc(100vw - 390px)",
@@ -115786,7 +116180,7 @@ maxWidth: "calc(100% - 28px)",
     Upload beverage usage data to activate pour variance.
   </div>
 )}
-  
+
   </div>
 
   <div style={sectionCard}>
@@ -116915,7 +117309,7 @@ minWidth: 0,
     ))}
   </div>
 </div>
-  
+
 </div>
   <div
     style={{
@@ -116925,7 +117319,7 @@ minWidth: 0,
     }}
   >
     {/* 🚨 ESCALATION QUEUE */}
-  
+
 
   {hasProAccess && (
     <div
@@ -117532,7 +117926,7 @@ minWidth: 0,
   )}
 </div>
 </div>
-  
+
 )}
 
 {showUndoDelete && recentlyDeletedUpload && (
@@ -118841,7 +119235,7 @@ and waste optimizations applied through Serven AI.
                       const total = unapplied.reduce((sum, o) => sum + o.impact, 0);
 
                       if (unapplied.length > 0) {
-                       
+
                         setAppliedFixes((prev) => [
                           ...new Set([...prev, ...unapplied.map((o) => o.id)]),
                         ]);
@@ -119087,8 +119481,8 @@ and waste optimizations applied through Serven AI.
             </div>
           </div>
 
-                
-         
+
+
         </div>
 
         {/* ================= RIGHT COLUMN ================= */}
@@ -119324,8 +119718,8 @@ and waste optimizations applied through Serven AI.
 
 
 
-      
-    
+
+
       </>
 )}
 </div> {/* LEFT SIDE */}

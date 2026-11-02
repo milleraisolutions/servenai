@@ -86,10 +86,12 @@ export async function POST(request) {
         id,
         user_id,
         location_id,
-        provider,
-        status,
-        external_account_id,
-        external_location_id
+       provider,
+status,
+connection_type,
+metadata,
+external_account_id,
+external_location_id
       `)
       .eq("id", connectionId)
       .single();
@@ -302,6 +304,37 @@ if (!authorizedForSync) {
       success: false,
       error:
         "You do not have permission to sync labor data for this restaurant connection.",
+    },
+    { status: 403 }
+  );
+}
+// ========================================
+// SERVER-SIDE PROVIDER AUTHORIZATION GATE
+// ========================================
+
+const providerConnectionStatus = String(
+  connection.status || ""
+)
+  .trim()
+  .toLowerCase();
+
+const providerConnectionType = String(
+  connection.connection_type || ""
+)
+  .trim()
+  .toLowerCase();
+
+const providerAuthorizationVerified =
+  providerConnectionStatus === "connected" &&
+  providerConnectionType !== "manual" &&
+  connection.metadata?.authorization_verified === true;
+
+if (!providerAuthorizationVerified) {
+  return NextResponse.json(
+    {
+      success: false,
+      error:
+        "This integration requires verified provider authorization before labor synchronization is permitted.",
     },
     { status: 403 }
   );
