@@ -1977,8 +1977,20 @@ if (!invoiceDeleted) {
           : "No invoices were saved.",
       },
       {
-        status: success ? 200 : 500,
-      }
+  status: success
+    ? 200
+    : failures.length > 0 &&
+        failures.every((failure) =>
+          [
+            "Only PDF invoice files are supported.",
+            "Invoice PDF exceeds the 10 MB file size limit.",
+            "Invoice PDF is empty or has an invalid file size.",
+            "The uploaded file is not a valid PDF.",
+          ].includes(failure.error)
+        )
+      ? 400
+      : 500,
+}
     );
     } catch (error) {
     console.error("Invoice upload request failed:", {
