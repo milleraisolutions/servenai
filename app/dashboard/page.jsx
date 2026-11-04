@@ -28843,7 +28843,7 @@ const sidebarTabs = isKitchenManagerRole
 },
 
     { key: "ai", label: "AI Insights", icon: "🧠" },
-    { key: "client_alerts", label: "Client Alerts", icon: "🚨" },
+    { key: "client_alerts", label: "Alerts", icon: "🚨" },
     { key: "analytics", label: "Analytics", icon: "📈" },
     { key: "inventory", label: "Inventory", icon: "📦" },
     { key: "financial", label: "Financial Intelligence", icon: "💰" },
@@ -47535,25 +47535,65 @@ try {
               const employeeKey =
                 employeeName.toLowerCase();
 
-              const scheduledHours = Number(
-                row.scheduled_hours ||
-                  row["Scheduled Hours"] ||
-                  row.hours ||
-                  row.Hours ||
-                  row.shift_hours ||
-                  row["Shift Hours"] ||
-                  0
-              );
+          const rawScheduledHours = [
+  row.scheduled_hours,
+  row["Scheduled Hours"],
+  row.hours,
+  row.Hours,
+  row.shift_hours,
+  row["Shift Hours"],
+].find(
+  (value) =>
+    value !== null &&
+    value !== undefined &&
+    String(value).trim() !== ""
+);
 
-              const hourlyRate = Number(
-                row.hourly_rate ||
-                  row["Hourly Rate"] ||
-                  row.rate ||
-                  row.Rate ||
-                  row.pay_rate ||
-                  row["Pay Rate"] ||
-                  0
-              );
+const parsedScheduledHours =
+  rawScheduledHours === undefined
+    ? null
+    : Number(
+        String(rawScheduledHours)
+          .replace(/,/g, "")
+          .trim()
+      );
+
+const scheduledHours =
+  parsedScheduledHours !== null &&
+  Number.isFinite(parsedScheduledHours) &&
+  parsedScheduledHours >= 0
+    ? parsedScheduledHours
+    : null;
+
+            const rawHourlyRate = [
+  row.hourly_rate,
+  row["Hourly Rate"],
+  row.rate,
+  row.Rate,
+  row.pay_rate,
+  row["Pay Rate"],
+].find(
+  (value) =>
+    value !== null &&
+    value !== undefined &&
+    String(value).trim() !== ""
+);
+
+const parsedHourlyRate =
+  rawHourlyRate === undefined
+    ? null
+    : Number(
+        String(rawHourlyRate)
+          .replace(/[$,]/g, "")
+          .trim()
+      );
+
+const hourlyRate =
+  parsedHourlyRate !== null &&
+  Number.isFinite(parsedHourlyRate) &&
+  parsedHourlyRate >= 0
+    ? parsedHourlyRate
+    : null;
 
               return {
                 user_id: currentUser.id,
@@ -47601,16 +47641,40 @@ try {
                 scheduled_hours: scheduledHours,
 
                 hourly_rate: hourlyRate,
+projected_labor_cost: (() => {
+  const rawCost = [
+    row.projected_labor_cost,
+    row["Projected Labor Cost"],
+    row.labor_cost,
+    row["Labor Cost"],
+  ].find(
+    (value) =>
+      value !== null &&
+      value !== undefined &&
+      String(value).trim() !== ""
+  );
 
-                projected_labor_cost:
-                  Number(
-                    row.projected_labor_cost ||
-                      row["Projected Labor Cost"] ||
-                      row.labor_cost ||
-                      row["Labor Cost"] ||
-                      0
-                  ) ||
-                  scheduledHours * hourlyRate,
+  if (rawCost !== undefined) {
+    const parsedCost = Number(
+      String(rawCost).replace(/[$,]/g, "").trim()
+    );
+
+    if (Number.isFinite(parsedCost) && parsedCost >= 0) {
+      return parsedCost;
+    }
+  }
+
+  if (
+    Number.isFinite(scheduledHours) &&
+    scheduledHours >= 0 &&
+    hourlyRate !== null &&
+    Number.isFinite(hourlyRate)
+  ) {
+    return scheduledHours * hourlyRate;
+  }
+
+  return null;
+})(),
 
                 shift:
                   row.shift ||
@@ -94753,7 +94817,7 @@ margin: "0",
               marginBottom: "6px",
             }}
           >
-            Client Alerts
+            Alerts
           </div>
           <div
             style={{
