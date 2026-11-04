@@ -1074,7 +1074,7 @@ const hasPaidAccess =
   isOwner ||
   hasTeamAccess ||
   (
-    ["active", "paid", "trialing"].includes(normalizedStatus) &&
+    ["active", "paid", "trialing", "pilot"].includes(normalizedStatus) &&
     ["starter", "growth", "pro", "team"].includes(normalizedPlan)
   );
 const hasStarterAccess = hasPaidAccess;
@@ -1083,13 +1083,13 @@ const hasGrowthAccess =
   isOwner ||
   hasTeamAccess ||
   (
-    ["active", "paid", "trialing"].includes(normalizedStatus) &&
+    ["active", "paid", "trialing", "pilot"].includes(normalizedStatus) &&
    ["growth", "pro", "enterprise", "team"].includes(normalizedPlan)
   );
 const hasProAccess =
   isOwner ||
   (
-    ["active", "paid", "trialing"].includes(normalizedStatus) &&
+    ["active", "paid", "trialing", "pilot"].includes(normalizedStatus) &&
     ["pro", "enterprise"].includes(normalizedPlan)
   );
 
