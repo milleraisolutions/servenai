@@ -377,19 +377,47 @@ verifiedAiActionsCount: verifiedCustomerActions.length,
     return Math.max(score, 0);
   };
 
-  const updateCustomerStatus = async (userId, newStatus) => {
-    const { error } = await supabase
-      .from("users")
-      .update({ customer_status: newStatus })
-      .eq("id", userId);
+ const updateCustomerStatus = async (userId, newStatus) => {
+  const previousStatus =
+    customers.find((customer) => customer.id === userId)
+      ?.customer_status || "lead";
 
-    if (error) {
-      console.error("Status update failed:", error);
-      setErrorMessage(error.message);
-      return;
-    }
-    fetchCustomers();
-  };
+  // Show the selected status immediately
+  setCustomers((prev) =>
+    prev.map((customer) =>
+      customer.id === userId
+        ? { ...customer, customer_status: newStatus }
+        : customer
+    )
+  );
+
+  const { data, error } = await supabase
+    .from("users")
+    .update({ customer_status: newStatus })
+    .eq("id", userId)
+    .select("id, customer_status");
+
+  if (error || !data?.length) {
+    console.error("Status update failed:", error);
+
+    // Restore previous status if saving fails
+    setCustomers((prev) =>
+      prev.map((customer) =>
+        customer.id === userId
+          ? { ...customer, customer_status: previousStatus }
+          : customer
+      )
+    );
+
+    setErrorMessage(
+      error?.message || "Status change was not saved."
+    );
+
+    return;
+  }
+
+  await fetchCustomers();
+};
 
   const updatePlan = async (userId, newPlan) => {
     const { error } = await supabase
