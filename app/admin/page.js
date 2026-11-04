@@ -6726,10 +6726,11 @@ const actionDate =
             <option value="pro">Pro</option>
           </select>
           <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} style={selectStyle}>
-            <option value="all">All Statuses</option>
-            <option value="active">Active</option>
-            <option value="lead">Lead</option>
-          </select>
+  <option value="all">All Statuses</option>
+  <option value="lead">Lead</option>
+  <option value="pilot">Pilot</option>
+  <option value="active">Active</option>
+</select>
           <select value={billingFilter} onChange={(e) => setBillingFilter(e.target.value)} style={selectStyle}>
             <option value="all">All Billing</option>
             <option value="active">Paid/Active</option>
@@ -6796,7 +6797,8 @@ const actionDate =
                         style={{ ...selectStyle, padding: "6px" }}
                       >
                         <option value="lead">Lead</option>
-                        <option value="active">Active</option>
+<option value="pilot">Pilot</option>
+<option value="active">Active</option>
                       </select>
                     </div>
                     <div>

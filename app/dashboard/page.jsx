@@ -12404,11 +12404,12 @@ const loadVerifiedRecoveryLedger = async () => {
   }
 
   const { data, error } = await supabase
-    .from("verified_recovery_ledger")
-    .select("*")
-    .eq("user_id", ownerId)
-    .eq("status", "verified")
-    .order("period_start", { ascending: true });
+  .from("verified_recovery_ledger")
+  .select("*")
+  .eq("user_id", ownerId)
+  .eq("status", "verified")
+  .eq("is_test_data", false)
+  .order("period_start", { ascending: true });
 
   if (error) {
     console.error(
@@ -16477,11 +16478,13 @@ const { error: menuLedgerError } = await supabase
   .upsert(
     [
       {
-        user_id: action.user_id,
+  user_id: action.user_id,
 
-        action_id: action.id,
+  action_id: action.id,
 
-        recovery_category: "menu",
+  is_test_data: true,
+
+  recovery_category: "menu",
 
         entity_type:
           action.entity_type || "menu_item",
@@ -16959,15 +16962,17 @@ const matchingMenuItem = actionScopedMenuItems.find(
         )
         .upsert(
           [
-            {
-              user_id:
-                action.user_id,
+           {
+  user_id:
+    action.user_id,
 
-              action_id:
-                action.id,
+  action_id:
+    action.id,
 
-              recovery_category:
-                "menu",
+  is_test_data: true,
+
+  recovery_category:
+    "menu",
 
               entity_type:
                 action.entity_type ||
@@ -17081,7 +17086,8 @@ const matchingMenuItem = actionScopedMenuItems.find(
         )
         .select("recovery_amount")
         .eq("action_id", action.id)
-        .eq("status", "verified");
+        .eq("status", "verified")
+.eq("is_test_data", false);
 
       if (lifetimeError) {
         console.error(
@@ -21824,7 +21830,8 @@ const actionScopedInvoices = (invoicesData || []).filter(
           )
           .select("recovery_amount")
           .eq("action_id", action.id)
-          .eq("status", "verified");
+          .eq("status", "verified")
+.eq("is_test_data", false);
 
         if (lifetimeError) {
           console.error(
@@ -22323,15 +22330,17 @@ latestSharedDate.setHours(
                 "verified_recovery_ledger"
               )
               .insert([
-                {
-                  user_id:
-                    action.user_id,
+               {
+  user_id:
+    action.user_id,
 
-                  action_id:
-                    action.id,
+  action_id:
+    action.id,
 
-                  recovery_category:
-                    "labor",
+  is_test_data: true,
+
+  recovery_category:
+    "labor",
 
                   entity_type:
                     action.entity_type ||
@@ -22442,7 +22451,8 @@ anyRecoveryChanged = true;
           )
           .select("recovery_amount")
           .eq("action_id", action.id)
-          .eq("status", "verified");
+          .eq("status", "verified")
+.eq("is_test_data", false);
 
         if (lifetimeError) {
           console.error(
@@ -22675,12 +22685,14 @@ const totalAIRecoveryOpportunity =
     (summary, row) => {
       const recoveryAmount = Number(row?.recovery_amount || 0);
 
-      if (
-        !Number.isFinite(recoveryAmount) ||
-        recoveryAmount <= 0
-      ) {
-        return summary;
-      }
+     if (
+  row?.is_test_data !== false ||
+  String(row?.status || "").toLowerCase() !== "verified" ||
+  !Number.isFinite(recoveryAmount) ||
+  recoveryAmount <= 0
+) {
+  return summary;
+}
 
       const category = String(
         row?.recovery_category || ""
@@ -22746,12 +22758,14 @@ const loadedPeriodVerifiedRecoverySummary = useMemo(() => {
     (summary, row) => {
       const recoveryAmount = Number(row?.recovery_amount || 0);
 
-      if (
-        !Number.isFinite(recoveryAmount) ||
-        recoveryAmount <= 0
-      ) {
-        return summary;
-      }
+     if (
+  row?.is_test_data !== false ||
+  String(row?.status || "").toLowerCase() !== "verified" ||
+  !Number.isFinite(recoveryAmount) ||
+  recoveryAmount <= 0
+) {
+  return summary;
+}
 
       const rawRecoveryDate =
         row?.period_end ||
@@ -22966,11 +22980,14 @@ const verifiedRecoveryActions = (realAppliedActions || []).filter(
       .toLowerCase();
 
     return (
-      verificationStatus === "verified" ||
-      verificationStatus === "completed" ||
-      action.verified === true ||
-      action.is_verified === true
-    );
+  action.is_test_data === false &&
+  (
+    verificationStatus === "verified" ||
+    verificationStatus === "completed" ||
+    action.verified === true ||
+    action.is_verified === true
+  )
+);
   }
 );
 // ========================================
@@ -22990,11 +23007,12 @@ const verifiedMenuRecoveryActions = (realAppliedActions || []).filter(
       .trim()
       .toLowerCase();
 
-    return (
-      verificationStatus === "verified" &&
-      recoveryCategory === "menu" &&
-      Number(action.verified_recovery || 0) > 0
-    );
+   return (
+  action.is_test_data === false &&
+  verificationStatus === "verified" &&
+  recoveryCategory === "menu" &&
+  Number(action.verified_recovery || 0) > 0
+);
   }
 );
 const verifiedRecoveredProfit =
@@ -37058,7 +37076,8 @@ existingLedgerRows.push({
           .from("verified_recovery_ledger")
           .select("recovery_amount")
           .eq("action_id", action.id)
-          .eq("status", "verified");
+          .eq("status", "verified")
+.eq("is_test_data", false);
 
         if (lifetimeError) {
           console.error(
