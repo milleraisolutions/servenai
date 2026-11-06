@@ -97,9 +97,9 @@ if (!["owner", "executive"].includes(role)) {
 
 const { data: laborRows, error: laborError } = await supabase
   .from("employee_shifts")
-  .select(
-    "shift_date, hours_worked, hourly_rate, labor_cost, location_name"
-  )
+.select(
+  "shift_date, hours_worked, hourly_rate, labor_cost, location_name, is_test_data"
+)
   .eq("user_id", user.id)
   .order("shift_date", { ascending: false })
   .limit(1000);
@@ -117,14 +117,95 @@ if (laborError) {
 }
 
 const rows = laborRows || [];
+const testRecordCount = rows.filter(
+  (row) => row.is_test_data !== false
+).length;
+
+const productionRecordCount = rows.filter(
+  (row) => row.is_test_data === false
+).length;
+// Separate test records from non-test records.
+// Non-test records are NOT automatically verified production data.
+const testLaborRows = rows.filter(
+  (row) => row.is_test_data !== false
+);
+
+const unverifiedProductionLaborRows = rows.filter(
+  (row) => row.is_test_data === false
+);
+if (rows.length === 1000) {
+  return NextResponse.json(
+    {
+      success: false,
+      error:
+        "Labor records exceed the current reporting limit. " +
+        "SerVen AI cannot calculate a reliable total until " +
+        "all records are included.",
+    },
+    { status: 422 }
+  );
+}
+
+const invalidLaborCostRows = rows.filter((row) => {
+  if (
+    row.labor_cost === null ||
+    row.labor_cost === undefined ||
+    String(row.labor_cost).trim() === ""
+  ) {
+    return true;
+  }
+
+  return !Number.isFinite(Number(row.labor_cost)) ||
+    Number(row.labor_cost) < 0;
+});
+
+if (invalidLaborCostRows.length > 0) {
+  return NextResponse.json(
+    {
+      success: false,
+      error:
+        `SerVen AI found ${invalidLaborCostRows.length} labor records ` +
+        "with missing or invalid labor costs. " +
+        "A reliable labor cost total cannot be calculated.",
+    },
+    { status: 422 }
+  );
+}
 
 const totalLaborCost = rows.reduce(
-  (sum, row) => sum + Number(row.labor_cost || 0),
+  (sum, row) => sum + Number(row.labor_cost),
   0
 );
 
+const invalidLaborHoursRows = rows.filter((row) => {
+  if (
+    row.hours_worked === null ||
+    row.hours_worked === undefined ||
+    String(row.hours_worked).trim() === ""
+  ) {
+    return true;
+  }
+
+  const hours = Number(row.hours_worked);
+
+  return !Number.isFinite(hours) || hours < 0;
+});
+
+if (invalidLaborHoursRows.length > 0) {
+  return NextResponse.json(
+    {
+      success: false,
+      error:
+        `SerVen AI found ${invalidLaborHoursRows.length} labor records ` +
+        "with missing or invalid hours worked. " +
+        "A reliable labor hours total cannot be calculated.",
+    },
+    { status: 422 }
+  );
+}
+
 const totalLaborHours = rows.reduce(
-  (sum, row) => sum + Number(row.hours_worked || 0),
+  (sum, row) => sum + Number(row.hours_worked),
   0
 );
 
@@ -136,8 +217,41 @@ return NextResponse.json({
       totalLaborCost,
       totalLaborHours,
       latestShiftDate: rows[0]?.shift_date || null,
-      source: "employee_shifts",
-      isHistorical: true,
+source: "employee_shifts",
+isHistorical: true,
+testRecordCount,
+productionRecordCount,
+
+testLabor: {
+  recordCount: testLaborRows.length,
+  totalCost: testLaborRows.reduce(
+    (sum, row) => sum + Number(row.labor_cost),
+    0
+  ),
+  totalHours: testLaborRows.reduce(
+    (sum, row) => sum + Number(row.hours_worked),
+    0
+  ),
+},
+
+unverifiedProductionLabor: {
+  recordCount: unverifiedProductionLaborRows.length,
+  totalCost: unverifiedProductionLaborRows.reduce(
+    (sum, row) => sum + Number(row.labor_cost),
+    0
+  ),
+  totalHours: unverifiedProductionLaborRows.reduce(
+    (sum, row) => sum + Number(row.hours_worked),
+    0
+  ),
+},
+
+dataClassification:
+  testRecordCount > 0
+    ? productionRecordCount > 0
+      ? "mixed_test_and_unverified_production"
+      : "test"
+    : "unverified_production",
     },
   },
 });

@@ -120593,24 +120593,57 @@ setSelectedDataSource("");
     }
 
     const labor = result.data?.labor;
+const dataClassification = labor?.dataClassification;
 
+const dataNotice =
+  dataClassification === "test"
+    ? "DATA STATUS: TEST DATA ONLY\nThese records are for software testing, not verified restaurant financial performance."
+    : dataClassification === "mixed_test_and_unverified_production"
+    ? "DATA STATUS: MIXED DATA\nThese totals combine test records and unverified production records. Do not use them for financial decisions."
+    : dataClassification === "unverified_production"
+    ? "DATA STATUS: UNVERIFIED PRODUCTION\nThese records have not been independently verified as genuine production data."
+    : "DATA STATUS: UNKNOWN\nThe source data classification could not be confirmed.";
     let answer =
       "SerVen AI is connected, but this question is not supported yet.";
+if (labor) {
+  const test = labor.testLabor;
+  const unverified = labor.unverifiedProductionLabor;
 
-    if (labor) {
-      answer =
-        `Historical Labor Data\n\n` +
-        `Shift Records: ${labor.recordCount}\n` +
-        `Total Labor Cost: $${Number(
-          labor.totalLaborCost || 0
-        ).toLocaleString()}\n` +
-        `Total Labor Hours: ${Number(
-          labor.totalLaborHours || 0
-        ).toLocaleString()}\n` +
-        `Latest Shift: ${labor.latestShiftDate || "Unavailable"}\n\n` +
-        `These figures come from historical records and may include test data. ` +
-        `They are not a forecast or verified production results.`;
-    }
+  const formatMoney = (value) =>
+    `$${Number(value).toLocaleString("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+
+  const formatHours = (value) =>
+    Number(value).toLocaleString("en-US", {
+      maximumFractionDigits: 2,
+    });
+
+  answer =
+    `Historical Labor Data\n\n` +
+    `TEST DATA\n` +
+    `Shift Records: ${test?.recordCount ?? "Unavailable"}\n` +
+    `Labor Cost: ${
+      test ? formatMoney(test.totalCost) : "Unavailable"
+    }\n` +
+    `Labor Hours: ${
+      test ? formatHours(test.totalHours) : "Unavailable"
+    }\n\n` +
+    `NON-TEST DATA (UNVERIFIED)\n` +
+    `Shift Records: ${unverified?.recordCount ?? "Unavailable"}\n` +
+    `Labor Cost: ${
+      unverified ? formatMoney(unverified.totalCost) : "Unavailable"
+    }\n` +
+    `Labor Hours: ${
+      unverified ? formatHours(unverified.totalHours) : "Unavailable"
+    }\n\n` +
+    `Latest Recorded Shift: ${
+      labor.latestShiftDate || "Unavailable"
+    }\n\n` +
+    `${dataNotice}\n\n` +
+    `These are historical records, not a forecast or verified profit recovery.`;
+}
 
     setCopilotMessages((previous) => [
       ...previous,
