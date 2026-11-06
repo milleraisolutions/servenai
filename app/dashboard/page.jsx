@@ -654,7 +654,11 @@ const analyzeServenImportHeaders = (rawHeaders = []) => {
 
 export default function Dashboard() {
   const router = useRouter();
-
+// Global SerVen AI Co-Pilot
+  const [copilotOpen, setCopilotOpen] = useState(false);
+  const [copilotMessages, setCopilotMessages] = useState([]);
+const [copilotInput, setCopilotInput] = useState("");
+const [copilotLoading, setCopilotLoading] = useState(false);
   /* 🔹 CORE STATE */
   const [invoiceUploadLoading, setInvoiceUploadLoading] = useState(false);
   const [invoiceUploadMessage, setInvoiceUploadMessage] = useState("");
@@ -120503,6 +120507,256 @@ setSelectedDataSource("");
     }
   }
 `}</style>
+{/* SERVEN AI CO-PILOT CONVERSATION PANEL */}
+{copilotOpen && (
+  <div
+    style={{
+      position: "fixed",
+      right: "24px",
+      bottom: "92px",
+      width: "min(400px, calc(100vw - 32px))",
+      height: "min(560px, calc(100dvh - 120px))",
+      zIndex: 9999,
+      background: "#0f172a",
+      border: "1px solid rgba(167,139,250,0.35)",
+      borderRadius: "22px",
+      boxShadow: "0 24px 80px rgba(0,0,0,0.45)",
+      display: "flex",
+      flexDirection: "column",
+      overflow: "hidden",
+      color: "#ffffff",
+    }}
+  >
+    <div
+      style={{
+        padding: "18px",
+        background: "linear-gradient(135deg, #312e81, #6D3DF5)",
+        fontWeight: "900",
+        fontSize: "16px",
+      }}
+    >
+      ✦ SerVen AI Co-Pilot
+      <div
+        style={{
+          fontSize: "11px",
+          fontWeight: "500",
+          marginTop: "5px",
+          color: "#e0e7ff",
+        }}
+      >
+        Your restaurant intelligence assistant
+      </div>
+    </div>
+
+    <div
+      role="log"
+      aria-live="polite"
+      style={{
+        flex: 1,
+        overflowY: "auto",
+        padding: "18px",
+        display: "flex",
+        flexDirection: "column",
+        gap: "12px",
+      }}
+    >
+      {copilotMessages.length === 0 && (
+        <div style={{ color: "#cbd5e1", lineHeight: 1.7 }}>
+          Welcome to SerVen AI Co-Pilot.
+          <div style={{ marginTop: "12px", color: "#a5b4fc" }}>
+            Ask me about labor costs, restaurant performance,
+            inventory, or profit recovery.
+          </div>
+        </div>
+      )}
+
+      {copilotMessages.map((message, index) => (
+        <div
+          key={index}
+          style={{
+            alignSelf:
+              message.role === "user" ? "flex-end" : "flex-start",
+            background:
+              message.role === "user"
+                ? "#4f46e5"
+                : "rgba(255,255,255,0.07)",
+            padding: "12px 14px",
+            borderRadius: "14px",
+            maxWidth: "90%",
+            fontSize: "13px",
+            lineHeight: 1.6,
+            whiteSpace: "pre-wrap",
+            overflowWrap: "anywhere",
+          }}
+        >
+          {message.content}
+        </div>
+      ))}
+
+      {copilotLoading && (
+        <div style={{ color: "#a5b4fc", fontSize: "12px" }}>
+          SerVen AI is analyzing...
+        </div>
+           )}
+    </div>
+
+    <form
+      onSubmit={async (event) => {
+  event.preventDefault();
+
+  const question = copilotInput.trim();
+
+  if (!question || copilotLoading) return;
+
+  setCopilotMessages((previous) => [
+    ...previous,
+    { role: "user", content: question },
+  ]);
+
+  setCopilotInput("");
+  setCopilotLoading(true);
+
+  try {
+    const {
+      data: { session },
+      error: sessionError,
+    } = await supabase.auth.getSession();
+
+    if (sessionError || !session?.access_token) {
+      throw new Error("Please sign in to use SerVen AI Co-Pilot.");
+    }
+
+    const response = await fetch("/api/copilot", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ question }),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+      throw new Error(
+        result.error || "SerVen AI could not process your request."
+      );
+    }
+
+    const labor = result.data?.labor;
+
+    let answer =
+      "SerVen AI is connected, but this question is not supported yet.";
+
+    if (labor) {
+      answer =
+        `Historical Labor Data\n\n` +
+        `Shift Records: ${labor.recordCount}\n` +
+        `Total Labor Cost: $${Number(
+          labor.totalLaborCost || 0
+        ).toLocaleString()}\n` +
+        `Total Labor Hours: ${Number(
+          labor.totalLaborHours || 0
+        ).toLocaleString()}\n` +
+        `Latest Shift: ${labor.latestShiftDate || "Unavailable"}\n\n` +
+        `These figures come from historical records and may include test data. ` +
+        `They are not a forecast or verified production results.`;
+    }
+
+    setCopilotMessages((previous) => [
+      ...previous,
+      { role: "assistant", content: answer },
+    ]);
+  } catch (error) {
+    console.error("SERVEN COPILOT REQUEST ERROR:", error);
+
+    setCopilotMessages((previous) => [
+      ...previous,
+      {
+        role: "assistant",
+        content:
+          error.message || "Unable to connect to SerVen AI Co-Pilot.",
+      },
+    ]);
+  } finally {
+    setCopilotLoading(false);
+  }
+}}
+      style={{
+        display: "flex",
+        gap: "8px",
+        padding: "14px",
+        borderTop: "1px solid rgba(255,255,255,0.1)",
+      }}
+    >
+      <input
+        type="text"
+        value={copilotInput}
+        onChange={(event) => setCopilotInput(event.target.value)}
+        placeholder="Ask SerVen AI..."
+        aria-label="Ask SerVen AI"
+        style={{
+          flex: 1,
+          minWidth: 0,
+          padding: "12px",
+          borderRadius: "10px",
+          border: "1px solid rgba(255,255,255,0.15)",
+          background: "#1e293b",
+          color: "#ffffff",
+          outline: "none",
+        }}
+      />
+
+      <button
+        type="submit"
+        disabled={!copilotInput.trim() || copilotLoading}
+        style={{
+          padding: "12px 16px",
+          borderRadius: "10px",
+          border: "none",
+          background: "#6366f1",
+          color: "white",
+          fontWeight: "800",
+          cursor: "pointer",
+          opacity:
+            !copilotInput.trim() || copilotLoading ? 0.5 : 1,
+        }}
+      >
+        Send
+      </button>
+    </form>
+  </div>
+)}
+{/* ================================
+    SERVEN GLOBAL AI CO-PILOT
+================================ */}
+<div
+  style={{
+    position: "fixed",
+    bottom: "24px",
+    right: "24px",
+    zIndex: 9999,
+  }}
+>
+  <button
+    type="button"
+    onClick={() => setCopilotOpen((previous) => !previous)}
+    style={{
+      padding: "15px 22px",
+      borderRadius: "999px",
+      border: "1px solid rgba(255,255,255,0.18)",
+      background: "linear-gradient(135deg, #4f46e5, #6D3DF5)",
+      color: "#ffffff",
+      fontWeight: "900",
+      fontSize: "14px",
+      cursor: "pointer",
+      boxShadow: "0 16px 40px rgba(79,70,229,0.35)",
+    }}
+  >
+    {copilotOpen ? "Close Co-Pilot" : "✦ Ask SerVen AI"}
+  </button>
+</div>
+
 </div>
 </ErrorBoundary>
 );
