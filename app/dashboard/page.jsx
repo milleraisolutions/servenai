@@ -55909,57 +55909,6 @@ return (
     </div>
   )}
 
-  {/* SERVEN AI COPILOT */}
-  <div
-    style={{
-      marginTop: "auto",
-      marginBottom: "16px",
-      padding: "16px",
-      borderRadius: "18px",
-      background:
-        "linear-gradient(135deg, rgba(109,61,245,0.18), rgba(15,23,42,0.94))",
-      border: "1px solid rgba(167,139,250,0.24)",
-      boxShadow: "0 16px 40px rgba(2,6,23,0.28)",
-    }}
-  >
-    <div
-      style={{
-        color: "white",
-        fontWeight: "900",
-        fontSize: "15px",
-        marginBottom: "6px",
-      }}
-    >
-      Serven AI Copilot
-    </div>
-
-    <div
-      style={{
-        color: "#cbd5e1",
-        fontSize: "12px",
-        lineHeight: 1.5,
-        marginBottom: "12px",
-      }}
-    >
-      Ask AI about labor, inventory, menu pricing, forecasts, and restaurant operations.
-    </div>
-
-    <button
-      onClick={() => setActiveTab("pro")}
-      style={{
-        width: "100%",
-        padding: "10px 12px",
-        borderRadius: "12px",
-        border: "none",
-        background: "linear-gradient(135deg,#4f46e5,#7c3aed)",
-        color: "white",
-        fontWeight: "900",
-        cursor: "pointer",
-      }}
-    >
-      Open Copilot ✨
-    </button>
-  </div>
 
   <div style={sidebarFooterStyle}>
     <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.72)" }}>
