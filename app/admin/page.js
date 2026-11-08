@@ -453,19 +453,55 @@ if (!error) {
   await fetchCustomers();
 };
 
-  const updatePlan = async (userId, newPlan) => {
-    const { error } = await supabase
-      .from("users")
-      .update({ plan: newPlan })
-      .eq("id", userId);
+const updatePlan = async (userId, newPlan) => {
+  try {
+    setErrorMessage("");
 
-    if (error) {
-      console.error("Plan update failed:", error);
-      setErrorMessage(error.message);
-      return;
+    const {
+      data: { session },
+      error: sessionError,
+    } = await supabase.auth.getSession();
+
+    if (sessionError) {
+      throw sessionError;
     }
-    fetchCustomers();
-  };
+
+    if (!session?.access_token) {
+      throw new Error("Administrator login session required.");
+    }
+
+    const response = await fetch("/api/admin/customer-plan", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({
+        userId,
+        newPlan,
+      }),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+      throw new Error(
+        result.error || "Customer plan update failed."
+      );
+    }
+
+    await fetchCustomers();
+  } catch (error) {
+    console.error("Plan update failed:", error);
+
+    setErrorMessage(
+      error?.message || "Could not update customer plan."
+    );
+
+    await fetchCustomers();
+  }
+};
+
 
   const updateNotes = async (userId, newNotes) => {
     const { error } = await supabase
