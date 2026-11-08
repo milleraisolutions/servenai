@@ -391,11 +391,45 @@ verifiedAiActionsCount: verifiedCustomerActions.length,
     )
   );
 
-  const { data, error } = await supabase
-    .from("users")
-    .update({ customer_status: newStatus })
-    .eq("id", userId)
-    .select("id, customer_status");
+  const {
+  data: { session },
+  error: sessionError,
+} = await supabase.auth.getSession();
+
+let data = null;
+let error = sessionError;
+
+if (!error && !session?.access_token) {
+  error = new Error("Administrator login session required.");
+}
+
+if (!error) {
+  try {
+    const response = await fetch("/api/admin/customer-status", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({
+        userId,
+        newStatus,
+      }),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+      error = new Error(
+        result.error || "Customer status update failed."
+      );
+    } else {
+      data = [result.customer];
+    }
+  } catch (requestError) {
+    error = requestError;
+  }
+}
 
   if (error || !data?.length) {
     console.error("Status update failed:", error);
