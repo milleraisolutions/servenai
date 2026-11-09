@@ -83,6 +83,57 @@ const [agreementForm, setAgreementForm] = useState({
 });
 
 const [agreementMessage, setAgreementMessage] = useState("");
+// SERVEN AGREEMENT HISTORY
+const [savedAgreements, setSavedAgreements] = useState([]);
+const [agreementsLoading, setAgreementsLoading] = useState(false);
+const [agreementsError, setAgreementsError] = useState("");
+const [selectedAgreement, setSelectedAgreement] = useState(null);
+// SERVEN AGREEMENT HISTORY LOADER
+const loadSavedAgreements = async () => {
+  setAgreementsLoading(true);
+  setAgreementsError("");
+
+  try {
+    const {
+      data: { session },
+      error: sessionError,
+    } = await supabase.auth.getSession();
+
+    if (sessionError || !session?.access_token) {
+      throw new Error("Please log in again.");
+    }
+
+    const response = await fetch("/api/admin/agreements", {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      cache: "no-store",
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+      throw new Error(
+        result.error || "Could not load agreements."
+      );
+    }
+
+    setSavedAgreements(result.agreements || []);
+  } catch (error) {
+    setAgreementsError(
+      error.message || "Agreement history failed to load."
+    );
+  } finally {
+    setAgreementsLoading(false);
+  }
+};
+// LOAD AGREEMENTS WHEN ADMIN OPENS AGREEMENTS CENTER
+useEffect(() => {
+  if (adminView !== "agreements") return;
+
+  loadSavedAgreements();
+}, [adminView]);
 const [agreementClientSearch, setAgreementClientSearch] = useState("");
   // New State for your real Supabase demo_leads table
   const [demoLeads, setDemoLeads] = useState([]);
@@ -3353,6 +3404,251 @@ const clientsRequiringAttention = useMemo(() => {
       Agreement records and signature tracking will appear here
       once the secure agreement management API is connected.
     </p>
+    {/* SERVEN SAVED AGREEMENTS HISTORY */}
+<div
+  style={{
+    marginTop: "28px",
+    padding: "24px",
+    borderRadius: "18px",
+    background: "rgba(15,23,42,0.75)",
+    border: "1px solid rgba(129,140,248,0.2)",
+  }}
+>
+  <h3
+    style={{
+      color: "white",
+      fontSize: "22px",
+      fontWeight: "900",
+      marginBottom: "18px",
+    }}
+  >
+    Saved Agreements
+  </h3>
+{/* REFRESH SAVED AGREEMENTS */}
+<button
+  type="button"
+  onClick={loadSavedAgreements}
+  disabled={agreementsLoading}
+  style={{
+    padding: "10px 16px",
+    marginBottom: "18px",
+    borderRadius: "10px",
+    background: "#334155",
+    color: "white",
+    border: "1px solid rgba(148,163,184,0.25)",
+    fontSize: "12px",
+    fontWeight: "800",
+    cursor: agreementsLoading ? "wait" : "pointer",
+    opacity: agreementsLoading ? 0.6 : 1,
+  }}
+>
+  {agreementsLoading ? "Refreshing..." : "Refresh Agreements"}
+</button>
+  {agreementsLoading ? (
+    <p style={{ color: "#94a3b8" }}>
+      Loading agreements...
+    </p>
+  ) : agreementsError ? (
+    <p style={{ color: "#fca5a5" }}>
+      {agreementsError}
+    </p>
+  ) : savedAgreements.length === 0 ? (
+    <p style={{ color: "#94a3b8" }}>
+      No saved agreements yet.
+    </p>
+  ) : (
+    <div style={{ display: "grid", gap: "12px" }}>
+      {savedAgreements.map((agreement) => (
+        <div
+          key={agreement.id}
+          style={{
+            padding: "18px",
+            borderRadius: "14px",
+            background: "rgba(30,41,59,0.8)",
+            border: "1px solid rgba(148,163,184,0.15)",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: "14px",
+          }}
+        >
+          <div>
+            <div
+              style={{
+                color: "white",
+                fontSize: "16px",
+                fontWeight: "800",
+              }}
+            >
+              {agreement.client_business_name ||
+                "Unnamed Restaurant"}
+            </div>
+
+            <div
+              style={{
+                color: "#94a3b8",
+                fontSize: "12px",
+                marginTop: "6px",
+              }}
+            >
+              {agreement.agreement_type === "pilot"
+                ? "Pilot Agreement"
+                : "Subscription Agreement"}
+              {" • "}
+              {agreement.agreement_status}
+              {" • "}
+              {agreement.monthly_price == null
+                ? "No monthly price"
+                : `$${Number(
+                    agreement.monthly_price
+                  ).toLocaleString("en-US", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}/month`}
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setSelectedAgreement(agreement)}
+            style={{
+              padding: "10px 16px",
+              borderRadius: "10px",
+              background: "#4338ca",
+              color: "white",
+              border: "none",
+              fontSize: "12px",
+              fontWeight: "800",
+              cursor: "pointer",
+            }}
+          >
+            View Agreement
+          </button>
+        </div>
+      ))}
+    </div>
+  )}
+</div>
+{/* SERVEN AGREEMENT DETAILS VIEWER */}
+{selectedAgreement && (() => {
+  let terms = {};
+
+  try {
+    terms = JSON.parse(
+      selectedAgreement.agreement_content || "{}"
+    );
+  } catch {
+    terms = {};
+  }
+
+  return (
+    <div
+      style={{
+        marginTop: "20px",
+        padding: "24px",
+        borderRadius: "18px",
+        background: "rgba(15,23,42,0.95)",
+        border: "1px solid rgba(129,140,248,0.35)",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: "12px",
+          marginBottom: "20px",
+        }}
+      >
+        <h3 style={{ color: "white", fontSize: "22px" }}>
+          Agreement Details
+        </h3>
+
+        <button
+          type="button"
+          onClick={() => setSelectedAgreement(null)}
+          style={{
+            padding: "10px 16px",
+            borderRadius: "10px",
+            background: "#334155",
+            color: "white",
+            border: "none",
+            cursor: "pointer",
+          }}
+        >
+          Close
+        </button>
+      </div>
+
+      {[
+        ["Restaurant", selectedAgreement.client_business_name],
+        ["Agreement Type", selectedAgreement.agreement_type],
+        ["Status", selectedAgreement.agreement_status],
+        ["Signer Name", selectedAgreement.signer_name],
+        ["Signer Email", selectedAgreement.signer_email],
+        [
+          "Monthly Subscription",
+          selectedAgreement.monthly_price == null
+            ? "Not specified"
+            : `$${Number(
+                selectedAgreement.monthly_price
+              ).toLocaleString("en-US", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}`,
+        ],
+        [
+          "Contract Length",
+          selectedAgreement.contract_length_months == null
+            ? "Not specified"
+            : `${selectedAgreement.contract_length_months} months`,
+        ],
+        [
+          "Verified Recovery Fee",
+          `${selectedAgreement.recovery_fee_percent}%`,
+        ],
+        ["Services Included", terms.services],
+        ["Cancellation Policy", terms.cancellation_policy],
+        ["Additional Terms", terms.additional_terms],
+      ].map(([label, value]) => (
+        <div
+          key={label}
+          style={{
+            padding: "14px 0",
+            borderBottom: "1px solid rgba(148,163,184,0.12)",
+          }}
+        >
+          <div
+            style={{
+              color: "#818cf8",
+              fontSize: "11px",
+              fontWeight: "900",
+              marginBottom: "6px",
+              textTransform: "uppercase",
+            }}
+          >
+            {label}
+          </div>
+
+          <div
+            style={{
+              color: "#e2e8f0",
+              fontSize: "14px",
+              lineHeight: 1.7,
+              whiteSpace: "pre-wrap",
+              overflowWrap: "anywhere",
+            }}
+          >
+            {value === null || value === undefined || value === ""
+              ? "Not specified"
+              : String(value)}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+})()}
     {/* SERVEN AGREEMENT EDITOR */}
 
 <div
@@ -3639,6 +3935,11 @@ const clientsRequiringAttention = useMemo(() => {
       setAgreementMessage(
         `Draft saved successfully. Agreement ID: ${result.agreement.id}`
       );
+      // Refresh Agreement History after successful save
+await loadSavedAgreements();
+
+// Open the newly saved agreement for review
+setSelectedAgreement(null);
     } catch (error) {
       setAgreementMessage(
         error.message || "Agreement save failed."

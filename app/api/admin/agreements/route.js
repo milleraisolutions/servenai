@@ -222,3 +222,114 @@ export async function POST(req) {
     );
   }
 }
+// Retrieve saved agreements — founder only.
+export async function GET(req) {
+  try {
+    const authorization =
+      req.headers.get("authorization") || "";
+
+    const accessToken = authorization.startsWith("Bearer ")
+      ? authorization.slice(7).trim()
+      : "";
+
+    if (!accessToken) {
+      return NextResponse.json(
+        { success: false, error: "Authentication required." },
+        { status: 401 }
+      );
+    }
+
+    const {
+      data: { user },
+      error: authError,
+    } = await supabaseAdmin.auth.getUser(accessToken);
+
+    if (authError || !user?.id) {
+      return NextResponse.json(
+        { success: false, error: "Invalid authentication session." },
+        { status: 401 }
+      );
+    }
+
+    if (user.id !== SERVEN_OWNER_USER_ID) {
+      return NextResponse.json(
+        { success: false, error: "Administrator access required." },
+        { status: 403 }
+      );
+    }
+
+    const supabaseUser = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      {
+        global: {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        },
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+        },
+      }
+    );
+
+    const {
+      data: isPlatformAdmin,
+      error: adminError,
+    } = await supabaseUser.rpc("is_serven_platform_admin");
+
+    if (adminError || isPlatformAdmin !== true) {
+      return NextResponse.json(
+        { success: false, error: "Administrator authorization denied." },
+        { status: 403 }
+      );
+    }
+
+    const { data: agreements, error: agreementsError } =
+      await supabaseAdmin
+        .from("client_agreements")
+        .select(`
+          id,
+          client_user_id,
+          agreement_type,
+          agreement_status,
+          client_business_name,
+          signer_name,
+          signer_email,
+          monthly_price,
+          contract_length_months,
+          recovery_fee_percent,
+          agreement_version,
+          agreement_content,
+          sent_at,
+          viewed_at,
+          signed_at,
+          created_at,
+          updated_at
+        `)
+        .order("created_at", { ascending: false })
+        .limit(200);
+
+    if (agreementsError) {
+      console.error("AGREEMENTS LOAD ERROR:", agreementsError);
+
+      return NextResponse.json(
+        { success: false, error: "Could not load saved agreements." },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      agreements: agreements || [],
+    });
+  } catch (error) {
+    console.error("AGREEMENTS GET ERROR:", error);
+
+    return NextResponse.json(
+      { success: false, error: "Agreement history request failed." },
+      { status: 500 }
+    );
+  }
+}
