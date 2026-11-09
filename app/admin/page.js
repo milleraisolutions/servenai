@@ -88,6 +88,8 @@ const [savedAgreements, setSavedAgreements] = useState([]);
 const [agreementsLoading, setAgreementsLoading] = useState(false);
 const [agreementsError, setAgreementsError] = useState("");
 const [selectedAgreement, setSelectedAgreement] = useState(null);
+// TRACK WHICH EXISTING AGREEMENT IS BEING EDITED
+const [editingAgreementId, setEditingAgreementId] = useState(null);
 // SERVEN AGREEMENT HISTORY LOADER
 const loadSavedAgreements = async () => {
   setAgreementsLoading(true);
@@ -3564,7 +3566,51 @@ const clientsRequiringAttention = useMemo(() => {
         <h3 style={{ color: "white", fontSize: "22px" }}>
           Agreement Details
         </h3>
+{selectedAgreement.agreement_status === "draft" && (
+  <button
+    type="button"
+    onClick={() => {
+  setEditingAgreementId(selectedAgreement.id);
 
+  setAgreementForm({
+        client_user_id: selectedAgreement.client_user_id,
+        agreement_type: selectedAgreement.agreement_type,
+        client_business_name:
+          selectedAgreement.client_business_name || "",
+        signer_name: selectedAgreement.signer_name || "",
+        signer_email: selectedAgreement.signer_email || "",
+        monthly_price:
+          selectedAgreement.monthly_price ?? "",
+        contract_length_months:
+          selectedAgreement.contract_length_months ?? 12,
+        recovery_fee_percent:
+          selectedAgreement.recovery_fee_percent ?? 15,
+        services: terms.services || "",
+        cancellation_policy: terms.cancellation_policy || "",
+        additional_terms: terms.additional_terms || "",
+      });
+
+      setAgreementMessage(
+        "Draft loaded into the editor. Changes are not saved yet."
+      );
+
+      setSelectedAgreement(null);
+    }}
+    style={{
+      padding: "10px 16px",
+      borderRadius: "10px",
+      background: "#4f46e5",
+      color: "white",
+      border: "none",
+      fontSize: "12px",
+      fontWeight: "800",
+      cursor: "pointer",
+      marginLeft: "auto",
+    }}
+  >
+    Edit Draft
+  </button>
+)}
         <button
           type="button"
           onClick={() => setSelectedAgreement(null)}
@@ -3670,6 +3716,76 @@ const clientsRequiringAttention = useMemo(() => {
   >
     Create Client Agreement
   </h3>
+  {/* AGREEMENT EDITING STATUS */}
+{editingAgreementId && (
+  <div
+    style={{
+      marginBottom: "20px",
+      padding: "16px",
+      borderRadius: "12px",
+      background: "rgba(99,102,241,0.12)",
+      border: "1px solid rgba(129,140,248,0.35)",
+    }}
+  >
+    <div
+      style={{
+        color: "#a5b4fc",
+        fontSize: "14px",
+        fontWeight: "900",
+        marginBottom: "10px",
+      }}
+    >
+      Editing Existing Draft
+    </div>
+
+    <p
+      style={{
+        color: "#cbd5e1",
+        fontSize: "12px",
+        marginBottom: "14px",
+      }}
+    >
+      Changes will update this agreement rather than create a new one.
+      No changes are saved until you click Save Draft Agreement.
+    </p>
+
+    <button
+      type="button"
+      onClick={() => {
+        setEditingAgreementId(null);
+
+        setAgreementForm({
+          client_user_id: "",
+          agreement_type: "subscription",
+          client_business_name: "",
+          signer_name: "",
+          signer_email: "",
+          monthly_price: "",
+          contract_length_months: 12,
+          recovery_fee_percent: 15,
+          services: "",
+          cancellation_policy: "",
+          additional_terms: "",
+        });
+
+        setAgreementClientSearch("");
+        setAgreementMessage("Editing cancelled. Ready to create a new agreement.");
+      }}
+      style={{
+        padding: "10px 16px",
+        borderRadius: "10px",
+        background: "#334155",
+        color: "white",
+        border: "1px solid rgba(148,163,184,0.3)",
+        fontSize: "12px",
+        fontWeight: "800",
+        cursor: "pointer",
+      }}
+    >
+      Cancel Editing
+    </button>
+  </div>
+)}
 {/* SELECT RESTAURANT CLIENT */}
 
 <div style={{ marginBottom: "22px" }}>
@@ -3830,22 +3946,39 @@ const clientsRequiringAttention = useMemo(() => {
     </label>
 
     <select
-      value={agreementForm.agreement_type}
-      onChange={(e) =>
-        setAgreementForm((prev) => ({
-          ...prev,
-          agreement_type: e.target.value,
-        }))
-      }
-      style={{ ...selectStyle, marginTop: "8px", width: "100%" }}
-    >
-      <option value="subscription">
-        12-Month Subscription Agreement
-      </option>
-      <option value="pilot">
-        30-Day Profit Discovery Pilot Agreement
-      </option>
-    </select>
+  value={
+    agreementForm.agreement_type === "pilot"
+      ? "pilot"
+      : Number(agreementForm.contract_length_months) === 6
+        ? "subscription_6"
+        : "subscription_12"
+  }
+  onChange={(e) => {
+    const selected = e.target.value;
+
+    setAgreementForm((prev) => ({
+      ...prev,
+      agreement_type:
+        selected === "pilot" ? "pilot" : "subscription",
+      contract_length_months:
+        selected === "subscription_6" ? 6 : 12,
+    }));
+  }}
+  style={{
+    ...selectStyle,
+    width: "100%",
+  }}
+>
+  <option value="subscription_12">
+    12-Month Subscription Agreement
+  </option>
+  <option value="subscription_6">
+    6-Month Subscription Agreement
+  </option>
+  <option value="pilot">
+    30-Day Pilot Agreement
+  </option>
+</select>
   </div>
 
   {[
@@ -3915,14 +4048,19 @@ const clientsRequiringAttention = useMemo(() => {
         throw new Error("Please log in again.");
       }
 
-      const response = await fetch("/api/admin/agreements", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify(agreementForm),
-      });
+     const response = await fetch("/api/admin/agreements", {
+  method: editingAgreementId ? "PATCH" : "POST",
+  headers: {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${session.access_token}`,
+  },
+  body: JSON.stringify({
+    ...agreementForm,
+    ...(editingAgreementId
+      ? { agreement_id: editingAgreementId }
+      : {}),
+  }),
+});
 
       const result = await response.json();
 
@@ -3933,8 +4071,12 @@ const clientsRequiringAttention = useMemo(() => {
       }
 
       setAgreementMessage(
-        `Draft saved successfully. Agreement ID: ${result.agreement.id}`
-      );
+  editingAgreementId
+    ? `Draft updated successfully. Agreement ID: ${result.agreement.id}`
+    : `Draft created successfully. Agreement ID: ${result.agreement.id}`
+);
+
+setEditingAgreementId(null);
       // Refresh Agreement History after successful save
 await loadSavedAgreements();
 
@@ -3958,7 +4100,9 @@ setSelectedAgreement(null);
     cursor: "pointer",
   }}
 >
-  Save Draft Agreement
+  {editingAgreementId
+  ? "Update Existing Draft"
+  : "Save New Draft Agreement"}
 </button>
 
 {agreementMessage && (

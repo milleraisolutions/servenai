@@ -124,7 +124,7 @@ export async function POST(req) {
           !Number.isFinite(monthlyPrice) ||
           monthlyPrice < 0 ||
           !Number.isInteger(contractMonths) ||
-          contractMonths !== 12
+          ![6, 12].includes(contractMonths)
         ))
     ) {
       return NextResponse.json(
@@ -218,6 +218,225 @@ export async function POST(req) {
 
     return NextResponse.json(
       { success: false, error: "Agreement request failed." },
+      { status: 500 }
+    );
+  }
+}
+// UPDATE EXISTING DRAFT AGREEMENT — FOUNDER ONLY
+export async function PATCH(req) {
+  try {
+    const authorization =
+      req.headers.get("authorization") || "";
+
+    const accessToken = authorization.startsWith("Bearer ")
+      ? authorization.slice(7).trim()
+      : "";
+
+    if (!accessToken) {
+      return NextResponse.json(
+        { success: false, error: "Authentication required." },
+        { status: 401 }
+      );
+    }
+
+    const {
+      data: { user },
+      error: authError,
+    } = await supabaseAdmin.auth.getUser(accessToken);
+
+    if (authError || !user?.id) {
+      return NextResponse.json(
+        { success: false, error: "Invalid session." },
+        { status: 401 }
+      );
+    }
+
+    if (user.id !== SERVEN_OWNER_USER_ID) {
+      return NextResponse.json(
+        { success: false, error: "Administrator access required." },
+        { status: 403 }
+      );
+    }
+
+    const supabaseUser = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      {
+        global: {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        },
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+        },
+      }
+    );
+
+    const {
+      data: isPlatformAdmin,
+      error: adminError,
+    } = await supabaseUser.rpc("is_serven_platform_admin");
+
+    if (adminError || isPlatformAdmin !== true) {
+      return NextResponse.json(
+        { success: false, error: "Administrator authorization denied." },
+        { status: 403 }
+      );
+    }
+
+    const body = await req.json();
+
+    const agreementId = String(body?.agreement_id || "").trim();
+    const clientUserId = String(body?.client_user_id || "").trim();
+    const agreementType = String(body?.agreement_type || "").trim();
+
+    const businessName = String(
+      body?.client_business_name || ""
+    ).trim();
+
+    const signerName = String(body?.signer_name || "").trim();
+    const signerEmail = String(body?.signer_email || "")
+      .trim()
+      .toLowerCase();
+
+    const monthlyPrice = Number(body?.monthly_price);
+    const contractMonths = Number(body?.contract_length_months);
+    const recoveryPercent = Number(body?.recovery_fee_percent);
+
+    const services = String(body?.services || "").trim();
+    const cancellationPolicy = String(
+      body?.cancellation_policy || ""
+    ).trim();
+    const additionalTerms = String(
+      body?.additional_terms || ""
+    ).trim();
+
+    if (
+      !UUID_PATTERN.test(agreementId) ||
+      !UUID_PATTERN.test(clientUserId) ||
+      !["pilot", "subscription"].includes(agreementType) ||
+      !businessName ||
+      !signerName ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(signerEmail) ||
+      !services ||
+      !cancellationPolicy ||
+      !Number.isFinite(recoveryPercent) ||
+      recoveryPercent < 0 ||
+      recoveryPercent > 100 ||
+      (agreementType === "subscription" &&
+        (
+          body?.monthly_price === "" ||
+          body?.monthly_price == null ||
+          !Number.isFinite(monthlyPrice) ||
+          monthlyPrice < 0 ||
+          !Number.isInteger(contractMonths) ||
+          ![6, 12].includes(contractMonths)
+        ))
+    ) {
+      return NextResponse.json(
+        { success: false, error: "Invalid agreement details." },
+        { status: 400 }
+      );
+    }
+
+    if (
+      [businessName, signerName, signerEmail].some(
+        (value) => value.length > 255
+      ) ||
+      [services, cancellationPolicy, additionalTerms].some(
+        (value) => value.length > 20000
+      )
+    ) {
+      return NextResponse.json(
+        { success: false, error: "Agreement content exceeds allowed limits." },
+        { status: 400 }
+      );
+    }
+
+    // Confirm that the restaurant account still exists.
+    const { data: client, error: clientError } =
+      await supabaseAdmin
+        .from("users")
+        .select("id")
+        .eq("id", clientUserId)
+        .maybeSingle();
+
+    if (clientError || !client) {
+      return NextResponse.json(
+        { success: false, error: "Restaurant account not found." },
+        { status: 404 }
+      );
+    }
+
+    const agreementContent = JSON.stringify({
+      schema_version: 1,
+      agreement_type: agreementType,
+      business_name: businessName,
+      signer_name: signerName,
+      signer_email: signerEmail,
+      monthly_price:
+        agreementType === "subscription" ? monthlyPrice : null,
+      contract_length_months:
+        agreementType === "subscription" ? contractMonths : null,
+      recovery_fee_percent: recoveryPercent,
+      services,
+      cancellation_policy: cancellationPolicy,
+      additional_terms: additionalTerms,
+    });
+
+    // Update only if the agreement is still a draft.
+    const { data: agreement, error: updateError } =
+      await supabaseAdmin
+        .from("client_agreements")
+        .update({
+          client_user_id: clientUserId,
+          agreement_type: agreementType,
+          client_business_name: businessName,
+          signer_name: signerName,
+          signer_email: signerEmail,
+          monthly_price:
+            agreementType === "subscription" ? monthlyPrice : null,
+          contract_length_months:
+            agreementType === "subscription" ? contractMonths : null,
+          recovery_fee_percent: recoveryPercent,
+          agreement_content: agreementContent,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", agreementId)
+        .eq("agreement_status", "draft")
+        .select("id, agreement_status, updated_at")
+        .maybeSingle();
+
+    if (updateError) {
+      console.error("AGREEMENT UPDATE ERROR:", updateError);
+
+      return NextResponse.json(
+        { success: false, error: "Could not update agreement." },
+        { status: 500 }
+      );
+    }
+
+    if (!agreement) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Draft not found or agreement is no longer editable.",
+        },
+        { status: 409 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      agreement,
+    });
+  } catch (error) {
+    console.error("AGREEMENT PATCH ERROR:", error);
+
+    return NextResponse.json(
+      { success: false, error: "Agreement update failed." },
       { status: 500 }
     );
   }
