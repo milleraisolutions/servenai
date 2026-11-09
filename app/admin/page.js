@@ -83,6 +83,7 @@ const [agreementForm, setAgreementForm] = useState({
 });
 
 const [agreementMessage, setAgreementMessage] = useState("");
+const [agreementClientSearch, setAgreementClientSearch] = useState("");
   // New State for your real Supabase demo_leads table
   const [demoLeads, setDemoLeads] = useState([]);
 
@@ -3388,6 +3389,19 @@ const clientsRequiringAttention = useMemo(() => {
     Select Restaurant Client
   </label>
 
+ <div style={{ width: "100%" }}>
+  <input
+    type="text"
+    placeholder="Search restaurants by name or email..."
+    value={agreementClientSearch}
+    onChange={(e) => setAgreementClientSearch(e.target.value)}
+    style={{
+      ...selectStyle,
+      width: "100%",
+      marginBottom: "10px",
+    }}
+  />
+
   <select
     value={agreementForm.client_user_id}
     onChange={(e) => {
@@ -3413,14 +3427,43 @@ const clientsRequiringAttention = useMemo(() => {
   >
     <option value="">Choose a restaurant...</option>
 
-    {customers.map((customer) => (
-      <option key={customer.id} value={customer.id}>
-        {customer.restaurant_name || "Unnamed Restaurant"}
-        {" — "}
-        {customer.email || "No email"}
-      </option>
-    ))}
+    {customers
+      .filter((customer) => {
+        const search = agreementClientSearch
+          .trim()
+          .toLowerCase();
+
+        if (!search) return true;
+
+        return (
+          String(customer.restaurant_name || "")
+            .toLowerCase()
+            .includes(search) ||
+          String(customer.email || "")
+            .toLowerCase()
+            .includes(search)
+        );
+      })
+      .filter(
+        (customer) =>
+          !agreementForm.client_user_id ||
+          customer.id !== agreementForm.client_user_id
+      )
+      .concat(
+        customers.filter(
+          (customer) =>
+            customer.id === agreementForm.client_user_id
+        )
+      )
+      .map((customer) => (
+        <option key={customer.id} value={customer.id}>
+          {customer.restaurant_name || "Unnamed Restaurant"}
+          {" — "}
+          {customer.email || "No email"}
+        </option>
+      ))}
   </select>
+</div>
 
   <p
     style={{
