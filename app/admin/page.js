@@ -64,6 +64,25 @@ const [newProspect, setNewProspect] = useState({
   recommended_plan: "",
 });
   const [adminView, setAdminView] = useState("executive");
+  // =========================
+// SERVEN AGREEMENT EDITOR
+// =========================
+
+const [agreementForm, setAgreementForm] = useState({
+  client_user_id: "",
+  agreement_type: "subscription",
+  client_business_name: "",
+  signer_name: "",
+  signer_email: "",
+  monthly_price: "",
+  contract_length_months: 12,
+  recovery_fee_percent: 15,
+  services: "",
+  cancellation_policy: "",
+  additional_terms: "",
+});
+
+const [agreementMessage, setAgreementMessage] = useState("");
   // New State for your real Supabase demo_leads table
   const [demoLeads, setDemoLeads] = useState([]);
 
@@ -3201,6 +3220,7 @@ const clientsRequiringAttention = useMemo(() => {
     { value: "clients", label: "Clients" },
     { value: "revenue", label: "Revenue" },
     { value: "billing", label: "Billing" },
+    { value: "agreements", label: "Contracts & Agreements" },
     { value: "sales_crm", label: "Sales CRM" },
     { value: "growth", label: "Growth" },
     { value: "risk", label: "Risk" },
@@ -3232,6 +3252,387 @@ const clientsRequiringAttention = useMemo(() => {
     );
   })}
 </div>
+{/* =========================
+   SERVEN CONTRACTS & AGREEMENTS
+========================= */}
+
+{adminView === "agreements" && (
+  <div
+    style={{
+      padding: "28px",
+      borderRadius: "20px",
+      background:
+        "linear-gradient(135deg,rgba(30,41,59,0.98),rgba(15,23,42,0.98))",
+      border: "1px solid rgba(129,140,248,0.25)",
+      marginBottom: "24px",
+    }}
+  >
+    <div style={eyebrow}>
+      SERVEN AGREEMENT MANAGEMENT
+    </div>
+
+    <h2
+      style={{
+        color: "white",
+        fontSize: "28px",
+        fontWeight: "900",
+        marginBottom: "12px",
+      }}
+    >
+      Contracts & Agreements Center
+    </h2>
+
+    <p
+      style={{
+        color: "#94a3b8",
+        fontSize: "14px",
+        lineHeight: 1.7,
+        marginBottom: "24px",
+      }}
+    >
+      Prepare customized restaurant agreements, manage subscription
+      terms, track electronic signatures, and maintain agreement
+      documentation.
+    </p>
+
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns:
+          "repeat(auto-fit,minmax(200px,1fr))",
+        gap: "14px",
+      }}
+    >
+      {[
+        { label: "Draft Agreements", value: "—" },
+        { label: "Awaiting Signature", value: "—" },
+        { label: "Signed Agreements", value: "—" },
+        { label: "Expired Agreements", value: "—" },
+      ].map((item) => (
+        <div
+          key={item.label}
+          style={{
+            padding: "20px",
+            borderRadius: "14px",
+            background: "rgba(15,23,42,0.75)",
+            border: "1px solid rgba(148,163,184,0.12)",
+          }}
+        >
+          <div
+            style={{
+              color: "#94a3b8",
+              fontSize: "12px",
+              fontWeight: "700",
+              marginBottom: "10px",
+            }}
+          >
+            {item.label}
+          </div>
+
+          <div
+            style={{
+              color: "white",
+              fontSize: "28px",
+              fontWeight: "900",
+            }}
+          >
+            {item.value}
+          </div>
+        </div>
+      ))}
+    </div>
+
+    <p
+      style={{
+        color: "#64748b",
+        fontSize: "12px",
+        marginTop: "20px",
+      }}
+    >
+      Agreement records and signature tracking will appear here
+      once the secure agreement management API is connected.
+    </p>
+    {/* SERVEN AGREEMENT EDITOR */}
+
+<div
+  style={{
+    marginTop: "28px",
+    padding: "24px",
+    borderRadius: "18px",
+    background: "rgba(15,23,42,0.75)",
+    border: "1px solid rgba(129,140,248,0.2)",
+  }}
+>
+  <h3
+    style={{
+      color: "white",
+      fontSize: "22px",
+      fontWeight: "900",
+      marginBottom: "18px",
+    }}
+  >
+    Create Client Agreement
+  </h3>
+{/* SELECT RESTAURANT CLIENT */}
+
+<div style={{ marginBottom: "22px" }}>
+  <label
+    style={{
+      display: "block",
+      color: "#cbd5e1",
+      fontSize: "12px",
+      fontWeight: "800",
+      marginBottom: "8px",
+    }}
+  >
+    Select Restaurant Client
+  </label>
+
+  <select
+    value={agreementForm.client_user_id}
+    onChange={(e) => {
+      const clientId = e.target.value;
+
+      const selectedClient = customers.find(
+        (customer) => customer.id === clientId
+      );
+
+      setAgreementForm((prev) => ({
+        ...prev,
+        client_user_id: clientId,
+        client_business_name:
+          selectedClient?.restaurant_name || "",
+        signer_email: selectedClient?.email || "",
+        signer_name: "",
+      }));
+    }}
+    style={{
+      ...selectStyle,
+      width: "100%",
+    }}
+  >
+    <option value="">Choose a restaurant...</option>
+
+    {customers.map((customer) => (
+      <option key={customer.id} value={customer.id}>
+        {customer.restaurant_name || "Unnamed Restaurant"}
+        {" — "}
+        {customer.email || "No email"}
+      </option>
+    ))}
+  </select>
+
+  <p
+    style={{
+      color: "#64748b",
+      fontSize: "12px",
+      marginTop: "8px",
+    }}
+  >
+    Agreements will be linked to the selected restaurant's
+    SerVen account. Confirm the authorized signer's details
+    before sending.
+  </p>
+</div>
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))",
+      gap: "16px",
+    }}
+  >
+    {[
+      ["client_business_name", "Restaurant / Business Name"],
+      ["signer_name", "Authorized Signer Name"],
+      ["signer_email", "Authorized Signer Email"],
+      ["monthly_price", "Monthly Subscription ($)"],
+      ["contract_length_months", "Contract Length (Months)"],
+      ["recovery_fee_percent", "Verified Recovery Fee (%)"],
+    ].map(([field, label]) => (
+      <div key={field}>
+        <label
+          style={{
+            display: "block",
+            color: "#cbd5e1",
+            fontSize: "12px",
+            fontWeight: "800",
+            marginBottom: "8px",
+          }}
+        >
+          {label}
+        </label>
+
+        <input
+          type={
+            field === "monthly_price" ||
+            field === "contract_length_months" ||
+            field === "recovery_fee_percent"
+              ? "number"
+              : field === "signer_email"
+              ? "email"
+              : "text"
+          }
+          value={agreementForm[field]}
+          onChange={(e) =>
+            setAgreementForm((prev) => ({
+              ...prev,
+              [field]: e.target.value,
+            }))
+          }
+          style={inputStyle}
+        />
+      </div>
+    ))}
+  </div>
+
+  <div style={{ marginTop: "18px" }}>
+    <label style={{ color: "#cbd5e1", fontSize: "12px" }}>
+      Agreement Type
+    </label>
+
+    <select
+      value={agreementForm.agreement_type}
+      onChange={(e) =>
+        setAgreementForm((prev) => ({
+          ...prev,
+          agreement_type: e.target.value,
+        }))
+      }
+      style={{ ...selectStyle, marginTop: "8px", width: "100%" }}
+    >
+      <option value="subscription">
+        12-Month Subscription Agreement
+      </option>
+      <option value="pilot">
+        30-Day Profit Discovery Pilot Agreement
+      </option>
+    </select>
+  </div>
+
+  {[
+    ["services", "Services Included"],
+    ["cancellation_policy", "Cancellation Policy"],
+    ["additional_terms", "Additional Agreement Terms"],
+  ].map(([field, label]) => (
+    <div key={field} style={{ marginTop: "18px" }}>
+      <label
+        style={{
+          display: "block",
+          color: "#cbd5e1",
+          fontSize: "12px",
+          fontWeight: "800",
+          marginBottom: "8px",
+        }}
+      >
+        {label}
+      </label>
+
+      <textarea
+        rows={4}
+        value={agreementForm[field]}
+        onChange={(e) =>
+          setAgreementForm((prev) => ({
+            ...prev,
+            [field]: e.target.value,
+          }))
+        }
+        style={{
+          ...inputStyle,
+          width: "100%",
+          resize: "vertical",
+        }}
+      />
+    </div>
+  ))}
+
+  <div
+    style={{
+      marginTop: "20px",
+      padding: "14px",
+      borderRadius: "12px",
+      background: "rgba(99,102,241,0.08)",
+      color: "#a5b4fc",
+      fontSize: "13px",
+    }}
+  >
+    Draft editor only. Agreements are not yet saved or emailed.
+    Client selection, secure saving, and electronic signatures
+    will be connected in upcoming steps.
+  </div>
+  {/* SAVE DRAFT AGREEMENT */}
+
+<button
+  type="button"
+  onClick={async () => {
+    setAgreementMessage("Saving agreement draft...");
+
+    try {
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
+
+      if (sessionError || !session?.access_token) {
+        throw new Error("Please log in again.");
+      }
+
+      const response = await fetch("/api/admin/agreements", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify(agreementForm),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(
+          result.error || "Could not save agreement."
+        );
+      }
+
+      setAgreementMessage(
+        `Draft saved successfully. Agreement ID: ${result.agreement.id}`
+      );
+    } catch (error) {
+      setAgreementMessage(
+        error.message || "Agreement save failed."
+      );
+    }
+  }}
+  style={{
+    marginTop: "20px",
+    padding: "14px 24px",
+    borderRadius: "12px",
+    background: "linear-gradient(135deg,#6366f1,#4338ca)",
+    color: "white",
+    border: "none",
+    fontSize: "14px",
+    fontWeight: "900",
+    cursor: "pointer",
+  }}
+>
+  Save Draft Agreement
+</button>
+
+{agreementMessage && (
+  <div
+    role="status"
+    style={{
+      marginTop: "14px",
+      color: "#cbd5e1",
+      fontSize: "13px",
+      overflowWrap: "anywhere",
+    }}
+  >
+    {agreementMessage}
+  </div>
+)}
+</div>
+  </div>
+)}
 {adminView === "executive" && (
   <> 
 {/* =========================

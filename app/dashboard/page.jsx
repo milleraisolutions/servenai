@@ -5440,10 +5440,22 @@ const payload = {
     "Analyze the latest restaurant data and generate the highest-value profit opportunities.",
 };
 
+const {
+  data: { session },
+  error: sessionError,
+} = await supabase.auth.getSession();
+
+if (sessionError || !session?.access_token) {
+  throw new Error(
+    "Authentication required to generate AI insights."
+  );
+}
+
 const res = await fetch("/api/ai-insights", {
   method: "POST",
   headers: {
     "Content-Type": "application/json",
+    Authorization: `Bearer ${session.access_token}`,
   },
   body: JSON.stringify(payload),
 });

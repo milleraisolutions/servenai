@@ -1,7 +1,7 @@
 // app/api/ai-insights/route.js
 
 import OpenAI from "openai";
-
+import { createClient } from "@supabase/supabase-js";
 export const runtime = "nodejs";
 
 const client = new OpenAI({
@@ -10,7 +10,90 @@ const client = new OpenAI({
 
 export async function POST(req) {
   try {
-    const body = await req.json();
+    const authorization = req.headers.get("authorization") || "";
+
+    const accessToken = authorization.startsWith("Bearer ")
+      ? authorization.slice(7).trim()
+      : "";
+
+    if (!accessToken) {
+      return Response.json(
+        { success: false, error: "Authentication required." },
+        { status: 401 }
+      );
+    }
+
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      {
+        global: {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        },
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+        },
+      }
+    );
+
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser(accessToken);
+
+   if (authError || !user?.id) {
+  return Response.json(
+    { success: false, error: "Invalid or expired session." },
+    { status: 401 }
+  );
+}
+
+const { data: profile, error: profileError } = await supabase
+  .from("users")
+  .select(
+    "id, role, account_type, owner_user_id, customer_status, subscription_status, pilot_status, pilot_expires_at, pilot_recommendations_used, pilot_recommendation_limit"
+  )
+  .eq("id", user.id)
+  .single();
+
+if (profileError || !profile) {
+  return Response.json(
+    {
+      success: false,
+      error: "Restaurant account profile not found.",
+    },
+    { status: 403 }
+  );
+}
+
+const accountType = String(profile.account_type || "")
+  .trim()
+  .toLowerCase();
+
+const role = String(profile.role || "")
+  .trim()
+  .toLowerCase();
+
+if (
+  accountType !== "restaurant" ||
+  profile.owner_user_id ||
+  !["owner", "executive"].includes(role)
+) {
+  return Response.json(
+    {
+      success: false,
+      error: "Restaurant AI Insights access is not authorized.",
+    },
+    { status: 403 }
+  );
+}
+
+const body = await req.json();
+
+    
 
     const {
       revenueData = [],
