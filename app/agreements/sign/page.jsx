@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 
 export default function AgreementSigningPage() {
   const [status, setStatus] = useState("checking");
-
+// Signer identity must be verified before
+// private agreement details can be displayed.
+const [signerVerified, setSignerVerified] = useState(false);
   useEffect(() => {
     // Read the signing token from the URL.
     const url = new URL(window.location.href);
@@ -105,6 +107,40 @@ verifyAgreement();
           representatives to review their complete SerVen
           agreement before electronically signing.
         </p>
+        {status === "identity_required" && !signerVerified && (
+  <div
+    style={{
+      marginTop: "28px",
+      padding: "22px",
+      borderRadius: "12px",
+      background: "#eef2ff",
+      border: "1px solid #c7d2fe",
+      color: "#312e81",
+    }}
+  >
+    <h3
+      style={{
+        fontSize: "18px",
+        fontWeight: "800",
+        marginBottom: "10px",
+      }}
+    >
+      Verify Your Identity
+    </h3>
+
+    <p
+      style={{
+        fontSize: "14px",
+        lineHeight: 1.7,
+        margin: 0,
+      }}
+    >
+      Before reviewing your SerVen agreement,
+      you must verify that you are the intended signer.
+      Email verification will be required to continue.
+    </p>
+  </div>
+)}
 {status === "checking" && (
   <div
     role="status"
