@@ -407,24 +407,6 @@ const securityHeaders = {
 
 export async function POST(request) {
     // Temporary diagnostic: never log the actual IP address.
-// Temporary IP-header spoofing diagnostic.
-// Never log actual IP addresses.
-const vercelForwardedIp =
-  request.headers.get("x-vercel-forwarded-for") || "";
-
-const standardForwardedIp =
-  request.headers.get("x-forwarded-for") || "";
-
-console.log("AGREEMENT IP SPOOF TEST:", {
-  vercelHeaderPresent: Boolean(vercelForwardedIp),
-  forwardedHeaderPresent: Boolean(standardForwardedIp),
-  vercelContainsTestIp:
-    vercelForwardedIp.split(",").map((ip) => ip.trim())
-      .includes("192.0.2.123"),
-  forwardedContainsTestIp:
-    standardForwardedIp.split(",").map((ip) => ip.trim())
-      .includes("192.0.2.123"),
-});
   // Verification requests remain disabled.
   // This step only validates the request format.
 
@@ -549,6 +531,53 @@ if (reader) {
 // whether a matching agreement exists.
 // Enforce the database-backed request limit before
 // looking up the signing agreement.
+// Check the requesting IP before processing the signing token.
+const ipRateLimitKey =
+  getVerificationIpRateLimitKey(request);
+
+// Fail closed if a trustworthy IP cannot be determined.
+if (!ipRateLimitKey) {
+  return NextResponse.json(
+    {
+      success: false,
+      error: "Verification request unavailable.",
+    },
+    {
+      status: 503,
+      headers: securityHeaders,
+    }
+  );
+}
+
+const { data: ipRequestAllowed, error: ipRateLimitError } =
+  await supabaseAdmin.rpc(
+    "check_agreement_verification_rate_limit",
+    {
+      p_request_key_hash: ipRateLimitKey,
+    }
+  );
+
+if (ipRateLimitError) {
+  throw new Error(
+    "Agreement IP rate-limit check failed."
+  );
+}
+
+if (ipRequestAllowed !== true) {
+  return NextResponse.json(
+    {
+      success: false,
+      error: "Too many verification requests. Try again later.",
+    },
+    {
+      status: 429,
+      headers: {
+        ...securityHeaders,
+        "Retry-After": "900",
+      },
+    }
+  );
+}
 const requestAllowed =
   await checkVerificationRequestRateLimit(token);
 
