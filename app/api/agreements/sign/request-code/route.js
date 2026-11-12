@@ -407,11 +407,23 @@ const securityHeaders = {
 
 export async function POST(request) {
     // Temporary diagnostic: never log the actual IP address.
-console.log("AGREEMENT IP HEADER CHECK:", {
-  vercelHeaderPresent:
-    Boolean(request.headers.get("x-vercel-forwarded-for")),
-  forwardedHeaderPresent:
-    Boolean(request.headers.get("x-forwarded-for")),
+// Temporary IP-header spoofing diagnostic.
+// Never log actual IP addresses.
+const vercelForwardedIp =
+  request.headers.get("x-vercel-forwarded-for") || "";
+
+const standardForwardedIp =
+  request.headers.get("x-forwarded-for") || "";
+
+console.log("AGREEMENT IP SPOOF TEST:", {
+  vercelHeaderPresent: Boolean(vercelForwardedIp),
+  forwardedHeaderPresent: Boolean(standardForwardedIp),
+  vercelContainsTestIp:
+    vercelForwardedIp.split(",").map((ip) => ip.trim())
+      .includes("192.0.2.123"),
+  forwardedContainsTestIp:
+    standardForwardedIp.split(",").map((ip) => ip.trim())
+      .includes("192.0.2.123"),
 });
   // Verification requests remain disabled.
   // This step only validates the request format.
