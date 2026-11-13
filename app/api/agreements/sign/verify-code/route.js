@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { createHash, createHmac } from "node:crypto";
+import {
+  createHash,
+  createHmac,
+  randomBytes,
+} from "node:crypto";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 // Server-only Supabase connection.
@@ -254,12 +258,99 @@ if (!agreement) {
   );
 }
 
-// Verification remains disabled until rate limiting,
-// atomic code redemption, and signing sessions are ready.
-return respond(
-  "Agreement code verification is not enabled yet.",
-  501
+// Keep production verification disabled until the
+// complete signing workflow has passed security review.
+const ENABLE_AGREEMENT_VERIFICATION = false;
+
+if (!ENABLE_AGREEMENT_VERIFICATION) {
+  return respond(
+    "Agreement code verification is not enabled yet.",
+    501
+  );
+}
+
+// Generate a cryptographically random signing session.
+const sessionToken = randomBytes(32).toString("hex");
+
+const sessionTokenHash = createHash("sha256")
+  .update(sessionToken, "utf8")
+  .digest("hex");
+
+const codeHash = hashVerificationCode(
+  body.code,
+  agreement.id
 );
+
+const sessionExpiresAt = new Date(
+  Math.min(
+    Date.now() + 15 * 60 * 1000,
+    new Date(agreement.signing_token_expires_at).getTime()
+  )
+).toISOString();
+
+// Verify the code and create the session atomically.
+const { data: verified, error: verificationError } =
+  await supabaseAdmin.rpc(
+    "verify_and_issue_agreement_signing_session",
+    {
+      p_agreement_id: agreement.id,
+      p_code_hash: codeHash,
+      p_session_token_hash: sessionTokenHash,
+      p_session_expires_at: sessionExpiresAt,
+    }
+  );
+
+if (verificationError) {
+  console.error(
+    "Agreement verification transaction failed:",
+    verificationError.code
+  );
+
+  return respond(
+    "Unable to process verification request.",
+    500
+  );
+}
+
+if (verified !== true) {
+  return respond(
+    "Invalid or expired verification code.",
+    400
+  );
+}
+
+// Do not expose the signing-session token in JSON.
+const response = NextResponse.json(
+  {
+    success: true,
+    verified: true,
+  },
+  {
+    status: 200,
+    headers: securityHeaders,
+  }
+);
+
+// Store the signing session in a protected cookie.
+response.cookies.set(
+  "serven_agreement_signing_session",
+  sessionToken,
+  {
+    httpOnly: true,
+    secure: true,
+    sameSite: "strict",
+    path: "/api/agreements/sign",
+    maxAge: Math.max(
+      1,
+      Math.floor(
+        (new Date(sessionExpiresAt).getTime() - Date.now()) /
+          1000
+      )
+    ),
+  }
+);
+
+return response;
   } catch {
     return respond("Unable to process verification request.", 500);
   }
