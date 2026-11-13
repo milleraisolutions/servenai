@@ -1,6 +1,8 @@
 
 import { jsPDF } from "jspdf";
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 
 const DOCUMENT_WIDTH = 210;
 const MARGIN = 18;
@@ -43,7 +45,28 @@ export function generateSignedAgreementPdf({
     unit: "mm",
     format: "a4",
   });
+  // Embed the Caveat handwriting font for typed signatures.
+  const signatureFontPath = path.join(
+    process.cwd(),
+    "public",
+    "fonts",
+    "Caveat-Regular.ttf"
+  );
 
+  const signatureFontBase64 = readFileSync(
+    signatureFontPath
+  ).toString("base64");
+
+  pdf.addFileToVFS(
+    "Caveat-Regular.ttf",
+    signatureFontBase64
+  );
+
+  pdf.addFont(
+    "Caveat-Regular.ttf",
+    "Caveat",
+    "normal"
+  );
   let y = 22;
 
   function ensureSpace(height = 12) {
@@ -139,8 +162,44 @@ export function generateSignedAgreementPdf({
   addText("Signer Email", signatureEvidence.signer_email);
   addText("Signature Method", signatureEvidence.signature_method);
 
-  if (signatureEvidence.signature_method === "typed_name") {
-    addText("Electronic Signature", signatureEvidence.signature_value);
+    if (signatureEvidence.signature_method === "typed_name") {
+    // Display the typed electronic signature in handwriting.
+    ensureSpace(35);
+
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(10);
+    pdf.setTextColor(15, 23, 42);
+    pdf.text("Electronic Signature", MARGIN, y);
+
+    y += 15;
+
+    pdf.setFont("Caveat", "normal");
+    pdf.setFontSize(32);
+    pdf.setTextColor(30, 41, 59);
+
+    const signatureLines = pdf.splitTextToSize(
+      signatureEvidence.signature_value,
+      TEXT_WIDTH
+    );
+
+    for (const line of signatureLines) {
+      ensureSpace(15);
+      pdf.text(line, MARGIN + 4, y);
+      y += 14;
+    }
+
+    pdf.setDrawColor(148, 163, 184);
+    pdf.line(MARGIN, y + 2, 110, y + 2);
+
+    y += 12;
+
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(8);
+    pdf.setTextColor(100, 116, 139);
+    pdf.text("Electronically signed using SerVen", MARGIN, y);
+
+    pdf.setTextColor(15, 23, 42);
+    y += 10;
   } else {
     addText(
       "Drawn Signature",
