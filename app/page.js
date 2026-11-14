@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import {
   LineChart,
   Line,
@@ -639,7 +639,7 @@ textAlign: "center",
       >
         <input
           type="file"
-          accept=".csv,.xlsx,.xls"
+          accept=".xlsx"
           style={{ display: "none" }}
           onChange={async (e) => {
             const file = e.target.files?.[0];
@@ -655,11 +655,55 @@ textAlign: "center",
             setCurrentUser(session.user);
 
             try {
-              const data = await file.arrayBuffer();
-              const workbook = XLSX.read(data);
-              const sheetName = workbook.SheetNames[0];
-              const worksheet = workbook.Sheets[sheetName];
-              const rows = XLSX.utils.sheet_to_json(worksheet);
+             const data = await file.arrayBuffer();
+
+const workbook = new ExcelJS.Workbook();
+await workbook.xlsx.load(data);
+
+const worksheet = workbook.worksheets[0];
+
+if (!worksheet) {
+  throw new Error("No worksheet found in the sales file.");
+}
+
+const headers = [];
+const headerRow = worksheet.getRow(1);
+
+for (let col = 1; col <= worksheet.columnCount; col++) {
+  headers.push(String(headerRow.getCell(col).text ?? "").trim());
+}
+
+const rows = [];
+
+worksheet.eachRow((row, rowNumber) => {
+  if (rowNumber === 1) return;
+
+  const salesRow = {};
+
+  headers.forEach((header, index) => {
+    if (!header) return;
+
+    const cell = row.getCell(index + 1);
+    const value = cell.value;
+
+    salesRow[header] =
+      value === null || value === undefined
+        ? ""
+        : value instanceof Date
+          ? value
+          : typeof value === "object"
+            ? value.result ?? value.text ?? ""
+            : value;
+  });
+
+  if (
+    Object.values(salesRow).some(
+      (value) => String(value ?? "").trim() !== ""
+    )
+  ) {
+    rows.push(salesRow);
+  }
+});
 
               const revenue = rows.reduce((sum, row) => {
                 const value = Number(row.total || row.Total || row.sales || row.Sales || row.amount || row.Amount || row.revenue || row.Revenue || 0) || 0;
@@ -709,12 +753,18 @@ textAlign: "center",
                 const rawDate = row.date || row.Date || row.day || row.Day;
                 
                 let formattedLabel;
-                if (typeof rawDate === "number") {
-                  const excelDate = XLSX.SSF.parse_date_code(rawDate);
-                  formattedLabel = `${excelDate.m}/${excelDate.d}`;
-                } else {
-                  formattedLabel = rawDate || ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][index % 7];
-                }
+                if (rawDate instanceof Date && !Number.isNaN(rawDate.getTime())) {
+  formattedLabel = `${rawDate.getUTCMonth() + 1}/${rawDate.getUTCDate()}`;
+} else if (typeof rawDate === "number") {
+  const excelEpoch = Date.UTC(1899, 11, 30);
+  const date = new Date(excelEpoch + rawDate * 86400000);
+
+  formattedLabel = `${date.getUTCMonth() + 1}/${date.getUTCDate()}`;
+} else {
+  formattedLabel =
+    rawDate ||
+    ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][index % 7];
+}
 
                 return {
                   label: formattedLabel,

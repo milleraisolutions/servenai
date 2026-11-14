@@ -27,7 +27,7 @@ import {
   Area,
 } from "recharts";
 
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import AICommandCenter from "./components/AICommandCenter";
 
 import WeeklyExecutiveSummary from "./components/WeeklyExecutiveSummary";
@@ -1754,30 +1754,51 @@ const handleLaborFileChange = async (event) => {
           },
           error: (error) => reject(error),
         });
-      });
-    } else if (["xlsx", "xls"].includes(extension)) {
-      const buffer = await file.arrayBuffer();
-      const workbook = XLSX.read(buffer, {
-        type: "array",
-      });
+      });} else if (extension === "xlsx") {
+  const buffer = await file.arrayBuffer();
 
-      const firstSheetName = workbook.SheetNames?.[0];
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(buffer);
 
-      if (!firstSheetName) {
-        throw new Error("No worksheet was found in the labor file.");
-      }
+  const worksheet = workbook.worksheets[0];
 
-      parsedLaborRows = XLSX.utils.sheet_to_json(
-        workbook.Sheets[firstSheetName],
-        {
-          defval: "",
-        }
-      );
-    } else {
-      throw new Error(
-        "Labor files must be CSV, XLSX, or XLS."
-      );
-    }
+  if (!worksheet) {
+    throw new Error("No worksheet was found in the labor file.");
+  }
+
+  const headers = [];
+  parsedLaborRows = [];
+
+  const headerRow = worksheet.getRow(1);
+
+  for (let col = 1; col <= worksheet.columnCount; col++) {
+    const cell = headerRow.getCell(col);
+    headers.push(String(cell.text ?? "").trim());
+  }
+
+  worksheet.eachRow((row, rowNumber) => {
+    if (rowNumber === 1) return;
+
+    const laborRow = {};
+
+    headers.forEach((header, index) => {
+      if (!header) return;
+
+      const cell = row.getCell(index + 1);
+
+      laborRow[header] =
+        cell.value === null || cell.value === undefined
+          ? ""
+          : cell.text ?? "";
+    });
+
+    parsedLaborRows.push(laborRow);
+  });
+} else {
+  throw new Error(
+    "Labor files must be CSV or XLSX."
+  );
+}
 
     const validRows = (parsedLaborRows || []).filter((row) =>
       Object.values(row || {}).some(
@@ -6280,12 +6301,40 @@ setSelectedPosFile(file);
         .filter((row) =>
           row.some((cell) => String(cell || "").trim() !== "")
         );
-    } else if (file.name.toLowerCase().endsWith(".xlsx")) {
-      const arrayBuffer = await file.arrayBuffer();
-      const workbook = XLSX.read(arrayBuffer, { type: "array" });
-      const sheetName = workbook.SheetNames[0];
-      const sheet = workbook.Sheets[sheetName];
-      rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+   } else if (file.name.toLowerCase().endsWith(".xlsx")) {
+  const arrayBuffer = await file.arrayBuffer();
+
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(arrayBuffer);
+
+  const worksheet = workbook.worksheets[0];
+
+  if (!worksheet) {
+    throw new Error("No worksheet found in the POS file.");
+  }
+
+  rows = [];
+
+  worksheet.eachRow((row) => {
+    const values = [];
+
+    for (let col = 1; col <= worksheet.columnCount; col++) {
+      const cell = row.getCell(col);
+      const value = cell.value;
+
+      values.push(
+        value === null || value === undefined
+          ? ""
+          : value instanceof Date
+            ? value.toISOString().split("T")[0]
+            : typeof value === "object"
+              ? value.result ?? value.text ?? ""
+              : value
+      );
+    }
+
+    rows.push(values);
+  });
     } else {
       alert("Unsupported file type. Please upload CSV or XLSX.");
       return;
@@ -7698,49 +7747,57 @@ if (selectedType === "pos") {
 
     let dataRows = [];
 
-    const fileName = file.name.toLowerCase();
-    const isExcelFile =
-      fileName.endsWith(".xlsx") || fileName.endsWith(".xls");
+    const fileName = file.name.toLowerCase();const isExcelFile = fileName.endsWith(".xlsx");
 
-    if (isExcelFile) {
-      const arrayBuffer = await file.arrayBuffer();
-      const workbook = XLSX.read(arrayBuffer, { type: "array" });
+if (isExcelFile) {
+  const arrayBuffer = await file.arrayBuffer();
 
-      let bestRows = [];
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(arrayBuffer);
 
-      workbook.SheetNames.forEach((sheetName) => {
-        const worksheet = workbook.Sheets[sheetName];
+  let bestRows = [];
 
-        const sheetRows = XLSX.utils.sheet_to_json(worksheet, {
-          header: 1,
-          defval: "",
-          blankrows: false,
-          raw: false,
-        });
+  workbook.worksheets.forEach((worksheet) => {
+    const sheetRows = [];
 
-        if (sheetRows.length > bestRows.length) {
-          bestRows = sheetRows;
+    worksheet.eachRow((row) => {
+      const values = [];
+
+      for (let col = 1; col <= worksheet.columnCount; col++) {
+        const cell = row.getCell(col);
+        values.push(String(cell.text ?? "").trim());
+      }
+
+      if (values.some((value) => value !== "")) {
+        sheetRows.push(values);
+      }
+    });
+
+    if (sheetRows.length > bestRows.length) {
+      bestRows = sheetRows;
+    }
+  });
+
+  if (!bestRows.length) {
+    alert("Excel file opened, but no rows were found.");
+    dataRows = [];
+  } else {
+    const headers = (bestRows[0] || []).map((header) =>
+      String(header || "").trim()
+    );
+
+    dataRows = bestRows.slice(1).map((row) => {
+      const obj = {};
+
+      headers.forEach((header, index) => {
+        if (header) {
+          obj[header] = row[index] ?? "";
         }
       });
 
-      if (!bestRows.length) {
-        alert("Excel file opened, but no rows were found.");
-        dataRows = [];
-      } else {
-        const headers = (bestRows[0] || []).map((h) =>
-          String(h || "").trim()
-        );
-
-        dataRows = bestRows.slice(1).map((row) => {
-          const obj = {};
-
-          headers.forEach((header, index) => {
-            if (header) obj[header] = row[index] ?? "";
-          });
-
-          return obj;
-        });
-      }
+      return obj;
+    });
+  }
     } else {
   const text = await file.text();
 
@@ -8227,9 +8284,13 @@ setTimeout(() => {
   });
 
 if (
-  !String(pendingUploadSummary?.uploadType || "").includes("batch") &&
-  activeTab !== "kitchen"
+  activeUploadType &&
+  activeUploadType !== "unknown"
 ) {
+  setMessage(
+    `${safeRows.length} rows ready for ${activeUploadType} import.`
+  );
+} else {
   setMessage("Upload type was not detected.");
 }
 }
@@ -47267,32 +47328,58 @@ if (extension === "csv") {
       },
     });
   });
-} else if (["xlsx", "xls"].includes(extension)) {
+} else if (extension === "xlsx") {
   const buffer = await file.arrayBuffer();
 
-  const workbook = XLSX.read(buffer, {
-    type: "array",
-  });
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(buffer);
 
-  const firstSheetName = workbook.SheetNames?.[0];
+  const worksheet = workbook.worksheets[0];
 
-  if (!firstSheetName) {
+  if (!worksheet) {
     throw new Error(
       "No worksheet was found in the employee schedule file."
     );
   }
 
-  rawRows = XLSX.utils.sheet_to_json(
-    workbook.Sheets[firstSheetName],
-    {
-      defval: "",
-      blankrows: false,
-      raw: false,
+  const headers = [];
+
+  const headerRow = worksheet.getRow(1);
+
+  for (let col = 1; col <= worksheet.columnCount; col++) {
+    headers.push(
+      String(headerRow.getCell(col).text ?? "").trim()
+    );
+  }
+
+  rawRows = [];
+
+  worksheet.eachRow((row, rowNumber) => {
+    if (rowNumber === 1) return;
+
+    const scheduleRow = {};
+
+    headers.forEach((header, index) => {
+      if (!header) return;
+
+      const cell = row.getCell(index + 1);
+
+      scheduleRow[header] = String(
+        cell.text ?? ""
+      ).trim();
+    });
+
+    if (
+      Object.values(scheduleRow).some(
+        (value) => value !== ""
+      )
+    ) {
+      rawRows.push(scheduleRow);
     }
-  );
+  });
 } else {
   throw new Error(
-    "Employee schedule files must be CSV, XLSX, or XLS."
+    "Employee schedule files must be CSV or XLSX."
   );
 }
 
@@ -49937,35 +50024,7 @@ if (extension === "csv") {
         reject(error);
       },
     });
-  });
-} else if (["xlsx", "xls"].includes(extension)) {
-  const buffer = await file.arrayBuffer();
-
-  const workbook = XLSX.read(buffer, {
-    type: "array",
-  });
-
-  let bestRows = [];
-
-  workbook.SheetNames.forEach((sheetName) => {
-    const worksheet = workbook.Sheets[sheetName];
-
-    const sheetRows = XLSX.utils.sheet_to_json(
-      worksheet,
-      {
-        defval: "",
-        blankrows: false,
-        raw: false,
-      }
-    );
-
-    if (sheetRows.length > bestRows.length) {
-      bestRows = sheetRows;
-    }
-  });
-
-  parsedLocationRows = bestRows;
-} else {
+  });} else {
   throw new Error(
     "Location files must be CSV, XLSX, or XLS."
   );
@@ -56388,7 +56447,7 @@ return (
       <input
   id="posUpload"
   type="file"
-  accept=".csv,.xlsx,.xls"
+  accept=".csv,.xlsx"
   onChange={handleFileUpload}
   style={{ display: "none" }}
 />
@@ -56397,7 +56456,7 @@ return (
   id="laborUpload"
   ref={laborUploadInputRef}
   type="file"
-  accept=".csv,.xlsx,.xls"
+  accept=".csv,.xlsx"
   onChange={handleLaborFileChange}
   style={{ display: "none" }}
 />
@@ -56405,7 +56464,7 @@ return (
 <input
   id="inventoryUpload"
   type="file"
-  accept=".csv,.xlsx,.xls"
+  accept=".csv,.xlsx"
   onChange={handleFileUpload}
   style={{ display: "none" }}
 />
@@ -56423,7 +56482,7 @@ return (
 <input
   id="menuItemsUpload"
   type="file"
-  accept=".csv,.xlsx,.xls"
+  accept=".csv,.xlsx"
   onChange={handleFileUpload}
   style={{ display: "none" }}
 />
@@ -56431,7 +56490,7 @@ return (
 <input
   id="guestUpload"
   type="file"
-  accept=".csv,.xlsx,.xls"
+  accept=".csv"
   onChange={handleGuestUpload}
   style={{ display: "none" }}
 />
@@ -56439,7 +56498,7 @@ return (
 <input
   id="locationUpload"
   type="file"
-  accept=".csv,.xlsx,.xls"
+  accept=".csv,.xlsx"
   onChange={handleLocationUpload}
   style={{ display: "none" }}
 />
@@ -56447,7 +56506,7 @@ return (
 <input
   id="ingredientsUpload"
   type="file"
-  accept=".csv,.xlsx,.xls"
+  accept=".csv"
   onChange={handleIngredientsUpload}
   style={{ display: "none" }}
 />
@@ -56455,7 +56514,7 @@ return (
 <input
   id="recipeUpload"
   type="file"
-  accept=".csv,.xlsx,.xls"
+  accept=".csv"
   onChange={handleRecipeUpload}
   style={{ display: "none" }}
 />
@@ -56463,7 +56522,7 @@ return (
 <input
   id="batchPrepUpload"
   type="file"
-  accept=".csv,.xlsx,.xls"
+  accept=".csv,.xlsx"
   onChange={handleBatchPrepUpload}
   style={{ display: "none" }}
 />
@@ -56472,7 +56531,7 @@ return (
   id="employeeShiftUpload"
   ref={employeeShiftUploadInputRef}
   type="file"
-  accept=".csv,.xlsx,.xls"
+  accept=".csv,.xlsx"
   onChange={handleEmployeeShiftFileChange}
   style={{ display: "none" }}
 />
@@ -56480,14 +56539,14 @@ return (
   id="employeeScheduleUpload"
   ref={employeeScheduleUploadInputRef}
   type="file"
-  accept=".csv,.xlsx,.xls"
+ accept=".csv,.xlsx"
   onChange={handleEmployeeScheduleFileChange}
   style={{ display: "none" }}
 />
 <input
   id="beverageUpload"
   type="file"
-  accept=".csv,.xlsx,.xls"
+  accept=".csv"
   onChange={handleBeverageUpload}
   style={{ display: "none" }}
 />

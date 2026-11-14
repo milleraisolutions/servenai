@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../supabaseClient";
 import { useRouter } from "next/navigation";
 import Papa from "papaparse";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import OwnerLeadsPanel from "../dashboard/components/OwnerLeadsPanel";
 
 
@@ -2513,18 +2513,63 @@ const createPerformanceFeePaymentRequest = async () => {
       return;
     }
 
-    if (fileExtension === "xlsx" || fileExtension === "xls") {
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        const data = e.target.result;
-        const workbook = XLSX.read(data, { type: "array" });
-        const sheetName = workbook.SheetNames[0];
-        const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
-        await processLeadRows(rows);
-      };
-      reader.readAsArrayBuffer(file);
+    if (fileExtension === "xlsx") {
+  try {
+    const buffer = await file.arrayBuffer();
+
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer);
+
+    const worksheet = workbook.worksheets[0];
+
+    if (!worksheet) {
+      alert("No worksheet found in this Excel file.");
       return;
     }
+
+    const headers = [];
+    const rows = [];
+
+    worksheet.eachRow((row, rowNumber) => {
+      const values = row.values.slice(1);
+
+      if (rowNumber === 1) {
+        headers.push(
+          ...values.map((value) => String(value ?? "").trim())
+        );
+        return;
+      }
+
+      const lead = {};
+
+      headers.forEach((header, index) => {
+        if (!header) return;
+
+        const cell = row.getCell(index + 1);
+        const value = cell.value;
+
+        lead[header] =
+          value === null || value === undefined
+            ? ""
+            : typeof value === "object"
+              ? value.text ??
+                value.result ??
+                value.hyperlink ??
+                ""
+              : value;
+      });
+
+      rows.push(lead);
+    });
+
+    await processLeadRows(rows);
+  } catch (error) {
+    console.error("Excel import failed:", error);
+    alert("Unable to read this Excel file.");
+  }
+
+  return;
+}
     alert("Unsupported file type.");
   };
 
@@ -9826,7 +9871,7 @@ const actionDate =
       <div style={panelCard("#3b82f6")}>
         <div style={{ color: "#93c5fd", fontSize: "12px", fontWeight: "900" }}>IMPORT APOLLO LEADS</div>
         <h2 style={{ color: "white", margin: "6px 0 8px", fontSize: "24px" }}>Upload prospect CSV</h2>
-        <input type="file" accept=".csv, .xlsx, .xls" onChange={handleLeadUpload} style={fileInputStyle} />
+       <input type="file" accept=".csv,.xlsx" onChange={handleLeadUpload} style={fileInputStyle} />
       </div>
 
       </>
