@@ -200,11 +200,110 @@ export function generateSignedAgreementPdf({
 
     pdf.setTextColor(15, 23, 42);
     y += 10;
-  } else {
-    addText(
-      "Drawn Signature",
-      "Drawn signature evidence retained separately."
+   } else if (
+    signatureEvidence.signature_method === "drawn_signature"
+  ) {
+    const signatureData = signatureEvidence.signature_value;
+
+    if (
+      typeof signatureData !== "string" ||
+      signatureData.length > 20000 ||
+      !/^data:image\/png;base64,[A-Za-z0-9+/]+={0,2}$/.test(
+        signatureData
+      )
+    ) {
+      throw new Error("Invalid drawn signature format.");
+    }
+
+    const encodedImage = signatureData.split(",")[1];
+    const imageBytes = Buffer.from(encodedImage, "base64");
+
+    if (
+      imageBytes.length < 24 ||
+      imageBytes.length > 15000 ||
+      imageBytes.toString("base64") !== encodedImage ||
+      imageBytes.subarray(0, 8).toString("hex") !==
+        "89504e470d0a1a0a"
+    ) {
+      throw new Error("Invalid drawn signature PNG.");
+    }
+
+    const imageWidth = imageBytes.readUInt32BE(16);
+    const imageHeight = imageBytes.readUInt32BE(20);
+
+    if (
+      imageWidth < 1 ||
+      imageHeight < 1 ||
+      imageWidth > 1000 ||
+      imageHeight > 1000 ||
+      imageWidth * imageHeight > 1000000
+    ) {
+      throw new Error("Invalid drawn signature dimensions.");
+    }
+
+    let imageProperties;
+
+    try {
+      imageProperties = pdf.getImageProperties(signatureData);
+
+      if (
+        imageProperties.fileType !== "PNG" ||
+        imageProperties.width !== imageWidth ||
+        imageProperties.height !== imageHeight
+      ) {
+        throw new Error("Invalid PNG properties.");
+      }
+        } catch (error) {
+      console.error("DRAWN SIGNATURE PNG ERROR:", error);
+
+      throw new Error(
+        "Drawn signature image could not be decoded."
+      );
+    }
+
+    const displayWidth = 90;
+    const displayHeight = Math.min(
+      35,
+      (imageHeight / imageWidth) * displayWidth
     );
+
+    ensureSpace(displayHeight + 25);
+
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(10);
+    pdf.text("Electronic Signature", MARGIN, y);
+
+    y += 8;
+
+    try {
+      pdf.addImage(
+        signatureData,
+        "PNG",
+        MARGIN,
+        y,
+        displayWidth,
+        displayHeight
+      );
+    } catch {
+      throw new Error("Drawn signature could not be embedded.");
+    }
+
+    y += displayHeight + 5;
+
+    pdf.setDrawColor(148, 163, 184);
+    pdf.line(MARGIN, y, 110, y);
+
+    y += 8;
+
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(8);
+    pdf.setTextColor(100, 116, 139);
+    pdf.text("Electronically signed using SerVen", MARGIN, y);
+
+    pdf.setTextColor(15, 23, 42);
+    y += 10;
+  } else {
+    throw new Error("Unsupported electronic signature method.");
   }
 
   addText("Consent Statement", signatureEvidence.consent_text);
