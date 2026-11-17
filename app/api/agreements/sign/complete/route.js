@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createHash } from "node:crypto";
-
+import { archiveSignedAgreementPdf } from "../../../../lib/agreements/archiveSignedAgreementPdf.js";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -322,13 +322,80 @@ if (finalized !== true) {
     409
   );
 }
+// Retrieve the signature evidence created by the
+// successful atomic database finalization.
+const { data: signatureEvidence, error: evidenceError } =
+  await supabaseAdmin
+    .from("client_agreement_signature_evidence")
+    .select("id")
+    .eq("agreement_id", agreement.id)
+    .eq("signing_session_id", signingSession.id)
+    .single();
 
-// Clear the consumed signing-session cookie.
-const response = NextResponse.json(
+if (evidenceError || !signatureEvidence?.id) {
+  console.error(
+    "Signed agreement evidence lookup failed:",
+    evidenceError?.code || "missing_evidence"
+  );
+const pendingResponse = NextResponse.json(
   {
     success: true,
     signed: true,
+    pdfArchived: false,
+    message: "Signature recorded. PDF archival is pending.",
   },
+  {
+    status: 202,
+    headers: securityHeaders,
+  }
+);
+
+pendingResponse.cookies.set(
+  SESSION_COOKIE,
+  "",
+  {
+    httpOnly: true,
+    secure: true,
+    sameSite: "strict",
+    path: "/api/agreements/sign",
+    maxAge: 0,
+  }
+);
+
+return pendingResponse;
+}
+let pdfArchived = false;
+// Attempt immediate archival. A failure does not
+// undo the already committed electronic signature.
+try {
+  const archiveResult = await archiveSignedAgreementPdf(
+    supabaseAdmin,
+    signatureEvidence.id
+  );
+pdfArchived = archiveResult.archived === true;
+  if (!archiveResult.archived) {
+    console.error(
+      "Signed agreement PDF archival was not completed:",
+      archiveResult.reason || "unknown"
+    );
+  }
+} catch {
+  console.error(
+    "Signed agreement PDF archival failed; recovery required."
+  );
+}
+
+// Clear the consumed signing-session cookie.
+
+const response = NextResponse.json(
+  {
+  success: true,
+  signed: true,
+  pdfArchived,
+  message: pdfArchived
+    ? "Agreement signed and PDF securely archived."
+    : "Agreement signed. PDF archival is pending.",
+},
   {
     status: 200,
     headers: securityHeaders,
