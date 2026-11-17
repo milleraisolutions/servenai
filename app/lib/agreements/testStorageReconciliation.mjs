@@ -6,15 +6,23 @@ import {
     reconcileDiscoveredSignedAgreementPdfs,
       verifyCompletedSignedAgreementPdfs,
 } from "./reconcileSignedAgreementStorage.js";
-
+import { createHash } from "node:crypto";
 const pdfPath =
   "00000000-0000-4000-8000-000000000001/" +
   "00000000-0000-4000-8000-000000000002/" +
   "00000000-0000-4000-8000-000000000003.pdf";
+const syntheticPdfBytes = Buffer.from(
+  "%PDF-1.4\nSynthetic SerVen signed agreement\n%%EOF"
+);
+
+const syntheticPdfHash = createHash("sha256")
+  .update(syntheticPdfBytes)
+  .digest("hex");
 
 const mockState = {
   storageExists: true,
   storageServiceError: false,
+  storageDownloadError: false,
   databaseReferences: [],
   completedArchiveRecords: [],
   databasePageError: false,
@@ -130,7 +138,46 @@ const mockSupabase = {
     error: null,
   };
 },
+download: async (path) => {
+  if (path !== pdfPath) {
+    throw new Error("Unexpected PDF path.");
+  }
 
+  if (mockState.storageServiceError) {
+    return {
+      data: null,
+      error: {
+        status: 503,
+        message: "Synthetic Storage service unavailable",
+      },
+    };
+  }
+if (mockState.storageDownloadError) {
+  return {
+    data: null,
+    error: {
+      status: 503,
+      message: "Synthetic signed PDF download failure",
+    },
+  };
+}
+  if (!mockState.storageExists) {
+    return {
+      data: null,
+      error: {
+        status: 404,
+        message: "Synthetic PDF not found",
+      },
+    };
+  }
+
+  return {
+    data: new Blob([syntheticPdfBytes], {
+      type: "application/pdf",
+    }),
+    error: null,
+  };
+},
   info: async (path) => {
     if (path !== pdfPath) {
       throw new Error("Unexpected PDF path.");
@@ -203,7 +250,7 @@ mockState.databaseReferences = [
     agreement_id: "00000000-0000-4000-8000-000000000001",
     pdf_archive_status: "completed",
     signed_pdf_path: pdfPath,
-    signed_pdf_hash: "a".repeat(64),
+    signed_pdf_hash: syntheticPdfHash,
     pdf_archive_claim_id: null,
     pdf_archive_lease_expires_at: null,
   },
@@ -421,7 +468,7 @@ mockState.databaseReferences = [
     agreement_id: "00000000-0000-4000-8000-000000000001",
     pdf_archive_status: "completed",
     signed_pdf_path: pdfPath,
-    signed_pdf_hash: "a".repeat(64),
+    signed_pdf_hash: syntheticPdfHash,
     pdf_archive_claim_id: null,
     pdf_archive_lease_expires_at: null,
   },
@@ -505,7 +552,7 @@ mockState.databaseReferences = [
     agreement_id: "00000000-0000-4000-8000-000000000001",
     pdf_archive_status: "completed",
     signed_pdf_path: pdfPath,
-    signed_pdf_hash: "a".repeat(64),
+    signed_pdf_hash: syntheticPdfHash,
     pdf_archive_claim_id: null,
     pdf_archive_lease_expires_at: null,
   },
@@ -570,7 +617,7 @@ mockState.completedArchiveRecords = [
     id: "00000000-0000-4000-8000-000000000002",
     agreement_id: "00000000-0000-4000-8000-000000000001",
     signed_pdf_path: pdfPath,
-    signed_pdf_hash: "a".repeat(64),
+    signed_pdf_hash: syntheticPdfHash,
     pdf_archive_status: "completed",
   },
 ];
@@ -633,7 +680,7 @@ if (
   existingPdfVerification.missingPdfPaths !== 0 ||
   existingPdfVerification.verificationErrors !== 0 ||
   existingPdfVerification.results[0]?.status !==
-    "storage_verified" ||
+    "integrity_verified"||
   existingPdfVerification.results[0]?.investigationRequired !== false ||
   existingPdfVerification.safeToDelete !== false
 ) {
@@ -667,6 +714,163 @@ console.log(
   "SAFE TO DELETE:",
   existingPdfVerification.safeToDelete
 );
+// TEST 11B: Detect a signed PDF SHA-256 hash mismatch.
+
+mockState.completedArchiveRecords = [
+  {
+    id: "00000000-0000-4000-8000-000000000002",
+    agreement_id: "00000000-0000-4000-8000-000000000001",
+    signed_pdf_path: pdfPath,
+    signed_pdf_hash: "b".repeat(64),
+    pdf_archive_status: "completed",
+  },
+];
+
+const hashMismatchVerification =
+  await verifyCompletedSignedAgreementPdfs(
+    mockSupabase
+  );
+
+if (
+  hashMismatchVerification.totalCompletedRecords !== 1 ||
+  hashMismatchVerification.storageVerified !== 0 ||
+  hashMismatchVerification.integrityVerified !== 0 ||
+  hashMismatchVerification.hashMismatches !== 1 ||
+  hashMismatchVerification.verificationErrors !== 0 ||
+  hashMismatchVerification.results[0]?.status !==
+    "hash_mismatch" ||
+  hashMismatchVerification.results[0]?.investigationRequired !== true ||
+  hashMismatchVerification.safeToDelete !== false
+) {
+  throw new Error(
+    "TEST FAILED: Signed PDF hash mismatch was not detected."
+  );
+}
+
+console.log("SIGNED PDF HASH MISMATCH TEST PASSED");
+console.log(
+  "HASH MISMATCHES:",
+  hashMismatchVerification.hashMismatches
+);
+console.log(
+  "RECONCILIATION STATUS:",
+  hashMismatchVerification.results[0].status
+);
+console.log(
+  "INVESTIGATION REQUIRED:",
+  hashMismatchVerification.results[0].investigationRequired
+);
+console.log(
+  "SAFE TO DELETE:",
+  hashMismatchVerification.safeToDelete
+);
+// TEST 11C: Detect an invalid recorded PDF hash.
+
+mockState.completedArchiveRecords = [
+  {
+    id: "00000000-0000-4000-8000-000000000002",
+    agreement_id: "00000000-0000-4000-8000-000000000001",
+    signed_pdf_path: pdfPath,
+    signed_pdf_hash: "not-a-valid-sha256-hash",
+    pdf_archive_status: "completed",
+  },
+];
+
+const invalidHashVerification =
+  await verifyCompletedSignedAgreementPdfs(
+    mockSupabase
+  );
+
+if (
+  invalidHashVerification.totalCompletedRecords !== 1 ||
+  invalidHashVerification.storageVerified !== 0 ||
+  invalidHashVerification.integrityVerified !== 0 ||
+  invalidHashVerification.invalidRecordedHashes !== 1 ||
+  invalidHashVerification.hashMismatches !== 0 ||
+  invalidHashVerification.results[0]?.status !==
+    "invalid_recorded_hash" ||
+  invalidHashVerification.results[0]?.investigationRequired !== true ||
+  invalidHashVerification.safeToDelete !== false
+) {
+  throw new Error(
+    "TEST FAILED: Invalid recorded PDF hash was not detected."
+  );
+}
+
+console.log("INVALID RECORDED PDF HASH TEST PASSED");
+console.log(
+  "INVALID RECORDED HASHES:",
+  invalidHashVerification.invalidRecordedHashes
+);
+console.log(
+  "RECONCILIATION STATUS:",
+  invalidHashVerification.results[0].status
+);
+console.log(
+  "INVESTIGATION REQUIRED:",
+  invalidHashVerification.results[0].investigationRequired
+);
+console.log(
+  "SAFE TO DELETE:",
+  invalidHashVerification.safeToDelete
+);
+// TEST 11D: Detect a signed PDF download failure.
+
+mockState.storageExists = true;
+mockState.storageServiceError = false;
+mockState.storageDownloadError = true;
+
+mockState.completedArchiveRecords = [
+  {
+    id: "00000000-0000-4000-8000-000000000002",
+    agreement_id: "00000000-0000-4000-8000-000000000001",
+    signed_pdf_path: pdfPath,
+    signed_pdf_hash: syntheticPdfHash,
+    pdf_archive_status: "completed",
+  },
+];
+
+const downloadFailureVerification =
+  await verifyCompletedSignedAgreementPdfs(
+    mockSupabase
+  );
+
+if (
+  downloadFailureVerification.totalCompletedRecords !== 1 ||
+  downloadFailureVerification.storageVerified !== 0 ||
+  downloadFailureVerification.integrityVerified !== 0 ||
+  downloadFailureVerification.downloadErrors !== 1 ||
+  downloadFailureVerification.hashMismatches !== 0 ||
+  downloadFailureVerification.results[0]?.status !==
+    "download_error" ||
+  downloadFailureVerification.results[0]?.investigationRequired !== true ||
+  downloadFailureVerification.safeToDelete !== false
+) {
+  throw new Error(
+    "TEST FAILED: Signed PDF download failure was not detected."
+  );
+}
+
+console.log("SIGNED PDF DOWNLOAD FAILURE TEST PASSED");
+console.log(
+  "DOWNLOAD ERRORS:",
+  downloadFailureVerification.downloadErrors
+);
+console.log(
+  "RECONCILIATION STATUS:",
+  downloadFailureVerification.results[0].status
+);
+console.log(
+  "INVESTIGATION REQUIRED:",
+  downloadFailureVerification.results[0].investigationRequired
+);
+console.log(
+  "SAFE TO DELETE:",
+  downloadFailureVerification.safeToDelete
+);
+
+// Restore normal downloads for the remaining tests.
+mockState.storageDownloadError = false;
 // TEST 12: Detect a completed archive with no PDF path.
 
 mockState.completedArchiveRecords = [
@@ -674,7 +878,7 @@ mockState.completedArchiveRecords = [
     id: "00000000-0000-4000-8000-000000000002",
     agreement_id: "00000000-0000-4000-8000-000000000001",
     signed_pdf_path: null,
-    signed_pdf_hash: "a".repeat(64),
+    signed_pdf_hash: syntheticPdfHash,
     pdf_archive_status: "completed",
   },
 ];
@@ -728,7 +932,7 @@ mockState.completedArchiveRecords = [
     id: "00000000-0000-4000-8000-000000000002",
     agreement_id: "00000000-0000-4000-8000-000000000001",
     signed_pdf_path: "invalid-pdf-path",
-    signed_pdf_hash: "a".repeat(64),
+    signed_pdf_hash: syntheticPdfHash,
     pdf_archive_status: "completed",
   },
 ];
@@ -783,7 +987,7 @@ mockState.completedArchiveRecords = [
     id: "00000000-0000-4000-8000-000000000002",
     agreement_id: "00000000-0000-4000-8000-000000000001",
     signed_pdf_path: pdfPath,
-    signed_pdf_hash: "a".repeat(64),
+    signed_pdf_hash: syntheticPdfHash,
     pdf_archive_status: "completed",
   },
 ];
@@ -840,7 +1044,7 @@ mockState.completedArchiveRecords = Array.from(
     id: `synthetic-evidence-${index + 1}`,
     agreement_id: "00000000-0000-4000-8000-000000000001",
     signed_pdf_path: pdfPath,
-    signed_pdf_hash: "a".repeat(64),
+    signed_pdf_hash: syntheticPdfHash,
     pdf_archive_status: "completed",
   })
 );

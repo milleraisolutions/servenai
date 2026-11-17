@@ -398,45 +398,62 @@ export async function verifyCompletedSignedAgreementPdfs(
     const records = data || [];
 
     for (const record of records) {
-      if (!record.signed_pdf_path) {
-        results.push({
-          evidenceId: record.id,
-          agreementId: record.agreement_id,
-          pdfPath: null,
-          status: "missing_pdf_path",
-          investigationRequired: true,
-        });
+  if (!record.signed_pdf_path) {
+    results.push({
+      evidenceId: record.id,
+      agreementId: record.agreement_id,
+      pdfPath: null,
+      status: "missing_pdf_path",
+      investigationRequired: true,
+    });
 
-        continue;
-      }
+    continue;
+  }
 
-      try {
-        const storageCheck =
-          await checkSignedAgreementPdfExists(
-            supabaseAdmin,
-            record.signed_pdf_path
-          );
+  try {
+    const storageCheck =
+      await checkSignedAgreementPdfExists(
+        supabaseAdmin,
+        record.signed_pdf_path
+      );
 
-        results.push({
-          evidenceId: record.id,
-          agreementId: record.agreement_id,
-          pdfPath: record.signed_pdf_path,
-          status: storageCheck.exists
-            ? "storage_verified"
-            : "missing_storage_pdf",
-          investigationRequired: !storageCheck.exists,
-        });
-      } catch {
-        results.push({
-          evidenceId: record.id,
-          agreementId: record.agreement_id,
-          pdfPath: record.signed_pdf_path,
-          status: "verification_error",
-          investigationRequired: true,
-        });
-      }
+    if (!storageCheck.exists) {
+      results.push({
+        evidenceId: record.id,
+        agreementId: record.agreement_id,
+        pdfPath: record.signed_pdf_path,
+        status: "missing_storage_pdf",
+        investigationRequired: true,
+      });
+
+      continue;
     }
 
+    const integrityCheck =
+      await verifySignedAgreementPdfIntegrity(
+        supabaseAdmin,
+        record.signed_pdf_path,
+        record.signed_pdf_hash
+      );
+
+    results.push({
+      evidenceId: record.id,
+      agreementId: record.agreement_id,
+      pdfPath: record.signed_pdf_path,
+      status: integrityCheck.status,
+      investigationRequired:
+        integrityCheck.investigationRequired,
+    });
+  } catch (error) {
+    results.push({
+      evidenceId: record.id,
+      agreementId: record.agreement_id,
+      pdfPath: record.signed_pdf_path,
+      status: "verification_error",
+      investigationRequired: true,
+    });
+  }
+}
     if (records.length < pageSize) {
       break;
     }
@@ -447,8 +464,24 @@ export async function verifyCompletedSignedAgreementPdfs(
   return {
     totalCompletedRecords: results.length,
     storageVerified: results.filter(
-      (item) => item.status === "storage_verified"
-    ).length,
+  (item) => item.status === "integrity_verified"
+).length,
+
+integrityVerified: results.filter(
+  (item) => item.status === "integrity_verified"
+).length,
+
+hashMismatches: results.filter(
+  (item) => item.status === "hash_mismatch"
+).length,
+
+invalidRecordedHashes: results.filter(
+  (item) => item.status === "invalid_recorded_hash"
+).length,
+
+downloadErrors: results.filter(
+  (item) => item.status === "download_error"
+).length,
     missingStoragePdfs: results.filter(
       (item) => item.status === "missing_storage_pdf"
     ).length,
